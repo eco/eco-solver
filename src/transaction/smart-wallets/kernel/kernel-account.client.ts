@@ -1,4 +1,14 @@
-import { Hex, Transport, Chain, Account, RpcSchema, Prettify, WalletRpcSchema } from 'viem'
+import {
+  Account,
+  Chain,
+  createPublicClient,
+  Hex,
+  http,
+  Prettify,
+  RpcSchema,
+  Transport,
+  WalletRpcSchema,
+} from 'viem'
 import { ExecuteSmartWalletArgs, SmartWalletClient } from '../smart-wallet.types'
 import { ToEcdsaKernelSmartAccountReturnType } from 'permissionless/accounts'
 import { KernelWalletActions } from './kernel-account.config'
@@ -70,7 +80,14 @@ async function deployKernelAccount<
   client: KernelAccountClient<entryPointVersion, transport, chain, account>,
 ): Promise<DeployFactoryArgs> {
   const args: DeployFactoryArgs = {}
-  if (!(await client.kernelAccount.isDeployed())) {
+
+  const publicClient = createPublicClient({
+    chain: client.chain,
+    transport: http(),
+  })
+  const code = await publicClient.getCode({ address: client.kernelAccount.address })
+
+  if (!code) {
     const fa = await client.kernelAccount.getFactoryArgs()
     args.factory = fa.factory
     args.factoryData = fa.factoryData

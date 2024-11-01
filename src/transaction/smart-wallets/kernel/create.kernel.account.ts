@@ -1,4 +1,14 @@
-import { createWalletClient, publicActions } from 'viem'
+import {
+  createPublicClient,
+  createWalletClient,
+  decodeFunctionData,
+  decodeFunctionResult,
+  encodeFunctionData,
+  Hex,
+  parseAbi,
+  publicActions,
+  zeroAddress,
+} from 'viem'
 import { KernelAccountClientConfig } from './kernel-account.config'
 import {
   DeployFactoryArgs,
@@ -32,6 +42,47 @@ export async function createKernelAccountClient<
     ...parameters,
     client,
   })
+
+  if (kernelAccount.address === zeroAddress) {
+    const { factoryData: factoryStakerData } = await kernelAccount.getFactoryArgs()
+
+    if (factoryStakerData) {
+      const { args } = decodeFunctionData({
+        abi: parseAbi([
+          'function deployWithFactory(address factory, bytes calldata createData, bytes32 salt) external payable returns (address)',
+        ]),
+        data: factoryStakerData,
+      })
+
+      const [factory, createdData, salt] = args
+
+      const publicClient = createPublicClient({
+        ...parameters,
+      })
+
+      const KernelFactoryABI = parseAbi([
+        'function getAddress(bytes calldata data, bytes32 salt) view returns (address)',
+      ])
+
+      const { data } = await publicClient.call({
+        to: factory,
+        data: encodeFunctionData({
+          functionName: 'getAddress',
+          abi: KernelFactoryABI,
+          args: [createdData, salt],
+        }),
+      })
+
+      const address = decodeFunctionResult({
+        abi: KernelFactoryABI,
+        functionName: 'getAddress',
+        data: data!,
+      })
+
+      kernelAccount.address = address as Hex
+    }
+  }
+
   client.kernelAccount = kernelAccount
   client.kernelAccountAddress = kernelAccount.address
   client = client.extend(KernelAccountActions).extend(publicActions) as any
