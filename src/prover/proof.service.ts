@@ -26,12 +26,12 @@ export class ProofService implements OnModuleInit {
    */
   private proofContracts: Record<Hex, ProofType> = {}
 
-  // set the minimum duration for a proof to be valid as a constant to 7 days
+  // set the minimum duration for a proof to be valid as a constant to 14 days
   // TODO: update prover interace contract to return the duration here
-  public static readonly PROOF_STORAGE_MINIMUM_DURATION_SECONDS = 60 * 60 * 24 * 7
+  public static readonly PROOF_STORAGE_MINIMUM_DURATION_SECONDS = 60 * 60 * 24 * 14
 
   // the minimum duration for a hyperprover to be valid, 1 hour
-  public static readonly PROOF_HYPERPROVER_MINIMUM_DURATION_SECONDS = 60 * 60 * 1
+  public static readonly PROOF_HYPERPROVER_MINIMUM_DURATION_SECONDS = 60 * 15
   constructor(
     private readonly publicClient: MultichainPublicClientService,
     private readonly ecoConfigService: EcoConfigService,

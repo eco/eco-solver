@@ -26,6 +26,7 @@ export class EcoConfigService implements OnModuleInit {
 
     this.ecoConfig = config
     this.initConfigs()
+    console.log(this.getEth().claimant)
   }
 
   async onModuleInit() {}
