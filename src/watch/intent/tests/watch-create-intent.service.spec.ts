@@ -1,14 +1,14 @@
+import { QUEUES } from '@/common/redis/constants'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { WatchCreateIntentService } from '@/watch/intent/watch-create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
-import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
+import { Test, TestingModule } from '@nestjs/testing'
 import { Job, Queue } from 'bullmq'
-import { WatchIntentService } from '../watch-intent.service'
-import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 
 describe('WatchIntentService', () => {
-  let watchIntentService: WatchIntentService
+  let watchIntentService: WatchCreateIntentService
   let publicClientService: DeepMocked<MultichainPublicClientService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -24,7 +24,7 @@ describe('WatchIntentService', () => {
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
-        WatchIntentService,
+        WatchCreateIntentService,
         {
           provide: MultichainPublicClientService,
           useValue: createMock<MultichainPublicClientService>(),
@@ -41,7 +41,7 @@ describe('WatchIntentService', () => {
       .useValue(createMock<Queue>())
       .compile()
 
-    watchIntentService = chainMod.get(WatchIntentService)
+    watchIntentService = chainMod.get(WatchCreateIntentService)
     publicClientService = chainMod.get(MultichainPublicClientService)
     ecoConfigService = chainMod.get(EcoConfigService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))

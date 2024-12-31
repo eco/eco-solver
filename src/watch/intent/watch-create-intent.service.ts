@@ -1,15 +1,15 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
-import { QUEUES } from '../common/redis/constants'
+import { QUEUES } from '../../common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '../common/utils/strings'
-import { IntentSource } from '../eco-configs/eco-config.types'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { MultichainPublicClientService } from '../transaction/multichain-public-client.service'
-import { IntentCreatedLog } from '../contracts'
+import { getIntentJobId } from '../../common/utils/strings'
+import { IntentSource } from '../../eco-configs/eco-config.types'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
+import { IntentCreatedLog } from '../../contracts'
 import { PublicClient, WatchContractEventReturnType, zeroHash } from 'viem'
-import { convertBigIntsToStrings } from '../common/viem/utils'
+import { convertBigIntsToStrings } from '../../common/viem/utils'
 import { entries } from 'lodash'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 
@@ -19,8 +19,8 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
  * adds it intent queue for processing.
  */
 @Injectable()
-export class WatchIntentService implements OnApplicationBootstrap, OnModuleDestroy {
-  private logger = new Logger(WatchIntentService.name)
+export class WatchCreateIntentService implements OnApplicationBootstrap, OnModuleDestroy {
+  private logger = new Logger(WatchCreateIntentService.name)
   private intentJobConfig: JobsOptions
   private unwatch: Record<string, WatchContractEventReturnType> = {}
 

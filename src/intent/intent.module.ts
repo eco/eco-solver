@@ -5,7 +5,7 @@ import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.s
 import { ValidateIntentService } from './validate-intent.service'
 import { FeasableIntentService } from './feasable-intent.service'
 import { CreateIntentService } from './create-intent.service'
-import { WatchIntentService } from './watch-intent.service'
+import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 import { UtilsIntentService } from './utils-intent.service'
 import { BalanceModule } from '../balance/balance.module'
 import { FulfillIntentService } from './fulfill-intent.service'
@@ -29,13 +29,13 @@ import { FlagsModule } from '../flags/flags.module'
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
-    WatchIntentService,
+    WatchCreateIntentService,
     FulfillIntentService,
     UtilsIntentService,
   ],
   // controllers: [IntentSourceController],
   exports: [
-    WatchIntentService,
+    WatchCreateIntentService,
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
