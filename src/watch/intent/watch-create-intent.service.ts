@@ -1,15 +1,15 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
-import { QUEUES } from '../../common/redis/constants'
+import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '../../common/utils/strings'
-import { IntentSource } from '../../eco-configs/eco-config.types'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
-import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
-import { IntentCreatedLog } from '../../contracts'
+import { getIntentJobId } from '@/common/utils/strings'
+import { IntentSource } from '@/eco-configs/eco-config.types'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { IntentCreatedLog } from '@/contracts'
 import { PublicClient, WatchContractEventReturnType, zeroHash } from 'viem'
-import { convertBigIntsToStrings } from '../../common/viem/utils'
+import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { entries } from 'lodash'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 
@@ -20,7 +20,7 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
  */
 @Injectable()
 export class WatchCreateIntentService implements OnApplicationBootstrap, OnModuleDestroy {
-  private logger = new Logger(WatchCreateIntentService.name)
+  protected logger = new Logger(WatchCreateIntentService.name)
   private intentJobConfig: JobsOptions
   private unwatch: Record<string, WatchContractEventReturnType> = {}
 
@@ -67,7 +67,7 @@ export class WatchCreateIntentService implements OnApplicationBootstrap, OnModul
   ) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `watch intent: subscribeToSource`,
+        message: `watch create intent: subscribeToSource`,
         properties: {
           source,
         },
@@ -138,7 +138,7 @@ export class WatchCreateIntentService implements OnApplicationBootstrap, OnModul
         createIntent.sourceChainID = source.chainID
         createIntent.sourceNetwork = source.network
         const jobId = getIntentJobId(
-          'watch',
+          'watch-create-intent',
           createIntent.args._hash ?? zeroHash,
           createIntent.logIndex ?? 0,
         )

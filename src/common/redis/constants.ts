@@ -9,6 +9,13 @@ export const QUEUES: Record<any, QueueInterface> = {
       fulfill_intent: 'fulfill_intent',
     },
   },
+  INBOX: {
+    queue: 'inbox',
+    prefix: '{inbox}',
+    jobs: {
+      fulfillment: 'fulfillment',
+    },
+  },
   ETH_SOCKET: {
     queue: 'eth_socket',
     prefix: '{eth_socket}',

@@ -141,7 +141,7 @@ describe('WatchIntentService', () => {
       expect(mockQueueAdd).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.create_intent,
         expect.any(Object),
-        { jobId: 'watch-1-0' },
+        { jobId: 'watch-create-intent-1-0' },
       )
     })
   })
