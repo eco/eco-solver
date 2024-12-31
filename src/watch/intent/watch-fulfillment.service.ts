@@ -44,12 +44,12 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   }
 
   async unsubscribe() {
+    super.unsubscribe()
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch fulfillment: unsubscribe`,
       }),
     )
-    Object.values(this.unwatch).forEach((unwatch) => unwatch())
   }
 
   /**

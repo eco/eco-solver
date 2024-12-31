@@ -1,6 +1,6 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { JobsOptions, Queue } from 'bullmq'
+import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
 import { getIntentJobId } from '@/common/utils/strings'
@@ -8,10 +8,11 @@ import { IntentSource } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentCreatedLog } from '@/contracts'
-import { PublicClient, WatchContractEventReturnType, zeroHash } from 'viem'
+import { PublicClient, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { entries } from 'lodash'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { WatchEventService } from '@/watch/intent/watch-event.service'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -19,28 +20,15 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
  * adds it intent queue for processing.
  */
 @Injectable()
-export class WatchCreateIntentService implements OnApplicationBootstrap, OnModuleDestroy {
+export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   protected logger = new Logger(WatchCreateIntentService.name)
-  private intentJobConfig: JobsOptions
-  private unwatch: Record<string, WatchContractEventReturnType> = {}
 
   constructor(
-    @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
-    private readonly publicClientService: MultichainPublicClientService,
-    private readonly ecoConfigService: EcoConfigService,
-  ) {}
-
-  async onModuleInit() {
-    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
-  }
-
-  async onApplicationBootstrap() {
-    await this.subscribe()
-  }
-
-  async onModuleDestroy() {
-    // close all clients
-    this.unsubscribe()
+    @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
+    protected readonly publicClientService: MultichainPublicClientService,
+    protected readonly ecoConfigService: EcoConfigService,
+  ) {
+    super(intentQueue, publicClientService, ecoConfigService)
   }
 
   /**
@@ -48,23 +36,36 @@ export class WatchCreateIntentService implements OnApplicationBootstrap, OnModul
    * filtering on the prover addresses and destination chain ids. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */
-  async subscribe() {
-    const solverSupportedChains = entries(this.ecoConfigService.getSolvers()).map(([, solver]) =>
-      BigInt(solver.chainID),
-    )
+  async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
       const client = await this.publicClientService.getClient(source.chainID)
-      await this.subscribeToSource(client, source, solverSupportedChains)
+      await this.subscribeTo(client, source, this.getSupportedChains())
     })
 
     await Promise.all(subscribeTasks)
   }
 
-  async subscribeToSource(
-    client: PublicClient,
-    source: IntentSource,
-    solverSupportedChains: bigint[],
-  ) {
+  /**
+   * Unsubscribes from all IntentSource contracts. It closes all clients in {@link onModuleDestroy}
+   */
+  async unsubscribe() {
+    super.unsubscribe()
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `watch intent: unsubscribe`,
+      }),
+    )
+  }
+
+  /**
+   * Checks to see what networks we have inbox contracts for
+   * @returns the supported chains for the event
+   */
+  getSupportedChains(): bigint[] {
+    return entries(this.ecoConfigService.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+  }
+
+  async subscribeTo(client: PublicClient, source: IntentSource, solverSupportedChains: bigint[]) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch create intent: subscribeToSource`,
@@ -75,18 +76,7 @@ export class WatchCreateIntentService implements OnApplicationBootstrap, OnModul
     )
     this.unwatch[source.chainID] = client.watchContractEvent({
       onError: async (error) => {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `rpc client error`,
-            properties: {
-              error,
-            },
-          }),
-        )
-        //reset the filters as they might have expired or we might have been moved to a new node
-        //https://support.quicknode.com/hc/en-us/articles/10838914856977-Error-code-32000-message-filter-not-found
-        await this.unsubscribeFrom(source.chainID)
-        await this.subscribeToSource(client, source, solverSupportedChains)
+        await this.onError(error, client, source)
       },
       address: source.sourceAddress,
       abi: IntentSourceAbi,
@@ -98,36 +88,6 @@ export class WatchCreateIntentService implements OnApplicationBootstrap, OnModul
       },
       onLogs: this.addJob(source),
     })
-  }
-
-  /**
-   * Unsubscribes from all IntentSource contracts. It closes all clients in {@link onModuleDestroy}
-   */
-  async unsubscribe() {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch intent: unsubscribe`,
-      }),
-    )
-    Object.values(this.unwatch).forEach((unwatch) => unwatch())
-  }
-
-  /**
-   * Unsubscribes from a specific chain
-   * @param chainID the chain id to unsubscribe from
-   */
-  async unsubscribeFrom(chainID: number) {
-    if (this.unwatch[chainID]) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `watch intent: unsubscribeFrom`,
-          properties: {
-            chainID,
-          },
-        }),
-      )
-      this.unwatch[chainID]()
-    }
   }
 
   addJob(source: IntentSource) {

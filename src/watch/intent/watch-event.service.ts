@@ -52,7 +52,9 @@ export abstract class WatchEventService<T extends { chainID: number }>
   /**
    * Unsubscribes from all events. It closes all clients in {@link onModuleDestroy}
    */
-  abstract unsubscribe(): Promise<void>
+  async unsubscribe(): Promise<void> {
+    Object.values(this.unwatch).forEach((unwatch) => unwatch())
+  }
 
   /**
    * Checks to see what networks
