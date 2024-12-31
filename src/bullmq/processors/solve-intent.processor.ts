@@ -1,14 +1,14 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
+import { QUEUES } from '@/common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
-import { FeasableIntentService } from '../../intent/feasable-intent.service'
-import { ValidateIntentService } from '../../intent/validate-intent.service'
-import { CreateIntentService } from '../../intent/create-intent.service'
-import { FulfillIntentService } from '../../intent/fulfill-intent.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { FeasableIntentService } from '@/intent/feasable-intent.service'
+import { ValidateIntentService } from '@/intent/validate-intent.service'
+import { CreateIntentService } from '@/intent/create-intent.service'
+import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
-import { IntentCreatedLog } from '../../contracts'
+import { IntentCreatedLog } from '@/contracts'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue)

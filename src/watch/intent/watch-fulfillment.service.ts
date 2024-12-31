@@ -102,12 +102,12 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
               jobId,
             },
           }),
-          // add to processing queue
-          await this.inboxQueue.add(QUEUES.INBOX.jobs.fulfillement, fulfillment, {
-            jobId,
-            ...this.intentJobConfig,
-          }),
         )
+        // add to processing queue
+        await this.inboxQueue.add(QUEUES.INBOX.jobs.fulfillment, fulfillment, {
+          jobId,
+          ...this.intentJobConfig,
+        })
       }
     }
   }

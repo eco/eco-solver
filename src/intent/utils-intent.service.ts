@@ -10,6 +10,7 @@ import { difference, includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
 import { getERCAbi } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
+import { FulfillmentLog } from '@/contracts/inbox'
 
 /**
  * Data for a transaction target
@@ -35,9 +36,9 @@ export interface IntentProcessData {
 type InfeasableResult = (
   | false
   | {
-      solvent: boolean
-      profitable: boolean
-    }
+    solvent: boolean
+    profitable: boolean
+  }
   | undefined
 )[]
 
@@ -51,7 +52,7 @@ export class UtilsIntentService {
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   /**
    * updateOne the intent model in the database, using the intent hash as the query
@@ -59,8 +60,8 @@ export class UtilsIntentService {
    * @param intentModel the model factory to use
    * @param model the new model data
    */
-  async updateIntentModel(intentModel: Model<IntentSourceModel>, model: IntentSourceModel) {
-    return await intentModel.updateOne({ 'intent.hash': model.intent.hash }, model)
+  async updateIntentModel(model: IntentSourceModel) {
+    return await this.intentModel.updateOne({ 'intent.hash': model.intent.hash }, model)
   }
 
   /**
@@ -72,7 +73,6 @@ export class UtilsIntentService {
    * @returns
    */
   async updateInvalidIntentModel(
-    intentModel: Model<IntentSourceModel>,
     model: IntentSourceModel,
     invalidCause: {
       proverUnsupported: boolean
@@ -83,7 +83,7 @@ export class UtilsIntentService {
   ) {
     model.status = 'INVALID'
     model.receipt = invalidCause as any
-    return await this.updateIntentModel(intentModel, model)
+    return await this.updateIntentModel(model)
   }
 
   /**
@@ -95,13 +95,22 @@ export class UtilsIntentService {
    * @returns
    */
   async updateInfeasableIntentModel(
-    intentModel: Model<IntentSourceModel>,
     model: IntentSourceModel,
     infeasable: InfeasableResult,
   ) {
     model.status = 'INFEASABLE'
     model.receipt = infeasable as any
-    return await this.updateIntentModel(intentModel, model)
+    return await this.updateIntentModel(model)
+  }
+
+  /**
+   * Updates the intent model with the fulfillment status. If the intent was fulfilled by this solver, then
+   * the status should already be SOLVED: in that case this function does nothing.
+   * 
+   * @param fulfillment the fulfillment log event
+   */
+  async updateOnFulfillment(fulfillment: FulfillmentLog) {
+
   }
 
   /**
