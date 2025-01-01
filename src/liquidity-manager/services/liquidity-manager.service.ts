@@ -17,13 +17,12 @@ import {
 import { RebalanceJob, RebalanceJobData } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderManagerService } from '@/liquidity-manager/services/liquidity-provider-manager.service'
 import { deserialize } from '@/liquidity-manager/utils/serialize'
+import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
-  private readonly PERCENTAGE_UP = 0.1
-  private readonly PERCENTAGE_DOWN = 0.2
-  // The maximum slippage around target balance for a token
-  private readonly TARGET_SLIPPAGE = 0.02
+  private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
   constructor(
@@ -32,12 +31,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
     public readonly balanceService: BalanceService,
+    private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderManagerService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
 
   onApplicationBootstrap() {
+    this.config = this.ecoConfigService.getLiquidityManager()
     return this.liquidityManagerQueue.startCronJobs()
   }
 
@@ -58,9 +59,9 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   analyzeToken(token: LiquidityManager.TokenData) {
     return analyzeToken(token.config, token.balance, {
-      up: this.PERCENTAGE_UP,
-      down: this.PERCENTAGE_DOWN,
-      targetSlippage: this.TARGET_SLIPPAGE,
+      up: this.config.thresholds.surplus,
+      down: this.config.thresholds.deficit,
+      targetSlippage: this.config.targetSlippage,
     })
   }
 

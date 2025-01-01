@@ -56,6 +56,7 @@ export type EcoConfigType = {
     usePino: boolean
     pinoConfig: PinoParams
   }
+  liquidityManager: LiquidityManagerConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -161,4 +162,13 @@ export class IntentSource {
   tokens: Hex[]
   // The addresses of the provers that we support
   provers: Hex[]
+}
+
+export interface LiquidityManagerConfig {
+  // The maximum slippage around target balance for a token
+  targetSlippage: number
+  thresholds: {
+    surplus: number // Percentage above target balance
+    deficit: number // Percentage below target balance
+  }
 }
