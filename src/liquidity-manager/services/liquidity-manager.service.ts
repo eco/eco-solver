@@ -77,7 +77,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     surplusTokens: LiquidityManager.TokenDataAnalyzed[],
   ) {
     const swapQuotes = await this.getSwapQuotes(deficitToken, surplusTokens)
-    return swapQuotes ?? (await this.getRebalancingQuotes(deficitToken, surplusTokens))
+
+    // Continue with swap quotes if possible
+    if (swapQuotes.length) return swapQuotes
+
+    return this.getRebalancingQuotes(deficitToken, surplusTokens)
   }
 
   startRebalancing(rebalances: LiquidityManager.RebalanceRequest[]) {
@@ -123,7 +127,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
 
     if (deficitToken.analysis.diff > surplusTokensTotal) {
-      return undefined
+      // Not enough surplus tokens to rebalance
+      return []
     }
 
     const quotes: LiquidityManager.Quote[] = []
