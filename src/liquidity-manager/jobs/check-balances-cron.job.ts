@@ -6,7 +6,7 @@ import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { shortAddr } from '@/liquidity-manager/utils/address'
-import { removeRepeatableJobs } from '@/liquidity-manager/utils/queue'
+import { removeJobSchedulers } from '@/bullmq/utils/queue'
 
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
@@ -26,15 +26,18 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
    * @param queue - The job queue to add the job to.
    */
   static async start(queue: Queue): Promise<void> {
-    await removeRepeatableJobs(queue, LiquidityManagerJobName.CHECK_BALANCES)
+    await removeJobSchedulers(queue, LiquidityManagerJobName.CHECK_BALANCES)
 
-    await queue.add(LiquidityManagerJobName.CHECK_BALANCES, undefined, {
-      jobId: LiquidityManagerJobName.CHECK_BALANCES,
-      removeOnComplete: true,
-      repeat: {
-        every: 300_000, // every 5 minutes
+    await queue.upsertJobScheduler(
+      'job-scheduler-check-balances',
+      { every: 300_000 }, // every 5 minutes
+      {
+        name: LiquidityManagerJobName.CHECK_BALANCES,
+        opts: {
+          removeOnComplete: true,
+        },
       },
-    })
+    )
   }
 
   /**
