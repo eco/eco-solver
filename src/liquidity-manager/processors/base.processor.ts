@@ -1,12 +1,10 @@
 import { Logger } from '@nestjs/common'
-import { JobsOptions, MinimalQueue } from 'bullmq'
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import {
-  LiquidityManagerJobName,
-  LiquidityManagerQueueDataType,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
+  LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
 
 /**
  * Abstract class representing a base processor for liquidity manager jobs.
@@ -14,31 +12,19 @@ import {
  * @template JobType - The constructor type of the job.
  */
 export abstract class BaseProcessor<
-  Job extends LiquidityManagerJob,
-  JobType extends new (
-    queue: MinimalQueue,
-    name: LiquidityManagerJobName,
-    data: LiquidityManagerQueueDataType,
-    opts?: JobsOptions,
-    id?: string,
-  ) => LiquidityManagerJob = new (
-    queue: MinimalQueue,
-    name: LiquidityManagerJobName,
-    data: LiquidityManagerQueueDataType,
-    opts?: JobsOptions,
-    id?: string,
-  ) => LiquidityManagerJob,
+  Job extends LiquidityManagerJob = LiquidityManagerJob,
+  JobManager extends LiquidityManagerJobManager<Job> = LiquidityManagerJobManager<Job>,
 > extends WorkerHost {
   public readonly logger: Logger
 
   /**
    * Constructs a new BaseProcessor.
    * @param name - The name of the processor.
-   * @param jobs - The array of job types to process.
+   * @param jobManagers - The array of job managers.
    */
   constructor(
     protected readonly name: string,
-    protected readonly jobs: JobType[],
+    protected readonly jobManagers: JobManager[],
   ) {
     super()
     this.logger = new Logger(name)
@@ -108,11 +94,11 @@ export abstract class BaseProcessor<
    * @param params - Additional parameters for the method.
    * @returns The result of the method execution.
    */
-  private execute(job: Job, method: unknown, ...params: unknown[]) {
-    for (const jobType of this.jobs) {
+  private execute(job: Job, method: 'process' | 'onFailed' | 'onComplete', ...params: unknown[]) {
+    for (const manager of this.jobManagers) {
       // Process the job if it matches the job type
-      if ((jobType as any).is(job)) {
-        return (jobType[method as any] as any)(job, this, ...params)
+      if (manager.is(job)) {
+        return (manager[method] as any)(job, this, ...params)
       }
     }
 

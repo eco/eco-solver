@@ -1,6 +1,9 @@
-import { FlowChildJob } from 'bullmq'
+import { FlowChildJob, Job } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import {
+  LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { serialize, Serialize } from '@/liquidity-manager/utils/serialize'
@@ -10,16 +13,15 @@ export type RebalanceJobData = {
   rebalance: Serialize<LiquidityManager.RebalanceRequest>
 }
 
-export class RebalanceJob extends LiquidityManagerJob<
-  LiquidityManagerJobName.REBALANCE,
-  RebalanceJobData
-> {
+type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
+
+export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
   /**
    * Type guard to check if the given job is an instance of RebalanceJob.
    * @param job - The job to check.
    * @returns True if the job is a RebalanceJob.
    */
-  static is(job: LiquidityManagerJob): job is RebalanceJob {
+  is(job: LiquidityManagerJob): job is RebalanceJob {
     return job.name === LiquidityManagerJobName.REBALANCE
   }
 
@@ -35,8 +37,10 @@ export class RebalanceJob extends LiquidityManagerJob<
     }
   }
 
-  static async process(job: RebalanceJob, processor: LiquidityManagerProcessor): Promise<void> {
-    return processor.liquidityManagerService.executeRebalancing(job.data)
+  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+    if (this.is(job)) {
+      return processor.liquidityManagerService.executeRebalancing(job.data)
+    }
   }
 
   /**
@@ -45,7 +49,7 @@ export class RebalanceJob extends LiquidityManagerJob<
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  static onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
+  onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `RebalanceJob: Failed`,

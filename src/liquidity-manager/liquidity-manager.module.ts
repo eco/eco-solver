@@ -4,7 +4,7 @@ import { TransactionModule } from '@/transaction/transaction.module'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiquidityProviderManagerService } from '@/liquidity-manager/services/liquidity-provider-manager.service'
+import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 
 @Module({
@@ -17,7 +17,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
   providers: [
     LiquidityManagerService,
     LiquidityManagerProcessor,
-    LiquidityProviderManagerService,
+    LiquidityProviderService,
     LiFiProviderService,
   ],
   exports: [],

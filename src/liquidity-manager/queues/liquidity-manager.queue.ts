@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
-import { CheckBalancesCronJob } from '@/liquidity-manager/jobs/check-balances-cron.job'
+import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron-job.manager'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -42,7 +42,7 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  startCronJobs() {
-    return CheckBalancesCronJob.start(this.queue)
+  startCronJobs(interval: number) {
+    return CheckBalancesCronJobManager.start(this.queue, interval)
   }
 }

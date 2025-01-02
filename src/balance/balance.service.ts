@@ -1,13 +1,14 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy, zipWith } from 'lodash'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { getDestinationNetworkAddressKey } from '../common/utils/strings'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
-import { ViemEventLog } from '../common/events/viem'
-import { decodeTransferLog, isSupportedTokenType } from '../contracts'
-import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { ViemEventLog } from '@/common/events/viem'
+import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenBalance, TokenConfig } from '@/balance/types'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting configs for the app
@@ -159,7 +160,7 @@ export class BalanceService implements OnApplicationBootstrap {
       case 'erc20':
         return this.loadERC20TokenBalance(token.chainId, token.address)
       default:
-        throw new Error('Unsupported token type')
+        throw EcoError.IntentSourceUnsupportedTargetType(token.type)
     }
   }
 

@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { CheckBalancesCronJob } from '@/liquidity-manager/jobs/check-balances-cron.job'
-import { RebalanceJob } from '@/liquidity-manager/jobs/rebalance.job'
+import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
+import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
+import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalanceJobManager'
+import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron-job.manager'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
-import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -16,7 +15,7 @@ import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
  */
 @Injectable()
 @Processor(LiquidityManagerQueue.queueName)
-export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> {
+export class LiquidityManagerProcessor extends BaseProcessor {
   /**
    * Constructs a new LiquidityManagerProcessor.
    * @param queue - The queue to process jobs from.
@@ -27,6 +26,9 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
     protected readonly queue: LiquidityManagerQueueType,
     public readonly liquidityManagerService: LiquidityManagerService,
   ) {
-    super(LiquidityManagerProcessor.name, [CheckBalancesCronJob, RebalanceJob])
+    super(LiquidityManagerProcessor.name, [
+      new CheckBalancesCronJobManager(),
+      new RebalanceJobManager(),
+    ])
   }
 }

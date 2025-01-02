@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 
 @Injectable()
-export class LiquidityProviderManagerService {
+export class LiquidityProviderService {
   constructor(protected readonly liFiProvider: LiFiProviderService) {}
 
   async getQuote(

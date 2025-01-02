@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common'
-import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import {
+  LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
 import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
 import { Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -10,8 +13,9 @@ import { OnWorkerEvent } from '@nestjs/bullmq'
  * @template Job - The type of the job.
  */
 export abstract class GroupedJobsProcessor<
-  Job extends LiquidityManagerJob,
-> extends BaseProcessor<Job> {
+  Job extends LiquidityManagerJob = LiquidityManagerJob,
+  JobManager extends LiquidityManagerJobManager<Job> = LiquidityManagerJobManager<Job>,
+> extends BaseProcessor<Job, JobManager> {
   public readonly logger: Logger
   protected abstract readonly queue: Queue
 
@@ -24,7 +28,7 @@ export abstract class GroupedJobsProcessor<
    */
   constructor(
     protected readonly groupBy: string,
-    ...params: ConstructorParameters<typeof BaseProcessor<Job>>
+    ...params: ConstructorParameters<typeof BaseProcessor<Job, JobManager>>
   ) {
     super(...params)
   }
