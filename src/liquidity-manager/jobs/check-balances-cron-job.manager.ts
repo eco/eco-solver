@@ -2,7 +2,10 @@ import { Queue } from 'bullmq'
 import { formatUnits } from 'viem'
 import { table } from 'table'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import {
+  LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { shortAddr } from '@/liquidity-manager/utils/address'
@@ -11,16 +14,7 @@ import { removeJobSchedulers } from '@/bullmq/utils/queue'
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
-export class CheckBalancesCronJob extends LiquidityManagerJob {
-  /**
-   * Type guard to check if the given job is an instance of CheckBalancesCronJob.
-   * @param job - The job to check.
-   * @returns True if the job is a CheckBalancesCronJob.
-   */
-  static is(job: LiquidityManagerJob): job is CheckBalancesCronJob {
-    return job.name === LiquidityManagerJobName.CHECK_BALANCES
-  }
-
+export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
   /**
    * Starts the CheckBalancesCronJob by removing existing repeatable jobs and adding a new one to the queue.
    * @param queue - The job queue to add the job to.
@@ -42,14 +36,20 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
   }
 
   /**
+   * Type guard to check if the given job is an instance of CheckBalancesCronJob.
+   * @param job - The job to check.
+   * @returns True if the job is a CheckBalancesCronJob.
+   */
+  is(job: LiquidityManagerJob): boolean {
+    return job.name === LiquidityManagerJobName.CHECK_BALANCES
+  }
+
+  /**
    * Processes the CheckBalancesCronJob by analyzing token balances, logging the results, and rebalancing deficits.
    * @param job - The CheckBalancesCronJob instance to process.
    * @param processor - The LiquidityManagerProcessor instance used for processing.
    */
-  static async process(
-    job: CheckBalancesCronJob,
-    processor: LiquidityManagerProcessor,
-  ): Promise<void> {
+  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
     const { deficit, surplus, items } = await processor.liquidityManagerService.analyzeTokens()
 
     processor.logger.log(
@@ -109,7 +109,7 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  static onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `CheckBalancesCronJob: Failed`,
@@ -123,7 +123,7 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
    * @param items - The token data to display.
    * @returns A formatted table as a string.
    */
-  private static displayTokenTable(items: LiquidityManager.TokenDataAnalyzed[]) {
+  private displayTokenTable(items: LiquidityManager.TokenDataAnalyzed[]) {
     const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format
 
     const header = ['Chain ID', 'Address', 'Balance', 'Target', 'Range', 'State']
@@ -148,7 +148,7 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
    * @param items - The token data to display.
    * @returns A formatted table as a string.
    */
-  private static displayRebalancingTable(items: LiquidityManager.RebalanceRequest[]) {
+  private displayRebalancingTable(items: LiquidityManager.RebalanceRequest[]) {
     // Skip if no rebalancing quotes are found.
     if (!items.length) return
 
@@ -195,7 +195,7 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
    * @param items - The list of token data analyzed.
    * @param rebalancingQuotes - The quotes received for rebalancing.
    */
-  private static updateGroupBalances(
+  private updateGroupBalances(
     processor: LiquidityManagerProcessor,
     items: LiquidityManager.TokenDataAnalyzed[],
     rebalancingQuotes: LiquidityManager.Quote[],

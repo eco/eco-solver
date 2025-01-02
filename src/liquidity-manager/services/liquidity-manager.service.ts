@@ -14,7 +14,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { RebalanceJob, RebalanceJobData } from '@/liquidity-manager/jobs/rebalance.job'
+import { RebalanceJobManager, RebalanceJobData } from '@/liquidity-manager/jobs/rebalanceJobManager'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/liquidity-manager/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
@@ -86,7 +86,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   startRebalancing(rebalances: LiquidityManager.RebalanceRequest[]) {
     const jobs = rebalances.map((rebalance) =>
-      RebalanceJob.createJob(rebalance, this.liquidityManagerQueue.name),
+      RebalanceJobManager.createJob(rebalance, this.liquidityManagerQueue.name),
     )
     return this.liquidityManagerFlowProducer.add({
       name: 'rebalance-batch',
