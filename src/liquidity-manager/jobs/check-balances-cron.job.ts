@@ -24,13 +24,14 @@ export class CheckBalancesCronJob extends LiquidityManagerJob {
   /**
    * Starts the CheckBalancesCronJob by removing existing repeatable jobs and adding a new one to the queue.
    * @param queue - The job queue to add the job to.
+   * @param interval - Interval duration in which the job is repeated
    */
-  static async start(queue: Queue): Promise<void> {
+  static async start(queue: Queue, interval: number): Promise<void> {
     await removeJobSchedulers(queue, LiquidityManagerJobName.CHECK_BALANCES)
 
     await queue.upsertJobScheduler(
       'job-scheduler-check-balances',
-      { every: 300_000 }, // every 5 minutes
+      { every: interval },
       {
         name: LiquidityManagerJobName.CHECK_BALANCES,
         opts: {

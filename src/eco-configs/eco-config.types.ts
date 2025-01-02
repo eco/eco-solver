@@ -167,6 +167,7 @@ export class IntentSource {
 export interface LiquidityManagerConfig {
   // The maximum slippage around target balance for a token
   targetSlippage: number
+  intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance

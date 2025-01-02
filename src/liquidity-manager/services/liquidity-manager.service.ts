@@ -39,7 +39,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   onApplicationBootstrap() {
     this.config = this.ecoConfigService.getLiquidityManager()
-    return this.liquidityManagerQueue.startCronJobs()
+    return this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration)
   }
 
   async analyzeTokens() {

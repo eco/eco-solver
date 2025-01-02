@@ -42,7 +42,7 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  startCronJobs() {
-    return CheckBalancesCronJob.start(this.queue)
+  startCronJobs(interval: number) {
+    return CheckBalancesCronJob.start(this.queue, interval)
   }
 }
