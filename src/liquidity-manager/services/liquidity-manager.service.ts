@@ -15,7 +15,7 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { RebalanceJob, RebalanceJobData } from '@/liquidity-manager/jobs/rebalance.job'
-import { LiquidityProviderManagerService } from '@/liquidity-manager/services/liquidity-provider-manager.service'
+import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/liquidity-manager/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -32,7 +32,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     protected liquidityManagerFlowProducer: FlowProducer,
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-    public readonly liquidityProviderManager: LiquidityProviderManagerService,
+    public readonly liquidityProviderManager: LiquidityProviderService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
