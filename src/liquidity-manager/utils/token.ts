@@ -35,7 +35,7 @@ export function analyzeToken(
   const diffWei = getTokenBalanceDiff(state, balance)
   const diff = parseFloat(formatUnits(diffWei, decimals))
   const targetSlippage = getSlippageRange(
-    parseUnits(tokenConfig.targetBalance.toString(), tokenBalance.decimals),
+    parseUnits(tokenConfig.targetBalance.toString(), decimals),
     percentage.targetSlippage,
   )
 

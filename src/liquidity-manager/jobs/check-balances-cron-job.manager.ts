@@ -15,6 +15,8 @@ import { removeJobSchedulers } from '@/bullmq/utils/queue'
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
 export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
+  static readonly jobSchedulerName = 'job-scheduler-check-balances'
+
   /**
    * Starts the CheckBalancesCronJob by removing existing repeatable jobs and adding a new one to the queue.
    * @param queue - The job queue to add the job to.
@@ -24,7 +26,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     await removeJobSchedulers(queue, LiquidityManagerJobName.CHECK_BALANCES)
 
     await queue.upsertJobScheduler(
-      'job-scheduler-check-balances',
+      CheckBalancesCronJobManager.jobSchedulerName,
       { every: interval },
       {
         name: LiquidityManagerJobName.CHECK_BALANCES,

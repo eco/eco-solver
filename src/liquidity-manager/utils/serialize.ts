@@ -26,6 +26,8 @@ function stringify(data: object) {
 export function deserialize<T extends object>(data: Serialize<T>): T {
   const deserialized: any = _.cloneDeep(data)
 
+  if (typeof data !== 'object') return data
+
   for (const key in data) {
     const item = data[key]
     if (isSerializedBigInt(item)) {
