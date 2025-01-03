@@ -12,6 +12,7 @@ import { Queue } from 'bullmq'
 import { EcoError } from '../../common/errors/eco-error'
 import { getFunctionBytes } from '../../common/viem/contracts'
 import { address1, address2 } from './feasable-intent.service.spec'
+import { FulfillmentLog } from '@/contracts/inbox'
 
 jest.mock('viem', () => {
   return {
@@ -74,7 +75,7 @@ describe('UtilsIntentService', () => {
 
     describe('on updateIntentModel', () => {
       it('should updateOne model off the intent hash', async () => {
-        await utilsIntentService.updateIntentModel(intentModel, model)
+        await utilsIntentService.updateIntentModel(model)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith({ 'intent.hash': model.intent.hash }, model)
       })
@@ -88,7 +89,7 @@ describe('UtilsIntentService', () => {
           selectorsUnsupported: false,
           expiresEarly: false,
         }
-        await utilsIntentService.updateInvalidIntentModel(intentModel, model, invalidCause)
+        await utilsIntentService.updateInvalidIntentModel(model, invalidCause)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
           { 'intent.hash': model.intent.hash },
@@ -105,7 +106,7 @@ describe('UtilsIntentService', () => {
             profitable: false,
           },
         ]
-        await utilsIntentService.updateInfeasableIntentModel(intentModel, model, infeasable)
+        await utilsIntentService.updateInfeasableIntentModel(model, infeasable)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
           { 'intent.hash': model.intent.hash },
@@ -249,8 +250,8 @@ describe('UtilsIntentService', () => {
       } as any
       const solver = { targets: { address1: { contractType: 'erc20', selectors: [] } } }
       expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(false)
-      expect(mockLogWarn).toHaveBeenCalledTimes(1)
-      expect(mockLogWarn).toHaveBeenCalledWith({
+      expect(mockLogDebug).toHaveBeenCalledTimes(1)
+      expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `Targets not supported for intent ${model.intent.hash}`,
         intentHash: model.intent.hash,
         sourceNetwork: model.event.sourceNetwork,
@@ -264,8 +265,8 @@ describe('UtilsIntentService', () => {
       } as any
       const solver = { targets: {} }
       expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(false)
-      expect(mockLogWarn).toHaveBeenCalledTimes(1)
-      expect(mockLogWarn).toHaveBeenCalledWith({
+      expect(mockLogDebug).toHaveBeenCalledTimes(1)
+      expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `Targets not supported for intent ${model.intent.hash}`,
         intentHash: model.intent.hash,
         sourceNetwork: model.event.sourceNetwork,
@@ -279,8 +280,8 @@ describe('UtilsIntentService', () => {
       } as any
       const solver = { targets: { [target1]: targetConfig } }
       expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(false)
-      expect(mockLogWarn).toHaveBeenCalledTimes(1)
-      expect(mockLogWarn).toHaveBeenCalledWith({
+      expect(mockLogDebug).toHaveBeenCalledTimes(1)
+      expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `Targets not supported for intent ${model.intent.hash}`,
         intentHash: model.intent.hash,
         sourceNetwork: model.event.sourceNetwork,
@@ -343,6 +344,41 @@ describe('UtilsIntentService', () => {
       const solver = { chainID: '85432' }
       ecoConfigService.getSolver = jest.fn().mockReturnValue(solver)
       expect(await utilsIntentService.getIntentProcessData(intentHash)).toEqual({ model, solver })
+    })
+  })
+
+  describe('on updateOnFulfillment', () => {
+    const fulfillment = {
+      args: {
+        _hash: '0x123',
+        _solver: '0x456',
+        _intent: '0x789',
+        _receipt: '0xabc',
+        _result: '0xdef',
+      },
+    } as any as FulfillmentLog
+    it('should log a warning if no intent exists in the db for the fulfillment hash', async () => {
+      intentModel.findOne = jest.fn().mockReturnValue(undefined)
+      await utilsIntentService.updateOnFulfillment(fulfillment)
+      expect(mockLogWarn).toHaveBeenCalledTimes(1)
+      expect(mockLogWarn).toHaveBeenCalledWith({
+        msg: `Intent not found for fulfillment ${fulfillment.args._hash}`,
+        fulfillment,
+      })
+    })
+
+    it('should update the intent as solved if it exists', async () => {
+      const model = {
+        face: 1,
+        status: 'PENDING',
+      }
+      intentModel.findOne = jest.fn().mockReturnValue(model)
+      await utilsIntentService.updateOnFulfillment(fulfillment)
+      expect(intentModel.updateOne).toHaveBeenCalledTimes(1)
+      expect(intentModel.updateOne).toHaveBeenCalledWith(
+        { 'intent.hash': fulfillment.args._hash },
+        { ...model, status: 'SOLVED' },
+      )
     })
   })
 })

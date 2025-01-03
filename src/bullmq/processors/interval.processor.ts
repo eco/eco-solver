@@ -3,14 +3,13 @@ import { QUEUES } from '@/common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
-import { FulfillmentLog } from '@/contracts/inbox'
+import { RetryInfeasableIntentsService } from '@/intervals/retry-infeasable-intents.service'
 
 @Injectable()
-@Processor(QUEUES.INBOX.queue)
-export class InboxProcessor extends WorkerHost {
-  private logger = new Logger(InboxProcessor.name)
-  constructor(private readonly utilsIntentService: UtilsIntentService) {
+@Processor(QUEUES.INTERVAL.queue)
+export class IntervalProcessor extends WorkerHost {
+  private logger = new Logger(IntervalProcessor.name)
+  constructor(private readonly retryInfeasableIntentsService: RetryInfeasableIntentsService) {
     super()
   }
 
@@ -20,7 +19,7 @@ export class InboxProcessor extends WorkerHost {
   ): Promise<any> {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `InboxProcessor: process`,
+        message: `IntervalProcessor: process`,
         properties: {
           job: job.name,
         },
@@ -28,12 +27,12 @@ export class InboxProcessor extends WorkerHost {
     )
 
     switch (job.name) {
-      case QUEUES.INBOX.jobs.fulfillment:
-        return await this.utilsIntentService.updateOnFulfillment(job.data as FulfillmentLog)
+      case QUEUES.INTERVAL.jobs.retry_infeasable_intents:
+        return await this.retryInfeasableIntentsService.retryInfeasableIntents()
       default:
         this.logger.error(
           EcoLogMessage.fromDefault({
-            message: `InboxProcessor: Invalid job type ${job.name}`,
+            message: `IntervalProcessor: Invalid job type ${job.name}`,
           }),
         )
         return Promise.reject('Invalid job type')
@@ -44,7 +43,7 @@ export class InboxProcessor extends WorkerHost {
   onJobFailed(job: Job<any, any, string>, error: Error) {
     this.logger.error(
       EcoLogMessage.fromDefault({
-        message: `InboxProcessor: Error processing job`,
+        message: `IntervalProcessor: Error processing job`,
         properties: {
           job,
           error,

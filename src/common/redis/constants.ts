@@ -7,6 +7,14 @@ export const QUEUES: Record<any, QueueInterface> = {
       validate_intent: 'validate_intent',
       feasable_intent: 'feasable_intent',
       fulfill_intent: 'fulfill_intent',
+      retry_intent: 'retry_intent',
+    },
+  },
+  INTERVAL: {
+    queue: 'interval',
+    prefix: '{interval}',
+    jobs: {
+      retry_infeasable_intents: 'retry_infeasable_intents',
     },
   },
   INBOX: {

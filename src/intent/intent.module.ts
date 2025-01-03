@@ -37,6 +37,7 @@ import { FlagsModule } from '../flags/flags.module'
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
+    UtilsIntentService,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })

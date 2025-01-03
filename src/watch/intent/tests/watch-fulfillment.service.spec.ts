@@ -22,8 +22,7 @@ describe('WatchFulfillmentService', () => {
   const inboxRecord = inboxes.reduce((acc, solver) => {
     acc[solver.chainID] = solver
     return acc
-  }, {}
-  )
+  }, {})
   const supportedChains = inboxes.map((s) => BigInt(s.chainID))
 
   beforeEach(async () => {
@@ -114,7 +113,7 @@ describe('WatchFulfillmentService', () => {
     describe('on fulfillment', () => {
       const log = { args: { _hash: BigInt(1), logIndex: BigInt(2) } } as any
       let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
-  
+
       beforeEach(async () => {
         mockQueueAdd = jest.spyOn(queue, 'add')
         await watchFulfillmentService.addJob()([log])
@@ -128,7 +127,7 @@ describe('WatchFulfillmentService', () => {
           }),
         )
       })
-  
+
       it('should should enque a job for every intent', async () => {
         expect(mockQueueAdd).toHaveBeenCalledTimes(1)
         expect(mockQueueAdd).toHaveBeenCalledWith(

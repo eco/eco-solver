@@ -40,6 +40,7 @@ export class SolveIntentProcessor extends WorkerHost {
       case QUEUES.SOURCE_INTENT.jobs.create_intent:
         return await this.createIntentService.createIntent(job.data as IntentCreatedLog)
       case QUEUES.SOURCE_INTENT.jobs.validate_intent:
+      case QUEUES.SOURCE_INTENT.jobs.retry_intent:
         return await this.validateIntentService.validateIntent(job.data as Hex)
       case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
         return await this.feasableIntentService.feasableIntent(job.data as Hex)

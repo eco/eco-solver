@@ -36,9 +36,9 @@ export interface IntentProcessData {
 type InfeasableResult = (
   | false
   | {
-    solvent: boolean
-    profitable: boolean
-  }
+      solvent: boolean
+      profitable: boolean
+    }
   | undefined
 )[]
 
@@ -52,7 +52,7 @@ export class UtilsIntentService {
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   /**
    * updateOne the intent model in the database, using the intent hash as the query
@@ -94,10 +94,7 @@ export class UtilsIntentService {
    * @param infeasable  the infeasable result
    * @returns
    */
-  async updateInfeasableIntentModel(
-    model: IntentSourceModel,
-    infeasable: InfeasableResult,
-  ) {
+  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: InfeasableResult) {
     model.status = 'INFEASABLE'
     model.receipt = infeasable as any
     return await this.updateIntentModel(model)
@@ -106,11 +103,26 @@ export class UtilsIntentService {
   /**
    * Updates the intent model with the fulfillment status. If the intent was fulfilled by this solver, then
    * the status should already be SOLVED: in that case this function does nothing.
-   * 
+   *
    * @param fulfillment the fulfillment log event
    */
   async updateOnFulfillment(fulfillment: FulfillmentLog) {
-
+    const model = await this.intentModel.findOne({
+      'intent.hash': fulfillment.args._hash,
+    })
+    if (model) {
+      model.status = 'SOLVED'
+      await this.intentModel.updateOne({ 'intent.hash': fulfillment.args._hash }, model)
+    } else {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `Intent not found for fulfillment ${fulfillment.args._hash}`,
+          properties: {
+            fulfillment,
+          },
+        }),
+      )
+    }
   }
 
   /**

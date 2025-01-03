@@ -100,7 +100,7 @@ export class ValidateIntentService implements OnModuleInit {
     const expiresEarly = !this.validExpirationTime(model)
 
     if (proverUnsupported || targetsUnsupported || selectorsUnsupported || expiresEarly) {
-      await this.utilsIntentService.updateInvalidIntentModel(this.intentModel, model, {
+      await this.utilsIntentService.updateInvalidIntentModel(model, {
         proverUnsupported,
         targetsUnsupported,
         selectorsUnsupported,
@@ -117,7 +117,7 @@ export class ValidateIntentService implements OnModuleInit {
             expiresEarly,
             ...(expiresEarly && {
               proofMinDurationSeconds: this.proofService
-                .getProofMinimumDate(model.intent.prover)
+                .getProofMinimumDate(this.proofService.getProverType(model.intent.prover))
                 .toUTCString(),
             }),
           },
