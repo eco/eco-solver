@@ -4,6 +4,7 @@ import { JobsOptions, Queue } from 'bullmq'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * This service subscribes has hooks for subscribing and unsubscribing to a contract event.
@@ -53,7 +54,26 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Unsubscribes from all events. It closes all clients in {@link onModuleDestroy}
    */
   async unsubscribe(): Promise<void> {
-    Object.values(this.unwatch).forEach((unwatch) => unwatch())
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `watch-event: unsubscribe`,
+      }),
+    )
+    Object.values(this.unwatch).forEach((unwatch) => {
+      try {
+        unwatch()
+      } catch (e) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: `watch-event: unsubscribe`,
+            error: EcoError.WatchEventUnsubscribeError,
+            properties: {
+              errorPassed: e,
+            },
+          }),
+        )
+      }
+    })
   }
 
   /**
@@ -85,13 +105,36 @@ export abstract class WatchEventService<T extends { chainID: number }>
     if (this.unwatch[chainID]) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
-          message: `watch intent: unsubscribeFrom`,
+          message: `watch-event: unsubscribeFrom`,
           properties: {
             chainID,
           },
         }),
       )
-      this.unwatch[chainID]()
+      try {
+        this.unwatch[chainID]()
+      } catch (e) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: `watch-event: unsubscribeFrom`,
+            error: EcoError.WatchEventUnsubscribeFromError(chainID),
+            properties: {
+              chainID,
+              errorPassed: e,
+            },
+          }),
+        )
+      }
+    } else {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: `watch event: unsubscribeFrom`,
+          error: EcoError.WatchEventNoUnsubscribeError(chainID),
+          properties: {
+            chainID,
+          },
+        }),
+      )
     }
   }
 }

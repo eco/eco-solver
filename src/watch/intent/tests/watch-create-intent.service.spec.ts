@@ -1,14 +1,12 @@
 import { QUEUES } from '@/common/redis/constants'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { WatchCreateIntentService } from '@/watch/intent/watch-create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Job, Queue } from 'bullmq'
-import { WatchIntentService } from '../watch-intent.service'
-import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { EcoError } from '@/common/errors/eco-error'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 
 describe('WatchIntentService', () => {
   let watchIntentService: WatchCreateIntentService
@@ -176,8 +174,8 @@ describe('WatchIntentService', () => {
       expect(mockUnwatch2).toHaveBeenCalledTimes(1)
       expect(mockLogError).toHaveBeenCalledTimes(1)
       expect(mockLogError).toHaveBeenCalledWith({
-        msg: 'watch-intent: unsubscribe',
-        error: EcoError.WatchIntentUnsubscribeError.toString(),
+        msg: 'watch-event: unsubscribe',
+        error: EcoError.WatchEventUnsubscribeError.toString(),
         errorPassed: e,
       })
     })
@@ -189,7 +187,7 @@ describe('WatchIntentService', () => {
       expect(mockLogError).toHaveBeenCalledTimes(0)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
-        msg: 'watch-intent: unsubscribe',
+        msg: 'watch-event: unsubscribe',
       })
     })
   })
@@ -215,7 +213,7 @@ describe('WatchIntentService', () => {
         expect(mockLogDebug).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(0)
         expect(mockLogDebug).toHaveBeenCalledWith({
-          msg: 'watch intent: unsubscribeFrom',
+          msg: 'watch-event: unsubscribeFrom',
           chainID,
         })
       })
@@ -229,8 +227,8 @@ describe('WatchIntentService', () => {
         expect(mockUnwatch1).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
-          msg: 'watch-intent: unsubscribeFrom',
-          error: EcoError.WatchIntentUnsubscribeFromError(chainID).toString(),
+          msg: 'watch-event: unsubscribeFrom',
+          error: EcoError.WatchEventUnsubscribeFromError(chainID).toString(),
           errorPassed: e,
           chainID,
         })
@@ -247,8 +245,8 @@ describe('WatchIntentService', () => {
         expect(mockUnwatch1).toHaveBeenCalledTimes(0)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
-          msg: 'watch intent: unsubscribeFrom',
-          error: EcoError.WatchIntentNoUnsubscribeError(chainID).toString(),
+          msg: 'watch event: unsubscribeFrom',
+          error: EcoError.WatchEventNoUnsubscribeError(chainID).toString(),
           chainID,
         })
       })

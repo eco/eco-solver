@@ -50,11 +50,6 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
    */
   async unsubscribe() {
     super.unsubscribe()
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch intent: unsubscribe`,
-      }),
-    )
   }
 
   /**

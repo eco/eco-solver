@@ -6,7 +6,6 @@ import {
   PROOF_HYPERLANE,
   PROOF_STORAGE,
   ProofCall,
-  Proofs,
   ProofType,
   ProverInterfaceAbi,
 } from '../contracts'
@@ -174,8 +173,12 @@ export class ProofService implements OnModuleInit {
    */
   private getProofMinimumDurationSeconds(prover: ProofType): number {
     const proofs = this.ecoConfigService.getIntentConfigs().proofs
-    return prover === Proofs.HYPERLANE
-      ? proofs.hyperlane_duration_seconds
-      : proofs.storage_duration_seconds
+    switch (prover) {
+      case PROOF_HYPERLANE:
+        return proofs.hyperlane_duration_seconds
+      case PROOF_STORAGE:
+      default:
+        return proofs.storage_duration_seconds
+    }
   }
 }

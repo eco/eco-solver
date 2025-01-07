@@ -57,11 +57,11 @@ export class EcoError extends Error {
   }
 
   // WatchIntent Service
-  static WatchIntentUnsubscribeError = new Error('Could not unsubscribe from watch intent')
-  static WatchIntentUnsubscribeFromError(chainID: number) {
+  static WatchEventUnsubscribeError = new Error('Could not unsubscribe from watch intent')
+  static WatchEventUnsubscribeFromError(chainID: number) {
     return new Error(`Could not unsubscribe from watch intent for chain : ${chainID}`)
   }
-  static WatchIntentNoUnsubscribeError(chainID: number) {
+  static WatchEventNoUnsubscribeError(chainID: number) {
     return new Error(`There is no unwatch for chain : ${chainID}`)
   }
 
