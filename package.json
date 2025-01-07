@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.592.0",
-    "@eco-foundation/routes-ts": "^0.1.10-beta",
+    "@eco-foundation/routes-ts": "~0.2.10-beta",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
     "@lifi/sdk": "^3.4.1",
