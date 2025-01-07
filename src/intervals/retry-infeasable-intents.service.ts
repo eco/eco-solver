@@ -24,7 +24,7 @@ export class RetryInfeasableIntentsService implements OnApplicationBootstrap {
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getIntervals().retryInfeasableIntents.jobTemplate
       .opts as JobsOptions
   }
