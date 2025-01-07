@@ -132,13 +132,11 @@ describe('ProofService', () => {
     })
 
     it('should return the correct minimum proof time', async () => {
-      jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
-      expect(proofService['getProofMinimumDurationSeconds']('0x123')).toBe(
+      expect(proofService['getProofMinimumDurationSeconds'](PROOF_HYPERLANE)).toBe(
         intentConfigs.proofs.hyperlane_duration_seconds,
       )
 
-      jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(false)
-      expect(proofService['getProofMinimumDurationSeconds']('0x123')).toBe(
+      expect(proofService['getProofMinimumDurationSeconds'](PROOF_STORAGE)).toBe(
         intentConfigs.proofs.storage_duration_seconds,
       )
     })
