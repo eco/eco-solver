@@ -1,6 +1,6 @@
-import { Queue } from 'bullmq'
+import { FlowProducer, Queue } from 'bullmq'
 import { Test, TestingModule } from '@nestjs/testing'
-import { BullModule, getQueueToken } from '@nestjs/bullmq'
+import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
@@ -31,6 +31,8 @@ describe('LiquidityManagerService', () => {
     })
       .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
       .useValue(createMock<Queue>())
+      .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
+      .useValue(createMock<FlowProducer>())
       .compile()
 
     balanceService = chainMod.get(BalanceService)
