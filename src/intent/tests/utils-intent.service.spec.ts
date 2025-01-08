@@ -87,6 +87,7 @@ describe('UtilsIntentService', () => {
           targetsUnsupported: false,
           selectorsUnsupported: false,
           expiresEarly: false,
+          sameChainFulfill: false,
         }
         await utilsIntentService.updateInvalidIntentModel(intentModel, model, invalidCause)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
