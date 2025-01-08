@@ -10,6 +10,7 @@ import { difference, includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
 import { getERCAbi } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
+import { FulfillmentLog } from '@/contracts/inbox'
 
 /**
  * Data for a transaction target
@@ -59,8 +60,8 @@ export class UtilsIntentService {
    * @param intentModel the model factory to use
    * @param model the new model data
    */
-  async updateIntentModel(intentModel: Model<IntentSourceModel>, model: IntentSourceModel) {
-    return await intentModel.updateOne({ 'intent.hash': model.intent.hash }, model)
+  async updateIntentModel(model: IntentSourceModel) {
+    return await this.intentModel.updateOne({ 'intent.hash': model.intent.hash }, model)
   }
 
   /**
@@ -72,18 +73,18 @@ export class UtilsIntentService {
    * @returns
    */
   async updateInvalidIntentModel(
-    intentModel: Model<IntentSourceModel>,
     model: IntentSourceModel,
     invalidCause: {
       proverUnsupported: boolean
       targetsUnsupported: boolean
       selectorsUnsupported: boolean
       expiresEarly: boolean
+      sameChainFulfill: boolean
     },
   ) {
     model.status = 'INVALID'
     model.receipt = invalidCause as any
-    return await this.updateIntentModel(intentModel, model)
+    return await this.updateIntentModel(model)
   }
 
   /**
@@ -94,14 +95,35 @@ export class UtilsIntentService {
    * @param infeasable  the infeasable result
    * @returns
    */
-  async updateInfeasableIntentModel(
-    intentModel: Model<IntentSourceModel>,
-    model: IntentSourceModel,
-    infeasable: InfeasableResult,
-  ) {
+  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: InfeasableResult) {
     model.status = 'INFEASABLE'
     model.receipt = infeasable as any
-    return await this.updateIntentModel(intentModel, model)
+    return await this.updateIntentModel(model)
+  }
+
+  /**
+   * Updates the intent model with the fulfillment status. If the intent was fulfilled by this solver, then
+   * the status should already be SOLVED: in that case this function does nothing.
+   *
+   * @param fulfillment the fulfillment log event
+   */
+  async updateOnFulfillment(fulfillment: FulfillmentLog) {
+    const model = await this.intentModel.findOne({
+      'intent.hash': fulfillment.args._hash,
+    })
+    if (model) {
+      model.status = 'SOLVED'
+      await this.intentModel.updateOne({ 'intent.hash': fulfillment.args._hash }, model)
+    } else {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `Intent not found for fulfillment ${fulfillment.args._hash}`,
+          properties: {
+            fulfillment,
+          },
+        }),
+      )
+    }
   }
 
   /**
@@ -192,7 +214,7 @@ export class UtilsIntentService {
     const targetsSupported = exist && difference(modelTargets, solverTargets).length == 0
 
     if (!targetsSupported) {
-      this.logger.warn(
+      this.logger.debug(
         EcoLogMessage.fromDefault({
           message: `Targets not supported for intent ${model.intent.hash}`,
           properties: {

@@ -3,7 +3,7 @@ import { RegisterQueueOptions } from '@nestjs/bullmq'
 import * as Redis from 'ioredis'
 import { EcoError } from '../errors/eco-error'
 import { EcoLogMessage } from '../logging/eco-log-message'
-import { QueueInterface } from './constants'
+import { QueueMetadata } from './constants'
 import { RedisConfig } from '../../eco-configs/eco-config.types'
 import { RedlockRedisClient } from '../../nest-redlock/nest-redlock.service'
 
@@ -23,7 +23,7 @@ export class RedisConnectionUtils {
     return new Redis.Redis(connection as Redis.RedisOptions)
   }
 
-  static getQueueOptions(queue: QueueInterface, redisConfig: RedisConfig): RegisterQueueOptions {
+  static getQueueOptions(queue: QueueMetadata, redisConfig: RedisConfig): RegisterQueueOptions {
     try {
       const connection = redisConfig.connection
       const { queue: name, prefix } = queue

@@ -2,10 +2,10 @@ import { Controller, Get, Logger } from '@nestjs/common'
 import { HealthCheck } from '@nestjs/terminus'
 import { HealthPath } from './constants'
 import { HealthService } from './health.service'
-import { API_ROUTE } from '../common/routes/constants'
+import { API_ROOT } from '../common/routes/constants'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 
-@Controller(API_ROUTE)
+@Controller(API_ROOT)
 export class HealthController {
   private logger = new Logger(HealthController.name)
   constructor(private healthService: HealthService) {}

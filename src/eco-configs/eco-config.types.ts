@@ -3,9 +3,10 @@ import { ClusterNode } from 'ioredis'
 import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
-import { JobsOptions } from 'bullmq'
+import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { CacheModuleOptions } from '@nestjs/cache-manager'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -14,7 +15,10 @@ export type EcoConfigType = {
   }
   externalAPIs: unknown
   redis: RedisConfig
+  intervals: IntervalConfig
+  intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
+  cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
     privateKey: string
@@ -40,6 +44,7 @@ export type EcoConfigType = {
     }
     pollingInterval: number
   }
+  fulfill: FulfillType
   aws: AwsCredential[]
   database: {
     auth: MongoAuthType
@@ -55,6 +60,7 @@ export type EcoConfigType = {
     usePino: boolean
     pinoConfig: PinoParams
   }
+  liquidityManager: LiquidityManagerConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -65,6 +71,13 @@ export type EcoConfigKeys = keyof EcoConfigType
 export type LaunchDarklyConfig = {
   apiKey: string
   options?: LDOptions
+}
+
+/**
+ * The configs for the fulfillment params
+ */
+export type FulfillType = {
+  run: 'batch' | 'single'
 }
 
 /**
@@ -79,6 +92,36 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+  }
+}
+
+/**
+ * The config type for the intervals section
+ */
+export type IntervalConfig = {
+  retryInfeasableIntents: {
+    repeatOpts: Omit<RepeatOptions, 'key'>
+    jobTemplate: {
+      name?: string
+      opts: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
+    }
+  }
+  defaults: {
+    repeatOpts: Omit<RepeatOptions, 'key'>
+    jobTemplate?: {
+      name?: string
+      opts?: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
+    }
+  }
+}
+
+/**
+ * The config type for the intent section
+ */
+export type IntentConfig = {
+  proofs: {
+    storage_duration_seconds: number
+    hyperlane_duration_seconds: number
   }
 }
 
@@ -131,6 +174,7 @@ export interface TargetContract {
   contractType: TargetContractType
   selectors: string[]
   minBalance: number
+  targetBalance: number
 }
 
 /**
@@ -152,4 +196,14 @@ export class IntentSource {
   tokens: Hex[]
   // The addresses of the provers that we support
   provers: Hex[]
+}
+
+export interface LiquidityManagerConfig {
+  // The maximum slippage around target balance for a token
+  targetSlippage: number
+  intervalDuration: number
+  thresholds: {
+    surplus: number // Percentage above target balance
+    deficit: number // Percentage below target balance
+  }
 }

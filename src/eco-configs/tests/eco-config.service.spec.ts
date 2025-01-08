@@ -85,7 +85,7 @@ describe('Eco Config Helper Tests', () => {
         {
           ...mockIS,
           sourceAddress: mockChainConfig.IntentSource,
-          provers: [mockChainConfig.Prover, mockChainConfig.HyperProver],
+          provers: [mockChainConfig.HyperProver], // removed per audit warn =>  , mockChainConfig.Prover
         },
       ])
       expect(mockgetChainConfig).toHaveBeenCalled()

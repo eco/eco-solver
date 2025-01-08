@@ -24,7 +24,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
   ) {}
 
   async onApplicationBootstrap() {
-    // await this.subscribeWS()
+    await this.subscribeWS()
   }
 
   async onModuleDestroy() {
@@ -61,11 +61,12 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
   addJob(network: Network, chainID: number) {
     return async (logs: ViemEventLog[]) => {
       const logTasks = logs.map((transferEvent) => {
-        //bigint as it cant serialize to json
-        transferEvent = convertBigIntsToStrings(transferEvent)
+        transferEvent.sourceChainID = BigInt(chainID)
         //add network to the event
         transferEvent.sourceNetwork = network
-        transferEvent.sourceChainID = BigInt(chainID)
+
+        //bigint as it cant serialize to json
+        transferEvent = convertBigIntsToStrings(transferEvent)
         this.logger.debug(
           EcoLogMessage.fromDefault({
             message: `ws: balance transfer`,

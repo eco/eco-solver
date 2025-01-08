@@ -53,7 +53,7 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
    * @param chainID
    * @returns
    */
-  private async getChainConfig(chainID: number): Promise<V> {
+  public async getChainConfig(chainID: number): Promise<V> {
     const chain = extractChain({
       chains: ChainsSupported,
       id: chainID,

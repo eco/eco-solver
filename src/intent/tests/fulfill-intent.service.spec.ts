@@ -1,18 +1,19 @@
 const mockEncodeFunctionData = jest.fn()
-import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+
 import { Test, TestingModule } from '@nestjs/testing'
+import { Hex, zeroAddress } from 'viem'
 import { getModelToken } from '@nestjs/mongoose'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { Model } from 'mongoose'
+import { InboxAbi } from '@eco-foundation/routes-ts'
+import { createMock, DeepMocked } from '@golevelup/ts-jest'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { ProofService } from '@/prover/proof.service'
+import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { UtilsIntentService } from '../utils-intent.service'
 import { FulfillIntentService } from '../fulfill-intent.service'
-import { EcoError } from '../../common/errors/eco-error'
-import { ProofService } from '../../prover/proof.service'
-import { Hex } from 'viem'
-import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { address1, address2 } from './feasable-intent.service.spec'
-import { InboxAbi } from '@eco-foundation/routes'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 jest.mock('viem', () => {
   return {
@@ -88,6 +89,13 @@ describe('FulfillIntentService', () => {
       })
 
       it('should set the claimant for the fulfill', async () => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation((): any =>
+          Promise.resolve({
+            execute: jest.fn().mockResolvedValue(hash),
+            waitForTransactionReceipt: jest.fn().mockResolvedValue({ transactionHash: hash }),
+          }),
+        )
+
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
         const mockGetFulfillIntentTx = jest.fn()
         fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
@@ -102,11 +110,10 @@ describe('FulfillIntentService', () => {
       it('should bubble up the thrown error', async () => {
         const error = new Error('stuff went bad')
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentData = jest.fn()
-        fulfillIntentService['getFulfillIntentData'] = mockGetFulfillIntentData
+        fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
-        jest.spyOn(accountClientService, 'getClient').mockImplementation(async (id) => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation(async () => {
           return {
             execute: () => {
               throw error
@@ -120,11 +127,10 @@ describe('FulfillIntentService', () => {
         const receipt = { status: 'reverted' }
         const error = EcoError.FulfillIntentRevertError(receipt as any)
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentData = jest.fn()
-        fulfillIntentService['getFulfillIntentData'] = mockGetFulfillIntentData
+        fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
-        jest.spyOn(accountClientService, 'getClient').mockImplementation(async (id) => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation(async () => {
           return {
             execute: () => {
               return '0x33'
@@ -149,11 +155,10 @@ describe('FulfillIntentService', () => {
       it('should log error', async () => {
         const error = new Error('stuff went bad')
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentData = jest.fn()
-        fulfillIntentService['getFulfillIntentData'] = mockGetFulfillIntentData
+        fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
-        jest.spyOn(accountClientService, 'getClient').mockImplementation(async (id) => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation(async () => {
           return {
             execute: () => {
               throw error
@@ -174,11 +179,10 @@ describe('FulfillIntentService', () => {
       it('should update the db model with status and error receipt', async () => {
         const error = new Error('stuff went bad')
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentData = jest.fn()
-        fulfillIntentService['getFulfillIntentData'] = mockGetFulfillIntentData
+        fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
-        jest.spyOn(accountClientService, 'getClient').mockImplementation(async (id) => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation(async () => {
           return {
             execute: () => {
               throw error
@@ -187,7 +191,7 @@ describe('FulfillIntentService', () => {
         })
         await expect(() => fulfillIntentService.executeFulfillIntent(hash)).rejects.toThrow(error)
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledTimes(1)
-        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith(intentModel, {
+        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...model,
           status: 'FAILED',
           receipt: error,
@@ -195,7 +199,7 @@ describe('FulfillIntentService', () => {
 
         //check error stacking
         const error2 = new Error('stuff went bad a second time')
-        jest.spyOn(accountClientService, 'getClient').mockImplementation(async (id) => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation(async () => {
           return {
             execute: () => {
               throw error2
@@ -205,7 +209,7 @@ describe('FulfillIntentService', () => {
 
         await expect(() => fulfillIntentService.executeFulfillIntent(hash)).rejects.toThrow(error2)
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledTimes(2)
-        expect(utilsIntentService.updateIntentModel).toHaveBeenLastCalledWith(intentModel, {
+        expect(utilsIntentService.updateIntentModel).toHaveBeenLastCalledWith({
           ...model,
           status: 'FAILED',
           receipt: { previous: error, current: error2 },
@@ -226,7 +230,7 @@ describe('FulfillIntentService', () => {
         })
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
 
-        jest.spyOn(accountClientService, 'getClient').mockImplementation(async (id) => {
+        jest.spyOn(accountClientService, 'getClient').mockImplementation(async () => {
           return {
             execute: mockExecute.mockResolvedValue(transactionHash),
             waitForTransactionReceipt: mockWaitForTransactionReceipt.mockResolvedValue({
@@ -269,7 +273,7 @@ describe('FulfillIntentService', () => {
 
       it('should update the db model with status and receipt', async () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledTimes(1)
-        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith(intentModel, {
+        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...model,
           status: 'SOLVED',
           receipt: { transactionHash },
@@ -331,7 +335,7 @@ describe('FulfillIntentService', () => {
       ).toEqual([])
     })
 
-    it('should return empty item for invalid trnasaction target data', async () => {
+    it('should return empty item for invalid transaction target data', async () => {
       utilsIntentService.getTransactionTargetData = jest.fn().mockReturnValue(null)
       expect(fulfillIntentService['getTransactionsForTargets']({ model, solver } as any)).toEqual(
         [],
@@ -429,39 +433,65 @@ describe('FulfillIntentService', () => {
         model.intent.hash,
       ]
     })
-    it('should use the correct function name and args for PROOF_STORAGE', async () => {
-      const mockStorage = jest.fn().mockReturnValue(true)
-      const mockHyperlane = jest.fn().mockReturnValue(false)
-      proofService.isStorageProver = mockStorage
-      proofService.isHyperlaneProver = mockHyperlane
-      await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
-      expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
-      expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.prover)
-      expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-      expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.prover)
-      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
-        abi: InboxAbi,
-        functionName: 'fulfillStorage',
-        args: defaultArgs,
+    describe('on PROOF_STORAGE', () => {
+      it('should use the correct function name and args', async () => {
+        const mockStorage = jest.fn().mockReturnValue(true)
+        const mockHyperlane = jest.fn().mockReturnValue(false)
+        proofService.isStorageProver = mockStorage
+        proofService.isHyperlaneProver = mockHyperlane
+        await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
+        expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.prover)
+        expect(mockEncodeFunctionData).toHaveBeenCalledWith({
+          abi: InboxAbi,
+          functionName: 'fulfillStorage',
+          args: defaultArgs,
+        })
       })
     })
 
-    it('should use the correct function name and args for PROOF_HYPERLANE', async () => {
-      const mockStorage = jest.fn().mockReturnValue(false)
-      const mockHyperlane = jest.fn().mockReturnValue(true)
-      proofService.isStorageProver = mockStorage
-      proofService.isHyperlaneProver = mockHyperlane
-      defaultArgs.push(model.intent.prover)
-      await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
-      expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
-      expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.prover)
-      expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-      expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.prover)
-      expect(mockEncodeFunctionData).toHaveBeenCalledTimes(1)
-      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
-        abi: InboxAbi,
-        functionName: 'fulfillHyperInstant',
-        args: defaultArgs,
+    describe('on PROOF_HYPERLANE', () => {
+      it('should use the correct function name and args for fulfillHyperInstantWithRelayer', async () => {
+        const mockStorage = jest.fn().mockReturnValue(false)
+        const mockHyperlane = jest.fn().mockReturnValue(true)
+        proofService.isStorageProver = mockStorage
+        proofService.isHyperlaneProver = mockHyperlane
+        defaultArgs.push(model.intent.prover)
+        defaultArgs.push('0x0')
+        defaultArgs.push(zeroAddress)
+        await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
+        expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.prover)
+        expect(mockEncodeFunctionData).toHaveBeenCalledTimes(1)
+        expect(mockEncodeFunctionData).toHaveBeenCalledWith({
+          abi: InboxAbi,
+          functionName: 'fulfillHyperInstantWithRelayer',
+          args: defaultArgs,
+        })
+      })
+
+      it('should use the correct function name and args for fulfillHyperBatched', async () => {
+        const mockStorage = jest.fn().mockReturnValue(false)
+        const mockHyperlane = jest.fn().mockReturnValue(true)
+        proofService.isStorageProver = mockStorage
+        proofService.isHyperlaneProver = mockHyperlane
+        fulfillIntentService['getFulfillment'] = jest.fn().mockReturnValue('fulfillHyperBatched')
+        defaultArgs.push(model.intent.prover)
+        await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
+        expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.prover)
+        expect(mockEncodeFunctionData).toHaveBeenCalledTimes(1)
+        expect(mockEncodeFunctionData).toHaveBeenCalledWith({
+          abi: InboxAbi,
+          functionName: 'fulfillHyperBatched',
+          args: defaultArgs,
+        })
       })
     })
   })

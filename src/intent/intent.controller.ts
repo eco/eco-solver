@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common'
-import { WatchIntentService } from './watch-intent.service'
+import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 import { Network } from 'alchemy-sdk'
 import { ValidateIntentService } from './validate-intent.service'
 import { Logger } from '@nestjs/common'
@@ -11,7 +11,7 @@ import { IntentCreatedLog } from '../contracts'
 export class IntentSourceController {
   private logger = new Logger(IntentSourceController.name)
   constructor(
-    private readonly watchIntentService: WatchIntentService,
+    private readonly watchIntentService: WatchCreateIntentService,
     private readonly validateService: ValidateIntentService,
   ) {}
 

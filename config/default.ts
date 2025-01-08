@@ -9,6 +9,9 @@ export default {
       secretID: 'eco-solver-configs-dev',
     },
   ],
+  cache: {
+    ttl: 10_000, // milliseconds till cache key expires
+  },
   redis: {
     options: {
       single: {
@@ -43,6 +46,50 @@ export default {
           delay: 2_000,
         },
       },
+    },
+  },
+  intervals: {
+    retryInfeasableIntents: {
+      repeatOpts: {
+        every: 10000,
+      },
+      jobTemplate: {
+        name: 'retry-infeasable-intents',
+        data: {},
+      },
+    },
+    defaults: {
+      repeatOpts: {
+        every: 10000,
+      },
+      jobTemplate: {
+        name: 'default-interval-job',
+        data: {},
+        opts: {
+          removeOnComplete: true,
+          removeOnFail: true,
+
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2_000,
+          },
+        },
+      },
+    },
+  },
+  intentConfigs: {
+    proofs: {
+      storage_duration_seconds: 604800,
+      hyperlane_duration_seconds: 3600,
+    },
+  },
+  liquidityManager: {
+    intervalDuration: 300000,
+    targetSlippage: 0.02,
+    thresholds: {
+      surplus: 0.1,
+      deficit: 0.2,
     },
   },
   externalAPIs: {},

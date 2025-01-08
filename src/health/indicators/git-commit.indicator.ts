@@ -5,7 +5,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { EcoLogMessage } from '../../common/logging/eco-log-message'
 
-const ECO_ROUTES_PACKAGE_NAME = '@eco-foundation/routes'
+const ECO_ROUTES_PACKAGE_NAME = '@eco-foundation/routes-ts'
 @Injectable()
 export class GitCommitHealthIndicator extends HealthIndicator {
   private logger = new Logger(GitCommitHealthIndicator.name)

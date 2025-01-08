@@ -22,11 +22,13 @@ export class IntentSourceDataModel implements IntentSourceViemType {
   @Prop({ required: true })
   expiryTime: bigint
   @Prop({ required: true })
-  hasBeenWithdrawn: boolean
+  isActive: boolean
   @Prop({ required: true })
   nonce: Hex
   @Prop({ required: true })
   prover: Hex
+  @Prop({ required: true })
+  rewardNative: bigint
   @Prop({ required: true })
   logIndex: number
 
@@ -41,6 +43,7 @@ export class IntentSourceDataModel implements IntentSourceViemType {
     expiryTime: bigint,
     nonce: Hex,
     prover: Hex,
+    rewardNative: bigint,
     logIndex: number,
   ) {
     if (targets.length !== data.length) {
@@ -54,9 +57,10 @@ export class IntentSourceDataModel implements IntentSourceViemType {
     this.rewardTokens = rewardTokens.map((token) => getAddress(token as string))
     this.rewardAmounts = rewardAmounts.map((amount) => amount)
     this.expiryTime = expiryTime
-    this.hasBeenWithdrawn = false
+    this.isActive = true
     this.nonce = nonce
     this.prover = getAddress(prover as string)
+    this.rewardNative = rewardNative
     this.logIndex = logIndex
   }
 
@@ -76,6 +80,7 @@ export class IntentSourceDataModel implements IntentSourceViemType {
       e._expiryTime,
       e.nonce,
       e._prover,
+      e._rewardNative,
       logIndex,
     )
   }

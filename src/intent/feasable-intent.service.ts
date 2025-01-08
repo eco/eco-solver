@@ -80,7 +80,7 @@ export class FeasableIntentService implements OnModuleInit {
         ...this.intentJobConfig,
       })
     } else {
-      await this.utilsIntentService.updateInfeasableIntentModel(this.intentModel, model, results)
+      await this.utilsIntentService.updateInfeasableIntentModel(model, results)
     }
   }
 

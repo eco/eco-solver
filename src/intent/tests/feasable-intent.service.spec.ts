@@ -109,7 +109,6 @@ describe('FeasableIntentService', () => {
       await feasableIntentService.feasableIntent(intentHash)
 
       expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
-        {},
         mockData.model,
         validateExecution.results,
       )

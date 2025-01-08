@@ -1,14 +1,14 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { Solver } from '../eco-configs/eco-config.types'
-import { getDestinationNetworkAddressKey } from '../common/utils/strings'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { erc20Abi, Hex } from 'viem'
-import { ViemEventLog } from '../common/events/viem'
-import { decodeTransferLog, isSupportedTokenType } from '../contracts'
-import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
-
-type TokenBalance = { decimals: bigint; balance: bigint }
+import { groupBy, zipWith } from 'lodash'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
+import { ViemEventLog } from '@/common/events/viem'
+import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { TokenBalance, TokenConfig } from '@/balance/types'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting configs for the app
@@ -25,13 +25,8 @@ export class BalanceService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    //iterate over all solvers
-    await Promise.all(
-      Object.entries(this.ecoConfig.getSolvers()).map(async (entry) => {
-        const [, solver] = entry
-        await this.loadTokenBalances(solver)
-      }),
-    )
+    // iterate over all tokens
+    await Promise.all(this.getTokens().map((token) => this.loadTokenBalance(token)))
   }
 
   /**
@@ -69,20 +64,104 @@ export class BalanceService implements OnApplicationBootstrap {
     }
   }
 
+  getTokens(): TokenConfig[] {
+    return Object.values(this.ecoConfig.getSolvers()).flatMap((solver) => {
+      return Object.entries(solver.targets)
+        .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
+        .map(([tokenAddress, targetContract]) => ({
+          address: tokenAddress as Hex,
+          chainId: solver.chainID,
+          type: targetContract.contractType,
+          minBalance: targetContract.minBalance,
+          targetBalance: targetContract.targetBalance,
+        }))
+    })
+  }
+
+  async fetchTokenBalances(
+    chainID: number,
+    tokenAddresses: Hex[],
+  ): Promise<Record<Hex, TokenBalance>> {
+    const client = await this.kernelAccountClientService.getClient(chainID)
+    const walletAddress = client.kernelAccount.address
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `fetchTokenBalances`,
+        properties: {
+          chainID,
+          tokenAddresses,
+          walletAddress,
+        },
+      }),
+    )
+
+    const results = (await client.multicall({
+      contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] => [
+        {
+          abi: erc20Abi,
+          address: tokenAddress,
+          functionName: 'balanceOf',
+          args: [walletAddress],
+        },
+        {
+          abi: erc20Abi,
+          address: tokenAddress,
+          functionName: 'decimals',
+        },
+      ]),
+      allowFailure: false,
+    })) as MulticallReturnType
+
+    const result: Record<Hex, TokenBalance> = {}
+
+    tokenAddresses.forEach((tokenAddress, index) => {
+      const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
+      result[tokenAddress] = {
+        address: tokenAddress,
+        balance: balance as bigint,
+        decimals: decimals as number,
+      }
+    })
+
+    return result
+  }
+
+  async fetchTokenBalance(chainID: number, tokenAddress: Hex): Promise<TokenBalance> {
+    const result = await this.fetchTokenBalances(chainID, [tokenAddress])
+    return result[tokenAddress]
+  }
+
+  async getAllTokenData() {
+    const tokens = this.getTokens()
+    const tokensByChainId = groupBy(tokens, 'chainId')
+    const chainIds = Object.keys(tokensByChainId)
+
+    const balancesPerChainIdPromise = chainIds.map(async (chainId) => {
+      const configs = tokensByChainId[chainId]
+      const tokenAddresses = configs.map((token) => token.address)
+      const balances = await this.fetchTokenBalances(parseInt(chainId), tokenAddresses)
+      return zipWith(configs, Object.values(balances), (config, balance) => ({
+        config,
+        balance,
+        chainId: parseInt(chainId),
+      }))
+    })
+
+    return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())
+  }
+
   /**
    * Loads the token balance of the solver
    * @returns
    */
-  private async loadTokenBalances(solver: Solver) {
-    await Promise.all(
-      Object.entries(solver.targets).map(async (target) => {
-        const [tokenAddress, targetContract] = target
-        if (isSupportedTokenType(targetContract.contractType)) {
-          //load the balance in the local mapping
-          return await this.loadERC20TokenBalance(solver.chainID, tokenAddress as Hex)
-        }
-      }),
-    )
+  private async loadTokenBalance(token: TokenConfig) {
+    switch (token.type) {
+      case 'erc20':
+        return this.loadERC20TokenBalance(token.chainId, token.address)
+      default:
+        throw EcoError.IntentSourceUnsupportedTargetType(token.type)
+    }
   }
 
   private async loadERC20TokenBalance(
@@ -91,27 +170,8 @@ export class BalanceService implements OnApplicationBootstrap {
   ): Promise<TokenBalance | undefined> {
     const key = getDestinationNetworkAddressKey(chainID, tokenAddress)
     if (!this.tokenBalances.has(key)) {
-      const client = await this.kernelAccountClientService.getClient(chainID)
-      const erc20 = {
-        address: tokenAddress,
-        abi: erc20Abi,
-      }
-
-      const [{ result: balance }, { result: decimals }] = await client.multicall({
-        contracts: [
-          {
-            ...erc20,
-            functionName: 'balanceOf',
-            args: [client.kernelAccount.address],
-          },
-          {
-            ...erc20,
-            functionName: 'decimals',
-          },
-        ],
-      })
-
-      this.tokenBalances.set(key, { balance: balance ?? 0n, decimals: BigInt(decimals ?? 0) })
+      const tokenBalance = await this.fetchTokenBalance(chainID, tokenAddress)
+      this.tokenBalances.set(key, tokenBalance)
     }
     return this.tokenBalances.get(key)
   }

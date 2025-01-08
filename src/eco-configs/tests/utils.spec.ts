@@ -12,7 +12,7 @@ import * as config from 'config'
 
 jest.mock('config')
 
-jest.mock('@eco-foundation/routes', () => mockRoutes)
+jest.mock('@eco-foundation/routes-ts', () => mockRoutes)
 
 describe('config utils tests', () => {
   describe('on getNodeEnv', () => {

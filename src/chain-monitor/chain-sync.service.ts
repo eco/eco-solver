@@ -8,9 +8,9 @@ import { IntentSource } from '../eco-configs/eco-config.types'
 import { IntentCreatedLog } from '../contracts'
 import { entries } from 'lodash'
 import { BlockTag } from 'viem'
-import { WatchIntentService } from '../intent/watch-intent.service'
+import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { IntentSourceAbi } from '@eco-foundation/routes'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -25,7 +25,7 @@ export class ChainSyncService implements OnApplicationBootstrap {
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly watchIntentService: WatchIntentService,
+    private readonly watchIntentService: WatchCreateIntentService,
     private ecoConfigService: EcoConfigService,
   ) {}
 

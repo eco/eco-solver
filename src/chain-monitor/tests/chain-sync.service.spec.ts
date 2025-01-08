@@ -1,6 +1,6 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { ChainSyncService } from '../chain-sync.service'
-import { WatchIntentService } from '../../intent/watch-intent.service'
+import { WatchCreateIntentService } from '../../watch/intent/watch-create-intent.service'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
@@ -9,12 +9,12 @@ import { Model } from 'mongoose'
 import { Solver, IntentSource } from '../../eco-configs/eco-config.types'
 import { entries } from 'lodash'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { IntentSourceAbi } from '@eco-foundation/routes'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 
 describe('ChainSyncService', () => {
   let chainSyncService: ChainSyncService
   let accountService: DeepMocked<KernelAccountClientService>
-  let watchIntentService: DeepMocked<WatchIntentService>
+  let watchIntentService: DeepMocked<WatchCreateIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
 
   beforeEach(async () => {
@@ -25,7 +25,7 @@ describe('ChainSyncService', () => {
           provide: KernelAccountClientService,
           useValue: createMock<KernelAccountClientService>(),
         },
-        { provide: WatchIntentService, useValue: createMock<WatchIntentService>() },
+        { provide: WatchCreateIntentService, useValue: createMock<WatchCreateIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
           provide: getModelToken(IntentSourceModel.name),
@@ -36,7 +36,7 @@ describe('ChainSyncService', () => {
 
     chainSyncService = chainMod.get(ChainSyncService)
     accountService = chainMod.get(KernelAccountClientService)
-    watchIntentService = chainMod.get(WatchIntentService)
+    watchIntentService = chainMod.get(WatchCreateIntentService)
     ecoConfigService = chainMod.get(EcoConfigService) as DeepMocked<EcoConfigService>
   })
 

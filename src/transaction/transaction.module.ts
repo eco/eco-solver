@@ -4,6 +4,7 @@ import { SimpleAccountClientService } from './smart-wallets/simple-account/simpl
 import { MultichainPublicClientService } from './multichain-public-client.service'
 import { ViemMultichainClientService } from './viem_multichain_client.service'
 import { KernelAccountClientService } from './smart-wallets/kernel/kernel-account-client.service'
+import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 
 @Module({
   imports: [SignModule],
@@ -12,7 +13,13 @@ import { KernelAccountClientService } from './smart-wallets/kernel/kernel-accoun
     MultichainPublicClientService,
     ViemMultichainClientService,
     KernelAccountClientService,
+    KernelAccountClientV2Service,
   ],
-  exports: [SimpleAccountClientService, MultichainPublicClientService, KernelAccountClientService],
+  exports: [
+    SimpleAccountClientService,
+    MultichainPublicClientService,
+    KernelAccountClientService,
+    KernelAccountClientV2Service,
+  ],
 })
 export class TransactionModule {}
