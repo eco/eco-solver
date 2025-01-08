@@ -1,6 +1,5 @@
 import { BalanceController } from '@/api/balance.controller'
 import { BalanceModule } from '@/balance/balance.module'
-import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
