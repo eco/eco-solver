@@ -793,10 +793,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/routes-ts@^0.1.10-beta":
-  version "0.1.10-beta"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-0.1.10-beta.tgz#96dad18f5b9a4704b8922cfef8e1e76e3fe9a980"
-  integrity sha512-mshv2nBWv/YDMNMinLFB4QfTKTZWooNR/ePltgfzWWBN3Y0tz0tQL6q4SeWdfROAMp/1QVKNR1SAfGUHivBQQQ==
+"@eco-foundation/routes-ts@~0.2.10-beta":
+  version "0.2.10-beta"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-0.2.10-beta.tgz#61bfc2285d15e55812bb45fd3e98e6a9bc8cf440"
+  integrity sha512-b/nWW73/84frgHaQhy0rT0hxzZavnWP1112exO4RQB5P6/ZSryNleDLyz6ejFR6rcbLPp05baV+RPe6Hcwsl7A==
 
 "@eslint-community/eslint-utils@^4.2.0", "@eslint-community/eslint-utils@^4.4.0":
   version "4.4.1"

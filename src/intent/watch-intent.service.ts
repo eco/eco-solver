@@ -12,6 +12,7 @@ import { PublicClient, WatchContractEventReturnType, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '../common/viem/utils'
 import { entries } from 'lodash'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -106,10 +107,25 @@ export class WatchIntentService implements OnApplicationBootstrap, OnModuleDestr
   async unsubscribe() {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `watch intent: unsubscribe`,
+        message: `watch-intent: unsubscribe`,
       }),
     )
-    Object.values(this.unwatch).forEach((unwatch) => unwatch())
+
+    Object.values(this.unwatch).forEach((unwatch) => {
+      try {
+        unwatch()
+      } catch (e) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: `watch-intent: unsubscribe`,
+            error: EcoError.WatchIntentUnsubscribeError,
+            properties: {
+              errorPassed: e,
+            },
+          }),
+        )
+      }
+    })
   }
 
   /**
@@ -126,7 +142,30 @@ export class WatchIntentService implements OnApplicationBootstrap, OnModuleDestr
           },
         }),
       )
-      this.unwatch[chainID]()
+      try {
+        this.unwatch[chainID]()
+      } catch (e) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: `watch-intent: unsubscribeFrom`,
+            error: EcoError.WatchIntentUnsubscribeFromError(chainID),
+            properties: {
+              chainID,
+              errorPassed: e,
+            },
+          }),
+        )
+      }
+    } else {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: `watch intent: unsubscribeFrom`,
+          error: EcoError.WatchIntentNoUnsubscribeError(chainID),
+          properties: {
+            chainID,
+          },
+        }),
+      )
     }
   }
 

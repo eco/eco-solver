@@ -6,6 +6,7 @@ import { QUEUES } from '../../common/redis/constants'
 import { Job, Queue } from 'bullmq'
 import { WatchIntentService } from '../watch-intent.service'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
+import { EcoError } from '@/common/errors/eco-error'
 
 describe('WatchIntentService', () => {
   let watchIntentService: WatchIntentService
@@ -14,6 +15,7 @@ describe('WatchIntentService', () => {
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
+  const mockLogError = jest.fn()
 
   const sources = [
     { chainID: 1, sourceAddress: '0x1234', provers: ['0x88'], network: 'testnet1' },
@@ -48,6 +50,7 @@ describe('WatchIntentService', () => {
 
     watchIntentService['logger'].debug = mockLogDebug
     watchIntentService['logger'].log = mockLogLog
+    watchIntentService['logger'].error = mockLogError
   })
 
   afterEach(async () => {
@@ -143,6 +146,111 @@ describe('WatchIntentService', () => {
         expect.any(Object),
         { jobId: 'watch-1-0' },
       )
+    })
+  })
+
+  describe('on unsubscribe', () => {
+    let mockUnwatch1: jest.Mock = jest.fn()
+    let mockUnwatch2: jest.Mock = jest.fn()
+    beforeEach(async () => {
+      mockUnwatch1 = jest.fn()
+      mockUnwatch2 = jest.fn()
+      watchIntentService['unwatch'] = {
+        1: mockUnwatch1,
+        2: mockUnwatch2,
+      }
+    })
+
+    afterEach(async () => {
+      jest.clearAllMocks()
+    })
+
+    it('should unsubscribe to every unwatch and catch any throws', async () => {
+      const e = new Error('test')
+      mockUnwatch1.mockImplementation(() => {
+        throw e
+      })
+      await watchIntentService.unsubscribe()
+      expect(mockUnwatch1).toHaveBeenCalledTimes(1)
+      expect(mockUnwatch2).toHaveBeenCalledTimes(1)
+      expect(mockLogError).toHaveBeenCalledTimes(1)
+      expect(mockLogError).toHaveBeenCalledWith({
+        msg: 'watch-intent: unsubscribe',
+        error: EcoError.WatchIntentUnsubscribeError.toString(),
+        errorPassed: e,
+      })
+    })
+
+    it('should unsubscribe to every unwatch', async () => {
+      await watchIntentService.unsubscribe()
+      expect(mockUnwatch1).toHaveBeenCalledTimes(1)
+      expect(mockUnwatch2).toHaveBeenCalledTimes(1)
+      expect(mockLogError).toHaveBeenCalledTimes(0)
+      expect(mockLogDebug).toHaveBeenCalledTimes(1)
+      expect(mockLogDebug).toHaveBeenCalledWith({
+        msg: 'watch-intent: unsubscribe',
+      })
+    })
+  })
+
+  describe('on unsubscribeFrom', () => {
+    let mockUnwatch1: jest.Mock = jest.fn()
+    const chainID = 1
+    beforeEach(async () => {
+      mockUnwatch1 = jest.fn()
+      watchIntentService['unwatch'] = {
+        [chainID]: mockUnwatch1,
+      }
+    })
+
+    afterEach(async () => {
+      jest.clearAllMocks()
+    })
+
+    describe('on unwatch exists', () => {
+      it('should unsubscribe to unwatch', async () => {
+        await watchIntentService.unsubscribeFrom(chainID)
+        expect(mockUnwatch1).toHaveBeenCalledTimes(1)
+        expect(mockLogDebug).toHaveBeenCalledTimes(1)
+        expect(mockLogError).toHaveBeenCalledTimes(0)
+        expect(mockLogDebug).toHaveBeenCalledWith({
+          msg: 'watch intent: unsubscribeFrom',
+          chainID,
+        })
+      })
+
+      it('should unsubscribe to unwatch and catch throw', async () => {
+        const e = new Error('test')
+        mockUnwatch1.mockImplementation(() => {
+          throw e
+        })
+        await watchIntentService.unsubscribeFrom(chainID)
+        expect(mockUnwatch1).toHaveBeenCalledTimes(1)
+        expect(mockLogError).toHaveBeenCalledTimes(1)
+        expect(mockLogError).toHaveBeenCalledWith({
+          msg: 'watch-intent: unsubscribeFrom',
+          error: EcoError.WatchIntentUnsubscribeFromError(chainID).toString(),
+          errorPassed: e,
+          chainID,
+        })
+      })
+    })
+
+    describe('on unwatch doesnt exist', () => {
+      beforeEach(async () => {
+        watchIntentService['unwatch'] = {}
+      })
+
+      it('should log error', async () => {
+        await watchIntentService.unsubscribeFrom(chainID)
+        expect(mockUnwatch1).toHaveBeenCalledTimes(0)
+        expect(mockLogError).toHaveBeenCalledTimes(1)
+        expect(mockLogError).toHaveBeenCalledWith({
+          msg: 'watch intent: unsubscribeFrom',
+          error: EcoError.WatchIntentNoUnsubscribeError(chainID).toString(),
+          chainID,
+        })
+      })
     })
   })
 })

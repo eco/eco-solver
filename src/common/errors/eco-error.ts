@@ -56,6 +56,15 @@ export class EcoError extends Error {
     return err || new Error('Desctructuring the intent from the intent hash failed')
   }
 
+  // WatchIntent Service
+  static WatchIntentUnsubscribeError = new Error('Could not unsubscribe from watch intent')
+  static WatchIntentUnsubscribeFromError(chainID: number) {
+    return new Error(`Could not unsubscribe from watch intent for chain : ${chainID}`)
+  }
+  static WatchIntentNoUnsubscribeError(chainID: number) {
+    return new Error(`There is no unwatch for chain : ${chainID}`)
+  }
+
   // Viem
 
   static UnsupportedChainError(chain: Chain) {
