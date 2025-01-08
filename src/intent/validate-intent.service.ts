@@ -21,6 +21,7 @@ import { EcoError } from '../common/errors/eco-error'
  * 2. Supports the targets
  * 3. Supports the selectors
  * 4. Has a valid expiration time
+ * 5. Fulfill chain not same as source chain
  *
  * As well as some structural checks on the intent model
  */
@@ -98,13 +99,21 @@ export class ValidateIntentService implements OnModuleInit {
     const targetsUnsupported = !this.supportedTargets(model, solver)
     const selectorsUnsupported = !this.supportedSelectors(model, solver)
     const expiresEarly = !this.validExpirationTime(model)
+    const sameChainFulfill = !this.fulfillOnDifferentChain(model)
 
-    if (proverUnsupported || targetsUnsupported || selectorsUnsupported || expiresEarly) {
+    if (
+      proverUnsupported ||
+      targetsUnsupported ||
+      selectorsUnsupported ||
+      expiresEarly ||
+      sameChainFulfill
+    ) {
       await this.utilsIntentService.updateInvalidIntentModel(this.intentModel, model, {
         proverUnsupported,
         targetsUnsupported,
         selectorsUnsupported,
         expiresEarly,
+        sameChainFulfill,
       })
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -115,6 +124,7 @@ export class ValidateIntentService implements OnModuleInit {
             targetsUnsupported,
             selectorsUnsupported,
             expiresEarly,
+            sameChainFulfill,
             ...(expiresEarly && {
               proofMinDurationSeconds: this.proofService
                 .getProofMinimumDate(model.intent.prover)
@@ -200,6 +210,17 @@ export class ValidateIntentService implements OnModuleInit {
       model.intent.prover,
       expires,
     )
+  }
+
+  /**
+   * Checks that the intent fulfillment is on a different chain than its source
+   * Needed since some proving methods(Hyperlane) cant prove same chain
+   * @param model the model of the source intent
+   * @param solver the solver used to fulfill
+   * @returns
+   */
+  private fulfillOnDifferentChain(model: IntentSourceModel): boolean {
+    return model.intent.destinationChainID !== model.event.sourceChainID
   }
 
   /**
