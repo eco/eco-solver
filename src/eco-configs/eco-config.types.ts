@@ -3,7 +3,7 @@ import { ClusterNode } from 'ioredis'
 import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
-import { JobsOptions } from 'bullmq'
+import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 
@@ -14,6 +14,8 @@ export type EcoConfigType = {
   }
   externalAPIs: unknown
   redis: RedisConfig
+  intervals: IntervalConfig
+  intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -88,6 +90,36 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+  }
+}
+
+/**
+ * The config type for the intervals section
+ */
+export type IntervalConfig = {
+  retryInfeasableIntents: {
+    repeatOpts: Omit<RepeatOptions, 'key'>
+    jobTemplate: {
+      name?: string
+      opts: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
+    }
+  }
+  defaults: {
+    repeatOpts: Omit<RepeatOptions, 'key'>
+    jobTemplate?: {
+      name?: string
+      opts?: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
+    }
+  }
+}
+
+/**
+ * The config type for the intent section
+ */
+export type IntentConfig = {
+  proofs: {
+    storage_duration_seconds: number
+    hyperlane_duration_seconds: number
   }
 }
 

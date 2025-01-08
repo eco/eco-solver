@@ -191,7 +191,7 @@ describe('FulfillIntentService', () => {
         })
         await expect(() => fulfillIntentService.executeFulfillIntent(hash)).rejects.toThrow(error)
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledTimes(1)
-        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith(intentModel, {
+        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...model,
           status: 'FAILED',
           receipt: error,
@@ -209,7 +209,7 @@ describe('FulfillIntentService', () => {
 
         await expect(() => fulfillIntentService.executeFulfillIntent(hash)).rejects.toThrow(error2)
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledTimes(2)
-        expect(utilsIntentService.updateIntentModel).toHaveBeenLastCalledWith(intentModel, {
+        expect(utilsIntentService.updateIntentModel).toHaveBeenLastCalledWith({
           ...model,
           status: 'FAILED',
           receipt: { previous: error, current: error2 },
@@ -273,7 +273,7 @@ describe('FulfillIntentService', () => {
 
       it('should update the db model with status and receipt', async () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledTimes(1)
-        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith(intentModel, {
+        expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...model,
           status: 'SOLVED',
           receipt: { transactionHash },

@@ -5,9 +5,10 @@ import { SolveIntentProcessor } from './solve-intent.processor'
 import { BalanceModule } from '../../balance/balance.module'
 import { IntentModule } from '../../intent/intent.module'
 import { SignModule } from '../../sign/sign.module'
+import { InboxProcessor } from '@/bullmq/processors/inbox.processor'
 
 @Module({
   imports: [BalanceModule, IntentModule, SignModule],
-  providers: [EthWebsocketProcessor, SignerProcessor, SolveIntentProcessor],
+  providers: [EthWebsocketProcessor, SignerProcessor, SolveIntentProcessor, InboxProcessor],
 })
 export class ProcessorModule {}

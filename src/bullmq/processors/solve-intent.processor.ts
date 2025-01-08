@@ -1,14 +1,14 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
+import { QUEUES } from '@/common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
-import { FeasableIntentService } from '../../intent/feasable-intent.service'
-import { ValidateIntentService } from '../../intent/validate-intent.service'
-import { CreateIntentService } from '../../intent/create-intent.service'
-import { FulfillIntentService } from '../../intent/fulfill-intent.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { FeasableIntentService } from '@/intent/feasable-intent.service'
+import { ValidateIntentService } from '@/intent/validate-intent.service'
+import { CreateIntentService } from '@/intent/create-intent.service'
+import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
-import { IntentCreatedLog } from '../../contracts'
+import { IntentCreatedLog } from '@/contracts'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue)
@@ -40,6 +40,7 @@ export class SolveIntentProcessor extends WorkerHost {
       case QUEUES.SOURCE_INTENT.jobs.create_intent:
         return await this.createIntentService.createIntent(job.data as IntentCreatedLog)
       case QUEUES.SOURCE_INTENT.jobs.validate_intent:
+      case QUEUES.SOURCE_INTENT.jobs.retry_intent:
         return await this.validateIntentService.validateIntent(job.data as Hex)
       case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
         return await this.feasableIntentService.feasableIntent(job.data as Hex)

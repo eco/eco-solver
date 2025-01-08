@@ -1,15 +1,15 @@
+import { QUEUES } from '@/common/redis/constants'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { WatchCreateIntentService } from '@/watch/intent/watch-create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
-import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
+import { Test, TestingModule } from '@nestjs/testing'
 import { Job, Queue } from 'bullmq'
-import { WatchIntentService } from '../watch-intent.service'
-import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { EcoError } from '@/common/errors/eco-error'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 
 describe('WatchIntentService', () => {
-  let watchIntentService: WatchIntentService
+  let watchIntentService: WatchCreateIntentService
   let publicClientService: DeepMocked<MultichainPublicClientService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -26,7 +26,7 @@ describe('WatchIntentService', () => {
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
-        WatchIntentService,
+        WatchCreateIntentService,
         {
           provide: MultichainPublicClientService,
           useValue: createMock<MultichainPublicClientService>(),
@@ -43,7 +43,7 @@ describe('WatchIntentService', () => {
       .useValue(createMock<Queue>())
       .compile()
 
-    watchIntentService = chainMod.get(WatchIntentService)
+    watchIntentService = chainMod.get(WatchCreateIntentService)
     publicClientService = chainMod.get(MultichainPublicClientService)
     ecoConfigService = chainMod.get(EcoConfigService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
@@ -63,7 +63,6 @@ describe('WatchIntentService', () => {
   describe('on lifecycle', () => {
     describe('on startup', () => {
       it('should subscribe to nothing if no source intents', async () => {
-        ecoConfigService.getSolvers.mockReturnValue(sources)
         const mock = jest.spyOn(watchIntentService, 'subscribe')
         await watchIntentService.onApplicationBootstrap()
         expect(mock).toHaveBeenCalledTimes(1)
@@ -95,7 +94,7 @@ describe('WatchIntentService', () => {
       it('should unsubscribe to nothing if no source intents', async () => {
         const mock = jest.spyOn(watchIntentService, 'unsubscribe')
         await watchIntentService.onModuleDestroy()
-        expect(mock).toHaveBeenCalledTimes
+        expect(mock).toHaveBeenCalledTimes(1)
       })
 
       it('should unsubscribe to all source intents', async () => {
@@ -117,15 +116,15 @@ describe('WatchIntentService', () => {
     const log = { args: { _hash: BigInt(1), logIndex: BigInt(2) } } as any
     let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
 
-    beforeEach(() => {
+    beforeEach(async () => {
       mockQueueAdd = jest.spyOn(queue, 'add')
-      watchIntentService.addJob(s)([log])
+      await watchIntentService.addJob(s)([log])
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
     })
     it('should convert all bigints to strings', async () => {
       expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
         expect.objectContaining({
-          args: { _hash: '1', logIndex: '2' },
+          args: { _hash: log.args._hash.toString(), logIndex: log.args.logIndex.toString() },
         }),
       )
     })
@@ -144,7 +143,7 @@ describe('WatchIntentService', () => {
       expect(mockQueueAdd).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.create_intent,
         expect.any(Object),
-        { jobId: 'watch-1-0' },
+        { jobId: 'watch-create-intent-1-0' },
       )
     })
   })
@@ -175,8 +174,8 @@ describe('WatchIntentService', () => {
       expect(mockUnwatch2).toHaveBeenCalledTimes(1)
       expect(mockLogError).toHaveBeenCalledTimes(1)
       expect(mockLogError).toHaveBeenCalledWith({
-        msg: 'watch-intent: unsubscribe',
-        error: EcoError.WatchIntentUnsubscribeError.toString(),
+        msg: 'watch-event: unsubscribe',
+        error: EcoError.WatchEventUnsubscribeError.toString(),
         errorPassed: e,
       })
     })
@@ -188,7 +187,7 @@ describe('WatchIntentService', () => {
       expect(mockLogError).toHaveBeenCalledTimes(0)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
-        msg: 'watch-intent: unsubscribe',
+        msg: 'watch-event: unsubscribe',
       })
     })
   })
@@ -214,7 +213,7 @@ describe('WatchIntentService', () => {
         expect(mockLogDebug).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(0)
         expect(mockLogDebug).toHaveBeenCalledWith({
-          msg: 'watch intent: unsubscribeFrom',
+          msg: 'watch-event: unsubscribeFrom',
           chainID,
         })
       })
@@ -228,8 +227,8 @@ describe('WatchIntentService', () => {
         expect(mockUnwatch1).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
-          msg: 'watch-intent: unsubscribeFrom',
-          error: EcoError.WatchIntentUnsubscribeFromError(chainID).toString(),
+          msg: 'watch-event: unsubscribeFrom',
+          error: EcoError.WatchEventUnsubscribeFromError(chainID).toString(),
           errorPassed: e,
           chainID,
         })
@@ -246,8 +245,8 @@ describe('WatchIntentService', () => {
         expect(mockUnwatch1).toHaveBeenCalledTimes(0)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
-          msg: 'watch intent: unsubscribeFrom',
-          error: EcoError.WatchIntentNoUnsubscribeError(chainID).toString(),
+          msg: 'watch event: unsubscribeFrom',
+          error: EcoError.WatchEventNoUnsubscribeError(chainID).toString(),
           chainID,
         })
       })

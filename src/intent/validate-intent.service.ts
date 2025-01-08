@@ -108,7 +108,7 @@ export class ValidateIntentService implements OnModuleInit {
       expiresEarly ||
       sameChainFulfill
     ) {
-      await this.utilsIntentService.updateInvalidIntentModel(this.intentModel, model, {
+      await this.utilsIntentService.updateInvalidIntentModel(model, {
         proverUnsupported,
         targetsUnsupported,
         selectorsUnsupported,
@@ -127,7 +127,7 @@ export class ValidateIntentService implements OnModuleInit {
             sameChainFulfill,
             ...(expiresEarly && {
               proofMinDurationSeconds: this.proofService
-                .getProofMinimumDate(model.intent.prover)
+                .getProofMinimumDate(this.proofService.getProverType(model.intent.prover))
                 .toUTCString(),
             }),
           },

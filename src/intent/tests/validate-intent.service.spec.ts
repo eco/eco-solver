@@ -268,7 +268,7 @@ describe('ValidateIntentService', () => {
         expect(await validateIntentService['assertValidations'](model, solver)).toBe(false)
         expect(updateInvalidIntentModel).toHaveBeenCalledTimes(1)
         expect(mockLogLog).toHaveBeenCalledTimes(1)
-        expect(updateInvalidIntentModel).toHaveBeenCalledWith({}, model, logObj)
+        expect(updateInvalidIntentModel).toHaveBeenCalledWith(model, logObj)
         expect(mockLogLog).toHaveBeenCalledWith({
           msg: `Intent failed validation ${model.intent.hash}`,
           model,

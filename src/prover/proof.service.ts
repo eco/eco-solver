@@ -26,12 +26,6 @@ export class ProofService implements OnModuleInit {
    */
   private proofContracts: Record<Hex, ProofType> = {}
 
-  // set the minimum duration for a proof to be valid as a constant to 14 days
-  // TODO: update prover interace contract to return the duration here
-  public static readonly PROOF_STORAGE_MINIMUM_DURATION_SECONDS = 60 * 60 * 24 * 14
-
-  // the minimum duration for a hyperprover to be valid, 1 hour
-  public static readonly PROOF_HYPERPROVER_MINIMUM_DURATION_SECONDS = 60 * 15
   constructor(
     private readonly publicClient: MultichainPublicClientService,
     private readonly ecoConfigService: EcoConfigService,
@@ -67,6 +61,26 @@ export class ProofService implements OnModuleInit {
    */
   isStorageProver(proverAddress: Hex): boolean {
     return this.getProofType(proverAddress) === PROOF_STORAGE
+  }
+
+  /**
+   * Returns all the prover addresses for a given proof type
+   * @param proofType the proof type
+   * @returns
+   */
+  getProvers(proofType: ProofType): Hex[] {
+    return entries(this.proofContracts)
+      .filter(([, type]) => type === proofType)
+      .map(([address]) => address as Hex)
+  }
+
+  /**
+   * Returns the prover type for a given prover address
+   * @param prover the prover address
+   * @returns
+   */
+  getProverType(prover: Hex): ProofType {
+    return this.proofContracts[prover]
   }
 
   /**
@@ -139,7 +153,7 @@ export class ProofService implements OnModuleInit {
    * @returns true if the intent can be proven before the minimum proof time, false otherwise
    */
   isIntentExpirationWithinProofMinimumDate(prover: Hex, expirationDate: Date): boolean {
-    return compareAsc(expirationDate, this.getProofMinimumDate(prover)) == 1
+    return compareAsc(expirationDate, this.getProofMinimumDate(this.proofContracts[prover])) == 1
   }
 
   /**
@@ -147,7 +161,7 @@ export class ProofService implements OnModuleInit {
    * @param chainID  the chain id
    * @returns
    */
-  getProofMinimumDate(prover: Hex): Date {
+  getProofMinimumDate(prover: ProofType): Date {
     return addSeconds(new Date(), this.getProofMinimumDurationSeconds(prover))
   }
 
@@ -157,9 +171,14 @@ export class ProofService implements OnModuleInit {
    * @param prover the address of the prover
    * @returns
    */
-  private getProofMinimumDurationSeconds(prover: Hex): number {
-    return this.isHyperlaneProver(prover)
-      ? ProofService.PROOF_HYPERPROVER_MINIMUM_DURATION_SECONDS
-      : ProofService.PROOF_STORAGE_MINIMUM_DURATION_SECONDS
+  private getProofMinimumDurationSeconds(prover: ProofType): number {
+    const proofs = this.ecoConfigService.getIntentConfigs().proofs
+    switch (prover) {
+      case PROOF_HYPERLANE:
+        return proofs.hyperlane_duration_seconds
+      case PROOF_STORAGE:
+      default:
+        return proofs.storage_duration_seconds
+    }
   }
 }
