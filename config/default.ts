@@ -9,6 +9,9 @@ export default {
       secretID: 'eco-solver-configs-dev',
     },
   ],
+  cache: {
+    ttl: 10_000, // milliseconds till cache key expires
+  },
   redis: {
     options: {
       single: {

@@ -6,6 +6,7 @@ import { Settings } from 'redlock'
 import { JobsOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { CacheModuleOptions } from '@nestjs/cache-manager'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -15,6 +16,7 @@ export type EcoConfigType = {
   externalAPIs: unknown
   redis: RedisConfig
   alchemy: AlchemyConfigType
+  cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
     privateKey: string

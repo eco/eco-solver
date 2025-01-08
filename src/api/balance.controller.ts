@@ -10,7 +10,7 @@ export class BalanceController {
   constructor(private readonly balanceService: BalanceService) {}
 
   @Get()
-  async getBalances(): Promise<any> {
+  async getBalances() {
     return convertBigIntsToStrings(await this.balanceService.getAllTokenData())
   }
 }

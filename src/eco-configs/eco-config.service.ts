@@ -60,6 +60,11 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('alchemy')
   }
 
+  // Returns the cache configs
+  getCache(): EcoConfigType['cache'] {
+    return this.get('cache')
+  }
+
   // Returns the fulfill configs
   getFulfill(): EcoConfigType['fulfill'] {
     return this.get('fulfillment')
