@@ -1,1 +1,2 @@
-export const API_ROUTE = '/api/v1'
+export const API_ROOT = '/api/v1'
+export const BALANCE_ROUTE = '/balance'
