@@ -1,11 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { parseUnits } from 'viem'
-import { createConfig, executeRoute, getRoutes, RoutesRequest, SDKConfig } from '@lifi/sdk'
+import { createConfig, EVM, executeRoute, getRoutes, RoutesRequest, SDKConfig } from '@lifi/sdk'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { customEVM } from '@/liquidity-manager/services/liquidity-providers/LiFi/providers/evm/custom-evm'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
+import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit {
@@ -29,7 +28,7 @@ export class LiFiProviderService implements OnModuleInit {
       integrator: 'Eco',
       rpcUrls: this.getLiFiRPCUrls(),
       providers: [
-        customEVM({
+        EVM({
           getWalletClient: () => Promise.resolve(client),
           switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId),
         }),

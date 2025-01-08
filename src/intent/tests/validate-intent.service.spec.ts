@@ -196,6 +196,20 @@ describe('ValidateIntentService', () => {
         expect(validateIntentService['validExpirationTime'](model)).toBe(false)
       })
     })
+
+    describe('on fulfillOnDifferentChain', () => {
+      it('should fail if the fulfillment is on the same chain as the event', async () => {
+        const model = { intent: { destinationChainID: 10 }, event: { sourceChainID: 10 } } as any
+        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
+        expect(validateIntentService['fulfillOnDifferentChain'](model)).toBe(false)
+      })
+
+      it('should succeed if the fulfillment is on a different chain as the event', async () => {
+        const model = { intent: { destinationChainID: 10 }, event: { sourceChainID: 20 } } as any
+        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
+        expect(validateIntentService['fulfillOnDifferentChain'](model)).toBe(true)
+      })
+    })
   })
 
   describe('on assertValidations', () => {
@@ -205,6 +219,7 @@ describe('ValidateIntentService', () => {
       supportedTargets: 'targetsUnsupported',
       supportedSelectors: 'selectorsUnsupported',
       validExpirationTime: 'expiresEarly',
+      sameChainFulfill: 'sameChainFulfill',
     }
     beforeEach(() => {
       utilsIntentService.updateInvalidIntentModel = updateInvalidIntentModel
@@ -215,7 +230,10 @@ describe('ValidateIntentService', () => {
     })
 
     it('should fail on equal rewards arrays', async () => {
-      const model = { intent: { rewardTokens: [1, 2], rewardAmounts: [3, 4, 5] } } as any
+      const model = {
+        intent: { rewardTokens: [1, 2], rewardAmounts: [3, 4, 5], destinationChainID: 10 },
+        event: { sourceChainID: 10 },
+      } as any
       const solver = {} as any
       expect(await validateIntentService['assertValidations'](model, solver)).toBe(false)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
@@ -228,20 +246,29 @@ describe('ValidateIntentService', () => {
     entries(assetCases).forEach(([fun, boolVarName]: [string, string]) => {
       it(`should fail on ${fun}`, async () => {
         const model = {
-          intent: { rewardTokens: [1, 2], rewardAmounts: [3, 4], hash: '0x1' },
+          intent: {
+            rewardTokens: [1, 2],
+            rewardAmounts: [3, 4],
+            hash: '0x1',
+            destinationChainID: 10,
+          },
+          event: { sourceChainID: 11 },
         } as any
         const solver = {} as any
         const logObj = entries(assetCases).reduce(
           (ac, [, a]) => ({ ...ac, [a]: a == boolVarName }),
           {},
         )
+        if (boolVarName == 'sameChainFulfill') {
+          model.intent.destinationChainID = model.event.sourceChainID
+        }
         const now = new Date()
         proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)
         validateIntentService[fun] = jest.fn().mockReturnValueOnce(false)
         expect(await validateIntentService['assertValidations'](model, solver)).toBe(false)
         expect(updateInvalidIntentModel).toHaveBeenCalledTimes(1)
         expect(mockLogLog).toHaveBeenCalledTimes(1)
-        expect(updateInvalidIntentModel).toHaveBeenCalledWith({}, model, logObj)
+        expect(updateInvalidIntentModel).toHaveBeenCalledWith(model, logObj)
         expect(mockLogLog).toHaveBeenCalledWith({
           msg: `Intent failed validation ${model.intent.hash}`,
           model,

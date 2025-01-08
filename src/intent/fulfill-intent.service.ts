@@ -128,7 +128,7 @@ export class FulfillIntentService {
       throw e
     } finally {
       // Update the db model
-      await this.utilsIntentService.updateIntentModel(this.intentModel, model)
+      await this.utilsIntentService.updateIntentModel(model)
     }
   }
 

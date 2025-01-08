@@ -110,6 +110,15 @@ describe('ProofService', () => {
   })
 
   describe('on utility methods', () => {
+    const intentConfigs = {
+      proofs: {
+        storage_duration_seconds: 10,
+        hyperlane_duration_seconds: 20,
+      },
+    }
+    beforeEach(async () => {
+      ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue(intentConfigs)
+    })
     it('should correctly check if its a hyperlane prover', async () => {
       jest.spyOn(proofService, 'getProofType').mockReturnValue(PROOF_HYPERLANE)
       expect(proofService.isHyperlaneProver('0x123')).toBe(true)
@@ -123,14 +132,12 @@ describe('ProofService', () => {
     })
 
     it('should return the correct minimum proof time', async () => {
-      jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
-      expect(proofService['getProofMinimumDurationSeconds']('0x123')).toBe(
-        ProofService.PROOF_HYPERPROVER_MINIMUM_DURATION_SECONDS,
+      expect(proofService['getProofMinimumDurationSeconds'](PROOF_HYPERLANE)).toBe(
+        intentConfigs.proofs.hyperlane_duration_seconds,
       )
 
-      jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(false)
-      expect(proofService['getProofMinimumDurationSeconds']('0x123')).toBe(
-        ProofService.PROOF_STORAGE_MINIMUM_DURATION_SECONDS,
+      expect(proofService['getProofMinimumDurationSeconds'](PROOF_STORAGE)).toBe(
+        intentConfigs.proofs.storage_duration_seconds,
       )
     })
 

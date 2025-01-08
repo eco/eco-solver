@@ -119,6 +119,20 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('eth')
   }
 
+  // Returns the intervals config, sets defaults for repeatOpts and jobTemplate if not set
+  getIntervals(): EcoConfigType['intervals'] {
+    const configs = this.get('intervals') as EcoConfigType['intervals']
+    for (const [, value] of Object.entries(configs)) {
+      _.merge(value, configs.defaults, value)
+    }
+    return configs
+  }
+
+  // Returns the intent configs
+  getIntentConfigs(): EcoConfigType['intentConfigs'] {
+    return this.get('intentConfigs')
+  }
+
   // Returns the external APIs config
   getExternalAPIs(): EcoConfigType['externalAPIs'] {
     return this.get('externalAPIs')
