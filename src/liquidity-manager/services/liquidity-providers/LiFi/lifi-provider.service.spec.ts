@@ -46,12 +46,6 @@ describe('LiFiProviderService', () => {
     flowProducer = chainMod.get(getFlowProducerToken(LiquidityManagerQueue.flowName))
   })
 
-  const mockConfig = {
-    targetSlippage: 0.02,
-    intervalDuration: 1000,
-    thresholds: { surplus: 0.1, deficit: 0.2 },
-  }
-
   afterEach(() => {
     jest.restoreAllMocks()
   })

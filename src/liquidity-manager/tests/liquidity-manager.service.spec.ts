@@ -62,7 +62,7 @@ describe('LiquidityManagerService', () => {
       await liquidityManagerService.onApplicationBootstrap()
 
       const upsertJobScheduler = jest.spyOn(queue, 'upsertJobScheduler')
-      expect(upsertJobScheduler).toBeCalledWith(
+      expect(upsertJobScheduler).toHaveBeenCalledWith(
         CheckBalancesCronJobManager.jobSchedulerName,
         { every: intervalDuration },
         expect.anything(),
