@@ -15,9 +15,11 @@ import { ProcessorModule } from './bullmq/processors/processor.module'
 import { SolverModule } from './solver/solver.module'
 import { FlagsModule } from './flags/flags.module'
 import { LiquidityManagerModule } from '@/liquidity-manager/liquidity-manager.module'
+import { ApiModule } from '@/api/api.module'
 
 @Module({
   imports: [
+    ApiModule,
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),
