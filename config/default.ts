@@ -51,7 +51,7 @@ export default {
   intervals: {
     retryInfeasableIntents: {
       repeatOpts: {
-        every: 10000,
+        every: 300_000, // 5 minutes
       },
       jobTemplate: {
         name: 'retry-infeasable-intents',
@@ -60,7 +60,7 @@ export default {
     },
     defaults: {
       repeatOpts: {
-        every: 10000,
+        every: 300_000, // 5 minutes
       },
       jobTemplate: {
         name: 'default-interval-job',
