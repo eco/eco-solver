@@ -11,6 +11,7 @@ export class ValidSmartWalletService implements OnModuleInit {
 
   private entryPointAddress: Hex
   private factoryAddress: Hex
+
   constructor(
     private readonly publicClient: MultichainPublicClientService,
     private readonly ecoConfigService: EcoConfigService,
@@ -21,38 +22,85 @@ export class ValidSmartWalletService implements OnModuleInit {
     this.entryPointAddress = contracts.entryPoint.contractAddress
     this.factoryAddress = contracts.simpleAccountFactory.contractAddress
   }
+
   /**
    * Validates that the smart wallet account that posts and creates an IntentCreated event on chain
    * for the IntentSource contract, is from the correct smart wallet factory.
    *
-   * @param smartWalletAddress the address of the smart wallet to validate
-   * @param chainID the chain id of the transaction the event is from
+   * @param smartWalletAddress - The address of the smart wallet to validate.
+   * @param chainID - The chain ID of the transaction the event is from.
+   * @returns A promise that resolves to a boolean indicating whether the smart wallet is valid.
    */
   async validateSmartWallet(smartWalletAddress: Hex, chainID: bigint): Promise<boolean> {
-    const client = await this.publicClient.getClient(Number(chainID))
     try {
-      const deployedEvents = await client.getContractEvents({
-        address: this.entryPointAddress,
-        abi: EntryPointAbi_v6,
-        eventName: 'AccountDeployed',
-        args: { sender: smartWalletAddress },
-        fromBlock: 0n,
-        toBlock: 'latest',
-      })
-      //should be only one event, but comes as an array
-      return (
-        deployedEvents && deployedEvents.some((event) => event.args.factory === this.factoryAddress)
+      const accountDeployedEvent = await this.getAccountDeployedEventWithRetries(
+        smartWalletAddress,
+        chainID,
       )
+      return accountDeployedEvent?.args.factory === this.factoryAddress
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `RPC: getContractEvents error`,
-          properties: {
-            error,
-          },
+          properties: { error },
         }),
       )
-      return false
     }
+    return false
+  }
+
+  /**
+   * Attempts to retrieve the AccountDeployed event with retries.
+   *
+   * @param smartWalletAddress - The address of the smart wallet.
+   * @param chainID - The chain ID of the transaction.
+   * @param attempts - The number of retry attempts.
+   * @returns A promise that resolves to the event or undefined if not found.
+   */
+  private async getAccountDeployedEventWithRetries(
+    smartWalletAddress: Hex,
+    chainID: bigint,
+    attempts = 3,
+  ) {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const event = await this.getAccountDeployedEvent(smartWalletAddress, chainID)
+      if (event) return event
+
+      // Wait an exponential time before retrying
+      await this.wait(1_000 * Math.pow(2, attempt))
+    }
+    return undefined
+  }
+
+  /**
+   * Retrieves the AccountDeployed event for the given smart wallet address and chain ID.
+   *
+   * @param smartWalletAddress - The address of the smart wallet.
+   * @param chainID - The chain ID of the transaction.
+   * @returns A promise that resolves to the event or undefined if not found.
+   */
+  private async getAccountDeployedEvent(smartWalletAddress: Hex, chainID: bigint) {
+    const client = await this.publicClient.getClient(Number(chainID))
+    const events = await client.getContractEvents({
+      address: this.entryPointAddress,
+      abi: EntryPointAbi_v6,
+      eventName: 'AccountDeployed',
+      args: { sender: smartWalletAddress },
+      fromBlock: 0n,
+      toBlock: 'latest',
+    })
+
+    // Should be only one event, but comes as an array
+    return events[0]
+  }
+
+  /**
+   * Waits for the specified number of milliseconds.
+   *
+   * @param ms - The number of milliseconds to wait.
+   * @returns A promise that resolves after the specified time.
+   */
+  private wait(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 }
