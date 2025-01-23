@@ -9,13 +9,12 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoError } from '../common/errors/eco-error'
 import { Network } from 'alchemy-sdk'
 import { IntentSourceModel } from './schemas/intent-source.schema'
-import { intersectionBy } from 'lodash'
 import { getIntentJobId } from '../common/utils/strings'
 import { Solver } from '../eco-configs/eco-config.types'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Hex } from 'viem'
-import { getERC20Selector } from '../contracts'
+import { getERC20Selector, TargetCallViemType, TokenAmountViemType } from '../contracts'
 
 /**
  * Service class for getting configs for the app
@@ -105,8 +104,8 @@ export class FeasableIntentService implements OnModuleInit {
       | undefined
     )[]
   }> {
-    const execs = model.intent.targets.map((target, index) => {
-      return this.validateEachExecution(model, solver, target, model.intent.data[index])
+    const execs = model.intent.route.calls.map((call) => {
+      return this.validateEachExecution(model, solver, call)
     })
     const results = await Promise.all(execs)
     const feasable =
@@ -128,8 +127,7 @@ export class FeasableIntentService implements OnModuleInit {
   async validateEachExecution(
     model: IntentSourceModel,
     solver: Solver,
-    target: Hex,
-    data: Hex,
+    call: TargetCallViemType,
   ): Promise<
     | false
     | {
@@ -138,7 +136,7 @@ export class FeasableIntentService implements OnModuleInit {
       }
     | undefined
   > {
-    const tt = this.utilsIntentService.getTransactionTargetData(model, solver, target, data)
+    const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
     if (tt === null) {
       this.logger.error(
         EcoLogMessage.withError({
@@ -154,7 +152,7 @@ export class FeasableIntentService implements OnModuleInit {
 
     switch (tt.targetConfig.contractType) {
       case 'erc20':
-        return await this.handleErc20(tt, model, solver, target)
+        return await this.handleErc20(tt, model, solver, call.target)
       case 'erc721':
       case 'erc1155':
       default:
@@ -197,12 +195,11 @@ export class FeasableIntentService implements OnModuleInit {
           return
         }
         //check that we make money on the transfer
-        const fullfillAmountUSDC = this.convertToUSDC(targetNetwork, target, amount)
+        const fullfillAmountUSDC = this.convertToUSDC(targetNetwork, { token: target, amount })
         const profitable = this.isProfitableErc20Transfer(
           sourceNetwork,
           source.tokens,
-          model.intent.rewardTokens,
-          model.intent.rewardAmounts,
+          model.intent.reward.tokens,
           fullfillAmountUSDC,
         )
         return { solvent, profitable }
@@ -225,17 +222,13 @@ export class FeasableIntentService implements OnModuleInit {
   isProfitableErc20Transfer(
     network: Network,
     acceptedTokens: readonly Hex[],
-    rewardTokens: readonly Hex[],
-    rewardAmounts: readonly bigint[],
+    rewardTokens: TokenAmountViemType[],
     fullfillAmountUSDC: bigint,
   ): boolean {
     let sum = 0n
-    intersectionBy(acceptedTokens, rewardTokens).forEach((token) => {
-      const index = rewardTokens.findIndex((t) => t == token)
-      if (index < 0) {
-        return false
-      }
-      sum += this.convertToUSDC(network, token, BigInt(rewardAmounts[index]))
+    const unionTokens = rewardTokens.filter((t) => acceptedTokens.includes(t.token))
+    unionTokens.forEach((token) => {
+      sum += this.convertToUSDC(network, token)
     })
 
     //check if input tokens are acceptable and greater than + fees
@@ -250,11 +243,10 @@ export class FeasableIntentService implements OnModuleInit {
    *
    * @param network the network to convert the token to usdc
    * @param token   the token to convert to usdc
-   * @param amount  the amount of the token to convert to usdc
    * @returns
    */
-  convertToUSDC(network: Network, token: Hex, amount: bigint): bigint {
+  convertToUSDC(network: Network, token: TokenAmountViemType): bigint {
     //todo: get the price of the token in usdc instead of assuming 1-1 here
-    return amount
+    return token.amount
   }
 }

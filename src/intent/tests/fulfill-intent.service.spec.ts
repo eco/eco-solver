@@ -266,7 +266,7 @@ describe('FulfillIntentService', () => {
         expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
           msg: `Fulfilled transactionHash ${transactionHash}`,
           userOPHash: { transactionHash },
-          destinationChainID: model.intent.destinationChainID,
+          destinationChainID: model.intent.route.destinationChainID,
           sourceChainID: model.event.sourceChainID,
         })
       })

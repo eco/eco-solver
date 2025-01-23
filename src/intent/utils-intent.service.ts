@@ -8,7 +8,7 @@ import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
 import { difference, includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
-import { getERCAbi } from '../contracts'
+import { getERCAbi, TargetCallViemType } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 
@@ -135,10 +135,7 @@ export class UtilsIntentService {
    * @returns
    */
   selectorsSupported(model: IntentSourceModel, solver: Solver): boolean {
-    if (
-      model.intent.targets.length !== model.intent.data.length ||
-      model.intent.targets.length == 0
-    ) {
+    if (model.intent.route.calls.length == 0) {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `validateIntent: Target/data invalid`,
@@ -149,8 +146,8 @@ export class UtilsIntentService {
       )
       return false
     }
-    return model.intent.targets.every((target, index) => {
-      const tx = this.getTransactionTargetData(model, solver, target, model.intent.data[index])
+    return model.intent.route.calls.every((call) => {
+      const tx = this.getTransactionTargetData(model, solver, call)
       return tx
     })
   }
@@ -167,20 +164,19 @@ export class UtilsIntentService {
   getTransactionTargetData(
     model: IntentSourceModel,
     solver: Solver,
-    target: Hex,
-    data: Hex,
+    call: TargetCallViemType,
   ): TransactionTargetData | null {
-    const targetConfig = solver.targets[target as string] as TargetContract
+    const targetConfig = solver.targets[call.target as string] as TargetContract
     if (!targetConfig) {
       //shouldn't happen since we do this.targetsSupported(model, solver) before this call
-      throw EcoError.IntentSourceTargetConfigNotFound(target as string)
+      throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)
     }
 
     const tx = decodeFunctionData({
       abi: getERCAbi(targetConfig.contractType),
-      data,
+      data: call.data,
     })
-    const selector = getFunctionBytes(data)
+    const selector = getFunctionBytes(call.data)
     const supportedSelectors = targetConfig.selectors.map((s) => toFunctionSelector(s))
     const supported = tx && includes(supportedSelectors, selector)
     if (!supported) {
@@ -207,7 +203,7 @@ export class UtilsIntentService {
    * @returns
    */
   targetsSupported(model: IntentSourceModel, solver: Solver): boolean {
-    const modelTargets = model.intent.targets
+    const modelTargets = model.intent.route.calls.map((call) => call.target)
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
     const exist = solverTargets.length > 0 && modelTargets.length > 0
@@ -243,11 +239,11 @@ export class UtilsIntentService {
         return { model, solver: null, err: EcoError.IntentSourceDataNotFound(intentHash) }
       }
 
-      const solver = this.ecoConfigService.getSolver(model.intent.destinationChainID)
+      const solver = this.ecoConfigService.getSolver(model.intent.route.destination)
       if (!solver) {
         this.logger.log(
           EcoLogMessage.fromDefault({
-            message: `No solver found for chain ${model.intent.destinationChainID}`,
+            message: `No solver found for chain ${model.intent.route.destination}`,
             properties: {
               intentHash: intentHash,
               sourceNetwork: model.event.sourceNetwork,

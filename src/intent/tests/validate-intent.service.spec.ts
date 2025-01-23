@@ -260,7 +260,7 @@ describe('ValidateIntentService', () => {
           {},
         )
         if (boolVarName == 'sameChainFulfill') {
-          model.intent.destinationChainID = model.event.sourceChainID
+          model.intent.route.destinationChainID = model.event.sourceChainID
         }
         const now = new Date()
         proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)

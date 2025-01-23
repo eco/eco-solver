@@ -17,11 +17,17 @@ export class EcoError extends Error {
     return new EcoError(`Could not create alchemy provider ${network}`)
   }
 
+  static ExtractAbiStructFailed(structName: string) {
+    return new EcoError(`Could not extract the structure from abi: ${structName}`)
+  }
+
   static IntentSourceDataNotFound(intentHash: string) {
     return new EcoError(`Could not find data for intent hash ${intentHash}`)
   }
 
-  static IntentSourceDataInvalidParams = new Error('Targets and data must have the same length')
+  static IntentSourceDataInvalidParams = new Error(
+    'IntentSource calls or tokens must have non-zero length',
+  )
 
   static IntentSourceTargetConfigNotFound(target: string) {
     return new EcoError(`Solver does not have target: ${target}`)

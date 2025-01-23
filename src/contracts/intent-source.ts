@@ -1,18 +1,73 @@
-import { ContractFunctionReturnType, decodeEventLog, Hex, Log, Prettify } from 'viem'
+import {
+  ContractFunctionArgs,
+  decodeEventLog,
+  DecodeEventLogReturnType,
+  GetEventArgs,
+  Hex,
+  Log,
+  Prettify,
+} from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from 'alchemy-sdk'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-
-// Define the type for the contract
-export type IntentSource = typeof IntentSourceAbi
+import { GetElementType } from '@/contracts/utils'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
-export type IntentSourceViemType = Prettify<
-  ContractFunctionReturnType<IntentSource, 'pure' | 'view', 'getIntent', [Hex]> & {
+export type IntentCreatedEventViemType = Prettify<
+  GetEventArgs<
+    typeof IntentSourceAbi,
+    'IntentCreated',
+    {
+      EnableUnion: true
+      IndexedOnly: false
+      Required: false
+    }
+  > & {
     hash: Hex
     logIndex: number
   }
 >
+
+/**
+ * Define the type for the IntentSource event log
+ */
+export type IntentCreatedEventLog = DecodeEventLogReturnType<
+  typeof IntentSourceAbi,
+  'IntentCreated'
+>
+
+/**
+ * Define the type for the calls field in the IntentSource event
+ */
+export type TargetCallViemType = GetElementType<
+  Pick<IntentCreatedEventViemType, 'calls'>['calls']
+>[number]
+
+/**
+ * Define the type for the token amount field in the IntentSource event
+ */
+export type TokenAmountViemType = GetElementType<
+  Pick<IntentCreatedEventViemType, 'tokens'>['tokens']
+>[number]
+
+/**
+ * Define the type for the Intent struct in the IntentSource
+ */
+export type IntentViewType = ContractFunctionArgs<
+  typeof IntentSourceAbi,
+  'pure',
+  'getIntentHash'
+>[number]
+
+/**
+ * Define the type for the Route struct in IntentSource
+ */
+export type RouteViemType = IntentViewType['route']
+
+/**
+ * Define the type for the Reward struct in IntentSource
+ */
+export type RewardViemType = IntentViewType['reward']
 
 // Define the type for the IntentCreated event log
 export type IntentCreatedLog = Prettify<

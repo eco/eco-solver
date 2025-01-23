@@ -10,7 +10,7 @@ import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { CreateIntentService } from '../create-intent.service'
 import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
-import { IntentSourceDataModel } from '../schemas/intent-source-data.schema'
+import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
 
 jest.mock('../../contracts', () => {
@@ -83,7 +83,7 @@ describe('CreateIntentService', () => {
     beforeEach(() => {
       mockDecodeCreateIntentLog.mockReturnValue({ hash: mockEvent.transactionHash })
       const mockIntentSourceEvent = jest.fn()
-      IntentSourceDataModel.fromEvent = mockIntentSourceEvent
+      IntentDataModel.fromEvent = mockIntentSourceEvent
       mockIntentSourceEvent.mockReturnValue(mockIntent)
     })
 

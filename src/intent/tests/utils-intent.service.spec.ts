@@ -320,7 +320,7 @@ describe('UtilsIntentService', () => {
       expect(await utilsIntentService.getIntentProcessData(intentHash)).toBe(undefined)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
       expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `No solver found for chain ${model.intent.destinationChainID}`,
+        msg: `No solver found for chain ${model.intent.route.destinationChainID}`,
         intentHash: intentHash,
         sourceNetwork: model.event.sourceNetwork,
       })

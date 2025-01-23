@@ -11,7 +11,7 @@ import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
-import { IntentSourceDataModel } from './schemas/intent-source-data.schema'
+import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 
 /**
@@ -54,7 +54,7 @@ export class CreateIntentService implements OnModuleInit {
     )
 
     const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const intent = IntentSourceDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
       //check db if the intent is already filled
@@ -78,10 +78,15 @@ export class CreateIntentService implements OnModuleInit {
 
       const validWallet = this.flagService.getFlagValue('bendWalletOnly')
         ? await this.validSmartWalletService.validateSmartWallet(
-            intent.creator as Hex,
+            intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
+
+      // check if the destination chain is supported
+      const validDestination = this.ecoConfigService
+        .getSupportedChains()
+        .includes(intent.route.destination)
 
       //create db record
       const record = await this.intentModel.create({
@@ -92,7 +97,7 @@ export class CreateIntentService implements OnModuleInit {
       })
 
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
-      if (validWallet) {
+      if (validWallet && validDestination) {
         //add to processing queue
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intent.hash, {
           jobId,
@@ -107,7 +112,8 @@ export class CreateIntentService implements OnModuleInit {
             intentHash: intent.hash,
             intent: record.intent,
             validWallet,
-            ...(validWallet ? { jobId } : {}),
+            validDestination,
+            ...(validWallet && validDestination ? { jobId } : {}),
           },
         }),
       )

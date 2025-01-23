@@ -38,7 +38,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   async subscribe(): Promise<void> {
     const subscribeTasks = entries(this.ecoConfigService.getSolvers()).map(async ([, solver]) => {
       const client = await this.publicClientService.getClient(solver.chainID)
-      await this.subscribeTo(client, solver, this.getSupportedChains())
+      await this.subscribeTo(client, solver)
     })
     await Promise.all(subscribeTasks)
   }
@@ -60,7 +60,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     return this.ecoConfigService.getIntentSources().map((source) => BigInt(source.chainID))
   }
 
-  async subscribeTo(client: PublicClient, solver: Solver, souceChains: bigint[]) {
+  async subscribeTo(client: PublicClient, solver: Solver) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch fulfillment event: subscribeToFulfillment`,
@@ -69,6 +69,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
         },
       }),
     )
+    const souceChains = this.getSupportedChains()
     this.unwatch[solver.chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, solver)

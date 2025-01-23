@@ -91,10 +91,6 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
-    if (!this.isRewardsEqualSized(model)) {
-      return false
-    }
-
     const proverUnsupported = !this.supportedProver(model)
     const targetsUnsupported = !this.supportedTargets(model, solver)
     const selectorsUnsupported = !this.supportedSelectors(model, solver)
@@ -127,7 +123,7 @@ export class ValidateIntentService implements OnModuleInit {
             sameChainFulfill,
             ...(expiresEarly && {
               proofMinDurationSeconds: this.proofService
-                .getProofMinimumDate(this.proofService.getProverType(model.intent.prover))
+                .getProofMinimumDate(this.proofService.getProverType(model.intent.reward.prover))
                 .toUTCString(),
             }),
           },
@@ -170,7 +166,7 @@ export class ValidateIntentService implements OnModuleInit {
     })
 
     return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == model.intent.prover)
+      return intent.provers.some((prover) => prover == model.intent.reward.prover)
     })
   }
 
@@ -204,10 +200,10 @@ export class ValidateIntentService implements OnModuleInit {
    */
   private validExpirationTime(model: IntentSourceModel): boolean {
     //convert to milliseconds
-    const time = Number.parseInt(`${model.intent.expiryTime as bigint}`) * 1000
+    const time = Number.parseInt(`${model.intent.reward.deadline as bigint}`) * 1000
     const expires = new Date(time)
     return !!this.proofService.isIntentExpirationWithinProofMinimumDate(
-      model.intent.prover,
+      model.intent.reward.prover,
       expires,
     )
   }
@@ -220,27 +216,6 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns
    */
   private fulfillOnDifferentChain(model: IntentSourceModel): boolean {
-    return model.intent.destinationChainID !== model.event.sourceChainID
-  }
-
-  /**
-   * Checks if the rewards and amounts arrays are of equal size
-   * @param model the source intent model
-   * @returns
-   */
-  isRewardsEqualSized(model: IntentSourceModel) {
-    //check that the rewards and amounts are equal sized
-    if (model.intent.rewardTokens.length !== model.intent.rewardAmounts.length) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateIntent: Rewards mismatch`,
-          properties: {
-            intent: model.intent,
-          },
-        }),
-      )
-      return false
-    }
-    return true
+    return model.intent.route.destination !== model.event.sourceChainID
   }
 }

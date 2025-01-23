@@ -103,7 +103,7 @@ export class FulfillIntentService {
           message: `Fulfilled transactionHash ${receipt.transactionHash}`,
           properties: {
             userOPHash: receipt,
-            destinationChainID: model.intent.destinationChainID,
+            destinationChainID: model.intent.route.destination,
             sourceChainID: model.event.sourceChainID,
           },
         }),
@@ -169,13 +169,8 @@ export class FulfillIntentService {
     }
 
     // Create transactions for intent targets
-    return model.intent.targets.flatMap((target, index) => {
-      const tt = this.utilsIntentService.getTransactionTargetData(
-        model,
-        solver,
-        target,
-        model.intent.data[index],
-      )
+    return model.intent.route.calls.flatMap((call) => {
+      const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
       if (tt === null) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -191,7 +186,7 @@ export class FulfillIntentService {
 
       switch (tt.targetConfig.contractType) {
         case 'erc20':
-          return this.handleErc20(tt, solver, target)
+          return this.handleErc20(tt, solver, call.target)
         case 'erc721':
         case 'erc1155':
         default:
@@ -211,22 +206,16 @@ export class FulfillIntentService {
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
-    const isHyperlane = this.proofService.isHyperlaneProver(model.intent.prover)
-    const functionName: FulfillmentMethod = this.proofService.isStorageProver(model.intent.prover)
+    const isHyperlane = this.proofService.isHyperlaneProver(model.intent.reward.prover)
+    const functionName: FulfillmentMethod = this.proofService.isStorageProver(
+      model.intent.reward.prover,
+    )
       ? 'fulfillStorage'
       : this.getFulfillment()
 
-    const args = [
-      model.event.sourceChainID,
-      model.intent.targets,
-      model.intent.data,
-      model.intent.expiryTime,
-      model.intent.nonce,
-      claimant,
-      model.intent.hash,
-    ]
+    const args = [model.intent.route, model.intent.reward.getHash(), claimant, model.intent.hash]
     if (isHyperlane) {
-      args.push(model.intent.prover)
+      args.push(model.intent.reward.prover)
       if (functionName === 'fulfillHyperInstantWithRelayer') {
         args.push('0x0')
         args.push(zeroAddress)
@@ -263,7 +252,7 @@ export class FulfillIntentService {
     model: IntentSourceModel,
   ): Promise<Hex | undefined> {
     const client = await this.kernelAccountClientService.getClient(
-      Number(model.intent.destinationChainID),
+      Number(model.intent.route.destination),
     )
     const encodedMessageBody = encodeAbiParameters(
       [{ type: 'bytes[]' }, { type: 'address[]' }],
@@ -272,7 +261,7 @@ export class FulfillIntentService {
     const functionName = 'fetchFee'
     const args: ContractFunctionArgs<typeof InboxAbi, 'view', typeof functionName> = [
       model.event.sourceChainID, //_sourceChainID
-      pad(model.intent.prover), //_prover
+      pad(model.intent.reward.prover), //_prover
       encodedMessageBody, //_messageBody
       '0x0', //_metadata
       zeroAddress, //_postDispatchHook
