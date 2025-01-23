@@ -1,11 +1,10 @@
-import { RouteViemType } from '@/contracts'
-import { encodeRoute } from '@/contracts/intent.viem'
 import { TargetCallDataModel, TargetCallDataSchema } from '@/intent/schemas/intent-call-data.schema'
+import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex, keccak256 } from 'viem'
+import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class RouteDataModel implements RouteViemType {
+export class RouteDataModel implements RouteType {
   @Prop({ required: true, type: String })
   salt: Hex
   @Prop({ required: true, type: BigInt })
@@ -36,7 +35,7 @@ export class RouteDataModel implements RouteViemType {
   }
 
   getHash(): Hex {
-    return keccak256(this.getEncoding())
+    return hashRoute(this)
   }
 }
 

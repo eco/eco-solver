@@ -1,14 +1,13 @@
-import { RewardViemType } from '@/contracts'
-import { encodeReward } from '@/contracts/intent.viem'
 import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
+import { encodeReward, hashReward, RewardType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex, keccak256 } from 'viem'
+import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class RewardDataModel implements RewardViemType {
+export class RewardDataModel implements RewardType {
   @Prop({ required: true, type: String })
   creator: Hex
   @Prop({ required: true, type: String })
@@ -39,7 +38,7 @@ export class RewardDataModel implements RewardViemType {
   }
 
   getHash(): Hex {
-    return keccak256(this.getEncoding())
+    return hashReward(this)
   }
 }
 export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataModel)

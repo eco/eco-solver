@@ -17,10 +17,6 @@ export class EcoError extends Error {
     return new EcoError(`Could not create alchemy provider ${network}`)
   }
 
-  static ExtractAbiStructFailed(structName: string) {
-    return new EcoError(`Could not extract the structure from abi: ${structName}`)
-  }
-
   static IntentSourceDataNotFound(intentHash: string) {
     return new EcoError(`Could not find data for intent hash ${intentHash}`)
   }

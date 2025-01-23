@@ -1,18 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
-import { getAddress, Hex, keccak256, Mutable } from 'viem'
-import {
-  IntentCreatedEventLog,
-  IntentViewType,
-  TargetCallViemType,
-  TokenAmountViemType,
-} from '@/contracts'
+import { getAddress, Hex, Mutable } from 'viem'
+import { IntentCreatedEventLog, TargetCallViemType, TokenAmountViemType } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent } from '@/contracts/intent.viem'
+import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
 
 @Schema({ timestamps: true })
-export class IntentDataModel implements IntentViewType {
+export class IntentDataModel implements IntentType {
   @Prop({ required: true, type: String })
   hash: Hex
   @Prop({ required: true, type: RouteDataSchema })
@@ -76,11 +71,7 @@ export class IntentDataModel implements IntentViewType {
     rewardHash: Hex
     intentHash: Hex
   } {
-    return {
-      intentHash: keccak256(this.getEncoding()),
-      routeHash: this.route.getHash(),
-      rewardHash: this.reward.getHash(),
-    }
+    return hashIntent(this)
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {

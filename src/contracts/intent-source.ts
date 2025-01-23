@@ -1,12 +1,4 @@
-import {
-  ContractFunctionArgs,
-  decodeEventLog,
-  DecodeEventLogReturnType,
-  GetEventArgs,
-  Hex,
-  Log,
-  Prettify,
-} from 'viem'
+import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from 'alchemy-sdk'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
@@ -49,25 +41,6 @@ export type TargetCallViemType = GetElementType<
 export type TokenAmountViemType = GetElementType<
   Pick<IntentCreatedEventViemType, 'tokens'>['tokens']
 >[number]
-
-/**
- * Define the type for the Intent struct in the IntentSource
- */
-export type IntentViewType = ContractFunctionArgs<
-  typeof IntentSourceAbi,
-  'pure',
-  'getIntentHash'
->[number]
-
-/**
- * Define the type for the Route struct in IntentSource
- */
-export type RouteViemType = IntentViewType['route']
-
-/**
- * Define the type for the Reward struct in IntentSource
- */
-export type RewardViemType = IntentViewType['reward']
 
 // Define the type for the IntentCreated event log
 export type IntentCreatedLog = Prettify<
