@@ -11,7 +11,7 @@ import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
-import { IntentSourceDataModel } from './schemas/intent-source-data.schema'
+import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 
 /**
@@ -54,7 +54,7 @@ export class CreateIntentService implements OnModuleInit {
     )
 
     const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const intent = IntentSourceDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
       //check db if the intent is already filled
@@ -78,7 +78,7 @@ export class CreateIntentService implements OnModuleInit {
 
       const validWallet = this.flagService.getFlagValue('bendWalletOnly')
         ? await this.validSmartWalletService.validateSmartWallet(
-            intent.creator as Hex,
+            intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
@@ -100,7 +100,7 @@ export class CreateIntentService implements OnModuleInit {
         })
       }
 
-      this.logger.debug(
+      this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Recorded intent ${record.intent.hash}`,
           properties: {

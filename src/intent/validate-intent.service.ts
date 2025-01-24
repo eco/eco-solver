@@ -91,14 +91,11 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
-    if (!this.isRewardsEqualSized(model)) {
-      return false
-    }
-
     const proverUnsupported = !this.supportedProver(model)
     const targetsUnsupported = !this.supportedTargets(model, solver)
     const selectorsUnsupported = !this.supportedSelectors(model, solver)
     const expiresEarly = !this.validExpirationTime(model)
+    const validDestination = !this.validDestination(model)
     const sameChainFulfill = !this.fulfillOnDifferentChain(model)
 
     if (
@@ -106,6 +103,7 @@ export class ValidateIntentService implements OnModuleInit {
       targetsUnsupported ||
       selectorsUnsupported ||
       expiresEarly ||
+      validDestination ||
       sameChainFulfill
     ) {
       await this.utilsIntentService.updateInvalidIntentModel(model, {
@@ -113,6 +111,7 @@ export class ValidateIntentService implements OnModuleInit {
         targetsUnsupported,
         selectorsUnsupported,
         expiresEarly,
+        validDestination,
         sameChainFulfill,
       })
       this.logger.log(
@@ -124,10 +123,11 @@ export class ValidateIntentService implements OnModuleInit {
             targetsUnsupported,
             selectorsUnsupported,
             expiresEarly,
+            validDestination,
             sameChainFulfill,
             ...(expiresEarly && {
               proofMinDurationSeconds: this.proofService
-                .getProofMinimumDate(this.proofService.getProverType(model.intent.prover))
+                .getProofMinimumDate(this.proofService.getProverType(model.intent.reward.prover))
                 .toUTCString(),
             }),
           },
@@ -170,7 +170,7 @@ export class ValidateIntentService implements OnModuleInit {
     })
 
     return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == model.intent.prover)
+      return intent.provers.some((prover) => prover == model.intent.reward.prover)
     })
   }
 
@@ -204,14 +204,22 @@ export class ValidateIntentService implements OnModuleInit {
    */
   private validExpirationTime(model: IntentSourceModel): boolean {
     //convert to milliseconds
-    const time = Number.parseInt(`${model.intent.expiryTime as bigint}`) * 1000
+    const time = Number.parseInt(`${model.intent.reward.deadline as bigint}`) * 1000
     const expires = new Date(time)
     return !!this.proofService.isIntentExpirationWithinProofMinimumDate(
-      model.intent.prover,
+      model.intent.reward.prover,
       expires,
     )
   }
 
+  /**
+   * Checks that the intent destination is supported by the solver
+   * @param model the source intent model
+   * @returns
+   */
+  private validDestination(model: IntentSourceModel): boolean {
+    return this.ecoConfigService.getSupportedChains().includes(model.intent.route.destination)
+  }
   /**
    * Checks that the intent fulfillment is on a different chain than its source
    * Needed since some proving methods(Hyperlane) cant prove same chain
@@ -220,27 +228,6 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns
    */
   private fulfillOnDifferentChain(model: IntentSourceModel): boolean {
-    return model.intent.destinationChainID !== model.event.sourceChainID
-  }
-
-  /**
-   * Checks if the rewards and amounts arrays are of equal size
-   * @param model the source intent model
-   * @returns
-   */
-  isRewardsEqualSized(model: IntentSourceModel) {
-    //check that the rewards and amounts are equal sized
-    if (model.intent.rewardTokens.length !== model.intent.rewardAmounts.length) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateIntent: Rewards mismatch`,
-          properties: {
-            intent: model.intent,
-          },
-        }),
-      )
-      return false
-    }
-    return true
+    return model.intent.route.destination !== model.event.sourceChainID
   }
 }

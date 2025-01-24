@@ -10,7 +10,7 @@ import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { CreateIntentService } from '../create-intent.service'
 import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
-import { IntentSourceDataModel } from '../schemas/intent-source-data.schema'
+import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
 
 jest.mock('../../contracts', () => {
@@ -74,16 +74,21 @@ describe('CreateIntentService', () => {
 
   describe('on createIntent', () => {
     const mockEvent = {
+      creator: '0xaaa',
       data: '0xda',
       transactionHash: '0x123',
       topics: ['0x456'],
       sourceChainID: 85432,
     }
-    const mockIntent = { creator: '0xaaa', hash: mockEvent.transactionHash, logIndex: 1 }
+    const mockIntent = {
+      reward: { creator: '0xaaa' },
+      hash: mockEvent.transactionHash,
+      logIndex: 1,
+    }
     beforeEach(() => {
       mockDecodeCreateIntentLog.mockReturnValue({ hash: mockEvent.transactionHash })
       const mockIntentSourceEvent = jest.fn()
-      IntentSourceDataModel.fromEvent = mockIntentSourceEvent
+      IntentDataModel.fromEvent = mockIntentSourceEvent
       mockIntentSourceEvent.mockReturnValue(mockIntent)
     })
 
@@ -129,7 +134,7 @@ describe('CreateIntentService', () => {
       await createIntentService.createIntent(mockEvent as any)
       expect(mockValidateSmartWallet).toHaveBeenCalledTimes(1)
       expect(mockValidateSmartWallet).toHaveBeenCalledWith(
-        mockIntent.creator,
+        mockIntent.reward.creator,
         mockEvent.sourceChainID,
       )
     })
@@ -172,7 +177,7 @@ describe('CreateIntentService', () => {
 
       await createIntentService.createIntent(mockEvent as any)
       expect(mockQueueAdd).not.toHaveBeenCalled()
-      expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
+      expect(mockLogLog).toHaveBeenNthCalledWith(1, {
         msg: `Recorded intent ${mockEvent.transactionHash}`,
         intentHash: mockIntent.hash,
         intent: mockIntent,
@@ -198,7 +203,7 @@ describe('CreateIntentService', () => {
         { jobId },
       )
 
-      expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
+      expect(mockLogLog).toHaveBeenNthCalledWith(1, {
         msg: `Recorded intent ${mockEvent.transactionHash}`,
         intentHash: mockIntent.hash,
         intent: mockIntent,

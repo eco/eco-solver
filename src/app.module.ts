@@ -5,7 +5,6 @@ import { EcoConfigService } from './eco-configs/eco-config.service'
 import { LoggerModule } from 'nestjs-pino'
 import { MongooseModule } from '@nestjs/mongoose'
 import { IntentModule } from './intent/intent.module'
-import { IntentSourceModel } from './intent/schemas/intent-source.schema'
 import { BalanceModule } from './balance/balance.module'
 import { SignModule } from './sign/sign.module'
 import { ProverModule } from './prover/prover.module'
@@ -29,7 +28,6 @@ import { IntervalModule } from '@/intervals/interval.module'
     HealthModule,
     IntentModule,
     SignModule,
-    IntentSourceModel,
     IntervalModule,
     ProcessorModule,
     MongooseModule.forRootAsync({

@@ -10,7 +10,6 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { IntentCreatedLog } from '@/contracts'
 import { PublicClient, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
-import { entries } from 'lodash'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 
@@ -39,7 +38,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
       const client = await this.publicClientService.getClient(source.chainID)
-      await this.subscribeTo(client, source, this.getSupportedChains())
+      await this.subscribeTo(client, source)
     })
 
     await Promise.all(subscribeTasks)
@@ -52,15 +51,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     super.unsubscribe()
   }
 
-  /**
-   * Checks to see what networks we have inbox contracts for
-   * @returns the supported chains for the event
-   */
-  getSupportedChains(): bigint[] {
-    return entries(this.ecoConfigService.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
-  }
-
-  async subscribeTo(client: PublicClient, source: IntentSource, solverSupportedChains: bigint[]) {
+  async subscribeTo(client: PublicClient, source: IntentSource) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch create intent: subscribeToSource`,
@@ -77,9 +68,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       abi: IntentSourceAbi,
       eventName: 'IntentCreated',
       args: {
-        // restrict by acceptable chains, chain ids must be bigints
-        _destinationChain: solverSupportedChains,
-        _prover: source.provers,
+        // // restrict by acceptable chains, chain ids must be bigints
+        // _destinationChain: solverSupportedChains,
+        prover: source.provers,
       },
       onLogs: this.addJob(source),
     })

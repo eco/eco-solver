@@ -174,4 +174,12 @@ export class EcoConfigService implements OnModuleInit {
     })
     return Object.fromEntries(entries) as Record<number, string>
   }
+
+  /**
+   * Checks to see what networks we have inbox contracts for
+   * @returns the supported chains for the event
+   */
+  getSupportedChains(): bigint[] {
+    return entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+  }
 }

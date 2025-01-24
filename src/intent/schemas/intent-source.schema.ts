@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { IntentSourceEventModel } from './intent-source-event.schema'
-import { IntentSourceDataModel } from './intent-source-data.schema'
+import { WatchEventModel, WatchEventSchema } from './watch-event.schema'
+import { IntentDataModel, IntentSourceDataSchema } from './intent-data.schema'
 import { GetTransactionReceiptReturnType } from 'viem'
 
 export type IntentSourceStatus =
@@ -14,16 +14,16 @@ export type IntentSourceStatus =
 
 @Schema({ timestamps: true })
 export class IntentSourceModel {
-  @Prop({ required: true })
-  event: IntentSourceEventModel
+  @Prop({ required: true, type: WatchEventSchema })
+  event: WatchEventModel
 
-  @Prop({ required: true })
-  intent: IntentSourceDataModel
+  @Prop({ required: true, type: IntentSourceDataSchema })
+  intent: IntentDataModel
 
   @Prop({ type: Object })
   receipt: GetTransactionReceiptReturnType
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   status: IntentSourceStatus
 }
 

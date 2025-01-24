@@ -11,8 +11,8 @@ import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { EcoError } from '../../common/errors/eco-error'
 import { getFunctionBytes } from '../../common/viem/contracts'
-import { address1, address2 } from './feasable-intent.service.spec'
 import { FulfillmentLog } from '@/contracts/inbox'
+import { TargetCallViemType } from '@/contracts'
 
 jest.mock('viem', () => {
   return {
@@ -28,7 +28,8 @@ describe('UtilsIntentService', () => {
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogWarn = jest.fn()
-
+  const address1 = '0x1111111111111111111111111111111111111111'
+  const address2 = '0x2222222222222222222222222222222222222222'
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
@@ -88,6 +89,7 @@ describe('UtilsIntentService', () => {
           targetsUnsupported: false,
           selectorsUnsupported: false,
           expiresEarly: false,
+          validDestination: false,
           sameChainFulfill: false,
         }
         await utilsIntentService.updateInvalidIntentModel(model, invalidCause)
@@ -118,18 +120,8 @@ describe('UtilsIntentService', () => {
   })
 
   describe('on selectorsSupported', () => {
-    it('should log error and return false on unequal array lengths', async () => {
-      const model = { intent: { targets: [1], data: [] } } as any
-      expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(false)
-      expect(mockLogLog).toHaveBeenCalledTimes(1)
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: 'validateIntent: Target/data invalid',
-        intent: model.intent,
-      })
-    })
-
     it('should return false when target length is 0', async () => {
-      const model = { intent: { targets: [], data: [] } } as any
+      const model = { intent: { route: { calls: [] } } } as any
       expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(false)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
       expect(mockLogLog).toHaveBeenCalledWith({
@@ -139,26 +131,43 @@ describe('UtilsIntentService', () => {
     })
 
     it('should return false some target transactions fail to decode', async () => {
-      const model = { intent: { targets: [address1, address2], data: ['0x11', '0x22'] } } as any
+      const model = {
+        intent: {
+          route: {
+            calls: [
+              { target: address1, data: '0x11' },
+              { target: address2, data: '0x22' },
+            ],
+          },
+        },
+      } as any
       utilsIntentService.getTransactionTargetData = jest
         .fn()
-        .mockImplementation((model, solver, target, data) => {
-          if (target === address2) return null
+        .mockImplementation((model, solver, call) => {
+          if (call.target === address2) return null
           return { decoded: true }
         })
       expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(false)
     })
 
     it('should return true when all target transactions decode', async () => {
-      const model = { intent: { targets: [address1, address2], data: ['0x11', '0x22'] } } as any
+      const model = {
+        intent: {
+          route: {
+            calls: [
+              { target: address1, data: '0x11' },
+              { target: address2, data: '0x22' },
+            ],
+          },
+        },
+      } as any
       utilsIntentService.getTransactionTargetData = jest.fn().mockReturnValue({ decoded: true })
       expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(true)
     })
   })
 
   describe('on getTransactionTargetData', () => {
-    const target = address1
-    const data = '0xa9059cbb3333333' //transfer selector plus data fake
+    const callData: TargetCallViemType = { target: address1, data: '0xa9059cbb3333333', value: 0n } //transfer selector plus data fake
     const selectors = ['transfer(address,uint256)']
     const targetConfig = { contractType: 'erc20', selectors }
     const decodedData = { stuff: true }
@@ -167,13 +176,13 @@ describe('UtilsIntentService', () => {
       const model = { intent: { targets: [address1], data: ['0x11'] } } as any
       const solver = { targets: {} }
       expect(() =>
-        utilsIntentService.getTransactionTargetData(model, solver as any, target, data),
-      ).toThrow(EcoError.IntentSourceTargetConfigNotFound(target as string))
+        utilsIntentService.getTransactionTargetData(model, solver as any, callData),
+      ).toThrow(EcoError.IntentSourceTargetConfigNotFound(callData.target as string))
     })
 
     it('should return null when tx is not decoded ', async () => {
       const model = {
-        intent: { targets: [target], data: [data], hash: '0x3' },
+        intent: { route: { calls: [callData] }, hash: '0x3' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       mockDecodeFunctionData.mockReturnValue(null)
@@ -181,8 +190,7 @@ describe('UtilsIntentService', () => {
         utilsIntentService.getTransactionTargetData(
           model,
           { targets: { [address1]: { contractType: 'erc20', selectors } } } as any,
-          target,
-          data,
+          callData,
         ),
       ).toBe(null)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
@@ -190,14 +198,15 @@ describe('UtilsIntentService', () => {
         msg: `Selectors not supported for intent ${model.intent.hash}`,
         intentHash: model.intent.hash,
         sourceNetwork: model.event.sourceNetwork,
-        unsupportedSelector: getFunctionBytes(data),
+        unsupportedSelector: getFunctionBytes(callData.data),
       })
     })
 
     it('should return null when target selector is not supported by the solver', async () => {
       const fakeData = '0xaaaaaaaa11112333'
+      const call: TargetCallViemType = { target: callData.target, data: fakeData, value: 0n }
       const model = {
-        intent: { targets: [target], data: [fakeData], hash: '0x3' },
+        intent: { route: { calls: [call] }, hash: '0x3' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       mockDecodeFunctionData.mockReturnValue(decodedData)
@@ -205,8 +214,7 @@ describe('UtilsIntentService', () => {
         utilsIntentService.getTransactionTargetData(
           model,
           { targets: { [address1]: { contractType: 'erc20', selectors } } } as any,
-          target,
-          fakeData,
+          call,
         ),
       ).toBe(null)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
@@ -218,9 +226,9 @@ describe('UtilsIntentService', () => {
       })
     })
 
-    it('should return the decaoded function data, selctor and target config when successful', async () => {
+    it('should return the decoded function data, selctor and target config when successful', async () => {
       const model = {
-        intent: { targets: [target], data: [data], hash: '0x3' },
+        intent: { route: { calls: [callData] }, hash: '0x3' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       mockDecodeFunctionData.mockReturnValue(decodedData)
@@ -228,12 +236,11 @@ describe('UtilsIntentService', () => {
         utilsIntentService.getTransactionTargetData(
           model,
           { targets: { [address1]: targetConfig } } as any,
-          target,
-          data,
+          callData,
         ),
       ).toEqual({
         decodedFunctionData: decodedData,
-        selector: getFunctionBytes(data),
+        selector: getFunctionBytes(callData.data),
         targetConfig,
       })
     })
@@ -246,7 +253,7 @@ describe('UtilsIntentService', () => {
 
     it('should return false if model targets are empty', async () => {
       const model = {
-        intent: { targets: [], data: [], hash: '0x9' },
+        intent: { route: { calls: [] }, hash: '0x9' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: { address1: { contractType: 'erc20', selectors: [] } } }
@@ -261,7 +268,7 @@ describe('UtilsIntentService', () => {
 
     it('should return false if solver targets are empty', async () => {
       const model = {
-        intent: { targets: [target], data: [], hash: '0x9' },
+        intent: { route: { calls: [{ target, data: '0x' }] }, hash: '0x9' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: {} }
@@ -276,7 +283,7 @@ describe('UtilsIntentService', () => {
 
     it('should return false if solver doesn`t support the targets of the model', async () => {
       const model = {
-        intent: { targets: [target], data: [], hash: '0x9' },
+        intent: { route: { calls: [{ target, data: '0x' }] }, hash: '0x9' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: { [target1]: targetConfig } }
@@ -291,7 +298,7 @@ describe('UtilsIntentService', () => {
 
     it('should return true if model targets are a subset of solver targets', async () => {
       const model = {
-        intent: { targets: [target], data: [], hash: '0x9' },
+        intent: { route: { calls: [{ target, data: '0x' }] }, hash: '0x9' },
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: { [target]: targetConfig, [target1]: targetConfig } }
@@ -302,7 +309,7 @@ describe('UtilsIntentService', () => {
   describe('on getIntentProcessData', () => {
     const intentHash = address1
     const model = {
-      intent: { hash: intentHash, destinationChainID: '85432' },
+      intent: { route: { hash: intentHash, destination: '85432' } },
       event: { sourceNetwork: 'opt-sepolia' },
     } as any
     it('should return undefined if it could not find the model in the db', async () => {
@@ -320,7 +327,7 @@ describe('UtilsIntentService', () => {
       expect(await utilsIntentService.getIntentProcessData(intentHash)).toBe(undefined)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
       expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `No solver found for chain ${model.intent.destinationChainID}`,
+        msg: `No solver found for chain ${model.intent.route.destination}`,
         intentHash: intentHash,
         sourceNetwork: model.event.sourceNetwork,
       })

@@ -793,10 +793,12 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/routes-ts@~0.2.10-beta":
-  version "0.2.10-beta"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-0.2.10-beta.tgz#61bfc2285d15e55812bb45fd3e98e6a9bc8cf440"
-  integrity sha512-b/nWW73/84frgHaQhy0rT0hxzZavnWP1112exO4RQB5P6/ZSryNleDLyz6ejFR6rcbLPp05baV+RPe6Hcwsl7A==
+"@eco-foundation/routes-ts@1.5.23":
+  version "1.5.23"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.5.23.tgz#d13de1c7121fdfc7354184353fe104aa206f75ab"
+  integrity sha512-nvli6bTWl1Lx2ClBpOTX0G5/QMLhyZ15PiqcitBJU9HTtyVzR+ICEu3tltNJkVOjURNmpSMAAkOJZaupWHN8kw==
+  dependencies:
+    viem "^2.22.12"
 
 "@eslint-community/eslint-utils@^4.2.0", "@eslint-community/eslint-utils@^4.4.0":
   version "4.4.1"
@@ -5960,6 +5962,19 @@ ox@0.6.0:
     abitype "^1.0.6"
     eventemitter3 "5.0.1"
 
+ox@0.6.5:
+  version "0.6.5"
+  resolved "https://registry.yarnpkg.com/ox/-/ox-0.6.5.tgz#e6506a589bd6af9b5fecfcb2c641b63c9882edb6"
+  integrity sha512-vmnH8KvMDwFZDbNY1mq2CBRBWIgSliZB/dFV0xKp+DfF/dJkTENt6nmA+DzHSSAgL/GO2ydjkXWvlndJgSY4KQ==
+  dependencies:
+    "@adraffy/ens-normalize" "^1.10.1"
+    "@noble/curves" "^1.6.0"
+    "@noble/hashes" "^1.5.0"
+    "@scure/bip32" "^1.5.0"
+    "@scure/bip39" "^1.4.0"
+    abitype "^1.0.6"
+    eventemitter3 "5.0.1"
+
 p-limit@^2.2.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/p-limit/-/p-limit-2.3.0.tgz#3dd33c647a214fdfffd835933eb086da0dc21db1"
@@ -7171,6 +7186,20 @@ viem@^2.21.59, viem@^2.22.1, viem@^2.22.4:
     isows "1.0.6"
     ox "0.6.0"
     webauthn-p256 "0.0.10"
+    ws "8.18.0"
+
+viem@^2.22.12:
+  version "2.22.12"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.22.12.tgz#9940076d6883c09b073f674cdf43b907fe9e6bb2"
+  integrity sha512-n3Oc3RO6SaFMOaF8/0YzZK5KtL3OJ9mPiJQgJIOI5Ab5FscdsFixjJdaYD2Tp3Sp/VMHYG9aRyqJ1KZaO7nu+A==
+  dependencies:
+    "@noble/curves" "1.7.0"
+    "@noble/hashes" "1.6.1"
+    "@scure/bip32" "1.6.0"
+    "@scure/bip39" "1.5.0"
+    abitype "1.0.7"
+    isows "1.0.6"
+    ox "0.6.5"
     ws "8.18.0"
 
 walker@^1.0.8:

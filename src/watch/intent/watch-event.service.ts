@@ -46,9 +46,8 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Subscribes to a contract on a specific chain
    * @param client the client to subscribe to
    * @param contract the contract to subscribe to
-   * @param supportedChains the chains to subscribe on
    */
-  abstract subscribeTo(client: PublicClient, contract: T, supportedChains: bigint[]): Promise<void>
+  abstract subscribeTo(client: PublicClient, contract: T): Promise<void>
 
   /**
    * Unsubscribes from all events. It closes all clients in {@link onModuleDestroy}
@@ -76,12 +75,6 @@ export abstract class WatchEventService<T extends { chainID: number }>
     })
   }
 
-  /**
-   * Checks to see what networks
-   * @returns the supported chains for the event
-   */
-  abstract getSupportedChains(): bigint[]
-
   async onError(error: any, client: PublicClient, contract: T) {
     this.logger.error(
       EcoLogMessage.fromDefault({
@@ -94,7 +87,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
     //reset the filters as they might have expired or we might have been moved to a new node
     //https://support.quicknode.com/hc/en-us/articles/10838914856977-Error-code-32000-message-filter-not-found
     await this.unsubscribeFrom(contract.chainID)
-    await this.subscribeTo(client, contract, this.getSupportedChains())
+    await this.subscribeTo(client, contract)
   }
 
   /**
