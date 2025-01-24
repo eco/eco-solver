@@ -213,7 +213,7 @@ export class FulfillIntentService {
       ? 'fulfillStorage'
       : this.getFulfillment()
 
-    const args = [model.intent.route, model.intent.reward.getHash(), claimant, model.intent.hash]
+    const args = [model.intent.route, model.intent.reward.getHash(), claimant, model.intent.getHash()]
     if (isHyperlane) {
       args.push(model.intent.reward.prover)
       if (functionName === 'fulfillHyperInstantWithRelayer') {

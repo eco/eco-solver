@@ -13,7 +13,7 @@ export class RouteDataModel implements RouteType {
   destination: bigint
   @Prop({ required: true, type: String })
   inbox: Hex
-  @Prop({ required: true, type: TargetCallDataSchema })
+  @Prop({ required: true, type: [TargetCallDataSchema] })
   calls: TargetCallDataModel[]
 
   constructor(
@@ -42,3 +42,10 @@ export class RouteDataModel implements RouteType {
 export const RouteDataSchema = SchemaFactory.createForClass(RouteDataModel)
 RouteDataSchema.index({ source: 1 }, { unique: false })
 RouteDataSchema.index({ destination: 1 }, { unique: false })
+
+RouteDataSchema.methods.getHash = function () {
+  return hashRoute(this)
+}
+RouteDataSchema.methods.getEncoding = function () {
+  return encodeRoute(this)
+}

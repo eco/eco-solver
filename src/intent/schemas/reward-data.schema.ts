@@ -16,7 +16,7 @@ export class RewardDataModel implements RewardType {
   deadline: bigint
   @Prop({ required: true, type: BigInt })
   nativeValue: bigint
-  @Prop({ required: true, type: TokenAmountDataSchema })
+  @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
 
   constructor(
@@ -45,3 +45,10 @@ export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataMode
 RewardDataModelSchema.index({ creator: 1 }, { unique: false })
 RewardDataModelSchema.index({ prover: 1 }, { unique: false })
 RewardDataModelSchema.index({ tokens: 1 }, { unique: false })
+
+RewardDataModelSchema.methods.getHash = function () {
+  return hashReward(this)
+}
+RewardDataModelSchema.methods.getEncoding = function () {
+  return encodeReward(this)
+}

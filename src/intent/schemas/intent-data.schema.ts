@@ -99,3 +99,9 @@ IntentSourceDataSchema.index(
   { source: 1, destination: 'ascending', deadline: 'ascending' },
   { unique: false },
 )
+IntentSourceDataSchema.methods.getHash = function () {
+  return hashIntent(this).intentHash
+}
+IntentSourceDataSchema.methods.getEncoding = function () {
+  return encodeIntent(this)
+}
