@@ -86,6 +86,9 @@ export class ChainSyncService implements OnApplicationBootstrap {
         address: source.sourceAddress,
         abi: IntentSourceAbi,
         eventName: 'IntentCreated',
+        args: {
+          prover: source.provers,
+        },
         fromBlock,
         toBlock,
       })

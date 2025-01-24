@@ -95,6 +95,7 @@ export class ValidateIntentService implements OnModuleInit {
     const targetsUnsupported = !this.supportedTargets(model, solver)
     const selectorsUnsupported = !this.supportedSelectors(model, solver)
     const expiresEarly = !this.validExpirationTime(model)
+    const validDestination = !this.validDestination(model)
     const sameChainFulfill = !this.fulfillOnDifferentChain(model)
 
     if (
@@ -102,6 +103,7 @@ export class ValidateIntentService implements OnModuleInit {
       targetsUnsupported ||
       selectorsUnsupported ||
       expiresEarly ||
+      validDestination ||
       sameChainFulfill
     ) {
       await this.utilsIntentService.updateInvalidIntentModel(model, {
@@ -109,6 +111,7 @@ export class ValidateIntentService implements OnModuleInit {
         targetsUnsupported,
         selectorsUnsupported,
         expiresEarly,
+        validDestination,
         sameChainFulfill,
       })
       this.logger.log(
@@ -120,6 +123,7 @@ export class ValidateIntentService implements OnModuleInit {
             targetsUnsupported,
             selectorsUnsupported,
             expiresEarly,
+            validDestination,
             sameChainFulfill,
             ...(expiresEarly && {
               proofMinDurationSeconds: this.proofService
@@ -208,6 +212,14 @@ export class ValidateIntentService implements OnModuleInit {
     )
   }
 
+  /**
+   * Checks that the intent destination is supported by the solver
+   * @param model the source intent model
+   * @returns
+   */
+  private validDestination(model: IntentSourceModel): boolean {
+    return this.ecoConfigService.getSupportedChains().includes(model.intent.route.destination)
+  }
   /**
    * Checks that the intent fulfillment is on a different chain than its source
    * Needed since some proving methods(Hyperlane) cant prove same chain

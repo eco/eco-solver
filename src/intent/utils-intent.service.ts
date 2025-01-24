@@ -79,6 +79,7 @@ export class UtilsIntentService {
       targetsUnsupported: boolean
       selectorsUnsupported: boolean
       expiresEarly: boolean
+      validDestination: boolean
       sameChainFulfill: boolean
     },
   ) {

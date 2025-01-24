@@ -83,11 +83,6 @@ export class CreateIntentService implements OnModuleInit {
           )
         : true
 
-      // check if the destination chain is supported
-      const validDestination = this.ecoConfigService
-        .getSupportedChains()
-        .includes(intent.route.destination)
-
       //create db record
       const record = await this.intentModel.create({
         event: intentWs,
@@ -97,7 +92,7 @@ export class CreateIntentService implements OnModuleInit {
       })
 
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
-      if (validWallet && validDestination) {
+      if (validWallet) {
         //add to processing queue
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intent.hash, {
           jobId,
@@ -105,15 +100,14 @@ export class CreateIntentService implements OnModuleInit {
         })
       }
 
-      this.logger.debug(
+      this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Recorded intent ${record.intent.hash}`,
           properties: {
             intentHash: intent.hash,
             intent: record.intent,
             validWallet,
-            validDestination,
-            ...(validWallet && validDestination ? { jobId } : {}),
+            ...(validWallet ? { jobId } : {}),
           },
         }),
       )

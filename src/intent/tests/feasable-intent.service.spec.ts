@@ -15,9 +15,6 @@ import { EcoError } from '../../common/errors/eco-error'
 import { getERC20Selector } from '../../contracts'
 import { Network } from 'alchemy-sdk'
 
-export const address1 = '0x1111111111111111111111111111111111111111'
-export const address2 = '0x2222222222222222222222222222222222222222'
-
 describe('FeasableIntentService', () => {
   let feasableIntentService: FeasableIntentService
   let balanceService: DeepMocked<BalanceService>
@@ -27,7 +24,8 @@ describe('FeasableIntentService', () => {
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
-
+  const address1 = '0x1111111111111111111111111111111111111111'
+  const address2 = '0x2222222222222222222222222222222222222222'
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
@@ -137,17 +135,28 @@ describe('FeasableIntentService', () => {
 
   describe('on validateExecution', () => {
     it('should fail if there are no targets to validate', async () => {
-      const mockModel = { intent: { targets: [] } }
+      const mockModel = { intent: { route: { calls: [] } } }
       const result = await feasableIntentService.validateExecution(mockModel as any, {} as any)
       expect(result).toEqual({ feasable: false, results: [] })
     })
 
     it('should fail if any of the targets fail', async () => {
-      const mockModel = { intent: { targets: [{}, {}], data: [address1, address2] } }
+      const mockModel = {
+        intent: {
+          route: {
+            calls: [
+              { data: '0x', target: address1 },
+              { data: '0x', target: address2 },
+            ],
+          },
+        },
+      }
       jest
         .spyOn(feasableIntentService, 'validateEachExecution')
-        .mockImplementation(async ({}, {}, {}, data) => {
-          const succeed = data == mockModel.intent.data[0]
+        .mockImplementation(async ({}, {}, targetcall) => {
+          const succeed =
+            targetcall.data == mockModel.intent.route.calls[0].data &&
+            targetcall.target == mockModel.intent.route.calls[0].target
           return { solvent: true, profitable: succeed }
         })
       const result = await feasableIntentService.validateExecution(mockModel as any, {} as any)
@@ -161,7 +170,16 @@ describe('FeasableIntentService', () => {
     })
 
     it('should succeed if all targets succeed', async () => {
-      const mockModel = { intent: { targets: [{}, {}], data: [address1, address2] } }
+      const mockModel = {
+        intent: {
+          route: {
+            calls: [
+              { data: '', target: address1 },
+              { data: '', target: address2 },
+            ],
+          },
+        },
+      }
       jest
         .spyOn(feasableIntentService, 'validateEachExecution')
         .mockResolvedValue({ solvent: true, profitable: true })
@@ -182,8 +200,7 @@ describe('FeasableIntentService', () => {
       const result = await feasableIntentService.validateEachExecution(
         mockData.model as any,
         mockData.solver as any,
-        {} as any,
-        '0xddd',
+        { data: '0xaa', target: '0xddd' } as any,
       )
       expect(mockLogError).toHaveBeenCalledWith({
         msg: 'feasableIntent: Invalid transaction data',
@@ -201,8 +218,7 @@ describe('FeasableIntentService', () => {
         await feasableIntentService.validateEachExecution(
           mockData.model as any,
           mockData.solver as any,
-          {} as any,
-          '0xddd',
+          { data: '0xaa', target: '0xddd' } as any,
         ),
       ).toBe(false)
     })
@@ -220,8 +236,7 @@ describe('FeasableIntentService', () => {
         await feasableIntentService.validateEachExecution(
           mockData.model as any,
           mockData.solver as any,
-          {} as any,
-          '0xddd',
+          { data: '0xaa', target: '0xddd' } as any,
         ),
       ).toEqual({ solvent: false, profitable: false })
 
@@ -233,8 +248,7 @@ describe('FeasableIntentService', () => {
         await feasableIntentService.validateEachExecution(
           mockData.model as any,
           mockData.solver as any,
-          {} as any,
-          '0xddd',
+          { data: '0xaa', target: '0xddd' } as any,
         ),
       ).toEqual({ solvent: true, profitable: true })
     })
@@ -260,7 +274,7 @@ describe('FeasableIntentService', () => {
       }
       const mockModel = {
         event: { sourceNetwork: 'opt-sepolia' },
-        intent: { rewardTokens: [address1], rewardAmounts: [200n] },
+        intent: { reward: { tokens: [{ token: address1, amount: 200n }] } },
       }
       it('should fail a transfer where we lack the funds to fulfill', async () => {
         jest.spyOn(balanceService, 'getTokenBalance').mockResolvedValue({ balance: 0n } as any)
@@ -325,8 +339,10 @@ describe('FeasableIntentService', () => {
 
   describe('on isProfitableErc20Transfer', () => {
     const acceptedTokens = [address1, address2] as Hex[]
-    const rewardTokens = [address1, address2] as Hex[]
-    const rewardAmounts = [100n, 200n]
+    const rewards = [
+      { token: address1 as Hex, amount: 100n },
+      { token: address2 as Hex, amount: 200n },
+    ]
     const fullfillAmountUSDC = 300n
 
     beforeEach(async () => {
@@ -338,8 +354,7 @@ describe('FeasableIntentService', () => {
         feasableIntentService.isProfitableErc20Transfer(
           Network.OPT_SEPOLIA,
           acceptedTokens,
-          ['0x3'],
-          rewardAmounts,
+          [{ token: '0x3' as Hex, amount: 100n }],
           fullfillAmountUSDC,
         ),
       ).toBe(false)
@@ -351,7 +366,6 @@ describe('FeasableIntentService', () => {
           Network.OPT_SEPOLIA,
           acceptedTokens,
           [],
-          rewardAmounts,
           fullfillAmountUSDC,
         ),
       ).toBe(false)
@@ -362,9 +376,8 @@ describe('FeasableIntentService', () => {
         feasableIntentService.isProfitableErc20Transfer(
           Network.OPT_SEPOLIA,
           acceptedTokens,
-          rewardTokens,
-          [100n, 150n],
-          fullfillAmountUSDC,
+          rewards,
+          fullfillAmountUSDC + 100n,
         ),
       ).toBe(false)
     })
@@ -374,8 +387,7 @@ describe('FeasableIntentService', () => {
         feasableIntentService.isProfitableErc20Transfer(
           Network.OPT_SEPOLIA,
           acceptedTokens,
-          rewardTokens,
-          rewardAmounts,
+          rewards,
           fullfillAmountUSDC,
         ),
       ).toBe(true)
@@ -390,11 +402,10 @@ describe('FeasableIntentService', () => {
       ]
       conversions.forEach((conversion) => {
         expect(
-          feasableIntentService.convertToUSDC(
-            conversion.network as any,
-            conversion.token as any,
-            conversion.amount,
-          ),
+          feasableIntentService.convertToUSDC(conversion.network as any, {
+            token: conversion.token as any,
+            amount: conversion.amount,
+          }),
         ).toBe(conversion.conv)
       })
     })

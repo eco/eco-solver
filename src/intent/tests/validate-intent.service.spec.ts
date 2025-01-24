@@ -131,7 +131,7 @@ describe('ValidateIntentService', () => {
       })
 
       it('should fail if no source supports the prover', async () => {
-        const model = { event: { sourceChainID }, intent: { prover } } as any
+        const model = { event: { sourceChainID }, intent: { reward: { prover } } } as any
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [unsupportedProver], chainID } as any,
         ])
@@ -147,7 +147,7 @@ describe('ValidateIntentService', () => {
       })
 
       it('should succeed if a single source supports the prover', async () => {
-        const model = { event: { sourceChainID }, intent: { prover } } as any
+        const model = { event: { sourceChainID }, intent: { reward: { prover } } } as any
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [unsupportedProver], chainID } as any,
           { provers: [prover], chainID } as any,
@@ -156,7 +156,7 @@ describe('ValidateIntentService', () => {
       })
 
       it('should succeed if multiple sources supports the prover', async () => {
-        const model = { event: { sourceChainID }, intent: { prover } } as any
+        const model = { event: { sourceChainID }, intent: { reward: { prover } } } as any
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [prover], chainID } as any,
           { provers: [prover], chainID } as any,
@@ -189,7 +189,7 @@ describe('ValidateIntentService', () => {
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {
-        const model = { intent: { expiryTime: 100 } } as any
+        const model = { intent: { reward: { deadline: 100 } } } as any
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
         expect(validateIntentService['validExpirationTime'](model)).toBe(true)
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(false)
@@ -197,15 +197,35 @@ describe('ValidateIntentService', () => {
       })
     })
 
+    describe('on validDestination', () => {
+      it('should fail if destination is not supported', async () => {
+        const model = { intent: { route: { destination: 10n } } } as any
+        ecoConfigService.getSupportedChains.mockReturnValueOnce([11n, 12n])
+        expect(validateIntentService['validDestination'](model)).toBe(false)
+      })
+
+      it('should fail if destination is not supported', async () => {
+        const model = { intent: { route: { destination: 10n } } } as any
+        ecoConfigService.getSupportedChains.mockReturnValueOnce([10n, 12n])
+        expect(validateIntentService['validDestination'](model)).toBe(true)
+      })
+    })
+
     describe('on fulfillOnDifferentChain', () => {
       it('should fail if the fulfillment is on the same chain as the event', async () => {
-        const model = { intent: { destinationChainID: 10 }, event: { sourceChainID: 10 } } as any
+        const model = {
+          intent: { route: { destination: 10 } },
+          event: { sourceChainID: 10 },
+        } as any
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
         expect(validateIntentService['fulfillOnDifferentChain'](model)).toBe(false)
       })
 
       it('should succeed if the fulfillment is on a different chain as the event', async () => {
-        const model = { intent: { destinationChainID: 10 }, event: { sourceChainID: 20 } } as any
+        const model = {
+          intent: { route: { destination: 10 } },
+          event: { sourceChainID: 20 },
+        } as any
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
         expect(validateIntentService['fulfillOnDifferentChain'](model)).toBe(true)
       })
@@ -219,6 +239,7 @@ describe('ValidateIntentService', () => {
       supportedTargets: 'targetsUnsupported',
       supportedSelectors: 'selectorsUnsupported',
       validExpirationTime: 'expiresEarly',
+      validDestination: 'validDestination',
       sameChainFulfill: 'sameChainFulfill',
     }
     beforeEach(() => {
@@ -229,28 +250,23 @@ describe('ValidateIntentService', () => {
       jest.clearAllMocks()
     })
 
-    it('should fail on equal rewards arrays', async () => {
-      const model = {
-        intent: { rewardTokens: [1, 2], rewardAmounts: [3, 4, 5], destinationChainID: 10 },
-        event: { sourceChainID: 10 },
-      } as any
-      const solver = {} as any
-      expect(await validateIntentService['assertValidations'](model, solver)).toBe(false)
-      expect(mockLogLog).toHaveBeenCalledTimes(1)
-      expect(mockLogLog).toHaveBeenCalledWith({
-        intent: model.intent,
-        msg: 'validateIntent: Rewards mismatch',
-      })
-    })
-
     entries(assetCases).forEach(([fun, boolVarName]: [string, string]) => {
       it(`should fail on ${fun}`, async () => {
         const model = {
           intent: {
-            rewardTokens: [1, 2],
-            rewardAmounts: [3, 4],
-            hash: '0x1',
-            destinationChainID: 10,
+            reward: {
+              creator: '0xa',
+              prover: '0xb',
+              deadline: 100,
+              tokens: [
+                { token: '0x1', amount: 1n },
+                { token: '0x2', amount: 2n },
+              ],
+            },
+            route: {
+              salt: '0x1',
+              destination: 10,
+            },
           },
           event: { sourceChainID: 11 },
         } as any
@@ -260,7 +276,7 @@ describe('ValidateIntentService', () => {
           {},
         )
         if (boolVarName == 'sameChainFulfill') {
-          model.intent.route.destinationChainID = model.event.sourceChainID
+          model.intent.route.destination = model.event.sourceChainID
         }
         const now = new Date()
         proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)

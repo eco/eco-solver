@@ -76,10 +76,11 @@ describe('ChainSyncService', () => {
   describe('on syncTxsPerSource', () => {
     let mockGetContractEvents: jest.Mock
 
-    const IntentSource = {
+    const intentSource = {
       chainID: 123,
       sourceAddress: '0x123',
       network: 'network1',
+      provers: ['0x456', '0x789', '0xabc'],
     } as unknown as IntentSource
 
     const solvers = {
@@ -94,10 +95,8 @@ describe('ChainSyncService', () => {
       },
     } as any as Solver[]
 
-    const solverSupportedChains = entries(solvers).map(([chainID]) => BigInt(chainID))
-
-    const model = { event: { blockNumber: 50n, sourceChainID: IntentSource.chainID } }
-
+    const model = { event: { blockNumber: 50n, sourceChainID: intentSource.chainID } }
+    const supportedChains = Object.keys(solvers).map((key) => BigInt(key))
     beforeEach(() => {
       mockGetContractEvents = jest.fn().mockResolvedValue([])
 
@@ -109,14 +108,14 @@ describe('ChainSyncService', () => {
     })
 
     it('should set fromBlock to 0x0 when no transactions in db', async () => {
-      await chainSyncService.syncTxsPerSource(IntentSource)
+      await chainSyncService.syncTxsPerSource(intentSource)
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
-        address: IntentSource.sourceAddress,
+        address: intentSource.sourceAddress,
         abi: IntentSourceAbi,
         eventName: 'IntentCreated',
         args: {
-          _destinationChain: solverSupportedChains,
+          prover: intentSource.provers,
         },
         fromBlock: 0n,
         toBlock: 'latest',
@@ -126,14 +125,14 @@ describe('ChainSyncService', () => {
     it('should set fromBlock to the block of the db transaction', async () => {
       chainSyncService['getLastRecordedTx'] = jest.fn().mockResolvedValueOnce([model])
 
-      await chainSyncService.syncTxsPerSource(IntentSource)
+      await chainSyncService.syncTxsPerSource(intentSource)
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
-        address: IntentSource.sourceAddress,
+        address: intentSource.sourceAddress,
         abi: IntentSourceAbi,
         eventName: 'IntentCreated',
         args: {
-          _destinationChain: solverSupportedChains,
+          prover: intentSource.provers,
         },
         fromBlock: model.event.blockNumber + 1n, // we search from the next block
         toBlock: 'latest',
@@ -144,39 +143,48 @@ describe('ChainSyncService', () => {
       chainSyncService['getLastRecordedTx'] = jest.fn().mockResolvedValueOnce([model])
       const mockLog = jest.fn()
       chainSyncService['logger'].log = mockLog
-      await chainSyncService.syncTxsPerSource(IntentSource)
+      await chainSyncService.syncTxsPerSource(intentSource)
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockLog).toHaveBeenCalledTimes(1)
       // we search from the next block
       const searchFromBlock = model.event.blockNumber + 1n
       expect(mockLog).toHaveBeenCalledWith({
-        msg: `No transactions found for source ${IntentSource.network} to sync from block ${searchFromBlock}`,
+        msg: `No transactions found for source ${intentSource.network} to sync from block ${searchFromBlock}`,
         chainID: model.event.sourceChainID,
         fromBlock: searchFromBlock,
       })
     })
 
-    it('should process all the txs since the last saved blockNumber', async () => {
+    it('should process all the txs that are to a supported destination since the last saved blockNumber', async () => {
+      const unsupportedChain = 1000n
       chainSyncService['getLastRecordedTx'] = jest.fn().mockResolvedValueOnce([model])
-      const logs = [{ msg: 'firstlog' }, { msg: 'secondlog' }, { msg: 'thirdlog' }]
-      const returnLogs = logs.map((log) => {
-        return {
-          ...log,
-          sourceNetwork: IntentSource.network,
-          sourceChainID: IntentSource.chainID,
-        }
-      })
+      ecoConfigService.getSupportedChains.mockReturnValue(supportedChains)
+      const logs = [
+        { msg: 'firstlog', args: { destination: supportedChains[0] } },
+        { msg: 'secondlog', args: { destination: supportedChains[1] } },
+        { msg: 'thirdlog', args: { destination: unsupportedChain } },
+      ]
+      const returnLogs = logs
+        .filter((log) => supportedChains.includes(log.args.destination))
+        .map((log) => {
+          return {
+            ...log,
+            sourceNetwork: intentSource.network,
+            sourceChainID: intentSource.chainID,
+          }
+        })
       const mockProcessJob = jest.fn()
       const mockAddJob = jest.fn(() => mockProcessJob)
       watchIntentService.addJob = mockAddJob as any
       mockGetContractEvents.mockResolvedValueOnce(logs)
-      ecoConfigService.getIntentSources.mockReturnValue([IntentSource])
+      ecoConfigService.getIntentSources.mockReturnValue([intentSource])
 
       await chainSyncService.syncTxs()
       expect(mockAddJob).toHaveBeenCalledTimes(1)
       expect(mockProcessJob).toHaveBeenCalledTimes(1)
-      expect(mockAddJob).toHaveBeenCalledWith(IntentSource)
+      expect(mockAddJob).toHaveBeenCalledWith(intentSource)
       expect(mockProcessJob).toHaveBeenCalledWith(returnLogs)
+      expect(returnLogs).toHaveLength(2)
     })
   })
 })
