@@ -69,7 +69,13 @@ describe('FulfillIntentService', () => {
   const claimant = address2
   const solver = { solverAddress: address1, chainID: 1 }
   const model = {
-    intent: { route: { hash, destination: 85432 }, reward: { getHash: () => '0x123abc' } },
+    intent: {
+      route: { hash, destination: 85432, getHash: () => '0x6543' },
+      reward: { getHash: () => '0x123abc' },
+      getHash: () => {
+        return { intentHash: '0xaaaa999' }
+      },
+    },
     event: { sourceChainID: 11111 },
   }
   const emptyTxs = [{ data: undefined, to: hash, value: 0n }]
@@ -427,10 +433,14 @@ describe('FulfillIntentService', () => {
           calls: [{ target: address1, data: address2 }],
           deadline: '0x2233',
           salt: '0x3344',
+          getHash: () => '0xccc',
         },
         reward: {
           prover: '0x1122',
           getHash: () => '0xab33',
+        },
+        getHash: () => {
+          return { intentHash: '0xaaaa999' }
         },
       },
       event: { sourceChainID: 10 },
@@ -440,7 +450,12 @@ describe('FulfillIntentService', () => {
 
     beforeEach(() => {
       jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
-      defaultArgs = [model.intent.route, model.intent.reward.getHash(), claimant, model.intent.hash]
+      defaultArgs = [
+        model.intent.route,
+        model.intent.reward.getHash(),
+        claimant,
+        model.intent.getHash().intentHash,
+      ]
     })
     describe('on PROOF_STORAGE', () => {
       it('should use the correct function name and args', async () => {
