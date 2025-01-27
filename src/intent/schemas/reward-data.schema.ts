@@ -32,7 +32,7 @@ export class RewardDataModel implements RewardType {
     this.nativeValue = nativeValue
     this.tokens = tokens
   }
-} 
+}
 
 export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataModel)
 RewardDataModelSchema.index({ creator: 1 }, { unique: false })
