@@ -213,7 +213,15 @@ export class FulfillIntentService {
       ? 'fulfillStorage'
       : this.getFulfillment()
 
-    const args = [model.intent.route, model.intent.reward.getHash(), claimant, model.intent.getHash()]
+    const args = [
+      model.intent.route,
+      // @ts-expect-error we dynamically set the args
+      model.intent.reward.getHash(),
+      claimant,
+      // @ts-expect-error we dynamically set the args
+      model.intent.getHash().intentHash,
+    ]
+
     if (isHyperlane) {
       args.push(model.intent.reward.prover)
       if (functionName === 'fulfillHyperInstantWithRelayer') {
@@ -221,7 +229,6 @@ export class FulfillIntentService {
         args.push(zeroAddress)
       }
     }
-
     let fee = 0n
     if (isHyperlane) {
       fee = BigInt((await this.getHyperlaneFee(solverAddress, model)) || '0x0')

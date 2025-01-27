@@ -29,23 +29,16 @@ export class RouteDataModel implements RouteType {
     this.inbox = inbox
     this.calls = calls
   }
-
-  getEncoding(): Hex {
-    return encodeRoute(this)
-  }
-
-  getHash(): Hex {
-    return hashRoute(this)
-  }
 }
 
 export const RouteDataSchema = SchemaFactory.createForClass(RouteDataModel)
 RouteDataSchema.index({ source: 1 }, { unique: false })
 RouteDataSchema.index({ destination: 1 }, { unique: false })
 
-RouteDataSchema.methods.getHash = function () {
+RouteDataSchema.methods.getHash = function (): Hex {
   return hashRoute(this)
 }
-RouteDataSchema.methods.getEncoding = function () {
+
+RouteDataSchema.methods.getEncoding = function (): Hex {
   return encodeRoute(this)
 }

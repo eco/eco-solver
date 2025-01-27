@@ -32,23 +32,16 @@ export class RewardDataModel implements RewardType {
     this.nativeValue = nativeValue
     this.tokens = tokens
   }
-
-  getEncoding(): Hex {
-    return encodeReward(this)
-  }
-
-  getHash(): Hex {
-    return hashReward(this)
-  }
 }
 export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataModel)
 RewardDataModelSchema.index({ creator: 1 }, { unique: false })
 RewardDataModelSchema.index({ prover: 1 }, { unique: false })
 RewardDataModelSchema.index({ tokens: 1 }, { unique: false })
 
-RewardDataModelSchema.methods.getHash = function () {
+RewardDataModelSchema.methods.getHash = function (): Hex {
   return hashReward(this)
 }
-RewardDataModelSchema.methods.getEncoding = function () {
+
+RewardDataModelSchema.methods.getEncoding = function (): Hex {
   return encodeReward(this)
 }

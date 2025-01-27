@@ -62,18 +62,6 @@ export class IntentDataModel implements IntentType {
     this.logIndex = logIndex
   }
 
-  getEncoding(): Hex {
-    return encodeIntent(this)
-  }
-
-  getHash(): {
-    routeHash: Hex
-    rewardHash: Hex
-    intentHash: Hex
-  } {
-    return hashIntent(this)
-  }
-
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
     const e = event.args
     return new IntentDataModel(
@@ -99,9 +87,15 @@ IntentSourceDataSchema.index(
   { source: 1, destination: 'ascending', deadline: 'ascending' },
   { unique: false },
 )
-IntentSourceDataSchema.methods.getHash = function () {
-  return hashIntent(this).intentHash
+
+IntentSourceDataSchema.methods.getHash = function (): {
+  routeHash: Hex
+  rewardHash: Hex
+  intentHash: Hex
+} {
+  return hashIntent(this)
 }
-IntentSourceDataSchema.methods.getEncoding = function () {
+
+IntentSourceDataSchema.methods.getEncoding = function (): Hex {
   return encodeIntent(this)
 }
