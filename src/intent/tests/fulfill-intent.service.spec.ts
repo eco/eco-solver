@@ -69,7 +69,7 @@ describe('FulfillIntentService', () => {
   const claimant = address2
   const solver = { solverAddress: address1, chainID: 1 }
   const model = {
-    intent: { route: { hash, destination: 85432 }, reward: { getHash: () => '0x123abc' } },
+    intent: { route: { hash, destination: 85432 , getHash: () => '0x6543'}, reward: { getHash: () => '0x123abc' } , getHash: () => '0xa1b2c3'},
     event: { sourceChainID: 11111 },
   }
   const emptyTxs = [{ data: undefined, to: hash, value: 0n }]
@@ -427,11 +427,13 @@ describe('FulfillIntentService', () => {
           calls: [{ target: address1, data: address2 }],
           deadline: '0x2233',
           salt: '0x3344',
+          getHash: () => '0xccc',
         },
         reward: {
           prover: '0x1122',
           getHash: () => '0xab33',
         },
+        getHash: () => '0xaaaa999',
       },
       event: { sourceChainID: 10 },
     }
