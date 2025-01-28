@@ -33,7 +33,9 @@ declare namespace LiquidityManager {
   type LiFiStrategyContext = LiFi.Route
 
   type Strategy = 'LiFi'
-  type StrategyContext<S extends Strategy> = S extends 'LiFi' ? LiFiStrategyContext : never
+  type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
+    ? LiFiStrategyContext
+    : never
 
   // Quote
 

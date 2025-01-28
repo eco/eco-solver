@@ -4,7 +4,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
+} from '@/liquidity-manager/jobs/liquidity-manager.job'
 
 /**
  * Abstract class representing a base processor for liquidity manager jobs.
