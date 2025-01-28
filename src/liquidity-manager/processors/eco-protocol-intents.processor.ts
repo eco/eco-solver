@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
-import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalanceJobManager'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron-job.manager'
+import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
+import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex } from 'viem'
+import { formatUnits, Hex } from 'viem'
 
 @Schema()
 export class RebalanceTokenModel {
@@ -16,10 +16,13 @@ export class RebalanceTokenModel {
   targetBalance: number
 
   static fromTokenData(tokenData: LiquidityManager.TokenData): RebalanceTokenModel {
+    const currentBalance = parseFloat(
+      formatUnits(tokenData.balance.balance, tokenData.balance.decimals),
+    )
     return {
       chainId: tokenData.chainId,
       tokenAddress: tokenData.config.address,
-      currentBalance: tokenData.balance,
+      currentBalance,
       targetBalance: tokenData.config.targetBalance,
     }
   }

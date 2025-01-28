@@ -7,7 +7,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron-job.manager'
+import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService

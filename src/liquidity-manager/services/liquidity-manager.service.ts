@@ -17,7 +17,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalanceJobManager'
+import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/liquidity-manager/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'

@@ -24,7 +24,7 @@ export class RebalanceModel {
   @Prop({ required: false })
   groupId?: string
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Object })
   context: LiquidityManager.StrategyContext
 }
 
