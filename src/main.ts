@@ -3,7 +3,8 @@ import { AppModule } from './app.module'
 import { NestExpressApplication } from '@nestjs/platform-express'
 import { EcoConfigService } from './eco-configs/eco-config.service'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
-import { NestApplicationOptions } from '@nestjs/common'
+import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
@@ -11,6 +12,12 @@ async function bootstrap() {
     app.useLogger(app.get(Logger))
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
   }
+
+  //add dto validations
+  app.useGlobalPipes(new ValidationPipe())
+
+  //add swagger
+  addSwagger(app)
 
   // Starts listening for shutdown hooks
   app.enableShutdownHooks()
@@ -32,6 +39,17 @@ function getNestParams(): NestApplicationOptions {
   }
 
   return params
+}
+
+function addSwagger(app: NestExpressApplication) {
+  const config = new DocumentBuilder()
+    .setTitle('Solver API')
+    .setDescription('The api for the solver queries')
+    .setVersion('0.1')
+    .addTag('solver')
+    .build()
+  const documentFactory = () => SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup('api', app, documentFactory)
 }
 
 bootstrap()

@@ -1,4 +1,5 @@
 import { BalanceController } from '@/api/balance.controller'
+import { QuoteController } from '@/api/quote.controller'
 import { BalanceModule } from '@/balance/balance.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { QuoteModule } from '@/quote/quote.module'
@@ -15,7 +16,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
     }),
     QuoteModule,
   ],
-  controllers: [BalanceController],
+  controllers: [BalanceController, QuoteController],
   providers: [
     {
       provide: APP_INTERCEPTOR,
