@@ -1,4 +1,6 @@
 import { FlowProducer, Queue } from 'bullmq'
+import { Model } from 'mongoose'
+import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
@@ -8,6 +10,7 @@ import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-mana
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
+import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -23,6 +26,10 @@ describe('LiquidityManagerService', () => {
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
+        {
+          provide: getModelToken(RebalanceModel.name),
+          useValue: createMock<Model<RebalanceModel>>(),
+        },
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
