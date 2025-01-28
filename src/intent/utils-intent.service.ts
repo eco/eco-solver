@@ -6,11 +6,14 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
-import { difference, includes } from 'lodash'
+import { includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
 import { getERCAbi, TargetCallViemType } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
+import { Network } from 'alchemy-sdk'
+import { ProofService } from '@/prover/proof.service'
+import { ValidationIntentModel } from '@/intent/validation.sevice'
 
 /**
  * Data for a transaction target
@@ -19,6 +22,14 @@ export interface TransactionTargetData {
   decodedFunctionData: DecodeFunctionDataReturnType
   selector: Hex
   targetConfig: TargetContract
+}
+
+/**
+ * Type for logging in validations
+ */
+export interface IntentLogType {
+  hash?: Hex
+  sourceNetwork?: Network
 }
 
 /**
@@ -51,6 +62,7 @@ export class UtilsIntentService {
 
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
+    private readonly proofService: ProofService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -79,7 +91,7 @@ export class UtilsIntentService {
       targetsUnsupported: boolean
       selectorsUnsupported: boolean
       expiresEarly: boolean
-      validDestination: boolean
+      invalidDestination: boolean
       sameChainFulfill: boolean
     },
   ) {
@@ -128,32 +140,6 @@ export class UtilsIntentService {
   }
 
   /**
-   * Verifies that the intent targets and data arrays are equal in length, and
-   * that every target-data can be decoded
-   *
-   * @param model the intent model
-   * @param solver the solver for the intent
-   * @returns
-   */
-  selectorsSupported(model: IntentSourceModel, solver: Solver): boolean {
-    if (model.intent.route.calls.length == 0) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateIntent: Target/data invalid`,
-          properties: {
-            intent: model.intent,
-          },
-        }),
-      )
-      return false
-    }
-    return model.intent.route.calls.every((call) => {
-      const tx = this.getTransactionTargetData(model, solver, call)
-      return tx
-    })
-  }
-
-  /**
    * Decodes the function data for a target contract
    *
    * @param model the intent model
@@ -163,7 +149,7 @@ export class UtilsIntentService {
    * @returns
    */
   getTransactionTargetData(
-    model: IntentSourceModel,
+    model: ValidationIntentModel,
     solver: Solver,
     call: TargetCallViemType,
   ): TransactionTargetData | null {
@@ -183,45 +169,19 @@ export class UtilsIntentService {
     if (!supported) {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Selectors not supported for intent ${model.intent.hash}`,
+          message: `Selectors not supported for intent ${model.hash ? model.hash : 'quote'}`,
           properties: {
-            intentHash: model.intent.hash,
-            sourceNetwork: model.event.sourceNetwork,
             unsupportedSelector: selector,
+            ...(model.hash && {
+              intentHash: model.hash,
+              source: model.route.source,
+            }),
           },
         }),
       )
       return null
     }
     return { decodedFunctionData: tx, selector, targetConfig }
-  }
-
-  /**
-   * Verifies that all the intent targets are supported by the solver
-   *
-   * @param model the intent model
-   * @param solver the solver for the intent
-   * @returns
-   */
-  targetsSupported(model: IntentSourceModel, solver: Solver): boolean {
-    const modelTargets = model.intent.route.calls.map((call) => call.target)
-    const solverTargets = Object.keys(solver.targets)
-    //all targets are included in the solver targets array
-    const exist = solverTargets.length > 0 && modelTargets.length > 0
-    const targetsSupported = exist && difference(modelTargets, solverTargets).length == 0
-
-    if (!targetsSupported) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Targets not supported for intent ${model.intent.hash}`,
-          properties: {
-            intentHash: model.intent.hash,
-            sourceNetwork: model.event.sourceNetwork,
-          },
-        }),
-      )
-    }
-    return targetsSupported
   }
 
   /**

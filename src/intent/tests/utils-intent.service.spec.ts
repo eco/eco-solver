@@ -89,7 +89,7 @@ describe('UtilsIntentService', () => {
           targetsUnsupported: false,
           selectorsUnsupported: false,
           expiresEarly: false,
-          validDestination: false,
+          invalidDestination: false,
           sameChainFulfill: false,
         }
         await utilsIntentService.updateInvalidIntentModel(model, invalidCause)
@@ -257,7 +257,7 @@ describe('UtilsIntentService', () => {
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: { address1: { contractType: 'erc20', selectors: [] } } }
-      expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(false)
+      expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(false)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `Targets not supported for intent ${model.intent.hash}`,
@@ -272,7 +272,7 @@ describe('UtilsIntentService', () => {
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: {} }
-      expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(false)
+      expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(false)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `Targets not supported for intent ${model.intent.hash}`,
@@ -287,7 +287,7 @@ describe('UtilsIntentService', () => {
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: { [target1]: targetConfig } }
-      expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(false)
+      expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(false)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `Targets not supported for intent ${model.intent.hash}`,
@@ -302,7 +302,7 @@ describe('UtilsIntentService', () => {
         event: { sourceNetwork: 'opt-sepolia' },
       } as any
       const solver = { targets: { [target]: targetConfig, [target1]: targetConfig } }
-      expect(utilsIntentService.targetsSupported(model, solver as any)).toBe(true)
+      expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(true)
     })
   })
 

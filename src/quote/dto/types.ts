@@ -7,7 +7,9 @@ import { Prettify } from 'viem'
  * @param amount denotes the amount of tokens the caller wants to send
  * @param balance denotes the amount of tokens the caller can send
  */
-export type RewardTokensType = Prettify<RewardType['tokens'][number] & { balance: bigint }>
+export type RewardTokensType = Prettify<
+  Omit<RewardType['tokens'][number], 'amount'> & { balance: bigint }
+>
 
 /**
  * The type for the route calls that the sender wants to make.

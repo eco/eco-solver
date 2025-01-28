@@ -164,28 +164,6 @@ describe('ValidateIntentService', () => {
         expect(validateIntentService['supportedProver'](model)).toBe(true)
       })
     })
-    describe('on supportedTargets', () => {
-      //mostly covered in utilsIntentService
-      it('should return whatever UtilsIntentService does', async () => {
-        const model = {} as any
-        const solver = {} as any
-        utilsIntentService.targetsSupported.mockReturnValueOnce(true)
-        expect(validateIntentService['supportedTargets'](model, solver)).toBe(true)
-        utilsIntentService.targetsSupported.mockReturnValueOnce(false)
-        expect(validateIntentService['supportedTargets'](model, solver)).toBe(false)
-      })
-    })
-    describe('on supportedSelectors', () => {
-      //mostly covered in utilsIntentService
-      it('should return whatever UtilsIntentService does', async () => {
-        const model = {} as any
-        const solver = {} as any
-        utilsIntentService.selectorsSupported.mockReturnValueOnce(true)
-        expect(validateIntentService['supportedSelectors'](model, solver)).toBe(true)
-        utilsIntentService.selectorsSupported.mockReturnValueOnce(false)
-        expect(validateIntentService['supportedSelectors'](model, solver)).toBe(false)
-      })
-    })
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {

@@ -7,12 +7,10 @@ import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
 import { getIntentJobId } from '../common/utils/strings'
 import { Solver } from '../eco-configs/eco-config.types'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { ProofService } from '../prover/proof.service'
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
+import { IntentSourceModel, toValidationIntentModel } from './schemas/intent-source.schema'
 import { Hex } from 'viem'
 import { EcoError } from '../common/errors/eco-error'
+import { ValidationService } from '@/intent/validation.sevice'
 
 /**
  * Service class that acts as the main validation service for intents. It validates that
@@ -32,9 +30,8 @@ export class ValidateIntentService implements OnModuleInit {
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
-    @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly utilsIntentService: UtilsIntentService,
-    private readonly proofService: ProofService,
+    private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -91,45 +88,19 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
-    const proverUnsupported = !this.supportedProver(model)
-    const targetsUnsupported = !this.supportedTargets(model, solver)
-    const selectorsUnsupported = !this.supportedSelectors(model, solver)
-    const expiresEarly = !this.validExpirationTime(model)
-    const validDestination = !this.validDestination(model)
-    const sameChainFulfill = !this.fulfillOnDifferentChain(model)
+    const validations = await this.validationService.assertValidations(
+      toValidationIntentModel(model),
+      solver,
+    )
 
-    if (
-      proverUnsupported ||
-      targetsUnsupported ||
-      selectorsUnsupported ||
-      expiresEarly ||
-      validDestination ||
-      sameChainFulfill
-    ) {
-      await this.utilsIntentService.updateInvalidIntentModel(model, {
-        proverUnsupported,
-        targetsUnsupported,
-        selectorsUnsupported,
-        expiresEarly,
-        validDestination,
-        sameChainFulfill,
-      })
+    if (Object.values(validations).some((v) => v)) {
+      await this.utilsIntentService.updateInvalidIntentModel(model, validations)
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Intent failed validation ${model.intent.hash}`,
           properties: {
             model,
-            proverUnsupported,
-            targetsUnsupported,
-            selectorsUnsupported,
-            expiresEarly,
-            validDestination,
-            sameChainFulfill,
-            ...(expiresEarly && {
-              proofMinDurationSeconds: this.proofService
-                .getProofMinimumDate(this.proofService.getProverType(model.intent.reward.prover))
-                .toUTCString(),
-            }),
+            ...validations,
           },
         }),
       )
@@ -153,81 +124,5 @@ export class ValidateIntentService implements OnModuleInit {
       throw EcoError.ValidateIntentDescructureFailed(err)
     }
     return data
-  }
-
-  /**
-   * Checks if the IntentCreated event is using a supported prover. It first finds the source intent contract that is on the
-   * source chain of the event. Then it checks if the prover is supported by the source intent. In the
-   * case that there are multiple matching source intent contracts on the same chain, as long as any of
-   * them support the prover, the function will return true.
-   *
-   * @param model the source intent model
-   * @returns
-   */
-  private supportedProver(model: IntentSourceModel): boolean {
-    const srcSolvers = this.ecoConfigService.getIntentSources().filter((intent) => {
-      return BigInt(intent.chainID) == model.event.sourceChainID
-    })
-
-    return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == model.intent.reward.prover)
-    })
-  }
-
-  /**
-   * Checks if the target in the event is supported on its solver
-   *
-   * @param model the source intent model
-   * @param solver the solver for the source chain
-   * @returns
-   */
-  private supportedTargets(model: IntentSourceModel, solver: Solver): boolean {
-    return !!this.utilsIntentService.targetsSupported(model, solver)
-  }
-
-  /**
-   * Checks if the selectors in the event are supported on the solver
-   * @param model the source intent model
-   * @param solver the solver for the source chain
-   * @returns
-   */
-  private supportedSelectors(model: IntentSourceModel, solver: Solver): boolean {
-    //check if the targets support the selectors encoded in the intent data
-    return !!this.utilsIntentService.selectorsSupported(model, solver)
-  }
-
-  /**
-   *
-   * @param model the source intent model
-   * @param solver the solver for the source chain
-   * @returns
-   */
-  private validExpirationTime(model: IntentSourceModel): boolean {
-    //convert to milliseconds
-    const time = Number.parseInt(`${model.intent.reward.deadline as bigint}`) * 1000
-    const expires = new Date(time)
-    return !!this.proofService.isIntentExpirationWithinProofMinimumDate(
-      model.intent.reward.prover,
-      expires,
-    )
-  }
-
-  /**
-   * Checks that the intent destination is supported by the solver
-   * @param model the source intent model
-   * @returns
-   */
-  private validDestination(model: IntentSourceModel): boolean {
-    return this.ecoConfigService.getSupportedChains().includes(model.intent.route.destination)
-  }
-  /**
-   * Checks that the intent fulfillment is on a different chain than its source
-   * Needed since some proving methods(Hyperlane) cant prove same chain
-   * @param model the model of the source intent
-   * @param solver the solver used to fulfill
-   * @returns
-   */
-  private fulfillOnDifferentChain(model: IntentSourceModel): boolean {
-    return model.intent.route.destination !== model.event.sourceChainID
   }
 }

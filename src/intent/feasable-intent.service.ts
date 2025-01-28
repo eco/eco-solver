@@ -8,7 +8,7 @@ import { BalanceService } from '../balance/balance.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoError } from '../common/errors/eco-error'
 import { Network } from 'alchemy-sdk'
-import { IntentSourceModel } from './schemas/intent-source.schema'
+import { IntentSourceModel, toValidationIntentModel } from './schemas/intent-source.schema'
 import { getIntentJobId } from '../common/utils/strings'
 import { Solver } from '../eco-configs/eco-config.types'
 import { InjectModel } from '@nestjs/mongoose'
@@ -136,7 +136,11 @@ export class FeasableIntentService implements OnModuleInit {
       }
     | undefined
   > {
-    const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
+    const tt = this.utilsIntentService.getTransactionTargetData(
+      toValidationIntentModel(model),
+      solver,
+      call,
+    )
     if (tt === null) {
       this.logger.error(
         EcoLogMessage.withError({

@@ -64,11 +64,5 @@ export class RewardTokensDTO implements RewardTokensType {
   @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  amount: bigint
-
-  @IsNotEmpty()
-  @IsNumberString()
-  @Transform(({ value }) => BigInt(value))
-  @ApiProperty()
   balance: bigint
 }
