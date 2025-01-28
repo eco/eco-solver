@@ -3,7 +3,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
+} from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { serialize, Serialize } from '@/liquidity-manager/utils/serialize'

@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
+} from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
 import { Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
