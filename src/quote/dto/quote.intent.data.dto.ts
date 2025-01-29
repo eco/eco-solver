@@ -1,5 +1,5 @@
-import { RewardDataDTO } from '@/quote/dto/reward.data.dto'
-import { RouteDataDTO } from '@/quote/dto/route.data.dto'
+import { QuoteRewardDataInterface } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { ApiProperty } from '@nestjs/swagger'
 import { IsNotEmpty, ValidateNested } from 'class-validator'
 
@@ -8,14 +8,19 @@ import { IsNotEmpty, ValidateNested } from 'class-validator'
  * include options for the solver to select fulfillment conditions, and with the
  * on-chain data fields removed.
  */
-export class QuoteIntentDataDTO {
+export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @IsNotEmpty()
   @ApiProperty()
   @ValidateNested()
-  route: RouteDataDTO
+  route: QuoteRouteDataInterface
 
   @IsNotEmpty()
   @ApiProperty()
   @ValidateNested()
-  reward: RewardDataDTO
+  reward: QuoteRewardDataInterface
+}
+
+export interface QuoteIntentDataInterface {
+  route: QuoteRouteDataInterface
+  reward: QuoteRewardDataInterface
 }

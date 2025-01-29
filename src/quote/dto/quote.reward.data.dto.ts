@@ -15,14 +15,14 @@ import { Hex } from 'viem'
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except
  * that it does not contain the creator and tokens fields. Also has a modified
- * tokens field that is an array of {@link RewardTokensDTO} which include the
+ * tokens field that is an array of {@link QuoteRewardTokensDTO} which include the
  * sender's willing token balance to use for the reward.
  * @param prover denotes the prover address
  * @param deadline denotes the deadline for the reward
  * @param nativeValue denotes the native token value of the reward
- * @param tokens denotes the array of {@link RewardTokensDTO} that the sender has
+ * @param tokens denotes the array of {@link QuoteRewardTokensDTO} that the sender has
  */
-export class RewardDataDTO implements Omit<RewardType, 'creator' | 'tokens'> {
+export class QuoteRewardDataDTO implements QuoteRewardDataInterface {
   @IsEthereumAddress()
   @IsNotEmpty()
   @ApiProperty()
@@ -44,8 +44,8 @@ export class RewardDataDTO implements Omit<RewardType, 'creator' | 'tokens'> {
   @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
-  @Type(() => RewardTokensDTO)
-  tokens: RewardTokensDTO[]
+  @Type(() => QuoteRewardTokensDTO)
+  tokens: QuoteRewardTokensDTO[]
 }
 
 /**
@@ -54,7 +54,7 @@ export class RewardDataDTO implements Omit<RewardType, 'creator' | 'tokens'> {
  * @param amount denotes the amount of tokens the caller wants to send
  * @param balance denotes the amount of tokens the caller can send
  */
-export class RewardTokensDTO implements RewardTokensType {
+export class QuoteRewardTokensDTO implements QuoteRewardTokensInterface {
   @IsEthereumAddress()
   @IsNotEmpty()
   @ApiProperty()
@@ -66,3 +66,8 @@ export class RewardTokensDTO implements RewardTokensType {
   @ApiProperty()
   balance: bigint
 }
+type QuoteRewardType = Omit<RewardType, 'creator' | 'tokens'> & {
+  tokens: QuoteRewardTokensInterface[]
+}
+export interface QuoteRewardDataInterface extends QuoteRewardType {}
+export interface QuoteRewardTokensInterface extends RewardTokensType {}

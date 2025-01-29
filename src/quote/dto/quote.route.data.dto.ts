@@ -18,9 +18,9 @@ import { Hex } from 'viem'
  * @param source denotes the source chain id of the route
  * @param destination denotes the destination chain id of the route
  * @param inbox denotes the inbox address
- * @param calls denotes the array of {@link CallDataDTO} that the sender wants to make
+ * @param calls denotes the array of {@link QuoteCallDataDTO} that the sender wants to make
  */
-export class RouteDataDTO implements Omit<RouteType, 'salt'> {
+export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
   @IsNumberString()
   @Transform(({ value }) => BigInt(value))
@@ -42,8 +42,8 @@ export class RouteDataDTO implements Omit<RouteType, 'salt'> {
   @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
-  @Type(() => CallDataDTO)
-  calls: CallDataDTO[]
+  @Type(() => QuoteCallDataDTO)
+  calls: QuoteCallDataDTO[]
 }
 
 /**
@@ -52,7 +52,7 @@ export class RouteDataDTO implements Omit<RouteType, 'salt'> {
  * @param data denotes the data of the call
  * @param value denotes the native token value of the call
  */
-export class CallDataDTO implements CallDataType {
+export class QuoteCallDataDTO implements QuoteCallDataInterface {
   @IsEthereumAddress()
   @IsNotEmpty()
   @ApiProperty()
@@ -69,3 +69,6 @@ export class CallDataDTO implements CallDataType {
   @ApiProperty()
   value: bigint
 }
+
+export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}
+export interface QuoteCallDataInterface extends CallDataType {}

@@ -13,7 +13,7 @@ import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from 'alchemy-sdk'
 import { ProofService } from '@/prover/proof.service'
-import { ValidationIntentModel } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationIntentModel } from '@/intent/validation.sevice'
 
 /**
  * Data for a transaction target
@@ -84,17 +84,7 @@ export class UtilsIntentService {
    * @param invalidCause the reason the intent is invalid
    * @returns
    */
-  async updateInvalidIntentModel(
-    model: IntentSourceModel,
-    invalidCause: {
-      proverUnsupported: boolean
-      targetsUnsupported: boolean
-      selectorsUnsupported: boolean
-      expiresEarly: boolean
-      invalidDestination: boolean
-      sameChainFulfill: boolean
-    },
-  ) {
+  async updateInvalidIntentModel(model: IntentSourceModel, invalidCause: ValidationChecks) {
     model.status = 'INVALID'
     model.receipt = invalidCause as any
     return await this.updateIntentModel(model)

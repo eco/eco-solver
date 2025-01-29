@@ -17,6 +17,36 @@ export type ValidationIntentModel = Prettify<
   DeepOmit<QuoteIntentDataDTO, 'tokens'> & { hash?: Hex }
 >
 
+/**
+ * Type that holds all the possible validations that can fail
+ */
+export type ValidationChecks = {
+  proverUnsupported: boolean
+  targetsUnsupported: boolean
+  selectorsUnsupported: boolean
+  expiresEarly: boolean
+  invalidDestination: boolean
+  sameChainFulfill: boolean
+}
+
+/**
+ * Validates that some of the validations failed
+ * @param validations  the validations to check
+ * @returns
+ */
+export function someFailedValidations(validations: ValidationChecks): boolean {
+  return !areAllValidationsPassing(validations)
+}
+
+/**
+ * Validates that all the validations passed
+ * @param validations the validations to check
+ * @returns
+ */
+export function areAllValidationsPassing(validations: ValidationChecks): boolean {
+  return Object.values(validations).every((v) => v)
+}
+
 @Injectable()
 export class ValidationService {
   private readonly logger = new Logger(ValidationService.name)
@@ -34,17 +64,7 @@ export class ValidationService {
    * @param solver the solver for the source chain
    * @returns true if they all pass, false otherwise
    */
-  async assertValidations(
-    model: ValidationIntentModel,
-    solver: Solver,
-  ): Promise<{
-    proverUnsupported: boolean
-    targetsUnsupported: boolean
-    selectorsUnsupported: boolean
-    expiresEarly: boolean
-    invalidDestination: boolean
-    sameChainFulfill: boolean
-  }> {
+  async assertValidations(model: ValidationIntentModel, solver: Solver): Promise<ValidationChecks> {
     const proverUnsupported = !this.supportedProver({
       sourceChainID: model.route.source,
       prover: model.reward.prover,
