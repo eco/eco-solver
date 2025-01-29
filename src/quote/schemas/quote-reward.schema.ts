@@ -1,4 +1,4 @@
-import { QuoteRewardDataInterface } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import {
   QuoteRewardTokenDataModel,
   QuoteRewardTokenDataSchema,
@@ -7,7 +7,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class QuoteRewardDataModel implements QuoteRewardDataInterface {
+export class QuoteRewardDataModel implements QuoteRewardDataType {
   @Prop({ required: true, type: String })
   prover: Hex
   @Prop({ required: true, type: BigInt })

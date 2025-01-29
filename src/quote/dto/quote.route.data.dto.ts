@@ -1,4 +1,4 @@
-import { CallDataType } from '@/quote/dto/types'
+import { CallDataInterface } from '@/contracts'
 import { RouteType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
@@ -52,7 +52,7 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
  * @param data denotes the data of the call
  * @param value denotes the native token value of the call
  */
-export class QuoteCallDataDTO implements QuoteCallDataInterface {
+export class QuoteCallDataDTO implements CallDataInterface {
   @IsEthereumAddress()
   @IsNotEmpty()
   @ApiProperty()
@@ -71,4 +71,3 @@ export class QuoteCallDataDTO implements QuoteCallDataInterface {
 }
 
 export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}
-export interface QuoteCallDataInterface extends CallDataType {}

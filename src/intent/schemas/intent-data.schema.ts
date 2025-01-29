@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
 import { getAddress, Hex, Mutable } from 'viem'
-import { IntentCreatedEventLog, TargetCallViemType, TokenAmountViemType } from '@/contracts'
+import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
@@ -24,12 +24,12 @@ export class IntentDataModel implements IntentType {
     source: bigint,
     destination: bigint,
     inbox: Hex,
-    calls: TargetCallViemType[],
+    calls: CallDataInterface[],
     creator: Hex,
     prover: Hex,
     deadline: bigint,
     nativeValue: bigint,
-    tokens: TokenAmountViemType[],
+    tokens: RewardTokensInterface[],
     logIndex: number,
   ) {
     if (calls.length == 0 || tokens.length == 0) {

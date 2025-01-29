@@ -20,7 +20,7 @@ import { getERC20Selector } from '../contracts'
 import { EcoError } from '../common/errors/eco-error'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Solver } from '../eco-configs/eco-config.types'
-import { IntentSourceModel, toValidationIntentModel } from './schemas/intent-source.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { ProofService } from '../prover/proof.service'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
@@ -170,11 +170,7 @@ export class FulfillIntentService {
 
     // Create transactions for intent targets
     return model.intent.route.calls.flatMap((call) => {
-      const tt = this.utilsIntentService.getTransactionTargetData(
-        toValidationIntentModel(model),
-        solver,
-        call,
-      )
+      const tt = this.utilsIntentService.getTransactionTargetData(model.intent, solver, call)
       if (tt === null) {
         this.logger.error(
           EcoLogMessage.withError({

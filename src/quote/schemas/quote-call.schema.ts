@@ -1,9 +1,9 @@
-import { QuoteCallDataInterface } from '@/quote/dto/quote.route.data.dto'
+import { CallDataInterface } from '@/contracts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class QuoteRouteCallDataModel implements QuoteCallDataInterface {
+export class QuoteRouteCallDataModel implements CallDataInterface {
   @Prop({ required: true, type: String })
   target: Hex
   @Prop({ required: true, type: String })

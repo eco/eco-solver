@@ -8,12 +8,12 @@ import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
 import { includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
-import { getERCAbi, TargetCallViemType } from '../contracts'
+import { getERCAbi, CallDataInterface } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from 'alchemy-sdk'
 import { ProofService } from '@/prover/proof.service'
-import { ValidationChecks, ValidationIntentModel } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationIntentInterface } from '@/intent/validation.sevice'
 
 /**
  * Data for a transaction target
@@ -139,9 +139,9 @@ export class UtilsIntentService {
    * @returns
    */
   getTransactionTargetData(
-    model: ValidationIntentModel,
+    model: ValidationIntentInterface,
     solver: Solver,
-    call: TargetCallViemType,
+    call: CallDataInterface,
   ): TransactionTargetData | null {
     const targetConfig = solver.targets[call.target as string] as TargetContract
     if (!targetConfig) {
@@ -174,6 +174,10 @@ export class UtilsIntentService {
     return { decodedFunctionData: tx, selector, targetConfig }
   }
 
+  async getQuoteIntentProcessData(intentHash: string): Promise<IntentProcessData | undefined> {
+    return
+  }
+
   /**
    * Finds the the intent model in the database by the intent hash and the solver that can fulfill
    * on the destination chain for that intent
@@ -190,17 +194,11 @@ export class UtilsIntentService {
         return { model, solver: null, err: EcoError.IntentSourceDataNotFound(intentHash) }
       }
 
-      const solver = this.ecoConfigService.getSolver(model.intent.route.destination)
+      const solver = await this.getSolver(model.intent.route.destination, {
+        intentHash: intentHash,
+        sourceNetwork: model.event.sourceNetwork,
+      })
       if (!solver) {
-        this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: `No solver found for chain ${model.intent.route.destination}`,
-            properties: {
-              intentHash: intentHash,
-              sourceNetwork: model.event.sourceNetwork,
-            },
-          }),
-        )
         return
       }
       return { model, solver }
@@ -216,5 +214,21 @@ export class UtilsIntentService {
       )
       return
     }
+  }
+
+  async getSolver(destination: bigint, opts?: any): Promise<Solver | undefined> {
+    const solver = this.ecoConfigService.getSolver(destination)
+    if (!solver) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `No solver found for chain ${destination}`,
+          properties: {
+            ...(opts ? opts : {}),
+          },
+        }),
+      )
+      return
+    }
+    return solver
   }
 }

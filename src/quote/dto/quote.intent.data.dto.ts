@@ -1,4 +1,4 @@
-import { QuoteRewardDataInterface } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { ApiProperty } from '@nestjs/swagger'
 import { IsNotEmpty, ValidateNested } from 'class-validator'
@@ -17,10 +17,10 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @IsNotEmpty()
   @ApiProperty()
   @ValidateNested()
-  reward: QuoteRewardDataInterface
+  reward: QuoteRewardDataType
 }
 
 export interface QuoteIntentDataInterface {
   route: QuoteRouteDataInterface
-  reward: QuoteRewardDataInterface
+  reward: QuoteRewardDataType
 }

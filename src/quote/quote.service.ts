@@ -2,11 +2,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { someFailedValidations, ValidationService } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import {
-  InvalidQuote,
-  Quote400,
-  SolverUnsupported,
-} from '@/quote/errors'
+import { InvalidQuote, Quote400, SolverUnsupported } from '@/quote/errors'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
@@ -108,5 +104,6 @@ export class QuoteService implements OnApplicationBootstrap {
 
   async generateQuote(quoteIntentDataDTO: QuoteIntentDataDTO) {
     //todo
+    //check
   }
 }

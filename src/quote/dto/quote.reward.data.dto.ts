@@ -1,4 +1,4 @@
-import { RewardTokensType } from '@/quote/dto/types'
+import { RewardTokensInterface } from '@/contracts'
 import { RewardType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
@@ -22,7 +22,7 @@ import { Hex } from 'viem'
  * @param nativeValue denotes the native token value of the reward
  * @param tokens denotes the array of {@link QuoteRewardTokensDTO} that the sender has
  */
-export class QuoteRewardDataDTO implements QuoteRewardDataInterface {
+export class QuoteRewardDataDTO implements QuoteRewardDataType {
   @IsEthereumAddress()
   @IsNotEmpty()
   @ApiProperty()
@@ -54,7 +54,7 @@ export class QuoteRewardDataDTO implements QuoteRewardDataInterface {
  * @param amount denotes the amount of tokens the caller wants to send
  * @param balance denotes the amount of tokens the caller can send
  */
-export class QuoteRewardTokensDTO implements QuoteRewardTokensInterface {
+export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @IsEthereumAddress()
   @IsNotEmpty()
   @ApiProperty()
@@ -64,10 +64,7 @@ export class QuoteRewardTokensDTO implements QuoteRewardTokensInterface {
   @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  balance: bigint
+  amount: bigint
 }
-type QuoteRewardType = Omit<RewardType, 'creator' | 'tokens'> & {
-  tokens: QuoteRewardTokensInterface[]
-}
-export interface QuoteRewardDataInterface extends QuoteRewardType {}
-export interface QuoteRewardTokensInterface extends RewardTokensType {}
+type QuoteRewardType = Omit<RewardType, 'creator'>
+export type QuoteRewardDataType = QuoteRewardType

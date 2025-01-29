@@ -4,18 +4,17 @@ import { Solver } from '@/eco-configs/eco-config.types'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { DeepOmit } from '@/utils/types'
 import { Injectable, Logger } from '@nestjs/common'
 import { difference } from 'lodash'
-import { Hex, Prettify } from 'viem'
+import { Hex } from 'viem'
 
 /**
  * Validation type that mixes the QuoteIntentDataDTO with the hash. This is used to
  * merge quotes and intents validations
  */
-export type ValidationIntentModel = Prettify<
-  DeepOmit<QuoteIntentDataDTO, 'tokens'> & { hash?: Hex }
->
+export interface ValidationIntentInterface extends QuoteIntentDataDTO {
+  hash?: Hex
+}
 
 /**
  * Type that holds all the possible validations that can fail
@@ -64,7 +63,7 @@ export class ValidationService {
    * @param solver the solver for the source chain
    * @returns true if they all pass, false otherwise
    */
-  async assertValidations(model: ValidationIntentModel, solver: Solver): Promise<ValidationChecks> {
+  async assertValidations(model: ValidationIntentInterface, solver: Solver): Promise<ValidationChecks> {
     const proverUnsupported = !this.supportedProver({
       sourceChainID: model.route.source,
       prover: model.reward.prover,
@@ -112,7 +111,7 @@ export class ValidationService {
    * @param solver the solver for the intent
    * @returns
    */
-  supportedSelectors(model: ValidationIntentModel, solver: Solver): boolean {
+  supportedSelectors(model: ValidationIntentInterface, solver: Solver): boolean {
     if (model.route.calls.length == 0) {
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -134,7 +133,7 @@ export class ValidationService {
    * @param solver the solver for the intent
    * @returns
    */
-  supportedTargets(model: ValidationIntentModel, solver: Solver): boolean {
+  supportedTargets(model: ValidationIntentInterface, solver: Solver): boolean {
     const modelTargets = model.route.calls.map((call) => call.target)
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
@@ -163,7 +162,7 @@ export class ValidationService {
    * @param solver the solver for the source chain
    * @returns
    */
-  validExpirationTime(model: ValidationIntentModel): boolean {
+  validExpirationTime(model: ValidationIntentInterface): boolean {
     //convert to milliseconds
     const time = Number.parseInt(`${model.reward.deadline as bigint}`) * 1000
     const expires = new Date(time)
@@ -178,7 +177,7 @@ export class ValidationService {
    * @param model the source intent model
    * @returns
    */
-  validDestination(model: ValidationIntentModel): boolean {
+  validDestination(model: ValidationIntentInterface): boolean {
     return this.ecoConfigService.getSupportedChains().includes(model.route.destination)
   }
 
@@ -189,7 +188,7 @@ export class ValidationService {
    * @param solver the solver used to fulfill
    * @returns
    */
-  fulfillOnDifferentChain(model: ValidationIntentModel): boolean {
+  fulfillOnDifferentChain(model: ValidationIntentInterface): boolean {
     return model.route.destination !== model.route.source
   }
 }

@@ -2,7 +2,7 @@ import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prett
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from 'alchemy-sdk'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { GetElementType } from '@/utils/types'
+import { CallDataType, RewardTokensType } from '@/quote/dto/types'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<
@@ -19,6 +19,15 @@ export type IntentCreatedEventViemType = Prettify<
     logIndex: number
   }
 >
+/**
+ * Define the interface for the calls field in the IntentSource event
+ */
+export interface CallDataInterface extends CallDataType {}
+
+/**
+ * Define the interface for the token amount field in the IntentSource event
+ */
+export interface RewardTokensInterface extends RewardTokensType {}
 
 /**
  * Define the type for the IntentSource event log
@@ -27,20 +36,6 @@ export type IntentCreatedEventLog = DecodeEventLogReturnType<
   typeof IntentSourceAbi,
   'IntentCreated'
 >
-
-/**
- * Define the type for the calls field in the IntentSource event
- */
-export type TargetCallViemType = GetElementType<
-  Pick<IntentCreatedEventViemType, 'calls'>['calls']
->[number]
-
-/**
- * Define the type for the token amount field in the IntentSource event
- */
-export type TokenAmountViemType = GetElementType<
-  Pick<IntentCreatedEventViemType, 'tokens'>['tokens']
->[number]
 
 // Define the type for the IntentCreated event log
 export type IntentCreatedLog = Prettify<

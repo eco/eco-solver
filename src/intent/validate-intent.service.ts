@@ -7,7 +7,7 @@ import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
 import { getIntentJobId } from '../common/utils/strings'
 import { Solver } from '../eco-configs/eco-config.types'
-import { IntentSourceModel, toValidationIntentModel } from './schemas/intent-source.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
 import { Hex } from 'viem'
 import { EcoError } from '../common/errors/eco-error'
 import { ValidationService } from '@/intent/validation.sevice'
@@ -88,10 +88,7 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
-    const validations = await this.validationService.assertValidations(
-      toValidationIntentModel(model),
-      solver,
-    )
+    const validations = await this.validationService.assertValidations(model.intent, solver)
 
     if (Object.values(validations).some((v) => v)) {
       await this.utilsIntentService.updateInvalidIntentModel(model, validations)

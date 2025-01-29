@@ -7,14 +7,15 @@ import { TransactionTargetData, UtilsIntentService } from './utils-intent.servic
 import { BalanceService } from '../balance/balance.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoError } from '../common/errors/eco-error'
-import { Network } from 'alchemy-sdk'
-import { IntentSourceModel, toValidationIntentModel } from './schemas/intent-source.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
 import { getIntentJobId } from '../common/utils/strings'
 import { Solver } from '../eco-configs/eco-config.types'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Hex } from 'viem'
-import { getERC20Selector, TargetCallViemType, TokenAmountViemType } from '../contracts'
+import { CallDataInterface, getERC20Selector, RewardTokensInterface } from '../contracts'
+import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { ValidationIntentInterface } from '@/intent/validation.sevice'
 
 /**
  * Service class for getting configs for the app
@@ -38,7 +39,13 @@ export class FeasableIntentService implements OnModuleInit {
     //todo get this from config or service per token/chain
     this.fee = 1000n
   }
-
+  async feasableQuote(quoteIntent: QuoteIntentModel) {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `feasableQuote intent ${quoteIntent._id}`,
+      }),
+    )
+  }
   /**
    * Validates that the execution of the intent is feasible. This means that the solver can execute
    * the transaction and that transaction cost is profitable to the solver.
@@ -61,7 +68,7 @@ export class FeasableIntentService implements OnModuleInit {
     }
 
     //check if we have tokens on the solver chain
-    const { feasable, results } = await this.validateExecution(model, solver)
+    const { feasable, results } = await this.validateExecution(model.intent, solver)
     const jobId = getIntentJobId('feasable', intentHash, model!.intent.logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -91,7 +98,7 @@ export class FeasableIntentService implements OnModuleInit {
    * @returns
    */
   async validateExecution(
-    model: IntentSourceModel,
+    model: ValidationIntentInterface,
     solver: Solver,
   ): Promise<{
     feasable: boolean
@@ -104,7 +111,7 @@ export class FeasableIntentService implements OnModuleInit {
       | undefined
     )[]
   }> {
-    const execs = model.intent.route.calls.map((call) => {
+    const execs = model.route.calls.map((call) => {
       return this.validateEachExecution(model, solver, call)
     })
     const results = await Promise.all(execs)
@@ -125,9 +132,9 @@ export class FeasableIntentService implements OnModuleInit {
    * @returns
    */
   async validateEachExecution(
-    model: IntentSourceModel,
+    model: ValidationIntentInterface,
     solver: Solver,
-    call: TargetCallViemType,
+    call: CallDataInterface,
   ): Promise<
     | false
     | {
@@ -136,11 +143,7 @@ export class FeasableIntentService implements OnModuleInit {
       }
     | undefined
   > {
-    const tt = this.utilsIntentService.getTransactionTargetData(
-      toValidationIntentModel(model),
-      solver,
-      call,
-    )
+    const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
     if (tt === null) {
       this.logger.error(
         EcoLogMessage.withError({
@@ -175,11 +178,10 @@ export class FeasableIntentService implements OnModuleInit {
    */
   async handleErc20(
     tt: TransactionTargetData,
-    model: IntentSourceModel,
+    model: ValidationIntentInterface,
     solver: Solver,
     target: Hex,
   ): Promise<{ solvent: boolean; profitable: boolean } | undefined> {
-    const targetNetwork = solver.network
     const amount = tt.decodedFunctionData.args ? (tt.decodedFunctionData.args[1] as bigint) : 0n
     switch (tt.selector) {
       case getERC20Selector('transfer'):
@@ -191,19 +193,22 @@ export class FeasableIntentService implements OnModuleInit {
           return { solvent, profitable: false }
         }
 
-        const sourceNetwork = model.event.sourceNetwork
+        const sourceChainID = model.route.source
         const source = this.ecoConfigService
           .getIntentSources()
-          .find((intent) => intent.network == sourceNetwork)
+          .find((intent) => BigInt(intent.chainID) == sourceChainID)
         if (!source) {
           return
         }
         //check that we make money on the transfer
-        const fullfillAmountUSDC = this.convertToUSDC(targetNetwork, { token: target, amount })
+        const fullfillAmountUSDC = this.convertToUSDC(BigInt(solver.chainID), {
+          token: target,
+          amount,
+        })
         const profitable = this.isProfitableErc20Transfer(
-          sourceNetwork,
+          sourceChainID,
           source.tokens,
-          model.intent.reward.tokens,
+          [...model.reward.tokens],
           fullfillAmountUSDC,
         )
         return { solvent, profitable }
@@ -216,7 +221,7 @@ export class FeasableIntentService implements OnModuleInit {
    * Calculates if a transfer is profitable based on the reward tokens and amounts. It converts the reward tokens to a common currency, then applies
    * the fee to the sum of the reward tokens and amounts. If the sum is greater than the fullfill amount, then the transfer is profitable
    *
-   * @param network the network to check profitability on
+   * @param chainID the network to check profitability on
    * @param acceptedTokens  the tokens that we accepte on the source
    * @param rewardTokens  the tokens that are rewarded by the intent
    * @param rewardAmounts  the amounts of the reward tokens
@@ -224,15 +229,15 @@ export class FeasableIntentService implements OnModuleInit {
    * @returns
    */
   isProfitableErc20Transfer(
-    network: Network,
+    chainID: bigint,
     acceptedTokens: readonly Hex[],
-    rewardTokens: TokenAmountViemType[],
+    rewardTokens: RewardTokensInterface[],
     fullfillAmountUSDC: bigint,
   ): boolean {
     let sum = 0n
     const unionTokens = rewardTokens.filter((t) => acceptedTokens.includes(t.token))
     unionTokens.forEach((token) => {
-      sum += this.convertToUSDC(network, token)
+      sum += this.convertToUSDC(chainID, token)
     })
 
     //check if input tokens are acceptable and greater than + fees
@@ -245,11 +250,11 @@ export class FeasableIntentService implements OnModuleInit {
    *
    * TODO: right now it just returns a 1-1 conversion, we need to get the price of the token in usdc
    *
-   * @param network the network to convert the token to usdc
+   * @param chainID the chain to convert the token to usdc
    * @param token   the token to convert to usdc
    * @returns
    */
-  convertToUSDC(network: Network, token: TokenAmountViemType): bigint {
+  convertToUSDC(chainID: bigint, token: RewardTokensInterface): bigint {
     //todo: get the price of the token in usdc instead of assuming 1-1 here
     return token.amount
   }
