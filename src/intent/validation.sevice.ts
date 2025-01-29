@@ -63,7 +63,10 @@ export class ValidationService {
    * @param solver the solver for the source chain
    * @returns true if they all pass, false otherwise
    */
-  async assertValidations(model: ValidationIntentInterface, solver: Solver): Promise<ValidationChecks> {
+  async assertValidations(
+    model: ValidationIntentInterface,
+    solver: Solver,
+  ): Promise<ValidationChecks> {
     const proverUnsupported = !this.supportedProver({
       sourceChainID: model.route.source,
       prover: model.reward.prover,

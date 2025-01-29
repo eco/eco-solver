@@ -174,10 +174,6 @@ export class UtilsIntentService {
     return { decodedFunctionData: tx, selector, targetConfig }
   }
 
-  async getQuoteIntentProcessData(intentHash: string): Promise<IntentProcessData | undefined> {
-    return
-  }
-
   /**
    * Finds the the intent model in the database by the intent hash and the solver that can fulfill
    * on the destination chain for that intent
