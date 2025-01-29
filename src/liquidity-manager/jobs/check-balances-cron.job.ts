@@ -5,7 +5,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager-job.manager'
+} from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { shortAddr } from '@/liquidity-manager/utils/address'
@@ -64,7 +64,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       }),
     )
 
-    processor.logger.log('\n' + this.displayTokenTable(items))
+    processor.logger.log(this.displayTokenTable(items))
 
     if (!deficit.total) {
       processor.logger.log(
@@ -97,10 +97,15 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
 
       this.updateGroupBalances(processor, surplus.items, rebalancingQuotes)
 
-      rebalances.push({ token: deficitToken, quotes: rebalancingQuotes })
+      const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
+
+      // Store rebalance request on DB
+      await processor.liquidityManagerService.storeRebalancing(rebalanceRequest)
+
+      rebalances.push(rebalanceRequest)
     }
 
-    processor.logger.log('\n' + this.displayRebalancingTable(rebalances))
+    processor.logger.log(this.displayRebalancingTable(rebalances))
 
     await processor.liquidityManagerService.startRebalancing(rebalances)
   }
