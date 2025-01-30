@@ -63,7 +63,7 @@ export class FeasableIntentService implements OnModuleInit {
         message: `FeasableIntent intent ${intentHash}`,
         properties: {
           feasable,
-          jobId,
+          ...(feasable ? { jobId } : {}),
         },
       }),
     )

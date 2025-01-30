@@ -98,6 +98,34 @@ describe('FeasableIntentService', () => {
       await expect(feasableIntentService.feasableIntent(intentHash)).rejects.toThrow(error)
     })
 
+    it('should fail if intent has more than 1 target call', async () => {
+      const mockIntent = {
+        intent: {
+          route: {
+            calls: [
+              { data: '0x', target: address1 },
+              { data: '0x', target: address2 },
+            ],
+          },
+        },
+      }
+      const errData = { solver: mockData.solver, model: mockIntent } as any
+      jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(errData)
+      await feasableIntentService.feasableIntent(intentHash)
+      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
+        errData.model,
+        {
+          cause: "model.intent.route.calls.length != 1" 
+        },
+      )
+      expect(mockLogDebug).toHaveBeenCalledTimes(2)
+      expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
+        msg: `FeasableIntent intent ${intentHash}`,
+        feasable: false,
+      })
+      expect(queue.add).not.toHaveBeenCalled()
+    })
+
     it('should update the db intent model if the intent is not feasable', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
       jest
@@ -137,10 +165,32 @@ describe('FeasableIntentService', () => {
     it('should fail if there are no targets to validate', async () => {
       const mockModel = { intent: { route: { calls: [] } } }
       const result = await feasableIntentService.validateExecution(mockModel as any, {} as any)
-      expect(result).toEqual({ feasable: false, results: [] })
+      expect(result).toEqual({
+        feasable: false,
+        results: { "cause": "model.intent.route.calls.length != 1" }
+      })
     })
 
-    it('should fail if any of the targets fail', async () => {
+    it('should fail if the there are more than one call per intent', async () => {
+      const mockModel = {
+        intent: {
+          route: {
+            calls: [
+              { data: '0x', target: address1 },
+              { data: '0x', target: address2 },
+            ],
+          },
+        },
+      }
+      const result = await feasableIntentService.validateExecution(mockModel as any, {} as any)
+      expect(result).toEqual({
+        feasable: false,
+        results: { "cause": "model.intent.route.calls.length != 1" }
+      })
+    })
+
+    it.skip('should fail if any of the targets fail', async () => {
+      //todo not alowing multiples
       const mockModel = {
         intent: {
           route: {
@@ -153,7 +203,7 @@ describe('FeasableIntentService', () => {
       }
       jest
         .spyOn(feasableIntentService, 'validateEachExecution')
-        .mockImplementation(async ({}, {}, targetcall) => {
+        .mockImplementation(async ({ }, { }, targetcall) => {
           const succeed =
             targetcall.data == mockModel.intent.route.calls[0].data &&
             targetcall.target == mockModel.intent.route.calls[0].target
@@ -175,7 +225,8 @@ describe('FeasableIntentService', () => {
           route: {
             calls: [
               { data: '', target: address1 },
-              { data: '', target: address2 },
+              //todo not alowing multiples
+              // { data: '', target: address2 },
             ],
           },
         },
@@ -188,7 +239,8 @@ describe('FeasableIntentService', () => {
         feasable: true,
         results: [
           { solvent: true, profitable: true },
-          { solvent: true, profitable: true },
+          //todo not alowing multiples
+          // { solvent: true, profitable: true },
         ],
       })
     })
