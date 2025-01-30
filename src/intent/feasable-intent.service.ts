@@ -69,7 +69,7 @@ export class FeasableIntentService implements OnModuleInit {
         message: `FeasableIntent intent ${intentHash}`,
         properties: {
           feasable,
-          jobId,
+          ...(feasable ? {jobId} :{}),
         },
       }),
     )
@@ -105,6 +105,9 @@ export class FeasableIntentService implements OnModuleInit {
       | undefined
     )[]
   }> {
+    if (model.intent.targets.length != 1) {
+      return { feasable: false, results: { cause: 'model.intent.targets.length != 1' } as any }
+    }
     const execs = model.intent.targets.map((target, index) => {
       return this.validateEachExecution(model, solver, target, model.intent.data[index])
     })
