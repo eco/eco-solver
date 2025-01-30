@@ -9,11 +9,13 @@ import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
+import { Serialize } from '@/liquidity-manager/utils/serialize'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue)
 export class SolveIntentProcessor extends WorkerHost {
   private logger = new Logger(SolveIntentProcessor.name)
+
   constructor(
     private readonly createIntentService: CreateIntentService,
     private readonly validateIntentService: ValidateIntentService,
@@ -38,7 +40,7 @@ export class SolveIntentProcessor extends WorkerHost {
 
     switch (job.name) {
       case QUEUES.SOURCE_INTENT.jobs.create_intent:
-        return await this.createIntentService.createIntent(job.data as IntentCreatedLog)
+        return await this.createIntentService.createIntent(job.data as Serialize<IntentCreatedLog>)
       case QUEUES.SOURCE_INTENT.jobs.validate_intent:
       case QUEUES.SOURCE_INTENT.jobs.retry_intent:
         return await this.validateIntentService.validateIntent(job.data as Hex)
