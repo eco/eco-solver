@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy, zipWith } from 'lodash'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
@@ -9,6 +9,8 @@ import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cacheable } from '@/decorators/cacheable.decorator'
 
 /**
  * Service class for getting configs for the app
@@ -20,13 +22,14 @@ export class BalanceService implements OnApplicationBootstrap {
   private readonly tokenBalances: Map<string, TokenBalance> = new Map()
 
   constructor(
-    private readonly ecoConfig: EcoConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   async onApplicationBootstrap() {
     // iterate over all tokens
-    await Promise.all(this.getTokens().map((token) => this.loadTokenBalance(token)))
+    await Promise.all(this.getInboxTokens().map((token) => this.loadTokenBalance(token)))
   }
 
   /**
@@ -64,8 +67,12 @@ export class BalanceService implements OnApplicationBootstrap {
     }
   }
 
-  getTokens(): TokenConfig[] {
-    return Object.values(this.ecoConfig.getSolvers()).flatMap((solver) => {
+  /**
+   * Gets the tokens that are in the solver wallets
+   * @returns List of tokens that are supported by the solver
+   */
+  getInboxTokens(): TokenConfig[] {
+    return Object.values(this.configService.getSolvers()).flatMap((solver) => {
       return Object.entries(solver.targets)
         .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
         .map(([tokenAddress, targetContract]) => ({
@@ -117,6 +124,11 @@ export class BalanceService implements OnApplicationBootstrap {
 
     tokenAddresses.forEach((tokenAddress, index) => {
       const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
+      //throw if we suddenly start supporting tokens with not 6 decimals
+      //audit conversion of validity to see its support
+      if ((decimals as number) != 6) {
+        throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
+      }
       result[tokenAddress] = {
         address: tokenAddress,
         balance: balance as bigint,
@@ -132,8 +144,9 @@ export class BalanceService implements OnApplicationBootstrap {
     return result[tokenAddress]
   }
 
+  @Cacheable()
   async getAllTokenData() {
-    const tokens = this.getTokens()
+    const tokens = this.getInboxTokens()
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
 

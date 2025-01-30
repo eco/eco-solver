@@ -7,6 +7,13 @@ export type Quote400 = {
   [key: string]: any
 }
 
+export type Quote500 = {
+  statusCode: 500
+  message: string
+  code: number
+  [key: string]: any
+}
+
 // The solver does not supoort the request prover
 export const ProverUnsupported: Quote400 = {
   statusCode: 400,
@@ -42,5 +49,40 @@ export function InvalidQuote(validations: ValidationChecks): Quote400 {
     message: 'Bad Request: The quote was deemed invalid.',
     code: 4,
     validations,
+  }
+}
+
+// The quote is deemed infeasible by the feasibility service
+export function InfeasibleQuote(
+  results: (
+    | false
+    | {
+        solvent: boolean
+        profitable: boolean
+      }
+    | undefined
+  )[],
+): Quote400 {
+  return {
+    statusCode: 400,
+    message: 'Bad Request: The quote was deemed infeasible.',
+    code: 5,
+    results,
+  }
+}
+
+/////////////
+
+/**
+ * The server failed to save to db
+ * @param error  the error that was thrown
+ * @returns
+ */
+export function InternalSaveError(error: Error): Quote500 {
+  return {
+    statusCode: 500,
+    message: 'Internal Server Error: Failed to save quote intent.',
+    code: 1,
+    error,
   }
 }

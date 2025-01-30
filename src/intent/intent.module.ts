@@ -40,6 +40,7 @@ import { FeasibilityService } from '@/intent/feasibility.service'
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
+    FeasibilityService,
     FulfillIntentService,
     UtilsIntentService,
     ValidationService,

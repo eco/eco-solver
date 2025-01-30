@@ -4,9 +4,10 @@ import { initBullMQ } from '../bullmq/bullmq.helper'
 import { QUEUES } from '../common/redis/constants'
 import { BalanceWebsocketService } from './balance.ws.service'
 import { TransactionModule } from '../transaction/transaction.module'
+import { CacheModule } from '@nestjs/cache-manager'
 
 @Module({
-  imports: [TransactionModule, initBullMQ(QUEUES.ETH_SOCKET)],
+  imports: [TransactionModule, initBullMQ(QUEUES.ETH_SOCKET), CacheModule.register()],
   providers: [BalanceService, BalanceWebsocketService],
   exports: [BalanceService],
 })

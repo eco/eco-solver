@@ -24,6 +24,6 @@ import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/reb
     LiquidityProviderService,
     LiFiProviderService,
   ],
-  exports: [],
+  exports: [LiquidityManagerService],
 })
 export class LiquidityManagerModule {}
