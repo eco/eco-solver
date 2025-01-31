@@ -1,208 +1,239 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
+import { TransactionTargetData, UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { entries } from 'lodash'
 
 describe('ValidationService', () => {
   let validationService: ValidationService
+  let proofService: DeepMocked<ProofService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
-  let proofService: DeepMocked<ProofService>
-  const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
-  const mockLogWarn = jest.fn()
 
   beforeEach(async () => {
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
         ValidationService,
+        { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
-        { provide: ProofService, useValue: createMock<ProofService>() },
       ],
     }).compile()
 
     validationService = mod.get(ValidationService)
+    proofService = mod.get(ProofService)
     ecoConfigService = mod.get(EcoConfigService)
-    utilsIntentService = mod.get(EcoConfigService)
-    proofService = mod.get(EcoConfigService)
+    utilsIntentService = mod.get(UtilsIntentService)
 
-    validationService['logger'].debug = mockLogDebug
     validationService['logger'].log = mockLogLog
-    validationService['logger'].warn = mockLogWarn
   })
 
   afterEach(async () => {
     jest.restoreAllMocks()
-    mockLogDebug.mockClear()
     mockLogLog.mockClear()
-    mockLogWarn.mockClear()
   })
 
-  describe('supportedProver', () => {
-    it('should return false if the prover is not supported by the source intent', () => {
-      // Arrange
-      const model = { sourceChainID: BigInt(1), prover: '0x456' }
-      ecoConfigService.getIntentSources.mockReturnValue([{ chainID: '1', provers: ['0x123'] }])
+  describe('on individual validation cases', () => {
+    describe('on supportedProver', () => {
+      const sourceChainID = 1n
+      const chainID = sourceChainID
+      const prover = '0xcf25397DC87C750eEF006101172FFbeAeA98Aa76'
+      const unsupportedChain = 2n
+      const unsupportedProver = '0x26D2C47c5659aC8a1c4A29A052Fa7B2ccD45Ca43'
+      it('should fail if no source intent exists with the models source chain id', async () => {
+        const intent = { event: { sourceChainID } } as any
+        ecoConfigService.getIntentSources.mockReturnValueOnce([])
+        expect(validationService.supportedProver(intent)).toBe(false)
+      })
 
-      // Act
-      const result = validationService.supportedProver(model)
+      it('should fail if no source supports the prover', async () => {
+        const intent = { event: { sourceChainID }, intent: { reward: { prover } } } as any
+        ecoConfigService.getIntentSources.mockReturnValueOnce([
+          { provers: [unsupportedProver], chainID } as any,
+        ])
+        expect(validationService.supportedProver(intent)).toBe(false)
+      })
 
-      // Assert
-      expect(result).toBe(false)
+      it('should fail if no source supports the prover on the required chain', async () => {
+        const intent = { event: { sourceChainID }, intent: { prover } } as any
+        ecoConfigService.getIntentSources.mockReturnValueOnce([
+          { provers: [prover], chainID: unsupportedChain } as any,
+        ])
+        expect(validationService.supportedProver(intent)).toBe(false)
+      })
+
+      it('should succeed if a single source supports the prover', async () => {
+        const intent = { sourceChainID, prover } as any
+        ecoConfigService.getIntentSources.mockReturnValueOnce([
+          { provers: [unsupportedProver], chainID } as any,
+          { provers: [prover], chainID } as any,
+        ])
+        expect(validationService.supportedProver(intent)).toBe(true)
+      })
+
+      it('should succeed if multiple sources supports the prover', async () => {
+        const intent = { sourceChainID, prover } as any
+        ecoConfigService.getIntentSources.mockReturnValueOnce([
+          { provers: [prover], chainID } as any,
+          { provers: [prover], chainID } as any,
+        ])
+        expect(validationService.supportedProver(intent)).toBe(true)
+      })
     })
 
-    it('should return true if the prover is supported by the source intent', () => {
-      // Arrange
-      const model = { sourceChainID: BigInt(1), prover: '0x123' }
-      ecoConfigService.getIntentSources.mockReturnValue([{ chainID: '1', provers: ['0x123'] }])
+    describe('on supportedTargets', () => {
+      const intent = { route: { calls: [] } } as any
+      const solver = { targets: {} } as any
+      it('should fail solver has no targets', async () => {
+        intent.route.calls = []
+        expect(validationService.supportedTargets(intent, solver)).toBe(false)
+      })
 
-      // Act
-      const result = validationService.supportedProver(model)
+      it('should fail intent has no targets', async () => {
+        intent.route.calls = [{ target: '0x1' }]
+        solver.targets = {}
+        expect(validationService.supportedTargets(intent, solver)).toBe(false)
+      })
 
-      // Assert
-      expect(result).toBe(true)
+      it('should fail not all targets are supported on solver', async () => {
+        intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
+        solver.targets = { [intent.route.calls[0].target]: {} }
+        expect(validationService.supportedTargets(intent, solver)).toBe(false)
+      })
+
+      it('should succeed if targets supported ', async () => {
+        intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
+        solver.targets = { [intent.route.calls[0].target]: {}, [intent.route.calls[1].target]: {} }
+        expect(validationService.supportedTargets(intent, solver)).toBe(true)
+      })
+    })
+
+    describe('on supportedSelectors', () => {
+      const intent = { route: { calls: [] } } as any
+      const solver = { targets: {} } as any
+      it('should fail if there are no calls', async () => {
+        intent.route.calls = []
+        expect(validationService.supportedSelectors(intent, solver)).toBe(false)
+        expect(mockLogLog).toHaveBeenCalledTimes(1)
+        expect(mockLogLog).toHaveBeenCalledWith({ msg: 'supportedSelectors: Target/data invalid' })
+      })
+
+      it('should fail not every call is supported', async () => {
+        intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
+        utilsIntentService.getTransactionTargetData.mockImplementation((intent, solver, call) => {
+          return call.target == intent.route.calls[0].target
+            ? ({} as any as TransactionTargetData)
+            : null
+        })
+        expect(validationService.supportedSelectors(intent, solver)).toBe(false)
+      })
+
+      it('should succeed if every call is supported', async () => {
+        intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
+        utilsIntentService.getTransactionTargetData.mockReturnValue(
+          {} as any as TransactionTargetData,
+        )
+        expect(validationService.supportedSelectors(intent, solver)).toBe(true)
+      })
+    })
+
+    describe('on validExpirationTime', () => {
+      //mostly covered in utilsIntentService
+      it('should return whatever UtilsIntentService does', async () => {
+        const intent = { reward: { deadline: 100 } } as any
+        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
+        expect(validationService['validExpirationTime'](intent)).toBe(true)
+        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(false)
+        expect(validationService['validExpirationTime'](intent)).toBe(false)
+      })
+    })
+
+    describe('on validDestination', () => {
+      it('should fail if destination is not supported', async () => {
+        const intent = { route: { destination: 10n } } as any
+        ecoConfigService.getSupportedChains.mockReturnValueOnce([11n, 12n])
+        expect(validationService['validDestination'](intent)).toBe(false)
+      })
+
+      it('should fail if destination is not supported', async () => {
+        const intent = { route: { destination: 10n } } as any
+        ecoConfigService.getSupportedChains.mockReturnValueOnce([10n, 12n])
+        expect(validationService['validDestination'](intent)).toBe(true)
+      })
+    })
+
+    describe('on fulfillOnDifferentChain', () => {
+      it('should fail if the fulfillment is on the same chain as the event', async () => {
+        const intent = {
+          route: { destination: 10, source: 10 },
+        } as any
+        expect(validationService['fulfillOnDifferentChain'](intent)).toBe(false)
+      })
+
+      it('should succeed if the fulfillment is on a different chain as the event', async () => {
+        const intent = {
+          route: { destination: 10, source: 20 },
+        } as any
+        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
+        expect(validationService['fulfillOnDifferentChain'](intent)).toBe(true)
+      })
     })
   })
 
-  describe('supportedSelectors', () => {
-    it('should return false if route calls are empty', () => {
-      // Arrange
-      const model = { route: { calls: [] } }
-      const solver = {}
-
-      // Act
-      const result = validationService.supportedSelectors(model, solver)
-
-      // Assert
-      expect(result).toBe(false)
-      expect(mockLogLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'supportedSelectors: Target/data invalid',
-        }),
-      )
+  describe('on assertValidations', () => {
+    const updateInvalidIntentModel = jest.fn()
+    const assetCases = {
+      supportedProver: 'proverUnsupported',
+      supportedTargets: 'targetsUnsupported',
+      supportedSelectors: 'selectorsUnsupported',
+      validExpirationTime: 'expiresEarly',
+      validDestination: 'invalidDestination',
+      sameChainFulfill: 'sameChainFulfill',
+    }
+    beforeEach(() => {
+      utilsIntentService.updateInvalidIntentModel = updateInvalidIntentModel
     })
 
-    it('should return true if all calls can be decoded', () => {
-      // Arrange
-      const model = { route: { calls: [{}, {}] } }
-      const solver = {}
-      utilsIntentService.getTransactionTargetData.mockReturnValue(true)
-
-      // Act
-      const result = validationService.supportedSelectors(model, solver)
-
-      // Assert
-      expect(result).toBe(true)
-    })
-  })
-
-  describe('supportedTargets', () => {
-    it('should return true if all targets are supported by the solver', () => {
-      // Arrange
-      const model = { route: { calls: [{ target: '0x1' }, { target: '0x2' }] } }
-      const solver = { targets: { '0x1': {}, '0x2': {} } }
-
-      // Act
-      const result = validationService.supportedTargets(model, solver)
-
-      // Assert
-      expect(result).toBe(true)
+    afterEach(() => {
+      jest.clearAllMocks()
     })
 
-    it('should return false if any target is not supported by the solver', () => {
-      // Arrange
-      const model = { route: { calls: [{ target: '0x1' }, { target: '0x3' }] } }
-      const solver = { targets: { '0x1': {}, '0x2': {} } }
-
-      // Act
-      const result = validationService.supportedTargets(model, solver)
-
-      // Assert
-      expect(result).toBe(false)
-      expect(mockLogDebug).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Targets not supported for intent quote',
-        }),
-      )
-    })
-  })
-
-  describe('validExpirationTime', () => {
-    it('should return true if the expiration time is within the proof minimum date', () => {
-      // Arrange
-      const model = { reward: { deadline: BigInt(Date.now() / 1000 + 1000), prover: '0x123' } }
-      proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
-
-      // Act
-      const result = validationService.validExpirationTime(model)
-
-      // Assert
-      expect(result).toBe(true)
-    })
-
-    it('should return false if the expiration time is not within the proof minimum date', () => {
-      // Arrange
-      const model = { reward: { deadline: BigInt(Date.now() / 1000 - 1000), prover: '0x123' } }
-      proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(false)
-
-      // Act
-      const result = validationService.validExpirationTime(model)
-
-      // Assert
-      expect(result).toBe(false)
-    })
-  })
-
-  describe('validDestination', () => {
-    it('should return true if the destination is supported by the solver', () => {
-      // Arrange
-      const model = { route: { destination: '0x1' } }
-      ecoConfigService.getSupportedChains.mockReturnValue(['0x1', '0x2'])
-
-      // Act
-      const result = validationService.validDestination(model)
-
-      // Assert
-      expect(result).toBe(true)
-    })
-
-    it('should return false if the destination is not supported by the solver', () => {
-      // Arrange
-      const model = { route: { destination: '0x3' } }
-      ecoConfigService.getSupportedChains.mockReturnValue(['0x1', '0x2'])
-
-      // Act
-      const result = validationService.validDestination(model)
-
-      // Assert
-      expect(result).toBe(false)
-    })
-  })
-
-  describe('fulfillOnDifferentChain', () => {
-    it('should return true if the destination is different from the source', () => {
-      // Arrange
-      const model = { route: { destination: '0x1', source: '0x2' } }
-
-      // Act
-      const result = validationService.fulfillOnDifferentChain(model)
-
-      // Assert
-      expect(result).toBe(true)
-    })
-
-    it('should return false if the destination is the same as the source', () => {
-      // Arrange
-      const model = { route: { destination: '0x1', source: '0x1' } }
-
-      // Act
-      const result = validationService.fulfillOnDifferentChain(model)
-
-      // Assert
-      expect(result).toBe(false)
+    entries(assetCases).forEach(([fun, boolVarName]: [string, string]) => {
+      it(`should fail on ${fun}`, async () => {
+        const intent = {
+          reward: {
+            creator: '0xa',
+            prover: '0xb',
+            deadline: 100,
+            tokens: [
+              { token: '0x1', amount: 1n },
+              { token: '0x2', amount: 2n },
+            ],
+          },
+          route: {
+            salt: '0x1',
+            destination: 10,
+            source: 11,
+            calls: [],
+          },
+        } as any
+        const solver = { targets: {} } as any
+        const logObj = entries(assetCases).reduce(
+          (ac, [, a]) => ({ ...ac, [a]: a == boolVarName }),
+          {},
+        )
+        if (boolVarName == 'sameChainFulfill') {
+          intent.route.destination = intent.route.source
+        }
+        const now = new Date()
+        proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)
+        validationService[fun] = jest.fn().mockReturnValueOnce(false)
+        const validations = await validationService['assertValidations'](intent, solver)
+        expect(validations[boolVarName]).toBe(true)
+      })
     })
   })
 })

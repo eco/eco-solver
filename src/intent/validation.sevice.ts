@@ -55,31 +55,31 @@ export class ValidationService {
   private readonly logger = new Logger(ValidationService.name)
 
   constructor(
-    private readonly ecoConfigService: EcoConfigService,
-    private readonly utilsIntentService: UtilsIntentService,
     private readonly proofService: ProofService,
+    private readonly utilsIntentService: UtilsIntentService,
+    private readonly ecoConfigService: EcoConfigService,
   ) {}
 
   /**
    * Executes all the validations we have on the model and solver
    *
-   * @param model the source intent model
+   * @param intent the source intent model
    * @param solver the solver for the source chain
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(
-    model: ValidationIntentInterface,
+    intent: ValidationIntentInterface,
     solver: Solver,
   ): Promise<ValidationChecks> {
     const proverUnsupported = !this.supportedProver({
-      sourceChainID: model.route.source,
-      prover: model.reward.prover,
+      sourceChainID: intent.route.source,
+      prover: intent.reward.prover,
     })
-    const targetsUnsupported = !this.supportedTargets(model, solver)
-    const selectorsUnsupported = !this.supportedSelectors(model, solver)
-    const expiresEarly = !this.validExpirationTime(model)
-    const invalidDestination = !this.validDestination(model)
-    const sameChainFulfill = !this.fulfillOnDifferentChain(model)
+    const targetsUnsupported = !this.supportedTargets(intent, solver)
+    const selectorsUnsupported = !this.supportedSelectors(intent, solver)
+    const expiresEarly = !this.validExpirationTime(intent)
+    const invalidDestination = !this.validDestination(intent)
+    const sameChainFulfill = !this.fulfillOnDifferentChain(intent)
 
     return {
       proverUnsupported,
@@ -97,16 +97,16 @@ export class ValidationService {
    * case that there are multiple matching source intent contracts on the same chain, as long as any of
    * them support the prover, the function will return true.
    *
-   * @param model the source intent model
+   * @param ops the intent info
    * @returns
    */
-  supportedProver(model: { sourceChainID: bigint; prover: Hex }): boolean {
+  supportedProver(ops: { sourceChainID: bigint; prover: Hex }): boolean {
     const srcSolvers = this.ecoConfigService.getIntentSources().filter((intent) => {
-      return BigInt(intent.chainID) == model.sourceChainID
+      return BigInt(intent.chainID) == ops.sourceChainID
     })
 
     return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == model.prover)
+      return intent.provers.some((prover) => prover == ops.prover)
     })
   }
 
@@ -114,12 +114,12 @@ export class ValidationService {
    * Verifies that the intent targets and data arrays are equal in length, and
    * that every target-data can be decoded
    *
-   * @param model the intent model
+   * @param intent the intent model
    * @param solver the solver for the intent
    * @returns
    */
-  supportedSelectors(model: ValidationIntentInterface, solver: Solver): boolean {
-    if (model.route.calls.length == 0) {
+  supportedSelectors(intent: ValidationIntentInterface, solver: Solver): boolean {
+    if (intent.route.calls.length == 0) {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `supportedSelectors: Target/data invalid`,
@@ -127,8 +127,8 @@ export class ValidationService {
       )
       return false
     }
-    return model.route.calls.every((call) => {
-      const tx = this.utilsIntentService.getTransactionTargetData(model, solver, call)
+    return intent.route.calls.every((call) => {
+      const tx = this.utilsIntentService.getTransactionTargetData(intent, solver, call)
       return tx
     })
   }
@@ -136,25 +136,25 @@ export class ValidationService {
   /**
    * Verifies that all the intent targets are supported by the solver
    *
-   * @param model the intent model
+   * @param intent the intent model
    * @param solver the solver for the intent
    * @returns
    */
-  supportedTargets(model: ValidationIntentInterface, solver: Solver): boolean {
-    const modelTargets = model.route.calls.map((call) => call.target)
+  supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
+    const intentTargets = intent.route.calls.map((call) => call.target)
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
-    const exist = solverTargets.length > 0 && modelTargets.length > 0
-    const targetsSupported = exist && difference(modelTargets, solverTargets).length == 0
+    const exist = solverTargets.length > 0 && intentTargets.length > 0
+    const targetsSupported = exist && difference(intentTargets, solverTargets).length == 0
 
     if (!targetsSupported) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
-          message: `Targets not supported for intent ${model.hash ? model.hash : 'quote'}`,
+          message: `Targets not supported for intent ${intent.hash ? intent.hash : 'quote'}`,
           properties: {
-            ...(model.hash && {
-              intentHash: model.hash,
-              source: model.route.source,
+            ...(intent.hash && {
+              intentHash: intent.hash,
+              source: intent.route.source,
             }),
           },
         }),
@@ -165,37 +165,34 @@ export class ValidationService {
 
   /**
    *
-   * @param model the source intent model
+   * @param intent the source intent model
    * @param solver the solver for the source chain
    * @returns
    */
-  validExpirationTime(model: ValidationIntentInterface): boolean {
+  validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
-    const time = Number.parseInt(`${model.reward.deadline as bigint}`) * 1000
+    const time = Number.parseInt(`${intent.reward.deadline as bigint}`) * 1000
     const expires = new Date(time)
-    return !!this.proofService.isIntentExpirationWithinProofMinimumDate(
-      model.reward.prover,
-      expires,
-    )
+    return this.proofService.isIntentExpirationWithinProofMinimumDate(intent.reward.prover, expires)
   }
 
   /**
    * Checks that the intent destination is supported by the solver
-   * @param model the source intent model
+   * @param intent the source intent model
    * @returns
    */
-  validDestination(model: ValidationIntentInterface): boolean {
-    return this.ecoConfigService.getSupportedChains().includes(model.route.destination)
+  validDestination(intent: ValidationIntentInterface): boolean {
+    return this.ecoConfigService.getSupportedChains().includes(intent.route.destination)
   }
 
   /**
    * Checks that the intent fulfillment is on a different chain than its source
    * Needed since some proving methods(Hyperlane) cant prove same chain
-   * @param model the model of the source intent
+   * @param intent the source intent
    * @param solver the solver used to fulfill
    * @returns
    */
-  fulfillOnDifferentChain(model: ValidationIntentInterface): boolean {
-    return model.route.destination !== model.route.source
+  fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
+    return intent.route.destination !== intent.route.source
   }
 }

@@ -6,13 +6,12 @@ import { getModelToken } from '@nestjs/mongoose'
 import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { ValidateIntentService } from '../validate-intent.service'
-import { ProofService } from '../../prover/proof.service'
 import { UtilsIntentService } from '../utils-intent.service'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
+import { ValidationService } from '@/intent/validation.sevice'
 import { zeroHash } from 'viem'
-import { entries } from 'lodash'
 
 jest.mock('../../common/utils/strings', () => {
   return {
@@ -23,12 +22,11 @@ jest.mock('../../common/utils/strings', () => {
 
 describe('ValidateIntentService', () => {
   let validateIntentService: ValidateIntentService
+  let validationService: DeepMocked<ValidationService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
-  let proofService: DeepMocked<ProofService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
-  const mockLogLog = jest.fn()
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -38,7 +36,8 @@ describe('ValidateIntentService', () => {
           provide: UtilsIntentService,
           useValue: createMock<UtilsIntentService>(),
         },
-        { provide: ProofService, useValue: createMock<ProofService>() },
+        { provide: ValidationService, useValue: createMock<ValidationService>() },
+        { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
           provide: getModelToken(IntentSourceModel.name),
@@ -56,220 +55,73 @@ describe('ValidateIntentService', () => {
       .compile()
 
     validateIntentService = chainMod.get(ValidateIntentService)
+    validationService = chainMod.get(ValidationService)
     utilsIntentService = chainMod.get(UtilsIntentService)
-    proofService = chainMod.get(ProofService)
     ecoConfigService = chainMod.get(EcoConfigService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
 
     validateIntentService['logger'].debug = mockLogDebug
-    validateIntentService['logger'].log = mockLogLog
   })
 
   afterEach(async () => {
     // restore the spy created with spyOn
     jest.restoreAllMocks()
     mockLogDebug.mockClear()
-    mockLogLog.mockClear()
   })
 
-  describe('on individual validation cases', () => {
-    describe('on destructureIntent', () => {
-      it('should throw if get intent returns no data', async () => {
-        utilsIntentService.getIntentProcessData.mockResolvedValueOnce(undefined)
-        await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
-          'Desctructuring the intent from the intent hash failed',
-        )
-      })
-
-      it('should throw if solver is undefined', async () => {
-        utilsIntentService.getIntentProcessData.mockResolvedValueOnce({ model: {} } as any)
-        await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
-          'Desctructuring the intent from the intent hash failed',
-        )
-      })
-
-      it('should throw if model is undefined', async () => {
-        utilsIntentService.getIntentProcessData.mockResolvedValueOnce({ solver: {} } as any)
-        await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
-          'Desctructuring the intent from the intent hash failed',
-        )
-      })
-
-      it('should throw error if its returned', async () => {
-        const msg = 'Error from getIntentProcessData'
-        utilsIntentService.getIntentProcessData.mockResolvedValueOnce({
-          err: new Error(msg),
-        } as any)
-        await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow('Error')
-      })
-
-      it('should throw generic error in no error returned', async () => {
-        utilsIntentService.getIntentProcessData.mockResolvedValueOnce({} as any)
-        await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
-          'Desctructuring the intent from the intent hash failed',
-        )
-      })
-
-      it('should succeed and return data', async () => {
-        const dataIn = { model: {}, solver: {} } as any
-        utilsIntentService.getIntentProcessData.mockResolvedValueOnce(dataIn)
-        const dataOut = await validateIntentService['destructureIntent'](zeroHash)
-        expect(dataOut).toBe(dataIn)
-      })
-    })
-
-    describe('on supportedProver', () => {
-      const sourceChainID = 1n
-      const chainID = sourceChainID
-      const prover = '0xcf25397DC87C750eEF006101172FFbeAeA98Aa76'
-      const unsupportedChain = 2n
-      const unsupportedProver = '0x26D2C47c5659aC8a1c4A29A052Fa7B2ccD45Ca43'
-      it('should fail if no source intent exists with the models source chain id', async () => {
-        const model = { event: { sourceChainID } } as any
-        ecoConfigService.getIntentSources.mockReturnValueOnce([])
-        expect(validateIntentService['supportedProver'](model)).toBe(false)
-      })
-
-      it('should fail if no source supports the prover', async () => {
-        const model = { event: { sourceChainID }, intent: { reward: { prover } } } as any
-        ecoConfigService.getIntentSources.mockReturnValueOnce([
-          { provers: [unsupportedProver], chainID } as any,
-        ])
-        expect(validateIntentService['supportedProver'](model)).toBe(false)
-      })
-
-      it('should fail if no source supports the prover on the required chain', async () => {
-        const model = { event: { sourceChainID }, intent: { prover } } as any
-        ecoConfigService.getIntentSources.mockReturnValueOnce([
-          { provers: [prover], chainID: unsupportedChain } as any,
-        ])
-        expect(validateIntentService['supportedProver'](model)).toBe(false)
-      })
-
-      it('should succeed if a single source supports the prover', async () => {
-        const model = { event: { sourceChainID }, intent: { reward: { prover } } } as any
-        ecoConfigService.getIntentSources.mockReturnValueOnce([
-          { provers: [unsupportedProver], chainID } as any,
-          { provers: [prover], chainID } as any,
-        ])
-        expect(validateIntentService['supportedProver'](model)).toBe(true)
-      })
-
-      it('should succeed if multiple sources supports the prover', async () => {
-        const model = { event: { sourceChainID }, intent: { reward: { prover } } } as any
-        ecoConfigService.getIntentSources.mockReturnValueOnce([
-          { provers: [prover], chainID } as any,
-          { provers: [prover], chainID } as any,
-        ])
-        expect(validateIntentService['supportedProver'](model)).toBe(true)
-      })
-    })
-    describe('on validExpirationTime', () => {
-      //mostly covered in utilsIntentService
-      it('should return whatever UtilsIntentService does', async () => {
-        const model = { intent: { reward: { deadline: 100 } } } as any
-        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
-        expect(validateIntentService['validExpirationTime'](model)).toBe(true)
-        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(false)
-        expect(validateIntentService['validExpirationTime'](model)).toBe(false)
-      })
-    })
-
-    describe('on validDestination', () => {
-      it('should fail if destination is not supported', async () => {
-        const model = { intent: { route: { destination: 10n } } } as any
-        ecoConfigService.getSupportedChains.mockReturnValueOnce([11n, 12n])
-        expect(validateIntentService['validDestination'](model)).toBe(false)
-      })
-
-      it('should fail if destination is not supported', async () => {
-        const model = { intent: { route: { destination: 10n } } } as any
-        ecoConfigService.getSupportedChains.mockReturnValueOnce([10n, 12n])
-        expect(validateIntentService['validDestination'](model)).toBe(true)
-      })
-    })
-
-    describe('on fulfillOnDifferentChain', () => {
-      it('should fail if the fulfillment is on the same chain as the event', async () => {
-        const model = {
-          intent: { route: { destination: 10 } },
-          event: { sourceChainID: 10 },
-        } as any
-        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
-        expect(validateIntentService['fulfillOnDifferentChain'](model)).toBe(false)
-      })
-
-      it('should succeed if the fulfillment is on a different chain as the event', async () => {
-        const model = {
-          intent: { route: { destination: 10 } },
-          event: { sourceChainID: 20 },
-        } as any
-        proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
-        expect(validateIntentService['fulfillOnDifferentChain'](model)).toBe(true)
-      })
+  describe('on module init', () => {
+    it('should set the intentJobConfig', () => {
+      const config = { a: 1 } as any
+      ecoConfigService.getRedis = jest
+        .fn()
+        .mockReturnValueOnce({ jobs: { intentJobConfig: config } })
+      validateIntentService.onModuleInit()
+      expect(validateIntentService['intentJobConfig']).toEqual(config)
     })
   })
 
-  describe('on assertValidations', () => {
-    const updateInvalidIntentModel = jest.fn()
-    const assetCases = {
-      supportedProver: 'proverUnsupported',
-      supportedTargets: 'targetsUnsupported',
-      supportedSelectors: 'selectorsUnsupported',
-      validExpirationTime: 'expiresEarly',
-      validDestination: 'validDestination',
-      sameChainFulfill: 'sameChainFulfill',
-    }
-    beforeEach(() => {
-      utilsIntentService.updateInvalidIntentModel = updateInvalidIntentModel
+  describe('on destructureIntent', () => {
+    it('should throw if get intent returns no data', async () => {
+      utilsIntentService.getIntentProcessData.mockResolvedValueOnce(undefined)
+      await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
+        'Desctructuring the intent from the intent hash failed',
+      )
     })
 
-    afterEach(() => {
-      jest.clearAllMocks()
+    it('should throw if solver is undefined', async () => {
+      utilsIntentService.getIntentProcessData.mockResolvedValueOnce({ model: {} } as any)
+      await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
+        'Desctructuring the intent from the intent hash failed',
+      )
     })
 
-    entries(assetCases).forEach(([fun, boolVarName]: [string, string]) => {
-      it(`should fail on ${fun}`, async () => {
-        const model = {
-          intent: {
-            reward: {
-              creator: '0xa',
-              prover: '0xb',
-              deadline: 100,
-              tokens: [
-                { token: '0x1', amount: 1n },
-                { token: '0x2', amount: 2n },
-              ],
-            },
-            route: {
-              salt: '0x1',
-              destination: 10,
-            },
-          },
-          event: { sourceChainID: 11 },
-        } as any
-        const solver = {} as any
-        const logObj = entries(assetCases).reduce(
-          (ac, [, a]) => ({ ...ac, [a]: a == boolVarName }),
-          {},
-        )
-        if (boolVarName == 'sameChainFulfill') {
-          model.intent.route.destination = model.event.sourceChainID
-        }
-        const now = new Date()
-        proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)
-        validateIntentService[fun] = jest.fn().mockReturnValueOnce(false)
-        expect(await validateIntentService['assertValidations'](model, solver)).toBe(false)
-        expect(updateInvalidIntentModel).toHaveBeenCalledTimes(1)
-        expect(mockLogLog).toHaveBeenCalledTimes(1)
-        expect(updateInvalidIntentModel).toHaveBeenCalledWith(model, logObj)
-        expect(mockLogLog).toHaveBeenCalledWith({
-          msg: `Intent failed validation ${model.intent.hash}`,
-          model,
-          ...logObj,
-          ...(boolVarName == 'expiresEarly' && { proofMinDurationSeconds: now.toUTCString() }),
-        })
-      })
+    it('should throw if model is undefined', async () => {
+      utilsIntentService.getIntentProcessData.mockResolvedValueOnce({ solver: {} } as any)
+      await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
+        'Desctructuring the intent from the intent hash failed',
+      )
+    })
+
+    it('should throw error if its returned', async () => {
+      const msg = 'Error from getIntentProcessData'
+      utilsIntentService.getIntentProcessData.mockResolvedValueOnce({
+        err: new Error(msg),
+      } as any)
+      await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow('Error')
+    })
+
+    it('should throw generic error if no error returned', async () => {
+      utilsIntentService.getIntentProcessData.mockResolvedValueOnce({} as any)
+      await expect(validateIntentService['destructureIntent'](zeroHash)).rejects.toThrow(
+        'Desctructuring the intent from the intent hash failed',
+      )
+    })
+
+    it('should succeed and return data', async () => {
+      const dataIn = { model: {}, solver: {} } as any
+      utilsIntentService.getIntentProcessData.mockResolvedValueOnce(dataIn)
+      const dataOut = await validateIntentService['destructureIntent'](zeroHash)
+      expect(dataOut).toBe(dataIn)
     })
   })
 
