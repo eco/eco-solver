@@ -1,10 +1,10 @@
 import { RewardTokensInterface } from '@/contracts'
-import { ToViemAddress } from '@/transforms/viem-address.decorator'
+import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RewardType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumberString, ValidateNested } from 'class-validator'
-import { Hex } from 'viem'
+import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
+import { getAddress, Hex } from 'viem'
 
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except
@@ -17,19 +17,17 @@ import { Hex } from 'viem'
  * @param tokens denotes the array of {@link QuoteRewardTokensDTO} that the sender has
  */
 export class QuoteRewardDataDTO implements QuoteRewardDataType {
-  @ToViemAddress()
+  @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
   prover: Hex
 
   @IsNotEmpty()
-  @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
   deadline: bigint
 
   @IsNotEmpty()
-  @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
   nativeValue: bigint
@@ -49,13 +47,13 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
  * @param balance denotes the amount of tokens the caller can send
  */
 export class QuoteRewardTokensDTO implements RewardTokensInterface {
-  @ToViemAddress()
+  @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
+  @Transform(({ value }) => getAddress(value))
   token: Hex
 
   @IsNotEmpty()
-  @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
   amount: bigint

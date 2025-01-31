@@ -1,9 +1,9 @@
 import { CallDataInterface } from '@/contracts'
-import { ToViemAddress } from '@/transforms/viem-address.decorator'
+import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumberString, ValidateNested } from 'class-validator'
+import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
 
 /**
@@ -16,18 +16,16 @@ import { Hex } from 'viem'
  */
 export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
-  @IsNumberString()
-  @Transform(({ value }) => BigInt(value))
   @ApiProperty()
+  @Transform(({ value }) => BigInt(value))
   source: bigint
 
   @IsNotEmpty()
-  @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
   destination: bigint
 
-  @ToViemAddress()
+  @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
   inbox: Hex
@@ -47,18 +45,16 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
  * @param value denotes the native token value of the call
  */
 export class QuoteCallDataDTO implements CallDataInterface {
-  @ToViemAddress()
+  @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
   target: Hex
 
-  @ToViemAddress()
   @IsNotEmpty()
   @ApiProperty()
   data: Hex
 
   @IsNotEmpty()
-  @IsNumberString()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
   value: bigint

@@ -224,12 +224,10 @@ describe('QuotesService', () => {
       expect(norm).toHaveBeenCalledWith(quoteIntentModel, solver)
       expect(calculate).toHaveBeenCalledWith(quoteIntentModel.route, nor, deficitDescending)
     })
-
-    it('should return the calculcated quote ', async () => {})
   })
 
   describe('on calculateQuote', () => {
-    it('should ', async () => {})
+    it('should fail if the totalAsk is above the available rewards', async () => {})
 
     it('should ', async () => {})
 

@@ -14,7 +14,7 @@ export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   destination: bigint
   @Prop({ required: true, type: String })
   inbox: Hex
-  @Prop({ required: true, type: QuoteRouteCallDataSchema })
+  @Prop({ required: true, type: [QuoteRouteCallDataSchema] })
   calls: QuoteRouteCallDataModel[]
 }
 

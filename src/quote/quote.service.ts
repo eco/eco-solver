@@ -79,7 +79,6 @@ export class QuoteService implements OnApplicationBootstrap {
         },
       }),
     )
-    // Fire it off, but dont wait for it to store the quote intent data
     const quoteIntent = await this.storeQuoteIntentData(quoteIntentDataDTO)
     if (quoteIntent instanceof Error) {
       return InternalSaveError(quoteIntent)
@@ -96,7 +95,7 @@ export class QuoteService implements OnApplicationBootstrap {
     quoteIntentDataDTO: QuoteIntentDataDTO,
   ): Promise<QuoteIntentModel | Error> {
     try {
-      const record = await this.quoteIntentModel.create(quoteIntentDataDTO)
+      const record = await this.quoteIntentModel.create(quoteIntentDataDTO.toQuoteIntentModel())
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Recorded quote intent`,
@@ -225,8 +224,9 @@ export class QuoteService implements OnApplicationBootstrap {
     let filled = 0n
 
     //put together the quote starting with deficit tokens
+    //todo when it rebalances everything and still reward tokens left to split
     for (const token of deficitDescending) {
-      const neededForToken = BigInt(token.analysis.diff)
+      const neededForToken = BigInt(Math.ceil(token.analysis.diff))
 
       //get the max amount we can get towards rebalance this token completely
       const rebalanceAmount = Mathb.min(neededForToken, totalAsk - filled)
@@ -247,10 +247,43 @@ export class QuoteService implements OnApplicationBootstrap {
         break
       }
     }
+    const leftOver = totalAsk - filled > 0n
+    if (leftOver) {
+      //todo save to db
+      return InsufficientBalance(totalAsk, totalAvailableRewardAmount)
+    }
 
     return filled >= totalAsk ? quote : InternalQuoteError()
   }
 
+  // getQuoteTokens(deficitDescending: TokenDataAnalyzed[], rewardTokens: RewardTokensInterface[], totalAsk: bigint) {
+  //   let filled = 0n
+  //   while()
+  //   for (const token of deficitDescending) {
+  //     const neededForToken = BigInt(Math.ceil(token.analysis.diff))
+
+  //     //get the max amount we can get towards rebalance this token completely
+  //     const rebalanceAmount = Mathb.min(neededForToken, totalAsk - filled)
+  //     //find matching
+  //     const rewardToken = rewardTokens.find((ct) =>
+  //       ct.token === token.config.address
+  //     )
+  //     if (!rewardToken) {
+  //       continue
+  //     }
+  //     const askTransfer = Mathb.min(rebalanceAmount, rewardToken.amount)
+  //     quote.tokens.push(
+  //       this.feasibilityService.deNormalizeToken(route.source, {
+  //         token: rewardToken.token,
+  //         amount: askTransfer,
+  //       }),
+  //     )
+  //     filled += askTransfer
+  //     if (filled >= totalAsk) {
+  //       break
+  //     }
+  //   }
+  // }
   /**
    * Gets the normalized destination target call tokens for the quote intent.
    * The normalization involves converting all the tokens into the same base so they

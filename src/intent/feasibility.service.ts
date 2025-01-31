@@ -25,7 +25,7 @@ export class FeasibilityService implements OnModuleInit {
 
   async onModuleInit() {
     //todo get this from config or service per token/chain
-    this.fee = 1000n
+    this.fee = this.FEE_BASE
   }
 
   /**

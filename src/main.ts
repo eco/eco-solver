@@ -5,6 +5,7 @@ import { EcoConfigService } from './eco-configs/eco-config.service'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
 import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
@@ -14,7 +15,14 @@ async function bootstrap() {
   }
 
   //add dto validations, enable transformation
-  app.useGlobalPipes(new ValidationPipe({ transform: true }))
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Enables DTO transformation for incoming requests
+    }),
+  )
+
+  //change all bigints to strings in the controller responses
+  app.useGlobalInterceptors(new BigIntToStringInterceptor())
 
   //add swagger
   addSwagger(app)

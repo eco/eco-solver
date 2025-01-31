@@ -14,7 +14,7 @@ export class QuoteRewardDataModel implements QuoteRewardDataType {
   deadline: bigint
   @Prop({ required: true, type: BigInt })
   nativeValue: bigint
-  @Prop({ required: true, type: QuoteRewardTokenDataSchema })
+  @Prop({ required: true, type: [QuoteRewardTokenDataSchema] })
   tokens: QuoteRewardTokenDataModel[]
 }
 

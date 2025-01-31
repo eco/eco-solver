@@ -38,16 +38,7 @@ export type ValidationChecks = {
  * @returns
  */
 export function someFailedValidations(validations: ValidationChecks): boolean {
-  return !areAllValidationsPassing(validations)
-}
-
-/**
- * Validates that all the validations passed
- * @param validations the validations to check
- * @returns
- */
-export function areAllValidationsPassing(validations: ValidationChecks): boolean {
-  return Object.values(validations).every((v) => v)
+  return Object.values(validations).some((v) => v)
 }
 
 @Injectable()

@@ -6,7 +6,6 @@ import { Types } from 'mongoose'
 
 @Schema({ timestamps: true })
 export class QuoteIntentModel implements QuoteIntentDataInterface {
-  @Prop({ type: Types.ObjectId })
   _id: Types.ObjectId
 
   @Prop({ required: true })
