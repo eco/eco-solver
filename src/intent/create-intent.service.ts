@@ -13,6 +13,7 @@ import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.se
 import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
+import { deserialize, Serialize } from '@/liquidity-manager/utils/serialize'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -40,10 +41,12 @@ export class CreateIntentService implements OnModuleInit {
    * Decodes the intent log, validates the creator is a valid BEND wallet, and creates a new record in the database
    * if one doesn't yet exist. Finally it enqueue the intent for validation
    *
-   * @param intentWs the intent created log
+   * @param serializedIntentWs the serialized intent created log
    * @returns
    */
-  async createIntent(intentWs: IntentCreatedLog) {
+  async createIntent(serializedIntentWs: Serialize<IntentCreatedLog>) {
+    const intentWs = deserialize(serializedIntentWs)
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `createIntent ${intentWs.transactionHash}`,

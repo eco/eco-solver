@@ -7,6 +7,8 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Job, Queue } from 'bullmq'
 import { EcoError } from '@/common/errors/eco-error'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { serialize } from '@/liquidity-manager/utils/serialize'
+import { IntentCreatedLog } from '@/contracts'
 
 describe('WatchIntentService', () => {
   let watchIntentService: WatchCreateIntentService
@@ -18,8 +20,8 @@ describe('WatchIntentService', () => {
   const mockLogError = jest.fn()
 
   const sources = [
-    { chainID: 1, sourceAddress: '0x1234', provers: ['0x88'], network: 'testnet1' },
-    { chainID: 2, sourceAddress: '0x5678', provers: ['0x88', '0x99'], network: 'testnet2' },
+    { chainID: 1n, sourceAddress: '0x1234', provers: ['0x88'], network: 'testnet1' },
+    { chainID: 2n, sourceAddress: '0x5678', provers: ['0x88', '0x99'], network: 'testnet2' },
   ] as any
   const supportedChains = sources.map((s) => BigInt(s.chainID))
 
@@ -113,7 +115,7 @@ describe('WatchIntentService', () => {
 
   describe('on intent', () => {
     const s = sources[0]
-    const log = { args: { _hash: BigInt(1), logIndex: BigInt(2) } } as any
+    const log: any = { logIndex: 2, args: { hash: '0x1' } as Partial<IntentCreatedLog['args']> }
     let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
 
     beforeEach(async () => {
@@ -123,18 +125,18 @@ describe('WatchIntentService', () => {
     })
     it('should convert all bigints to strings', async () => {
       expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
-        expect.objectContaining({
-          args: { _hash: log.args._hash.toString(), logIndex: log.args.logIndex.toString() },
-        }),
+        expect.objectContaining(serialize(log)),
       )
     })
 
     it('should should attach source chainID and network', async () => {
       expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
-        expect.objectContaining({
-          sourceChainID: s.chainID,
-          sourceNetwork: s.network,
-        }),
+        expect.objectContaining(
+          serialize({
+            sourceChainID: s.chainID,
+            sourceNetwork: s.network,
+          }),
+        ),
       )
     })
 
@@ -143,7 +145,7 @@ describe('WatchIntentService', () => {
       expect(mockQueueAdd).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.create_intent,
         expect.any(Object),
-        { jobId: 'watch-create-intent-1-0' },
+        { jobId: 'watch-create-intent-0x1-2' },
       )
     })
   })
