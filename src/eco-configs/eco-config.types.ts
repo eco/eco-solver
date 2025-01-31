@@ -160,7 +160,7 @@ export type AlchemyNetwork = {
  * The config type for a single solver configuration
  */
 export type Solver = {
-  solverAddress: Hex
+  inboxAddress: Hex
   //target address to contract type mapping
   targets: Record<Hex, TargetContract>
   network: Network
@@ -190,7 +190,7 @@ export class IntentSource {
   network: Network
   // The chain ID of the network
   chainID: number
-  // The address that the prover source contract is deployed at, we read events from this contract to fulfill
+  // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]

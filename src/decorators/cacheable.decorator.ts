@@ -1,4 +1,5 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { deserialize, serialize } from '@/liquidity-manager/utils/serialize'
 import { Cache } from '@nestjs/cache-manager'
 
 /**
@@ -31,14 +32,14 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
 
       if (!forceRefresh) {
         const cachedData = await cacheManager.get(cacheKey)
-        if (cachedData) {
-          return cachedData
+        if (cachedData && typeof cachedData == 'object') {
+          return deserialize(cachedData)
         }
       }
 
       // Call the original method to fetch fresh data
       const result = await originalMethod.apply(this, args)
-      await cacheManager.set(cacheKey, result, opts.ttl)
+      await cacheManager.set(cacheKey, serialize(result), opts.ttl)
       return result
     }
 

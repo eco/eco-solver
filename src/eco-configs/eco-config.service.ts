@@ -93,7 +93,7 @@ export class EcoConfigService implements OnModuleInit {
     const solvers = this.get<Record<number, Solver>>('solvers')
     entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
-      solver.solverAddress = config.Inbox
+      solver.inboxAddress = config.Inbox
       solver.targets = addressKeys(solver.targets) ?? {}
     })
     return solvers

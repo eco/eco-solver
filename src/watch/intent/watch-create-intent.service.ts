@@ -85,7 +85,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         createIntent.sourceNetwork = source.network
         const jobId = getIntentJobId(
           'watch-create-intent',
-          createIntent.args._hash ?? zeroHash,
+          createIntent.args.hash ?? zeroHash,
           createIntent.logIndex ?? 0,
         )
         this.logger.debug(

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { RebalanceTokenModel } from './rebalance-token.schema'
+import { Strategy, StrategyContext } from '@/liquidity-manager/types/types'
 
 @Schema({ timestamps: true })
 export class RebalanceModel {
@@ -19,13 +20,13 @@ export class RebalanceModel {
   slippage: number
 
   @Prop({ required: true })
-  strategy: LiquidityManager.Strategy
+  strategy: Strategy
 
   @Prop({ required: false })
   groupId?: string
 
   @Prop({ required: true, type: Object })
-  context: LiquidityManager.StrategyContext
+  context: StrategyContext
 }
 
 export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)

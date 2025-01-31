@@ -42,13 +42,36 @@ export const SolverUnsupported: Quote400 = {
   code: 4,
 }
 
-// The quote is deemed invalid by the validation service
-export function InvalidQuote(validations: ValidationChecks): Quote400 {
+// The quote intent is deemed invalid by the validation service
+export function InvalidQuoteIntent(validations: ValidationChecks): Quote400 {
   return {
     statusCode: 400,
     message: 'Bad Request: The quote was deemed invalid.',
     code: 4,
-    validations,
+    properties: {
+      validations,
+    },
+  }
+}
+
+/**
+ * The quote intent cannot be fulfilled because it doesn't have a
+ * reward hight enough to cover the ask
+ *
+ * @param totalAsk the total amount of the ask
+ * @param totalRewardAmount the total amount of the reward
+ * @returns
+ */
+export function InsufficientBalance(totalAsk: bigint, totalFulfillmentAmount: bigint): Quote400 {
+  return {
+    statusCode: 400,
+    message:
+      'Bad Request: The quote intent balance was insufficient for fulfillment. TotalAsk > TotalFulfillmentAmount',
+    code: 5,
+    properties: {
+      totalAsk,
+      totalFulfillmentAmount,
+    },
   }
 }
 
@@ -66,7 +89,7 @@ export function InfeasibleQuote(
   return {
     statusCode: 400,
     message: 'Bad Request: The quote was deemed infeasible.',
-    code: 5,
+    code: 6,
     results,
   }
 }
@@ -84,5 +107,17 @@ export function InternalSaveError(error: Error): Quote500 {
     message: 'Internal Server Error: Failed to save quote intent.',
     code: 1,
     error,
+  }
+}
+
+/**
+ * The server failed to generate the quote
+ * @returns
+ */
+export function InternalQuoteError(): Quote500 {
+  return {
+    statusCode: 500,
+    message: 'Internal Server Error: Failed generate quote.',
+    code: 2,
   }
 }

@@ -24,7 +24,6 @@ import { QuoteModule } from '@/quote/quote.module'
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),
-
     FlagsModule,
     HealthModule,
     IntentModule,

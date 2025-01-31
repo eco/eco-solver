@@ -7,10 +7,11 @@ import {
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { serialize, Serialize } from '@/liquidity-manager/utils/serialize'
+import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
 export type RebalanceJobData = {
   network: string
-  rebalance: Serialize<LiquidityManager.RebalanceRequest>
+  rebalance: Serialize<RebalanceRequest>
 }
 
 type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
@@ -25,7 +26,7 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     return job.name === LiquidityManagerJobName.REBALANCE
   }
 
-  static createJob(rebalance: LiquidityManager.RebalanceRequest, queueName: string): FlowChildJob {
+  static createJob(rebalance: RebalanceRequest, queueName: string): FlowChildJob {
     const data: RebalanceJobData = {
       network: rebalance.token.config.chainId.toString(),
       rebalance: serialize(rebalance),

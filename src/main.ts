@@ -13,8 +13,8 @@ async function bootstrap() {
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
   }
 
-  //add dto validations
-  app.useGlobalPipes(new ValidationPipe())
+  //add dto validations, enable transformation
+  app.useGlobalPipes(new ValidationPipe({ transform: true }))
 
   //add swagger
   addSwagger(app)

@@ -58,6 +58,9 @@ export class FeasibilityService implements OnModuleInit {
       | undefined
     )[]
   }> {
+    if (model.route.calls.length != 1) {
+      return { feasable: false, results: { cause: 'route.calls.length != 1' } as any }
+    }
     const execs = model.route.calls.map((call) => {
       return this.validateEachExecution(model, solver, call)
     })
@@ -94,7 +97,7 @@ export class FeasibilityService implements OnModuleInit {
     if (tt === null) {
       this.logger.error(
         EcoLogMessage.withError({
-          message: `feasableIntent: Invalid transaction data`,
+          message: `feasibility: Invalid transaction data`,
           error: EcoError.FeasableIntentNoTransactionError,
           properties: {
             model: model,
@@ -129,9 +132,9 @@ export class FeasibilityService implements OnModuleInit {
     solver: Solver,
     target: Hex,
   ): Promise<{ solvent: boolean; profitable: boolean } | undefined> {
-    const amount = tt.decodedFunctionData.args ? (tt.decodedFunctionData.args[1] as bigint) : 0n
     switch (tt.selector) {
       case getERC20Selector('transfer'):
+        const amount = tt.decodedFunctionData.args ? (tt.decodedFunctionData.args[1] as bigint) : 0n
         //check we have enough tokens to transfer on destination fullfillment
         const balance = await this.balanceService.getTokenBalance(solver.chainID, target)
         const solvent = balance.balance >= amount
@@ -148,7 +151,7 @@ export class FeasibilityService implements OnModuleInit {
           return
         }
         //check that we make money on the transfer
-        const fullfillAmountUSDC = this.convertToUSDC(BigInt(solver.chainID), {
+        const token = this.normalizeToken(BigInt(solver.chainID), {
           token: target,
           amount,
         })
@@ -156,7 +159,7 @@ export class FeasibilityService implements OnModuleInit {
           sourceChainID,
           source.tokens,
           [...model.reward.tokens],
-          fullfillAmountUSDC,
+          token.amount,
         )
         return { solvent, profitable }
       default:
@@ -184,7 +187,7 @@ export class FeasibilityService implements OnModuleInit {
     let sum = 0n
     const unionTokens = rewardTokens.filter((t) => acceptedTokens.includes(t.token))
     unionTokens.forEach((token) => {
-      sum += this.convertToUSDC(chainID, token)
+      sum += this.normalizeToken(chainID, token).amount
     })
 
     //check if input tokens are acceptable and greater than + fees
@@ -201,8 +204,13 @@ export class FeasibilityService implements OnModuleInit {
    * @param token   the token to convert to usdc
    * @returns
    */
-  convertToUSDC(chainID: bigint, token: RewardTokensInterface): bigint {
+  normalizeToken(chainID: bigint, token: RewardTokensInterface): RewardTokensInterface {
     //todo: get the price of the token in usdc instead of assuming 1-1 here
-    return token.amount
+    return token
+  }
+
+  deNormalizeToken(chainID: bigint, token: RewardTokensInterface): RewardTokensInterface {
+    //todo: get the price of the token in usdc instead of assuming 1-1 here
+    return token
   }
 }

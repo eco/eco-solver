@@ -10,6 +10,11 @@ import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-ma
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { shortAddr } from '@/liquidity-manager/utils/address'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
+import {
+  RebalanceQuote,
+  RebalanceRequest,
+  TokenDataAnalyzed,
+} from '@/liquidity-manager/types/types'
 
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
@@ -75,7 +80,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       return
     }
 
-    const rebalances: LiquidityManager.RebalanceRequest[] = []
+    const rebalances: RebalanceRequest[] = []
 
     for (const deficitToken of deficit.items) {
       const rebalancingQuotes = await processor.liquidityManagerService.getOptimizedRebalancing(
@@ -130,7 +135,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param items - The token data to display.
    * @returns A formatted table as a string.
    */
-  private displayTokenTable(items: LiquidityManager.TokenDataAnalyzed[]) {
+  private displayTokenTable(items: TokenDataAnalyzed[]) {
     const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format
 
     const header = ['Chain ID', 'Address', 'Balance', 'Target', 'Range', 'State']
@@ -155,7 +160,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param items - The token data to display.
    * @returns A formatted table as a string.
    */
-  private displayRebalancingTable(items: LiquidityManager.RebalanceRequest[]) {
+  private displayRebalancingTable(items: RebalanceRequest[]) {
     // Skip if no rebalancing quotes are found.
     if (!items.length) return
 
@@ -204,8 +209,8 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    */
   private updateGroupBalances(
     processor: LiquidityManagerProcessor,
-    items: LiquidityManager.TokenDataAnalyzed[],
-    rebalancingQuotes: LiquidityManager.Quote[],
+    items: TokenDataAnalyzed[],
+    rebalancingQuotes: RebalanceQuote[],
   ) {
     for (const quote of rebalancingQuotes) {
       // Iterate through each rebalancing quote.

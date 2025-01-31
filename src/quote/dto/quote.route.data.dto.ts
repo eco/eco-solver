@@ -1,15 +1,9 @@
 import { CallDataInterface } from '@/contracts'
+import { ToViemAddress } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
-import {
-  ArrayNotEmpty,
-  IsArray,
-  IsEthereumAddress,
-  IsNotEmpty,
-  IsNumberString,
-  ValidateNested,
-} from 'class-validator'
+import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumberString, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
 
 /**
@@ -33,7 +27,7 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @ApiProperty()
   destination: bigint
 
-  @IsEthereumAddress()
+  @ToViemAddress()
   @IsNotEmpty()
   @ApiProperty()
   inbox: Hex
@@ -53,12 +47,12 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
  * @param value denotes the native token value of the call
  */
 export class QuoteCallDataDTO implements CallDataInterface {
-  @IsEthereumAddress()
+  @ToViemAddress()
   @IsNotEmpty()
   @ApiProperty()
   target: Hex
 
-  @IsEthereumAddress()
+  @ToViemAddress()
   @IsNotEmpty()
   @ApiProperty()
   data: Hex

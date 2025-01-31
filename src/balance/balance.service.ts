@@ -85,6 +85,7 @@ export class BalanceService implements OnApplicationBootstrap {
     })
   }
 
+  @Cacheable()
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: Hex[],
@@ -120,7 +121,7 @@ export class BalanceService implements OnApplicationBootstrap {
       allowFailure: false,
     })) as MulticallReturnType
 
-    const result: Record<Hex, TokenBalance> = {}
+    const tokenBalances: Record<Hex, TokenBalance> = {}
 
     tokenAddresses.forEach((tokenAddress, index) => {
       const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
@@ -129,16 +130,17 @@ export class BalanceService implements OnApplicationBootstrap {
       if ((decimals as number) != 6) {
         throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
       }
-      result[tokenAddress] = {
+      tokenBalances[tokenAddress] = {
         address: tokenAddress,
         balance: balance as bigint,
         decimals: decimals as number,
       }
     })
 
-    return result
+    return tokenBalances
   }
 
+  @Cacheable()
   async fetchTokenBalance(chainID: number, tokenAddress: Hex): Promise<TokenBalance> {
     const result = await this.fetchTokenBalances(chainID, [tokenAddress])
     return result[tokenAddress]

@@ -72,7 +72,7 @@ export class FulfillIntentService {
     const targetSolveTxs = this.getTransactionsForTargets(data)
 
     // Create fulfill tx
-    const fulfillTx = await this.getFulfillIntentTx(solver.solverAddress, model)
+    const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]
@@ -148,7 +148,7 @@ export class FulfillIntentService {
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
           functionName: 'transfer',
-          args: [solver.solverAddress, dstAmount],
+          args: [solver.inboxAddress, dstAmount],
         })
 
         return [{ to: target, data: transferFunctionData }]

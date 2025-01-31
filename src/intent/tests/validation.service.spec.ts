@@ -41,14 +41,11 @@ describe('ValidationService', () => {
     mockLogWarn.mockClear()
   })
 
-
   describe('supportedProver', () => {
     it('should return false if the prover is not supported by the source intent', () => {
       // Arrange
       const model = { sourceChainID: BigInt(1), prover: '0x456' }
-      ecoConfigService.getIntentSources.mockReturnValue([
-        { chainID: '1', provers: ['0x123'] },
-      ])
+      ecoConfigService.getIntentSources.mockReturnValue([{ chainID: '1', provers: ['0x123'] }])
 
       // Act
       const result = validationService.supportedProver(model)
@@ -60,9 +57,7 @@ describe('ValidationService', () => {
     it('should return true if the prover is supported by the source intent', () => {
       // Arrange
       const model = { sourceChainID: BigInt(1), prover: '0x123' }
-      ecoConfigService.getIntentSources.mockReturnValue([
-        { chainID: '1', provers: ['0x123'] },
-      ])
+      ecoConfigService.getIntentSources.mockReturnValue([{ chainID: '1', provers: ['0x123'] }])
 
       // Act
       const result = validationService.supportedProver(model)
@@ -83,9 +78,11 @@ describe('ValidationService', () => {
 
       // Assert
       expect(result).toBe(false)
-      expect(mockLogLog).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'supportedSelectors: Target/data invalid',
-      }))
+      expect(mockLogLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'supportedSelectors: Target/data invalid',
+        }),
+      )
     })
 
     it('should return true if all calls can be decoded', () => {
@@ -125,9 +122,11 @@ describe('ValidationService', () => {
 
       // Assert
       expect(result).toBe(false)
-      expect(mockLogDebug).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Targets not supported for intent quote',
-      }))
+      expect(mockLogDebug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Targets not supported for intent quote',
+        }),
+      )
     })
   })
 

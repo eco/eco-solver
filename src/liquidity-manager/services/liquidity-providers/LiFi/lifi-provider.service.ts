@@ -5,6 +5,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit {
@@ -36,15 +37,15 @@ export class LiFiProviderService implements OnModuleInit {
     })
   }
 
-  getStrategy(): LiquidityManager.Strategy {
+  getStrategy(): Strategy {
     return 'LiFi'
   }
 
   async getQuote(
-    tokenIn: LiquidityManager.TokenData,
-    tokenOut: LiquidityManager.TokenData,
+    tokenIn: TokenData,
+    tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<LiquidityManager.Quote> {
+  ): Promise<RebalanceQuote> {
     const routesRequest: RoutesRequest = {
       // Origin chain
       fromAddress: this.walletAddress,
@@ -75,7 +76,7 @@ export class LiFiProviderService implements OnModuleInit {
     }
   }
 
-  async execute(quote: LiquidityManager.Quote<'LiFi'>) {
+  async execute(quote: RebalanceQuote<'LiFi'>) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: 'LiFiProviderService: executing quote',

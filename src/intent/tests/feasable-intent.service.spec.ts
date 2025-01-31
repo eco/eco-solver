@@ -112,12 +112,9 @@ describe('FeasableIntentService', () => {
       const errData = { solver: mockData.solver, model: mockIntent } as any
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(errData)
       await feasableIntentService.feasableIntent(intentHash)
-      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
-        errData.model,
-        {
-          cause: "model.intent.route.calls.length != 1" 
-        },
-      )
+      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(errData.model, {
+        cause: 'route.calls.length != 1',
+      })
       expect(mockLogDebug).toHaveBeenCalledTimes(2)
       expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
         msg: `FeasableIntent intent ${intentHash}`,
@@ -167,7 +164,7 @@ describe('FeasableIntentService', () => {
       const result = await feasableIntentService.validateExecution(mockModel as any, {} as any)
       expect(result).toEqual({
         feasable: false,
-        results: { "cause": "model.intent.route.calls.length != 1" }
+        results: { cause: 'route.calls.length != 1' },
       })
     })
 
@@ -185,7 +182,7 @@ describe('FeasableIntentService', () => {
       const result = await feasableIntentService.validateExecution(mockModel as any, {} as any)
       expect(result).toEqual({
         feasable: false,
-        results: { "cause": "model.intent.route.calls.length != 1" }
+        results: { cause: 'route.calls.length != 1' },
       })
     })
 
@@ -203,7 +200,7 @@ describe('FeasableIntentService', () => {
       }
       jest
         .spyOn(feasableIntentService, 'validateEachExecution')
-        .mockImplementation(async ({ }, { }, targetcall) => {
+        .mockImplementation(async ({}, {}, targetcall) => {
           const succeed =
             targetcall.data == mockModel.intent.route.calls[0].data &&
             targetcall.target == mockModel.intent.route.calls[0].target
