@@ -19,8 +19,8 @@ export class FeasableIntentService implements OnModuleInit {
   private intentJobConfig: JobsOptions
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
+    private readonly feasibilityService: FeasibilityService,
     private readonly utilsIntentService: UtilsIntentService,
-    private readonly feasableService: FeasibilityService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -56,7 +56,7 @@ export class FeasableIntentService implements OnModuleInit {
     }
 
     //check if we have tokens on the solver chain
-    const { feasable, results } = await this.feasableService.validateExecution(model.intent, solver)
+    const { feasable, results } = await this.feasibilityService.validateExecution(model.intent, solver)
     const jobId = getIntentJobId('feasable', intentHash, model!.intent.logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({

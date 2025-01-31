@@ -3,18 +3,22 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
+import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
+
+interface IntentModelWithHashInterface {
+  hash?: Hex
+}
 
 /**
  * Validation type that mixes the QuoteIntentDataDTO with the hash. This is used to
  * merge quotes and intents validations
  */
-export interface ValidationIntentInterface extends QuoteIntentDataDTO {
-  hash?: Hex
-}
+export interface ValidationIntentInterface
+  extends QuoteIntentDataInterface,
+    IntentModelWithHashInterface {}
 
 /**
  * Type that holds all the possible validations that can fail

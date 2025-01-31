@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Hex } from 'viem'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { ValidationIntentInterface } from '@/intent/validation.sevice'
 import { BalanceService } from '@/balance/balance.service'
 import { TransactionTargetData, UtilsIntentService } from '@/intent/utils-intent.service'
@@ -29,23 +28,15 @@ export class FeasibilityService implements OnModuleInit {
     this.fee = 1000n
   }
 
-  async feasableQuote(quoteIntent: QuoteIntentModel) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `feasableQuote intent ${quoteIntent._id}`,
-      }),
-    )
-  }
-
   /**
    * Validates that each target-data pair is feasible for execution.
    *
-   * @param model the create intent model
+   * @param intent the create intent model
    * @param solver the target solver
    * @returns
    */
   async validateExecution(
-    model: ValidationIntentInterface,
+    intent: ValidationIntentInterface,
     solver: Solver,
   ): Promise<{
     feasable: boolean
@@ -58,11 +49,11 @@ export class FeasibilityService implements OnModuleInit {
       | undefined
     )[]
   }> {
-    if (model.route.calls.length != 1) {
+    if (intent.route.calls.length != 1) {
       return { feasable: false, results: { cause: 'route.calls.length != 1' } as any }
     }
-    const execs = model.route.calls.map((call) => {
-      return this.validateEachExecution(model, solver, call)
+    const execs = intent.route.calls.map((call) => {
+      return this.validateEachExecution(intent, solver, call)
     })
     const results = await Promise.all(execs)
     const feasable =
@@ -98,7 +89,7 @@ export class FeasibilityService implements OnModuleInit {
       this.logger.error(
         EcoLogMessage.withError({
           message: `feasibility: Invalid transaction data`,
-          error: EcoError.FeasableIntentNoTransactionError,
+          error: EcoError.FeasibilityIntentNoTransactionError,
           properties: {
             model: model,
           },

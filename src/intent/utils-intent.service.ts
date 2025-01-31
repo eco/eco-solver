@@ -12,7 +12,6 @@ import { getERCAbi, CallDataInterface } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from 'alchemy-sdk'
-import { ProofService } from '@/prover/proof.service'
 import { ValidationChecks, ValidationIntentInterface } from '@/intent/validation.sevice'
 
 /**
@@ -62,7 +61,6 @@ export class UtilsIntentService {
 
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
-    private readonly proofService: ProofService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -132,14 +130,14 @@ export class UtilsIntentService {
   /**
    * Decodes the function data for a target contract
    *
-   * @param model the intent model
+   * @param intent the intent model
    * @param solver the solver for the intent
    * @param target  the target address
    * @param data  the data to decode
    * @returns
    */
   getTransactionTargetData(
-    model: ValidationIntentInterface,
+    intent: ValidationIntentInterface,
     solver: Solver,
     call: CallDataInterface,
   ): TransactionTargetData | null {
@@ -159,12 +157,12 @@ export class UtilsIntentService {
     if (!supported) {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Selectors not supported for intent ${model.hash ? model.hash : 'quote'}`,
+          message: `Selectors not supported for intent ${intent.hash ? intent.hash : 'quote'}`,
           properties: {
             unsupportedSelector: selector,
-            ...(model.hash && {
-              intentHash: model.hash,
-              source: model.route.source,
+            source: intent.route.source,
+            ...(intent.hash && {
+              intentHash: intent.hash,
             }),
           },
         }),

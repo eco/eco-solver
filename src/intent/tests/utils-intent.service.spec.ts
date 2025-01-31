@@ -12,7 +12,7 @@ import { Queue } from 'bullmq'
 import { EcoError } from '../../common/errors/eco-error'
 import { getFunctionBytes } from '../../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
-import { TargetCallViemType } from '@/contracts'
+import { CallDataInterface } from '@/contracts'
 
 jest.mock('viem', () => {
   return {
@@ -225,7 +225,7 @@ describe('UtilsIntentService', () => {
   //   })
   // })
   describe('on getTransactionTargetData', () => {
-    const callData: TargetCallViemType = { target: address1, data: '0xa9059cbb3333333', value: 0n } //transfer selector plus data fake
+    const callData: CallDataInterface = { target: address1, data: '0xa9059cbb3333333', value: 0n } //transfer selector plus data fake
     const selectors = ['transfer(address,uint256)']
     const targetConfig = { contractType: 'erc20', selectors }
     const decodedData = { stuff: true }
@@ -239,47 +239,40 @@ describe('UtilsIntentService', () => {
     })
 
     it('should return null when tx is not decoded ', async () => {
-      const model = {
-        intent: { route: { calls: [callData] }, hash: '0x3' },
-        event: { sourceNetwork: 'opt-sepolia' },
-      } as any
+      const intent = { route: { calls: [callData], source: 12n }, hash: '0x3' } as any
       mockDecodeFunctionData.mockReturnValue(null)
       expect(
         utilsIntentService.getTransactionTargetData(
-          model,
+          intent,
           { targets: { [address1]: { contractType: 'erc20', selectors } } } as any,
           callData,
         ),
       ).toBe(null)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
       expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `Selectors not supported for intent ${model.intent.hash}`,
-        intentHash: model.intent.hash,
-        sourceNetwork: model.event.sourceNetwork,
+        msg: `Selectors not supported for intent ${intent.hash}`,
+        intentHash: intent.hash,
+        source: intent.route.source,
         unsupportedSelector: getFunctionBytes(callData.data),
       })
     })
 
     it('should return null when target selector is not supported by the solver', async () => {
       const fakeData = '0xaaaaaaaa11112333'
-      const call: TargetCallViemType = { target: callData.target, data: fakeData, value: 0n }
-      const model = {
-        intent: { route: { calls: [call] }, hash: '0x3' },
-        event: { sourceNetwork: 'opt-sepolia' },
-      } as any
+      const call: CallDataInterface = { target: callData.target, data: fakeData, value: 0n }
+      const intent = { route: { calls: [call], source: 12n } } as any
       mockDecodeFunctionData.mockReturnValue(decodedData)
       expect(
         utilsIntentService.getTransactionTargetData(
-          model,
+          intent,
           { targets: { [address1]: { contractType: 'erc20', selectors } } } as any,
           call,
         ),
       ).toBe(null)
       expect(mockLogLog).toHaveBeenCalledTimes(1)
       expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `Selectors not supported for intent ${model.intent.hash}`,
-        intentHash: model.intent.hash,
-        sourceNetwork: model.event.sourceNetwork,
+        msg: `Selectors not supported for intent quote`,
+        source: intent.route.source,
         unsupportedSelector: getFunctionBytes(fakeData),
       })
     })

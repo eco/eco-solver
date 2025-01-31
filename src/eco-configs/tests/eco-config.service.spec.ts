@@ -129,7 +129,7 @@ describe('Eco Config Helper Tests', () => {
       mockgetChainConfig.mockReturnValue(mockChainConfig)
       ecoConfigService.get = jest.fn().mockReturnValue([mockSolver])
       const result = ecoConfigService.getSolvers()
-      expect(result).toEqual([{ ...mockSolver, solverAddress: mockChainConfig.Inbox }])
+      expect(result).toEqual([{ ...mockSolver, inboxAddress: mockChainConfig.Inbox }])
       expect(mockgetChainConfig).toHaveBeenCalled()
       expect(mockgetChainConfig).toHaveBeenCalledWith(mockSolver.chainID)
     })

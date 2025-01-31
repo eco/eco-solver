@@ -85,13 +85,13 @@ describe('ChainSyncService', () => {
 
     const solvers = {
       123: {
-        solverAddress: '0x456',
+        inboxAddress: '0x456',
       },
       456: {
-        solverAddress: '0x789',
+        inboxAddress: '0x789',
       },
       789: {
-        solverAddress: '0xabc',
+        inboxAddress: '0xabc',
       },
     } as any as Solver[]
 

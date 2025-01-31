@@ -197,12 +197,12 @@ export class FulfillIntentService {
 
   /**
    * Returns the fulfill intent data
-   * @param solverAddress
+   * @param inboxAddress
    * @param model
    * @private
    */
   private async getFulfillIntentTx(
-    solverAddress: Hex,
+    inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
@@ -231,7 +231,7 @@ export class FulfillIntentService {
     }
     let fee = 0n
     if (isHyperlane) {
-      fee = BigInt((await this.getHyperlaneFee(solverAddress, model)) || '0x0')
+      fee = BigInt((await this.getHyperlaneFee(inboxAddress, model)) || '0x0')
     }
 
     const fulfillIntentData = encodeFunctionData({
@@ -242,7 +242,7 @@ export class FulfillIntentService {
     })
 
     return {
-      to: solverAddress,
+      to: inboxAddress,
       data: fulfillIntentData,
       // ...(isHyperlane && fee > 0 && { value: fee }),
       value: fee,
@@ -255,7 +255,7 @@ export class FulfillIntentService {
    * @private
    */
   private async getHyperlaneFee(
-    solverAddress: Hex,
+    inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<Hex | undefined> {
     const client = await this.kernelAccountClientService.getClient(
@@ -279,7 +279,7 @@ export class FulfillIntentService {
       args,
     })
     const proverData = await client.call({
-      to: solverAddress,
+      to: inboxAddress,
       data: callData,
     })
     return proverData.data
