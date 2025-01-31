@@ -79,9 +79,9 @@ export class FulfillIntentService {
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `Fulfilling batch transaction`,
+        message: `Fulfilling ${this.getFulfillment()} transaction`,
         properties: {
-          batch: transactions,
+          transactions,
         },
       }),
     )

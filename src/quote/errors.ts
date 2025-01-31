@@ -1,5 +1,9 @@
 import { ValidationChecks } from '@/intent/validation.sevice'
 
+/**
+ * Errors that can be thrown by the quote service
+ */
+export class QuoteErrors {}
 export type Quote400 = {
   statusCode: 400
   message: string

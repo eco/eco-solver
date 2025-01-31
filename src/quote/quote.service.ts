@@ -27,7 +27,7 @@ import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import dayjs from 'dayjs'
+import * as dayjs from 'dayjs'
 
 /**
  * The response quote data
@@ -63,6 +63,13 @@ export class QuoteService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {}
 
+  /**
+   * Generates a quote for the quote intent data.
+   * The network quoteIntentDataDTO is stored in the db.
+   *
+   * @param quoteIntentDataDTO the quote intent data
+   * @returns
+   */
   async getQuote(quoteIntentDataDTO: QuoteIntentDataDTO) {
     this.logger.log(
       EcoLogMessage.fromDefault({
@@ -113,6 +120,13 @@ export class QuoteService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * Validates that the quote intent data is valid.
+   * Checks that there is a solver, that the assert validations pass,
+   *  and that the quote intent is feasible.
+   * @param quoteIntentModel the model to validate
+   * @returns an res 400, or undefined if the quote intent is valid
+   */
   async validateQuoteIntentData(quoteIntentModel: QuoteIntentModel): Promise<Quote400 | undefined> {
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.destination)
     if (!solver) {
@@ -124,7 +138,7 @@ export class QuoteService implements OnApplicationBootstrap {
           },
         }),
       )
-      //todo save to db
+      await this.updateQuoteDb(quoteIntentModel, { error: SolverUnsupported })
       return SolverUnsupported
     }
 
@@ -139,7 +153,7 @@ export class QuoteService implements OnApplicationBootstrap {
           },
         }),
       )
-      //todo save to db
+      await this.updateQuoteDb(quoteIntentModel, { error: InvalidQuoteIntent(validations) })
       return InvalidQuoteIntent(validations)
     }
 
@@ -147,24 +161,29 @@ export class QuoteService implements OnApplicationBootstrap {
       quoteIntentModel,
       solver,
     )
-    //todo save to db with results
+
     if (!feasable) {
-      this.logger.debug(
+      this.logger.log(
         EcoLogMessage.fromDefault({
           message: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
           properties: {
-            feasable,
             quoteIntentModel,
+            feasable,
           },
         }),
       )
-
+      await this.updateQuoteDb(quoteIntentModel, { error: InfeasibleQuote(results) })
       return InfeasibleQuote(results)
     }
 
     return
   }
 
+  /**
+   *
+   * @param quoteIntentModel
+   * @returns
+   */
   async generateQuote(quoteIntentModel: QuoteIntentModel) {
     //get the solver tokens we want funded
     const { solver, deficitDescending } = await this.getSolverTokensDescending(
@@ -230,18 +249,6 @@ export class QuoteService implements OnApplicationBootstrap {
     }
 
     return filled >= totalAsk ? quote : InternalQuoteError()
-  }
-
-  /**
-   * Gets the fee multiplier for the quote intent ask.
-   *
-   * @param route the route of the quote intent
-   * @returns a bigint representing the fee multiplier
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getFeeMultiplier(route: QuoteRouteDataInterface) {
-    //todo implement fee logic
-    return 1n
   }
 
   /**
@@ -346,10 +353,47 @@ export class QuoteService implements OnApplicationBootstrap {
   }
 
   /**
+   * Gets the fee multiplier for the quote intent ask.
+   *
+   * @param route the route of the quote intent
+   * @returns a bigint representing the fee multiplier
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getFeeMultiplier(route: QuoteRouteDataInterface) {
+    //todo implement fee logic
+    return 1n
+  }
+
+  /**
    * @returns the expiry time of the quote
    */
   getQuoteExpiryTime(): string {
     //todo implement expiry time logic
     return dayjs().add(5, 'minutes').unix().toString()
+  }
+
+  /**
+   * Updates the quote intent model in the db
+   * @param quoteIntentModel the model to update
+   * @returns
+   */
+  async updateQuoteDb(quoteIntentModel: QuoteIntentModel, receipt?: any) {
+    try {
+      quoteIntentModel.receipt = receipt
+        ? { previous: quoteIntentModel.receipt, current: receipt }
+        : receipt
+      await this.quoteIntentModel.updateOne({ _id: quoteIntentModel._id }, quoteIntentModel)
+    } catch (e) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Error in updateQuoteDb`,
+          properties: {
+            quoteIntentModel,
+            error: e,
+          },
+        }),
+      )
+      return e
+    }
   }
 }

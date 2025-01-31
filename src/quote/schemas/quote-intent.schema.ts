@@ -14,6 +14,9 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
 
   @Prop({ required: true })
   reward: QuoteRewardDataModel
+
+  @Prop({ type: Object })
+  receipt: any
 }
 
 export const QuoteIntentSchema = SchemaFactory.createForClass(QuoteIntentModel)
