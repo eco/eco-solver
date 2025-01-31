@@ -100,11 +100,16 @@ describe('FeasableIntentService', () => {
             ],
           },
           logIndex: 1,
-        }
+        },
       }
       const errData = { solver: mockData.solver, model: mockModel } as any
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(errData)
-      jest.spyOn(feasibilityService, 'validateExecution').mockResolvedValue({ feasable: false, results: {cause: 'route.calls.length != 1'} } as any)
+      jest
+        .spyOn(feasibilityService, 'validateExecution')
+        .mockResolvedValue({
+          feasable: false,
+          results: { cause: 'route.calls.length != 1' },
+        } as any)
       await feasableIntentService.feasableIntent(intentHash)
       expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(errData.model, {
         cause: 'route.calls.length != 1',

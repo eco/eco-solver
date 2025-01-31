@@ -56,7 +56,10 @@ export class FeasableIntentService implements OnModuleInit {
     }
 
     //check if we have tokens on the solver chain
-    const { feasable, results } = await this.feasibilityService.validateExecution(model.intent, solver)
+    const { feasable, results } = await this.feasibilityService.validateExecution(
+      model.intent,
+      solver,
+    )
     const jobId = getIntentJobId('feasable', intentHash, model!.intent.logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
