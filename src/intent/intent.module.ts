@@ -13,6 +13,7 @@ import { TransactionModule } from '../transaction/transaction.module'
 import { MongooseModule } from '@nestjs/mongoose'
 import { SolverModule } from '../solver/solver.module'
 import { FlagsModule } from '../flags/flags.module'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { FlagsModule } from '../flags/flags.module'
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
+    CrowdLiquidityService,
     UtilsIntentService,
   ],
   // controllers: [IntentSourceController],

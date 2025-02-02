@@ -7,6 +7,7 @@ import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -61,6 +62,7 @@ export type EcoConfigType = {
     pinoConfig: PinoParams
   }
   liquidityManager: LiquidityManagerConfig
+  crowdLiquidity: CrowdLiquidityConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -78,6 +80,7 @@ export type LaunchDarklyConfig = {
  */
 export type FulfillType = {
   run: 'batch' | 'single'
+  type?: 'crowd-liquidity' | 'smart-wallet-account'
 }
 
 /**
@@ -205,5 +208,19 @@ export interface LiquidityManagerConfig {
   thresholds: {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
+  }
+}
+
+export interface CrowdLiquidityConfig {
+  litNetwork: LIT_NETWORKS_KEYS
+  litActionIpfsId: string
+  capacityTokenId: string
+  capacityTokenOwnerPk: string
+  kernel: {
+    address: string
+  }
+  pkp: {
+    ethAddress: string
+    publicKey: string
   }
 }

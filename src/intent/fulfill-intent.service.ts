@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
 import {
   ContractFunctionArgs,
   ContractFunctionName,
@@ -26,6 +24,8 @@ import { ProofService } from '../prover/proof.service'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InboxAbi } from '@eco-foundation/routes-ts'
+import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
 
@@ -33,16 +33,32 @@ type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
  */
 @Injectable()
-export class FulfillIntentService {
+export class FulfillIntentService implements IFulfillService {
   private logger = new Logger(FulfillIntentService.name)
 
   constructor(
-    @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly proofService: ProofService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
   ) {}
+
+  /**
+   * Processes and fulfills a specified intent based on its type.
+   *
+   * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
+   * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
+   */
+  fulfillIntent(intentHash: Hex): Promise<void> {
+    const { type } = this.ecoConfigService.getFulfill()
+
+    if (type === 'crowd-liquidity') {
+      return this.crowdLiquidityService.executeFulfillIntent(intentHash)
+    }
+
+    return this.executeFulfillIntent(intentHash)
+  }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
