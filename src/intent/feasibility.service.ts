@@ -195,6 +195,11 @@ export class FeasibilityService implements OnModuleInit {
    * @param token   the token to convert to usdc
    * @returns
    */
+  convert(chainID: bigint, token: RewardTokensInterface): RewardTokensInterface {
+    //todo: get the price of the token in usdc instead of assuming 1-1 here
+    return token
+  }
+
   normalizeToken(chainID: bigint, token: RewardTokensInterface): RewardTokensInterface {
     //todo: get the price of the token in usdc instead of assuming 1-1 here
     return token

@@ -13,6 +13,15 @@ import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 
 /**
+ * Composite data from fetching the token balances for a chain
+ */
+export type TokenFetchAnalysis = {
+  config: TokenConfig
+  balance: TokenBalance
+  chainId: number
+}
+
+/**
  * Service class for getting configs for the app
  */
 @Injectable()
@@ -144,6 +153,29 @@ export class BalanceService implements OnApplicationBootstrap {
   async fetchTokenBalance(chainID: number, tokenAddress: Hex): Promise<TokenBalance> {
     const result = await this.fetchTokenBalances(chainID, [tokenAddress])
     return result[tokenAddress]
+  }
+
+  @Cacheable()
+  async fetchTokenBalancesForChain(
+    chainID: number,
+  ): Promise<Record<Hex, TokenBalance> | undefined> {
+    const intentSource = this.configService.getIntentSource(chainID)
+    if (!intentSource) {
+      return undefined
+    }
+    return this.fetchTokenBalances(chainID, intentSource.tokens)
+  }
+
+  @Cacheable()
+  async fetchTokenData(chainID: number): Promise<TokenFetchAnalysis[]> {
+    const tokenConfigs = groupBy(this.getInboxTokens(), 'chainId')[chainID]
+    const tokenAddresses = tokenConfigs.map((token) => token.address)
+    const balances = await this.fetchTokenBalances(chainID, tokenAddresses)
+    return zipWith(tokenConfigs, Object.values(balances), (config, balance) => ({
+      config,
+      balance,
+      chainId: chainID,
+    }))
   }
 
   @Cacheable()

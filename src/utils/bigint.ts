@@ -30,4 +30,15 @@ export class Mathb {
   static max(x: bigint, y: bigint): bigint {
     return x > y ? x : y
   }
+
+  /**
+   * Compares two bigints. Returns 0 if they are equal, 1 if x is greater than y, and -1 if x is less than y.
+   * Usefull for sorting.
+   * @param x first bigint
+   * @param y second bigint
+   * @returns
+   */
+  static compare(x: bigint, y: bigint): number {
+    return x === y ? 0 : x > y ? 1 : -1
+  }
 }
