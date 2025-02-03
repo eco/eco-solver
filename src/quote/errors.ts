@@ -3,19 +3,19 @@ import { ValidationChecks } from '@/intent/validation.sevice'
 /**
  * Errors that can be thrown by the quote service
  */
-export class QuoteErrors {}
-export type Quote400 = {
-  statusCode: 400
+export interface QuoteErrorsInterface {
+  statusCode: number
   message: string
   code: number
   [key: string]: any
 }
 
-export type Quote500 = {
+export type Quote400 = QuoteErrorsInterface & {
+  statusCode: 400
+}
+
+export type Quote500 = QuoteErrorsInterface & {
   statusCode: 500
-  message: string
-  code: number
-  [key: string]: any
 }
 
 // The solver does not supoort the request prover
