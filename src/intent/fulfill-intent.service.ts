@@ -230,7 +230,7 @@ export class FulfillIntentService {
       }
     }
     let fee = 0n
-    if (isHyperlane) {
+    if (isHyperlane && functionName === 'fulfillHyperInstantWithRelayer') {
       fee = BigInt((await this.getHyperlaneFee(inboxAddress, model)) || '0x0')
     }
 
