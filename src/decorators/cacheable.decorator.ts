@@ -25,7 +25,7 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
       }
 
       // Construct the cache key based on function arguments
-      const cacheKey = `${key}:${JSON.stringify(args.slice(0, -1))}` // Exclude bypassArg from key
+      const cacheKey = `${key}:${JSON.stringify(args)}` // Unique key for the cache
 
       // Determine whether to bypass cache
       const forceRefresh = opts.bypassArgIndex ? args[opts.bypassArgIndex] === true : false
