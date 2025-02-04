@@ -447,9 +447,10 @@ describe('FulfillIntentService', () => {
     }
     const solver = { inboxAddress: '0x9' as Hex }
     let defaultArgs = [] as any
-
+    const mockFee  = 10n
     beforeEach(() => {
       jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
+      fulfillIntentService['getHyperlaneFee'] = jest.fn().mockResolvedValue(mockFee)
       defaultArgs = [
         model.intent.route,
         model.intent.reward.getHash(),
@@ -478,14 +479,16 @@ describe('FulfillIntentService', () => {
 
     describe('on PROOF_HYPERLANE', () => {
       it('should use the correct function name and args for fulfillHyperInstantWithRelayer', async () => {
-        const mockStorage = jest.fn().mockReturnValue(false)
-        const mockHyperlane = jest.fn().mockReturnValue(true)
-        proofService.isStorageProver = mockStorage
-        proofService.isHyperlaneProver = mockHyperlane
+        const data = '0x9911'
+        jest.spyOn(proofService, 'isStorageProver').mockReturnValue(false)
+        jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
+        mockEncodeFunctionData.mockReturnValue(data)
+        fulfillIntentService['getFulfillment'] = jest.fn().mockReturnValue('fulfillHyperInstantWithRelayer')
         defaultArgs.push(model.intent.reward.prover)
         defaultArgs.push('0x0')
         defaultArgs.push(zeroAddress)
-        await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        expect(tx).toEqual({ to: solver.inboxAddress, data, value: mockFee })
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
@@ -499,13 +502,14 @@ describe('FulfillIntentService', () => {
       })
 
       it('should use the correct function name and args for fulfillHyperBatched', async () => {
-        const mockStorage = jest.fn().mockReturnValue(false)
-        const mockHyperlane = jest.fn().mockReturnValue(true)
-        proofService.isStorageProver = mockStorage
-        proofService.isHyperlaneProver = mockHyperlane
+        const data = '0x9911'
+        jest.spyOn(proofService, 'isStorageProver').mockReturnValue(false)
+        jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
+        mockEncodeFunctionData.mockReturnValue(data)
         fulfillIntentService['getFulfillment'] = jest.fn().mockReturnValue('fulfillHyperBatched')
         defaultArgs.push(model.intent.reward.prover)
-        await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        expect(tx).toEqual({ to: solver.inboxAddress, data, value: 0n })
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
