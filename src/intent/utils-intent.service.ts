@@ -8,7 +8,7 @@ import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
 import { includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
-import { getERCAbi, CallDataInterface } from '../contracts'
+import { getERCAbi, CallDataInterface, getERC20Selector } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from 'alchemy-sdk'
@@ -170,6 +170,30 @@ export class UtilsIntentService {
       return null
     }
     return { decodedFunctionData: tx, selector, targetConfig }
+  }
+
+  /**
+   * Verifies that a target is of type erc20 and that the selector is supported
+   * @param ttd the transaction target data
+   * @param permittedSelector the selector to check against, if not provided it will check against all erc20 selectors
+   * @returns
+   */
+  isERC20Target(ttd: TransactionTargetData | null, permittedSelector?: Hex): boolean {
+    if (!ttd) {
+      return false
+    }
+    const isERC20 = ttd.targetConfig.contractType === 'erc20'
+    if (permittedSelector && ttd.selector !== permittedSelector) {
+      return false
+    }
+    switch (ttd.selector) {
+      case getERC20Selector('transfer'):
+        const correctArgs =
+          !!ttd.decodedFunctionData.args && ttd.decodedFunctionData.args.length === 2
+        return isERC20 && correctArgs
+      default:
+        return false
+    }
   }
 
   /**

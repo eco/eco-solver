@@ -1,4 +1,6 @@
+import { EcoError } from '@/common/errors/eco-error'
 import { ValidationChecks } from '@/intent/validation.sevice'
+import { Hex } from 'viem'
 
 /**
  * Errors that can be thrown by the quote service
@@ -98,6 +100,43 @@ export function InfeasibleQuote(
   }
 }
 
+// The quote is deemed invalid by the feasibility service
+export function InvalidQuote(
+  results: (
+    | false
+    | {
+        solvent: boolean
+        profitable: boolean
+      }
+    | undefined
+  )[],
+): Quote400 {
+  return {
+    statusCode: 400,
+    message: 'Bad Request: The quote was deemed invalid.',
+    code: 7,
+    results,
+  }
+}
+// The quote is deemed to be insolvent or unprofitable by the feasibility service
+export function InsolventUnprofitableQuote(
+  results: (
+    | false
+    | {
+        solvent: boolean
+        profitable: boolean
+      }
+    | undefined
+  )[],
+): Quote400 {
+  return {
+    statusCode: 400,
+    message: 'Bad Request: The quote was deemed to be insolvent or unprofitable.',
+    code: 8,
+    results,
+  }
+}
+
 /////////////
 
 /**
@@ -118,10 +157,35 @@ export function InternalSaveError(error: Error): Quote500 {
  * The server failed to generate the quote
  * @returns
  */
-export function InternalQuoteError(): Quote500 {
+export function InternalQuoteError(error?: Error): Quote500 {
   return {
     statusCode: 500,
     message: 'Internal Server Error: Failed generate quote.',
     code: 2,
+    error,
+  }
+}
+
+export class QuoteError extends Error {
+  static NoSolverForDestination(destination: bigint) {
+    return new EcoError(`No solver found for destination chain ${destination}`)
+  }
+
+  static NoIntentSourceForSource(source: bigint) {
+    return new EcoError(`No intent source found for source chain ${source}`)
+  }
+
+  static FetchingCallTokensFailed(chainID: bigint) {
+    return new EcoError(`Error occured when fetching call tokens for ${chainID}`)
+  }
+
+  static NonERC20TargetInCalls() {
+    return new EcoError(`One or more targets not erc20s`)
+  }
+
+  static FailedToFetchTarget(chainID: bigint, target: Hex) {
+    return new EcoError(
+      `Cannot resolve the decimals of a call target ${target} on chain ${chainID}`,
+    )
   }
 }

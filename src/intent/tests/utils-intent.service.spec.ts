@@ -13,6 +13,7 @@ import { EcoError } from '../../common/errors/eco-error'
 import { getFunctionBytes } from '../../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
+import { ValidationChecks } from '@/intent/validation.sevice'
 
 jest.mock('viem', () => {
   return {
@@ -85,13 +86,13 @@ describe('UtilsIntentService', () => {
     describe('on updateInvalidIntentModel', () => {
       it('should updateOne the model as invalid', async () => {
         const invalidCause = {
-          proverUnsupported: true,
-          targetsUnsupported: false,
-          selectorsUnsupported: false,
-          expiresEarly: false,
-          invalidDestination: false,
-          sameChainFulfill: false,
-        }
+          supportedProver: false,
+          supportedTargets: true,
+          supportedSelectors: true,
+          validExpirationTime: true,
+          validDestination: true,
+          fulfillOnDifferentChain: true,
+        } as ValidationChecks
         await utilsIntentService.updateInvalidIntentModel(model, invalidCause)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
@@ -294,6 +295,61 @@ describe('UtilsIntentService', () => {
         selector: getFunctionBytes(callData.data),
         targetConfig,
       })
+    })
+  })
+
+  describe('on isERC20Target', () => {
+    it('should return false if the target data is null', async () => {
+      expect(utilsIntentService.isERC20Target(null)).toBe(false)
+    })
+
+    it('should return false if the target data is not erc20', async () => {
+      expect(
+        utilsIntentService.isERC20Target({
+          targetConfig: { contractType: 'erc721' },
+        } as any),
+      ).toBe(false)
+    })
+
+    it('should return false if the target selector isnt the permitted selector', async () => {
+      expect(
+        utilsIntentService.isERC20Target(
+          {
+            targetConfig: { contractType: 'erc20' },
+            selector: '0x70a08231', //balanceOf
+          } as any,
+          '0xa123123',
+        ),
+      ).toBe(false)
+    })
+
+    it('should return false if the target selector is not transfer', async () => {
+      expect(
+        utilsIntentService.isERC20Target({
+          targetConfig: { contractType: 'erc20' },
+          selector: '0x70a08231', //balanceOf
+        } as any),
+      ).toBe(false)
+    })
+
+    it('should return false if the target selector args are incorrect', async () => {
+      expect(
+        utilsIntentService.isERC20Target({
+          targetConfig: { contractType: 'erc20' },
+          selector: '0xa9059cbb', //transfer
+          decodedFunctionData: { args: [address1] },
+        } as any),
+      ).toBe(false)
+    })
+
+    it('should return true if the target selector and args are for erc20 transfer', async () => {
+      expect(
+        utilsIntentService.isERC20Target({
+          targetConfig: { contractType: 'erc20' },
+          selector: '0xa9059cbb', //transfer
+          decodedFunctionData: { args: [address1, 100n] },
+        } as any),
+      ).toBe(true)
     })
   })
 

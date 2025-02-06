@@ -1,25 +1,23 @@
-/**
- * Normalizes a value by adding the decimals to it
- * @param value the value to normalize
- * @param decimals the decimals of the value to add
- * @returns
- */
-export function normalize(value: bigint, decimals: number): bigint {
-  if (decimals <= 1) {
-    return value
-  }
-  return value * BigInt(10 ** decimals)
+type BalanceObject = {
+  balance: bigint
+  decimal: number
 }
 
 /**
- * De-normalizes a value by removing the decimals from it
- * @param value the value to denormalize
- * @param decimals the decimals of the value to remove
- * @returns
+ * Normalizes the balance to a new decimal precision.
  */
-export function denormalize(value: bigint, decimals: number): bigint {
-  if (decimals <= 1) {
-    return value
+export function normalizeBalance(value: BalanceObject, targetDecimal: number): BalanceObject {
+  if (!Number.isInteger(value.decimal) || !Number.isInteger(targetDecimal)) {
+    throw new Error('Decimal values must be integers')
   }
-  return value / BigInt(10 ** decimals)
+  const scaleFactor = BigInt(10 ** Math.abs(targetDecimal - value.decimal))
+
+  let newBalance: bigint
+  if (targetDecimal > value.decimal) {
+    newBalance = value.balance * scaleFactor // Scale up
+  } else {
+    newBalance = value.balance / scaleFactor // Scale down
+  }
+
+  return { balance: newBalance, decimal: targetDecimal }
 }

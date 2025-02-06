@@ -10,7 +10,7 @@ import { Solver } from '../eco-configs/eco-config.types'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { Hex } from 'viem'
 import { EcoError } from '../common/errors/eco-error'
-import { ValidationService } from '@/intent/validation.sevice'
+import { ValidationService, validationsFailed } from '@/intent/validation.sevice'
 
 /**
  * Service class that acts as the main validation service for intents. It validates that
@@ -90,7 +90,7 @@ export class ValidateIntentService implements OnModuleInit {
   async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
     const validations = await this.validationService.assertValidations(model.intent, solver)
 
-    if (Object.values(validations).some((v) => v)) {
+    if (validationsFailed(validations)) {
       await this.utilsIntentService.updateInvalidIntentModel(model, validations)
       this.logger.log(
         EcoLogMessage.fromDefault({

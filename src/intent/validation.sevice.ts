@@ -24,21 +24,30 @@ export interface ValidationIntentInterface
  * Type that holds all the possible validations that can fail
  */
 export type ValidationChecks = {
-  proverUnsupported: boolean
-  targetsUnsupported: boolean
-  selectorsUnsupported: boolean
-  expiresEarly: boolean
-  invalidDestination: boolean
-  sameChainFulfill: boolean
+  supportedProver: boolean
+  supportedTargets: boolean
+  supportedSelectors: boolean
+  validExpirationTime: boolean
+  validDestination: boolean
+  fulfillOnDifferentChain: boolean
 }
 
 /**
- * Validates that some of the validations failed
+ * Validates that all of the validations succeeded
  * @param validations  the validations to check
- * @returns
+ * @returns true if all of the validations passed
  */
-export function someFailedValidations(validations: ValidationChecks): boolean {
-  return Object.values(validations).some((v) => v)
+export function validationsSucceeded(validations: ValidationChecks): boolean {
+  return Object.values(validations).every((v) => v)
+}
+
+/**
+ * Checks that at least one of the validations failed
+ * @param validations the validations to check
+ * @returns true if any of the validations failed
+ */
+export function validationsFailed(validations: ValidationChecks): boolean {
+  return !validationsSucceeded(validations)
 }
 
 @Injectable()
@@ -62,23 +71,23 @@ export class ValidationService {
     intent: ValidationIntentInterface,
     solver: Solver,
   ): Promise<ValidationChecks> {
-    const proverUnsupported = !this.supportedProver({
+    const supportedProver = this.supportedProver({
       sourceChainID: intent.route.source,
       prover: intent.reward.prover,
     })
-    const targetsUnsupported = !this.supportedTargets(intent, solver)
-    const selectorsUnsupported = !this.supportedSelectors(intent, solver)
-    const expiresEarly = !this.validExpirationTime(intent)
-    const invalidDestination = !this.validDestination(intent)
-    const sameChainFulfill = !this.fulfillOnDifferentChain(intent)
+    const supportedTargets = this.supportedTargets(intent, solver)
+    const supportedSelectors = this.supportedSelectors(intent, solver)
+    const validExpirationTime = this.validExpirationTime(intent)
+    const validDestination = this.validDestination(intent)
+    const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
 
     return {
-      proverUnsupported,
-      targetsUnsupported,
-      selectorsUnsupported,
-      expiresEarly,
-      invalidDestination,
-      sameChainFulfill,
+      supportedProver,
+      supportedTargets,
+      supportedSelectors,
+      validExpirationTime,
+      validDestination,
+      fulfillOnDifferentChain,
     }
   }
 

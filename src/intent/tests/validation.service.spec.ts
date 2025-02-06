@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { TransactionTargetData, UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
-import { ValidationService } from '@/intent/validation.sevice'
+import {
+  ValidationChecks,
+  ValidationService,
+  validationsSucceeded,
+} from '@/intent/validation.sevice'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 
@@ -34,6 +38,44 @@ describe('ValidationService', () => {
   afterEach(async () => {
     jest.restoreAllMocks()
     mockLogLog.mockClear()
+  })
+
+  describe('on validationsSucceeded', () => {
+    it('should return false if any validations are false', async () => {
+      const validations = {
+        supportedProver: true,
+        supportedTargets: true,
+        supportedSelectors: true,
+        validExpirationTime: false,
+        validDestination: true,
+        fulfillOnDifferentChain: true,
+      }
+      expect(validationsSucceeded(validations)).toBe(false)
+    })
+
+    it('should return false if all validations are false', async () => {
+      const validations = {
+        supportedProver: false,
+        supportedTargets: false,
+        supportedSelectors: false,
+        validExpirationTime: false,
+        validDestination: false,
+        fulfillOnDifferentChain: false,
+      }
+      expect(validationsSucceeded(validations)).toBe(false)
+    })
+
+    it('should return true if all validations are true', async () => {
+      const validations = {
+        supportedProver: true,
+        supportedTargets: true,
+        supportedSelectors: true,
+        validExpirationTime: true,
+        validDestination: true,
+        fulfillOnDifferentChain: true,
+      } as ValidationChecks
+      expect(validationsSucceeded(validations)).toBe(true)
+    })
   })
 
   describe('on individual validation cases', () => {
@@ -185,13 +227,13 @@ describe('ValidationService', () => {
 
   describe('on assertValidations', () => {
     const updateInvalidIntentModel = jest.fn()
-    const assetCases = {
-      supportedProver: 'proverUnsupported',
-      supportedTargets: 'targetsUnsupported',
-      supportedSelectors: 'selectorsUnsupported',
-      validExpirationTime: 'expiresEarly',
-      validDestination: 'invalidDestination',
-      sameChainFulfill: 'sameChainFulfill',
+    const assetCases: Record<keyof ValidationChecks, string> = {
+      supportedProver: 'supportedProver',
+      supportedTargets: 'supportedTargets',
+      supportedSelectors: 'supportedSelectors',
+      validExpirationTime: 'validExpirationTime',
+      validDestination: 'validDestination',
+      fulfillOnDifferentChain: 'fulfillOnDifferentChain',
     }
     beforeEach(() => {
       utilsIntentService.updateInvalidIntentModel = updateInvalidIntentModel
@@ -225,14 +267,14 @@ describe('ValidationService', () => {
           (ac, [, a]) => ({ ...ac, [a]: a == boolVarName }),
           {},
         )
-        if (boolVarName == 'sameChainFulfill') {
+        if (boolVarName == 'fulfillOnDifferentChain') {
           intent.route.destination = intent.route.source
         }
         const now = new Date()
         proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)
         validationService[fun] = jest.fn().mockReturnValueOnce(false)
         const validations = await validationService['assertValidations'](intent, solver)
-        expect(validations[boolVarName]).toBe(true)
+        expect(validations[boolVarName]).toBe(false)
       })
     })
   })

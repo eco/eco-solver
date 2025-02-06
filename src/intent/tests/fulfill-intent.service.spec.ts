@@ -447,7 +447,7 @@ describe('FulfillIntentService', () => {
     }
     const solver = { inboxAddress: '0x9' as Hex }
     let defaultArgs = [] as any
-    const mockFee  = 10n
+    const mockFee = 10n
     beforeEach(() => {
       jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
       fulfillIntentService['getHyperlaneFee'] = jest.fn().mockResolvedValue(mockFee)
@@ -483,11 +483,16 @@ describe('FulfillIntentService', () => {
         jest.spyOn(proofService, 'isStorageProver').mockReturnValue(false)
         jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
         mockEncodeFunctionData.mockReturnValue(data)
-        fulfillIntentService['getFulfillment'] = jest.fn().mockReturnValue('fulfillHyperInstantWithRelayer')
+        fulfillIntentService['getFulfillment'] = jest
+          .fn()
+          .mockReturnValue('fulfillHyperInstantWithRelayer')
         defaultArgs.push(model.intent.reward.prover)
         defaultArgs.push('0x0')
         defaultArgs.push(zeroAddress)
-        const tx = await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](
+          solver.inboxAddress,
+          model as any,
+        )
         expect(tx).toEqual({ to: solver.inboxAddress, data, value: mockFee })
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
@@ -508,7 +513,10 @@ describe('FulfillIntentService', () => {
         mockEncodeFunctionData.mockReturnValue(data)
         fulfillIntentService['getFulfillment'] = jest.fn().mockReturnValue('fulfillHyperBatched')
         defaultArgs.push(model.intent.reward.prover)
-        const tx = await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](
+          solver.inboxAddress,
+          model as any,
+        )
         expect(tx).toEqual({ to: solver.inboxAddress, data, value: 0n })
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
