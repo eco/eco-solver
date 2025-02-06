@@ -15,6 +15,7 @@ import {
   InvalidQuote,
   InvalidQuoteIntent,
   Quote400,
+  Quote500,
   QuoteError,
   SolverUnsupported,
 } from '@/quote/errors'
@@ -118,7 +119,23 @@ export class QuoteService implements OnApplicationBootstrap {
       return res
     }
 
-    return await this.generateQuote(quoteIntent)
+    let quoteRes:
+      | Quote400
+      | Quote500
+      | {
+          tokens: RewardTokensInterface[]
+          expiryTime: string
+        }
+      | Error
+    try {
+      quoteRes = await this.generateQuote(quoteIntent)
+    } catch (e) {
+      quoteRes = InternalQuoteError(e)
+    } finally {
+      await this.updateQuoteDb(quoteIntent, quoteRes!)
+    }
+
+    return quoteRes
   }
 
   /**
@@ -246,7 +263,7 @@ export class QuoteService implements OnApplicationBootstrap {
    * 3. Fulfilling the ask with the reward tokens starting with any deficit tokens the solver
    * has on the source chain
    * 4. If there are any remaining tokens, they are used to fulfill the solver token
-   * starting with the smallest delta
+   * starting with the smallest delta(minBalance - balance) tokens
    * @param quoteIntentModel the quote intent model
    * @returns the quote or an error 400 for insufficient reward to generate the quote
    */
@@ -258,7 +275,7 @@ export class QuoteService implements OnApplicationBootstrap {
     const { deficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
 
     const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
-    const totalAsk = totalFulfill * this.getFeeMultiplier(quoteIntentModel.route) + 10n
+    const totalAsk = totalFulfill * this.getFeeMultiplier(quoteIntentModel.route)
     const totalAvailableRewardAmount = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
     if (totalAsk > totalAvailableRewardAmount) {
       return InsufficientBalance(totalAsk, totalAvailableRewardAmount)
@@ -279,7 +296,7 @@ export class QuoteService implements OnApplicationBootstrap {
             left,
           )
           if (amount > 0n) {
-            deficit.delta.balance -= amount
+            deficit.delta.balance += amount
             reward.balance -= amount
             filled += amount
             //add to quote record
@@ -294,7 +311,7 @@ export class QuoteService implements OnApplicationBootstrap {
       }
     }
     //resort fundable to reflect first round of fills
-    fundable.sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
+    fundable.sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
 
     //if remaining funds, for those with smallest deltas
     if (filled < totalAsk) {
@@ -302,11 +319,12 @@ export class QuoteService implements OnApplicationBootstrap {
         if (filled >= totalAsk) {
           break
         }
+        const left = totalAsk - filled
         const reward = rewards.find((r) => r.address === deficit.delta.address)
         if (reward) {
-          const amount = Mathb.min(Mathb.abs(deficit.delta.balance), reward.balance)
+          const amount = Mathb.min(left, reward.balance)
           if (amount > 0n) {
-            deficit.delta.balance -= amount
+            deficit.delta.balance += amount
             reward.balance -= amount
             filled += amount
             //add to quote record
@@ -395,7 +413,7 @@ export class QuoteService implements OnApplicationBootstrap {
       solver,
       rewards,
       calls,
-      deficitDescending,
+      deficitDescending, //token liquidity with deficit first descending
     }
   }
 

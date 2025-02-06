@@ -7,6 +7,8 @@ import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
 import {
   InfeasibleQuote,
   InsolventUnprofitableQuote,
+  InsufficientBalance,
+  InternalQuoteError,
   InternalSaveError,
   InvalidQuote,
   InvalidQuoteIntent,
@@ -72,6 +74,7 @@ describe('QuotesService', () => {
   })
 
   describe('on getQuote', () => {
+    const quoteIntent = { reward: { tokens: [] }, route: {} } as any
     it('should throw an error if it cant store the quote in the db ', async () => {
       const failedStore = new Error('error')
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(failedStore)
@@ -84,12 +87,28 @@ describe('QuotesService', () => {
       expect(await quoteService.getQuote({} as any)).toEqual(SolverUnsupported)
     })
 
-    it('should return the quote', async () => {
-      const data = { fee: 1n }
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({})
+    it('should save any error in getting the quote to the db', async () => {
+      const failedStore = new Error('error')
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
-      quoteService.generateQuote = jest.fn().mockResolvedValue(data)
-      expect(await quoteService.getQuote({} as any)).toEqual(data)
+      quoteService.generateQuote = jest.fn().mockImplementation(() => {
+        throw failedStore
+      })
+      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
+      expect(await quoteService.getQuote({} as any)).toEqual(InternalQuoteError(failedStore))
+      expect(mockDb).toHaveBeenCalled()
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, InternalQuoteError(failedStore))
+    })
+
+    it('should return the quote', async () => {
+      const quoteReciept = { fee: 1n }
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
+      quoteService.generateQuote = jest.fn().mockResolvedValue(quoteReciept)
+      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
+      expect(await quoteService.getQuote({} as any)).toEqual(quoteReciept)
+      expect(mockDb).toHaveBeenCalled()
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, quoteReciept)
     })
   })
 
@@ -272,13 +291,180 @@ describe('QuotesService', () => {
   })
 
   describe('on generateQuote', () => {
-    it('should ', async () => {})
+    it('should return error on calculate tokens failing', async () => {
+      const error = new Error('error') as any
+      quoteService.calculateTokens = jest.fn().mockResolvedValue({ error } as any)
+      expect(await quoteService.generateQuote({} as any)).toEqual(InternalQuoteError(error))
+    })
 
-    it('should ', async () => {})
+    it('should return an insufficient balance if the reward doesnt meet the ask', async () => {
+      const calculated = {
+        solver: {},
+        rewards: [{ balance: 10n }, { balance: 102n }],
+        calls: [{ balance: 280n }, { balance: 102n }],
+        deficitDescending: [],
+      } as any
+      quoteService.calculateTokens = jest.fn().mockResolvedValue(calculated)
+      const mult = jest.spyOn(quoteService, 'getFeeMultiplier').mockReturnValue(1n)
+      expect(await quoteService.generateQuote({ route: {} } as any)).toEqual(
+        InsufficientBalance(382n, 112n),
+      )
+      expect(mult).toHaveBeenCalled()
+    })
 
-    it('should ', async () => {})
+    describe('on building quote', () => {
+      beforeEach(() => {
+        jest.spyOn(quoteService, 'getFeeMultiplier').mockReturnValue(1n)
+      })
 
-    it('should ', async () => {})
+      async function generateHelper(
+        calculated: any,
+        expectedTokens: { token: string; amount: bigint }[],
+      ) {
+        quoteService.calculateTokens = jest.fn().mockResolvedValue(calculated)
+        quoteService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
+          return { balance: amount }
+        })
+        expect(await quoteService.generateQuote({ route: {} } as any)).toEqual({
+          tokens: expectedTokens,
+          expiryTime: expect.any(String),
+        })
+      }
+
+      it('should fill up the most deficit balance', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [
+            { address: '0x1', balance: 100n },
+            { address: '0x2', balance: 200n },
+          ],
+          calls: [{ balance: 50n }],
+          deficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: -50n }, address: '0x2' },
+          ],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }])
+      })
+
+      it('should fill deficit that has rewards to fill it', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x2', balance: 200n }],
+          calls: [{ balance: 150n }],
+          deficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: -50n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+      })
+
+      it('should fill surplus if no deficit', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x2', balance: 200n }],
+          calls: [{ balance: 40n }],
+          deficitDescending: [
+            { delta: { balance: 100n, address: '0x1' } },
+            { delta: { balance: 200n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(calculated, [{ token: '0x2', amount: 40n }])
+      })
+
+      it('should fill partial deficits', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [
+            { address: '0x1', balance: 200n },
+            { address: '0x2', balance: 200n },
+          ],
+          calls: [{ balance: 150n }],
+          deficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: -50n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(calculated, [
+          { token: '0x1', amount: 100n },
+          { token: '0x2', amount: 50n },
+        ])
+      })
+
+      it('should fill surplus if deficit is not rewarded', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x2', balance: 200n }],
+          calls: [{ balance: 150n }],
+          deficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: 100n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+      })
+
+      it('should fill deficit as much as it can and then surplus', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [
+            { address: '0x1', balance: 50n },
+            { address: '0x2', balance: 20n },
+            { address: '0x3', balance: 200n },
+          ],
+          calls: [{ balance: 150n }],
+          deficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: -50n, address: '0x2' } },
+            { delta: { balance: 100n, address: '0x3' } },
+          ],
+        } as any
+        await generateHelper(calculated, [
+          { token: '0x1', amount: 50n },
+          { token: '0x2', amount: 20n },
+          { token: '0x3', amount: 80n },
+        ])
+      })
+
+      it('should fill deficit in remaining funds loop that can be filled when rewards dont allow order', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [
+            { address: '0x1', balance: 50n },
+            { address: '0x2', balance: 200n },
+          ],
+          calls: [{ balance: 250n }],
+          deficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: -50n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(calculated, [
+          { token: '0x1', amount: 50n },
+          { token: '0x2', amount: 200n },
+        ])
+      })
+
+      it('should fill surpluses in ascending order', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [
+            { address: '0x1', balance: 150n },
+            { address: '0x2', balance: 150n },
+          ],
+          calls: [{ balance: 250n }],
+          deficitDescending: [
+            { delta: { balance: 10n, address: '0x1' } },
+            { delta: { balance: 20n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(calculated, [
+          { token: '0x1', amount: 150n },
+          { token: '0x2', amount: 100n },
+        ])
+      })
+    })
   })
 
   describe('on calculateTokens', () => {
