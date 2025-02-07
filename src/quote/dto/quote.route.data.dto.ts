@@ -1,4 +1,5 @@
 import { CallDataInterface } from '@/contracts'
+import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
@@ -29,6 +30,13 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
   @ApiProperty()
   inbox: Hex
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested()
+  @ApiProperty()
+  @Type(() => QuoteRewardTokensDTO)
+  tokens: QuoteRewardTokensDTO[]
 
   @IsArray()
   @ArrayNotEmpty()

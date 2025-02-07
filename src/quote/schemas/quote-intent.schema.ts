@@ -1,6 +1,6 @@
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
-import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
+import { QuoteRewardDataModel, QuoteRewardDataSchema } from '@/quote/schemas/quote-reward.schema'
+import { QuoteRouteDataModel, QuoteRouteDataSchema } from '@/quote/schemas/quote-route.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Types } from 'mongoose'
 
@@ -8,10 +8,10 @@ import { Types } from 'mongoose'
 export class QuoteIntentModel implements QuoteIntentDataInterface {
   _id: Types.ObjectId
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: QuoteRouteDataSchema })
   route: QuoteRouteDataModel
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: QuoteRewardDataSchema })
   reward: QuoteRewardDataModel
 
   @Prop({ type: Object })

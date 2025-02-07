@@ -144,11 +144,12 @@ export class FulfillIntentService {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-
+        // Approve the inbox to spend the amount, inbox contract pulls the funds
+        // then does the transfer call for the target
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
-          functionName: 'transfer',
-          args: [solver.inboxAddress, dstAmount],
+          functionName: 'approve',
+          args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
         return [{ to: target, data: transferFunctionData }]
