@@ -305,22 +305,23 @@ describe('QuotesService', () => {
         deficitDescending: [],
       } as any
       quoteService.calculateTokens = jest.fn().mockResolvedValue(calculated)
-      const mult = jest.spyOn(quoteService, 'getFeeMultiplier').mockReturnValue(1n)
+      const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
+      const askMock = jest.spyOn(quoteService, 'getAsk').mockReturnValue(ask)
       expect(await quoteService.generateQuote({ route: {} } as any)).toEqual(
-        InsufficientBalance(382n, 112n),
+        InsufficientBalance(ask, 112n),
       )
-      expect(mult).toHaveBeenCalled()
+      expect(askMock).toHaveBeenCalled()
     })
 
     describe('on building quote', () => {
-      beforeEach(() => {
-        jest.spyOn(quoteService, 'getFeeMultiplier').mockReturnValue(1n)
-      })
+      beforeEach(() => {})
 
       async function generateHelper(
         calculated: any,
         expectedTokens: { token: string; amount: bigint }[],
       ) {
+        const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
+        jest.spyOn(quoteService, 'getAsk').mockReturnValue(ask)
         quoteService.calculateTokens = jest.fn().mockResolvedValue(calculated)
         quoteService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
@@ -772,10 +773,17 @@ describe('QuotesService', () => {
     })
   })
 
-  describe('on getFeeMultiplier', () => {
-    it('should return the correct fee multiplier', async () => {
-      const feeMultiplier = quoteService.getFeeMultiplier({} as any)
-      expect(feeMultiplier).toBe(1n)
+  describe('on getAsk', () => {
+    it('should return the correct ask for less than $100', async () => {
+      const ask = quoteService.getAsk(1_000_000n, {} as any)
+      expect(ask).toBe(1_020_000n)
+    })
+
+    it('should return the correct ask for multiples of $100', async () => {
+      expect(quoteService.getAsk(99_000_000n, {} as any)).toBe(99_020_000n)
+      expect(quoteService.getAsk(100_000_000n, {} as any)).toBe(100_035_000n)
+      expect(quoteService.getAsk(999_000_000n, {} as any)).toBe(999_155_000n)
+      expect(quoteService.getAsk(1_000_000_000n, {} as any)).toBe(1000_170_000n)
     })
   })
 

@@ -275,7 +275,7 @@ export class QuoteService implements OnApplicationBootstrap {
     const { deficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
 
     const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
-    const totalAsk = totalFulfill * this.getFeeMultiplier(quoteIntentModel.route)
+    const totalAsk = this.getAsk(totalFulfill, quoteIntentModel.route)
     const totalAvailableRewardAmount = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
     if (totalAsk > totalAvailableRewardAmount) {
       return InsufficientBalance(totalAsk, totalAvailableRewardAmount)
@@ -491,15 +491,18 @@ export class QuoteService implements OnApplicationBootstrap {
   }
 
   /**
-   * Gets the fee multiplier for the quote intent ask.
+   * Gets the ask for the quote
    *
+   * @param totalFulfill the total amount to fulfill, assumes base6
    * @param route the route of the quote intent
-   * @returns a bigint representing the fee multiplier
+   * @returns a bigint representing the ask
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getFeeMultiplier(route: QuoteRouteDataInterface) {
-    //todo implement fee logic
-    return 1n
+  getAsk(totalFulfill: bigint, route: QuoteRouteDataInterface) {
+    //0.02 cents + $0.015 per 100$
+    //2E4 + 15E3 * totalFulfill / 1E8 in base6
+    const fee = 20_000n + (totalFulfill / 100_000_000n) * 15_000n
+    return fee + totalFulfill
   }
 
   /**
