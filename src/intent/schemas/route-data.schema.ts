@@ -1,4 +1,8 @@
 import { TargetCallDataModel, TargetCallDataSchema } from '@/intent/schemas/intent-call-data.schema'
+import {
+  TokenAmountDataModel,
+  TokenAmountDataSchema,
+} from '@/intent/schemas/intent-token-amount.schema'
 import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
@@ -13,6 +17,8 @@ export class RouteDataModel implements RouteType {
   destination: bigint
   @Prop({ required: true, type: String })
   inbox: Hex
+  @Prop({ required: true, type: [TokenAmountDataSchema] })
+  tokens: TokenAmountDataModel[]
   @Prop({ required: true, type: [TargetCallDataSchema] })
   calls: TargetCallDataModel[]
 
@@ -21,11 +27,13 @@ export class RouteDataModel implements RouteType {
     source: bigint,
     destination: bigint,
     inbox: Hex,
+    routeTokens: TokenAmountDataModel[],
     calls: TargetCallDataModel[],
   ) {
     this.salt = salt
     this.source = source
     this.destination = destination
+    this.tokens = routeTokens
     this.inbox = inbox
     this.calls = calls
   }

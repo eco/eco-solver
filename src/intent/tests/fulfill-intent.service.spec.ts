@@ -307,7 +307,8 @@ describe('FulfillIntentService', () => {
         ),
       ).toEqual([])
     })
-    it('should return the transfer selector with data correctly encoded', async () => {
+
+    it('should return the approve selector with data correctly encoded', async () => {
       const transferFunctionData = '0x9911'
       mockEncodeFunctionData.mockReturnValue(transferFunctionData)
       expect(
@@ -319,7 +320,7 @@ describe('FulfillIntentService', () => {
       ).toEqual([{ to: target, data: transferFunctionData }])
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),
-        functionName: 'transfer',
+        functionName: 'approve',
         args: [inboxAddress, amount],
       })
     })

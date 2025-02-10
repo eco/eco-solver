@@ -1,3 +1,7 @@
+import {
+  TokenAmountDataModel,
+  TokenAmountDataSchema,
+} from '@/intent/schemas/intent-token-amount.schema'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import {
   QuoteRouteCallDataModel,
@@ -14,6 +18,8 @@ export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   destination: bigint
   @Prop({ required: true, type: String })
   inbox: Hex
+  @Prop({ required: true, type: [TokenAmountDataSchema] })
+  tokens: TokenAmountDataModel[]
   @Prop({ required: true, type: [QuoteRouteCallDataSchema] })
   calls: QuoteRouteCallDataModel[]
 }
