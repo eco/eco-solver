@@ -17,6 +17,10 @@ export class EcoError extends Error {
     return new EcoError(`Could not create alchemy provider ${network}`)
   }
 
+  static BalanceServiceInvalidDecimals(address: string) {
+    return new EcoError(`Token has to be decimals 6, verify conversions before allowing ${address}`)
+  }
+
   static IntentSourceDataNotFound(intentHash: string) {
     return new EcoError(`Could not find data for intent hash ${intentHash}`)
   }
@@ -45,7 +49,7 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
-  static FeasableIntentNoTransactionError = new Error('No transaction data found')
+  static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentBatchError = new Error('Could not fulfill batch transaction')
   static FulfillIntentRevertError(receipt: TransactionReceipt) {

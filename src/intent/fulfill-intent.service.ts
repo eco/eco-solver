@@ -72,16 +72,16 @@ export class FulfillIntentService {
     const targetSolveTxs = this.getTransactionsForTargets(data)
 
     // Create fulfill tx
-    const fulfillTx = await this.getFulfillIntentTx(solver.solverAddress, model)
+    const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `Fulfilling batch transaction`,
+        message: `Fulfilling ${this.getFulfillment()} transaction`,
         properties: {
-          batch: transactions,
+          transactions,
         },
       }),
     )
@@ -144,11 +144,12 @@ export class FulfillIntentService {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-
+        // Approve the inbox to spend the amount, inbox contract pulls the funds
+        // then does the transfer call for the target
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
-          functionName: 'transfer',
-          args: [solver.solverAddress, dstAmount],
+          functionName: 'approve',
+          args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
         return [{ to: target, data: transferFunctionData }]
@@ -170,7 +171,7 @@ export class FulfillIntentService {
 
     // Create transactions for intent targets
     return model.intent.route.calls.flatMap((call) => {
-      const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
+      const tt = this.utilsIntentService.getTransactionTargetData(model.intent, solver, call)
       if (tt === null) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -197,12 +198,12 @@ export class FulfillIntentService {
 
   /**
    * Returns the fulfill intent data
-   * @param solverAddress
+   * @param inboxAddress
    * @param model
    * @private
    */
   private async getFulfillIntentTx(
-    solverAddress: Hex,
+    inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
@@ -230,8 +231,8 @@ export class FulfillIntentService {
       }
     }
     let fee = 0n
-    if (isHyperlane) {
-      fee = BigInt((await this.getHyperlaneFee(solverAddress, model)) || '0x0')
+    if (isHyperlane && functionName === 'fulfillHyperInstantWithRelayer') {
+      fee = BigInt((await this.getHyperlaneFee(inboxAddress, model)) || '0x0')
     }
 
     const fulfillIntentData = encodeFunctionData({
@@ -242,7 +243,7 @@ export class FulfillIntentService {
     })
 
     return {
-      to: solverAddress,
+      to: inboxAddress,
       data: fulfillIntentData,
       // ...(isHyperlane && fee > 0 && { value: fee }),
       value: fee,
@@ -255,7 +256,7 @@ export class FulfillIntentService {
    * @private
    */
   private async getHyperlaneFee(
-    solverAddress: Hex,
+    inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<Hex | undefined> {
     const client = await this.kernelAccountClientService.getClient(
@@ -279,7 +280,7 @@ export class FulfillIntentService {
       args,
     })
     const proverData = await client.call({
-      to: solverAddress,
+      to: inboxAddress,
       data: callData,
     })
     return proverData.data

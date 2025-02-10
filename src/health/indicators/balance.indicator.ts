@@ -102,10 +102,11 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const solvers: Array<{
       accountAddress: `0x${string}` | undefined
       tokens: Record<string, TokenType>
-      solverAddress: Hex
+      inboxAddress: Hex
       network: Network
       chainID: number
     }> = []
+
     const solverConfig = this.configService.getSolvers()
     await Promise.all(
       Object.entries(solverConfig).map(async ([, solver]) => {

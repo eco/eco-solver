@@ -1,9 +1,9 @@
-import { TargetCallViemType } from '@/contracts'
+import { CallDataInterface } from '@/contracts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class TargetCallDataModel implements TargetCallViemType {
+export class TargetCallDataModel implements CallDataInterface {
   @Prop({ required: true, type: String })
   target: Hex
   @Prop({ required: true, type: String })

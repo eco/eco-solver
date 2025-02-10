@@ -16,8 +16,8 @@ describe('WatchFulfillmentService', () => {
   const mockLogLog = jest.fn()
 
   const inboxes = [
-    { chainID: 1, solverAddress: '0x1234' },
-    { chainID: 2, solverAddress: '0x5678' },
+    { chainID: 1, inboxAddress: '0x1234' },
+    { chainID: 2, inboxAddress: '0x5678' },
   ] as any
   const inboxRecord = inboxes.reduce((acc, solver) => {
     acc[solver.chainID] = solver
@@ -83,7 +83,7 @@ describe('WatchFulfillmentService', () => {
           const { address, eventName, args } = mockWatch.mock.calls[index][0]
           const partial = { address, eventName, args }
           expect(partial).toEqual({
-            address: s.solverAddress,
+            address: s.inboxAddress,
             eventName: 'Fulfillment',
             args: { _sourceChainID: supportedChains },
           })

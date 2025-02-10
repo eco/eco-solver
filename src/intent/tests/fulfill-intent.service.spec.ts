@@ -67,7 +67,7 @@ describe('FulfillIntentService', () => {
   })
   const hash = address1
   const claimant = address2
-  const solver = { solverAddress: address1, chainID: 1 }
+  const solver = { inboxAddress: address1, chainID: 1 }
   const model = {
     intent: {
       route: { hash, destination: 85432, getHash: () => '0x6543' },
@@ -113,7 +113,7 @@ describe('FulfillIntentService', () => {
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
         expect(await fulfillIntentService.executeFulfillIntent(hash)).toBeUndefined()
-        expect(mockGetFulfillIntentTx).toHaveBeenCalledWith(solver.solverAddress, model)
+        expect(mockGetFulfillIntentTx).toHaveBeenCalledWith(solver.inboxAddress, model)
       })
     })
 
@@ -295,7 +295,7 @@ describe('FulfillIntentService', () => {
 
   describe('on handleErc20', () => {
     const selector = '0xa9059cbb'
-    const solverAddress = '0x131'
+    const inboxAddress = '0x131'
     const target = '0x9'
     const amount = 100n
     it('should return empty on unsupported selector', async () => {
@@ -307,20 +307,21 @@ describe('FulfillIntentService', () => {
         ),
       ).toEqual([])
     })
-    it('should return the transfer selector with data correctly encoded', async () => {
+
+    it('should return the approve selector with data correctly encoded', async () => {
       const transferFunctionData = '0x9911'
       mockEncodeFunctionData.mockReturnValue(transferFunctionData)
       expect(
         fulfillIntentService.handleErc20(
           { selector, decodedFunctionData: { args: [, amount] } } as any,
-          { solverAddress } as any,
+          { inboxAddress } as any,
           target,
         ),
       ).toEqual([{ to: target, data: transferFunctionData }])
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),
-        functionName: 'transfer',
-        args: [solverAddress, amount],
+        functionName: 'approve',
+        args: [inboxAddress, amount],
       })
     })
   })
@@ -352,7 +353,7 @@ describe('FulfillIntentService', () => {
         [],
       )
       expect(utilsIntentService.getTransactionTargetData).toHaveBeenCalledWith(
-        model,
+        model.intent,
         solver,
         model.intent.route.calls[0],
       )
@@ -445,11 +446,12 @@ describe('FulfillIntentService', () => {
       },
       event: { sourceChainID: 10 },
     }
-    const solver = { solverAddress: '0x9' as Hex }
+    const solver = { inboxAddress: '0x9' as Hex }
     let defaultArgs = [] as any
-
+    const mockFee = 10n
     beforeEach(() => {
       jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
+      fulfillIntentService['getHyperlaneFee'] = jest.fn().mockResolvedValue(mockFee)
       defaultArgs = [
         model.intent.route,
         model.intent.reward.getHash(),
@@ -463,7 +465,7 @@ describe('FulfillIntentService', () => {
         const mockHyperlane = jest.fn().mockReturnValue(false)
         proofService.isStorageProver = mockStorage
         proofService.isHyperlaneProver = mockHyperlane
-        await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
+        await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
@@ -478,14 +480,21 @@ describe('FulfillIntentService', () => {
 
     describe('on PROOF_HYPERLANE', () => {
       it('should use the correct function name and args for fulfillHyperInstantWithRelayer', async () => {
-        const mockStorage = jest.fn().mockReturnValue(false)
-        const mockHyperlane = jest.fn().mockReturnValue(true)
-        proofService.isStorageProver = mockStorage
-        proofService.isHyperlaneProver = mockHyperlane
+        const data = '0x9911'
+        jest.spyOn(proofService, 'isStorageProver').mockReturnValue(false)
+        jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
+        mockEncodeFunctionData.mockReturnValue(data)
+        fulfillIntentService['getFulfillment'] = jest
+          .fn()
+          .mockReturnValue('fulfillHyperInstantWithRelayer')
         defaultArgs.push(model.intent.reward.prover)
         defaultArgs.push('0x0')
         defaultArgs.push(zeroAddress)
-        await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](
+          solver.inboxAddress,
+          model as any,
+        )
+        expect(tx).toEqual({ to: solver.inboxAddress, data, value: mockFee })
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
@@ -499,13 +508,17 @@ describe('FulfillIntentService', () => {
       })
 
       it('should use the correct function name and args for fulfillHyperBatched', async () => {
-        const mockStorage = jest.fn().mockReturnValue(false)
-        const mockHyperlane = jest.fn().mockReturnValue(true)
-        proofService.isStorageProver = mockStorage
-        proofService.isHyperlaneProver = mockHyperlane
+        const data = '0x9911'
+        jest.spyOn(proofService, 'isStorageProver').mockReturnValue(false)
+        jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(true)
+        mockEncodeFunctionData.mockReturnValue(data)
         fulfillIntentService['getFulfillment'] = jest.fn().mockReturnValue('fulfillHyperBatched')
         defaultArgs.push(model.intent.reward.prover)
-        await fulfillIntentService['getFulfillIntentTx'](solver.solverAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](
+          solver.inboxAddress,
+          model as any,
+        )
+        expect(tx).toEqual({ to: solver.inboxAddress, data, value: 0n })
         expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
         expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)

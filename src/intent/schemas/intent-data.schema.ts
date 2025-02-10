@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
 import { getAddress, Hex, Mutable } from 'viem'
-import { IntentCreatedEventLog, TargetCallViemType, TokenAmountViemType } from '@/contracts'
+import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
@@ -24,15 +24,16 @@ export class IntentDataModel implements IntentType {
     source: bigint,
     destination: bigint,
     inbox: Hex,
-    calls: TargetCallViemType[],
+    routeTokens: RewardTokensInterface[],
+    calls: CallDataInterface[],
     creator: Hex,
     prover: Hex,
     deadline: bigint,
     nativeValue: bigint,
-    tokens: TokenAmountViemType[],
+    rewardTokens: RewardTokensInterface[],
     logIndex: number,
   ) {
-    if (calls.length == 0 || tokens.length == 0) {
+    if (calls.length == 0 || rewardTokens.length == 0 || routeTokens.length == 0) {
       throw EcoError.IntentSourceDataInvalidParams
     }
     this.hash = hash
@@ -42,6 +43,10 @@ export class IntentDataModel implements IntentType {
       source,
       destination,
       getAddress(inbox),
+      routeTokens.map((token) => {
+        token.token = getAddress(token.token)
+        return token
+      }),
       calls.map((call) => {
         call.target = getAddress(call.target)
         return call
@@ -53,7 +58,7 @@ export class IntentDataModel implements IntentType {
       getAddress(prover),
       deadline,
       nativeValue,
-      tokens.map((token) => {
+      rewardTokens.map((token) => {
         token.token = getAddress(token.token)
         return token
       }),
@@ -70,12 +75,13 @@ export class IntentDataModel implements IntentType {
       e.source,
       e.destination,
       e.inbox,
+      e.routeTokens as Mutable<typeof e.routeTokens>,
       e.calls as Mutable<typeof e.calls>,
       e.creator,
       e.prover,
       e.deadline,
       e.nativeValue,
-      e.tokens as Mutable<typeof e.tokens>,
+      e.rewardTokens as Mutable<typeof e.rewardTokens>,
       logIndex,
     )
   }

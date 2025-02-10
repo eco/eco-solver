@@ -6,11 +6,13 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
-import { difference, includes } from 'lodash'
+import { includes } from 'lodash'
 import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
-import { getERCAbi, TargetCallViemType } from '../contracts'
+import { getERCAbi, CallDataInterface, getERC20Selector } from '../contracts'
 import { getFunctionBytes } from '../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
+import { Network } from 'alchemy-sdk'
+import { ValidationChecks, ValidationIntentInterface } from '@/intent/validation.sevice'
 
 /**
  * Data for a transaction target
@@ -19,6 +21,14 @@ export interface TransactionTargetData {
   decodedFunctionData: DecodeFunctionDataReturnType
   selector: Hex
   targetConfig: TargetContract
+}
+
+/**
+ * Type for logging in validations
+ */
+export interface IntentLogType {
+  hash?: Hex
+  sourceNetwork?: Network
 }
 
 /**
@@ -72,17 +82,7 @@ export class UtilsIntentService {
    * @param invalidCause the reason the intent is invalid
    * @returns
    */
-  async updateInvalidIntentModel(
-    model: IntentSourceModel,
-    invalidCause: {
-      proverUnsupported: boolean
-      targetsUnsupported: boolean
-      selectorsUnsupported: boolean
-      expiresEarly: boolean
-      validDestination: boolean
-      sameChainFulfill: boolean
-    },
-  ) {
+  async updateInvalidIntentModel(model: IntentSourceModel, invalidCause: ValidationChecks) {
     model.status = 'INVALID'
     model.receipt = invalidCause as any
     return await this.updateIntentModel(model)
@@ -128,44 +128,18 @@ export class UtilsIntentService {
   }
 
   /**
-   * Verifies that the intent targets and data arrays are equal in length, and
-   * that every target-data can be decoded
-   *
-   * @param model the intent model
-   * @param solver the solver for the intent
-   * @returns
-   */
-  selectorsSupported(model: IntentSourceModel, solver: Solver): boolean {
-    if (model.intent.route.calls.length == 0) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateIntent: Target/data invalid`,
-          properties: {
-            intent: model.intent,
-          },
-        }),
-      )
-      return false
-    }
-    return model.intent.route.calls.every((call) => {
-      const tx = this.getTransactionTargetData(model, solver, call)
-      return tx
-    })
-  }
-
-  /**
    * Decodes the function data for a target contract
    *
-   * @param model the intent model
+   * @param intent the intent model
    * @param solver the solver for the intent
    * @param target  the target address
    * @param data  the data to decode
    * @returns
    */
   getTransactionTargetData(
-    model: IntentSourceModel,
+    intent: ValidationIntentInterface,
     solver: Solver,
-    call: TargetCallViemType,
+    call: CallDataInterface,
   ): TransactionTargetData | null {
     const targetConfig = solver.targets[call.target as string] as TargetContract
     if (!targetConfig) {
@@ -183,11 +157,13 @@ export class UtilsIntentService {
     if (!supported) {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Selectors not supported for intent ${model.intent.hash}`,
+          message: `Selectors not supported for intent ${intent.hash ? intent.hash : 'quote'}`,
           properties: {
-            intentHash: model.intent.hash,
-            sourceNetwork: model.event.sourceNetwork,
             unsupportedSelector: selector,
+            source: intent.route.source,
+            ...(intent.hash && {
+              intentHash: intent.hash,
+            }),
           },
         }),
       )
@@ -197,31 +173,27 @@ export class UtilsIntentService {
   }
 
   /**
-   * Verifies that all the intent targets are supported by the solver
-   *
-   * @param model the intent model
-   * @param solver the solver for the intent
+   * Verifies that a target is of type erc20 and that the selector is supported
+   * @param ttd the transaction target data
+   * @param permittedSelector the selector to check against, if not provided it will check against all erc20 selectors
    * @returns
    */
-  targetsSupported(model: IntentSourceModel, solver: Solver): boolean {
-    const modelTargets = model.intent.route.calls.map((call) => call.target)
-    const solverTargets = Object.keys(solver.targets)
-    //all targets are included in the solver targets array
-    const exist = solverTargets.length > 0 && modelTargets.length > 0
-    const targetsSupported = exist && difference(modelTargets, solverTargets).length == 0
-
-    if (!targetsSupported) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Targets not supported for intent ${model.intent.hash}`,
-          properties: {
-            intentHash: model.intent.hash,
-            sourceNetwork: model.event.sourceNetwork,
-          },
-        }),
-      )
+  isERC20Target(ttd: TransactionTargetData | null, permittedSelector?: Hex): boolean {
+    if (!ttd) {
+      return false
     }
-    return targetsSupported
+    const isERC20 = ttd.targetConfig.contractType === 'erc20'
+    if (permittedSelector && ttd.selector !== permittedSelector) {
+      return false
+    }
+    switch (ttd.selector) {
+      case getERC20Selector('transfer'):
+        const correctArgs =
+          !!ttd.decodedFunctionData.args && ttd.decodedFunctionData.args.length === 2
+        return isERC20 && correctArgs
+      default:
+        return false
+    }
   }
 
   /**
@@ -240,17 +212,11 @@ export class UtilsIntentService {
         return { model, solver: null, err: EcoError.IntentSourceDataNotFound(intentHash) }
       }
 
-      const solver = this.ecoConfigService.getSolver(model.intent.route.destination)
+      const solver = await this.getSolver(model.intent.route.destination, {
+        intentHash: intentHash,
+        sourceNetwork: model.event.sourceNetwork,
+      })
       if (!solver) {
-        this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: `No solver found for chain ${model.intent.route.destination}`,
-            properties: {
-              intentHash: intentHash,
-              sourceNetwork: model.event.sourceNetwork,
-            },
-          }),
-        )
         return
       }
       return { model, solver }
@@ -266,5 +232,21 @@ export class UtilsIntentService {
       )
       return
     }
+  }
+
+  async getSolver(destination: bigint, opts?: any): Promise<Solver | undefined> {
+    const solver = this.ecoConfigService.getSolver(destination)
+    if (!solver) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `No solver found for chain ${destination}`,
+          properties: {
+            ...(opts ? opts : {}),
+          },
+        }),
+      )
+      return
+    }
+    return solver
   }
 }

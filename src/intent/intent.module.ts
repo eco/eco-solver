@@ -13,6 +13,8 @@ import { TransactionModule } from '../transaction/transaction.module'
 import { MongooseModule } from '@nestjs/mongoose'
 import { SolverModule } from '../solver/solver.module'
 import { FlagsModule } from '../flags/flags.module'
+import { ValidationService } from '@/intent/validation.sevice'
+import { FeasibilityService } from '@/intent/feasibility.service'
 
 @Module({
   imports: [
@@ -28,16 +30,20 @@ import { FlagsModule } from '../flags/flags.module'
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
+    FeasibilityService,
     FulfillIntentService,
     UtilsIntentService,
+    ValidationService,
   ],
   // controllers: [IntentSourceController],
   exports: [
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
+    FeasibilityService,
     FulfillIntentService,
     UtilsIntentService,
+    ValidationService,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })
