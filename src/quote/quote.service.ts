@@ -1,11 +1,9 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getERC20Selector, RewardTokensInterface } from '@/contracts'
+import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeasibilityService } from '@/intent/feasibility.service'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { validationsSucceeded, ValidationService } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import {
   InfeasibleQuote,
   InsolventUnprofitableQuote,
@@ -16,83 +14,31 @@ import {
   InvalidQuoteIntent,
   Quote400,
   Quote500,
-  QuoteError,
   SolverUnsupported,
 } from '@/quote/errors'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import * as dayjs from 'dayjs'
-import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
-import { normalizeBalance } from '@/quote/utils'
-import { getAddress, Hex, Prettify } from 'viem'
-import { Solver } from '@/eco-configs/eco-config.types'
-
-/**
- * The response quote data
- */
-export interface QuoteData {
-  tokens: RewardTokensInterface[]
-  expiryTime: string
-}
-
-/**
- * The normalized tokens for the quote intent
- */
-export interface NormalizedTokens {
-  rewardTokens: RewardTokensInterface[]
-  callTokens: RewardTokensInterface[]
-}
-
-/**
- * The normalized token type
- */
-export type NormalizedToken = {
-  balance: bigint
-  chainID: bigint
-  address: Hex
-  decimals: number
-}
-
-/**
- * The type for the token fetch analysis with the normalized delta
- */
-type DeficitDescending = Prettify<TokenFetchAnalysis & { delta: NormalizedToken }>
-
-/**
- * The type for the calculated tokens
- */
-type CalculateTokensType = {
-  solver: Solver
-  rewards: NormalizedToken[]
-  calls: NormalizedToken[]
-  deficitDescending: DeficitDescending[]
-}
-
-/**
- * The base decimal number for erc20 tokens.
- */
-export const BASE_DECIMALS: number = 6
+import { Hex } from 'viem'
+import { CalculateTokensType, FeeService } from '@/fee/fee.service'
 
 /**
  * Service class for getting configs for the app
  */
 @Injectable()
-export class QuoteService implements OnApplicationBootstrap {
+export class QuoteService {
   private logger = new Logger(QuoteService.name)
 
   constructor(
     @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
-    private readonly balanceService: BalanceService,
+    private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly feasibilityService: FeasibilityService,
-    private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
-
-  async onApplicationBootstrap() {}
 
   /**
    * Generates a quote for the quote intent data.
@@ -268,14 +214,14 @@ export class QuoteService implements OnApplicationBootstrap {
    * @returns the quote or an error 400 for insufficient reward to generate the quote
    */
   async generateQuote(quoteIntentModel: QuoteIntentDataInterface) {
-    const calculated = await this.calculateTokens(quoteIntentModel)
+    const calculated = await this.feeService.calculateTokens(quoteIntentModel)
     if (typeof calculated === 'object' && 'error' in calculated) {
       return InternalQuoteError(calculated.error)
     }
     const { deficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
 
     const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
-    const totalAsk = this.getAsk(totalFulfill, quoteIntentModel.route)
+    const totalAsk = this.feeService.getAsk(totalFulfill, quoteIntentModel.route)
     const totalAvailableRewardAmount = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
     if (totalAsk > totalAvailableRewardAmount) {
       return InsufficientBalance(totalAsk, totalAvailableRewardAmount)
@@ -304,7 +250,7 @@ export class QuoteService implements OnApplicationBootstrap {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += this.deconvertNormalize(amount, deficit.delta).balance
+            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -332,7 +278,9 @@ export class QuoteService implements OnApplicationBootstrap {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += Mathb.abs(this.deconvertNormalize(amount, deficit.delta).balance)
+            tokenToFund.amount += Mathb.abs(
+              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
+            )
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -344,165 +292,6 @@ export class QuoteService implements OnApplicationBootstrap {
       tokens: Object.values(quoteRecord),
       expiryTime: this.getQuoteExpiryTime(),
     }
-  }
-
-  /**
-   * Gets the solver tokens for the source chain and orders them in
-   * a normalized delta descending order. delta = (balance - minBalance) * decimals
-   * @param route the route
-   * @returns
-   */
-  async calculateTokens(quote: QuoteIntentDataInterface): Promise<
-    | CalculateTokensType
-    | {
-        error?: Error
-      }
-  > {
-    const route = quote.route
-    const srcChainID = route.source
-    const destChainID = route.destination
-
-    const source = this.ecoConfigService
-      .getIntentSources()
-      .find((intent) => BigInt(intent.chainID) == srcChainID)!
-    const solver = this.ecoConfigService.getSolver(destChainID)!
-
-    if (!source || !solver) {
-      let error: Error | undefined
-      if (!source) {
-        error = QuoteError.NoIntentSourceForSource(srcChainID)
-      } else if (!solver) {
-        error = QuoteError.NoSolverForDestination(destChainID)
-      }
-      if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: error.message,
-            properties: {
-              error,
-              source,
-              solver,
-            },
-          }),
-        )
-        return { error }
-      }
-    }
-
-    //Get the tokens the solver accepts on the source chain
-    const balance = await this.balanceService.fetchTokenData(Number(srcChainID))
-    if (!balance) {
-      throw QuoteError.FetchingCallTokensFailed(quote.route.source)
-    }
-    const deficitDescending = balance
-      .filter((token) => source.tokens.includes(token.balance.address))
-      .map((token) => {
-        return {
-          ...token,
-          //calculates, converts and normalizes the delta
-          delta: this.calculateDelta(token),
-        }
-      })
-      //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
-      .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
-
-    //ge/calculate the rewards for the quote intent
-    const rewards = await this.getRewardsNormalized(quote)
-    const calls = await this.getCallsNormalized(quote)
-    return {
-      solver,
-      rewards,
-      calls,
-      deficitDescending, //token liquidity with deficit first descending
-    }
-  }
-
-  /**
-   * Fetches the rewardes for the quote intent, grabs their info from the erc20 contracts and then converts
-   * and normalizes their values
-   * @param quote the quote intent
-   */
-  async getRewardsNormalized(quote: QuoteIntentDataInterface) {
-    const srcChainID = quote.route.source
-    const erc20Rewards = await this.balanceService.fetchTokenBalances(
-      Number(srcChainID),
-      quote.reward.tokens.map((reward) => reward.token),
-    )
-
-    return Object.values(erc20Rewards).map((tb) => {
-      const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
-      return this.convertNormalize(token!.amount, {
-        chainID: srcChainID,
-        address: tb.address,
-        decimals: tb.decimals,
-      })
-    })
-  }
-
-  /**
-   * Fetches the call tokens for the quote intent, grabs their info from the erc20 contracts and then converts
-   * to a standard reserve value for comparisons
-   * @param quote the quote intent
-   * @param solver the solver for the quote intent
-   * @returns
-   */
-  async getCallsNormalized(quote: QuoteIntentDataInterface) {
-    const solver = this.ecoConfigService.getSolver(quote.route.destination)
-    if (!solver) {
-      throw QuoteError.NoSolverForDestination(quote.route.destination)
-    }
-    const callERC20Balances = await this.balanceService.fetchTokenBalances(
-      solver.chainID,
-      quote.route.calls.map((call) => call.target),
-    )
-    if (Object.keys(callERC20Balances).length === 0) {
-      throw QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID))
-    }
-
-    return quote.route.calls.map((call) => {
-      const ttd = this.utilsIntentService.getTransactionTargetData(quote, solver, call)
-      if (!this.utilsIntentService.isERC20Target(ttd, getERC20Selector('transfer'))) {
-        const err = QuoteError.NonERC20TargetInCalls()
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: err.message,
-            properties: {
-              error: err,
-              call,
-              ttd,
-            },
-          }),
-        )
-        throw err
-      }
-      const callTarget = callERC20Balances[call.target]
-      if (!callTarget) {
-        throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
-      }
-
-      const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
-
-      return this.convertNormalize(transferAmount, {
-        chainID: BigInt(solver.chainID),
-        address: call.target,
-        decimals: callTarget.decimals,
-      })
-    })
-  }
-
-  /**
-   * Gets the ask for the quote
-   *
-   * @param totalFulfill the total amount to fulfill, assumes base6
-   * @param route the route of the quote intent
-   * @returns a bigint representing the ask
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getAsk(totalFulfill: bigint, route: QuoteRouteDataInterface) {
-    //0.02 cents + $0.015 per 100$
-    //2E4 + 15E3 * totalFulfill / 1E8 in base6
-    const fee = 20_000n + (totalFulfill / 100_000_000n) * 15_000n
-    return fee + totalFulfill
   }
 
   /**
@@ -535,61 +324,6 @@ export class QuoteService implements OnApplicationBootstrap {
         }),
       )
       return e
-    }
-  }
-
-  /**
-   * Calculates the delta for the token as defined as the balance - minBalance
-   * @param token the token to us
-   * @returns
-   */
-  calculateDelta(token: TokenFetchAnalysis) {
-    const minBalance = normalizeBalance(
-      { balance: BigInt(token.config.minBalance), decimal: 0 },
-      token.balance.decimals,
-    ).balance
-    const delta = token.balance.balance - minBalance
-    return this.convertNormalize(delta, {
-      chainID: BigInt(token.chainId),
-      address: token.config.address,
-      decimals: token.balance.decimals,
-    })
-  }
-
-  /**
-   * Converts and normalizes the token to a standard reserve value for comparisons
-   * @param value the value to convert
-   * @param token the token to us
-   * @returns
-   */
-  convertNormalize(
-    value: bigint,
-    token: { chainID: bigint; address: Hex; decimals: number },
-  ): NormalizedToken {
-    const original = value
-    const newDecimals = BASE_DECIMALS
-    //todo some conversion, assuming here 1-1
-    return {
-      ...token,
-      balance: normalizeBalance({ balance: original, decimal: token.decimals }, newDecimals)
-        .balance,
-      decimals: newDecimals,
-    }
-  }
-
-  /**
-   * Deconverts and denormalizes the token form a standard reserve value for comparisons
-   * @param value the value to deconvert
-   * @param token the token to deconvert
-   * @returns
-   */
-  deconvertNormalize(value: bigint, token: { chainID: bigint; address: Hex; decimals: number }) {
-    const original = value
-    //todo some conversion, assuming here 1-1
-    return {
-      ...token,
-      balance: normalizeBalance({ balance: original, decimal: BASE_DECIMALS }, token.decimals)
-        .balance,
     }
   }
 }

@@ -1,15 +1,12 @@
 const mockEncodeFunctionData = jest.fn()
-
+const mockGetTransactionTargetData = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex, zeroAddress } from 'viem'
-import { getModelToken } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
 import { InboxAbi } from '@eco-foundation/routes-ts'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { ProofService } from '@/prover/proof.service'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { UtilsIntentService } from '../utils-intent.service'
 import { FulfillIntentService } from '../fulfill-intent.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -21,6 +18,12 @@ jest.mock('viem', () => {
   }
 })
 
+jest.mock('@/intent/utils', () => {
+  return {
+    ...jest.requireActual('@/intent/utils'),
+    getTransactionTargetData: mockGetTransactionTargetData,
+  }
+})
 describe('FulfillIntentService', () => {
   const address1 = '0x1111111111111111111111111111111111111111'
   const address2 = '0x2222222222222222222222222222222222222222'
@@ -30,7 +33,6 @@ describe('FulfillIntentService', () => {
   let proofService: DeepMocked<ProofService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let intentModel: DeepMocked<Model<IntentSourceModel>>
 
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -44,10 +46,6 @@ describe('FulfillIntentService', () => {
         { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        {
-          provide: getModelToken(IntentSourceModel.name),
-          useValue: createMock<Model<IntentSourceModel>>(),
-        },
       ],
     }).compile()
 
@@ -56,7 +54,6 @@ describe('FulfillIntentService', () => {
     proofService = chainMod.get(ProofService)
     utilsIntentService = chainMod.get(UtilsIntentService)
     ecoConfigService = chainMod.get(EcoConfigService)
-    intentModel = chainMod.get(getModelToken(IntentSourceModel.name))
 
     fulfillIntentService['logger'].debug = mockLogDebug
     fulfillIntentService['logger'].log = mockLogLog
@@ -348,15 +345,11 @@ describe('FulfillIntentService', () => {
     })
 
     it('should return empty item for invalid transaction target data', async () => {
-      utilsIntentService.getTransactionTargetData = jest.fn().mockReturnValue(null)
+      mockGetTransactionTargetData.mockReturnValue(null)
       expect(fulfillIntentService['getTransactionsForTargets']({ model, solver } as any)).toEqual(
         [],
       )
-      expect(utilsIntentService.getTransactionTargetData).toHaveBeenCalledWith(
-        model.intent,
-        solver,
-        model.intent.route.calls[0],
-      )
+      expect(mockGetTransactionTargetData).toHaveBeenCalledWith(solver, model.intent.route.calls[0])
       expect(mockLogError).toHaveBeenCalledTimes(1)
       expect(mockLogError).toHaveBeenCalledWith({
         msg: `fulfillIntent: Invalid transaction data`,
@@ -367,25 +360,19 @@ describe('FulfillIntentService', () => {
 
     it('should return empty for erc721, erc1155, or anything other than erc20', async () => {
       //erc721
-      utilsIntentService.getTransactionTargetData = jest
-        .fn()
-        .mockReturnValue({ targetConfig: { contractType: 'erc721' } })
+      mockGetTransactionTargetData.mockReturnValue({ targetConfig: { contractType: 'erc721' } })
       expect(fulfillIntentService['getTransactionsForTargets']({ model, solver } as any)).toEqual(
         [],
       )
 
       //erc1155
-      utilsIntentService.getTransactionTargetData = jest
-        .fn()
-        .mockReturnValue({ targetConfig: { contractType: 'erc1155' } })
+      mockGetTransactionTargetData.mockReturnValue({ targetConfig: { contractType: 'erc1155' } })
       expect(fulfillIntentService['getTransactionsForTargets']({ model, solver } as any)).toEqual(
         [],
       )
 
       //default/catch-all
-      utilsIntentService.getTransactionTargetData = jest
-        .fn()
-        .mockReturnValue({ targetConfig: { contractType: 'face' } })
+      mockGetTransactionTargetData.mockReturnValue({ targetConfig: { contractType: 'face' } })
       expect(fulfillIntentService['getTransactionsForTargets']({ model, solver } as any)).toEqual(
         [],
       )
@@ -393,7 +380,7 @@ describe('FulfillIntentService', () => {
 
     it('should return correct data for erc20', async () => {
       const mockHandleErc20Data = [{ to: address1, data: address2 }]
-      utilsIntentService.getTransactionTargetData = jest.fn().mockReturnValue(tt)
+      mockGetTransactionTargetData.mockReturnValue(tt)
       fulfillIntentService.handleErc20 = jest.fn().mockReturnValue(mockHandleErc20Data)
       expect(fulfillIntentService['getTransactionsForTargets']({ model, solver } as any)).toEqual(
         mockHandleErc20Data,
@@ -415,7 +402,7 @@ describe('FulfillIntentService', () => {
         { to: '0x11', data: '0x22' },
         { to: '0x33', data: '0x44' },
       ]
-      utilsIntentService.getTransactionTargetData = jest.fn().mockReturnValue(tt)
+      mockGetTransactionTargetData.mockReturnValue(tt)
       fulfillIntentService.handleErc20 = jest.fn().mockImplementation((tt, solver, target) => {
         if (target === model.intent.route.calls[0].target) return mockHandleErc20Data[0]
         if (target === model.intent.route.calls[1].target) return mockHandleErc20Data[1]

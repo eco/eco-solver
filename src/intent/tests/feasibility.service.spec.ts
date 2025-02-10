@@ -1,3 +1,4 @@
+const mockGetTransactionTargetData = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
 import { FeasibilityService } from '../feasibility.service'
 import { BalanceService } from '@/balance/balance.service'
@@ -9,6 +10,12 @@ import { EcoError } from '@/common/errors/eco-error'
 import { getERC20Selector } from '@/contracts'
 import * as chains from 'viem/chains'
 
+jest.mock('@/intent/utils', () => {
+  return {
+    ...jest.requireActual('@/intent/utils'),
+    getTransactionTargetData: mockGetTransactionTargetData,
+  }
+})
 describe('FeasibilityService', () => {
   let feasibilityService: FeasibilityService
   let balanceService: DeepMocked<BalanceService>
@@ -40,6 +47,8 @@ describe('FeasibilityService', () => {
     feasibilityService['logger'].debug = mockLogDebug
     feasibilityService['logger'].log = mockLogLog
     feasibilityService['logger'].error = mockLogError
+
+    mockGetTransactionTargetData.mockClear()
   })
 
   describe('on validateExecution', () => {
@@ -111,7 +120,7 @@ describe('FeasibilityService', () => {
 
   describe('on validateEachExecution', () => {
     it('should fail if transaction can`t be destructured', async () => {
-      jest.spyOn(utilsIntentService, 'getTransactionTargetData').mockImplementation(() => null)
+      mockGetTransactionTargetData.mockImplementation(() => null)
       const result = await feasibilityService.validateEachExecution(
         mockData.model as any,
         mockData.solver as any,
@@ -126,9 +135,9 @@ describe('FeasibilityService', () => {
     })
 
     it('should fail if the transaction isn`t on a ERC20 contract', async () => {
-      jest
-        .spyOn(utilsIntentService, 'getTransactionTargetData')
-        .mockReturnValue({ targetConfig: { contractType: 'erc721' } } as any)
+      mockGetTransactionTargetData.mockReturnValue({
+        targetConfig: { contractType: 'erc721' },
+      } as any)
       expect(
         await feasibilityService.validateEachExecution(
           mockData.model as any,
@@ -139,9 +148,9 @@ describe('FeasibilityService', () => {
     })
 
     it('should succeed if the transaction is feasable', async () => {
-      jest
-        .spyOn(utilsIntentService, 'getTransactionTargetData')
-        .mockReturnValue({ targetConfig: { contractType: 'erc20' } } as any)
+      mockGetTransactionTargetData.mockReturnValue({
+        targetConfig: { contractType: 'erc20' },
+      } as any)
 
       //check false
       jest

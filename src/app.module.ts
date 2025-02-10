@@ -17,6 +17,7 @@ import { ApiModule } from '@/api/api.module'
 import { WatchModule } from '@/watch/watch.module'
 import { IntervalModule } from '@/intervals/interval.module'
 import { QuoteModule } from '@/quote/quote.module'
+import { FeeModule } from '@/fee/fee.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { QuoteModule } from '@/quote/quote.module'
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),
+    FeeModule,
     FlagsModule,
     HealthModule,
     IntentModule,

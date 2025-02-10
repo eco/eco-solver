@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
 import {
   ContractFunctionArgs,
   ContractFunctionName,
@@ -26,6 +24,7 @@ import { ProofService } from '../prover/proof.service'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InboxAbi } from '@eco-foundation/routes-ts'
+import { getTransactionTargetData } from '@/intent/utils'
 
 type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
 
@@ -37,7 +36,6 @@ export class FulfillIntentService {
   private logger = new Logger(FulfillIntentService.name)
 
   constructor(
-    @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly proofService: ProofService,
     private readonly utilsIntentService: UtilsIntentService,
@@ -171,7 +169,7 @@ export class FulfillIntentService {
 
     // Create transactions for intent targets
     return model.intent.route.calls.flatMap((call) => {
-      const tt = this.utilsIntentService.getTransactionTargetData(model.intent, solver, call)
+      const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.logger.error(
           EcoLogMessage.withError({

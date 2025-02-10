@@ -3,11 +3,11 @@ import { QuoteService } from './quote.service'
 import { MongooseModule } from '@nestjs/mongoose'
 import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-intent.schema'
 import { IntentModule } from '@/intent/intent.module'
-import { BalanceModule } from '@/balance/balance.module'
+import { FeeModule } from '@/fee/fee.module'
 
 @Module({
   imports: [
-    BalanceModule,
+    FeeModule,
     IntentModule,
     MongooseModule.forFeature([{ name: QuoteIntentModel.name, schema: QuoteIntentSchema }]),
   ],

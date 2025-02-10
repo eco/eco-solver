@@ -8,6 +8,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { CallDataInterface, getERC20Selector, RewardTokensInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
+import { getTransactionTargetData } from '@/intent/utils'
 
 /**
  * Service class for getting configs for the app
@@ -84,7 +85,7 @@ export class FeasibilityService implements OnModuleInit {
       }
     | undefined
   > {
-    const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
+    const tt = getTransactionTargetData(solver, call)
     if (tt === null) {
       this.logger.error(
         EcoLogMessage.withError({
