@@ -250,6 +250,33 @@ describe('FeeService', () => {
       )
     })
 
+    it('should return error if getRewardsNormalized fails', async () => {
+      const error= { error: 'error' }
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
+      const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({error} as any)
+      const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({calls: {}} as any)
+      expect(await feeService.calculateTokens(quote as any)).toEqual({error})
+      expect(rew).toHaveBeenCalledTimes(1)
+      expect(call).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return error if getCallsNormalized fails', async () => {
+      const error= { error: 'error' }
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
+      const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({rewards : {}} as any)
+      const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({error} as any)
+      expect(await feeService.calculateTokens(quote as any)).toEqual({error})
+      expect(rew).toHaveBeenCalledTimes(1)
+      expect(call).toHaveBeenCalledTimes(1)
+
+    })
+
     it('should calculate the delta for all tokens', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
@@ -315,6 +342,10 @@ describe('FeeService', () => {
       },
     } as any
 
+    it('should return error if not intent souce', async () => {
+      fail('not implemented')
+    })
+
     it('should fetch reward tokens from balance service', async () => {
       const mockBalance = jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({})
       await feeService.getRewardsNormalized(quote as any)
@@ -323,6 +354,10 @@ describe('FeeService', () => {
         Number(quote.route.source),
         quote.reward.tokens.map((reward) => reward.token),
       )
+    })
+
+    it('should return error if not intent souce', async () => {
+      fail('not implemented')
     })
 
     it('should map rewards and convertNormalize the output', async () => {
