@@ -10,6 +10,7 @@ import { convertBigIntsToStrings } from '../common/viem/utils'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
 export class BalanceWebsocketService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -21,7 +22,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
     @InjectQueue(QUEUES.ETH_SOCKET.queue) private readonly ethQueue: Queue,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   async onApplicationBootstrap() {
     await this.subscribeWS()
@@ -29,7 +30,19 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
   async onModuleDestroy() {
     // close all websockets
-    Object.values(this.unwatch).forEach((unwatch) => unwatch())
+    try {
+      Object.values(this.unwatch).forEach((unwatch) => unwatch())
+    } catch (e) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: `watch-event: unsubscribe`,
+          error: EcoError.WatchEventUnsubscribeError,
+          properties: {
+            errorPassed: e,
+          },
+        }),
+      )
+    }
   }
 
   async subscribeWS() {
