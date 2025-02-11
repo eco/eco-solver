@@ -108,7 +108,10 @@ describe('FeasableIntentService', () => {
         error: QuoteError.MultiFulfillRoute(),
       } as any)
       await feasableIntentService.feasableIntent(intentHash)
-      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(errData.model, QuoteError.MultiFulfillRoute())
+      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
+        errData.model,
+        QuoteError.MultiFulfillRoute(),
+      )
       expect(mockLogDebug).toHaveBeenCalledTimes(2)
       expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
         msg: `FeasableIntent intent ${intentHash}`,
@@ -121,7 +124,7 @@ describe('FeasableIntentService', () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
       jest
         .spyOn(feeService, 'isRouteFeasible')
-        .mockResolvedValue({error: QuoteError.MultiFulfillRoute()})
+        .mockResolvedValue({ error: QuoteError.MultiFulfillRoute() })
 
       await feasableIntentService.feasableIntent(intentHash)
 
@@ -133,9 +136,7 @@ describe('FeasableIntentService', () => {
 
     it('should add the intent when its feasable to the queue to be processed', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
-      jest
-        .spyOn(feeService, 'isRouteFeasible')
-        .mockResolvedValue({ calls: [] } as any)
+      jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ calls: [] } as any)
 
       await feasableIntentService.feasableIntent(intentHash)
 

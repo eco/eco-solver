@@ -15,8 +15,7 @@ jest.mock('@/intent/utils', () => {
     getTransactionTargetData: mockGetTransactionTargetData,
   }
 })
-it('should ', async () => {
-})
+it('should ', async () => {})
 // describe.skip('FeasibilityService', () => {
 //   let feasibilityService: any //FeasibilityService
 //   let balanceService: DeepMocked<BalanceService>

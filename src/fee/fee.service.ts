@@ -65,7 +65,7 @@ export class FeeService {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   /**
    * Gets the ask for the quote
@@ -103,7 +103,12 @@ export class FeeService {
       return { error: error1 }
     }
     const ask = this.getAsk(totalFillNormalized, quote.route)
-    return { error: totalRewardsNormalized >= ask ? undefined : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized) }
+    return {
+      error:
+        totalRewardsNormalized >= ask
+          ? undefined
+          : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
+    }
   }
 
   /**
@@ -112,7 +117,9 @@ export class FeeService {
    * @param quote the quote intent
    * @returns
    */
-  async getTotalFill(quote: QuoteIntentDataInterface): Promise<{ totalFillNormalized: bigint, error?: Error }> {
+  async getTotalFill(
+    quote: QuoteIntentDataInterface,
+  ): Promise<{ totalFillNormalized: bigint; error?: Error }> {
     const { calls, error } = await this.getCallsNormalized(quote)
     if (error) {
       return { totalFillNormalized: 0n, error }
@@ -125,7 +132,9 @@ export class FeeService {
    * @param quote the quote intent
    * @returns
    */
-  async getTotalRewards(quote: QuoteIntentDataInterface): Promise<{ totalRewardsNormalized: bigint, error?: Error }> {
+  async getTotalRewards(
+    quote: QuoteIntentDataInterface,
+  ): Promise<{ totalRewardsNormalized: bigint; error?: Error }> {
     const { rewards, error } = await this.getRewardsNormalized(quote)
     if (error) {
       return { totalRewardsNormalized: 0n, error }
@@ -142,8 +151,8 @@ export class FeeService {
   async calculateTokens(quote: QuoteIntentDataInterface): Promise<
     | CalculateTokensType
     | {
-      error?: Error
-    }
+        error?: Error
+      }
   > {
     const route = quote.route
     const srcChainID = route.source
@@ -212,7 +221,9 @@ export class FeeService {
    * and normalizes their values
    * @param quote the quote intent
    */
-  async getRewardsNormalized(quote: QuoteIntentDataInterface): Promise<{ rewards: NormalizedToken[], error?: Error }> {
+  async getRewardsNormalized(
+    quote: QuoteIntentDataInterface,
+  ): Promise<{ rewards: NormalizedToken[]; error?: Error }> {
     const srcChainID = quote.route.source
     const source = this.ecoConfigService
       .getIntentSources()
@@ -227,6 +238,9 @@ export class FeeService {
       Number(srcChainID),
       acceptedTokens,
     )
+    if (Object.keys(erc20Rewards).length === 0) {
+      return { rewards: [], error: QuoteError.FetchingRewardTokensFailed(BigInt(srcChainID)) }
+    }
 
     return {
       rewards: Object.values(erc20Rewards).map((tb) => {
@@ -236,7 +250,7 @@ export class FeeService {
           address: tb.address,
           decimals: tb.decimals,
         })
-      })
+      }),
     }
   }
 
@@ -292,7 +306,7 @@ export class FeeService {
 
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
         if (transferAmount > callTarget.balance) {
-          error = QuoteError.SolverLacksLiquidity(
+          throw QuoteError.SolverLacksLiquidity(
             solver.chainID,
             call.target,
             transferAmount,

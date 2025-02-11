@@ -195,9 +195,7 @@ describe('QuotesService', () => {
       const error = QuoteError.SolverLacksLiquidity(1, '0x2', 4n, 3n)
       ecoConfigService.getSolver = jest.fn().mockReturnValue({})
       validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
-      feeService.isRouteFeasible = jest
-        .fn()
-        .mockResolvedValue({ error })
+      feeService.isRouteFeasible = jest.fn().mockResolvedValue({ error })
       expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(
         InfeasibleQuote(error),
       )
@@ -216,9 +214,7 @@ describe('QuotesService', () => {
     it('should return nothing if all the validations pass', async () => {
       ecoConfigService.getSolver = jest.fn().mockReturnValue({})
       validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
-      feeService.isRouteFeasible = jest
-        .fn()
-        .mockResolvedValue({})
+      feeService.isRouteFeasible = jest.fn().mockResolvedValue({})
       expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(undefined)
       expect(updateQuoteDb).not.toHaveBeenCalled()
     })
@@ -248,7 +244,7 @@ describe('QuotesService', () => {
     })
 
     describe('on building quote', () => {
-      beforeEach(() => { })
+      beforeEach(() => {})
 
       async function generateHelper(
         calculated: any,
