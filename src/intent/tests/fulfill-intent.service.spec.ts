@@ -11,6 +11,7 @@ import { UtilsIntentService } from '../utils-intent.service'
 import { FulfillIntentService } from '../fulfill-intent.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { FeeService } from '@/fee/fee.service'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
 jest.mock('viem', () => {
   return {
@@ -35,7 +36,7 @@ describe('FulfillIntentService', () => {
   let feeService: DeepMocked<FeeService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
-
+  let mockFinalFeasibilityCheck: jest.SpyInstance<Promise<void>, [intent: IntentDataModel], any>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
@@ -80,6 +81,13 @@ describe('FulfillIntentService', () => {
     event: { sourceChainID: 11111 },
   }
   const emptyTxs = [{ data: undefined, to: hash, value: 0n }]
+
+  beforeEach(async () => {
+    //dont have it throw
+    mockFinalFeasibilityCheck = jest
+      .spyOn(fulfillIntentService, 'finalFeasibilityCheck')
+      .mockResolvedValue()
+  })
   afterEach(async () => {
     // restore the spy created with spyOn
     jest.restoreAllMocks()
@@ -115,6 +123,20 @@ describe('FulfillIntentService', () => {
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
         expect(await fulfillIntentService.executeFulfillIntent(hash)).toBeUndefined()
         expect(mockGetFulfillIntentTx).toHaveBeenCalledWith(solver.inboxAddress, model)
+      })
+
+      it('should throw if the finalFeasibilityCheck throws', async () => {
+        const error = new Error('stuff went bad')
+        utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
+        const mockGetFulfillIntentTx = jest.fn()
+        fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
+        fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
+        jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
+        jest.spyOn(fulfillIntentService, 'finalFeasibilityCheck').mockImplementation(async () => {
+          throw error
+        })
+
+        await expect(() => fulfillIntentService.executeFulfillIntent(hash)).rejects.toThrow(error)
       })
     })
 
@@ -291,6 +313,22 @@ describe('FulfillIntentService', () => {
           receipt: { transactionHash },
         })
       })
+    })
+  })
+
+  describe('on finalFeasibilityCheck', () => {
+    const error = new Error('stuff went bad')
+    beforeEach(async () => {
+      mockFinalFeasibilityCheck.mockRestore()
+    })
+    it('should throw if the model is not feasible', async () => {
+      jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ error })
+      await expect(fulfillIntentService.finalFeasibilityCheck({} as any)).rejects.toThrow(error)
+    })
+
+    it('should not throw if the model is feasible', async () => {
+      jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ error: undefined })
+      await expect(fulfillIntentService.finalFeasibilityCheck({} as any)).resolves.not.toThrow()
     })
   })
 
