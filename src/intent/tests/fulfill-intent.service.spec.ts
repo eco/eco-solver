@@ -10,6 +10,7 @@ import { ProofService } from '@/prover/proof.service'
 import { UtilsIntentService } from '../utils-intent.service'
 import { FulfillIntentService } from '../fulfill-intent.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { FeeService } from '@/fee/fee.service'
 
 jest.mock('viem', () => {
   return {
@@ -31,6 +32,7 @@ describe('FulfillIntentService', () => {
   let fulfillIntentService: FulfillIntentService
   let accountClientService: DeepMocked<KernelAccountClientService>
   let proofService: DeepMocked<ProofService>
+  let feeService: DeepMocked<FeeService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
 
@@ -44,6 +46,7 @@ describe('FulfillIntentService', () => {
         FulfillIntentService,
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: ProofService, useValue: createMock<ProofService>() },
+        { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
       ],
@@ -52,6 +55,7 @@ describe('FulfillIntentService', () => {
     fulfillIntentService = chainMod.get(FulfillIntentService)
     accountClientService = chainMod.get(KernelAccountClientService)
     proofService = chainMod.get(ProofService)
+    feeService = chainMod.get(FeeService)
     utilsIntentService = chainMod.get(UtilsIntentService)
     ecoConfigService = chainMod.get(EcoConfigService)
 

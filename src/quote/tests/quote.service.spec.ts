@@ -1,16 +1,14 @@
 const mockGetTransactionTargetData = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
-import { FeasibilityService } from '@/intent/feasibility.service'
 import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
 import {
   InfeasibleQuote,
-  InsolventUnprofitableQuote,
   InsufficientBalance,
   InternalQuoteError,
   InternalSaveError,
-  InvalidQuote,
   InvalidQuoteIntent,
+  QuoteError,
   SolverUnsupported,
 } from '@/quote/errors'
 import { QuoteService } from '@/quote/quote.service'
@@ -31,7 +29,6 @@ describe('QuotesService', () => {
   let quoteService: QuoteService
   let feeService: DeepMocked<FeeService>
   let validationService: DeepMocked<ValidationService>
-  let feasibilityService: DeepMocked<FeasibilityService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let quoteModel: DeepMocked<Model<QuoteIntentModel>>
   const mockLogDebug = jest.fn()
@@ -44,7 +41,7 @@ describe('QuotesService', () => {
         QuoteService,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
-        { provide: FeasibilityService, useValue: createMock<FeasibilityService>() },
+        { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
           provide: getModelToken(QuoteIntentModel.name),
@@ -56,7 +53,6 @@ describe('QuotesService', () => {
     quoteService = chainMod.get(QuoteService)
     feeService = chainMod.get(FeeService)
     validationService = chainMod.get(ValidationService)
-    feasibilityService = chainMod.get(FeasibilityService)
 
     ecoConfigService = chainMod.get(EcoConfigService)
     quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
@@ -196,96 +192,33 @@ describe('QuotesService', () => {
     })
 
     it('should return infeasable if the quote is infeasable', async () => {
-      const results = { solvent: true, profitable: true } as any
+      const error = QuoteError.SolverLacksLiquidity(1, '0x2', 4n, 3n)
       ecoConfigService.getSolver = jest.fn().mockReturnValue({})
       validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
-      feasibilityService.validateExecution = jest
+      feeService.isRouteFeasible = jest
         .fn()
-        .mockResolvedValue({ feasable: false, results })
+        .mockResolvedValue({ error })
       expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(
-        InfeasibleQuote(results),
+        InfeasibleQuote(error),
       )
       expect(mockLogLog).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledWith({
         msg: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
         quoteIntentModel,
         feasable: false,
+        error: InfeasibleQuote(error),
       })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
-        error: InfeasibleQuote(results),
+        error: InfeasibleQuote(error),
       })
-    })
-
-    it('should return invalid if the quote doesnt pass execution checks', async () => {
-      const results = false as any
-      ecoConfigService.getSolver = jest.fn().mockReturnValue({})
-      validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
-      feasibilityService.validateExecution = jest
-        .fn()
-        .mockResolvedValue({ feasable: true, results })
-      expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(
-        InvalidQuote(results),
-      )
-      expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: quote intent is not valid ${quoteIntentModel._id}`,
-        quoteIntentModel,
-        results,
-      })
-      expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
-        error: InvalidQuote(results),
-      })
-    })
-
-    it('should return insolvent if the quote is that', async () => {
-      let results = [
-        { solvent: false, profitable: true },
-        { solvent: true, profitable: false },
-      ] as any
-      ecoConfigService.getSolver = jest.fn().mockReturnValue({})
-      validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
-      jest
-        .spyOn(feasibilityService, 'validateExecution')
-        .mockResolvedValue({ feasable: true, results })
-      expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(
-        InsolventUnprofitableQuote(results),
-      )
-      expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: quote intent is not solvent or profitable ${quoteIntentModel._id}`,
-        quoteIntentModel,
-        results,
-      })
-      expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
-        error: InsolventUnprofitableQuote(results),
-      })
-
-      //check individual insolvent/unprofitable
-      for (const r of results) {
-        jest
-          .spyOn(feasibilityService, 'validateExecution')
-          .mockResolvedValue({ feasable: true, results: [r] })
-        expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(
-          InsolventUnprofitableQuote([r]),
-        )
-        expect(mockLogLog).toHaveBeenCalled()
-        expect(mockLogLog).toHaveBeenCalledWith({
-          msg: `validateQuoteIntentData: quote intent is not solvent or profitable ${quoteIntentModel._id}`,
-          quoteIntentModel,
-          results: [r],
-        })
-        expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
-          error: InsolventUnprofitableQuote([r]),
-        })
-      }
     })
 
     it('should return nothing if all the validations pass', async () => {
       ecoConfigService.getSolver = jest.fn().mockReturnValue({})
       validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
-      feasibilityService.validateExecution = jest
+      feeService.isRouteFeasible = jest
         .fn()
-        .mockResolvedValue({ feasable: true, results: [{ solvent: true, profitable: true }] })
+        .mockResolvedValue({})
       expect(await quoteService.validateQuoteIntentData(quoteIntentModel as any)).toEqual(undefined)
       expect(updateQuoteDb).not.toHaveBeenCalled()
     })
@@ -315,7 +248,7 @@ describe('QuotesService', () => {
     })
 
     describe('on building quote', () => {
-      beforeEach(() => {})
+      beforeEach(() => { })
 
       async function generateHelper(
         calculated: any,

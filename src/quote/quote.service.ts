@@ -1,16 +1,13 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { FeasibilityService } from '@/intent/feasibility.service'
 import { validationsSucceeded, ValidationService } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
-  InsolventUnprofitableQuote,
   InsufficientBalance,
   InternalQuoteError,
   InternalSaveError,
-  InvalidQuote,
   InvalidQuoteIntent,
   Quote400,
   Quote500,
@@ -36,7 +33,6 @@ export class QuoteService {
     @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
-    private readonly feasibilityService: FeasibilityService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -154,50 +150,22 @@ export class QuoteService {
       return InvalidQuoteIntent(validations)
     }
 
-    const { feasable, results } = await this.feasibilityService.validateExecution(
-      quoteIntentModel,
-      solver,
-    )
+    const { error } = await this.feeService.isRouteFeasible(quoteIntentModel)
 
-    if (!feasable) {
+    if (error) {
+      const quoteError = InfeasibleQuote(error)
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
           properties: {
             quoteIntentModel,
-            feasable,
+            feasable: false,
+            error: quoteError,
           },
         }),
       )
-      await this.updateQuoteDb(quoteIntentModel, { error: InfeasibleQuote(results) })
-      return InfeasibleQuote(results)
-    } else if (!results) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateQuoteIntentData: quote intent is not valid ${quoteIntentModel._id}`,
-          properties: {
-            quoteIntentModel,
-            results,
-          },
-        }),
-      )
-      await this.updateQuoteDb(quoteIntentModel, { error: InvalidQuote(results) })
-      return InvalidQuote(results)
-    } else {
-      const res = results as [{ solvent: boolean; profitable: boolean }]
-      if (res.some((r) => !r.solvent || !r.profitable)) {
-        this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: `validateQuoteIntentData: quote intent is not solvent or profitable ${quoteIntentModel._id}`,
-            properties: {
-              quoteIntentModel,
-              results,
-            },
-          }),
-        )
-        await this.updateQuoteDb(quoteIntentModel, { error: InsolventUnprofitableQuote(results) })
-        return InsolventUnprofitableQuote(results)
-      }
+      await this.updateQuoteDb(quoteIntentModel, { error: quoteError })
+      return quoteError
     }
     return
   }

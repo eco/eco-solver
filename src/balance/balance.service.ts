@@ -94,6 +94,12 @@ export class BalanceService implements OnApplicationBootstrap {
     })
   }
 
+  /**
+   * Fetches the balances of the kernel account client of the solver for the given tokens
+   * @param chainID the chain id
+   * @param tokenAddresses the tokens to fetch balances for
+   * @returns
+   */
   @Cacheable()
   async fetchTokenBalances(
     chainID: number,

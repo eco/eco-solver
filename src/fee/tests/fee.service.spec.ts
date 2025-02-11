@@ -57,6 +57,106 @@ describe('FeeService', () => {
     mockLogError.mockClear()
   })
 
+  describe('on getAsk', () => {
+    it('should return the correct ask for less than $100', async () => {
+      const ask = feeService.getAsk(1_000_000n, {} as any)
+      expect(ask).toBe(1_020_000n)
+    })
+
+    it('should return the correct ask for multiples of $100', async () => {
+      expect(feeService.getAsk(99_000_000n, {} as any)).toBe(99_020_000n)
+      expect(feeService.getAsk(100_000_000n, {} as any)).toBe(100_035_000n)
+      expect(feeService.getAsk(999_000_000n, {} as any)).toBe(999_155_000n)
+      expect(feeService.getAsk(1_000_000_000n, {} as any)).toBe(1000_170_000n)
+    })
+  })
+
+  describe('on isRouteFeasible', () => {
+    let quote: any
+    const ask = 11n
+    const totalRewardsNormalized = 10n
+    const totalFillNormalized = 10n
+    const error = { error: 'error' } as any
+    beforeEach(() => {
+      quote = {
+        route: {
+          calls: [{}],
+        }
+      }
+    })
+    it('should return an error if route has more than 1 call', async () => {
+      quote.route.calls.push({})
+      expect(await feeService.isRouteFeasible(quote)).toEqual({ error: QuoteError.MultiFulfillRoute() })
+    })
+
+
+    it('should return an error if getTotalFill fails', async () => {
+      const getTotallFill = jest.spyOn(feeService, 'getTotalFill').mockResolvedValue(error)
+      expect(await feeService.isRouteFeasible(quote)).toEqual(error)
+      expect(getTotallFill).toHaveBeenCalledTimes(1)
+    })
+
+
+    it('should return an error if getTotalRewards fails', async () => {
+      jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({ totalFillNormalized: 10n, error: undefined })
+      const getTotalRewards = jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue(error)
+      expect(await feeService.isRouteFeasible(quote)).toEqual(error)
+      expect(getTotalRewards).toHaveBeenCalledTimes(1)
+    })
+
+
+    it('should return an error if the ask is less than the total reward', async () => {
+      jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({ totalFillNormalized, error: undefined })
+      jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({ totalRewardsNormalized, error: undefined })
+      const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(11n)
+      expect(await feeService.isRouteFeasible(quote)).toEqual({ error: QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized) })
+      expect(getAsk).toHaveBeenCalledTimes(1)
+    })
+
+
+    it('should return an undefined error if the route is feasible', async () => {
+      jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({ totalFillNormalized, error: undefined })
+      jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({ totalRewardsNormalized: totalRewardsNormalized + 2n, error: undefined })
+      jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+      expect(await feeService.isRouteFeasible(quote)).toEqual({ error: undefined })
+    })
+  })
+
+  describe('on getTotalFill', () => {
+    it('should return an error upstream from getCallsNormalized', async () => {
+      const error = { error: 'error' }
+      const getCallsNormalized = jest.spyOn(feeService, 'getCallsNormalized').mockResolvedValue(error as any)
+      expect(await feeService.getTotalFill([] as any)).toEqual({ totalFillNormalized: 0n, ...error })
+      expect(getCallsNormalized).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reduce and return the total rewards', async () => {
+      const getCallsNormalized = jest.spyOn(feeService, 'getCallsNormalized').mockResolvedValue({
+        calls: [{ balance: 10n }, { balance: 20n }] as any,
+        error: undefined
+      }) as any
+      expect(await feeService.getTotalFill([] as any)).toEqual({ totalFillNormalized: 30n })
+      expect(getCallsNormalized).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('on getTotalRewards', () => {
+    it('should return an error upstream from getRewardsNormalized', async () => {
+      const error = { error: 'error' }
+      const getRewardsNormalized = jest.spyOn(feeService, 'getRewardsNormalized').mockResolvedValue(error as any)
+      expect(await feeService.getTotalRewards([] as any)).toEqual({ totalRewardsNormalized: 0n, ...error })
+      expect(getRewardsNormalized).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reduce and return the total rewards', async () => {
+      const getRewardsNormalized = jest.spyOn(feeService, 'getRewardsNormalized').mockResolvedValue({
+        rewards: [{ balance: 10n }, { balance: 20n }] as any
+      })
+      expect(await feeService.getTotalRewards([] as any)).toEqual({ totalRewardsNormalized: 30n })
+      expect(getRewardsNormalized).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('on calculateTokens', () => {
     const quote = {
       route: {
@@ -157,10 +257,10 @@ describe('FeeService', () => {
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
         return BigInt(token.balance.address) as any
       })
-      const rewards = { rewards: {} } as any
-      const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue(rewards)
-      const calls = { calls: {} } as any
-      const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue(calls)
+      const rewards = { stuff:'asdf' } as any
+      const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({rewards} as any)
+      const calls = { stuff:'123' }as any
+      const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({calls} as any)
       const deficitDescending = balances.map((balance) => {
         return { ...balance, delta: BigInt(balance.balance.address) }
       })
@@ -228,20 +328,22 @@ describe('FeeService', () => {
     it('should map rewards and convertNormalize the output', async () => {
       jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(erc20Rewards)
       const convert = jest.spyOn(feeService, 'convertNormalize')
-      expect(await feeService.getRewardsNormalized(quote as any)).toEqual([
-        {
-          chainID: quote.route.source,
-          address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
-          decimals: 6,
-          balance: 100_000_000n,
-        },
-        {
-          chainID: quote.route.source,
-          address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
-          decimals: 6,
-          balance: 100_000n,
-        },
-      ])
+      expect(await feeService.getRewardsNormalized(quote as any)).toEqual({
+        rewards: [
+          {
+            chainID: quote.route.source,
+            address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
+            decimals: 6,
+            balance: 100_000_000n,
+          },
+          {
+            chainID: quote.route.source,
+            address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
+            decimals: 6,
+            balance: 100_000n,
+          },
+        ]
+      })
       expect(convert).toHaveBeenCalledTimes(2)
     })
   })
@@ -261,19 +363,19 @@ describe('FeeService', () => {
       chainID: 1n,
     } as any
 
-    it('should throw if a solver cant be found', async () => {
+    it('should return an error if a solver cant be found', async () => {
       const mockSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(undefined)
-      await expect(feeService.getCallsNormalized(quote as any)).rejects.toThrow(
-        QuoteError.NoSolverForDestination(quote.route.destination),
+      expect(await feeService.getCallsNormalized(quote as any)).toEqual(
+        { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
       )
       expect(mockSolver).toHaveBeenCalledTimes(1)
     })
 
-    it('should throw an error if the balances call fails', async () => {
+    it('should return an error if the balances call fails', async () => {
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
       const mockBalance = jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({})
-      await expect(feeService.getCallsNormalized(quote as any)).rejects.toThrow(
-        QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)),
+      expect(await feeService.getCallsNormalized(quote as any)).toEqual(
+        { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
       )
       expect(mockBalance).toHaveBeenCalledTimes(1)
       expect(mockBalance).toHaveBeenCalledWith(solver.chainID, expect.any(Array))
@@ -301,16 +403,17 @@ describe('FeeService', () => {
           args: [0, transferAmount],
         },
       } as any
-      beforeEach(() => {})
+      beforeEach(() => { })
 
-      it('should throw an error if tx target data is not for an erc20 transfer', async () => {
+      it('should return an error if tx target data is not for an erc20 transfer', async () => {
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(null)
         mockIsERC20Target.mockReturnValue(false)
-        await expect(feeService.getCallsNormalized(quote as any)).rejects.toThrow(
-          QuoteError.NonERC20TargetInCalls(),
-        )
+        expect(await feeService.getCallsNormalized(quote as any)).toEqual({
+          calls: [],
+          error: QuoteError.NonERC20TargetInCalls(),
+        })
         expect(mockGetTransactionTargetData).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
@@ -330,9 +433,10 @@ describe('FeeService', () => {
           .mockResolvedValue({ '0x4': callBalances['0x4'] })
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-        await expect(feeService.getCallsNormalized(quote as any)).rejects.toThrow(
-          QuoteError.FailedToFetchTarget(solver.chainID, quote.route.calls[0].target),
-        )
+        expect(await feeService.getCallsNormalized(quote as any)).toEqual({
+          calls: [],
+          error: QuoteError.FailedToFetchTarget(solver.chainID, quote.route.calls[0].target),
+        })
       })
 
       it('should convert an normalize the erc20 calls', async () => {
@@ -341,38 +445,27 @@ describe('FeeService', () => {
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         const convert = jest.spyOn(feeService, 'convertNormalize')
-        expect(await feeService.getCallsNormalized(quote as any)).toEqual([
-          {
-            balance: transferAmount,
-            chainID: solver.chainID,
-            address: '0x1',
-            decimals: BASE_DECIMALS,
-          },
-          {
-            balance: transferAmount * 10n ** 2n,
-            chainID: solver.chainID,
-            address: '0x4',
-            decimals: BASE_DECIMALS,
-          },
-        ])
+        expect(await feeService.getCallsNormalized(quote as any)).toEqual({
+          calls: [
+            {
+              balance: transferAmount,
+              chainID: solver.chainID,
+              address: '0x1',
+              decimals: BASE_DECIMALS,
+            },
+            {
+              balance: transferAmount * 10n ** 2n,
+              chainID: solver.chainID,
+              address: '0x4',
+              decimals: BASE_DECIMALS,
+            },
+          ],
+        })
         expect(convert).toHaveBeenCalledTimes(2)
       })
     })
   })
 
-  describe('on getAsk', () => {
-    it('should return the correct ask for less than $100', async () => {
-      const ask = feeService.getAsk(1_000_000n, {} as any)
-      expect(ask).toBe(1_020_000n)
-    })
-
-    it('should return the correct ask for multiples of $100', async () => {
-      expect(feeService.getAsk(99_000_000n, {} as any)).toBe(99_020_000n)
-      expect(feeService.getAsk(100_000_000n, {} as any)).toBe(100_035_000n)
-      expect(feeService.getAsk(999_000_000n, {} as any)).toBe(999_155_000n)
-      expect(feeService.getAsk(1_000_000_000n, {} as any)).toBe(1000_170_000n)
-    })
-  })
 
   describe('on calculateDelta', () => {
     let token: TokenFetchAnalysis

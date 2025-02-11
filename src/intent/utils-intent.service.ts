@@ -38,18 +38,6 @@ export interface IntentProcessData {
 }
 
 /**
- * Infeasable result type
- */
-type InfeasableResult = (
-  | false
-  | {
-      solvent: boolean
-      profitable: boolean
-    }
-  | undefined
-)[]
-
-/**
  * Service class for solving an intent on chain
  */
 @Injectable()
@@ -93,7 +81,7 @@ export class UtilsIntentService {
    * @param infeasable  the infeasable result
    * @returns
    */
-  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: InfeasableResult) {
+  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: Error) {
     model.status = 'INFEASABLE'
     model.receipt = infeasable as any
     return await this.updateIntentModel(model)

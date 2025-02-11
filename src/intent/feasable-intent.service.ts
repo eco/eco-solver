@@ -8,7 +8,7 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { FeasibilityService } from '@/intent/feasibility.service'
+import { FeeService } from '@/fee/fee.service'
 
 /**
  * Service class for getting configs for the app
@@ -19,7 +19,7 @@ export class FeasableIntentService implements OnModuleInit {
   private intentJobConfig: JobsOptions
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
-    private readonly feasibilityService: FeasibilityService,
+    private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
@@ -55,29 +55,26 @@ export class FeasableIntentService implements OnModuleInit {
       return
     }
 
-    //check if we have tokens on the solver chain
-    const { feasable, results } = await this.feasibilityService.validateExecution(
-      model.intent,
-      solver,
-    )
+    const { error } = await this.feeService.isRouteFeasible(model.intent)
+
     const jobId = getIntentJobId('feasable', intentHash, model!.intent.logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `FeasableIntent intent ${intentHash}`,
         properties: {
-          feasable,
-          ...(feasable ? { jobId } : {}),
+          feasable: !error,
+          ...(!error ? { jobId } : {}),
         },
       }),
     )
-    if (feasable) {
+    if (!error) {
       //add to processing queue
       await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
         jobId,
         ...this.intentJobConfig,
       })
     } else {
-      await this.utilsIntentService.updateInfeasableIntentModel(model, results)
+      await this.utilsIntentService.updateInfeasableIntentModel(model, error)
     }
   }
 }

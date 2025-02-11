@@ -14,6 +14,7 @@ import { getFunctionBytes } from '../../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
+import { QuoteError } from '@/quote/errors'
 
 jest.mock('viem', () => {
   return {
@@ -104,17 +105,12 @@ describe('UtilsIntentService', () => {
 
     describe('on updateInfeasableIntentModel', () => {
       it('should updateOne the model as infeasable', async () => {
-        const infeasable = [
-          {
-            solvent: true,
-            profitable: false,
-          },
-        ]
-        await utilsIntentService.updateInfeasableIntentModel(model, infeasable)
+        const error = QuoteError.RouteIsInfeasable(10n, 9n)
+        await utilsIntentService.updateInfeasableIntentModel(model, error)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
           { 'intent.hash': model.intent.hash },
-          { ...model, status: 'INFEASABLE', receipt: infeasable },
+          { ...model, status: 'INFEASABLE', receipt: error },
         )
       })
     })

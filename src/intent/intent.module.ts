@@ -14,11 +14,12 @@ import { MongooseModule } from '@nestjs/mongoose'
 import { SolverModule } from '../solver/solver.module'
 import { FlagsModule } from '../flags/flags.module'
 import { ValidationService } from '@/intent/validation.sevice'
-import { FeasibilityService } from '@/intent/feasibility.service'
+import { FeeModule } from '@/fee/fee.module'
 
 @Module({
   imports: [
     BalanceModule,
+    FeeModule,
     FlagsModule,
     MongooseModule.forFeature([{ name: IntentSourceModel.name, schema: IntentSourceSchema }]),
     ProverModule,
@@ -30,7 +31,6 @@ import { FeasibilityService } from '@/intent/feasibility.service'
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
-    FeasibilityService,
     FulfillIntentService,
     UtilsIntentService,
     ValidationService,
@@ -40,7 +40,6 @@ import { FeasibilityService } from '@/intent/feasibility.service'
     CreateIntentService,
     ValidateIntentService,
     FeasableIntentService,
-    FeasibilityService,
     FulfillIntentService,
     UtilsIntentService,
     ValidationService,

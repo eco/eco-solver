@@ -65,7 +65,7 @@ export class FeeService {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   /**
    * Gets the ask for the quote
@@ -83,6 +83,57 @@ export class FeeService {
   }
 
   /**
+   * Checks if the route is feasible for the quote intent:
+   * 1) the solver can fulfill the transaction
+   * 2) the route is profitable for the solver, ie the rewards cover the ask
+   * @param quote the quote
+   * @returns the error is undefined, error is defined if its not feasible
+   */
+  async isRouteFeasible(quote: QuoteIntentDataInterface): Promise<{ error?: Error }> {
+    if (quote.route.calls.length != 1) {
+      //todo support multiple calls after testing
+      return { error: QuoteError.MultiFulfillRoute() }
+    }
+    const { totalFillNormalized, error } = await this.getTotalFill(quote)
+    if (!!error) {
+      return { error }
+    }
+    const { totalRewardsNormalized, error: error1 } = await this.getTotalRewards(quote)
+    if (!!error1) {
+      return { error: error1 }
+    }
+    const ask = this.getAsk(totalFillNormalized, quote.route)
+    return { error: totalRewardsNormalized >= ask ? undefined : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized) }
+  }
+
+  /**
+   * Calculates the total normalized fill for the quote intent
+   *
+   * @param quote the quote intent
+   * @returns
+   */
+  async getTotalFill(quote: QuoteIntentDataInterface): Promise<{ totalFillNormalized: bigint, error?: Error }> {
+    const { calls, error } = await this.getCallsNormalized(quote)
+    if (error) {
+      return { totalFillNormalized: 0n, error }
+    }
+    return { totalFillNormalized: calls.reduce((acc, call) => acc + call.balance, 0n) }
+  }
+
+  /**
+   * Calculates the total normalized and acceoted rewards for the quote intent
+   * @param quote the quote intent
+   * @returns
+   */
+  async getTotalRewards(quote: QuoteIntentDataInterface): Promise<{ totalRewardsNormalized: bigint, error?: Error }> {
+    const { rewards, error } = await this.getRewardsNormalized(quote)
+    if (error) {
+      return { totalRewardsNormalized: 0n, error }
+    }
+    return { totalRewardsNormalized: rewards.reduce((acc, reward) => acc + reward.balance, 0n) }
+  }
+
+  /**
    * Gets the solver tokens for the source chain and orders them in
    * a normalized delta descending order. delta = (balance - minBalance) * decimals
    * @param route the route
@@ -91,8 +142,8 @@ export class FeeService {
   async calculateTokens(quote: QuoteIntentDataInterface): Promise<
     | CalculateTokensType
     | {
-        error?: Error
-      }
+      error?: Error
+    }
   > {
     const route = quote.route
     const srcChainID = route.source
@@ -143,8 +194,11 @@ export class FeeService {
       .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
 
     //ge/calculate the rewards for the quote intent
-    const rewards = await this.getRewardsNormalized(quote)
-    const calls = await this.getCallsNormalized(quote)
+    const { rewards, error: errorRewards } = await this.getRewardsNormalized(quote)
+    const { calls, error: errorCalls } = await this.getCallsNormalized(quote)
+    if (errorCalls || errorRewards) {
+      return { error: errorCalls || errorRewards }
+    }
     return {
       solver,
       rewards,
@@ -158,72 +212,104 @@ export class FeeService {
    * and normalizes their values
    * @param quote the quote intent
    */
-  async getRewardsNormalized(quote: QuoteIntentDataInterface) {
+  async getRewardsNormalized(quote: QuoteIntentDataInterface): Promise<{ rewards: NormalizedToken[], error?: Error }> {
     const srcChainID = quote.route.source
+    const source = this.ecoConfigService
+      .getIntentSources()
+      .find((intent) => BigInt(intent.chainID) == srcChainID)
+    if (!source) {
+      return { rewards: [], error: QuoteError.NoIntentSourceForSource(srcChainID) }
+    }
+    const acceptedTokens = quote.reward.tokens
+      .filter((reward) => source.tokens.includes(reward.token))
+      .map((reward) => reward.token)
     const erc20Rewards = await this.balanceService.fetchTokenBalances(
       Number(srcChainID),
-      quote.reward.tokens.map((reward) => reward.token),
+      acceptedTokens,
     )
 
-    return Object.values(erc20Rewards).map((tb) => {
-      const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
-      return this.convertNormalize(token!.amount, {
-        chainID: srcChainID,
-        address: tb.address,
-        decimals: tb.decimals,
+    return {
+      rewards: Object.values(erc20Rewards).map((tb) => {
+        const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
+        return this.convertNormalize(token!.amount, {
+          chainID: srcChainID,
+          address: tb.address,
+          decimals: tb.decimals,
+        })
       })
-    })
+    }
   }
 
   /**
    * Fetches the call tokens for the quote intent, grabs their info from the erc20 contracts and then converts
    * to a standard reserve value for comparisons
+   *
+   * Throws if there is not enought liquidity for the call
+   *
    * @param quote the quote intent
    * @param solver the solver for the quote intent
    * @returns
    */
-  async getCallsNormalized(quote: QuoteIntentDataInterface) {
+  async getCallsNormalized(quote: QuoteIntentDataInterface): Promise<{
+    calls: NormalizedToken[]
+    error: Error | undefined
+  }> {
     const solver = this.ecoConfigService.getSolver(quote.route.destination)
     if (!solver) {
-      throw QuoteError.NoSolverForDestination(quote.route.destination)
+      return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
     }
     const callERC20Balances = await this.balanceService.fetchTokenBalances(
       solver.chainID,
       quote.route.calls.map((call) => call.target),
     )
     if (Object.keys(callERC20Balances).length === 0) {
-      throw QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID))
+      return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
+    }
+    let error: Error | undefined
+
+    let calls: NormalizedToken[] = []
+    try {
+      calls = quote.route.calls.map((call) => {
+        const ttd = getTransactionTargetData(solver, call)
+        if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
+          const err = QuoteError.NonERC20TargetInCalls()
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: err.message,
+              properties: {
+                error: err,
+                call,
+                ttd,
+              },
+            }),
+          )
+          throw err
+        }
+        const callTarget = callERC20Balances[call.target]
+        if (!callTarget) {
+          throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
+        }
+
+        const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
+        if (transferAmount > callTarget.balance) {
+          error = QuoteError.SolverLacksLiquidity(
+            solver.chainID,
+            call.target,
+            transferAmount,
+            callTarget.balance,
+          )
+        }
+        return this.convertNormalize(transferAmount, {
+          chainID: BigInt(solver.chainID),
+          address: call.target,
+          decimals: callTarget.decimals,
+        })
+      })
+    } catch (e) {
+      error = e
     }
 
-    return quote.route.calls.map((call) => {
-      const ttd = getTransactionTargetData(solver, call)
-      if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
-        const err = QuoteError.NonERC20TargetInCalls()
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: err.message,
-            properties: {
-              error: err,
-              call,
-              ttd,
-            },
-          }),
-        )
-        throw err
-      }
-      const callTarget = callERC20Balances[call.target]
-      if (!callTarget) {
-        throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
-      }
-
-      const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
-
-      return this.convertNormalize(transferAmount, {
-        chainID: BigInt(solver.chainID),
-        address: call.target,
-        decimals: callTarget.decimals,
-      })
-    })
+    return { calls, error }
   }
 
   /**

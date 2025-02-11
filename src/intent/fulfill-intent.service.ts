@@ -25,6 +25,7 @@ import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InboxAbi } from '@eco-foundation/routes-ts'
 import { getTransactionTargetData } from '@/intent/utils'
+import { FeeService } from '@/fee/fee.service'
 
 type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
 
@@ -38,6 +39,7 @@ export class FulfillIntentService {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly proofService: ProofService,
+    private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
