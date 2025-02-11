@@ -1,8 +1,8 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getERC20Selector, isERC20Target, RewardTokensInterface } from '@/contracts'
+import { getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { CalculateTokensType, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
@@ -10,48 +10,7 @@ import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger } from '@nestjs/common'
-import { getAddress, Hex, Prettify } from 'viem'
-
-/**
- * The response quote data
- */
-export interface QuoteData {
-  tokens: RewardTokensInterface[]
-  expiryTime: string
-}
-
-/**
- * The normalized tokens for the quote intent
- */
-export interface NormalizedTokens {
-  rewardTokens: RewardTokensInterface[]
-  callTokens: RewardTokensInterface[]
-}
-
-/**
- * The normalized token type
- */
-export type NormalizedToken = {
-  balance: bigint
-  chainID: bigint
-  address: Hex
-  decimals: number
-}
-
-/**
- * The type for the token fetch analysis with the normalized delta
- */
-type DeficitDescending = Prettify<TokenFetchAnalysis & { delta: NormalizedToken }>
-
-/**
- * The type for the calculated tokens
- */
-export type CalculateTokensType = {
-  solver: Solver
-  rewards: NormalizedToken[]
-  calls: NormalizedToken[]
-  deficitDescending: DeficitDescending[]
-}
+import { getAddress, Hex } from 'viem'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -148,12 +107,10 @@ export class FeeService {
    * @param route the route
    * @returns
    */
-  async calculateTokens(quote: QuoteIntentDataInterface): Promise<
-    | CalculateTokensType
-    | {
-        error?: Error
-      }
-  > {
+  async calculateTokens(quote: QuoteIntentDataInterface): Promise<{
+    calculated?: CalculateTokensType
+    error?: Error
+  }> {
     const route = quote.route
     const srcChainID = route.source
     const destChainID = route.destination
@@ -209,10 +166,12 @@ export class FeeService {
       return { error: errorCalls || errorRewards }
     }
     return {
-      solver,
-      rewards,
-      calls,
-      deficitDescending, //token liquidity with deficit first descending
+      calculated: {
+        solver,
+        rewards,
+        calls,
+        deficitDescending, //token liquidity with deficit first descending
+      },
     }
   }
 

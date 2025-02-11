@@ -22,7 +22,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
     @InjectQueue(QUEUES.ETH_SOCKET.queue) private readonly ethQueue: Queue,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.subscribeWS()

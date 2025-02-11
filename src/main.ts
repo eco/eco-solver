@@ -29,7 +29,7 @@ async function bootstrap() {
 
   // Starts listening for shutdown hooks
   app.enableShutdownHooks()
-  await app.listen(3001)
+  await app.listen(3000)
 }
 
 function getNestParams(): NestApplicationOptions {

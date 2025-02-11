@@ -3,7 +3,8 @@ const mockIsERC20Target = jest.fn()
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BASE_DECIMALS, FeeService, NormalizedToken } from '@/fee/fee.service'
+import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
+import { NormalizedToken } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
@@ -124,12 +125,10 @@ describe('FeeService', () => {
       jest
         .spyOn(feeService, 'getTotalFill')
         .mockResolvedValue({ totalFillNormalized, error: undefined })
-      jest
-        .spyOn(feeService, 'getTotalRewards')
-        .mockResolvedValue({
-          totalRewardsNormalized: totalRewardsNormalized + 2n,
-          error: undefined,
-        })
+      jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
+        totalRewardsNormalized: totalRewardsNormalized + 2n,
+        error: undefined,
+      })
       jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
       expect(await feeService.isRouteFeasible(quote)).toEqual({ error: undefined })
     })
@@ -320,10 +319,12 @@ describe('FeeService', () => {
         return { ...balance, delta: BigInt(balance.balance.address) }
       })
       expect(await feeService.calculateTokens(quote as any)).toEqual({
-        solver,
-        rewards,
-        calls,
-        deficitDescending,
+        calculated: {
+          solver,
+          rewards,
+          calls,
+          deficitDescending,
+        },
       })
       expect(cal).toHaveBeenCalledTimes(balances.length)
       expect(rew).toHaveBeenCalledTimes(1)

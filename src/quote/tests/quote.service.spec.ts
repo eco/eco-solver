@@ -221,10 +221,15 @@ describe('QuotesService', () => {
   })
 
   describe('on generateQuote', () => {
-    it('should return error on calculate tokens failing', async () => {
+    it('should return error on calculate tokens failed', async () => {
       const error = new Error('error') as any
       feeService.calculateTokens = jest.fn().mockResolvedValue({ error } as any)
       expect(await quoteService.generateQuote({} as any)).toEqual(InternalQuoteError(error))
+    })
+
+    it('should return error on calculate tokens doesnt return the calculated tokens', async () => {
+      feeService.calculateTokens = jest.fn().mockResolvedValue({ calculated: undefined } as any)
+      expect(await quoteService.generateQuote({} as any)).toEqual(InternalQuoteError(undefined))
     })
 
     it('should return an insufficient balance if the reward doesnt meet the ask', async () => {
@@ -234,7 +239,7 @@ describe('QuotesService', () => {
         calls: [{ balance: 280n }, { balance: 102n }],
         deficitDescending: [],
       } as any
-      feeService.calculateTokens = jest.fn().mockResolvedValue(calculated)
+      jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
       const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
       const askMock = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
       expect(await quoteService.generateQuote({ route: {} } as any)).toEqual(
@@ -252,7 +257,7 @@ describe('QuotesService', () => {
       ) {
         const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
         jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
-        feeService.calculateTokens = jest.fn().mockResolvedValue(calculated)
+        jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })

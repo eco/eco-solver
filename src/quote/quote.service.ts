@@ -20,7 +20,8 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import * as dayjs from 'dayjs'
 import { Hex } from 'viem'
-import { CalculateTokensType, FeeService } from '@/fee/fee.service'
+import { FeeService } from '@/fee/fee.service'
+import { CalculateTokensType } from '@/fee/types'
 
 /**
  * Service class for getting configs for the app
@@ -182,10 +183,11 @@ export class QuoteService {
    * @returns the quote or an error 400 for insufficient reward to generate the quote
    */
   async generateQuote(quoteIntentModel: QuoteIntentDataInterface) {
-    const calculated = await this.feeService.calculateTokens(quoteIntentModel)
-    if (typeof calculated === 'object' && 'error' in calculated) {
-      return InternalQuoteError(calculated.error)
+    const { calculated, error } = await this.feeService.calculateTokens(quoteIntentModel)
+    if (error || !calculated) {
+      return InternalQuoteError(error)
     }
+
     const { deficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
 
     const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
