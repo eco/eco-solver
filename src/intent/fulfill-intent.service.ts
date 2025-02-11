@@ -26,6 +26,7 @@ import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/
 import { InboxAbi } from '@eco-foundation/routes-ts'
 import { getTransactionTargetData } from '@/intent/utils'
 import { FeeService } from '@/fee/fee.service'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
 type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
 
@@ -87,6 +88,8 @@ export class FulfillIntentService {
     )
 
     try {
+      await this.finalFeasibilityCheck(model.intent)
+
       const transactionHash = await kernelAccountClient.execute(transactions)
 
       const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: transactionHash })
@@ -129,6 +132,20 @@ export class FulfillIntentService {
     } finally {
       // Update the db model
       await this.utilsIntentService.updateIntentModel(model)
+    }
+  }
+
+  /**
+   * Checks that the intent is feasible for the fulfillment. This
+   * could occur due to changes to the fees/limits of the intent. A failed
+   * intent might retry later when its no longer profitable, etc.
+   * Throws an error if the intent is not feasible.
+   * @param intent the intent to check
+   */
+  async finalFeasibilityCheck(intent: IntentDataModel) {
+    const { error } = await this.feeService.isRouteFeasible(intent)
+    if (error) {
+      throw error
     }
   }
 
