@@ -40,6 +40,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
     "@eco-foundation/routes-ts": "~1.8.22",
     "@launchdarkly/node-server-sdk": "^9.7.1",
@@ -56,6 +57,7 @@
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/terminus": "^10.2.3",
     "alchemy-sdk": "^3.3.1",
+    "asn1js": "^3.0.5",
     "bullmq": "^5.8.5",
     "cache-manager": "^6.4.0",
     "class-transformer": "^0.5.1",

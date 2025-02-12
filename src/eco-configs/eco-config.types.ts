@@ -46,6 +46,7 @@ export type EcoConfigType = {
   }
   fulfill: FulfillType
   aws: AwsCredential[]
+  kms: KmsConfig
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -134,6 +135,14 @@ export type AwsCredential = {
 }
 
 /**
+ * The config type for the aws kms
+ */
+export type KmsConfig = {
+  region: string
+  keyID: string
+}
+
+/**
  * The config type for the auth section of the database.
  */
 export type MongoAuthType = {
@@ -187,8 +196,8 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
   ? { baseFee: bigint; per100UnitFee: bigint }
   : T extends 'quadratic'
-    ? { baseFee: bigint; quadraticFactor: bigint }
-    : never
+  ? { baseFee: bigint; quadraticFactor: bigint }
+  : never
 
 /**
  * The config type for a supported target contract
