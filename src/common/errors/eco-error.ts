@@ -33,6 +33,10 @@ export class EcoError extends Error {
     return new EcoError(`Solver does not have target: ${target}`)
   }
 
+  static TargetSelectorNotSupported(target: string) {
+    return new EcoError(`Solver does not have target: ${target}`)
+  }
+
   static IntentSourceUnsupportedTargetType(targetType: string) {
     return new EcoError(`Unsupported target type ${targetType}`)
   }

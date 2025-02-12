@@ -6,13 +6,10 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
-import { includes } from 'lodash'
-import { decodeFunctionData, DecodeFunctionDataReturnType, Hex, toFunctionSelector } from 'viem'
-import { getERCAbi, CallDataInterface, getERC20Selector } from '../contracts'
-import { getFunctionBytes } from '../common/viem/contracts'
+import { DecodeFunctionDataReturnType, Hex } from 'viem'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from 'alchemy-sdk'
-import { ValidationChecks, ValidationIntentInterface } from '@/intent/validation.sevice'
+import { ValidationChecks } from '@/intent/validation.sevice'
 
 /**
  * Data for a transaction target
@@ -39,18 +36,6 @@ export interface IntentProcessData {
   solver: Solver | null
   err?: EcoError
 }
-
-/**
- * Infeasable result type
- */
-type InfeasableResult = (
-  | false
-  | {
-      solvent: boolean
-      profitable: boolean
-    }
-  | undefined
-)[]
 
 /**
  * Service class for solving an intent on chain
@@ -96,7 +81,7 @@ export class UtilsIntentService {
    * @param infeasable  the infeasable result
    * @returns
    */
-  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: InfeasableResult) {
+  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: Error) {
     model.status = 'INFEASABLE'
     model.receipt = infeasable as any
     return await this.updateIntentModel(model)
@@ -124,75 +109,6 @@ export class UtilsIntentService {
           },
         }),
       )
-    }
-  }
-
-  /**
-   * Decodes the function data for a target contract
-   *
-   * @param intent the intent model
-   * @param solver the solver for the intent
-   * @param target  the target address
-   * @param data  the data to decode
-   * @returns
-   */
-  getTransactionTargetData(
-    intent: ValidationIntentInterface,
-    solver: Solver,
-    call: CallDataInterface,
-  ): TransactionTargetData | null {
-    const targetConfig = solver.targets[call.target as string] as TargetContract
-    if (!targetConfig) {
-      //shouldn't happen since we do this.targetsSupported(model, solver) before this call
-      throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)
-    }
-
-    const tx = decodeFunctionData({
-      abi: getERCAbi(targetConfig.contractType),
-      data: call.data,
-    })
-    const selector = getFunctionBytes(call.data)
-    const supportedSelectors = targetConfig.selectors.map((s) => toFunctionSelector(s))
-    const supported = tx && includes(supportedSelectors, selector)
-    if (!supported) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Selectors not supported for intent ${intent.hash ? intent.hash : 'quote'}`,
-          properties: {
-            unsupportedSelector: selector,
-            source: intent.route.source,
-            ...(intent.hash && {
-              intentHash: intent.hash,
-            }),
-          },
-        }),
-      )
-      return null
-    }
-    return { decodedFunctionData: tx, selector, targetConfig }
-  }
-
-  /**
-   * Verifies that a target is of type erc20 and that the selector is supported
-   * @param ttd the transaction target data
-   * @param permittedSelector the selector to check against, if not provided it will check against all erc20 selectors
-   * @returns
-   */
-  isERC20Target(ttd: TransactionTargetData | null, permittedSelector?: Hex): boolean {
-    if (!ttd) {
-      return false
-    }
-    const isERC20 = ttd.targetConfig.contractType === 'erc20'
-    if (permittedSelector && ttd.selector !== permittedSelector) {
-      return false
-    }
-    switch (ttd.selector) {
-      case getERC20Selector('transfer'):
-        const correctArgs =
-          !!ttd.decodedFunctionData.args && ttd.decodedFunctionData.args.length === 2
-        return isERC20 && correctArgs
-      default:
-        return false
     }
   }
 

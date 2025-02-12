@@ -1,4 +1,4 @@
-import { normalizeBalance } from '@/quote/utils'
+import { normalizeBalance } from '@/fee/utils'
 
 describe('Utils Tests', () => {
   describe('normalizeBalance', () => {

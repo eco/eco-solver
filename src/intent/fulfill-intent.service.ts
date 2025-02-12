@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
 import {
   ContractFunctionArgs,
   ContractFunctionName,
@@ -26,6 +24,9 @@ import { ProofService } from '../prover/proof.service'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InboxAbi } from '@eco-foundation/routes-ts'
+import { getTransactionTargetData } from '@/intent/utils'
+import { FeeService } from '@/fee/fee.service'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
 type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
 
@@ -37,9 +38,9 @@ export class FulfillIntentService {
   private logger = new Logger(FulfillIntentService.name)
 
   constructor(
-    @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly proofService: ProofService,
+    private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
@@ -87,6 +88,8 @@ export class FulfillIntentService {
     )
 
     try {
+      await this.finalFeasibilityCheck(model.intent)
+
       const transactionHash = await kernelAccountClient.execute(transactions)
 
       const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: transactionHash })
@@ -133,6 +136,20 @@ export class FulfillIntentService {
   }
 
   /**
+   * Checks that the intent is feasible for the fulfillment. This
+   * could occur due to changes to the fees/limits of the intent. A failed
+   * intent might retry later when its no longer profitable, etc.
+   * Throws an error if the intent is not feasible.
+   * @param intent the intent to check
+   */
+  async finalFeasibilityCheck(intent: IntentDataModel) {
+    const { error } = await this.feeService.isRouteFeasible(intent)
+    if (error) {
+      throw error
+    }
+  }
+
+  /**
    * Checks if the transaction is feasible for an erc20 token transfer.
    *
    * @param tt the transaction target data
@@ -171,7 +188,7 @@ export class FulfillIntentService {
 
     // Create transactions for intent targets
     return model.intent.route.calls.flatMap((call) => {
-      const tt = this.utilsIntentService.getTransactionTargetData(model.intent, solver, call)
+      const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.logger.error(
           EcoLogMessage.withError({

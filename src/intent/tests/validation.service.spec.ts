@@ -1,3 +1,4 @@
+const mockGetTransactionTargetData = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { TransactionTargetData, UtilsIntentService } from '@/intent/utils-intent.service'
@@ -9,7 +10,12 @@ import {
 } from '@/intent/validation.sevice'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
-
+jest.mock('@/intent/utils', () => {
+  return {
+    ...jest.requireActual('@/intent/utils'),
+    getTransactionTargetData: mockGetTransactionTargetData,
+  }
+})
 describe('ValidationService', () => {
   let validationService: ValidationService
   let proofService: DeepMocked<ProofService>
@@ -165,7 +171,7 @@ describe('ValidationService', () => {
 
       it('should fail not every call is supported', async () => {
         intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
-        utilsIntentService.getTransactionTargetData.mockImplementation((intent, solver, call) => {
+        mockGetTransactionTargetData.mockImplementation((solver, call) => {
           return call.target == intent.route.calls[0].target
             ? ({} as any as TransactionTargetData)
             : null
@@ -175,9 +181,7 @@ describe('ValidationService', () => {
 
       it('should succeed if every call is supported', async () => {
         intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
-        utilsIntentService.getTransactionTargetData.mockReturnValue(
-          {} as any as TransactionTargetData,
-        )
+        mockGetTransactionTargetData.mockReturnValue({} as any as TransactionTargetData)
         expect(validationService.supportedSelectors(intent, solver)).toBe(true)
       })
     })

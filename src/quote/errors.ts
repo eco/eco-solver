@@ -82,21 +82,12 @@ export function InsufficientBalance(totalAsk: bigint, totalFulfillmentAmount: bi
 }
 
 // The quote is deemed infeasible by the feasibility service
-export function InfeasibleQuote(
-  results: (
-    | false
-    | {
-        solvent: boolean
-        profitable: boolean
-      }
-    | undefined
-  )[],
-): Quote400 {
+export function InfeasibleQuote(error: Error): Quote400 {
   return {
     statusCode: 400,
     message: 'Bad Request: The quote was deemed infeasible.',
     code: 6,
-    results,
+    error,
   }
 }
 
@@ -175,12 +166,32 @@ export class QuoteError extends Error {
     return new EcoError(`No intent source found for source chain ${source}`)
   }
 
+  static FetchingRewardTokensFailed(chainID: bigint) {
+    return new EcoError(`Error occured when fetching reward tokens for ${chainID}`)
+  }
+
   static FetchingCallTokensFailed(chainID: bigint) {
     return new EcoError(`Error occured when fetching call tokens for ${chainID}`)
   }
 
   static NonERC20TargetInCalls() {
     return new EcoError(`One or more targets not erc20s`)
+  }
+
+  static SolverLacksLiquidity(chainID: number, target: Hex, requested: bigint, available: bigint) {
+    return new EcoError(
+      `The solver on chain ${chainID} lacks liquidity for ${target} requested ${requested} available ${available}`,
+    )
+  }
+
+  static RouteIsInfeasable(ask: bigint, reward: bigint) {
+    return new EcoError(
+      `The route is not infeasable: the reward ${reward} is less than the ask ${ask}`,
+    )
+  }
+
+  static MultiFulfillRoute() {
+    return new EcoError(`A route with more than 1 erc20 target is not supported`)
   }
 
   static FailedToFetchTarget(chainID: bigint, target: Hex) {

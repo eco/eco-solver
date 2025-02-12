@@ -10,11 +10,12 @@ import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { FeasableIntentService } from '../feasable-intent.service'
 import { Hex } from 'viem'
-import { FeasibilityService } from '@/intent/feasibility.service'
+import { FeeService } from '@/fee/fee.service'
+import { QuoteError } from '@/quote/errors'
 
 describe('FeasableIntentService', () => {
   let feasableIntentService: FeasableIntentService
-  let feasibilityService: DeepMocked<FeasibilityService>
+  let feeService: DeepMocked<FeeService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -27,7 +28,7 @@ describe('FeasableIntentService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         FeasableIntentService,
-        { provide: FeasibilityService, useValue: createMock<FeasibilityService>() },
+        { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
@@ -46,7 +47,7 @@ describe('FeasableIntentService', () => {
       .compile()
 
     feasableIntentService = chainMod.get(FeasableIntentService)
-    feasibilityService = chainMod.get(FeasibilityService)
+    feeService = chainMod.get(FeeService)
     utilsIntentService = chainMod.get(UtilsIntentService)
     ecoConfigService = chainMod.get(EcoConfigService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
@@ -57,7 +58,6 @@ describe('FeasableIntentService', () => {
   })
 
   const mockData = { model: { intent: { logIndex: 1, hash: '0x123' as Hex } }, solver: {} }
-  const validateExecution = { feasable: false, results: { a: 'b' } }
   const intentHash = mockData.model.intent.hash
   const jobId = `feasable-${intentHash}-${mockData.model.intent.logIndex}`
   afterEach(async () => {
@@ -104,14 +104,14 @@ describe('FeasableIntentService', () => {
       }
       const errData = { solver: mockData.solver, model: mockModel } as any
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(errData)
-      jest.spyOn(feasibilityService, 'validateExecution').mockResolvedValue({
-        feasable: false,
-        results: { cause: 'route.calls.length != 1' },
+      jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({
+        error: QuoteError.MultiFulfillRoute(),
       } as any)
       await feasableIntentService.feasableIntent(intentHash)
-      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(errData.model, {
-        cause: 'route.calls.length != 1',
-      })
+      expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
+        errData.model,
+        QuoteError.MultiFulfillRoute(),
+      )
       expect(mockLogDebug).toHaveBeenCalledTimes(2)
       expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
         msg: `FeasableIntent intent ${intentHash}`,
@@ -123,22 +123,20 @@ describe('FeasableIntentService', () => {
     it('should update the db intent model if the intent is not feasable', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
       jest
-        .spyOn(feasibilityService, 'validateExecution')
-        .mockResolvedValue(validateExecution as any)
+        .spyOn(feeService, 'isRouteFeasible')
+        .mockResolvedValue({ error: QuoteError.MultiFulfillRoute() })
 
       await feasableIntentService.feasableIntent(intentHash)
 
       expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
         mockData.model,
-        validateExecution.results,
+        QuoteError.MultiFulfillRoute(),
       )
     })
 
     it('should add the intent when its feasable to the queue to be processed', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
-      jest
-        .spyOn(feasibilityService, 'validateExecution')
-        .mockResolvedValue({ feasable: true } as any)
+      jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ calls: [] } as any)
 
       await feasableIntentService.feasableIntent(intentHash)
 

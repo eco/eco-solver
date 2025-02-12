@@ -1,6 +1,7 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
+import { getTransactionTargetData } from '@/intent/utils'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
@@ -128,7 +129,7 @@ export class ValidationService {
       return false
     }
     return intent.route.calls.every((call) => {
-      const tx = this.utilsIntentService.getTransactionTargetData(intent, solver, call)
+      const tx = getTransactionTargetData(solver, call)
       return tx
     })
   }

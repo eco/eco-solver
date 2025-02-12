@@ -14,6 +14,7 @@ import { getFunctionBytes } from '../../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
+import { QuoteError } from '@/quote/errors'
 
 jest.mock('viem', () => {
   return {
@@ -104,17 +105,12 @@ describe('UtilsIntentService', () => {
 
     describe('on updateInfeasableIntentModel', () => {
       it('should updateOne the model as infeasable', async () => {
-        const infeasable = [
-          {
-            solvent: true,
-            profitable: false,
-          },
-        ]
-        await utilsIntentService.updateInfeasableIntentModel(model, infeasable)
+        const error = QuoteError.RouteIsInfeasable(10n, 9n)
+        await utilsIntentService.updateInfeasableIntentModel(model, error)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
           { 'intent.hash': model.intent.hash },
-          { ...model, status: 'INFEASABLE', receipt: infeasable },
+          { ...model, status: 'INFEASABLE', receipt: error },
         )
       })
     })
@@ -225,133 +221,6 @@ describe('UtilsIntentService', () => {
   //     expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(true)
   //   })
   // })
-  describe('on getTransactionTargetData', () => {
-    const callData: CallDataInterface = { target: address1, data: '0xa9059cbb3333333', value: 0n } //transfer selector plus data fake
-    const selectors = ['transfer(address,uint256)']
-    const targetConfig = { contractType: 'erc20', selectors }
-    const decodedData = { stuff: true }
-
-    it('should throw when no target config exists on solver', async () => {
-      const model = { intent: { targets: [address1], data: ['0x11'] } } as any
-      const solver = { targets: {} }
-      expect(() =>
-        utilsIntentService.getTransactionTargetData(model, solver as any, callData),
-      ).toThrow(EcoError.IntentSourceTargetConfigNotFound(callData.target as string))
-    })
-
-    it('should return null when tx is not decoded ', async () => {
-      const intent = { route: { calls: [callData], source: 12n }, hash: '0x3' } as any
-      mockDecodeFunctionData.mockReturnValue(null)
-      expect(
-        utilsIntentService.getTransactionTargetData(
-          intent,
-          { targets: { [address1]: { contractType: 'erc20', selectors } } } as any,
-          callData,
-        ),
-      ).toBe(null)
-      expect(mockLogLog).toHaveBeenCalledTimes(1)
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `Selectors not supported for intent ${intent.hash}`,
-        intentHash: intent.hash,
-        source: intent.route.source,
-        unsupportedSelector: getFunctionBytes(callData.data),
-      })
-    })
-
-    it('should return null when target selector is not supported by the solver', async () => {
-      const fakeData = '0xaaaaaaaa11112333'
-      const call: CallDataInterface = { target: callData.target, data: fakeData, value: 0n }
-      const intent = { route: { calls: [call], source: 12n } } as any
-      mockDecodeFunctionData.mockReturnValue(decodedData)
-      expect(
-        utilsIntentService.getTransactionTargetData(
-          intent,
-          { targets: { [address1]: { contractType: 'erc20', selectors } } } as any,
-          call,
-        ),
-      ).toBe(null)
-      expect(mockLogLog).toHaveBeenCalledTimes(1)
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `Selectors not supported for intent quote`,
-        source: intent.route.source,
-        unsupportedSelector: getFunctionBytes(fakeData),
-      })
-    })
-
-    it('should return the decoded function data, selctor and target config when successful', async () => {
-      const model = {
-        intent: { route: { calls: [callData] }, hash: '0x3' },
-        event: { sourceNetwork: 'opt-sepolia' },
-      } as any
-      mockDecodeFunctionData.mockReturnValue(decodedData)
-      expect(
-        utilsIntentService.getTransactionTargetData(
-          model,
-          { targets: { [address1]: targetConfig } } as any,
-          callData,
-        ),
-      ).toEqual({
-        decodedFunctionData: decodedData,
-        selector: getFunctionBytes(callData.data),
-        targetConfig,
-      })
-    })
-  })
-
-  describe('on isERC20Target', () => {
-    it('should return false if the target data is null', async () => {
-      expect(utilsIntentService.isERC20Target(null)).toBe(false)
-    })
-
-    it('should return false if the target data is not erc20', async () => {
-      expect(
-        utilsIntentService.isERC20Target({
-          targetConfig: { contractType: 'erc721' },
-        } as any),
-      ).toBe(false)
-    })
-
-    it('should return false if the target selector isnt the permitted selector', async () => {
-      expect(
-        utilsIntentService.isERC20Target(
-          {
-            targetConfig: { contractType: 'erc20' },
-            selector: '0x70a08231', //balanceOf
-          } as any,
-          '0xa123123',
-        ),
-      ).toBe(false)
-    })
-
-    it('should return false if the target selector is not transfer', async () => {
-      expect(
-        utilsIntentService.isERC20Target({
-          targetConfig: { contractType: 'erc20' },
-          selector: '0x70a08231', //balanceOf
-        } as any),
-      ).toBe(false)
-    })
-
-    it('should return false if the target selector args are incorrect', async () => {
-      expect(
-        utilsIntentService.isERC20Target({
-          targetConfig: { contractType: 'erc20' },
-          selector: '0xa9059cbb', //transfer
-          decodedFunctionData: { args: [address1] },
-        } as any),
-      ).toBe(false)
-    })
-
-    it('should return true if the target selector and args are for erc20 transfer', async () => {
-      expect(
-        utilsIntentService.isERC20Target({
-          targetConfig: { contractType: 'erc20' },
-          selector: '0xa9059cbb', //transfer
-          decodedFunctionData: { args: [address1, 100n] },
-        } as any),
-      ).toBe(true)
-    })
-  })
 
   describe('on getIntentProcessData', () => {
     const intentHash = address1
