@@ -57,18 +57,92 @@ describe('FeeService', () => {
     mockLogLog.mockClear()
     mockLogError.mockClear()
   })
+  const route = {
+    destination: 8452n,
+    source: 10n,
+  } as any
 
+  const linearSolver = {
+    fee: {
+      feeAlgorithm: 'linear',
+      constants: {
+        baseFee: 20_000n,
+        per100UnitFee: 15_000n,
+      },
+    },
+  } as any
   describe('on getAsk', () => {
-    it('should return the correct ask for less than $100', async () => {
-      const ask = feeService.getAsk(1_000_000n, {} as any)
-      expect(ask).toBe(1_020_000n)
+    describe('on invalid solver', () => {
+      it('should throw if no solver found', async () => {
+        const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(undefined)
+        expect(() => feeService.getAsk(1_000_000n, route)).toThrow(
+          QuoteError.NoSolverForDestination(route.destination),
+        )
+        expect(getSolver).toHaveBeenCalledTimes(1)
+      })
+
+      it('should throw solver doesnt have a supported algorithm', async () => {
+        const solver = { fee: { feeAlgorithm: 'unsupported' } } as any
+        const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        expect(() => feeService.getAsk(1_000_000n, route)).toThrow(
+          QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.feeAlgorithm),
+        )
+        expect(getSolver).toHaveBeenCalledTimes(1)
+      })
     })
 
-    it('should return the correct ask for multiples of $100', async () => {
-      expect(feeService.getAsk(99_000_000n, {} as any)).toBe(99_020_000n)
-      expect(feeService.getAsk(100_000_000n, {} as any)).toBe(100_035_000n)
-      expect(feeService.getAsk(999_000_000n, {} as any)).toBe(999_155_000n)
-      expect(feeService.getAsk(1_000_000_000n, {} as any)).toBe(1000_170_000n)
+    describe('on linear fee algorithm', () => {
+      let spy: jest.SpyInstance
+      beforeEach(() => {
+        spy = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+      })
+
+      it('should default to eth mainnet/sepolia fee if eth mainnet/sepolia is in the route', async () => {
+        let ethRoute = {
+          destination: 8452n,
+          source: 1n,
+        } as any
+
+        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
+        expect(spy).toHaveBeenCalledTimes(1)
+        expect(spy).toHaveBeenCalledWith(ethRoute.source)
+
+        ethRoute = {
+          destination: 1n,
+          source: 10n,
+        } as any
+        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
+        expect(spy).toHaveBeenCalledTimes(2)
+        expect(spy).toHaveBeenCalledWith(ethRoute.destination)
+
+        ethRoute = {
+          destination: 84523n,
+          source: 11155111n,
+        } as any
+        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
+        expect(spy).toHaveBeenCalledTimes(3)
+        expect(spy).toHaveBeenCalledWith(ethRoute.source)
+
+        ethRoute = {
+          destination: 11155111n,
+          source: 84523n,
+        } as any
+        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
+        expect(spy).toHaveBeenCalledTimes(4)
+        expect(spy).toHaveBeenCalledWith(ethRoute.destination)
+      })
+
+      it('should return the correct ask for less than $100', async () => {
+        const ask = feeService.getAsk(1_000_000n, route)
+        expect(ask).toBe(1_020_000n)
+      })
+
+      it('should return the correct ask for multiples of $100', async () => {
+        expect(feeService.getAsk(99_000_000n, route)).toBe(99_020_000n)
+        expect(feeService.getAsk(100_000_000n, route)).toBe(100_035_000n)
+        expect(feeService.getAsk(999_000_000n, route)).toBe(999_155_000n)
+        expect(feeService.getAsk(1_000_000_000n, route)).toBe(1000_170_000n)
+      })
     })
   })
 
@@ -206,9 +280,6 @@ describe('FeeService', () => {
         ],
       },
     } as any
-    const solver = {
-      face: '123',
-    } as any
     const source = {
       chainID: 10n,
       tokens: [
@@ -267,7 +338,7 @@ describe('FeeService', () => {
 
     it('should return error if fetching token data fails', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
-      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(undefined as any)
       await expect(feeService.calculateTokens(quote as any)).rejects.toThrow(
         QuoteError.FetchingCallTokensFailed(quote.route.source),
@@ -277,7 +348,7 @@ describe('FeeService', () => {
     it('should return error if getRewardsNormalized fails', async () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
-      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ error } as any)
@@ -292,7 +363,7 @@ describe('FeeService', () => {
     it('should return error if getCallsNormalized fails', async () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
-      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
@@ -306,7 +377,7 @@ describe('FeeService', () => {
 
     it('should calculate the delta for all tokens', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
-      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
         return BigInt(token.balance.address) as any
@@ -320,7 +391,7 @@ describe('FeeService', () => {
       })
       expect(await feeService.calculateTokens(quote as any)).toEqual({
         calculated: {
-          solver,
+          solver: linearSolver,
           rewards,
           calls,
           deficitDescending,

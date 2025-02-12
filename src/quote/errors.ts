@@ -1,4 +1,5 @@
 import { EcoError } from '@/common/errors/eco-error'
+import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { Hex } from 'viem'
 
@@ -158,6 +159,12 @@ export function InternalQuoteError(error?: Error): Quote500 {
 }
 
 export class QuoteError extends Error {
+  static InvalidSolverAlgorithm(destination: bigint, algorithm: FeeAlgorithm) {
+    return new EcoError(
+      `The solver for destination chain ${destination} did not return a valid algorithm : ${algorithm} `,
+    )
+  }
+
   static NoSolverForDestination(destination: bigint) {
     return new EcoError(`No solver found for destination chain ${destination}`)
   }
