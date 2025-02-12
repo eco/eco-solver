@@ -2,6 +2,7 @@ import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { Solver } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
@@ -35,9 +36,31 @@ export class FeeService {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getAsk(totalFulfill: bigint, route: QuoteRouteDataInterface) {
-    //0.02 cents + $0.015 per 100$
-    //2E4 + 15E3 * totalFulfill / 1E8 in base6
-    const fee = 20_000n + (totalFulfill / 100_000_000n) * 15_000n
+    //hardcode the destination to eth mainnet/sepolia if its part of the route
+    const destination =
+      route.destination === 1n || route.source === 1n
+        ? 1n
+        : route.destination === 11155111n || route.source === 11155111n
+          ? 11155111n
+          : route.destination
+
+    const solver = this.ecoConfigService.getSolver(destination)
+    if (!solver) {
+      //we shouldn't get here after validations are run so throw
+      throw QuoteError.NoSolverForDestination(destination)
+    }
+    let fee = 0n
+    switch (solver.fee.feeAlgorithm) {
+      // 0.02 cents + $0.015 per 100$
+      // 20_000n + (totalFulfill / 100_000_000n) * 15_000n
+      case 'linear':
+        const s = solver as Solver<'linear'>
+        fee =
+          s.fee.constants.baseFee + (totalFulfill / 100_000_000n) * s.fee.constants.per100UnitFee
+        break
+      default:
+        throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.feeAlgorithm)
+    }
     return fee + totalFulfill
   }
 
