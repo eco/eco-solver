@@ -6,7 +6,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Signer } from '@web3-kms-signer/core'
 import { KMSProviderAWS } from '@web3-kms-signer/kms-provider-aws'
 import { KMSWallets } from '@web3-kms-signer/kms-wallets'
-import { Hex } from 'viem'
+import { getAddress as viemGetAddress, Hex } from 'viem'
 
 /**
  * A service class that initializes the kms signer and provides for signing of messages.
@@ -52,7 +52,7 @@ export class KmsService implements OnModuleInit {
    * @returns the KMS eth address
    */
   async getAddress(): Promise<Hex> {
-    return (await this.wallets.getAddressHex(this.keyID)) as Hex
+    return viemGetAddress(await this.wallets.getAddressHex(this.keyID))
   }
 
   /**
