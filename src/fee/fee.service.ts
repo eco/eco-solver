@@ -56,7 +56,8 @@ export class FeeService {
       case 'linear':
         const s = solver as Solver<'linear'>
         fee =
-          s.fee.constants.baseFee + (totalFulfill / 100_000_000n) * s.fee.constants.per100UnitFee
+          BigInt(s.fee.constants.baseFee) +
+          (totalFulfill / 100_000_000n) * BigInt(s.fee.constants.per100UnitFee)
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.feeAlgorithm)
