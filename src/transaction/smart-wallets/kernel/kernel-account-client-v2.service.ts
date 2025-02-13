@@ -2,7 +2,16 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Chain, Hex, zeroAddress } from 'viem'
+import {
+  Account,
+  Chain,
+  Hex,
+  LocalAccount,
+  OneOf,
+  Transport,
+  WalletClient,
+  zeroAddress,
+} from 'viem'
 import { KernelVersion } from 'permissionless/accounts'
 import { entryPointV_0_7 } from './create.kernel.account'
 import {
@@ -10,14 +19,18 @@ import {
   KernelAccountClientV2,
   KernelAccountClientV2Config,
 } from '@/transaction/smart-wallets/kernel/create-kernel-client-v2.account'
+import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 
 class KernelAccountClientV2ServiceBase<
   entryPointVersion extends '0.6' | '0.7',
   kernelVersion extends KernelVersion<entryPointVersion>,
+  owner extends OneOf<
+    EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
+  > = LocalAccount,
 > extends ViemMultichainClientService<
   KernelAccountClientV2<entryPointVersion>,
-  KernelAccountClientV2Config<entryPointVersion, kernelVersion>
+  KernelAccountClientV2Config<entryPointVersion, kernelVersion, owner>
 > {
   private logger = new Logger(KernelAccountClientV2ServiceBase.name)
 
@@ -43,23 +56,24 @@ class KernelAccountClientV2ServiceBase<
   }
 
   protected override async createInstanceClient(
-    configs: KernelAccountClientV2Config<entryPointVersion, kernelVersion>,
+    configs: KernelAccountClientV2Config<entryPointVersion, kernelVersion, owner>,
   ): Promise<KernelAccountClientV2<entryPointVersion>> {
     return createKernelAccountClientV2(configs)
   }
 
   protected override async buildChainConfig(
     chain: Chain,
-  ): Promise<KernelAccountClientV2Config<entryPointVersion, kernelVersion>> {
+  ): Promise<KernelAccountClientV2Config<entryPointVersion, kernelVersion, owner>> {
     const base = await super.buildChainConfig(chain)
     return {
       ...base,
       ownerAccount: this.signerService.getAccount(),
+      useMetaFactory: false,
       entryPoint: {
         address: entryPoint07Address,
         version: '0.7' as entryPointVersion,
       },
-      owners: [this.signerService.getAccount()],
+      owners: [this.signerService.getAccount() as owner],
       index: 0n, // optional
     }
   }

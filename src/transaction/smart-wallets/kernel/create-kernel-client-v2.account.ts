@@ -13,20 +13,27 @@ import {
   createClient,
   createWalletClient,
   Hash,
+  LocalAccount,
+  OneOf,
   Prettify,
   RpcSchema,
   SendTransactionParameters,
   SendTransactionRequest,
   Transport,
+  WalletClient,
 } from 'viem'
 import { SendUserOperationParameters } from 'viem/account-abstraction'
 import { encodeKernelExecuteCallData } from '@/transaction/smart-wallets/kernel/actions/encodeData.kernel'
 import { entryPointV_0_7 } from '@/transaction/smart-wallets/kernel/create.kernel.account'
 import { sendTransaction } from 'viem/actions'
+import { EthereumProvider } from 'permissionless/utils/toOwner'
 
 export type KernelAccountClientV2Config<
   entryPointVersion extends '0.6' | '0.7',
   kernelVersion extends KernelVersion<entryPointVersion>,
+  owner extends OneOf<
+    EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
+  >,
   transport extends Transport = Transport,
   chain extends Chain | undefined = Chain | undefined,
   account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
@@ -35,7 +42,7 @@ export type KernelAccountClientV2Config<
   rpcSchema extends RpcSchema | undefined = undefined,
 > = Prettify<
   ClientConfig<transport, chain, account, rpcSchema> &
-    ToEcdsaKernelSmartAccountParameters<entryPointVersion, kernelVersion> & {
+    ToEcdsaKernelSmartAccountParameters<entryPointVersion, kernelVersion, owner> & {
       ownerAccount: Account
     }
 >
@@ -57,8 +64,15 @@ export type KernelAccountClientV2<
 
 export async function createKernelAccountClientV2<
   entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
+  owner extends OneOf<
+    EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
+  > = LocalAccount,
 >(
-  _parameters: KernelAccountClientV2Config<entryPointVersion, KernelVersion<entryPointVersion>>,
+  _parameters: KernelAccountClientV2Config<
+    entryPointVersion,
+    KernelVersion<entryPointVersion>,
+    owner
+  >,
 ): Promise<KernelAccountClientV2<entryPointVersion>> {
   const { ownerAccount, ...parameters } = _parameters
 
@@ -75,7 +89,8 @@ export async function createKernelAccountClientV2<
 
   const kernelAccount = await toEcdsaKernelSmartAccount<
     entryPointVersion,
-    KernelVersion<entryPointVersion>
+    KernelVersion<entryPointVersion>,
+    owner
   >({
     ...parameters,
     client: walletClient,
