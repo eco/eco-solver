@@ -32,7 +32,8 @@ export class KmsService implements OnModuleInit {
     })
     this.wallets = new KMSWallets(provider)
 
-    // const chainId = 10 // The `chainId` is optional, only useful for signing transactions on EIP-155. (will not be considered when signing messages).
+    // Dont need chainId because transactions eip1559, already hash the chainID on signature in viem
+    // Basic signs do need chainID for eip 155
     this.signer = new Signer(this.wallets) //, chainId)
 
     this.logger.log(
