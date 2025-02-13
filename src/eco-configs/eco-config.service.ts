@@ -3,7 +3,7 @@ import * as _ from 'lodash'
 import * as config from 'config'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { EcoConfigType, IntentSource, Solver } from './eco-config.types'
+import { AwsCredential, KmsConfig, EcoConfigType, IntentSource, Solver } from './eco-config.types'
 import { entries } from 'lodash'
 import { getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
@@ -45,8 +45,8 @@ export class EcoConfigService implements OnModuleInit {
         message: `Initializing eco configs`,
       }),
     )
-    // Merge the secrets with the existing config, the local configs here on the right
-    // means that they will be overwritten by the secrets on the left(aws) if they both exist
+
+    // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
   }
 
@@ -58,6 +58,11 @@ export class EcoConfigService implements OnModuleInit {
   // Returns the alchemy configs
   getAlchemy(): EcoConfigType['alchemy'] {
     return this.get('alchemy')
+  }
+
+  // Returns the aws configs
+  getAwsConfigs(): AwsCredential[] {
+    return this.get('aws')
   }
 
   // Returns the cache configs
@@ -91,6 +96,11 @@ export class EcoConfigService implements OnModuleInit {
   // Returns the intent source for a specific chain or undefined if its not supported
   getIntentSource(chainID: number): IntentSource | undefined {
     return this.getIntentSources().find((intent) => intent.chainID === chainID)
+  }
+
+  // Returns the aws configs
+  getKmsConfig(): KmsConfig {
+    return this.get('kms')
   }
 
   // Returns the solvers config

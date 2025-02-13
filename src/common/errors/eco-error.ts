@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
+import { AwsCredential } from '@/eco-configs/eco-config.types'
 
 export class EcoError extends Error {
   // Alchemy Service
@@ -81,6 +82,10 @@ export class EcoError extends Error {
     return new EcoError(
       `App does not support chain ${chain.id}:${chain.name}, check your config file`,
     )
+  }
+
+  static KmsCredentialsError(config?: AwsCredential) {
+    return new EcoError(`Could not get AWS KMS credentials: ${config}`)
   }
 
   // EcoConfig Service

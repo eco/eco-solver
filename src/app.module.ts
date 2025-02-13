@@ -18,6 +18,7 @@ import { WatchModule } from '@/watch/watch.module'
 import { IntervalModule } from '@/intervals/interval.module'
 import { QuoteModule } from '@/quote/quote.module'
 import { FeeModule } from '@/fee/fee.module'
+import { KmsModule } from '@/kms/kms.module'
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { FeeModule } from '@/fee/fee.module'
     FlagsModule,
     HealthModule,
     IntentModule,
+    KmsModule,
     SignModule,
     IntervalModule,
     ProcessorModule,

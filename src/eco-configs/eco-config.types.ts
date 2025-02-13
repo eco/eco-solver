@@ -46,6 +46,7 @@ export type EcoConfigType = {
   }
   fulfill: FulfillType
   aws: AwsCredential[]
+  kms: KmsConfig
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -131,6 +132,14 @@ export type IntentConfig = {
 export type AwsCredential = {
   region: string
   secretID: string
+}
+
+/**
+ * The config type for the aws kms
+ */
+export type KmsConfig = {
+  region: string
+  keyID: string
 }
 
 /**

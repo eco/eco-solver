@@ -1,3 +1,21 @@
+import { Hex, keccak256, toBytes } from 'viem'
+
+/**
+ * Deterministically serializes an object into a JSON string
+ */
+export function serializeObject(obj: object): string {
+  return JSON.stringify(obj, Object.keys(obj).sort())
+}
+
+/**
+ * Hashes an object using keccak256
+ */
+export function hashObject(obj: object): Hex {
+  const json = serializeObject(obj)
+  const hash = keccak256(toBytes(json))
+  return hash
+}
+
 /**
  * Lowercase all top-level keys of the given `object` to lowercase.
  *
