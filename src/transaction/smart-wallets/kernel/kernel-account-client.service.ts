@@ -65,6 +65,7 @@ export class KernelAccountClientServiceBase<
     return {
       ...base,
       account: this.signerService.getAccount(),
+      useMetaFactory: false,
       entryPoint: {
         address: entryPoint07Address,
         version: '0.7' as entryPointVersion,
