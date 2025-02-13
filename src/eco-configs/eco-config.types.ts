@@ -196,8 +196,8 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
   ? { baseFee: bigint; per100UnitFee: bigint }
   : T extends 'quadratic'
-  ? { baseFee: bigint; quadraticFactor: bigint }
-  : never
+    ? { baseFee: bigint; quadraticFactor: bigint }
+    : never
 
 /**
  * The config type for a supported target contract

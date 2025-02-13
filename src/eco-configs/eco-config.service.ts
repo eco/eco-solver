@@ -28,7 +28,7 @@ export class EcoConfigService implements OnModuleInit {
     this.initConfigs()
   }
 
-  async onModuleInit() { }
+  async onModuleInit() {}
 
   /**
    * Returns the static configs  for the app, from the 'config' package

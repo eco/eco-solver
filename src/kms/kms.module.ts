@@ -2,9 +2,11 @@ import { KmsService } from '@/kms/kms.service'
 import { Module } from '@nestjs/common'
 
 @Module({
-  imports: [
-  ],
+  imports: [],
   providers: [KmsService],
   exports: [KmsService],
 })
-export class KmsModule { }
+/**
+ * A module for dealing with the aws kms service.
+ */
+export class KmsModule {}
