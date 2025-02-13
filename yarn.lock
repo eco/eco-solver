@@ -1155,7 +1155,7 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/routes-ts@^1.9.14":
+"@eco-foundation/routes-ts@~1.9.14":
   version "1.9.14"
   resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.9.14.tgz#d7437a8af3e04d52fd438f2220293633c00a58a2"
   integrity sha512-7AE3It9e3kQhlagkqF031otQrHQJLq5GezNlIEzk76B5Mzt/k1meClv5oB0ruos9ggURkfpl6e218+pN7+3JZg==
