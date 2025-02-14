@@ -1,5 +1,5 @@
 import { Network } from 'alchemy-sdk'
-import { Logger } from '@nestjs/common'
+import { Logger, UnauthorizedException } from '@nestjs/common'
 import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
@@ -16,6 +16,14 @@ export class EcoError extends Error {
 
   static AlchemyServiceProviderError(network: string) {
     return new EcoError(`Could not create alchemy provider ${network}`)
+  }
+
+  // Attestation Guard
+  static AttestationProofHeaderMissingError = new UnauthorizedException('Attestation header missing')
+  static AttestationSaltHeaderMissingError = new UnauthorizedException('Salt missing in request')
+  static AttestationInvalidError = new UnauthorizedException('Invalid attestation document')
+  static AttestationFailedrror(error: Error) {
+    return new UnauthorizedException('Failed to verify attestation : ' + JSON.stringify(error))
   }
 
   static BalanceServiceInvalidDecimals(address: string) {
