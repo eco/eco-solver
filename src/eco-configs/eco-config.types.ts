@@ -62,6 +62,8 @@ export type EcoConfigType = {
     pinoConfig: PinoParams
   }
   liquidityManager: LiquidityManagerConfig
+  indexer: IndexerConfig
+  withdraws: WithdrawsConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -238,4 +240,13 @@ export interface LiquidityManagerConfig {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
 }

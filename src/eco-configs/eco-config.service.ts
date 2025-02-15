@@ -179,6 +179,16 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('liquidityManager')
   }
 
+  // Returns the liquidity manager config
+  getWithdraws(): EcoConfigType['withdraws'] {
+    return this.get('withdraws')
+  }
+
+  // Returns the liquidity manager config
+  getIndexer(): EcoConfigType['indexer'] {
+    return this.get('indexer')
+  }
+
   getChainRPCs() {
     const { apiKey, networks } = this.getAlchemy()
     const supportedAlchemyChainIds = _.map(networks, 'id')
