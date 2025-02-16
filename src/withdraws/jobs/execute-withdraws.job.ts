@@ -17,7 +17,7 @@ export type ExecuteWithdrawsJobData = {
   }[]
 }
 
-type ExecuteWithdrawsJob = Job<
+export type ExecuteWithdrawsJob = Job<
   Serialize<ExecuteWithdrawsJobData>,
   unknown,
   WithdrawsJobName.EXECUTE_WITHDRAWS

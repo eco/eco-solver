@@ -1,20 +1,20 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { WithdrawsJob } from '@/withdraws/jobs/withdraws.job'
 import { WithdrawsService } from '@/withdraws/services/withdraws.service'
 import { ExecuteWithdrawsJobManager } from '@/withdraws/jobs/execute-withdraws.job'
 import { WithdrawRewardsCronJobManager } from '@/withdraws/jobs/withdraw-rewards-cron.job'
 import { WithdrawsQueue, WithdrawsQueueType } from '@/withdraws/queues/withdraws.queue'
+import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 
 /**
  * Processor for handling liquidity manager jobs.
  * Extends the GroupedJobsProcessor to ensure jobs in the same group are not processed concurrently.
  */
 @Injectable()
-@Processor(WithdrawsQueue.queueName)
+@Processor(WithdrawsQueue.queueName, { concurrency: 10 })
 export class WithdrawsProcessor
-  extends BaseProcessor<WithdrawsJob>
+  extends GroupedJobsProcessor<WithdrawsJob>
   implements OnApplicationBootstrap
 {
   protected appReady = false
@@ -26,10 +26,10 @@ export class WithdrawsProcessor
    */
   constructor(
     @InjectQueue(WithdrawsQueue.queueName)
-    protected readonly queue: WithdrawsQueueType,
+    public readonly queue: WithdrawsQueueType,
     public readonly withdrawsService: WithdrawsService,
   ) {
-    super(WithdrawsProcessor.name, [
+    super('chainId', WithdrawsProcessor.name, [
       new WithdrawRewardsCronJobManager(),
       new ExecuteWithdrawsJobManager(),
     ])

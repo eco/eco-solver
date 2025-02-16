@@ -1,11 +1,8 @@
-import { Job } from 'bullmq'
-import { WithdrawsJobName, WithdrawsQueueDataType } from '@/withdraws/queues/withdraws.queue'
 import { BaseJobManager } from '@/common/bullmq/base-job'
+import { CheckWithdrawsJob } from '@/withdraws/jobs/withdraw-rewards-cron.job'
+import { ExecuteWithdrawsJob } from '@/withdraws/jobs/execute-withdraws.job'
 
-export type WithdrawsJob<
-  NameType extends WithdrawsJobName = WithdrawsJobName,
-  DataType extends WithdrawsQueueDataType = WithdrawsQueueDataType,
-> = Job<DataType, unknown, NameType>
+export type WithdrawsJob = ExecuteWithdrawsJob | CheckWithdrawsJob
 
 export abstract class WithdrawsJobManager<
   Job extends WithdrawsJob = WithdrawsJob,

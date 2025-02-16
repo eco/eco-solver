@@ -5,6 +5,9 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { OnWorkerEvent } from '@nestjs/bullmq'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 
+// Extract keys from `data` when `data` is defined
+type DataKeys<T> = T extends { data?: infer D } ? (D extends object ? keyof D : never) : never
+
 /**
  * Abstract class representing a processor for grouped jobs.
  * @template Job - The type of the job.
@@ -24,7 +27,7 @@ export abstract class GroupedJobsProcessor<
    * @param params - Additional parameters for the base processor.
    */
   constructor(
-    protected readonly groupBy: string,
+    protected readonly groupBy: DataKeys<GroupJob>,
     ...params: ConstructorParameters<typeof BaseProcessor<Job, JobManager>>
   ) {
     super(...params)

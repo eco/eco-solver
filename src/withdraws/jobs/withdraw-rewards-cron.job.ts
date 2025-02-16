@@ -1,9 +1,11 @@
-import { Queue } from 'bullmq'
+import { Job, Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { WithdrawsJobName } from '@/withdraws/queues/withdraws.queue'
 import { WithdrawsProcessor } from '@/withdraws/processors/withdraws.processor'
 import { WithdrawsJob, WithdrawsJobManager } from '@/withdraws/jobs/withdraws.job'
+
+export type CheckWithdrawsJob = Job<undefined, undefined, WithdrawsJobName.CHECK_WITHDRAWS>
 
 export class WithdrawRewardsCronJobManager extends WithdrawsJobManager {
   static readonly jobSchedulerName = 'job-scheduler-withdraws'
@@ -31,6 +33,14 @@ export class WithdrawRewardsCronJobManager extends WithdrawsJobManager {
     processor.logger.log(
       EcoLogMessage.fromDefault({ message: `WithdrawRewardsCronJobManager: process` }),
     )
+
+    const waitingCount = await processor.queue.getWaitingCount()
+    const activeCount = await processor.queue.getActiveCount()
+
+    if (waitingCount > 0 || activeCount > 1) {
+      processor.logger.warn('Skipping job execution, queue is not empty.')
+      return
+    }
 
     return processor.withdrawsService.getNextBatchWithdrawals()
   }
