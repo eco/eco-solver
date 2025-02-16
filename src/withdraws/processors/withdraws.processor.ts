@@ -1,6 +1,7 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { BaseProcessor } from '@/withdraws/processors/base.processor'
+import { BaseProcessor } from '@/common/bullmq/base.processor'
+import { WithdrawsJob } from '@/withdraws/jobs/withdraws.job'
 import { WithdrawsService } from '@/withdraws/services/withdraws.service'
 import { ExecuteWithdrawsJobManager } from '@/withdraws/jobs/execute-withdraws.job'
 import { WithdrawRewardsCronJobManager } from '@/withdraws/jobs/withdraw-rewards-cron.job'
@@ -12,7 +13,10 @@ import { WithdrawsQueue, WithdrawsQueueType } from '@/withdraws/queues/withdraws
  */
 @Injectable()
 @Processor(WithdrawsQueue.queueName)
-export class WithdrawsProcessor extends BaseProcessor implements OnApplicationBootstrap {
+export class WithdrawsProcessor
+  extends BaseProcessor<WithdrawsJob>
+  implements OnApplicationBootstrap
+{
   protected appReady = false
 
   /**

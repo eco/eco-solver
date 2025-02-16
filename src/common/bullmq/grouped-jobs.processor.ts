@@ -1,21 +1,18 @@
 import { Logger } from '@nestjs/common'
-import {
-  LiquidityManagerJob,
-  LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
-import { Queue } from 'bullmq'
+import { BaseProcessor } from '@/common/bullmq/base.processor'
+import { Job, Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { OnWorkerEvent } from '@nestjs/bullmq'
+import { BaseJobManager } from '@/common/bullmq/base-job'
 
 /**
  * Abstract class representing a processor for grouped jobs.
  * @template Job - The type of the job.
  */
 export abstract class GroupedJobsProcessor<
-  Job extends LiquidityManagerJob = LiquidityManagerJob,
-  JobManager extends LiquidityManagerJobManager<Job> = LiquidityManagerJobManager<Job>,
-> extends BaseProcessor<Job, JobManager> {
+  GroupJob extends Job = Job,
+  JobManager extends BaseJobManager<GroupJob> = BaseJobManager<GroupJob>,
+> extends BaseProcessor<GroupJob, JobManager> {
   public readonly logger: Logger
   protected abstract readonly queue: Queue
 
@@ -38,7 +35,7 @@ export abstract class GroupedJobsProcessor<
    * @param job - The job to process.
    * @returns A promise that resolves to an object indicating if the job was delayed.
    */
-  async process(job: Job) {
+  async process(job: GroupJob) {
     const group = job.data?.[this.groupBy] as string
 
     if (group) {
@@ -72,7 +69,7 @@ export abstract class GroupedJobsProcessor<
    * @param job - The job that was completed.
    */
   @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
+  onCompleted(job: GroupJob) {
     const returnvalue = job.returnvalue as object
     if (returnvalue && 'delayed' in returnvalue && returnvalue.delayed) {
       // Skip onCompleted hook if job got delayed
@@ -93,7 +90,7 @@ export abstract class GroupedJobsProcessor<
    * @param error - Error.
    */
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
+  onFailed(job: GroupJob, error: Error) {
     if (this.groupBy in job.data && this.activeGroups.has(job.data[this.groupBy] as string)) {
       this.activeGroups.delete(job.data[this.groupBy] as string)
     }

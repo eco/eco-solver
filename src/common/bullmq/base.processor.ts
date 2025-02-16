@@ -1,7 +1,8 @@
 import { Logger } from '@nestjs/common'
+import { Job as BullMQJob } from 'bullmq'
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { WithdrawsJob, WithdrawsJobManager } from '@/withdraws/jobs/withdraws.job'
+import { BaseJobManager } from '@/common/bullmq/base-job'
 
 /**
  * Abstract class representing a base processor for liquidity manager jobs.
@@ -9,8 +10,8 @@ import { WithdrawsJob, WithdrawsJobManager } from '@/withdraws/jobs/withdraws.jo
  * @template JobType - The constructor type of the job.
  */
 export abstract class BaseProcessor<
-  Job extends WithdrawsJob = WithdrawsJob,
-  JobManager extends WithdrawsJobManager<Job> = WithdrawsJobManager<Job>,
+  Job extends BullMQJob,
+  JobManager extends BaseJobManager<Job> = BaseJobManager<Job>,
 > extends WorkerHost {
   public readonly logger: Logger
 
@@ -27,20 +28,12 @@ export abstract class BaseProcessor<
     this.logger = new Logger(name)
   }
 
-  protected isAppReady(): boolean {
-    return true
-  }
-
   /**
    * Processes a job.
    * @param job - The job to process.
    * @returns The result of the job execution.
    */
   process(job: Job) {
-    if (!this.isAppReady()) {
-      throw new Error(`Processing job before app is initialized: Processor ${this.name}`)
-    }
-
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${this.name}.process()`,
