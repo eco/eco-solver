@@ -116,6 +116,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
           message: 'CheckBalancesCronJob: Rebalancing routes available',
         }),
       )
+      return
     }
 
     processor.logger.log(this.displayRebalancingTable(rebalances))

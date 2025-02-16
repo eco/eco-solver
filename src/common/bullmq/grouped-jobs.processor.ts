@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common'
 import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { Job, Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -16,7 +15,6 @@ export abstract class GroupedJobsProcessor<
   GroupJob extends Job = Job,
   JobManager extends BaseJobManager<GroupJob> = BaseJobManager<GroupJob>,
 > extends BaseProcessor<GroupJob, JobManager> {
-  public readonly logger: Logger
   protected abstract readonly queue: Queue
 
   protected readonly activeGroups = new Set<string>()

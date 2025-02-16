@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { Hex } from 'viem'
 import { IndexerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BatchWithdraws } from '@/indexer/interfaces/batch-withdraws.interface'
-import { Hex } from 'viem'
+import { SendBatchData } from '@/indexer/interfaces/send-batch-data.interface'
 
 @Injectable()
 export class IndexerService {
@@ -17,6 +18,11 @@ export class IndexerService {
   getNextBatchWithdrawals(intentSourceAddr?: Hex) {
     const searchParams = { evt_log_address: intentSourceAddr }
     return this.fetch<BatchWithdraws[]>('/intents/nextBatchWithdrawals', { searchParams })
+  }
+
+  getNextSendBatch(intentSourceAddr?: Hex) {
+    const searchParams = { evt_log_address: intentSourceAddr }
+    return this.fetch<SendBatchData[]>('/intents/nextBatch', { searchParams })
   }
 
   private async fetch<Data>(

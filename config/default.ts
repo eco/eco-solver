@@ -102,6 +102,11 @@ export default {
     intervalDuration: 360_000,
   },
 
+  sendBatch: {
+    chunkSize: 200,
+    intervalDuration: 360_000,
+  },
+
   externalAPIs: {},
   logger: {
     usePino: true,

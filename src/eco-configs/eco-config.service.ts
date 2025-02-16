@@ -3,8 +3,7 @@ import * as _ from 'lodash'
 import * as config from 'config'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { AwsCredential, KmsConfig, EcoConfigType, IntentSource, Solver } from './eco-config.types'
-import { entries } from 'lodash'
+import { AwsCredential, EcoConfigType, IntentSource, KmsConfig, Solver } from './eco-config.types'
 import { getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
@@ -77,20 +76,20 @@ export class EcoConfigService implements OnModuleInit {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
-    const intents = this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
-      intent.tokens = intent.tokens.map((token: string) => {
-        return getAddress(token)
-      })
+    return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource
+      intent.inbox = config.Inbox
       intent.provers = [config.HyperProver]
+      intent.tokens = intent.tokens.map((token: string) => getAddress(token))
+
       //removing storage prover per audit for hyperlane beta release
       // if (config.Prover) {
       //   intent.provers.push(config.Prover)
       // }
+
       return intent
     })
-    return intents
   }
 
   // Returns the intent source for a specific chain or undefined if its not supported
@@ -106,7 +105,7 @@ export class EcoConfigService implements OnModuleInit {
   // Returns the solvers config
   getSolvers(): EcoConfigType['solvers'] {
     const solvers = this.get<Record<number, Solver>>('solvers')
-    entries(solvers).forEach(([, solver]: [string, Solver]) => {
+    _.entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
       solver.inboxAddress = config.Inbox
       solver.targets = addressKeys(solver.targets) ?? {}
@@ -185,6 +184,11 @@ export class EcoConfigService implements OnModuleInit {
   }
 
   // Returns the liquidity manager config
+  getSendBatch(): EcoConfigType['sendBatch'] {
+    return this.get('sendBatch')
+  }
+
+  // Returns the liquidity manager config
   getIndexer(): EcoConfigType['indexer'] {
     return this.get('indexer')
   }
@@ -205,6 +209,6 @@ export class EcoConfigService implements OnModuleInit {
    * @returns the supported chains for the event
    */
   getSupportedChains(): bigint[] {
-    return entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+    return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
   }
 }

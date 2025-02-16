@@ -19,7 +19,7 @@ import { IntervalModule } from '@/intervals/interval.module'
 import { QuoteModule } from '@/quote/quote.module'
 import { FeeModule } from '@/fee/fee.module'
 import { KmsModule } from '@/kms/kms.module'
-import { WithdrawsModule } from '@/withdraws/withdraws.module'
+import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
 
 @Module({
   imports: [
@@ -49,7 +49,7 @@ import { WithdrawsModule } from '@/withdraws/withdraws.module'
     SolverModule,
     LiquidityManagerModule,
     WatchModule,
-    WithdrawsModule,
+    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],

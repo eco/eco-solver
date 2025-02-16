@@ -4,9 +4,12 @@ import { encodePacked, Hex, keccak256 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
-import { WithdrawsJobName } from '@/withdraws/queues/withdraws.queue'
-import { WithdrawsProcessor } from '@/withdraws/processors/withdraws.processor'
-import { WithdrawsJob, WithdrawsJobManager } from '@/withdraws/jobs/withdraws.job'
+import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
+import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import {
+  IntentProcessorJob,
+  IntentProcessorJobManager,
+} from '@/intent-processor/jobs/intent-processor.job'
 
 export type ExecuteWithdrawsJobData = {
   chainId: number
@@ -20,10 +23,10 @@ export type ExecuteWithdrawsJobData = {
 export type ExecuteWithdrawsJob = Job<
   Serialize<ExecuteWithdrawsJobData>,
   unknown,
-  WithdrawsJobName.EXECUTE_WITHDRAWS
+  IntentProcessorJobName.EXECUTE_WITHDRAWS
 >
 
-export class ExecuteWithdrawsJobManager extends WithdrawsJobManager<ExecuteWithdrawsJob> {
+export class ExecuteWithdrawsJobManager extends IntentProcessorJobManager<ExecuteWithdrawsJob> {
   static createJob(jobData: ExecuteWithdrawsJobData): {
     name: ExecuteWithdrawsJob['name']
     data: ExecuteWithdrawsJob['data']
@@ -33,7 +36,7 @@ export class ExecuteWithdrawsJobManager extends WithdrawsJobManager<ExecuteWithd
     const jobId = keccak256(encodePacked(['bytes32[]'], [intentHashes]))
 
     return {
-      name: WithdrawsJobName.EXECUTE_WITHDRAWS,
+      name: IntentProcessorJobName.EXECUTE_WITHDRAWS,
       data: serialize(jobData),
       opts: {
         jobId,
@@ -51,13 +54,13 @@ export class ExecuteWithdrawsJobManager extends WithdrawsJobManager<ExecuteWithd
    * @param job - The job to check.
    * @returns True if the job is a ExecuteWithdrawsJob.
    */
-  is(job: WithdrawsJob): job is ExecuteWithdrawsJob {
-    return job.name === WithdrawsJobName.EXECUTE_WITHDRAWS
+  is(job: IntentProcessorJob): job is ExecuteWithdrawsJob {
+    return job.name === IntentProcessorJobName.EXECUTE_WITHDRAWS
   }
 
-  async process(job: WithdrawsJob, processor: WithdrawsProcessor): Promise<void> {
+  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
     if (this.is(job)) {
-      return processor.withdrawsService.executeWithdrawals(deserialize(job.data))
+      return processor.intentProcessorService.executeWithdrawals(deserialize(job.data))
     }
   }
 
@@ -67,7 +70,7 @@ export class ExecuteWithdrawsJobManager extends WithdrawsJobManager<ExecuteWithd
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: WithdrawsJob, processor: WithdrawsProcessor, error: Error) {
+  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: Error) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `ExecuteWithdrawsJob: Failed`,
