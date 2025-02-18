@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy, zipWith } from 'lodash'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
@@ -9,6 +9,17 @@ import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cacheable } from '@/decorators/cacheable.decorator'
+
+/**
+ * Composite data from fetching the token balances for a chain
+ */
+export type TokenFetchAnalysis = {
+  config: TokenConfig
+  balance: TokenBalance
+  chainId: number
+}
 
 /**
  * Service class for getting configs for the app
@@ -20,13 +31,14 @@ export class BalanceService implements OnApplicationBootstrap {
   private readonly tokenBalances: Map<string, TokenBalance> = new Map()
 
   constructor(
-    private readonly ecoConfig: EcoConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   async onApplicationBootstrap() {
     // iterate over all tokens
-    await Promise.all(this.getTokens().map((token) => this.loadTokenBalance(token)))
+    await Promise.all(this.getInboxTokens().map((token) => this.loadTokenBalance(token)))
   }
 
   /**
@@ -64,8 +76,12 @@ export class BalanceService implements OnApplicationBootstrap {
     }
   }
 
-  getTokens(): TokenConfig[] {
-    return Object.values(this.ecoConfig.getSolvers()).flatMap((solver) => {
+  /**
+   * Gets the tokens that are in the solver wallets
+   * @returns List of tokens that are supported by the solver
+   */
+  getInboxTokens(): TokenConfig[] {
+    return Object.values(this.configService.getSolvers()).flatMap((solver) => {
       return Object.entries(solver.targets)
         .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
         .map(([tokenAddress, targetContract]) => ({
@@ -78,6 +94,13 @@ export class BalanceService implements OnApplicationBootstrap {
     })
   }
 
+  /**
+   * Fetches the balances of the kernel account client of the solver for the given tokens
+   * @param chainID the chain id
+   * @param tokenAddresses the tokens to fetch balances for
+   * @returns
+   */
+  @Cacheable()
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: Hex[],
@@ -113,27 +136,57 @@ export class BalanceService implements OnApplicationBootstrap {
       allowFailure: false,
     })) as MulticallReturnType
 
-    const result: Record<Hex, TokenBalance> = {}
+    const tokenBalances: Record<Hex, TokenBalance> = {}
 
     tokenAddresses.forEach((tokenAddress, index) => {
       const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
-      result[tokenAddress] = {
+      //throw if we suddenly start supporting tokens with not 6 decimals
+      //audit conversion of validity to see its support
+      if ((decimals as number) != 6) {
+        throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
+      }
+      tokenBalances[tokenAddress] = {
         address: tokenAddress,
         balance: balance as bigint,
         decimals: decimals as number,
       }
     })
 
-    return result
+    return tokenBalances
   }
 
+  @Cacheable()
   async fetchTokenBalance(chainID: number, tokenAddress: Hex): Promise<TokenBalance> {
     const result = await this.fetchTokenBalances(chainID, [tokenAddress])
     return result[tokenAddress]
   }
 
+  @Cacheable()
+  async fetchTokenBalancesForChain(
+    chainID: number,
+  ): Promise<Record<Hex, TokenBalance> | undefined> {
+    const intentSource = this.configService.getIntentSource(chainID)
+    if (!intentSource) {
+      return undefined
+    }
+    return this.fetchTokenBalances(chainID, intentSource.tokens)
+  }
+
+  @Cacheable()
+  async fetchTokenData(chainID: number): Promise<TokenFetchAnalysis[]> {
+    const tokenConfigs = groupBy(this.getInboxTokens(), 'chainId')[chainID]
+    const tokenAddresses = tokenConfigs.map((token) => token.address)
+    const balances = await this.fetchTokenBalances(chainID, tokenAddresses)
+    return zipWith(tokenConfigs, Object.values(balances), (config, balance) => ({
+      config,
+      balance,
+      chainId: chainID,
+    }))
+  }
+
+  @Cacheable()
   async getAllTokenData() {
-    const tokens = this.getTokens()
+    const tokens = this.getInboxTokens()
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
 

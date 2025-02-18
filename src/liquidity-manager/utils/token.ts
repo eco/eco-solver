@@ -2,6 +2,12 @@ import { formatUnits, parseUnits } from 'viem'
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import { getSlippageRange } from '@/liquidity-manager/utils/math'
+import { Mathb } from '@/utils/bigint'
+import {
+  TokenAnalysis,
+  TokenBalanceAnalysis,
+  TokenDataAnalyzed,
+} from '@/liquidity-manager/types/types'
 
 /**
  * Analyzes a token's balance against its configuration and returns the analysis.
@@ -14,7 +20,7 @@ export function analyzeToken(
   tokenConfig: TokenConfig,
   tokenBalance: TokenBalance,
   percentage: { down: number; up: number; targetSlippage: number },
-): LiquidityManager.TokenAnalysis {
+): TokenAnalysis {
   const { decimals } = tokenBalance
 
   // Calculate the maximum and minimum acceptable balances
@@ -22,7 +28,7 @@ export function analyzeToken(
   const minimum = tokenConfig.targetBalance * (1 - percentage.down)
 
   // Create a balance analysis object
-  const balance: LiquidityManager.TokenBalanceAnalysis = {
+  const balance: TokenBalanceAnalysis = {
     current: tokenBalance.balance,
     maximum: parseUnits(maximum.toString(), decimals),
     minimum: parseUnits(minimum.toString(), decimals),
@@ -32,7 +38,7 @@ export function analyzeToken(
   // Determine the state of the token based on its balance
   const state = getTokenState(balance)
   // Calculate the difference between the current balance and the target balance
-  const diffWei = getTokenBalanceDiff(state, balance)
+  const diffWei = getTokenBalanceDiff(balance)
   const diff = parseFloat(formatUnits(diffWei, decimals))
   const targetSlippage = getSlippageRange(
     parseUnits(tokenConfig.targetBalance.toString(), decimals),
@@ -47,9 +53,7 @@ export function analyzeToken(
  * @param balance - The balance analysis of the token.
  * @returns The state of the token.
  */
-function getTokenState(
-  balance: LiquidityManager.TokenBalanceAnalysis,
-): LiquidityManager.TokenState {
+function getTokenState(balance: TokenBalanceAnalysis): TokenState {
   const { current, minimum, maximum } = balance
   if (current > maximum) return TokenState.SURPLUS
   if (current < minimum) return TokenState.DEFICIT
@@ -57,23 +61,12 @@ function getTokenState(
 }
 
 /**
- * Calculates the difference between the current balance and the target balance based on the token's state.
- * @param state - The state of the token.
+ * Calculates the absolute difference between the current balance and the target balance of a token.
  * @param balance - The balance analysis of the token.
- * @returns The difference between the current balance and the target balance.
+ * @returns The absolute difference of tokens balance and the target balance.
  */
-function getTokenBalanceDiff(
-  state: LiquidityManager.TokenState,
-  balance: LiquidityManager.TokenBalanceAnalysis,
-): bigint {
-  switch (state) {
-    case TokenState.SURPLUS:
-      return balance.current - balance.target
-    case TokenState.DEFICIT:
-      return balance.target - balance.current
-    default:
-      return 0n
-  }
+function getTokenBalanceDiff(balance: TokenBalanceAnalysis): bigint {
+  return Mathb.abs(balance.current - balance.target)
 }
 
 /**
@@ -81,7 +74,7 @@ function getTokenBalanceDiff(
  * @param group - The group of analyzed token data.
  * @returns The total difference and the items in the group.
  */
-export function analyzeTokenGroup(group: LiquidityManager.TokenDataAnalyzed[]) {
+export function analyzeTokenGroup(group: TokenDataAnalyzed[]) {
   // Sort the group by diff in descending order
   const items = group.sort((a, b) => Number(b.analysis.diff - a.analysis.diff))
   // Calculate the total difference for the group
@@ -89,10 +82,10 @@ export function analyzeTokenGroup(group: LiquidityManager.TokenDataAnalyzed[]) {
   return { total, items }
 }
 
-export function getGroupTotal(group: LiquidityManager.TokenDataAnalyzed[]) {
+export function getGroupTotal(group: TokenDataAnalyzed[]) {
   return group.reduce((acc, item) => acc + item.analysis.diff, 0)
 }
 
-export function getSortGroupByDiff(group: LiquidityManager.TokenDataAnalyzed[]) {
+export function getSortGroupByDiff(group: TokenDataAnalyzed[]) {
   return group.sort((a, b) => b.analysis.diff - a.analysis.diff)
 }

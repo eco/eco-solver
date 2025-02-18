@@ -2,6 +2,7 @@ import { ContractFunctionName, decodeEventLog, Hex } from 'viem'
 import { getSelector } from '../common/viem/contracts'
 import { TargetContractType } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
+import { TransactionTargetData } from '@/intent/utils-intent.service'
 
 // Need to define the ABI as a const array to use in the type definition
 export const ERC20Abi = [
@@ -360,5 +361,29 @@ export function isSupportedTokenType(targetType: TargetContractType): boolean {
     case 'erc1155':
     default:
       throw EcoError.IntentSourceUnsupportedTargetType(targetType)
+  }
+}
+
+/**
+ * Verifies that a target is of type erc20 and that the selector is supported
+ * @param ttd the transaction target data
+ * @param permittedSelector the selector to check against, if not provided it will check against all erc20 selectors
+ * @returns
+ */
+export function isERC20Target(ttd: TransactionTargetData | null, permittedSelector?: Hex): boolean {
+  if (!ttd) {
+    return false
+  }
+  const isERC20 = ttd.targetConfig.contractType === 'erc20'
+  if (permittedSelector && ttd.selector !== permittedSelector) {
+    return false
+  }
+  switch (ttd.selector) {
+    case getERC20Selector('transfer'):
+      const correctArgs =
+        !!ttd.decodedFunctionData.args && ttd.decodedFunctionData.args.length === 2
+      return isERC20 && correctArgs
+    default:
+      return false
   }
 }

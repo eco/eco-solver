@@ -1,6 +1,8 @@
 import { BalanceController } from '@/api/balance.controller'
+import { QuoteController } from '@/api/quote.controller'
 import { BalanceModule } from '@/balance/balance.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { QuoteModule } from '@/quote/quote.module'
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
@@ -12,8 +14,9 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
       useFactory: async (configService: EcoConfigService) => configService.getCache(),
       inject: [EcoConfigService],
     }),
+    QuoteModule,
   ],
-  controllers: [BalanceController],
+  controllers: [BalanceController, QuoteController],
   providers: [
     {
       provide: APP_INTERCEPTOR,

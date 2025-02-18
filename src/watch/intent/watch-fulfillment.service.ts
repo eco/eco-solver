@@ -74,7 +74,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       onError: async (error) => {
         await this.onError(error, client, solver)
       },
-      address: solver.solverAddress,
+      address: solver.inboxAddress,
       abi: InboxAbi,
       eventName: 'Fulfillment',
       args: {

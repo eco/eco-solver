@@ -47,6 +47,7 @@ export type EcoConfigType = {
   }
   fulfill: FulfillType
   aws: AwsCredential[]
+  kms: KmsConfig
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -137,6 +138,14 @@ export type AwsCredential = {
 }
 
 /**
+ * The config type for the aws kms
+ */
+export type KmsConfig = {
+  region: string
+  keyID: string
+}
+
+/**
  * The config type for the auth section of the database.
  */
 export type MongoAuthType = {
@@ -162,13 +171,36 @@ export type AlchemyNetwork = {
 /**
  * The config type for a single solver configuration
  */
-export type Solver = {
-  solverAddress: Hex
+export type Solver<T extends FeeAlgorithm = FeeAlgorithm> = {
+  inboxAddress: Hex
   //target address to contract type mapping
   targets: Record<Hex, TargetContract>
   network: Network
+  fee: FeeType<T>
   chainID: number
 }
+
+/**
+ * The fee type algorithm along with its constants
+ */
+export type FeeType<T extends FeeAlgorithm> = {
+  feeAlgorithm: FeeAlgorithm
+  constants: FeeAlgorithmConfig<T>
+}
+
+/**
+ * The fee algorithm types
+ */
+export type FeeAlgorithm = 'linear' | 'quadratic'
+
+/**
+ * The fee algorithm constant config types
+ */
+export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
+  ? { baseFee: bigint; per100UnitFee: bigint }
+  : T extends 'quadratic'
+    ? { baseFee: bigint; quadraticFactor: bigint }
+    : never
 
 /**
  * The config type for a supported target contract
@@ -193,7 +225,7 @@ export class IntentSource {
   network: Network
   // The chain ID of the network
   chainID: number
-  // The address that the prover source contract is deployed at, we read events from this contract to fulfill
+  // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]

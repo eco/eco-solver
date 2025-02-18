@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
+import { AwsCredential } from '@/eco-configs/eco-config.types'
 
 export class EcoError extends Error {
   // Alchemy Service
@@ -17,6 +18,10 @@ export class EcoError extends Error {
     return new EcoError(`Could not create alchemy provider ${network}`)
   }
 
+  static BalanceServiceInvalidDecimals(address: string) {
+    return new EcoError(`Token has to be decimals 6, verify conversions before allowing ${address}`)
+  }
+
   static IntentSourceDataNotFound(intentHash: string) {
     return new EcoError(`Could not find data for intent hash ${intentHash}`)
   }
@@ -26,6 +31,10 @@ export class EcoError extends Error {
   )
 
   static IntentSourceTargetConfigNotFound(target: string) {
+    return new EcoError(`Solver does not have target: ${target}`)
+  }
+
+  static TargetSelectorNotSupported(target: string) {
     return new EcoError(`Solver does not have target: ${target}`)
   }
 
@@ -45,7 +54,7 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
-  static FeasableIntentNoTransactionError = new Error('No transaction data found')
+  static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentBatchError = new Error('Could not fulfill batch transaction')
   static FulfillIntentRevertError(receipt: TransactionReceipt) {
@@ -73,6 +82,10 @@ export class EcoError extends Error {
     return new EcoError(
       `App does not support chain ${chain.id}:${chain.name}, check your config file`,
     )
+  }
+
+  static KmsCredentialsError(config?: AwsCredential) {
+    return new EcoError(`Could not get AWS KMS credentials: ${config}`)
   }
 
   // EcoConfig Service

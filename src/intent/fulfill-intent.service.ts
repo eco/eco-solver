@@ -24,6 +24,9 @@ import { ProofService } from '../prover/proof.service'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InboxAbi } from '@eco-foundation/routes-ts'
+import { getTransactionTargetData } from '@/intent/utils'
+import { FeeService } from '@/fee/fee.service'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
@@ -39,6 +42,7 @@ export class FulfillIntentService implements IFulfillService {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly proofService: ProofService,
+    private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
@@ -88,21 +92,23 @@ export class FulfillIntentService implements IFulfillService {
     const targetSolveTxs = this.getTransactionsForTargets(data)
 
     // Create fulfill tx
-    const fulfillTx = await this.getFulfillIntentTx(solver.solverAddress, model)
+    const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `Fulfilling batch transaction`,
+        message: `Fulfilling ${this.getFulfillment()} transaction`,
         properties: {
-          batch: transactions,
+          transactions,
         },
       }),
     )
 
     try {
+      await this.finalFeasibilityCheck(model.intent)
+
       const transactionHash = await kernelAccountClient.execute(transactions)
 
       const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: transactionHash })
@@ -149,6 +155,20 @@ export class FulfillIntentService implements IFulfillService {
   }
 
   /**
+   * Checks that the intent is feasible for the fulfillment. This
+   * could occur due to changes to the fees/limits of the intent. A failed
+   * intent might retry later when its no longer profitable, etc.
+   * Throws an error if the intent is not feasible.
+   * @param intent the intent to check
+   */
+  async finalFeasibilityCheck(intent: IntentDataModel) {
+    const { error } = await this.feeService.isRouteFeasible(intent)
+    if (error) {
+      throw error
+    }
+  }
+
+  /**
    * Checks if the transaction is feasible for an erc20 token transfer.
    *
    * @param tt the transaction target data
@@ -160,11 +180,12 @@ export class FulfillIntentService implements IFulfillService {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-
+        // Approve the inbox to spend the amount, inbox contract pulls the funds
+        // then does the transfer call for the target
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
-          functionName: 'transfer',
-          args: [solver.solverAddress, dstAmount],
+          functionName: 'approve',
+          args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
         return [{ to: target, data: transferFunctionData }]
@@ -186,7 +207,7 @@ export class FulfillIntentService implements IFulfillService {
 
     // Create transactions for intent targets
     return model.intent.route.calls.flatMap((call) => {
-      const tt = this.utilsIntentService.getTransactionTargetData(model, solver, call)
+      const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -213,12 +234,12 @@ export class FulfillIntentService implements IFulfillService {
 
   /**
    * Returns the fulfill intent data
-   * @param solverAddress
+   * @param inboxAddress
    * @param model
    * @private
    */
   private async getFulfillIntentTx(
-    solverAddress: Hex,
+    inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
@@ -246,8 +267,8 @@ export class FulfillIntentService implements IFulfillService {
       }
     }
     let fee = 0n
-    if (isHyperlane) {
-      fee = BigInt((await this.getHyperlaneFee(solverAddress, model)) || '0x0')
+    if (isHyperlane && functionName === 'fulfillHyperInstantWithRelayer') {
+      fee = BigInt((await this.getHyperlaneFee(inboxAddress, model)) || '0x0')
     }
 
     const fulfillIntentData = encodeFunctionData({
@@ -258,7 +279,7 @@ export class FulfillIntentService implements IFulfillService {
     })
 
     return {
-      to: solverAddress,
+      to: inboxAddress,
       data: fulfillIntentData,
       // ...(isHyperlane && fee > 0 && { value: fee }),
       value: fee,
@@ -271,7 +292,7 @@ export class FulfillIntentService implements IFulfillService {
    * @private
    */
   private async getHyperlaneFee(
-    solverAddress: Hex,
+    inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<Hex | undefined> {
     const client = await this.kernelAccountClientService.getClient(
@@ -295,7 +316,7 @@ export class FulfillIntentService implements IFulfillService {
       args,
     })
     const proverData = await client.call({
-      to: solverAddress,
+      to: inboxAddress,
       data: callData,
     })
     return proverData.data

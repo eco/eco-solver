@@ -16,6 +16,9 @@ import { LiquidityManagerModule } from '@/liquidity-manager/liquidity-manager.mo
 import { ApiModule } from '@/api/api.module'
 import { WatchModule } from '@/watch/watch.module'
 import { IntervalModule } from '@/intervals/interval.module'
+import { QuoteModule } from '@/quote/quote.module'
+import { FeeModule } from '@/fee/fee.module'
+import { KmsModule } from '@/kms/kms.module'
 
 @Module({
   imports: [
@@ -23,10 +26,11 @@ import { IntervalModule } from '@/intervals/interval.module'
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),
-
+    FeeModule,
     FlagsModule,
     HealthModule,
     IntentModule,
+    KmsModule,
     SignModule,
     IntervalModule,
     ProcessorModule,
@@ -40,6 +44,7 @@ import { IntervalModule } from '@/intervals/interval.module'
       },
     }),
     ProverModule,
+    QuoteModule,
     SolverModule,
     LiquidityManagerModule,
     WatchModule,
