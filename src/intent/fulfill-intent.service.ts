@@ -1,36 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common'
-import {
-  ContractFunctionArgs,
-  ContractFunctionName,
-  encodeAbiParameters,
-  encodeFunctionData,
-  erc20Abi,
-  Hex,
-  pad,
-  zeroAddress,
-} from 'viem'
-import {
-  IntentProcessData,
-  TransactionTargetData,
-  UtilsIntentService,
-} from './utils-intent.service'
-import { getERC20Selector } from '../contracts'
-import { EcoError } from '../common/errors/eco-error'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { Solver } from '../eco-configs/eco-config.types'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { ProofService } from '../prover/proof.service'
-import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
-import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { encodeAbiParameters, encodeFunctionData, erc20Abi, Hex, pad, zeroAddress } from 'viem'
 import { InboxAbi } from '@eco-foundation/routes-ts'
-import { getTransactionTargetData } from '@/intent/utils'
+import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
+import { getERC20Selector } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Solver } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { ProofService } from '@/prover/proof.service'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { getTransactionTargetData } from '@/intent/utils'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-
-type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
+import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -54,42 +40,64 @@ export class FulfillIntentService implements IFulfillService {
    * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
    * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
    */
-  fulfillIntent(intentHash: Hex): Promise<void> {
+  async fulfillIntent(intentHash: Hex): Promise<void> {
+    const data = await this.utilsIntentService.getIntentProcessData(intentHash)
+    const { model, solver, err } = data ?? {}
+
+    if (err) throw err
+    if (!data || !model || !solver) return
+    if (model.status === 'SOLVED') return
+
     const { type } = this.ecoConfigService.getFulfill()
 
     if (type === 'crowd-liquidity') {
-      return this.crowdLiquidityService.executeFulfillIntent(intentHash)
+      return this.executeFulfillIntentWithCL(model, solver)
     }
 
-    return this.executeFulfillIntent(intentHash)
+    // TODO: Move to external service
+    return this.executeFulfillIntent(model, solver)
+  }
+
+  /**
+   * Executes the fulfillment of an intent using crowd liquidity.
+   *
+   * @param {IntentSourceModel} model - The model representing the intent to be fulfilled.
+   * @param {Solver} solver - The solver responsible for executing the fulfillment of the intent.
+   * @return {Promise<void>} A promise that resolves when the intent fulfillment is successfully executed.
+   */
+  async executeFulfillIntentWithCL(model: IntentSourceModel, solver: Solver): Promise<void> {
+    if (this.crowdLiquidityService.isRouteSupported(model)) {
+      try {
+        return await this.crowdLiquidityService.executeFulfillIntent(model, solver)
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: 'Failed to fulfill using Crowd Liquidity, proceeding to use solver',
+            properties: { intentHash: model.intent.hash },
+            error,
+          }),
+        )
+      }
+    }
+
+    // If crowd liquidity is not available for current route, or it failed to fulfill the intent
+    // Fulfill the intent using the solver
+    return this.executeFulfillIntent(model, solver)
   }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
    * to the chain. It then updates the db model of the intent with the status and receipt.
    *
-   * @param intentHash the intent hash to fulfill
-   * @returns
+   * @param {IntentSourceModel} model - The intent model containing details about the intent to be fulfilled.
+   * @param {Solver} solver - The solver object used to determine the transaction executor and chain-specific configurations.
+   * @return {Promise<void>} Resolves with no value. Throws an error if the intent fulfillment fails.
    */
-  async executeFulfillIntent(intentHash: Hex) {
-    const data = await this.utilsIntentService.getIntentProcessData(intentHash)
-    const { model, solver, err } = data ?? {}
-    if (!data || !model || !solver) {
-      if (err) {
-        throw err
-      }
-      return
-    }
-    // If the intent is already solved, return
-    // Could happen if redis has pending job while this is still executing
-    if (model.status === 'SOLVED') {
-      return
-    }
-
+  async executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<void> {
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
 
     // Create transactions for intent targets
-    const targetSolveTxs = this.getTransactionsForTargets(data)
+    const targetSolveTxs = this.getTransactionsForTargets(model, solver)
 
     // Create fulfill tx
     const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
@@ -99,10 +107,8 @@ export class FulfillIntentService implements IFulfillService {
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `Fulfilling ${this.getFulfillment()} transaction`,
-        properties: {
-          transactions,
-        },
+        message: `Fulfilling transaction`,
+        properties: { transactions },
       }),
     )
 
@@ -195,16 +201,13 @@ export class FulfillIntentService implements IFulfillService {
   }
 
   /**
-   * Returns the transactions for the intent targets
-   * @param intentProcessData
-   * @private
+   * Generates transactions for specified intent targets by processing the intent source model and solver.
+   *
+   * @param {IntentSourceModel} model - The intent source model containing call data and routing information.
+   * @param {Solver} solver - The solver instance used to resolve transaction target data and relevant configurations.
+   * @return {Array} An array of generated transactions based on the intent targets. Returns an empty array if no valid transactions are created.
    */
-  private getTransactionsForTargets(intentProcessData: IntentProcessData) {
-    const { model, solver } = intentProcessData
-    if (!model || !solver) {
-      return []
-    }
-
+  private getTransactionsForTargets(model: IntentSourceModel, solver: Solver) {
     // Create transactions for intent targets
     return model.intent.route.calls.flatMap((call) => {
       const tt = getTransactionTargetData(solver, call)
@@ -243,58 +246,137 @@ export class FulfillIntentService implements IFulfillService {
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
+
+    // Storage Prover
+
+    const isStorageProver = this.proofService.isStorageProver(model.intent.reward.prover)
+    if (isStorageProver) {
+      return this.getFulfillTxForStorageProver(inboxAddress, claimant, model)
+    }
+
+    // Hyper Prover
+
     const isHyperlane = this.proofService.isHyperlaneProver(model.intent.reward.prover)
-    const functionName: FulfillmentMethod = this.proofService.isStorageProver(
-      model.intent.reward.prover,
-    )
-      ? 'fulfillStorage'
-      : this.getFulfillment()
-
-    const args = [
-      model.intent.route,
-      // @ts-expect-error we dynamically set the args
-      model.intent.reward.getHash(),
-      claimant,
-      // @ts-expect-error we dynamically set the args
-      model.intent.getHash().intentHash,
-    ]
-
     if (isHyperlane) {
-      args.push(model.intent.reward.prover)
-      if (functionName === 'fulfillHyperInstantWithRelayer') {
-        args.push('0x0')
-        args.push(zeroAddress)
-      }
-    }
-    let fee = 0n
-    if (isHyperlane && functionName === 'fulfillHyperInstantWithRelayer') {
-      fee = BigInt((await this.getHyperlaneFee(inboxAddress, model)) || '0x0')
+      return this.getFulfillTxForHyperprover(inboxAddress, claimant, model)
     }
 
+    throw new Error('Unsupported fulfillment method')
+  }
+
+  /**
+   * Generates a transaction to fulfill an intent for a hyperprover based on the configuration.
+   *
+   * @param {Hex} inboxAddress - The address of the inbox associated with the transaction.
+   * @param {Hex} claimant - The address of the claimant requesting fulfillment.
+   * @param {IntentSourceModel} model - The model containing the details of the intent to fulfill.
+   * @return {Promise<ExecuteSmartWalletArg>} A promise resolving to the transaction arguments needed to fulfill the intent.
+   */
+  private async getFulfillTxForHyperprover(
+    inboxAddress: Hex,
+    claimant: Hex,
+    model: IntentSourceModel,
+  ): Promise<ExecuteSmartWalletArg> {
+    switch (this.ecoConfigService.getFulfill().run) {
+      case 'batch':
+        return this.getFulfillTxForHyperproverBatch(inboxAddress, claimant, model)
+      case 'single':
+      default:
+        return this.getFulfillTxForHyperproverSingle(inboxAddress, claimant, model)
+    }
+  }
+
+  /**
+   * Constructs a transaction argument for fulfilling a hyper-prover batched intent.
+   *
+   * @param {Hex} inboxAddress - The address of the inbox contract.
+   * @param {Hex} claimant - The address of the entity claiming the intent.
+   * @param {IntentSourceModel} model - The intent source model containing the intent, route, and related data.
+   * @return {Promise<ExecuteSmartWalletArg>} A promise resolving to an object containing the transaction data for executing the smart wallet.
+   */
+  private async getFulfillTxForHyperproverBatch(
+    inboxAddress: Hex,
+    claimant: Hex,
+    model: IntentSourceModel,
+  ): Promise<ExecuteSmartWalletArg> {
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
-      functionName,
-      // @ts-expect-error we dynamically set the args
-      args,
+      functionName: 'fulfillHyperBatched',
+      args: [
+        model.intent.route,
+        RewardDataModel.getHash(model.intent.reward),
+        claimant,
+        IntentDataModel.getHash(model.intent).intentHash,
+        model.intent.reward.prover,
+      ],
     })
 
     return {
       to: inboxAddress,
       data: fulfillIntentData,
-      // ...(isHyperlane && fee > 0 && { value: fee }),
+      value: 0n,
+    }
+  }
+
+  private async getFulfillTxForHyperproverSingle(
+    inboxAddress: Hex,
+    claimant: Hex,
+    model: IntentSourceModel,
+  ): Promise<ExecuteSmartWalletArg> {
+    const fee = await this.getHyperlaneFee(inboxAddress, model)
+
+    const fulfillIntentData = encodeFunctionData({
+      abi: InboxAbi,
+      functionName: 'fulfillHyperInstantWithRelayer',
+      args: [
+        model.intent.route,
+        RewardDataModel.getHash(model.intent.reward),
+        claimant,
+        IntentDataModel.getHash(model.intent).intentHash,
+        model.intent.reward.prover,
+        '0x0',
+        zeroAddress,
+      ],
+    })
+
+    return {
+      to: inboxAddress,
+      data: fulfillIntentData,
       value: fee,
     }
   }
 
-  /**
-   * Returns the hyperlane fee
-   * @param prover
-   * @private
-   */
-  private async getHyperlaneFee(
+  private async getFulfillTxForStorageProver(
     inboxAddress: Hex,
+    claimant: Hex,
     model: IntentSourceModel,
-  ): Promise<Hex | undefined> {
+  ): Promise<ExecuteSmartWalletArg> {
+    const fulfillIntentData = encodeFunctionData({
+      abi: InboxAbi,
+      functionName: 'fulfillStorage',
+      args: [
+        model.intent.route,
+        RewardDataModel.getHash(model.intent.reward),
+        claimant,
+        IntentDataModel.getHash(model.intent).intentHash,
+      ],
+    })
+
+    return {
+      to: inboxAddress,
+      data: fulfillIntentData,
+      value: 0n,
+    }
+  }
+
+  /**
+   * Calculates the fee required for a hyperlane transaction by calling the inbox contract.
+   *
+   * @param {Hex} inboxAddress - The address of the inbox smart contract.
+   * @param {IntentSourceModel} model - The model containing intent details, including route, hash, and reward information.
+   * @return {Promise<Hex | undefined>} A promise that resolves to the fee in hexadecimal format, or undefined if the fee could not be determined.
+   */
+  private async getHyperlaneFee(inboxAddress: Hex, model: IntentSourceModel): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(
       Number(model.intent.route.destination),
     )
@@ -302,36 +384,23 @@ export class FulfillIntentService implements IFulfillService {
       [{ type: 'bytes[]' }, { type: 'address[]' }],
       [[model.intent.hash], [this.ecoConfigService.getEth().claimant]],
     )
-    const functionName = 'fetchFee'
-    const args: ContractFunctionArgs<typeof InboxAbi, 'view', typeof functionName> = [
-      model.event.sourceChainID, //_sourceChainID
-      pad(model.intent.reward.prover), //_prover
-      encodedMessageBody, //_messageBody
-      '0x0', //_metadata
-      zeroAddress, //_postDispatchHook
-    ]
+
     const callData = encodeFunctionData({
       abi: InboxAbi,
-      functionName,
-      args,
+      functionName: 'fetchFee',
+      args: [
+        model.event.sourceChainID, //_sourceChainID
+        pad(model.intent.reward.prover), //_prover
+        encodedMessageBody, //_messageBody
+        '0x0', //_metadata
+        zeroAddress, //_postDispatchHook
+      ],
     })
+
     const proverData = await client.call({
       to: inboxAddress,
       data: callData,
     })
-    return proverData.data
-  }
-
-  /**
-   * @returns the fulfillment method
-   */
-  private getFulfillment(): FulfillmentMethod {
-    switch (this.ecoConfigService.getFulfill().run) {
-      case 'batch':
-        return 'fulfillHyperBatched'
-      case 'single':
-      default:
-        return 'fulfillHyperInstantWithRelayer'
-    }
+    return BigInt(proverData.data ?? 0)
   }
 }

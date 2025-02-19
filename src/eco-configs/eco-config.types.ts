@@ -255,4 +255,5 @@ export interface CrowdLiquidityConfig {
     ethAddress: string
     publicKey: string
   }
+  supportedTokens: { chainId: number; tokenAddress: Hex }[]
 }

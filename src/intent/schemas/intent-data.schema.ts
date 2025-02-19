@@ -67,6 +67,14 @@ export class IntentDataModel implements IntentType {
     this.logIndex = logIndex
   }
 
+  static getHash(intentDataModel: IntentDataModel) {
+    return hashIntent(intentDataModel)
+  }
+
+  static encode(intentDataModel: IntentDataModel) {
+    return encodeIntent(intentDataModel)
+  }
+
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
     const e = event.args
     return new IntentDataModel(

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY, LIT_CHAINS } from '@lit-protocol/constants'
@@ -20,36 +20,83 @@ import {
 } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
+import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { getERC20Selector } from '@/contracts'
 
 @Injectable()
-export class CrowdLiquidityService implements IFulfillService {
+export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   private logger = new Logger(CrowdLiquidityService.name)
+  private config: CrowdLiquidityConfig
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly utilsIntentService: UtilsIntentService,
     private readonly publicClient: MultichainPublicClientService,
   ) {}
 
-  async executeFulfillIntent(intentHash: Hex): Promise<void> {
-    const data = await this.utilsIntentService.getIntentProcessData(intentHash)
-    const { model, solver, err } = data ?? {}
+  onModuleInit() {
+    this.config = this.ecoConfigService.getCrowdLiquidity()
+  }
 
-    if (err) throw err
-    if (!data || !model || !solver) return
-    if (model.status === 'SOLVED') return
+  /**
+   * Determines if a given route.
+   *
+   * @param {IntentSourceModel} intentModel - The model containing intent data, including route information.
+   * @return {boolean} - Returns true if the route is supported, otherwise false.
+   */
+  isRouteSupported(intentModel: IntentSourceModel): boolean {
+    const { route, reward } = intentModel.intent
+    const isSupportedReward = reward.tokens.every((item) => {
+      return this.isSupportedToken(Number(route.source), item.token)
+    })
+    const isSupportedRoute = route.calls.every((call) => {
+      const areSupportedTargetTokens = this.isSupportedToken(Number(route.destination), call.target)
+      const isSupportedAction = this.isSupportedAction(call.data)
+      return areSupportedTargetTokens && isSupportedAction
+    })
 
+    return isSupportedReward && isSupportedRoute
+  }
+
+  async executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<void> {
     try {
-      return await this.fulfill(Number(model.event.sourceChainID), solver.chainID, intentHash)
+      return await this.fulfill(
+        Number(model.event.sourceChainID),
+        solver.chainID,
+        model.intent.hash,
+      )
     } catch (error) {
       throw error
     }
   }
 
-  async fulfill(sourceChainId: number, destinationChainId: number, intentHash: string) {
+  /**
+   * Checks if a token with the specified chain ID and address is supported.
+   *
+   * @param {number} chainId - The chain ID of the token to check.
+   * @param {Hex} address - The address of the token to check.
+   * @return {boolean} Returns true if the token is supported; otherwise, false.
+   */
+  private isSupportedToken(chainId: number, address: Hex): boolean {
+    return this.config.supportedTokens.some(
+      (token) => token.tokenAddress === address && token.chainId === chainId,
+    )
+  }
+
+  /**
+   * Checks if the provided data represents a supported action.
+   *
+   * @param {Hex} data - The data to be evaluated, which is expected to contain encoded function calls.
+   * @return {boolean} Returns true if the data is a supported action; otherwise, false.
+   */
+  private isSupportedAction(data: Hex): boolean {
+    // Only support `transfer` function calls
+    return data.startsWith(getERC20Selector('transfer'))
+  }
+
+  private async fulfill(sourceChainId: number, destinationChainId: number, intentHash: string) {
     const { capacityTokenId, capacityTokenOwnerPk, kernel, pkp, litNetwork, litActionIpfsId } =
-      this.ecoConfigService.getCrowdLiquidity()
+      this.config
 
     const litNodeClient = new LitNodeClient({
       litNetwork,
