@@ -64,6 +64,7 @@ export type EcoConfigType = {
   }
   liquidityManager: LiquidityManagerConfig
   crowdLiquidity: CrowdLiquidityConfig
+  CCTP: CCTPConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -245,9 +246,13 @@ export interface LiquidityManagerConfig {
 
 export interface CrowdLiquidityConfig {
   litNetwork: LIT_NETWORKS_KEYS
-  litActionIpfsId: string
   capacityTokenId: string
   capacityTokenOwnerPk: string
+  defaultTargetBalance: number
+  actions: {
+    fulfill: string
+    rebalance: string
+  }
   kernel: {
     address: string
   }
@@ -256,4 +261,13 @@ export interface CrowdLiquidityConfig {
     publicKey: string
   }
   supportedTokens: { chainId: number; tokenAddress: Hex }[]
+}
+
+export interface CCTPConfig {
+  chains: {
+    chainId: number
+    domain: number
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
 }

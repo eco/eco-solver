@@ -1,5 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { SignerLike } from '@lit-protocol/types'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY, LIT_CHAINS } from '@lit-protocol/constants'
 import {
@@ -13,6 +13,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
   Hex,
+  isAddressEqual,
   parseSignature,
   PublicClient,
   serializeTransaction,
@@ -23,10 +24,10 @@ import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
+import { TokenData } from '@/liquidity-manager/types/types'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
-  private logger = new Logger(CrowdLiquidityService.name)
   private config: CrowdLiquidityConfig
 
   constructor(
@@ -36,6 +37,41 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
   onModuleInit() {
     this.config = this.ecoConfigService.getCrowdLiquidity()
+  }
+
+  /**
+   * Executes the process to fulfill an intent based on the provided model and solver.
+   *
+   * @param {IntentSourceModel} model - The source model containing the intent and related chain information.
+   * @param {Solver} solver - The solver instance used to resolve the intent.
+   * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
+   */
+  executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    return this.fulfill(Number(model.event.sourceChainID), solver.chainID, model.intent.hash)
+  }
+
+  async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
+    const { kernel, pkp, actions } = this.config
+
+    const publicClient = await this.publicClient.getClient(tokenIn.chainId)
+
+    const [feeData, nonce] = await Promise.all([
+      this.getFeeData(publicClient),
+      publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
+    ])
+
+    const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
+
+    const params = {
+      chainId: tokenIn.chainId,
+      tokenAddress: tokenOut.config.address,
+      tokenChainId: tokenOut.chainId,
+      publicKey: pkp.publicKey,
+      kernelAddress: kernel.address,
+      transaction: transactionBase,
+    }
+
+    return this.callLitAction(actions.fulfill, publicClient, params)
   }
 
   /**
@@ -58,16 +94,17 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     return isSupportedReward && isSupportedRoute
   }
 
-  async executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<void> {
-    try {
-      return await this.fulfill(
-        Number(model.event.sourceChainID),
-        solver.chainID,
-        model.intent.hash,
-      )
-    } catch (error) {
-      throw error
-    }
+  /**
+   * Checks if a token with the specified chain ID and address is supported.
+   *
+   * @param {number} chainId - The chain ID of the token to check.
+   * @param {Hex} address - The address of the token to check.
+   * @return {boolean} Returns true if the token is supported; otherwise, false.
+   */
+  isSupportedToken(chainId: number, address: Hex): boolean {
+    return this.config.supportedTokens.some(
+      (token) => isAddressEqual(token.tokenAddress, address) && token.chainId === chainId,
+    )
   }
 
   /**
@@ -77,26 +114,54 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Hex} address - The address of the token to check.
    * @return {boolean} Returns true if the token is supported; otherwise, false.
    */
-  private isSupportedToken(chainId: number, address: Hex): boolean {
-    return this.config.supportedTokens.some(
-      (token) => token.tokenAddress === address && token.chainId === chainId,
-    )
+  getTokenTargetBalance(chainId: number, address: Hex): number {
+    return this.config.defaultTargetBalance
   }
 
   /**
-   * Checks if the provided data represents a supported action.
+   * Retrieves the pool address from the configuration.
    *
-   * @param {Hex} data - The data to be evaluated, which is expected to contain encoded function calls.
-   * @return {boolean} Returns true if the data is a supported action; otherwise, false.
+   * @return {string} The address of the pool as specified in the configuration.
    */
-  private isSupportedAction(data: Hex): boolean {
-    // Only support `transfer` function calls
-    return data.startsWith(getERC20Selector('transfer'))
+  getPoolAddress(): Hex {
+    return this.config.kernel.address as Hex
   }
 
-  private async fulfill(sourceChainId: number, destinationChainId: number, intentHash: string) {
-    const { capacityTokenId, capacityTokenOwnerPk, kernel, pkp, litNetwork, litActionIpfsId } =
-      this.config
+  private async fulfill(
+    sourceChainId: number,
+    destinationChainId: number,
+    intentHash: string,
+  ): Promise<Hex> {
+    const { kernel, pkp, actions } = this.config
+
+    const publicClient = await this.publicClient.getClient(destinationChainId)
+
+    const [feeData, nonce] = await Promise.all([
+      this.getFeeData(publicClient),
+      publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
+    ])
+
+    const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
+    const sourceChainName = this.getLitNetworkFromChainId(sourceChainId)
+
+    const params = {
+      intentHash,
+      publicKey: pkp.publicKey,
+      sourceChainName,
+      kernelAddress: kernel.address,
+      transaction: transactionBase,
+      ethAddress: pkp.ethAddress,
+    }
+
+    return this.callLitAction(actions.fulfill, publicClient, params)
+  }
+
+  private async callLitAction(
+    ipfsId: string,
+    publicClient: PublicClient,
+    params: LitActionSdkParams['jsParams'],
+  ): Promise<Hex> {
+    const { capacityTokenId, capacityTokenOwnerPk, pkp, litNetwork } = this.config
 
     const litNodeClient = new LitNodeClient({
       litNetwork,
@@ -140,37 +205,17 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
           nonce: await litNodeClient.getLatestBlockhash(),
         })
 
-        return generateAuthSig({
-          signer: capacityTokenOwner,
-          toSign,
-        })
+        return generateAuthSig({ signer: capacityTokenOwner, toSign })
       },
     })
 
     // ================ Execute Lit Action ================
 
-    const publicClient = await this.publicClient.getClient(destinationChainId)
+    const litRes = await litNodeClient.executeJs({ ipfsId, sessionSigs, jsParams: params })
 
-    const [feeData, nonce] = await Promise.all([
-      this.getFeeData(publicClient),
-      publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
-    ])
+    await litNodeClient.disconnect()
 
-    const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
-    const sourceChainName = this.getLitNetworkFromChainId(sourceChainId)
-
-    const litRes = await litNodeClient.executeJs({
-      ipfsId: litActionIpfsId,
-      sessionSigs,
-      jsParams: {
-        intentHash,
-        publicKey: pkp.publicKey,
-        sourceChainName,
-        kernelAddress: kernel.address,
-        transaction: transactionBase,
-        ethAddress: pkp.ethAddress,
-      },
-    })
+    // ================ Execute Transaction ================
 
     const response = litRes.response as {
       type: number
@@ -205,9 +250,18 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       parseSignature(litRes.signatures.sig.signature),
     )
 
-    await litNodeClient.disconnect()
+    return publicClient.sendRawTransaction({ serializedTransaction })
+  }
 
-    await publicClient.sendRawTransaction({ serializedTransaction })
+  /**
+   * Checks if the provided data represents a supported action.
+   *
+   * @param {Hex} data - The data to be evaluated, which is expected to contain encoded function calls.
+   * @return {boolean} Returns true if the data is a supported action; otherwise, false.
+   */
+  private isSupportedAction(data: Hex): boolean {
+    // Only support `transfer` function calls
+    return data.startsWith(getERC20Selector('transfer'))
   }
 
   private getViemWallet(privateKey: string): SignerLike {

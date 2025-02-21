@@ -14,6 +14,7 @@ import {
   getSortGroupByDiff,
 } from '@/liquidity-manager/utils/token'
 import {
+  LiquidityManagerJobName,
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
@@ -30,15 +31,21 @@ import {
   TokenData,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { TokenConfig } from '@/balance/types'
+import { removeJobSchedulers } from '@/bullmq/utils/queue'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
+  private readonly tokensPerWallet: Record<string, TokenConfig[]> = {}
+
   constructor(
     @InjectQueue(LiquidityManagerQueue.queueName)
-    queue: LiquidityManagerQueueType,
+    private readonly queue: LiquidityManagerQueueType,
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
     @InjectModel(RebalanceModel.name)
@@ -46,17 +53,49 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderService,
+    public readonly kernelAccountClientService: KernelAccountClientService,
+    public readonly crowdLiquidityService: CrowdLiquidityService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
 
-  onApplicationBootstrap() {
+  async onApplicationBootstrap() {
+    await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
+
     this.config = this.ecoConfigService.getLiquidityManager()
-    return this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration)
+
+    // Use OP as the default chain assuming the Kernel wallet is the same across all chains
+    const opChainId = 10
+    const client = await this.kernelAccountClientService.getClient(opChainId)
+    const kernelAddress = client.kernelAccount.address
+
+    // Track rebalances for Solver
+    await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
+    this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
+
+    // Track rebalances for Crowd Liquidity
+    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
+    await this.liquidityManagerQueue.startCronJobs(
+      this.config.intervalDuration,
+      crowdLiquidityPoolAddress,
+    )
+    this.tokensPerWallet[crowdLiquidityPoolAddress] = this.balanceService
+      .getInboxTokens()
+      .filter((token) => this.crowdLiquidityService.isSupportedToken(token.chainId, token.address))
+      .map((token) => ({
+        ...token,
+        targetBalance: this.crowdLiquidityService.getTokenTargetBalance(
+          token.chainId,
+          token.address,
+        ),
+      }))
   }
 
-  async analyzeTokens() {
-    const tokens: TokenData[] = await this.balanceService.getAllTokenData()
+  async analyzeTokens(walletAddress: string) {
+    const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
+      walletAddress,
+      this.tokensPerWallet[walletAddress],
+    )
     const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({
       ...item,
       analysis: this.analyzeToken(item),
@@ -83,24 +122,26 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * Gets the optimized rebalancing for the deficit and surplus tokens.
    * @dev The rebalancing is more efficient if done within the same chain.
    *      If it's not possible, other chains are considered.
+   * @param walletAddress
    * @param deficitToken
    * @param surplusTokens
    */
   async getOptimizedRebalancing(
+    walletAddress: string,
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
   ) {
-    const swapQuotes = await this.getSwapQuotes(deficitToken, surplusTokens)
+    const swapQuotes = await this.getSwapQuotes(walletAddress, deficitToken, surplusTokens)
 
     // Continue with swap quotes if possible
     if (swapQuotes.length) return swapQuotes
 
-    return this.getRebalancingQuotes(deficitToken, surplusTokens)
+    return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokens)
   }
 
-  startRebalancing(rebalances: RebalanceRequest[]) {
+  startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
     const jobs = rebalances.map((rebalance) =>
-      RebalanceJobManager.createJob(rebalance, this.liquidityManagerQueue.name),
+      RebalanceJobManager.createJob(walletAddress, rebalance, this.liquidityManagerQueue.name),
     )
     return this.liquidityManagerFlowProducer.add({
       name: 'rebalance-batch',
@@ -110,16 +151,18 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async executeRebalancing(rebalanceData: RebalanceJobData) {
-    for (const quote of rebalanceData.rebalance.quotes) {
-      await this.liquidityProviderManager.execute(deserialize(quote))
+    const { walletAddress, rebalance } = rebalanceData
+    for (const quote of rebalance.quotes) {
+      await this.liquidityProviderManager.execute(walletAddress, deserialize(quote))
     }
   }
 
-  async storeRebalancing(request: RebalanceRequest) {
+  async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
     const groupId = uuid()
     for (const quote of request.quotes) {
       await this.rebalanceModel.create({
         groupId,
+        wallet: walletAddress,
         amountIn: quote.amountIn,
         amountOut: quote.amountOut,
         slippage: quote.slippage,
@@ -134,25 +177,32 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   /**
    * Checks if a swap is possible between the deficit and surplus tokens.
    * @dev swaps are possible if the deficit is compensated by the surplus of tokens in the same chain.
+   * @param walletAddress
    * @param deficitToken
    * @param surplusTokens
    * @private
    */
-  private async getSwapQuotes(deficitToken: TokenDataAnalyzed, surplusTokens: TokenDataAnalyzed[]) {
+  private async getSwapQuotes(
+    walletAddress: string,
+    deficitToken: TokenDataAnalyzed,
+    surplusTokens: TokenDataAnalyzed[],
+  ) {
     const surplusTokensSameChain = surplusTokens.filter(
       (token) => token.config.chainId === deficitToken.config.chainId,
     )
 
-    return this.getRebalancingQuotes(deficitToken, surplusTokensSameChain)
+    return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokensSameChain)
   }
 
   /**
    * Checks if a rebalancing is possible between the deficit and surplus tokens.
+   * @param walletAddress
    * @param deficitToken
    * @param surplusTokens
    * @private
    */
   private async getRebalancingQuotes(
+    walletAddress: string,
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
   ) {
@@ -172,6 +222,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
       const quote = await this.liquidityProviderManager.getQuote(
+        walletAddress,
         surplusToken,
         deficitToken,
         swapAmount,

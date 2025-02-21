@@ -43,6 +43,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
+    CrowdLiquidityService,
     UtilsIntentService,
     ValidationService,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents

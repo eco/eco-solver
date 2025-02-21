@@ -40,7 +40,7 @@ export class FulfillIntentService implements IFulfillService {
    * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
    * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
    */
-  async fulfillIntent(intentHash: Hex): Promise<void> {
+  async fulfillIntent(intentHash: Hex): Promise<unknown> {
     const data = await this.utilsIntentService.getIntentProcessData(intentHash)
     const { model, solver, err } = data ?? {}
 
@@ -65,7 +65,7 @@ export class FulfillIntentService implements IFulfillService {
    * @param {Solver} solver - The solver responsible for executing the fulfillment of the intent.
    * @return {Promise<void>} A promise that resolves when the intent fulfillment is successfully executed.
    */
-  async executeFulfillIntentWithCL(model: IntentSourceModel, solver: Solver): Promise<void> {
+  async executeFulfillIntentWithCL(model: IntentSourceModel, solver: Solver): Promise<Hex> {
     if (this.crowdLiquidityService.isRouteSupported(model)) {
       try {
         return await this.crowdLiquidityService.executeFulfillIntent(model, solver)
@@ -93,7 +93,7 @@ export class FulfillIntentService implements IFulfillService {
    * @param {Solver} solver - The solver object used to determine the transaction executor and chain-specific configurations.
    * @return {Promise<void>} Resolves with no value. Throws an error if the intent fulfillment fails.
    */
-  async executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<void> {
+  async executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<Hex> {
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
 
     // Create transactions for intent targets
@@ -136,6 +136,8 @@ export class FulfillIntentService implements IFulfillService {
           },
         }),
       )
+
+      return transactionHash
     } catch (e) {
       model.status = 'FAILED'
       model.receipt = model.receipt ? { previous: model.receipt, current: e } : e

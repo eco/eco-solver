@@ -7,7 +7,7 @@ export enum LiquidityManagerJobName {
   CHECK_BALANCES = 'CHECK_BALANCES',
 }
 
-export type LiquidityManagerQueueDataType = { network: string; [k: string]: unknown }
+export type LiquidityManagerQueueDataType = { [k: string]: unknown }
 
 export type LiquidityManagerQueueType = Queue<
   LiquidityManagerQueueDataType,
@@ -42,7 +42,7 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  startCronJobs(interval: number) {
-    return CheckBalancesCronJobManager.start(this.queue, interval)
+  startCronJobs(interval: number, walletAddress: string): Promise<void> {
+    return CheckBalancesCronJobManager.start(this.queue, interval, walletAddress)
   }
 }
