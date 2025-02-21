@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { formatUnits, Hex } from 'viem'
+import { TokenData } from '@/liquidity-manager/types/types'
 
 @Schema()
 export class RebalanceTokenModel {
@@ -15,7 +16,7 @@ export class RebalanceTokenModel {
   @Prop({ required: true })
   targetBalance: number
 
-  static fromTokenData(tokenData: LiquidityManager.TokenData): RebalanceTokenModel {
+  static fromTokenData(tokenData: TokenData): RebalanceTokenModel {
     const currentBalance = parseFloat(
       formatUnits(tokenData.balance.balance, tokenData.balance.decimals),
     )

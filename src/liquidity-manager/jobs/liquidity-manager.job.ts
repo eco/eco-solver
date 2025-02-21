@@ -9,7 +9,8 @@ import {
 export type LiquidityManagerJob<
   NameType extends LiquidityManagerJobName = LiquidityManagerJobName,
   DataType extends LiquidityManagerQueueDataType = LiquidityManagerQueueDataType,
-> = Job<DataType, unknown, NameType>
+  ReturnData = unknown,
+> = Job<DataType, ReturnData, NameType>
 
 export abstract class LiquidityManagerJobManager<
   Job extends LiquidityManagerJob = LiquidityManagerJob,
@@ -28,7 +29,7 @@ export abstract class LiquidityManagerJobManager<
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  process(job: Job, processor: unknown): Promise<void> {
+  process(job: Job, processor: unknown): Promise<unknown> {
     throw new Error('Unimplemented function')
   }
 

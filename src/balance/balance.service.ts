@@ -84,10 +84,26 @@ export class BalanceService implements OnApplicationBootstrap {
   ): Promise<Record<Hex, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const walletAddress = client.kernelAccount.address
+    return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+  }
+
+  /**
+   * Fetches the token balances of a wallet for the given token list.
+   * @param chainID the chain id
+   * @param walletAddress wallet address
+   * @param tokenAddresses the tokens to fetch balances for
+   * @returns
+   */
+  async fetchWalletTokenBalances(
+    chainID: number,
+    walletAddress: string,
+    tokenAddresses: Hex[],
+  ): Promise<Record<Hex, TokenBalance>> {
+    const client = await this.kernelAccountClientService.getClient(chainID)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `fetchTokenBalances`,
+        message: `fetchWalletTokenBalances`,
         properties: {
           chainID,
           tokenAddresses,
@@ -149,6 +165,46 @@ export class BalanceService implements OnApplicationBootstrap {
     })
 
     return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())
+  }
+
+  async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
+    const tokensByChainId = groupBy(tokens, 'chainId')
+    const chainIds = Object.keys(tokensByChainId)
+
+    const balancesPerChainIdPromise = chainIds.map(async (chainId) => {
+      const configs = tokensByChainId[chainId]
+      const tokenAddresses = configs.map((token) => token.address)
+      const balances = await this.fetchWalletTokenBalances(
+        parseInt(chainId),
+        walletAddress,
+        tokenAddresses,
+      )
+      return zipWith(configs, Object.values(balances), (config, balance) => ({
+        config,
+        balance,
+        chainId: parseInt(chainId),
+      }))
+    })
+
+    return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())
+  }
+
+  /**
+   * Gets the tokens that are in the solver wallets
+   * @returns List of tokens that are supported by the solver
+   */
+  getInboxTokens(): TokenConfig[] {
+    return Object.values(this.ecoConfig.getSolvers()).flatMap((solver) => {
+      return Object.entries(solver.targets)
+        .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
+        .map(([tokenAddress, targetContract]) => ({
+          address: tokenAddress as Hex,
+          chainId: solver.chainID,
+          type: targetContract.contractType,
+          minBalance: targetContract.minBalance,
+          targetBalance: targetContract.targetBalance,
+        }))
+    })
   }
 
   /**

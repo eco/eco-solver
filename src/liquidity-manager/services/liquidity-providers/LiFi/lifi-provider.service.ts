@@ -5,9 +5,11 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { Quote, TokenData } from '@/liquidity-manager/types/types'
+import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 
 @Injectable()
-export class LiFiProviderService implements OnModuleInit {
+export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
   private walletAddress: string
 
@@ -36,15 +38,15 @@ export class LiFiProviderService implements OnModuleInit {
     })
   }
 
-  getStrategy(): LiquidityManager.Strategy {
-    return 'LiFi'
+  getStrategy() {
+    return 'LiFi' as const
   }
 
   async getQuote(
-    tokenIn: LiquidityManager.TokenData,
-    tokenOut: LiquidityManager.TokenData,
+    tokenIn: TokenData,
+    tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<LiquidityManager.Quote> {
+  ): Promise<Quote<'LiFi'>> {
     const routesRequest: RoutesRequest = {
       // Origin chain
       fromAddress: this.walletAddress,
@@ -75,7 +77,21 @@ export class LiFiProviderService implements OnModuleInit {
     }
   }
 
-  async execute(quote: LiquidityManager.Quote<'LiFi'>) {
+  async execute(walletAddress: string, quote: Quote<'LiFi'>) {
+    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
+
+    if (kernelWalletAddress !== walletAddress) {
+      const error = new Error('LiFi is not configured with the provided wallet')
+      this.logger.error(
+        EcoLogMessage.withError({
+          error,
+          message: error.message,
+          properties: { walletAddress, kernelWalletAddress },
+        }),
+      )
+      throw error
+    }
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: 'LiFiProviderService: executing quote',

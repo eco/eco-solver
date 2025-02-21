@@ -7,26 +7,24 @@ import {
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { serialize, Serialize } from '@/liquidity-manager/utils/serialize'
+import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
 export type RebalanceJobData = {
   network: string
-  rebalance: Serialize<LiquidityManager.RebalanceRequest>
+  walletAddress: string
+  rebalance: Serialize<RebalanceRequest>
 }
 
 type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
-  /**
-   * Type guard to check if the given job is an instance of RebalanceJob.
-   * @param job - The job to check.
-   * @returns True if the job is a RebalanceJob.
-   */
-  is(job: LiquidityManagerJob): job is RebalanceJob {
-    return job.name === LiquidityManagerJobName.REBALANCE
-  }
-
-  static createJob(rebalance: LiquidityManager.RebalanceRequest, queueName: string): FlowChildJob {
+  static createJob(
+    walletAddress: string,
+    rebalance: RebalanceRequest,
+    queueName: string,
+  ): FlowChildJob {
     const data: RebalanceJobData = {
+      walletAddress,
       network: rebalance.token.config.chainId.toString(),
       rebalance: serialize(rebalance),
     }
@@ -35,6 +33,15 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
       data,
       name: LiquidityManagerJobName.REBALANCE,
     }
+  }
+
+  /**
+   * Type guard to check if the given job is an instance of RebalanceJob.
+   * @param job - The job to check.
+   * @returns True if the job is a RebalanceJob.
+   */
+  is(job: LiquidityManagerJob): job is RebalanceJob {
+    return job.name === LiquidityManagerJobName.REBALANCE
   }
 
   async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
