@@ -115,7 +115,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
         surplus.items,
       )
 
-      if (!rebalancingQuotes) {
+      if (!rebalancingQuotes.length) {
         processor.logger.debug(
           EcoLogMessage.fromDefault({
             message: 'CheckBalancesCronJob: No rebalancing quotes found',
@@ -135,16 +135,6 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
 
       rebalances.push(rebalanceRequest)
-    }
-
-    const totalQuotes = _.sum(_.map(rebalances, (rebalance) => rebalance.quotes.length))
-    if (!totalQuotes) {
-      processor.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'CheckBalancesCronJob: No rebalances found',
-        }),
-      )
-      return
     }
 
     processor.logger.log(this.displayRebalancingTable(rebalances))

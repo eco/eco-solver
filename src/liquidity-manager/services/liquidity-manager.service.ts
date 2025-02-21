@@ -140,6 +140,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
+    if (!rebalances.length) return
+
     const jobs = rebalances.map((rebalance) =>
       RebalanceJobManager.createJob(walletAddress, rebalance, this.liquidityManagerQueue.name),
     )
