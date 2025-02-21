@@ -93,6 +93,7 @@ export default {
     },
   },
   CCTP: {
+    apiUrl: 'https://iris-api.circle.com',
     chains: [
       {
         chainId: 1,

@@ -264,6 +264,7 @@ export interface CrowdLiquidityConfig {
 }
 
 export interface CCTPConfig {
+  apiUrl: string
   chains: {
     chainId: number
     domain: number

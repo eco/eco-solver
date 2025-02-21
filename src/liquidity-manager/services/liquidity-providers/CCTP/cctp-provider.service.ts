@@ -4,8 +4,11 @@ import {
   erc20Abi,
   Hex,
   isAddressEqual,
+  keccak256,
   pad,
+  parseEventLogs,
   parseUnits,
+  TransactionReceipt,
   TransactionRequest,
 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -13,21 +16,35 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { CCTPTokenMessenger } from '@/contracts/CCTPTokenMessenger'
+import { CCTPTokenMessengerABI } from '@/contracts/CCTPTokenMessenger'
 import { CCTPConfig } from '@/eco-configs/eco-config.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { CCTPMessageTransmitterABI } from '@/contracts/CCTPMessageTransmitter'
+import { InjectQueue } from '@nestjs/bullmq'
+import {
+  LiquidityManagerQueue,
+  LiquidityManagerQueueType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
   private logger = new Logger(CCTPProviderService.name)
+
   private config: CCTPConfig
+  private liquidityManagerQueue: LiquidityManagerQueue
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
+
+    @InjectQueue(LiquidityManagerQueue.queueName)
+    private readonly queue: LiquidityManagerQueueType,
   ) {
     this.config = this.ecoConfigService.getCCTP()
+    this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
 
   getStrategy() {
@@ -69,11 +86,24 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       }),
     )
 
+    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
+    const txHash = await this._execute(walletAddress, quote)
+    const txReceipt = await client.getTransactionReceipt({ hash: txHash })
+    const messageBody = this.getMessageBytes(txReceipt)
+    const messageHash = this.getMessageHash(messageBody)
+
+    await this.liquidityManagerQueue.startCCTPAttestationCheck({
+      destinationChainId: quote.tokenOut.chainId,
+      messageHash,
+      messageBody,
+    })
+  }
+
+  private _execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
     const crowdLiquidityPoolWallet = this.crowdLiquidityService.getPoolAddress()
     if (isAddressEqual(crowdLiquidityPoolWallet, walletAddress as Hex)) {
       return this.crowdLiquidityService.rebalanceCCTP(quote.tokenIn, quote.tokenOut)
     }
-
     return this.executeWithKernel(walletAddress, quote)
   }
 
@@ -122,7 +152,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     // ================== Send tokens with Message Transmitter ==================
 
     const depositData = encodeFunctionData({
-      abi: CCTPTokenMessenger,
+      abi: CCTPTokenMessengerABI,
       functionName: 'depositForBurn',
       args: [amount, destinationChain.domain, pad(walletAddress), tokenIn.config.address],
     })
@@ -139,5 +169,49 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const config = this.config.chains.find((chain) => chain.chainId === chainId)
     if (!config) throw new Error(`CCTP chain config not found for chain ${chainId}`)
     return config
+  }
+
+  async fetchAttestation(messageHash: Hex) {
+    const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
+    const response = await fetch(url)
+    const data:
+      | { status: 'pending' }
+      | { error: string }
+      | { status: 'complete'; attestation: Hex } = await response.json()
+
+    if ('error' in data) {
+      throw new Error(data.error)
+    }
+
+    return data
+  }
+
+  private getMessageHash(messageBytes: Hex) {
+    return keccak256(messageBytes)
+  }
+
+  private getMessageBytes(receipt: TransactionReceipt) {
+    const [messageSentEvent] = parseEventLogs({
+      abi: CCTPMessageTransmitterABI,
+      eventName: 'MessageSent',
+      logs: receipt.logs,
+    })
+    return messageSentEvent.args.message
+  }
+
+  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex) {
+    const cctpChainConfig = this.getChainConfig(chainId)
+    const walletClient = await this.walletClientService.getClient(chainId)
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+
+    const txHash = await walletClient.writeContract({
+      abi: CCTPMessageTransmitterABI,
+      address: cctpChainConfig.messageTransmitter,
+      functionName: 'receiveMessage',
+      args: [messageBytes, attestation],
+    })
+
+    await publicClient.waitForTransactionReceipt({ hash: txHash })
+    return txHash
   }
 }

@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq'
+import { Queue, JobsOptions } from 'bullmq'
 import { formatUnits } from 'viem'
 import * as _ from 'lodash'
 import { table } from 'table'
@@ -15,7 +15,6 @@ import {
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
-import { JobsOptions } from 'bullmq/dist/esm/types'
 
 type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
