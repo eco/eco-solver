@@ -88,7 +88,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
 
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
     const txHash = await this._execute(walletAddress, quote)
-    const txReceipt = await client.getTransactionReceipt({ hash: txHash })
+    const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
     const messageBody = this.getMessageBytes(txReceipt)
     const messageHash = this.getMessageHash(messageBody)
 

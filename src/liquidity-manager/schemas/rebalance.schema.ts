@@ -28,7 +28,7 @@ export class RebalanceModel {
   @Prop({ required: false })
   groupId?: string
 
-  @Prop({ required: true, type: Object })
+  @Prop({ required: false, type: Object })
   context: StrategyContext
 }
 

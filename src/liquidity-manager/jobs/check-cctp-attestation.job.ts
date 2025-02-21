@@ -83,7 +83,11 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager {
       processor.logger.debug(
         EcoLogMessage.fromDefault({
           message: 'Check CCTP attestation pending...',
-          properties: job.returnvalue,
+          properties: {
+            ...job.returnvalue,
+            messageHash: job.data.messageHash,
+            destinationChainId: job.data.destinationChainId,
+          },
         }),
       )
 

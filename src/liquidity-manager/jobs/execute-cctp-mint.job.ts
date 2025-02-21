@@ -16,8 +16,10 @@ export type ExecuteCCTPMintJob = LiquidityManagerJob<
 
 export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager {
   static async start(queue: Queue, data: ExecuteCCTPMintJob['data']): Promise<void> {
-    await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
-      removeOnComplete: true,
+    await queue.add(LiquidityManagerJobName.EXECUTE_CCTP_MINT, data, {
+      jobId: `${ExecuteCCTPMintJobManager.name}-${data.messageHash}`,
+      removeOnComplete: false,
+      removeOnFail: true,
       attempts: 3,
       backoff: {
         type: 'exponential',
@@ -45,7 +47,7 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager {
   }
 
   onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
-    processor.logger.error(
+    processor.logger.log(
       EcoLogMessage.fromDefault({
         message: `ExecuteCCTPMintJob: Completed!`,
         properties: {

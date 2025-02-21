@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY, LIT_CHAINS } from '@lit-protocol/constants'
@@ -25,9 +25,11 @@ import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
+  private logger = new Logger(CrowdLiquidityService.name)
   private config: CrowdLiquidityConfig
 
   constructor(
@@ -71,7 +73,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       transaction: transactionBase,
     }
 
-    return this.callLitAction(actions.fulfill, publicClient, params)
+    return this.callLitAction(actions.rebalance, publicClient, params)
   }
 
   /**
@@ -217,6 +219,17 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
     // ================ Execute Transaction ================
 
+    if (typeof litRes.response === 'string') {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error processing Lit action',
+          properties: { ipfsId, params },
+        }),
+      )
+
+      throw new Error(litRes.response)
+    }
+
     const response = litRes.response as {
       type: number
       maxPriorityFeePerGas: string
@@ -238,7 +251,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       chainId: response.chainId,
       nonce: response.nonce,
       to: response.to as Hex,
-      value: BigInt(response.value.hex),
+      value: BigInt(response.value.hex ?? response.value ?? 0),
       data: response.data as Hex,
       gas: BigInt(response.gasLimit),
       maxFeePerGas: BigInt(response.maxFeePerGas),
