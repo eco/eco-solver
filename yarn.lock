@@ -1443,12 +1443,12 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/routes-ts@~1.11.0":
-  version "1.11.0"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.11.0.tgz#f49e27c97ad0235386f7228a60a53a9aa19f3f86"
-  integrity sha512-bAJjccdFdhohqKpVDdB9SqE+vZLG57pW4A/zpyEj/BlEwS5Q5gy/QHNvmNRRS7b7y1Pj1yk8d7ny8iKizHRhvQ==
+"@eco-foundation/routes-ts@^1.12.1":
+  version "1.12.1"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.12.1.tgz#c0817df2123c14b633e0a6a9b58134bb64569dea"
+  integrity sha512-dURO2I+7JCeswrSsB1mY+eMMqCHKFwGR7WHcD/THflvBnFbcC3Vp3u5LishAS3M8z19o6jA71KlMlFV9WOeRpQ==
   dependencies:
-    viem "^2.22.21"
+    viem "^2.22.12"
 
 "@eslint-community/eslint-utils@^4.2.0", "@eslint-community/eslint-utils@^4.4.0":
   version "4.4.1"
@@ -8619,10 +8619,10 @@ viem@^2.21.59, viem@^2.22.1, viem@^2.22.4:
     webauthn-p256 "0.0.10"
     ws "8.18.0"
 
-viem@^2.22.21:
-  version "2.22.22"
-  resolved "https://registry.yarnpkg.com/viem/-/viem-2.22.22.tgz#2b722f45c30bcfc13d12a89cd3a0c1c0045093a8"
-  integrity sha512-0z7EFheP+paC/KRlVpu7zXYiqkTX6GR86G0p84LnYr5NgaVxGz0mGsiERy41ThERX1ahkTdEWGGiNgfi6wVqBQ==
+viem@^2.22.12:
+  version "2.23.5"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.23.5.tgz#50fb9ea0701d58e6a7a1714ecaa5edfa100bb391"
+  integrity sha512-cUfBHdFQHmBlPW0loFXda0uZcoU+uJw3NRYQRwYgkrpH6PgovH8iuVqDn6t1jZk82zny4wQL54c9dCX2W9kLMg==
   dependencies:
     "@noble/curves" "1.8.1"
     "@noble/hashes" "1.7.1"
