@@ -1443,10 +1443,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/routes-ts@^1.11.10":
-  version "1.11.10"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.11.10.tgz#8e1897bcc4f1d7db9a73046d8f9a17e9a4ccc114"
-  integrity sha512-5FcpOS+HaSgJk55KsGIntxnX5Ca474pDZJgqIRyC1VOuG1wQ8z8/nAJnqGBkHVLEc81kgJ9PpRO4ou5zN57aoA==
+"@eco-foundation/routes-ts@^1.13.0":
+  version "1.13.0"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.13.0.tgz#1735af3d5e92e99a34e1f5a54414d9a49572dd68"
+  integrity sha512-vK9gMFOGTGZetf9tXebHCpxygVRqMXCymNAmJ4OA/YTYzZhEc1RDezw8vEpzc54J3ivmuCbQeXSDf2DvsTNiMg==
   dependencies:
     viem "^2.22.12"
 
@@ -9958,9 +9958,9 @@ viem@^2.21.59, viem@^2.22.1, viem@^2.22.4:
     ws "8.18.0"
 
 viem@^2.22.12:
-  version "2.23.3"
-  resolved "https://registry.yarnpkg.com/viem/-/viem-2.23.3.tgz#3b8af9490f8f453a17e849d774bea1b5c992738c"
-  integrity sha512-ON/Uybteajqxn3iFyhV/6Ybm+QKhcrsVyTZf/9v2w0CvYQIoyJYCfHSsQR9zpsbOGrR7d2p62w6jzb6fqzzacg==
+  version "2.23.5"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.23.5.tgz#50fb9ea0701d58e6a7a1714ecaa5edfa100bb391"
+  integrity sha512-cUfBHdFQHmBlPW0loFXda0uZcoU+uJw3NRYQRwYgkrpH6PgovH8iuVqDn6t1jZk82zny4wQL54c9dCX2W9kLMg==
   dependencies:
     "@noble/curves" "1.8.1"
     "@noble/hashes" "1.7.1"
