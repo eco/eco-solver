@@ -58,7 +58,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const solvers = this.configService.getSolvers()
     const balanceTasks = entries(solvers).map(async ([, solver]) => {
       const clientKernel = await this.kernelAccountClientService.getClient(solver.chainID)
-      const address = clientKernel.kernelAccount?.address
+      const address = clientKernel.account?.address
 
       if (address) {
         const bal = await clientKernel.getBalance({ address })
@@ -87,7 +87,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const IntentSources = this.configService.getIntentSources()
     for (const IntentSource of IntentSources) {
       const client = await this.kernelAccountClientService.getClient(IntentSource.chainID)
-      const accountAddress = client.kernelAccountAddress
+      const accountAddress = client.account?.address
 
       const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens)
 
@@ -111,13 +111,13 @@ export class BalanceHealthIndicator extends HealthIndicator {
     await Promise.all(
       Object.entries(solverConfig).map(async ([, solver]) => {
         const client = await this.kernelAccountClientService.getClient(solver.chainID)
-        const accountAddress = client.kernelAccountAddress
+        const accountAddress = client.account?.address
         const tokens = Object.keys(solver.targets) as Hex[]
         const balances = await this.getBalanceCalls(solver.chainID, tokens)
         const mins = Object.values(solver.targets).map((target) => target.minBalance)
         const sourceBalancesString = this.joinBalance(balances, tokens, mins)
         entries(solver.targets).forEach((target) => {
-          ;(target[1] as TargetContract & { balance: object }).balance =
+          ; (target[1] as TargetContract & { balance: object }).balance =
             sourceBalancesString[target[0]]
         })
 
@@ -133,7 +133,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
 
   private async getBalanceCalls(chainID: number, tokens: Hex[]) {
     const client = await this.kernelAccountClientService.getClient(chainID)
-    const accountAddress = client.kernelAccountAddress
+    const accountAddress = client.account?.address
 
     const balanceCalls = tokens.map((token) => {
       return [

@@ -13,7 +13,7 @@ export const encodeKernelExecuteCallData = ({
     value?: bigint | undefined
     data?: Hex | undefined
   }[]
-  kernelVersion: KernelVersion<'0.6' | '0.7'>
+  kernelVersion: KernelVersion<'0.7'>
 }) => {
   if (isKernelV2(kernelVersion)) {
     if (calls.length > 1) {

@@ -18,7 +18,7 @@ export type ExecuteSmartWalletArgs = ExecuteSmartWalletArg[]
 
 export type SmartWalletActions = {
   execute: (args: ExecuteSmartWalletArgs) => Promise<Hex>
-  deployKernelAccount: () => Promise<DeployFactoryArgs>
+  deployKernelAccount: () => Promise<Hex | DeployFactoryArgs>
 }
 
 export type SmartWalletClient<

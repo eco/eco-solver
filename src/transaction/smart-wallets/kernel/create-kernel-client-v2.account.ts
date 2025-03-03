@@ -24,12 +24,13 @@ import {
 } from 'viem'
 import { SendUserOperationParameters } from 'viem/account-abstraction'
 import { encodeKernelExecuteCallData } from '@/transaction/smart-wallets/kernel/actions/encodeData.kernel'
-import { entryPointV_0_7 } from '@/transaction/smart-wallets/kernel/create.kernel.account'
 import { sendTransaction } from 'viem/actions'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
+import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 
+export type entryPointV_0_7 = '0.7'
 export type KernelAccountClientV2Config<
-  entryPointVersion extends '0.6' | '0.7',
+  entryPointVersion extends '0.7',
   kernelVersion extends KernelVersion<entryPointVersion>,
   owner extends OneOf<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
@@ -48,7 +49,7 @@ export type KernelAccountClientV2Config<
 >
 
 export type KernelAccountClientV2<
-  entryPointVersion extends '0.6' | '0.7',
+  entryPointVersion extends '0.7',
   transport extends Transport = Transport,
   chain extends Chain | undefined = Chain | undefined,
   account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
@@ -63,7 +64,7 @@ export type KernelAccountClientV2<
 >
 
 export async function createKernelAccountClientV2<
-  entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
+  entryPointVersion extends '0.7' = entryPointV_0_7,
   owner extends OneOf<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
   > = LocalAccount,
@@ -109,7 +110,7 @@ export async function createKernelAccountClientV2<
 }
 
 function kernelAccountV2Actions<
-  entryPointVersion extends '0.6' | '0.7',
+  entryPointVersion extends '0.7',
   TChain extends Chain | undefined = Chain | undefined,
   account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
     | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
@@ -123,7 +124,7 @@ function kernelAccountV2Actions<
 }
 
 async function sendTransactionWithSWC<
-  entryPointVersion extends '0.6' | '0.7',
+  entryPointVersion extends '0.7',
   account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
     | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
     | undefined,
@@ -170,8 +171,8 @@ async function sendTransactionWithSWC<
   }
 
   const txs = calls.map((tx: any) => ({ to: tx.to, data: tx.data, value: tx.value }))
-  const kernelVersion = client.account.entryPoint.version == '0.6' ? '0.2.4' : '0.3.1'
-  const data = encodeKernelExecuteCallData({ calls: txs, kernelVersion })
+  const kernelVersion = KERNEL_V3_1
+  const data = encodeKernelExecuteCallData({ calls: txs, kernelVersion: kernelVersion as any })
   return sendTransaction(client, {
     ...(request as any),
     data: data,

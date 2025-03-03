@@ -61,7 +61,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
               abi: erc20Abi,
               eventName: 'Transfer',
               // restrict transfers from anyone to the simple account address
-              args: { to: client.kernelAccount.address },
+              args: { to: client.account?.address },
               onLogs: this.addJob(solver.network, solver.chainID) as any,
             })
           }

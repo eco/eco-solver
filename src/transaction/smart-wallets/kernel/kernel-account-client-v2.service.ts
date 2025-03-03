@@ -13,9 +13,9 @@ import {
   zeroAddress,
 } from 'viem'
 import { KernelVersion } from 'permissionless/accounts'
-import { entryPointV_0_7 } from './create.kernel.account'
 import {
   createKernelAccountClientV2,
+  entryPointV_0_7,
   KernelAccountClientV2,
   KernelAccountClientV2Config,
 } from '@/transaction/smart-wallets/kernel/create-kernel-client-v2.account'
@@ -23,7 +23,7 @@ import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 
 class KernelAccountClientV2ServiceBase<
-  entryPointVersion extends '0.6' | '0.7',
+  entryPointVersion extends '0.7',
   kernelVersion extends KernelVersion<entryPointVersion>,
   owner extends OneOf<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount

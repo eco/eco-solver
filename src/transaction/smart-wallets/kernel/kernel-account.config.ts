@@ -22,11 +22,7 @@ export type KernelAccountClientConfig<
 > = WalletClientConfig &
   ToEcdsaKernelSmartAccountParameters<entryPointVersion, kernelVersion, owner>
 
-export type KernelWalletActions = Prettify<
-  SmartWalletActions & {
-    deployKernelAccount: () => Promise<DeployFactoryArgs>
-  }
->
+export type KernelWalletActions = SmartWalletActions
 
 export const isKernelV2 = (version: KernelVersion<'0.6' | '0.7'>): boolean => {
   const regex = /0\.2\.\d+/

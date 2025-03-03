@@ -14,21 +14,23 @@ import {
 } from 'viem'
 import { KernelAccountClientConfig } from './kernel-account.config'
 import { KernelVersion } from 'permissionless/accounts'
-import { createKernelAccountClient, entryPointV_0_7 } from './create.kernel.account'
-import { KernelAccountClient } from './kernel-account.client'
+import {
+  buildKernelAccountClient,
+  KernelAccountClientWithoutBundler,
+} from './create.kernel.account'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
-import { EcoLogMessage } from '../../../common/logging/eco-log-message'
 import { SignerKmsService } from '@/sign/signer-kms.service'
+import { entryPointV_0_7 } from '@/transaction/smart-wallets/kernel/create-kernel-client-v2.account'
 
 @Injectable()
 export class KernelAccountClientServiceBase<
-  entryPointVersion extends '0.6' | '0.7',
+  entryPointVersion extends '0.7',
   kernelVersion extends KernelVersion<entryPointVersion>,
   owner extends OneOf<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
   >,
 > extends ViemMultichainClientService<
-  KernelAccountClient<entryPointVersion>,
+  KernelAccountClientWithoutBundler,
   KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>
 > {
   private logger = new Logger(KernelAccountClientServiceBase.name)
@@ -42,20 +44,20 @@ export class KernelAccountClientServiceBase<
 
   protected override async createInstanceClient(
     configs: KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>,
-  ): Promise<KernelAccountClient<entryPointVersion>> {
-    const { client, args } = await createKernelAccountClient(configs)
-    if (args && args.deployReceipt) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Deploying Kernel Account`,
-          properties: {
-            ...args,
-            kernelAccount: client.kernelAccount.address,
-          },
-        }),
-      )
-    }
-    return client
+  ): Promise<KernelAccountClientWithoutBundler> {
+    // const { client, args } = await buildKernelAccountClient(configs)
+    // if (args && args.deployReceipt) {
+    //   this.logger.debug(
+    //     EcoLogMessage.fromDefault({
+    //       message: `Deploying Kernel Account`,
+    //       properties: {
+    //         ...args,
+    //         kernelAccount: client.kernelAccount.address,
+    //       },
+    //     }),
+    //   )
+    // }
+    return await buildKernelAccountClient(configs)
   }
 
   protected override async buildChainConfig(
@@ -85,14 +87,14 @@ export class KernelAccountClientServiceBase<
     }
 
     const clientKernel = await this.getClient(Object.values(solvers)[0].chainID)
-    return clientKernel.kernelAccount?.address
+    return clientKernel.account!.address
   }
 }
 
 @Injectable()
 export class KernelAccountClientService extends KernelAccountClientServiceBase<
   entryPointV_0_7,
-  KernelVersion<entryPointV_0_7>,
+  KernelVersion<'0.7'>,
   LocalAccount
 > {
   constructor(ecoConfigService: EcoConfigService, signerService: SignerKmsService) {
