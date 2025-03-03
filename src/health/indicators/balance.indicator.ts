@@ -40,7 +40,12 @@ export class BalanceHealthIndicator extends HealthIndicator {
       accounts.every((bal) => {
         return BigInt(bal.balance) > minEthBalanceWei
       })
-    const results = this.getStatus('balances', isHealthy, { accounts, solvers, sources })
+    const results = this.getStatus('balances', isHealthy, {
+      totalBalance: solvers.totalBalance,
+      accounts,
+      solvers: solvers.balances,
+      sources,
+    })
     if (isHealthy) {
       return results
     }
