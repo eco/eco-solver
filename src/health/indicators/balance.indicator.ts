@@ -72,7 +72,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
           kernelAddress,
           eocAddress,
           chainID: solver.chainID,
-          balance: "        " + BigInt(bal).toString(),//makes comparing easier in json
+          balance: '        ' + BigInt(bal).toString(), //makes comparing easier in json
           minEthBalanceWei,
         })
       }
@@ -129,7 +129,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
         entries(solver.targets).forEach((target) => {
           ;(target[1] as TargetContract & { balance: object }).balance =
             sourceBalancesString[target[0]]
-            totalTokenBalance += parseInt(sourceBalancesString[target[0]].value)
+          totalTokenBalance += parseInt(sourceBalancesString[target[0]].value)
         })
 
         solverBalances.push({
