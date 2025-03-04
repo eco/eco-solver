@@ -19,6 +19,7 @@ import { IntervalModule } from '@/intervals/interval.module'
 import { QuoteModule } from '@/quote/quote.module'
 import { FeeModule } from '@/fee/fee.module'
 import { KmsModule } from '@/kms/kms.module'
+import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { KmsModule } from '@/kms/kms.module'
     SolverModule,
     LiquidityManagerModule,
     WatchModule,
+    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],
