@@ -24,7 +24,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
       this.getSolvers(),
       this.getSources(),
     ])
-    let isHealthy = solvers.every((solver) => {
+    let isHealthy = solvers.balances.every((solver) => {
       const tokens = solver.tokens
       return Object.values(tokens).every((token) => {
         if (!token.minBalances) {
@@ -40,7 +40,12 @@ export class BalanceHealthIndicator extends HealthIndicator {
       accounts.every((bal) => {
         return BigInt(bal.balance) > minEthBalanceWei
       })
-    const results = this.getStatus('balances', isHealthy, { accounts, solvers, sources })
+    const results = this.getStatus('balances', isHealthy, {
+      totalBalance: solvers.totalBalance,
+      accounts,
+      solvers: solvers.balances,
+      sources,
+    })
     if (isHealthy) {
       return results
     }
@@ -98,15 +103,18 @@ export class BalanceHealthIndicator extends HealthIndicator {
     return sources
   }
 
-  private async getSolvers(): Promise<{ tokens: Record<string, TokenType> }[]> {
-    const solvers: Array<{
+  private async getSolvers(): Promise<{
+    balances: { tokens: Record<string, TokenType> }[]
+    totalBalance: number
+  }> {
+    const solverBalances: Array<{
       accountAddress: `0x${string}` | undefined
       tokens: Record<string, TokenType>
       inboxAddress: Hex
       network: Network
       chainID: number
     }> = []
-
+    let totalBalance = 0
     const solverConfig = this.configService.getSolvers()
     await Promise.all(
       Object.entries(solverConfig).map(async ([, solver]) => {
@@ -119,16 +127,17 @@ export class BalanceHealthIndicator extends HealthIndicator {
         entries(solver.targets).forEach((target) => {
           ;(target[1] as TargetContract & { balance: object }).balance =
             sourceBalancesString[target[0]]
+          totalBalance += parseInt(sourceBalancesString[target[0]].value)
         })
 
-        solvers.push({
+        solverBalances.push({
           ...solver,
           accountAddress,
           tokens: sourceBalancesString,
         })
       }),
     )
-    return solvers
+    return { balances: solverBalances, totalBalance }
   }
 
   private async getBalanceCalls(chainID: number, tokens: Hex[]) {
