@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { BalanceModule } from '@/balance/balance.module'
+import { IntentModule } from '@/intent/intent.module'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
@@ -8,10 +9,12 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/rebalance.schema'
+import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 
 @Module({
   imports: [
     BalanceModule,
+    IntentModule,
     TransactionModule,
     LiquidityManagerQueue.init(),
     LiquidityManagerQueue.initFlow(),
@@ -23,6 +26,7 @@ import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/reb
     LiquidityManagerProcessor,
     LiquidityProviderService,
     LiFiProviderService,
+    CCTPProviderService,
   ],
   exports: [LiquidityManagerService],
 })
