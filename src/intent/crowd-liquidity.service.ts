@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
-import { LIT_ABILITY, LIT_CHAINS } from '@lit-protocol/constants'
+import { LIT_ABILITY } from '@lit-protocol/constants'
 import {
   createSiweMessage,
   generateAuthSig,
@@ -29,6 +29,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -53,6 +54,9 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
   executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    // Unused variable
+    solver
+
     if (!this.isRewardEnough(model)) {
       throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
     }
@@ -61,7 +65,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
     }
 
-    return this.fulfill(Number(model.event.sourceChainID), solver.chainID, model.intent.hash)
+    return this.fulfill(model.intent)
   }
 
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
@@ -202,14 +206,10 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     return this.config.kernel.address as Hex
   }
 
-  private async fulfill(
-    sourceChainId: number,
-    destinationChainId: number,
-    intentHash: string,
-  ): Promise<Hex> {
+  private async fulfill(intentModel: IntentDataModel): Promise<Hex> {
     const { kernel, pkp, actions } = this.config
 
-    const publicClient = await this.publicClient.getClient(destinationChainId)
+    const publicClient = await this.publicClient.getClient(Number(intentModel.route.destination))
 
     const [feeData, nonce] = await Promise.all([
       this.getFeeData(publicClient),
@@ -217,15 +217,41 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     ])
 
     const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
-    const sourceChainName = this.getLitNetworkFromChainId(sourceChainId)
+
+    // Serialize intent
+    const intent = {
+      route: {
+        salt: intentModel.route.salt,
+        source: Number(intentModel.route.source),
+        destination: Number(intentModel.route.destination),
+        inbox: intentModel.route.inbox,
+        calls: intentModel.route.calls.map((call) => ({
+          target: call.target,
+          data: call.data,
+          value: call.value.toString(),
+        })),
+        tokens: intentModel.route.tokens.map((t) => ({
+          token: t.token,
+          amount: t.amount.toString(),
+        })),
+      },
+      reward: {
+        creator: intentModel.reward.creator,
+        prover: intentModel.reward.prover,
+        deadline: intentModel.reward.deadline.toString(),
+        nativeValue: intentModel.reward.nativeValue.toString(),
+        tokens: intentModel.reward.tokens.map((t) => ({
+          token: t.token,
+          amount: t.amount.toString(),
+        })),
+      },
+    }
 
     const params = {
-      intentHash,
+      intent,
       publicKey: pkp.publicKey,
-      sourceChainName,
       kernelAddress: kernel.address,
       transaction: transactionBase,
-      ethAddress: pkp.ethAddress,
     }
 
     return this.callLitAction(actions.fulfill, publicClient, params)
@@ -374,15 +400,5 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
       maxFeePerGas: maxFeePerGas.toString(),
     }
-  }
-
-  private getLitNetworkFromChainId(chainID: number): keyof typeof LIT_CHAINS {
-    for (const chainName in LIT_CHAINS) {
-      const chain = LIT_CHAINS[chainName]
-      if (chain.chainId === chainID) {
-        return chainName
-      }
-    }
-    throw new Error('Unknown chain')
   }
 }
