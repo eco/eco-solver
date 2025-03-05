@@ -249,6 +249,7 @@ export interface CrowdLiquidityConfig {
   capacityTokenId: string
   capacityTokenOwnerPk: string
   defaultTargetBalance: number
+  feePercentage: number
   actions: {
     fulfill: string
     rebalance: string

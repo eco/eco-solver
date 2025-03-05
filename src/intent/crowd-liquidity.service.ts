@@ -26,6 +26,9 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenConfig } from '@/balance/types'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -35,6 +38,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly publicClient: MultichainPublicClientService,
+    private readonly balanceService: BalanceService,
   ) {}
 
   onModuleInit() {
@@ -49,6 +53,14 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
   executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    if (!this.isRewardEnough(model)) {
+      throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
+    }
+
+    if (!this.isPoolSolvent(model)) {
+      throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
+    }
+
     return this.fulfill(Number(model.event.sourceChainID), solver.chainID, model.intent.hash)
   }
 
@@ -94,6 +106,66 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     })
 
     return isSupportedReward && isSupportedRoute
+  }
+
+  /**
+   * Determines if the reward provided in the intent model is sufficient based on the route amount and the fee percentage.
+   *
+   * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
+   * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
+   */
+  isRewardEnough(intentModel: IntentSourceModel): boolean {
+    const { route, reward } = intentModel.intent
+    const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
+    const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
+
+    const minimumReward = (totalRouteAmount * BigInt(this.config.feePercentage * 1e6)) / BigInt(1e6)
+
+    return totalRewardAmount >= minimumReward
+  }
+
+  /**
+   * Retrieves the list of supported tokens with their configuration details.
+   *
+   * @return {TokenConfig[]} Array of supported tokens, each including token details and the corresponding target balance.
+   */
+  getSupportedTokens(): TokenConfig[] {
+    return this.balanceService
+      .getInboxTokens()
+      .filter((token) => this.isSupportedToken(token.chainId, token.address))
+      .map((token) => ({
+        ...token,
+        targetBalance: this.getTokenTargetBalance(token.chainId, token.address),
+      }))
+  }
+
+  /**
+   * Checks if the given intent is solvent, ensuring all required token balances meet or exceed the specified amounts.
+   *
+   * @param {IntentSourceModel} intentModel - The intent model containing route information and token requirements.
+   * @return {Promise<boolean>} - A promise that resolves to true if the intent is solvent, otherwise false.
+   */
+  async isPoolSolvent(intentModel: IntentSourceModel) {
+    // Get supported tokens from intent
+    const routeTokens = this.getSupportedTokens().filter((token) => {
+      return intentModel.intent.route.tokens.some(
+        (rewardToken) =>
+          BigInt(token.chainId) === intentModel.intent.route.destination &&
+          isAddressEqual(token.address, rewardToken.token),
+      )
+    })
+
+    const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
+      this.getPoolAddress(),
+      routeTokens,
+    )
+
+    return intentModel.intent.route.tokens.every((routeToken) => {
+      const token = routeTokensData.find((token) =>
+        isAddressEqual(token.config.address, routeToken.token),
+      )
+      return token && token.balance.balance >= routeToken.amount
+    })
   }
 
   /**

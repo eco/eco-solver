@@ -79,16 +79,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       this.config.intervalDuration,
       crowdLiquidityPoolAddress,
     )
-    this.tokensPerWallet[crowdLiquidityPoolAddress] = this.balanceService
-      .getInboxTokens()
-      .filter((token) => this.crowdLiquidityService.isSupportedToken(token.chainId, token.address))
-      .map((token) => ({
-        ...token,
-        targetBalance: this.crowdLiquidityService.getTokenTargetBalance(
-          token.chainId,
-          token.address,
-        ),
-      }))
+    this.tokensPerWallet[crowdLiquidityPoolAddress] =
+      this.crowdLiquidityService.getSupportedTokens()
   }
 
   async analyzeTokens(walletAddress: string) {
