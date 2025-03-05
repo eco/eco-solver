@@ -1,6 +1,5 @@
 import { Queue, JobsOptions } from 'bullmq'
 import { formatUnits } from 'viem'
-import * as _ from 'lodash'
 import { table } from 'table'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
