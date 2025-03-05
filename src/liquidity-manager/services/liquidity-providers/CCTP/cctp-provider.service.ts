@@ -77,8 +77,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenIn.config.address,
-          chainOut: quote.tokenIn.config.chainId,
+          tokenOut: quote.tokenOut.config.address,
+          chainOut: quote.tokenOut.config.chainId,
           amountIn: quote.amountIn,
           amountOut: quote.amountOut,
           slippage: quote.slippage,
