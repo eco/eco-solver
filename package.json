@@ -1,6 +1,6 @@
 {
   "name": "eco-solver",
-  "version": "0.1.0",
+  "version": "1.5",
   "description": "An implementation filler/solver for the Eco Routes protocol",
   "homepage": "https://github.com/eco/eco-solver#readme",
   "bugs": {
