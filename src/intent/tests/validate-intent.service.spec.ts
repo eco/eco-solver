@@ -12,6 +12,8 @@ import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { ValidationService } from '@/intent/validation.sevice'
 import { zeroHash } from 'viem'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { EcoError } from '@/common/errors/eco-error'
 
 jest.mock('../../common/utils/strings', () => {
   return {
@@ -23,10 +25,13 @@ jest.mock('../../common/utils/strings', () => {
 describe('ValidateIntentService', () => {
   let validateIntentService: ValidateIntentService
   let validationService: DeepMocked<ValidationService>
+  let multichainPublicClientService: DeepMocked<MultichainPublicClientService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
+  const mockLog = jest.fn()
+  const mockLogError = jest.fn()
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -37,6 +42,10 @@ describe('ValidateIntentService', () => {
           useValue: createMock<UtilsIntentService>(),
         },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
+        {
+          provide: MultichainPublicClientService,
+          useValue: createMock<MultichainPublicClientService>(),
+        },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
@@ -56,17 +65,19 @@ describe('ValidateIntentService', () => {
 
     validateIntentService = chainMod.get(ValidateIntentService)
     validationService = chainMod.get(ValidationService)
+    multichainPublicClientService = chainMod.get(MultichainPublicClientService)
     utilsIntentService = chainMod.get(UtilsIntentService)
     ecoConfigService = chainMod.get(EcoConfigService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
 
     validateIntentService['logger'].debug = mockLogDebug
+    validateIntentService['logger'].log = mockLog
+    validateIntentService['logger'].error = mockLogError
   })
 
   afterEach(async () => {
     // restore the spy created with spyOn
-    jest.restoreAllMocks()
-    mockLogDebug.mockClear()
+    jest.resetAllMocks()
   })
 
   describe('on module init', () => {
@@ -177,6 +188,110 @@ describe('ValidateIntentService', () => {
         intentHash,
         jobId,
       })
+    })
+  })
+
+  describe('on assertValidations', () => {
+    const model = { intent: { hash: '0x12' } } as any
+    const solver = {} as any
+    const validations = { isIntentFunded: false, supportedSelectors: true } as any
+    const validValidations = { isIntentFunded: true, supportedSelectors: true } as any
+    let mockValidations: jest.Mock
+    let mockIntentFunded: jest.Mock
+    let mockUpdateModel: jest.Mock
+
+    beforeEach(() => {
+      mockValidations = jest.fn().mockResolvedValueOnce(validations)
+      mockIntentFunded = jest.fn().mockResolvedValueOnce(true)
+      mockUpdateModel = jest.fn()
+
+      validationService.assertValidations = mockValidations
+      validateIntentService.intentFunded = mockIntentFunded
+      utilsIntentService.updateInvalidIntentModel = mockUpdateModel
+    })
+
+    it('should return false if ValidationService is false', async () => {
+      expect(await validateIntentService.assertValidations(model, solver)).toBe(false)
+      expect(mockValidations).toHaveBeenCalledTimes(1)
+      expect(mockIntentFunded).toHaveBeenCalledTimes(1)
+      expect(mockUpdateModel).toHaveBeenCalledTimes(1)
+      expect(mockLog).toHaveBeenCalledTimes(1)
+      expect(mockLog).toHaveBeenCalledWith({
+        msg: EcoError.IntentValidationFailed(model.intent.hash).message,
+        model,
+        validations,
+      })
+      expect(mockUpdateModel).toHaveBeenCalledWith(model, validations)
+    })
+
+    it('should return false if intentFunded returns false', async () => {
+      mockValidations = jest.fn().mockResolvedValueOnce(validValidations)
+      mockIntentFunded = jest.fn().mockResolvedValueOnce(false)
+      validationService.assertValidations = mockValidations
+      validateIntentService.intentFunded = mockIntentFunded
+
+      expect(await validateIntentService.assertValidations(model, solver)).toBe(false)
+      expect(mockValidations).toHaveBeenCalledTimes(1)
+      expect(mockIntentFunded).toHaveBeenCalledTimes(1)
+      expect(mockUpdateModel).toHaveBeenCalledTimes(1)
+      expect(mockLog).toHaveBeenCalledTimes(1)
+      expect(mockLog).toHaveBeenCalledWith({
+        msg: EcoError.IntentValidationFailed(model.intent.hash).message,
+        model,
+        validations: validValidations,
+      })
+      expect(mockUpdateModel).toHaveBeenCalledWith(model, validValidations)
+    })
+
+    it('should return true if intentFunded and ValidationService are all true ', async () => {
+      mockValidations = jest.fn().mockResolvedValueOnce(validValidations)
+      mockIntentFunded = jest.fn().mockResolvedValueOnce(true)
+      validationService.assertValidations = mockValidations
+      validateIntentService.intentFunded = mockIntentFunded
+
+      expect(await validateIntentService.assertValidations(model, solver)).toBe(true)
+      expect(mockValidations).toHaveBeenCalledTimes(1)
+      expect(mockIntentFunded).toHaveBeenCalledTimes(1)
+      expect(mockUpdateModel).toHaveBeenCalledTimes(0)
+      expect(mockLog).toHaveBeenCalledTimes(0)
+    })
+  })
+
+  describe('on intentFunded', () => {
+    const chainID = 1
+    const model = { intent: { hash: '0x12', route: { source: chainID } } } as any
+
+    it('should return false if no intentSource for intent', async () => {
+      jest.spyOn(ecoConfigService, 'getIntentSource').mockReturnValue(undefined)
+
+      expect(await validateIntentService.intentFunded(model)).toBe(false)
+      expect(mockLogError).toHaveBeenCalledTimes(1)
+      expect(mockLogError).toHaveBeenCalledWith({
+        msg: EcoError.IntentSourceNotFound(chainID).message,
+        model,
+      })
+    })
+
+    it('should return false if isIntentFunded contract call returns false', async () => {
+      jest.spyOn(ecoConfigService, 'getIntentSource').mockReturnValue({ face: 'face' } as any)
+      const mockRead = jest.fn().mockReturnValue(false)
+      const client = { readContract: mockRead }
+      multichainPublicClientService.getClient = jest.fn().mockReturnValue(client)
+
+      expect(await validateIntentService.intentFunded(model)).toBe(false)
+      expect(mockLogError).toHaveBeenCalledTimes(0)
+      expect(mockRead).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return true if isIntentFunded contract call returns true', async () => {
+      jest.spyOn(ecoConfigService, 'getIntentSource').mockReturnValue({ face: 'face' } as any)
+      const mockRead = jest.fn().mockReturnValue(true)
+      const client = { readContract: mockRead }
+      multichainPublicClientService.getClient = jest.fn().mockReturnValue(client)
+
+      expect(await validateIntentService.intentFunded(model)).toBe(true)
+      expect(mockLogError).toHaveBeenCalledTimes(0)
+      expect(mockRead).toHaveBeenCalledTimes(1)
     })
   })
 })
