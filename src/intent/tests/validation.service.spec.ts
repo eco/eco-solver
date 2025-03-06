@@ -10,6 +10,7 @@ import {
 } from '@/intent/validation.sevice'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
+import { FeeService } from '@/fee/fee.service'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -19,6 +20,7 @@ jest.mock('@/intent/utils', () => {
 describe('ValidationService', () => {
   let validationService: ValidationService
   let proofService: DeepMocked<ProofService>
+  let feeService: DeepMocked<FeeService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   const mockLogLog = jest.fn()
@@ -28,6 +30,7 @@ describe('ValidationService', () => {
       providers: [
         ValidationService,
         { provide: ProofService, useValue: createMock<ProofService>() },
+        { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
       ],
@@ -35,10 +38,14 @@ describe('ValidationService', () => {
 
     validationService = mod.get(ValidationService)
     proofService = mod.get(ProofService)
+    feeService = mod.get(FeeService)
     ecoConfigService = mod.get(EcoConfigService)
     utilsIntentService = mod.get(UtilsIntentService)
 
     validationService['logger'].log = mockLogLog
+
+    jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValueOnce({} as any)
+    validationService.onModuleInit()
   })
 
   afterEach(async () => {
@@ -52,10 +59,11 @@ describe('ValidationService', () => {
         supportedProver: true,
         supportedTargets: true,
         supportedSelectors: true,
+        validTransferLimit: true,
         validExpirationTime: false,
         validDestination: true,
         fulfillOnDifferentChain: true,
-      }
+      } as ValidationChecks
       expect(validationsSucceeded(validations)).toBe(false)
     })
 
@@ -64,10 +72,11 @@ describe('ValidationService', () => {
         supportedProver: false,
         supportedTargets: false,
         supportedSelectors: false,
+        validTransferLimit: false,
         validExpirationTime: false,
         validDestination: false,
         fulfillOnDifferentChain: false,
-      }
+      } as ValidationChecks
       expect(validationsSucceeded(validations)).toBe(false)
     })
 
@@ -186,6 +195,45 @@ describe('ValidationService', () => {
       })
     })
 
+    describe('on validTransferLimit', () => {
+      it('should return false if feeService does', async () => {
+        const error = new Error('error here')
+        jest
+          .spyOn(feeService, 'getTotalFill')
+          .mockResolvedValueOnce({ totalFillNormalized: 1n, error })
+        expect(await validationService.validTransferLimit({} as any)).toBe(false)
+      })
+
+      it('should return false if the total fill above the max fill', async () => {
+        //check default max fill
+        jest
+          .spyOn(feeService, 'getTotalFill')
+          .mockResolvedValueOnce({ totalFillNormalized: ValidationService.DEFAULT_MAX_FILL + 1n })
+        expect(await validationService.validTransferLimit({} as any)).toBe(false)
+        //check setting from configs
+        const max = 1000n
+        jest
+          .spyOn(ecoConfigService, 'getIntentConfigs')
+          .mockReturnValueOnce({ maxFill: max } as any)
+        validationService.onModuleInit()
+        jest
+          .spyOn(feeService, 'getTotalFill')
+          .mockResolvedValueOnce({ totalFillNormalized: max + 1n })
+        expect(await validationService.validTransferLimit({} as any)).toBe(false)
+      })
+
+      it('should return true if no error and the total fill is below max fill', async () => {
+        const max = 1000n
+        jest
+          .spyOn(ecoConfigService, 'getIntentConfigs')
+          .mockReturnValueOnce({ maxFill: max } as any)
+        validationService.onModuleInit()
+        jest
+          .spyOn(feeService, 'getTotalFill')
+          .mockResolvedValueOnce({ totalFillNormalized: max - 1n })
+        expect(await validationService.validTransferLimit({} as any)).toBe(true)
+      })
+    })
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {
@@ -235,6 +283,7 @@ describe('ValidationService', () => {
       supportedProver: 'supportedProver',
       supportedTargets: 'supportedTargets',
       supportedSelectors: 'supportedSelectors',
+      validTransferLimit: 'validTransferLimit',
       validExpirationTime: 'validExpirationTime',
       validDestination: 'validDestination',
       fulfillOnDifferentChain: 'fulfillOnDifferentChain',
