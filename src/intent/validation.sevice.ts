@@ -38,7 +38,7 @@ export type ValidationChecks = {
  * @param validations  the validations to check
  * @returns true if all of the validations passed
  */
-export function validationsSucceeded(validations: ValidationChecks): boolean {
+export function validationsSucceeded(validations: ValidationType): boolean {
   return Object.values(validations).every((v) => v)
 }
 
@@ -47,8 +47,15 @@ export function validationsSucceeded(validations: ValidationChecks): boolean {
  * @param validations the validations to check
  * @returns true if any of the validations failed
  */
-export function validationsFailed(validations: ValidationChecks): boolean {
+export function validationsFailed(validations: ValidationType): boolean {
   return !validationsSucceeded(validations)
+}
+
+/**
+ * Type that holds all the possible validations that can fail
+ */
+export type ValidationType = {
+  [key: string]: boolean
 }
 
 @Injectable()
