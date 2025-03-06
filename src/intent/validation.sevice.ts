@@ -1,11 +1,11 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
+import { FeeService } from '@/fee/fee.service'
 import { getTransactionTargetData } from '@/intent/utils'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 
@@ -28,6 +28,7 @@ export type ValidationChecks = {
   supportedProver: boolean
   supportedTargets: boolean
   supportedSelectors: boolean
+  validTransferLimit: boolean
   validExpirationTime: boolean
   validDestination: boolean
   fulfillOnDifferentChain: boolean
@@ -52,14 +53,21 @@ export function validationsFailed(validations: ValidationChecks): boolean {
 }
 
 @Injectable()
-export class ValidationService {
+export class ValidationService implements OnModuleInit {
   private readonly logger = new Logger(ValidationService.name)
-
+  private maxFill: bigint
+  // the default max fill we allow for a transfer, equal to 1000 USDC base 6
+  public static readonly DEFAULT_MAX_FILL = 1000_000_000n
   constructor(
     private readonly proofService: ProofService,
-    private readonly utilsIntentService: UtilsIntentService,
+    private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
+
+  onModuleInit() {
+    this.maxFill =
+      this.ecoConfigService.getIntentConfigs().maxFill || ValidationService.DEFAULT_MAX_FILL
+  }
 
   /**
    * Executes all the validations we have on the model and solver
@@ -78,6 +86,7 @@ export class ValidationService {
     })
     const supportedTargets = this.supportedTargets(intent, solver)
     const supportedSelectors = this.supportedSelectors(intent, solver)
+    const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
@@ -86,6 +95,7 @@ export class ValidationService {
       supportedProver,
       supportedTargets,
       supportedSelectors,
+      validTransferLimit,
       validExpirationTime,
       validDestination,
       fulfillOnDifferentChain,
@@ -162,6 +172,16 @@ export class ValidationService {
       )
     }
     return targetsSupported
+  }
+
+  /**
+   * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
+   * @param intent the source intent model
+   * @returns  true if the transfer is within the bounds
+   */
+  async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
+    const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
+    return !error && totalFillNormalized <= this.maxFill
   }
 
   /**

@@ -185,7 +185,13 @@ export class QuoteError extends Error {
     return new EcoError(`One or more targets not erc20s`)
   }
 
-  static SolverLacksLiquidity(chainID: number, target: Hex, requested: bigint, available: bigint, normMinBalance: bigint) {
+  static SolverLacksLiquidity(
+    chainID: number,
+    target: Hex,
+    requested: bigint,
+    available: bigint,
+    normMinBalance: bigint,
+  ) {
     return new EcoError(
       `The solver on chain ${chainID} lacks liquidity for ${target} requested ${requested} available ${available} with a normMinBalance of ${normMinBalance}`,
     )

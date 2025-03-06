@@ -25,7 +25,7 @@ export class FeeService {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   /**
    * Gets the ask for the quote
@@ -263,21 +263,23 @@ export class FeeService {
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
     }
-    const erc20Balances = Object.values(callERC20Balances).reduce((acc, tokenBalance) => {
-      const config = solver.targets[tokenBalance.address]
-      acc[tokenBalance.address] = {
-        token: tokenBalance,
-        config: {
-          ...config,
+    const erc20Balances = Object.values(callERC20Balances).reduce(
+      (acc, tokenBalance) => {
+        const config = solver.targets[tokenBalance.address]
+        acc[tokenBalance.address] = {
+          token: tokenBalance,
+          config: {
+            ...config,
+            chainId: solver.chainID,
+            address: tokenBalance.address,
+            type: 'erc20',
+          },
           chainId: solver.chainID,
-          address: tokenBalance.address,
-          type: 'erc20'
-        },
-        chainId: solver.chainID,
-      }
-      return acc
-    }, {} as Record<Hex, TokenFetchAnalysis>)
-
+        }
+        return acc
+      },
+      {} as Record<Hex, TokenFetchAnalysis>,
+    )
 
     let error: Error | undefined
 
@@ -312,7 +314,7 @@ export class FeeService {
             call.target,
             transferAmount,
             callTarget.token.balance,
-            normMinBalance
+            normMinBalance,
           )
           this.logger.error(
             EcoLogMessage.fromDefault({
@@ -320,7 +322,7 @@ export class FeeService {
               properties: {
                 error: err,
                 quote,
-                callTarget
+                callTarget,
               },
             }),
           )
@@ -355,10 +357,10 @@ export class FeeService {
   }
 
   /**
-   * Returns the normalized min balance for the token. Assumes that the minBalance is 
+   * Returns the normalized min balance for the token. Assumes that the minBalance is
    * set with a decimal of 0, ie in normal dollar units
    * @param tokenAnalysis the token to use
-   * @returns 
+   * @returns
    */
   getNormalizedMinBalance(tokenAnalysis: TokenFetchAnalysis) {
     return normalizeBalance(

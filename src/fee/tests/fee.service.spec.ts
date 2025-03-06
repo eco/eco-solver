@@ -545,9 +545,9 @@ describe('FeeService', () => {
             minBalance: 300,
             targetBalance: 111,
           },
-        }
+        },
       }
-      let tokenAnalysis : any
+      let tokenAnalysis: any
       beforeEach(() => {
         callBalances = {
           '0x1': {
@@ -561,15 +561,15 @@ describe('FeeService', () => {
             balance: transferAmount,
           },
         } as any
-       tokenAnalysis = {
+        tokenAnalysis = {
           '0x1': {
             chainId: 1n,
             token: callBalances['0x1'],
             config: {
               address: '0x1',
               chainId: 1n,
-              ...solverWithTargets.targets['0x1']
-            }
+              ...solverWithTargets.targets['0x1'],
+            },
           },
           '0x4': {
             chainId: 1n,
@@ -577,9 +577,9 @@ describe('FeeService', () => {
             config: {
               address: '0x4',
               chainId: 1n,
-              ...solverWithTargets.targets['0x4']
-            }
-          }
+              ...solverWithTargets.targets['0x4'],
+            },
+          },
         }
       })
 
@@ -613,7 +613,10 @@ describe('FeeService', () => {
         mockIsERC20Target.mockReturnValue(true)
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
-          error: QuoteError.FailedToFetchTarget(solverWithTargets.chainID, quote.route.calls[0].target),
+          error: QuoteError.FailedToFetchTarget(
+            solverWithTargets.chainID,
+            quote.route.calls[0].target,
+          ),
         })
       })
 
@@ -630,11 +633,11 @@ describe('FeeService', () => {
           quote.route.calls[0].target,
           transferAmount,
           callBalances['0x1'].balance,
-          normMinBalance
+          normMinBalance,
         )
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
-          error
+          error,
         })
         expect(convert).toHaveBeenCalledTimes(0)
         expect(mockLogError).toHaveBeenCalledTimes(1)
@@ -642,7 +645,7 @@ describe('FeeService', () => {
           msg: QuoteError.SolverLacksLiquidity.name,
           error,
           quote,
-          callTarget: tokenAnalysis['0x1']
+          callTarget: tokenAnalysis['0x1'],
         })
       })
 
