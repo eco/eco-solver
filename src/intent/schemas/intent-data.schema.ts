@@ -93,6 +93,13 @@ export class IntentDataModel implements IntentType {
       logIndex,
     )
   }
+
+  static toChainIntent(intent: IntentDataModel): IntentType {
+    return {
+      route: intent.route,
+      reward: intent.reward,
+    }
+  }
 }
 
 export const IntentSourceDataSchema = SchemaFactory.createForClass(IntentDataModel)

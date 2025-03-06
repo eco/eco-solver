@@ -291,19 +291,19 @@ describe('FeeService', () => {
       ],
     } as any
 
-    const balances = [
+    const tokenAnalysis = [
       {
-        balance: {
+        token: {
           address: '0x1',
         },
       },
       {
-        balance: {
+        token: {
           address: '0x2',
         },
       },
       {
-        balance: {
+        token: {
           address: '0x3',
         },
       },
@@ -349,7 +349,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ error } as any)
       const call = jest
@@ -364,7 +364,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
@@ -378,16 +378,16 @@ describe('FeeService', () => {
     it('should calculate the delta for all tokens', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
-        return BigInt(token.balance.address) as any
+        return BigInt(token.token.address) as any
       })
       const rewards = { stuff: 'asdf' } as any
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ rewards } as any)
       const calls = { stuff: '123' } as any
       const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls } as any)
-      const deficitDescending = balances.map((balance) => {
-        return { ...balance, delta: BigInt(balance.balance.address) }
+      const deficitDescending = tokenAnalysis.map((ta) => {
+        return { ...ta, delta: BigInt(ta.token.address) }
       })
       expect(await feeService.calculateTokens(quote as any)).toEqual({
         calculated: {
@@ -397,7 +397,7 @@ describe('FeeService', () => {
           deficitDescending,
         },
       })
-      expect(cal).toHaveBeenCalledTimes(balances.length)
+      expect(cal).toHaveBeenCalledTimes(tokenAnalysis.length)
       expect(rew).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
     })
@@ -523,7 +523,7 @@ describe('FeeService', () => {
 
     describe('on route calls mapping', () => {
       let callBalances: any
-      const transferAmount = 10n
+      const transferAmount = 1000_000_000n
       const txTargetData = {
         targetConfig: {
           contractType: 'erc20',
@@ -532,23 +532,59 @@ describe('FeeService', () => {
           args: [0, transferAmount],
         },
       } as any
+      let solverWithTargets: any = {
+        chainID: 1n,
+        targets: {
+          '0x1': {
+            type: 'erc20',
+            minBalance: 200,
+            targetBalance: 222,
+          },
+          '0x4': {
+            type: 'erc20',
+            minBalance: 300,
+            targetBalance: 111,
+          },
+        },
+      }
+      let tokenAnalysis: any
       beforeEach(() => {
         callBalances = {
           '0x1': {
             address: '0x1',
             decimals: 6,
-            balance: 100_000_000n,
+            balance: transferAmount,
           },
           '0x4': {
             address: '0x4',
             decimals: 4,
-            balance: 100_000_000n,
+            balance: transferAmount,
           },
         } as any
+        tokenAnalysis = {
+          '0x1': {
+            chainId: 1n,
+            token: callBalances['0x1'],
+            config: {
+              address: '0x1',
+              chainId: 1n,
+              ...solverWithTargets.targets['0x1'],
+            },
+          },
+          '0x4': {
+            chainId: 1n,
+            token: callBalances['0x4'],
+            config: {
+              address: '0x4',
+              chainId: 1n,
+              ...solverWithTargets.targets['0x4'],
+            },
+          },
+        }
       })
 
       it('should return an error if tx target data is not for an erc20 transfer', async () => {
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(null)
         mockIsERC20Target.mockReturnValue(false)
@@ -569,7 +605,7 @@ describe('FeeService', () => {
       })
 
       it('should return an error if the call target is not in the fetched balances', async () => {
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest
           .spyOn(balanceService, 'fetchTokenBalances')
           .mockResolvedValue({ '0x4': callBalances['0x4'] })
@@ -577,31 +613,48 @@ describe('FeeService', () => {
         mockIsERC20Target.mockReturnValue(true)
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
-          error: QuoteError.FailedToFetchTarget(solver.chainID, quote.route.calls[0].target),
+          error: QuoteError.FailedToFetchTarget(
+            solverWithTargets.chainID,
+            quote.route.calls[0].target,
+          ),
         })
       })
 
       it('should return an error if solver lacks liquidity in a call token', async () => {
-        callBalances['0x1'].balance = transferAmount - 1n
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        const normMinBalance = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        callBalances['0x1'].balance = transferAmount + normMinBalance - 1n
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         const convert = jest.spyOn(feeService, 'convertNormalize')
+        const error = QuoteError.SolverLacksLiquidity(
+          solver.chainID,
+          quote.route.calls[0].target,
+          transferAmount,
+          callBalances['0x1'].balance,
+          normMinBalance,
+        )
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
-          error: QuoteError.SolverLacksLiquidity(
-            solver.chainID,
-            quote.route.calls[0].target,
-            transferAmount,
-            callBalances['0x1'].balance,
-          ),
+          error,
         })
         expect(convert).toHaveBeenCalledTimes(0)
+        expect(mockLogError).toHaveBeenCalledTimes(1)
+        expect(mockLogError).toHaveBeenCalledWith({
+          msg: QuoteError.SolverLacksLiquidity.name,
+          error,
+          quote,
+          callTarget: tokenAnalysis['0x1'],
+        })
       })
 
       it('should convert an normalize the erc20 calls', async () => {
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
+        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
+        callBalances['0x4'].balance = transferAmount + normMinBalance4 + 1n
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
@@ -638,7 +691,7 @@ describe('FeeService', () => {
           targetBalance: 500,
           type: 'erc20',
         },
-        balance: {
+        token: {
           address: '0x1',
           decimals: BASE_DECIMALS,
           balance: 300_000_000n,
@@ -653,7 +706,7 @@ describe('FeeService', () => {
         balance: 100_000_000n,
         chainID: BigInt(token.chainId),
         address: token.config.address,
-        decimals: token.balance.decimals,
+        decimals: token.token.decimals,
       }
       expect(normToken).toEqual(expectedNorm)
 
@@ -663,13 +716,13 @@ describe('FeeService', () => {
 
     it('should calculate the delta for deficit', async () => {
       const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
-      token.balance.balance = 100_000_000n
+      token.token.balance = 100_000_000n
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: -100_000_000n,
         chainID: BigInt(token.chainId),
         address: token.config.address,
-        decimals: token.balance.decimals,
+        decimals: token.token.decimals,
       }
       expect(normToken).toEqual(expectedNorm)
 
@@ -678,8 +731,8 @@ describe('FeeService', () => {
     })
 
     it('should call correct normalization', async () => {
-      token.balance.decimals = 4
-      token.balance.balance = token.balance.balance / 10n ** 2n
+      token.token.decimals = 4
+      token.token.balance = token.token.balance / 10n ** 2n
       const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {

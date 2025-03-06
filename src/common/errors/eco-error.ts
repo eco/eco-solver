@@ -26,6 +26,14 @@ export class EcoError extends Error {
     return new EcoError(`Could not find data for intent hash ${intentHash}`)
   }
 
+  static IntentValidationFailed(hash: string) {
+    return new EcoError(`Intent validation failed for intent hash ${hash}`)
+  }
+
+  static IntentSourceNotFound(chainID: number) {
+    return new EcoError(`Could not find an intent source for chain ${chainID}`)
+  }
+
   static IntentSourceDataInvalidParams = new Error(
     'IntentSource calls or tokens must have non-zero length',
   )

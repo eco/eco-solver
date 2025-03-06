@@ -124,6 +124,9 @@ export type IntervalConfig = {
  * The config type for the intent section
  */
 export type IntentConfig = {
+  //the maximum amount of tokens that can be filled in a single transaction,
+  //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL}
+  maxFill: bigint
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
