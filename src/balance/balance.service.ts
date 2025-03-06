@@ -17,7 +17,7 @@ import { Cacheable } from '@/decorators/cacheable.decorator'
  */
 export type TokenFetchAnalysis = {
   config: TokenConfig
-  balance: TokenBalance
+  token: TokenBalance
   chainId: number
 }
 
@@ -151,7 +151,6 @@ export class BalanceService implements OnApplicationBootstrap {
         decimals: decimals as number,
       }
     })
-
     return tokenBalances
   }
 
@@ -176,10 +175,10 @@ export class BalanceService implements OnApplicationBootstrap {
   async fetchTokenData(chainID: number): Promise<TokenFetchAnalysis[]> {
     const tokenConfigs = groupBy(this.getInboxTokens(), 'chainId')[chainID]
     const tokenAddresses = tokenConfigs.map((token) => token.address)
-    const balances = await this.fetchTokenBalances(chainID, tokenAddresses)
-    return zipWith(tokenConfigs, Object.values(balances), (config, balance) => ({
+    const tokenBalances = await this.fetchTokenBalances(chainID, tokenAddresses)
+    return zipWith(tokenConfigs, Object.values(tokenBalances), (config, token) => ({
       config,
-      balance,
+      token,
       chainId: chainID,
     }))
   }

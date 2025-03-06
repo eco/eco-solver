@@ -192,7 +192,7 @@ describe('QuotesService', () => {
     })
 
     it('should return infeasable if the quote is infeasable', async () => {
-      const error = QuoteError.SolverLacksLiquidity(1, '0x2', 4n, 3n)
+      const error = QuoteError.SolverLacksLiquidity(1, '0x2', 4n, 3n, 2n)
       ecoConfigService.getSolver = jest.fn().mockReturnValue({})
       validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
       feeService.isRouteFeasible = jest.fn().mockResolvedValue({ error })

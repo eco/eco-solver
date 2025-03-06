@@ -25,7 +25,7 @@ export class FeeService {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   /**
    * Gets the ask for the quote
@@ -172,7 +172,7 @@ export class FeeService {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
     const deficitDescending = balance
-      .filter((token) => source.tokens.includes(token.balance.address))
+      .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
       .map((token) => {
         return {
           ...token,
@@ -259,9 +259,26 @@ export class FeeService {
       solver.chainID,
       quote.route.calls.map((call) => call.target),
     )
+
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
     }
+    const erc20Balances = Object.values(callERC20Balances).reduce((acc, tokenBalance) => {
+      const config = solver.targets[tokenBalance.address]
+      acc[tokenBalance.address] = {
+        token: tokenBalance,
+        config: {
+          ...config,
+          chainId: solver.chainID,
+          address: tokenBalance.address,
+          type: 'erc20'
+        },
+        chainId: solver.chainID,
+      }
+      return acc
+    }, {} as Record<Hex, TokenFetchAnalysis>)
+
+
     let error: Error | undefined
 
     let calls: NormalizedToken[] = []
@@ -282,24 +299,37 @@ export class FeeService {
           )
           throw err
         }
-        const callTarget = callERC20Balances[call.target]
+        const callTarget = erc20Balances[call.target]
         if (!callTarget) {
           throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
         }
 
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
-        if (transferAmount > callTarget.balance) {
-          throw QuoteError.SolverLacksLiquidity(
+        const normMinBalance = this.getNormalizedMinBalance(callTarget)
+        if (transferAmount > callTarget.token.balance - normMinBalance) {
+          const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,
             call.target,
             transferAmount,
-            callTarget.balance,
+            callTarget.token.balance,
+            normMinBalance
           )
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: QuoteError.SolverLacksLiquidity.name,
+              properties: {
+                error: err,
+                quote,
+                callTarget
+              },
+            }),
+          )
+          throw err
         }
         return this.convertNormalize(transferAmount, {
           chainID: BigInt(solver.chainID),
           address: call.target,
-          decimals: callTarget.decimals,
+          decimals: callTarget.token.decimals,
         })
       })
     } catch (e) {
@@ -315,16 +345,26 @@ export class FeeService {
    * @returns
    */
   calculateDelta(token: TokenFetchAnalysis) {
-    const minBalance = normalizeBalance(
-      { balance: BigInt(token.config.minBalance), decimal: 0 },
-      token.balance.decimals,
-    ).balance
-    const delta = token.balance.balance - minBalance
+    const minBalance = this.getNormalizedMinBalance(token)
+    const delta = token.token.balance - minBalance
     return this.convertNormalize(delta, {
       chainID: BigInt(token.chainId),
       address: token.config.address,
-      decimals: token.balance.decimals,
+      decimals: token.token.decimals,
     })
+  }
+
+  /**
+   * Returns the normalized min balance for the token. Assumes that the minBalance is 
+   * set with a decimal of 0, ie in normal dollar units
+   * @param tokenAnalysis the token to use
+   * @returns 
+   */
+  getNormalizedMinBalance(tokenAnalysis: TokenFetchAnalysis) {
+    return normalizeBalance(
+      { balance: BigInt(tokenAnalysis.config.minBalance), decimal: 0 },
+      tokenAnalysis.token.decimals,
+    ).balance
   }
 
   /**
