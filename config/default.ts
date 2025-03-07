@@ -8,6 +8,10 @@ export default {
       region: 'us-east-2',
       secretID: 'eco-solver-configs-dev',
     },
+    {
+      region: 'us-east-2',
+      secretID: 'eco-solver-whitelist-dev',
+    },
   ],
   cache: {
     ttl: 10_000, // milliseconds till cache key expires
@@ -79,11 +83,20 @@ export default {
     },
   },
   intentConfigs: {
+    defaultFee: {
+      limitFillBase6: 1000n * 10n ** 6n,
+      algorithm: 'linear',
+      constants: {
+        baseFee: 20_000n,
+        per100UnitFee: 15_000n,
+      },
+    },
     proofs: {
       storage_duration_seconds: 604800,
       hyperlane_duration_seconds: 3600,
     },
   },
+  whitelist: {},
   liquidityManager: {
     intervalDuration: 300000,
     targetSlippage: 0.02,

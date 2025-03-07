@@ -9,6 +9,8 @@ import { Hex } from 'viem'
 @Schema({ timestamps: true })
 export class QuoteRewardDataModel implements QuoteRewardDataType {
   @Prop({ required: true, type: String })
+  creator: Hex
+  @Prop({ required: true, type: String })
   prover: Hex
   @Prop({ required: true, type: BigInt })
   deadline: bigint

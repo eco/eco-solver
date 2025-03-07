@@ -191,7 +191,7 @@ export class QuoteService {
     const { deficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
 
     const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
-    const totalAsk = this.feeService.getAsk(totalFulfill, quoteIntentModel.route)
+    const totalAsk = this.feeService.getAsk(totalFulfill, quoteIntentModel)
     const totalAvailableRewardAmount = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
     if (totalAsk > totalAvailableRewardAmount) {
       return InsufficientBalance(totalAsk, totalAvailableRewardAmount)
