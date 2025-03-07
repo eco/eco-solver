@@ -2,15 +2,14 @@ import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { FeeAlgorithmConfig, FeeConfigType, FeeRecord } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex } from 'viem'
 
 /**
@@ -19,13 +18,46 @@ import { getAddress, Hex } from 'viem'
 export const BASE_DECIMALS: number = 6
 
 @Injectable()
-export class FeeService {
+export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
+  private defaultFee: FeeConfigType
+  private whitelist: FeeRecord
 
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
+
+  onModuleInit() {
+    this.defaultFee = this.ecoConfigService.getIntentConfigs().defaultFee
+    this.whitelist = this.ecoConfigService.getWhitelist()
+  }
+
+  /**
+   * Returns the fee for a transaction, if the intent is provided
+   * then it returns a special fee for that intent if there is one,
+   * otherwise it returns the default fee
+   *
+   * @param intent the optional intent for the fee
+   * @param defaultFeeArg the default fee to use if the intent is not provided,
+   *                      usually from the solvers own config
+   * @returns
+   */
+  getFeeConfig(args?: {
+    intent?: QuoteIntentDataInterface
+    defaultFeeArg?: FeeConfigType
+  }): FeeConfigType {
+    const { intent, defaultFeeArg } = args || {}
+    let feeConfig = defaultFeeArg || this.defaultFee
+    if (intent) {
+      const specialFee = this.whitelist[intent.reward.creator]
+      if (specialFee) {
+        const chainFee: FeeConfigType = specialFee[Number(intent.route.source)]
+        feeConfig = chainFee || specialFee.default || feeConfig
+      }
+    }
+    return feeConfig
+  }
 
   /**
    * Gets the ask for the quote
@@ -34,8 +66,8 @@ export class FeeService {
    * @param route the route of the quote intent
    * @returns a bigint representing the ask
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getAsk(totalFulfill: bigint, route: QuoteRouteDataInterface) {
+  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+    const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const destination =
       route.destination === 1n || route.source === 1n
@@ -50,17 +82,19 @@ export class FeeService {
       throw QuoteError.NoSolverForDestination(destination)
     }
     let fee = 0n
-    switch (solver.fee.feeAlgorithm) {
+    const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
+    switch (feeConfig.algorithm) {
+      // the default
       // 0.02 cents + $0.015 per 100$
       // 20_000n + (totalFulfill / 100_000_000n) * 15_000n
       case 'linear':
-        const s = solver as Solver<'linear'>
         fee =
-          BigInt(s.fee.constants.baseFee) +
-          (totalFulfill / 100_000_000n) * BigInt(s.fee.constants.per100UnitFee)
+          BigInt(feeConfig.constants.baseFee) +
+          (totalFulfill / 100_000_000n) *
+            BigInt((feeConfig.constants as FeeAlgorithmConfig<'linear'>).per100UnitFee)
         break
       default:
-        throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.feeAlgorithm)
+        throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
     }
     return fee + totalFulfill
   }
@@ -85,7 +119,7 @@ export class FeeService {
     if (!!error1) {
       return { error: error1 }
     }
-    const ask = this.getAsk(totalFillNormalized, quote.route)
+    const ask = this.getAsk(totalFillNormalized, quote)
     return {
       error:
         totalRewardsNormalized >= ask
