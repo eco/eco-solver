@@ -47,6 +47,7 @@ export type EcoConfigType = {
   fulfill: FulfillType
   aws: AwsCredential[]
   kms: KmsConfig
+  whitelist: FeeRecord
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -120,9 +121,7 @@ export type IntervalConfig = {
  * The config type for the intent section
  */
 export type IntentConfig = {
-  //the maximum amount of tokens that can be filled in a single transaction,
-  //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL}
-  maxFill: bigint
+  defaultFee: FeeConfigType
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
@@ -143,6 +142,40 @@ export type AwsCredential = {
 export type KmsConfig = {
   region: string
   keyID: string
+}
+
+/**
+ * The config type for a ERC20 transfer
+ */
+export type FeeConfigType = {
+  //the maximum amount of tokens that can be filled in a single transaction,
+  //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
+  limitFillBase6: bigint
+  algorithm: FeeAlgorithm
+  constants: FeeAlgorithmConfig<FeeAlgorithm>
+}
+
+/**
+ * The config type for a whitelisted address for a set of chains
+ * Chains must be explicitly listed in the chainIDs array
+ */
+export type FeeConfigDefaultType = FeeConfigType & {
+  chainIDs: number[]
+}
+
+/**
+ * The config type for fees for a whitelisted address
+ */
+export type FeeChainType = {
+  [chainID: number]: FeeConfigType
+  default?: FeeConfigDefaultType
+}
+
+/**
+ * The config type for a fee record for whitelisted addresses
+ */
+export type FeeRecord = {
+  [whitelistedWalletAddress: Hex]: FeeChainType
 }
 
 /**
@@ -171,21 +204,13 @@ export type AlchemyNetwork = {
 /**
  * The config type for a single solver configuration
  */
-export type Solver<T extends FeeAlgorithm = FeeAlgorithm> = {
+export type Solver = {
   inboxAddress: Hex
   //target address to contract type mapping
   targets: Record<Hex, TargetContract>
   network: Network
-  fee: FeeType<T>
+  fee: FeeConfigType
   chainID: number
-}
-
-/**
- * The fee type algorithm along with its constants
- */
-export type FeeType<T extends FeeAlgorithm> = {
-  feeAlgorithm: FeeAlgorithm
-  constants: FeeAlgorithmConfig<T>
 }
 
 /**
@@ -197,7 +222,7 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
  * The fee algorithm constant config types
  */
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
-  ? { baseFee: bigint; per100UnitFee: bigint }
+  ? { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
   : T extends 'quadratic'
     ? { baseFee: bigint; quadraticFactor: bigint }
     : never

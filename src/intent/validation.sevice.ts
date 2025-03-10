@@ -5,7 +5,7 @@ import { FeeService } from '@/fee/fee.service'
 import { getTransactionTargetData } from '@/intent/utils'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 
@@ -60,21 +60,14 @@ export type ValidationType = {
 }
 
 @Injectable()
-export class ValidationService implements OnModuleInit {
+export class ValidationService {
   private readonly logger = new Logger(ValidationService.name)
-  private maxFill: bigint
-  // the default max fill we allow for a transfer, equal to 1000 USDC base 6
-  public static readonly DEFAULT_MAX_FILL = 1000_000_000n
+
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
-
-  onModuleInit() {
-    this.maxFill =
-      this.ecoConfigService.getIntentConfigs().maxFill || ValidationService.DEFAULT_MAX_FILL
-  }
 
   /**
    * Executes all the validations we have on the model and solver
@@ -188,7 +181,11 @@ export class ValidationService implements OnModuleInit {
    */
   async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
     const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
-    return !error && totalFillNormalized <= this.maxFill
+    if (error) {
+      return false
+    }
+    const limitFillBase6 = this.feeService.getFeeConfig({ intent }).limitFillBase6
+    return totalFillNormalized <= limitFillBase6
   }
 
   /**
