@@ -222,7 +222,7 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
  * The fee algorithm constant config types
  */
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
-  ? { baseFee: bigint; per100UnitFee: bigint }
+  ? { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
   : T extends 'quadratic'
     ? { baseFee: bigint; quadraticFactor: bigint }
     : never

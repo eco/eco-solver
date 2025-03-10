@@ -64,7 +64,10 @@ describe('FeeService', () => {
     algorithm: 'linear',
     constants: {
       baseFee: 20_000n,
-      per100UnitFee: 15_000n,
+      tranche: {
+        unitFee: 15_000n,
+        unitSize: 100_000_000n,
+      },
     },
   }
 
