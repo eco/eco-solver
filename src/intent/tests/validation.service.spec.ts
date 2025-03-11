@@ -11,6 +11,7 @@ import {
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
+import { FeeConfigType } from '@/eco-configs/eco-config.types'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -45,7 +46,6 @@ describe('ValidationService', () => {
     validationService['logger'].log = mockLogLog
 
     jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValueOnce({} as any)
-    validationService.onModuleInit()
   })
 
   afterEach(async () => {
@@ -196,6 +196,17 @@ describe('ValidationService', () => {
     })
 
     describe('on validTransferLimit', () => {
+      const defaultFee: FeeConfigType = {
+        limitFillBase6: 1000n * 10n ** 6n,
+        algorithm: 'linear',
+        constants: {
+          baseFee: 20_000n,
+          tranche: {
+            unitFee: 15_000n,
+            unitSize: 100_000_000n,
+          },
+        },
+      }
       it('should return false if feeService does', async () => {
         const error = new Error('error here')
         jest
@@ -205,35 +216,27 @@ describe('ValidationService', () => {
       })
 
       it('should return false if the total fill above the max fill', async () => {
-        //check default max fill
-        jest
-          .spyOn(feeService, 'getTotalFill')
-          .mockResolvedValueOnce({ totalFillNormalized: ValidationService.DEFAULT_MAX_FILL + 1n })
+        jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
+          totalFillNormalized: defaultFee.limitFillBase6 + 1n,
+        })
+        const mockFeeConfig = jest.fn().mockReturnValue(defaultFee)
+        feeService.getFeeConfig = mockFeeConfig
         expect(await validationService.validTransferLimit({} as any)).toBe(false)
-        //check setting from configs
-        const max = 1000n
-        jest
-          .spyOn(ecoConfigService, 'getIntentConfigs')
-          .mockReturnValueOnce({ maxFill: max } as any)
-        validationService.onModuleInit()
-        jest
-          .spyOn(feeService, 'getTotalFill')
-          .mockResolvedValueOnce({ totalFillNormalized: max + 1n })
-        expect(await validationService.validTransferLimit({} as any)).toBe(false)
+        expect(mockFeeConfig).toHaveBeenCalledTimes(1)
       })
 
       it('should return true if no error and the total fill is below max fill', async () => {
-        const max = 1000n
-        jest
-          .spyOn(ecoConfigService, 'getIntentConfigs')
-          .mockReturnValueOnce({ maxFill: max } as any)
-        validationService.onModuleInit()
+        const mockFeeConfig = jest.fn().mockReturnValue(defaultFee)
+        feeService.getFeeConfig = mockFeeConfig
+
         jest
           .spyOn(feeService, 'getTotalFill')
-          .mockResolvedValueOnce({ totalFillNormalized: max - 1n })
+          .mockResolvedValueOnce({ totalFillNormalized: defaultFee.limitFillBase6 - 1n })
         expect(await validationService.validTransferLimit({} as any)).toBe(true)
+        expect(mockFeeConfig).toHaveBeenCalledTimes(1)
       })
     })
+
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {

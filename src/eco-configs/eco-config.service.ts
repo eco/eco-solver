@@ -180,6 +180,11 @@ export class EcoConfigService implements OnModuleInit {
   }
 
   // Returns the liquidity manager config
+  getWhitelist(): EcoConfigType['whitelist'] {
+    return this.get('whitelist')
+  }
+
+  // Returns the liquidity manager config
   getCCTP(): EcoConfigType['CCTP'] {
     return this.get('CCTP')
   }
