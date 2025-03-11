@@ -47,7 +47,7 @@ export type EcoConfigType = {
   fulfill: FulfillType
   aws: AwsCredential[]
   kms: KmsConfig
-  whitelist: FeeRecord
+  whitelist: WhitelistFeeRecord
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -172,10 +172,11 @@ export type FeeChainType = {
 }
 
 /**
- * The config type for a fee record for whitelisted addresses
+ * The config type for a fee record for whitelisted addresses. A default is
+ * partial FeeConfigType, so that it can be overridden by chain specific fees.
  */
-export type FeeRecord = {
-  [whitelistedWalletAddress: Hex]: FeeChainType
+export type WhitelistFeeRecord = {
+  [whitelistedWalletAddress: Hex]: Partial<FeeChainType>
 }
 
 /**
