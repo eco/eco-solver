@@ -57,7 +57,7 @@ export class FeeService implements OnModuleInit {
     let feeConfig = defaultFeeArg || this.defaultFee
     if (intent) {
       const destDefaultFee = this.getAskRouteDestinationSolver(intent.route).fee
-      feeConfig = destDefaultFee || feeConfig
+      feeConfig = defaultFeeArg || destDefaultFee
       const specialFee = this.whitelist[intent.reward.creator]
       if (specialFee) {
         const chainFee = specialFee[Number(intent.route.source)]
