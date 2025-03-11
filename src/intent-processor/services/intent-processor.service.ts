@@ -386,7 +386,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       )
 
       // Estimate 25k gas per intent
-      return 25_000n * BigInt(intentCount)
+      return BigInt(this.config.sendBatch.defaultGasPerIntent) * BigInt(intentCount)
     }
   }
 }

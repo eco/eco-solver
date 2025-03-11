@@ -121,6 +121,7 @@ export default {
   sendBatch: {
     chunkSize: 200,
     intervalDuration: 360_000,
+    defaultGasPerIntent: 25_000,
   },
 
   externalAPIs: {},

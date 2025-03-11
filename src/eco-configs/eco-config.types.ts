@@ -287,6 +287,7 @@ export interface WithdrawsConfig {
 export interface SendBatchConfig {
   chunkSize: number
   intervalDuration: number
+  defaultGasPerIntent: number
 }
 
 export interface HyperlaneConfig {
