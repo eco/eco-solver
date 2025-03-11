@@ -1,8 +1,8 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
+import { FeeService } from '@/fee/fee.service'
 import { getTransactionTargetData } from '@/intent/utils'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger } from '@nestjs/common'
@@ -28,6 +28,7 @@ export type ValidationChecks = {
   supportedProver: boolean
   supportedTargets: boolean
   supportedSelectors: boolean
+  validTransferLimit: boolean
   validExpirationTime: boolean
   validDestination: boolean
   fulfillOnDifferentChain: boolean
@@ -38,7 +39,7 @@ export type ValidationChecks = {
  * @param validations  the validations to check
  * @returns true if all of the validations passed
  */
-export function validationsSucceeded(validations: ValidationChecks): boolean {
+export function validationsSucceeded(validations: ValidationType): boolean {
   return Object.values(validations).every((v) => v)
 }
 
@@ -47,8 +48,15 @@ export function validationsSucceeded(validations: ValidationChecks): boolean {
  * @param validations the validations to check
  * @returns true if any of the validations failed
  */
-export function validationsFailed(validations: ValidationChecks): boolean {
+export function validationsFailed(validations: ValidationType): boolean {
   return !validationsSucceeded(validations)
+}
+
+/**
+ * Type that holds all the possible validations that can fail
+ */
+export type ValidationType = {
+  [key: string]: boolean
 }
 
 @Injectable()
@@ -57,7 +65,7 @@ export class ValidationService {
 
   constructor(
     private readonly proofService: ProofService,
-    private readonly utilsIntentService: UtilsIntentService,
+    private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -78,6 +86,7 @@ export class ValidationService {
     })
     const supportedTargets = this.supportedTargets(intent, solver)
     const supportedSelectors = this.supportedSelectors(intent, solver)
+    const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
@@ -86,6 +95,7 @@ export class ValidationService {
       supportedProver,
       supportedTargets,
       supportedSelectors,
+      validTransferLimit,
       validExpirationTime,
       validDestination,
       fulfillOnDifferentChain,
@@ -162,6 +172,20 @@ export class ValidationService {
       )
     }
     return targetsSupported
+  }
+
+  /**
+   * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
+   * @param intent the source intent model
+   * @returns  true if the transfer is within the bounds
+   */
+  async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
+    const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
+    if (error) {
+      return false
+    }
+    const limitFillBase6 = this.feeService.getFeeConfig({ intent }).limitFillBase6
+    return totalFillNormalized <= limitFillBase6
   }
 
   /**

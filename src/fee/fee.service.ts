@@ -2,15 +2,14 @@ import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { FeeAlgorithmConfig, FeeConfigType, FeeRecord } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex } from 'viem'
 
 /**
@@ -19,13 +18,46 @@ import { getAddress, Hex } from 'viem'
 export const BASE_DECIMALS: number = 6
 
 @Injectable()
-export class FeeService {
+export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
+  private defaultFee: FeeConfigType
+  private whitelist: FeeRecord
 
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
+
+  onModuleInit() {
+    this.defaultFee = this.ecoConfigService.getIntentConfigs().defaultFee
+    this.whitelist = this.ecoConfigService.getWhitelist()
+  }
+
+  /**
+   * Returns the fee for a transaction, if the intent is provided
+   * then it returns a special fee for that intent if there is one,
+   * otherwise it returns the default fee
+   *
+   * @param intent the optional intent for the fee
+   * @param defaultFeeArg the default fee to use if the intent is not provided,
+   *                      usually from the solvers own config
+   * @returns
+   */
+  getFeeConfig(args?: {
+    intent?: QuoteIntentDataInterface
+    defaultFeeArg?: FeeConfigType
+  }): FeeConfigType {
+    const { intent, defaultFeeArg } = args || {}
+    let feeConfig = defaultFeeArg || this.defaultFee
+    if (intent) {
+      const specialFee = this.whitelist[intent.reward.creator]
+      if (specialFee) {
+        const chainFee: FeeConfigType = specialFee[Number(intent.route.source)]
+        feeConfig = chainFee || specialFee.default || feeConfig
+      }
+    }
+    return feeConfig
+  }
 
   /**
    * Gets the ask for the quote
@@ -34,8 +66,8 @@ export class FeeService {
    * @param route the route of the quote intent
    * @returns a bigint representing the ask
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getAsk(totalFulfill: bigint, route: QuoteRouteDataInterface) {
+  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+    const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const destination =
       route.destination === 1n || route.source === 1n
@@ -50,17 +82,19 @@ export class FeeService {
       throw QuoteError.NoSolverForDestination(destination)
     }
     let fee = 0n
-    switch (solver.fee.feeAlgorithm) {
+    const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
+    switch (feeConfig.algorithm) {
+      // the default
       // 0.02 cents + $0.015 per 100$
       // 20_000n + (totalFulfill / 100_000_000n) * 15_000n
       case 'linear':
-        const s = solver as Solver<'linear'>
+        const { tranche } = feeConfig.constants as FeeAlgorithmConfig<'linear'>
         fee =
-          BigInt(s.fee.constants.baseFee) +
-          (totalFulfill / 100_000_000n) * BigInt(s.fee.constants.per100UnitFee)
+          BigInt(feeConfig.constants.baseFee) +
+          (totalFulfill / tranche.unitSize) * BigInt(tranche.unitFee)
         break
       default:
-        throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.feeAlgorithm)
+        throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
     }
     return fee + totalFulfill
   }
@@ -85,7 +119,7 @@ export class FeeService {
     if (!!error1) {
       return { error: error1 }
     }
-    const ask = this.getAsk(totalFillNormalized, quote.route)
+    const ask = this.getAsk(totalFillNormalized, quote)
     return {
       error:
         totalRewardsNormalized >= ask
@@ -172,7 +206,7 @@ export class FeeService {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
     const deficitDescending = balance
-      .filter((token) => source.tokens.includes(token.balance.address))
+      .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
       .map((token) => {
         return {
           ...token,
@@ -259,9 +293,28 @@ export class FeeService {
       solver.chainID,
       quote.route.calls.map((call) => call.target),
     )
+
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
     }
+    const erc20Balances = Object.values(callERC20Balances).reduce(
+      (acc, tokenBalance) => {
+        const config = solver.targets[tokenBalance.address]
+        acc[tokenBalance.address] = {
+          token: tokenBalance,
+          config: {
+            ...config,
+            chainId: solver.chainID,
+            address: tokenBalance.address,
+            type: 'erc20',
+          },
+          chainId: solver.chainID,
+        }
+        return acc
+      },
+      {} as Record<Hex, TokenFetchAnalysis>,
+    )
+
     let error: Error | undefined
 
     let calls: NormalizedToken[] = []
@@ -282,24 +335,37 @@ export class FeeService {
           )
           throw err
         }
-        const callTarget = callERC20Balances[call.target]
+        const callTarget = erc20Balances[call.target]
         if (!callTarget) {
           throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
         }
 
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
-        if (transferAmount > callTarget.balance) {
-          throw QuoteError.SolverLacksLiquidity(
+        const normMinBalance = this.getNormalizedMinBalance(callTarget)
+        if (transferAmount > callTarget.token.balance - normMinBalance) {
+          const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,
             call.target,
             transferAmount,
-            callTarget.balance,
+            callTarget.token.balance,
+            normMinBalance,
           )
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: QuoteError.SolverLacksLiquidity.name,
+              properties: {
+                error: err,
+                quote,
+                callTarget,
+              },
+            }),
+          )
+          throw err
         }
         return this.convertNormalize(transferAmount, {
           chainID: BigInt(solver.chainID),
           address: call.target,
-          decimals: callTarget.decimals,
+          decimals: callTarget.token.decimals,
         })
       })
     } catch (e) {
@@ -315,16 +381,26 @@ export class FeeService {
    * @returns
    */
   calculateDelta(token: TokenFetchAnalysis) {
-    const minBalance = normalizeBalance(
-      { balance: BigInt(token.config.minBalance), decimal: 0 },
-      token.balance.decimals,
-    ).balance
-    const delta = token.balance.balance - minBalance
+    const minBalance = this.getNormalizedMinBalance(token)
+    const delta = token.token.balance - minBalance
     return this.convertNormalize(delta, {
       chainID: BigInt(token.chainId),
       address: token.config.address,
-      decimals: token.balance.decimals,
+      decimals: token.token.decimals,
     })
+  }
+
+  /**
+   * Returns the normalized min balance for the token. Assumes that the minBalance is
+   * set with a decimal of 0, ie in normal dollar units
+   * @param tokenAnalysis the token to use
+   * @returns
+   */
+  getNormalizedMinBalance(tokenAnalysis: TokenFetchAnalysis) {
+    return normalizeBalance(
+      { balance: BigInt(tokenAnalysis.config.minBalance), decimal: 0 },
+      tokenAnalysis.token.decimals,
+    ).balance
   }
 
   /**

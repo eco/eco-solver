@@ -12,6 +12,10 @@ import { IsNotEmpty, ValidateNested } from 'class-validator'
 export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @IsNotEmpty()
   @ApiProperty()
+  dAppID: string
+
+  @IsNotEmpty()
+  @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRouteDataDTO)
   route: QuoteRouteDataDTO
@@ -24,6 +28,8 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
 }
 
 export interface QuoteIntentDataInterface {
+  // The dApp ID of the intent, optional so schema can be shared for onchain intents and offchain quotes
+  dAppID?: string
   route: QuoteRouteDataInterface
   reward: QuoteRewardDataType
 }

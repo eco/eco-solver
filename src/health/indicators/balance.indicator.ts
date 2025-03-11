@@ -24,7 +24,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
       this.getSolvers(),
       this.getSources(),
     ])
-    let isHealthy = solvers.every((solver) => {
+    let isHealthy = solvers.balances.every((solver) => {
       const tokens = solver.tokens
       return Object.values(tokens).every((token) => {
         if (!token.minBalances) {
@@ -38,19 +38,24 @@ export class BalanceHealthIndicator extends HealthIndicator {
     isHealthy =
       isHealthy &&
       accounts.every((bal) => {
-        return BigInt(bal.balance) > minEthBalanceWei
+        return BigInt(bal.balance) >= minEthBalanceWei
       })
-    const results = this.getStatus('balances', isHealthy, { accounts, solvers, sources })
+    const results = this.getStatus('balances', isHealthy, {
+      totalBalance: solvers.totalTokenBalance,
+      accounts,
+      solvers: solvers.balances,
+      sources,
+    })
     if (isHealthy) {
       return results
     }
     throw new HealthCheckError('Balances failed', results)
   }
-
   private async getAccount(): Promise<any[]> {
     const minEthBalanceWei = this.configService.getEth().simpleAccount.minEthBalanceWei
     const accountBalance: {
-      address: `0x${string}`
+      kernelAddress: `0x${string}`
+      eocAddress: `0x${string}`
       chainID: number
       balance: string
       minEthBalanceWei: number
@@ -58,14 +63,16 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const solvers = this.configService.getSolvers()
     const balanceTasks = entries(solvers).map(async ([, solver]) => {
       const clientKernel = await this.kernelAccountClientService.getClient(solver.chainID)
-      const address = clientKernel.account?.address
+      const kernelAddress = clientKernel.account?.address
+      const eocAddress = clientKernel.account?.address
 
-      if (address) {
-        const bal = await clientKernel.getBalance({ address })
+      if (eocAddress && kernelAddress) {
+        const bal = await clientKernel.getBalance({ address: eocAddress })
         accountBalance.push({
-          address,
+          kernelAddress,
+          eocAddress,
           chainID: solver.chainID,
-          balance: BigInt(bal).toString(),
+          balance: '        ' + BigInt(bal).toString(), //makes comparing easier in json
           minEthBalanceWei,
         })
       }
@@ -98,15 +105,18 @@ export class BalanceHealthIndicator extends HealthIndicator {
     return sources
   }
 
-  private async getSolvers(): Promise<{ tokens: Record<string, TokenType> }[]> {
-    const solvers: Array<{
+  private async getSolvers(): Promise<{
+    balances: { tokens: Record<string, TokenType> }[]
+    totalTokenBalance: number
+  }> {
+    const solverBalances: Array<{
       accountAddress: `0x${string}` | undefined
       tokens: Record<string, TokenType>
       inboxAddress: Hex
       network: Network
       chainID: number
     }> = []
-
+    let totalTokenBalance = 0
     const solverConfig = this.configService.getSolvers()
     await Promise.all(
       Object.entries(solverConfig).map(async ([, solver]) => {
@@ -119,16 +129,17 @@ export class BalanceHealthIndicator extends HealthIndicator {
         entries(solver.targets).forEach((target) => {
           ; (target[1] as TargetContract & { balance: object }).balance =
             sourceBalancesString[target[0]]
+          totalTokenBalance += parseInt(sourceBalancesString[target[0]].value)
         })
 
-        solvers.push({
+        solverBalances.push({
           ...solver,
           accountAddress,
           tokens: sourceBalancesString,
         })
       }),
     )
-    return solvers
+    return { balances: solverBalances, totalTokenBalance }
   }
 
   private async getBalanceCalls(chainID: number, tokens: Hex[]) {
