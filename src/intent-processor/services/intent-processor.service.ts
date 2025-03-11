@@ -5,7 +5,7 @@ import { Chain, encodeFunctionData, Hex, PublicClient, TransactionRequest, Trans
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { DeepReadonly } from '@/common/types/deep-readonly'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
+import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IndexerService } from '@/indexer/services/indexer.service'
 import { RewardInterface } from '@/indexer/interfaces/reward.interface'
@@ -25,7 +25,11 @@ import { getMulticall } from '@/intent-processor/utils/multicall'
 export class IntentProcessorService implements OnApplicationBootstrap {
   private logger = new Logger(IntentProcessorService.name)
 
-  private config: { withdrawals: WithdrawsConfig; sendBatch: SendBatchConfig }
+  private config: {
+    sendBatch: SendBatchConfig
+    hyperlane: HyperlaneConfig
+    withdrawals: WithdrawsConfig
+  }
   private readonly intentProcessorQueue: IntentProcessorQueue
 
   constructor(
@@ -40,8 +44,9 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     this.config = {
-      withdrawals: this.ecoConfigService.getWithdraws(),
       sendBatch: this.ecoConfigService.getSendBatch(),
+      hyperlane: this.ecoConfigService.getHyperlane(),
+      withdrawals: this.ecoConfigService.getWithdraws(),
     }
     await this.intentProcessorQueue.startWithdrawalsCronJobs(
       this.config.withdrawals.intervalDuration,
@@ -310,25 +315,26 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     const metadata = Hyperlane.getMetadata(0n, messageGasLimit)
 
-    const { mailbox } = Hyperlane.getContracts(publicClient.chain.id)
+    const { mailbox, ...hooks } = Hyperlane.getChainMetadata(publicClient.chain.id)
 
-    // If zero address is used, the Mailbox uses the default hook
-    const defaultHook = await Hyperlane.getDefaultHook(publicClient, mailbox)
+    const aggregationHook = this.config.hyperlane.useHyperlaneDefaultHook
+      ? (hooks.hyperlaneAggregationHook as Hex)
+      : (hooks.aggregationHook as Hex)
 
     const fee = await Hyperlane.estimateFee(
       publicClient,
-      mailbox,
+      mailbox as Hex,
       source,
       prover,
       messageData,
       metadata,
-      defaultHook,
+      aggregationHook,
     )
 
     const data = encodeFunctionData({
       abi: InboxAbi,
       functionName: 'sendBatchWithRelayer',
-      args: [BigInt(source), prover, intentHashes, metadata, defaultHook],
+      args: [BigInt(source), prover, intentHashes, metadata, aggregationHook],
     })
 
     return {
@@ -347,7 +353,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     intentCount: number,
   ): Promise<bigint> {
     try {
-      const { mailbox } = Hyperlane.getContracts(source)
+      const { mailbox } = Hyperlane.getChainMetadata(source)
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
@@ -365,7 +371,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       const publicClient = await this.walletClientDefaultSignerService.getPublicClient(source)
       return await Hyperlane.estimateMessageGas(
         publicClient,
-        mailbox,
+        mailbox as Hex,
         prover,
         origin,
         inbox,

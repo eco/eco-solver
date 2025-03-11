@@ -184,6 +184,11 @@ export class EcoConfigService implements OnModuleInit {
   }
 
   // Returns the liquidity manager config
+  getHyperlane(): EcoConfigType['hyperlane'] {
+    return this.get('hyperlane')
+  }
+
+  // Returns the liquidity manager config
   getWithdraws(): EcoConfigType['withdraws'] {
     return this.get('withdraws')
   }

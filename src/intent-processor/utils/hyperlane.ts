@@ -1,6 +1,5 @@
 import { encodeAbiParameters, encodeFunctionData, encodePacked, Hex, pad, PublicClient } from 'viem'
 import { HyperlaneMailboxAbi, MessageRecipientAbi } from '@/contracts/HyperlaneMailbox'
-import * as chainMetadata from '@/common/hyperlane/chainMetadata.json'
 import * as chainAddresses from '@/common/hyperlane/chainAddresses.json'
 
 export async function estimateMessageGas(
@@ -42,20 +41,9 @@ export async function estimateFee(
   })
 }
 
-export function getContracts(chainId: number) {
-  const { name } = getChainMetadata(chainId)
-  const { mailbox, interchainGasPaymaster } = chainAddresses[name] as {
-    mailbox: Hex
-    interchainGasPaymaster: Hex
-  }
-  return { mailbox, interchainGasPaymaster }
-}
-
 export function getChainMetadata(chainId: number) {
-  const chain = Object.values(chainMetadata).find((chain) => chain.chainId === chainId)
-
-  if (!chain) throw new Error(`Unable to get hyperlane chain (${chainId})`)
-
+  const chain = Object.values(chainAddresses).find((chain) => chain.chainId === chainId)
+  if (!chain) throw new Error(`Hyperlane config not found for chain id ${chainId}`)
   return chain
 }
 
@@ -66,12 +54,4 @@ export function getMessageData(claimant: Hex, hashes: Hex[]) {
 
 export function getMetadata(value: bigint, gasLimit: bigint) {
   return encodePacked(['uint16', 'uint256', 'uint256'], [1, value, gasLimit])
-}
-
-export async function getDefaultHook(publicClient: PublicClient, mailbox: Hex) {
-  return publicClient.readContract({
-    abi: HyperlaneMailboxAbi,
-    address: mailbox,
-    functionName: 'defaultHook',
-  })
 }

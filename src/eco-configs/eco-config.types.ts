@@ -66,6 +66,7 @@ export type EcoConfigType = {
   indexer: IndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
+  hyperlane: HyperlaneConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -286,4 +287,8 @@ export interface WithdrawsConfig {
 export interface SendBatchConfig {
   chunkSize: number
   intervalDuration: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
 }
