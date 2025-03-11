@@ -179,6 +179,11 @@ export class EcoConfigService implements OnModuleInit {
   }
 
   // Returns the liquidity manager config
+  getWhitelist(): EcoConfigType['whitelist'] {
+    return this.get('whitelist')
+  }
+
+  // Returns the liquidity manager config
   getWithdraws(): EcoConfigType['withdraws'] {
     return this.get('withdraws')
   }

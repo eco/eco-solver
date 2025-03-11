@@ -3,6 +3,7 @@ const mockIsERC20Target = jest.fn()
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { FeeConfigType } from '@/eco-configs/eco-config.types'
 import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
 import { NormalizedToken } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
@@ -57,91 +58,191 @@ describe('FeeService', () => {
     mockLogLog.mockClear()
     mockLogError.mockClear()
   })
-  const route = {
-    destination: 8452n,
-    source: 10n,
-  } as any
 
-  const linearSolver = {
-    fee: {
-      feeAlgorithm: 'linear',
-      constants: {
-        baseFee: 20_000n,
-        per100UnitFee: 15_000n,
+  const defaultFee: FeeConfigType = {
+    limitFillBase6: 1000n * 10n ** 6n,
+    algorithm: 'linear',
+    constants: {
+      baseFee: 20_000n,
+      tranche: {
+        unitFee: 15_000n,
+        unitSize: 100_000_000n,
       },
     },
+  }
+
+  const linearSolver = {
+    fee: defaultFee,
   } as any
+
+  describe('on onModuleInit', () => {
+    it('should set the config defaults', async () => {
+      const whitelist = { '0x1': { '10': { limitFillBase6: 123n } } }
+      expect(feeService['defaultFee']).toBeUndefined()
+      expect(feeService['whitelist']).toBeUndefined()
+      const mockGetIntentConfig = jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue({
+        defaultFee,
+      } as any)
+      const mockGetWhitelist = jest
+        .spyOn(ecoConfigService, 'getWhitelist')
+        .mockReturnValue(whitelist as any)
+      await feeService.onModuleInit()
+      expect(feeService['defaultFee']).toEqual(defaultFee)
+      expect(feeService['whitelist']).toEqual(whitelist)
+      expect(mockGetIntentConfig).toHaveBeenCalledTimes(1)
+      expect(mockGetWhitelist).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('on getFeeConfig', () => {
+    const creator = '0x1'
+    const source = 10
+    const intent = {
+      reward: {
+        creator,
+      },
+      route: {
+        source,
+      },
+    } as any
+
+    beforeEach(() => {
+      feeService['defaultFee'] = defaultFee
+    })
+
+    it('should return the default fee if no intent in arguments', async () => {
+      expect(feeService.getFeeConfig()).toEqual(defaultFee)
+    })
+
+    it('should set the default fee if its passed in as argument', async () => {
+      const argFee = { limitFillBase6: 123n } as any
+      expect(feeService.getFeeConfig({ defaultFeeArg: argFee })).toEqual(argFee)
+    })
+
+    it('should return the default fee if no special fee for creator', async () => {
+      feeService['whitelist'] = {}
+      expect(feeService.getFeeConfig({ intent })).toEqual(defaultFee)
+    })
+
+    it('should return the default fee if creator special fee is empty', async () => {
+      feeService['whitelist'] = { [creator]: {} }
+      expect(feeService.getFeeConfig({ intent })).toEqual(defaultFee)
+    })
+
+    it('should return the source chain creator default fee if no chain specific one', async () => {
+      const creatorDefault = { limitFillBase6: 123n } as any
+      feeService['whitelist'] = { [creator]: { default: creatorDefault } }
+      expect(feeService.getFeeConfig({ intent })).toEqual(creatorDefault)
+    })
+
+    it('should return the source chain specific fee for a creator', async () => {
+      const chainConfig = { limitFillBase6: 9999n } as any
+      const creatorDefault = { limitFillBase6: 123n } as any
+      feeService['whitelist'] = { [creator]: { [source]: chainConfig, default: creatorDefault } }
+      expect(feeService.getFeeConfig({ intent })).toEqual(chainConfig)
+    })
+  })
+
   describe('on getAsk', () => {
+    const route = {
+      destination: 8452n,
+      source: 10n,
+    } as any
+
+    const reward = {
+      reward: {},
+    } as any
+
+    const intent = {
+      route,
+      reward,
+    } as any
+
     describe('on invalid solver', () => {
       it('should throw if no solver found', async () => {
         const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(undefined)
-        expect(() => feeService.getAsk(1_000_000n, route)).toThrow(
+        expect(() => feeService.getAsk(1_000_000n, intent)).toThrow(
           QuoteError.NoSolverForDestination(route.destination),
         )
         expect(getSolver).toHaveBeenCalledTimes(1)
       })
 
-      it('should throw solver doesnt have a supported algorithm', async () => {
-        const solver = { fee: { feeAlgorithm: 'unsupported' } } as any
+      it('should throw when solver doesnt have a supported algorithm', async () => {
+        const solver = { fee: { algorithm: 'unsupported' } } as any
         const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
-        expect(() => feeService.getAsk(1_000_000n, route)).toThrow(
-          QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.feeAlgorithm),
+        jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(solver.fee)
+        expect(() => feeService.getAsk(1_000_000n, intent)).toThrow(
+          QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm),
         )
         expect(getSolver).toHaveBeenCalledTimes(1)
       })
     })
 
     describe('on linear fee algorithm', () => {
-      let spy: jest.SpyInstance
+      let solverSpy: jest.SpyInstance
+      let feeSpy: jest.SpyInstance
       beforeEach(() => {
-        spy = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+        solverSpy = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+        feeSpy = jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(linearSolver.fee)
       })
 
       it('should default to eth mainnet/sepolia fee if eth mainnet/sepolia is in the route', async () => {
-        let ethRoute = {
-          destination: 8452n,
-          source: 1n,
+        let intent = {
+          route: {
+            destination: 8452n,
+            source: 1n,
+          },
         } as any
 
-        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
-        expect(spy).toHaveBeenCalledTimes(1)
-        expect(spy).toHaveBeenCalledWith(ethRoute.source)
+        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
+        expect(solverSpy).toHaveBeenCalledTimes(1)
+        expect(feeSpy).toHaveBeenCalledTimes(1)
+        expect(solverSpy).toHaveBeenCalledWith(intent.route.source)
 
-        ethRoute = {
-          destination: 1n,
-          source: 10n,
+        intent = {
+          route: {
+            destination: 1n,
+            source: 10n,
+          },
         } as any
-        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
-        expect(spy).toHaveBeenCalledTimes(2)
-        expect(spy).toHaveBeenCalledWith(ethRoute.destination)
+        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
+        expect(solverSpy).toHaveBeenCalledTimes(2)
+        expect(feeSpy).toHaveBeenCalledTimes(2)
+        expect(solverSpy).toHaveBeenCalledWith(intent.route.destination)
 
-        ethRoute = {
-          destination: 84523n,
-          source: 11155111n,
+        intent = {
+          route: {
+            destination: 84523n,
+            source: 11155111n,
+          },
         } as any
-        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
-        expect(spy).toHaveBeenCalledTimes(3)
-        expect(spy).toHaveBeenCalledWith(ethRoute.source)
+        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
+        expect(solverSpy).toHaveBeenCalledTimes(3)
+        expect(feeSpy).toHaveBeenCalledTimes(3)
+        expect(solverSpy).toHaveBeenCalledWith(intent.route.source)
 
-        ethRoute = {
-          destination: 11155111n,
-          source: 84523n,
+        intent = {
+          route: {
+            destination: 11155111n,
+            source: 84523n,
+          },
         } as any
-        expect(feeService.getAsk(1_000_000n, ethRoute)).toBe(1_020_000n)
-        expect(spy).toHaveBeenCalledTimes(4)
-        expect(spy).toHaveBeenCalledWith(ethRoute.destination)
+        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
+        expect(solverSpy).toHaveBeenCalledTimes(4)
+        expect(feeSpy).toHaveBeenCalledTimes(4)
+        expect(solverSpy).toHaveBeenCalledWith(intent.route.destination)
       })
 
       it('should return the correct ask for less than $100', async () => {
-        const ask = feeService.getAsk(1_000_000n, route)
+        const ask = feeService.getAsk(1_000_000n, intent)
         expect(ask).toBe(1_020_000n)
       })
 
       it('should return the correct ask for multiples of $100', async () => {
-        expect(feeService.getAsk(99_000_000n, route)).toBe(99_020_000n)
-        expect(feeService.getAsk(100_000_000n, route)).toBe(100_035_000n)
-        expect(feeService.getAsk(999_000_000n, route)).toBe(999_155_000n)
-        expect(feeService.getAsk(1_000_000_000n, route)).toBe(1000_170_000n)
+        expect(feeService.getAsk(99_000_000n, intent)).toBe(99_020_000n)
+        expect(feeService.getAsk(100_000_000n, intent)).toBe(100_035_000n)
+        expect(feeService.getAsk(999_000_000n, intent)).toBe(999_155_000n)
+        expect(feeService.getAsk(1_000_000_000n, intent)).toBe(1000_170_000n)
       })
     })
   })
@@ -291,19 +392,19 @@ describe('FeeService', () => {
       ],
     } as any
 
-    const balances = [
+    const tokenAnalysis = [
       {
-        balance: {
+        token: {
           address: '0x1',
         },
       },
       {
-        balance: {
+        token: {
           address: '0x2',
         },
       },
       {
-        balance: {
+        token: {
           address: '0x3',
         },
       },
@@ -349,7 +450,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ error } as any)
       const call = jest
@@ -364,7 +465,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
@@ -378,16 +479,16 @@ describe('FeeService', () => {
     it('should calculate the delta for all tokens', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(balances)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
-        return BigInt(token.balance.address) as any
+        return BigInt(token.token.address) as any
       })
       const rewards = { stuff: 'asdf' } as any
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ rewards } as any)
       const calls = { stuff: '123' } as any
       const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls } as any)
-      const deficitDescending = balances.map((balance) => {
-        return { ...balance, delta: BigInt(balance.balance.address) }
+      const deficitDescending = tokenAnalysis.map((ta) => {
+        return { ...ta, delta: BigInt(ta.token.address) }
       })
       expect(await feeService.calculateTokens(quote as any)).toEqual({
         calculated: {
@@ -397,7 +498,7 @@ describe('FeeService', () => {
           deficitDescending,
         },
       })
-      expect(cal).toHaveBeenCalledTimes(balances.length)
+      expect(cal).toHaveBeenCalledTimes(tokenAnalysis.length)
       expect(rew).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
     })
@@ -523,7 +624,7 @@ describe('FeeService', () => {
 
     describe('on route calls mapping', () => {
       let callBalances: any
-      const transferAmount = 10n
+      const transferAmount = 1000_000_000n
       const txTargetData = {
         targetConfig: {
           contractType: 'erc20',
@@ -532,23 +633,59 @@ describe('FeeService', () => {
           args: [0, transferAmount],
         },
       } as any
+      let solverWithTargets: any = {
+        chainID: 1n,
+        targets: {
+          '0x1': {
+            type: 'erc20',
+            minBalance: 200,
+            targetBalance: 222,
+          },
+          '0x4': {
+            type: 'erc20',
+            minBalance: 300,
+            targetBalance: 111,
+          },
+        },
+      }
+      let tokenAnalysis: any
       beforeEach(() => {
         callBalances = {
           '0x1': {
             address: '0x1',
             decimals: 6,
-            balance: 100_000_000n,
+            balance: transferAmount,
           },
           '0x4': {
             address: '0x4',
             decimals: 4,
-            balance: 100_000_000n,
+            balance: transferAmount,
           },
         } as any
+        tokenAnalysis = {
+          '0x1': {
+            chainId: 1n,
+            token: callBalances['0x1'],
+            config: {
+              address: '0x1',
+              chainId: 1n,
+              ...solverWithTargets.targets['0x1'],
+            },
+          },
+          '0x4': {
+            chainId: 1n,
+            token: callBalances['0x4'],
+            config: {
+              address: '0x4',
+              chainId: 1n,
+              ...solverWithTargets.targets['0x4'],
+            },
+          },
+        }
       })
 
       it('should return an error if tx target data is not for an erc20 transfer', async () => {
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(null)
         mockIsERC20Target.mockReturnValue(false)
@@ -569,7 +706,7 @@ describe('FeeService', () => {
       })
 
       it('should return an error if the call target is not in the fetched balances', async () => {
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest
           .spyOn(balanceService, 'fetchTokenBalances')
           .mockResolvedValue({ '0x4': callBalances['0x4'] })
@@ -577,31 +714,48 @@ describe('FeeService', () => {
         mockIsERC20Target.mockReturnValue(true)
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
-          error: QuoteError.FailedToFetchTarget(solver.chainID, quote.route.calls[0].target),
+          error: QuoteError.FailedToFetchTarget(
+            solverWithTargets.chainID,
+            quote.route.calls[0].target,
+          ),
         })
       })
 
       it('should return an error if solver lacks liquidity in a call token', async () => {
-        callBalances['0x1'].balance = transferAmount - 1n
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        const normMinBalance = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        callBalances['0x1'].balance = transferAmount + normMinBalance - 1n
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         const convert = jest.spyOn(feeService, 'convertNormalize')
+        const error = QuoteError.SolverLacksLiquidity(
+          solver.chainID,
+          quote.route.calls[0].target,
+          transferAmount,
+          callBalances['0x1'].balance,
+          normMinBalance,
+        )
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
-          error: QuoteError.SolverLacksLiquidity(
-            solver.chainID,
-            quote.route.calls[0].target,
-            transferAmount,
-            callBalances['0x1'].balance,
-          ),
+          error,
         })
         expect(convert).toHaveBeenCalledTimes(0)
+        expect(mockLogError).toHaveBeenCalledTimes(1)
+        expect(mockLogError).toHaveBeenCalledWith({
+          msg: QuoteError.SolverLacksLiquidity.name,
+          error,
+          quote,
+          callTarget: tokenAnalysis['0x1'],
+        })
       })
 
       it('should convert an normalize the erc20 calls', async () => {
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
+        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
+        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
+        callBalances['0x4'].balance = transferAmount + normMinBalance4 + 1n
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
@@ -638,7 +792,7 @@ describe('FeeService', () => {
           targetBalance: 500,
           type: 'erc20',
         },
-        balance: {
+        token: {
           address: '0x1',
           decimals: BASE_DECIMALS,
           balance: 300_000_000n,
@@ -653,7 +807,7 @@ describe('FeeService', () => {
         balance: 100_000_000n,
         chainID: BigInt(token.chainId),
         address: token.config.address,
-        decimals: token.balance.decimals,
+        decimals: token.token.decimals,
       }
       expect(normToken).toEqual(expectedNorm)
 
@@ -663,13 +817,13 @@ describe('FeeService', () => {
 
     it('should calculate the delta for deficit', async () => {
       const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
-      token.balance.balance = 100_000_000n
+      token.token.balance = 100_000_000n
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: -100_000_000n,
         chainID: BigInt(token.chainId),
         address: token.config.address,
-        decimals: token.balance.decimals,
+        decimals: token.token.decimals,
       }
       expect(normToken).toEqual(expectedNorm)
 
@@ -678,8 +832,8 @@ describe('FeeService', () => {
     })
 
     it('should call correct normalization', async () => {
-      token.balance.decimals = 4
-      token.balance.balance = token.balance.balance / 10n ** 2n
+      token.token.decimals = 4
+      token.token.balance = token.token.balance / 10n ** 2n
       const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {

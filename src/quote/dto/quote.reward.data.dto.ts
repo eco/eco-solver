@@ -20,6 +20,11 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
+  creator: Hex
+
+  @ViemAddressTransform()
+  @IsNotEmpty()
+  @ApiProperty()
   prover: Hex
 
   @IsNotEmpty()
@@ -58,5 +63,5 @@ export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @ApiProperty()
   amount: bigint
 }
-type QuoteRewardType = Omit<RewardType, 'creator'>
+type QuoteRewardType = RewardType
 export type QuoteRewardDataType = QuoteRewardType
