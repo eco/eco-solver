@@ -6,5 +6,7 @@ export function getMulticall(chainID: number) {
     chains: ChainsSupported,
     id: chainID,
   })
-  return chain.contracts?.multicall3?.address ?? '0xcA11bde05977b3631167028862bE2a173976CA11'
+  const multicall3 = chain.contracts?.multicall3?.address
+  if (!multicall3) throw new Error(`Multicall not supported for chain ${chainID}`)
+  return multicall3
 }
