@@ -1,19 +1,12 @@
 import {
   Account,
   Chain,
-  createPublicClient,
   createWalletClient,
-  decodeFunctionData,
-  decodeFunctionResult,
-  encodeFunctionData,
-  Hex,
   LocalAccount,
   OneOf,
-  parseAbi,
   publicActions,
   Transport,
   WalletClient,
-  zeroAddress,
 } from 'viem'
 import { KernelAccountClientConfig } from './kernel-account.config'
 import {
@@ -22,7 +15,12 @@ import {
   KernelAccountClient,
 } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
-import { KernelVersion, toEcdsaKernelSmartAccount } from 'permissionless/accounts'
+import { KernelVersion } from 'permissionless/accounts'
+import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
+import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
+import { entryPoint07Address, EntryPointVersion } from 'viem/account-abstraction'
+import { createKernelAccount } from '@zerodev/sdk'
+import { getAccount, getOwnableExecutor, installModule } from '@rhinestone/module-sdk'
 
 export type entryPointV_0_7 = '0.7'
 
@@ -37,68 +35,62 @@ export async function createKernelAccountClient<
   const { key = 'kernelAccountClient', name = 'Kernel Account Client', transport } = parameters
   const { account } = parameters
 
-  let client = createWalletClient({
+  let walletClient = createWalletClient({
     ...parameters,
     account,
     key,
     name,
     transport,
   }) as KernelAccountClient<entryPointVersion>
-
-  const kernelAccount = await toEcdsaKernelSmartAccount<
-    entryPointVersion,
-    KernelVersion<entryPointVersion>,
-    owner
-  >({
-    ...parameters,
-    client,
-  })
-
-  if (kernelAccount.address === zeroAddress) {
-    const { factoryData: factoryStakerData } = await kernelAccount.getFactoryArgs()
-
-    if (factoryStakerData) {
-      const { args } = decodeFunctionData({
-        abi: parseAbi([
-          'function deployWithFactory(address factory, bytes calldata createData, bytes32 salt) external payable returns (address)',
-        ]),
-        data: factoryStakerData,
-      })
-
-      const [factory, createdData, salt] = args
-
-      const publicClient = createPublicClient({
-        ...parameters,
-      })
-
-      const KernelFactoryABI = parseAbi([
-        'function getAddress(bytes calldata data, bytes32 salt) view returns (address)',
-      ])
-
-      const { data } = await publicClient.call({
-        to: factory,
-        data: encodeFunctionData({
-          functionName: 'getAddress',
-          abi: KernelFactoryABI,
-          args: [createdData, salt],
-        }),
-      })
-
-      const address = decodeFunctionResult({
-        abi: KernelFactoryABI,
-        functionName: 'getAddress',
-        data: data!,
-      })
-
-      kernelAccount.address = address as Hex
-    }
+  const kernelVersion = KERNEL_V3_1
+  const entryPoint = {
+    address: entryPoint07Address,
+    version: '0.7' as EntryPointVersion,
   }
 
-  client.kernelAccount = kernelAccount
-  client.kernelAccountAddress = kernelAccount.address
-  client = client.extend(KernelAccountActions).extend(publicActions) as any
+  const ecdsaValidator = await signerToEcdsaValidator(walletClient, {
+    signer: account as LocalAccount,
+    entryPoint: entryPoint!,
+    kernelVersion,
+  })
+
+  const kernelAccount = await createKernelAccount(walletClient, {
+    plugins: {
+      sudo: ecdsaValidator,
+    },
+    useMetaFactory: false,
+    entryPoint: entryPoint as any,
+    kernelVersion,
+  })
+
+  walletClient.kernelAccount = kernelAccount as any
+  walletClient.kernelAccountAddress = kernelAccount.address
+  walletClient = walletClient.extend(KernelAccountActions).extend(publicActions) as any
 
   //conditionally deploys kernel account if it doesn't exist
-  const args = await client.deployKernelAccount()
-  return { client, args }
+  const args = await walletClient.deployKernelAccount()
+  await addExecutorToKernelAccount(walletClient)
+  return { client: walletClient, args }
+}
+
+async function addExecutorToKernelAccount<
+  entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7
+>(client: KernelAccountClient<entryPointVersion>) {
+  const multisigPublicAddress = client.account?.address!
+  // Create the account object
+  const account = getAccount({
+    address: client.account?.address!,
+    type: 'erc7579-implementation',
+  })
+  // const executor = getOwnableExecutor({
+  //   owner: multisigPublicAddress,
+  // })
+  // const installReceipt = await installModule({
+  //   client: client as any,
+  //   account: account,
+  //   module: executor
+  // })
+
+  // console.log('installReceipt: ', installReceipt)
+  // await client.execute(installReceipt as any)
 }
