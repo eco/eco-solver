@@ -2,9 +2,6 @@ export default {
   logger: {
     usePino: false,
   },
-  safe: {
-    owner: '0xd6783D1bD6Bf593C975D718041a592f4C908A3ec',
-  },
   database: {
     auth: {
       enabled: false,
