@@ -2,6 +2,11 @@ import {
   Account,
   Chain,
   createWalletClient,
+  encodeFunctionData,
+  encodePacked,
+  erc20Abi,
+  getAddress,
+  Hex,
   LocalAccount,
   OneOf,
   publicActions,
@@ -20,10 +25,25 @@ import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { entryPoint07Address, EntryPointVersion } from 'viem/account-abstraction'
 import { createKernelAccount } from '@zerodev/sdk'
-import { getAccount, getOwnableExecutor, installModule } from '@rhinestone/module-sdk'
+import {
+  getAccount,
+  getOwnableExecutor,
+  GLOBAL_CONSTANTS,
+  installModule,
+  isModuleInstalled,
+} from '@rhinestone/module-sdk'
+import { Logger } from '@nestjs/common'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { OwnableExecutorAbi } from '@/contracts'
 
 export type entryPointV_0_7 = '0.7'
 
+/**
+ * Creates a kernel account client with a kernel account.
+ *
+ * @param parameters the kernel account client config
+ * @returns
+ */
 export async function createKernelAccountClient<
   entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
   owner extends OneOf<
@@ -69,28 +89,131 @@ export async function createKernelAccountClient<
 
   //conditionally deploys kernel account if it doesn't exist
   const args = await walletClient.deployKernelAccount()
-  await addExecutorToKernelAccount(walletClient)
   return { client: walletClient, args }
 }
 
-async function addExecutorToKernelAccount<
-  entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7
->(client: KernelAccountClient<entryPointVersion>) {
-  const multisigPublicAddress = client.account?.address!
+/**
+ * Adds a {@link OwnableExecutor} module to the kernel account. The module is used to
+ * execute transactions on behalf of the kernel account. Owner is usually
+ * a multisig safe account.
+ *
+ * @param client the kernel account client
+ * @param owner the owner to add to the kernel account, a multisig usually
+ */
+export async function addExecutorToKernelAccount<
+  entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
+>(client: KernelAccountClient<entryPointVersion>, owner: Hex) {
+  const logger = getLogger()
+
+  // Ensure the owner is valid and checksummed
+  owner = getAddress(owner)
+
   // Create the account object
   const account = getAccount({
-    address: client.account?.address!,
-    type: 'erc7579-implementation',
+    address: client.kernelAccount.address,
+    type: 'kernel',
   })
-  // const executor = getOwnableExecutor({
-  //   owner: multisigPublicAddress,
-  // })
-  // const installReceipt = await installModule({
-  //   client: client as any,
-  //   account: account,
-  //   module: executor
-  // })
+  const executor = getOwnableExecutor({
+    owner,
+  })
 
-  // console.log('installReceipt: ', installReceipt)
-  // await client.execute(installReceipt as any)
+  const executorInstalled = await isModuleInstalled({
+    client: client as any,
+    account: account,
+    module: executor,
+  })
+
+  logger.log(
+    EcoLogMessage.fromDefault({
+      message: `isModuleInstalled OwnableExecutor: ${executorInstalled}`,
+      properties: {
+        kernelAccount: client.kernelAccount.address,
+        owner,
+      },
+    }),
+  )
+
+  if (!executorInstalled) {
+    logger.log(
+      EcoLogMessage.fromDefault({
+        message: `installing OwnableExecutor`,
+        properties: {
+          kernelAccount: client.kernelAccount.address,
+          owner,
+        },
+      }),
+    )
+    const installExecutes = await installModule({
+      client: client as any,
+      account: account,
+      module: executor,
+    })
+    const transactionHash = await client.execute(installExecutes as any)
+    const receipt = await client.waitForTransactionReceipt({ hash: transactionHash })
+    logger.log(
+      EcoLogMessage.fromDefault({
+        message: `installed OwnableExecutor`,
+        properties: {
+          kernelAccount: client.kernelAccount.address,
+          owner,
+          transactionHash,
+          receipt,
+        },
+      }),
+    )
+  }
+}
+
+/**
+ * Transfers an ERC20 token from an OwnableExecutor eip-7975 module. It
+ * calls the underlying `executeOnOwnedAccount` function of the module that then calls the
+ * owned Kernel wallet. Serves for generating the calldata needed for the transfer.
+ * Calldata should be executed on the executor contract.
+ *
+ * @param client the kernel account client
+ * @param tx the token tx data
+ */
+export async function executorTransferERC20Token<
+  entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
+>(
+  client: KernelAccountClient<entryPointVersion>,
+  tx: { to: Hex; amount: bigint; tokenAddress: Hex },
+) {
+  const logger = getLogger()
+
+  //Encode the transfer function of the ERC20 token
+  const transferCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [tx.to, tx.amount],
+  })
+
+  //Encode the calldata for the OwnableExecutor executeOnOwnedAccount function
+  const packed = encodePacked(
+    ['address', 'uint256', 'bytes'],
+    [tx.tokenAddress, BigInt(Number(0)), transferCalldata],
+  )
+
+  // Simulate the contract call
+  const { request } = await client.simulateContract({
+    address: GLOBAL_CONSTANTS.OWNABLE_EXECUTOR_ADDRESS,
+    abi: OwnableExecutorAbi,
+    functionName: 'executeOnOwnedAccount',
+    args: [client.kernelAccount.address, packed], //the owned account is the kernel account
+    account: client.kernelAccount.client.account, //assumes the kernel account signer is the owner of the executor for the kernel contract
+  })
+
+  logger.log(
+    EcoLogMessage.fromDefault({
+      message: `simulated OwnableExecutor executeOnOwnedAccount token transfer`,
+      properties: {
+        kernelAccount: client.kernelAccount.address,
+        request,
+      },
+    }),
+  )
+}
+
+function getLogger() {
+  return new Logger('OwnableExecutor')
 }
