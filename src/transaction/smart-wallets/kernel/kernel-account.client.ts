@@ -93,7 +93,7 @@ async function deployKernelAccount<
 >(
   client: KernelAccountClientWithoutBundler<transport, chain, account>,
 ): Promise<Hex> {
-  if (!client.account.isDeployed()) {
+  if (! (await client.account.isDeployed())) {
    return await client.sendTransaction({
       data: '0x',
       kzg: undefined,

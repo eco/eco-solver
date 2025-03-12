@@ -22,6 +22,7 @@ import {
   publicActions,
   RpcSchema,
   Transport,
+  walletActions,
 } from 'viem'
 
 import { entryPoint07Address, EntryPointVersion, type SmartAccount } from 'viem/account-abstraction'
@@ -57,7 +58,7 @@ export type SmartAccountClientConfigWithoutBundler<
     transport: transport
   }
 >
-
+///https://github.com/zerodevapp/zerodev-examples/blob/main/create-ecdsa-migration-account/main.ts
 export function createKernelAccountClient(
   parameters: SmartAccountClientConfigWithoutBundler,
 ): KernelAccountClientWithoutBundler {
@@ -125,23 +126,30 @@ export async function buildKernelAccountClient(
     kernelVersion,
   })
 
-  const kernelClient = createKernelAccountClient({
-    account: kernelAccount,
-    chain,
-    transport,
-    client: publicClient,
-  })
-  .extend(publicActions)
-  .extend(KernelAccountActions as any) as KernelAccountClientWithoutBundler
+
+  // const kernelClient = createKernelAccountClient({
+  //   account: kernelAccount,
+  //   chain,
+  //   transport,
+  //   client: publicClient,
+  // })
+  // .extend(publicActions)
+  // .extend(walletActions)
+  // .extend(KernelAccountActions as any) as KernelAccountClientWithoutBundler
   // // Sending a dummy transaction just to deploy the account
   // console.log('kernel account deployed ? ' + kernelClient.account?.isDeployed())
   // console.log('kernel account address: ' + kernelClient.account?.address)
+  // kernelClient.sendTransaction({
+  //   to: kernelClient.account?.address!,
+  //   data: '0x',
+  //   chain: chain as Chain,
+  //   account: signer as LocalAccount,
+  // })
+  // //conditionally deploys kernel account if it doesn't exist
+  // await kernelClient.deployKernelAccount()
 
-  //conditionally deploys kernel account if it doesn't exist
-  await kernelClient.deployKernelAccount()
-
-  addExecutorToKernelAccount(kernelClient)
-  return kernelClient
+  // addExecutorToKernelAccount(kernelClient)
+  return undefined as any
 }
 
 async function addExecutorToKernelAccount(client: KernelAccountClientWithoutBundler) {
