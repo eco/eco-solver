@@ -189,6 +189,11 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('CCTP')
   }
 
+  // Returns the squid config
+  getSquid(): EcoConfigType['squid'] {
+    return this.get('squid')
+  }
+
   // Returns the liquidity manager config
   getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
     return this.get('crowdLiquidity')

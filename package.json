@@ -40,6 +40,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@0xsquid/sdk": "^2.9.2",
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
     "@eco-foundation/routes-ts": "1.17.0",
@@ -71,6 +72,7 @@
     "config": "^3.3.11",
     "date-fns": "^3.6.0",
     "dayjs": "^1.11.13",
+    "ethers": "6.8.1",
     "lodash": "^4.17.21",
     "mongoose": "^8.5.0",
     "nestjs-pino": "^4.1.0",

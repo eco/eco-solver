@@ -31,13 +31,16 @@ interface TokenDataAnalyzed extends TokenData {
 
 type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
+type SquidStrategyContext = undefined
 
-type Strategy = 'LiFi' | 'CCTP'
+type Strategy = 'LiFi' | 'CCTP' | 'Squid'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
     ? CCTPStrategyContext
-    : never
+    : S extends 'Squid'
+      ? SquidStrategyContext
+      : never
 
 // Quote
 

@@ -66,6 +66,7 @@ export type EcoConfigType = {
   liquidityManager: LiquidityManagerConfig
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
+  squid: SquidConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -300,4 +301,8 @@ export interface CCTPConfig {
     tokenMessenger: Hex
     messageTransmitter: Hex
   }[]
+}
+
+export interface SquidConfig {
+  integratorId: string
 }

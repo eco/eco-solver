@@ -50,10 +50,10 @@ export type KernelAccountClientV2Config<
 export type KernelAccountClientV2<
   entryPointVersion extends '0.6' | '0.7',
   transport extends Transport = Transport,
-  chain extends Chain | undefined = Chain | undefined,
-  account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
+  chain extends Chain | undefined = Chain,
+  account extends
     | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
-    | undefined,
+    | undefined = ToEcdsaKernelSmartAccountReturnType<entryPointVersion>,
   client extends Client | undefined = undefined,
   rpcSchema extends RpcSchema | undefined = undefined,
 > = Prettify<
