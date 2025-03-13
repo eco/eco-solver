@@ -56,6 +56,13 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote<'CCTP'>> {
+    if (
+      !this.isSupportedChain(tokenIn.config.chainId) ||
+      !this.isSupportedChain(tokenOut.config.chainId)
+    ) {
+      throw new Error('Unsupported route')
+    }
+
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const amountOut = parseUnits(swapAmount.toString(), tokenOut.balance.decimals)
 
@@ -213,5 +220,9 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
     return txHash
+  }
+
+  private isSupportedChain(chainId: number) {
+    return this.config.chains.some((chain) => chain.chainId === chainId)
   }
 }
