@@ -14,7 +14,11 @@ import {
 } from 'viem'
 import { KernelAccountClientConfig } from './kernel-account.config'
 import { KernelVersion } from 'permissionless/accounts'
-import { createKernelAccountClient, entryPointV_0_7 } from './create.kernel.account'
+import {
+  addExecutorToKernelAccount,
+  createKernelAccountClient,
+  entryPointV_0_7,
+} from './create.kernel.account'
 import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { EcoLogMessage } from '../../../common/logging/eco-log-message'
@@ -45,7 +49,7 @@ export class KernelAccountClientServiceBase<
   ): Promise<KernelAccountClient<entryPointVersion>> {
     const { client, args } = await createKernelAccountClient(configs)
     if (args && args.deployReceipt) {
-      this.logger.debug(
+      this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Deploying Kernel Account`,
           properties: {
@@ -55,6 +59,8 @@ export class KernelAccountClientServiceBase<
         }),
       )
     }
+    //Conditionally adds an OwnableExecutor to the Kernel Account
+    await addExecutorToKernelAccount(client, this.ecoConfigService.getSafe().owner)
     return client
   }
 
