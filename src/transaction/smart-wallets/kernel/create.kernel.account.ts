@@ -148,19 +148,35 @@ export async function addExecutorToKernelAccount<
       account: account,
       module: executor,
     })
-    const transactionHash = await client.execute(installExecutes as any)
-    const receipt = await client.waitForTransactionReceipt({ hash: transactionHash })
-    logger.log(
-      EcoLogMessage.fromDefault({
-        message: `installed OwnableExecutor`,
-        properties: {
-          kernelAccount: client.kernelAccount.address,
-          owner,
-          transactionHash,
-          receipt,
-        },
-      }),
-    )
+
+    try {
+      const transactionHash = await client.execute(installExecutes as any)
+      const receipt = await client.waitForTransactionReceipt({ hash: transactionHash })
+      logger.log(
+        EcoLogMessage.fromDefault({
+          message: `installed OwnableExecutor`,
+          properties: {
+            kernelAccount: client.kernelAccount.address,
+            owner,
+            transactionHash,
+            receipt,
+          },
+        }),
+      )
+    } catch (e) {
+      // Clients do not cache, so an install can go through but the
+      // client still tries to install it on a subsequent call
+      logger.error(
+        EcoLogMessage.fromDefault({
+          message: `install OwnableExecutor failed`,
+          properties: {
+            kernelAccount: client.kernelAccount.address,
+            owner,
+            error: e,
+          },
+        }),
+      )
+    }
   }
 }
 
