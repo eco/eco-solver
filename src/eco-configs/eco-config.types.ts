@@ -18,6 +18,7 @@ export type EcoConfigType = {
   intervals: IntervalConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
+  quicknode: QuicknodeConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -204,6 +205,13 @@ export type AlchemyConfigType = {
 export type AlchemyNetwork = {
   name: Network
   id: number
+}
+
+/**
+ * The whole config type for QuickNode.
+ */
+export type QuicknodeConfigType = {
+  apiKey: string
 }
 
 /**
