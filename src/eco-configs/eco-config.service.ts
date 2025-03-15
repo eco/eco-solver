@@ -4,7 +4,7 @@ import * as config from 'config'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import { AwsCredential, EcoConfigType, IntentSource, KmsConfig, Solver } from './eco-config.types'
-import { getAddress } from 'viem'
+import { Chain, getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -27,8 +27,6 @@ export class EcoConfigService implements OnModuleInit {
     this.initConfigs()
   }
 
-  async onModuleInit() {}
-
   /**
    * Returns the static configs  for the app, from the 'config' package
    * @returns the configs
@@ -36,6 +34,8 @@ export class EcoConfigService implements OnModuleInit {
   static getStaticConfig(): EcoConfigType {
     return config as unknown as EcoConfigType
   }
+
+  async onModuleInit() {}
 
   // Initialize the configs
   initConfigs() {
@@ -203,15 +203,21 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('indexer')
   }
 
-  getChainRPCs() {
-    const { apiKey, networks } = this.getAlchemy()
-    const supportedAlchemyChainIds = _.map(networks, 'id')
+  // Returns the liquidity manager config
+  getQuicknode(): EcoConfigType['quicknode'] {
+    return this.get('quicknode')
+  }
 
-    const entries = ChainsSupported.map((chain) => {
-      const rpcApiKey = supportedAlchemyChainIds.includes(chain.id) ? apiKey : undefined
-      return [chain.id, getRpcUrl(chain, rpcApiKey).url]
-    })
+  getChainRPCs() {
+    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain).url])
     return Object.fromEntries(entries) as Record<number, string>
+  }
+
+  getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
+    const alchemy = this.getAlchemy()
+    const quicknode = this.getQuicknode()
+    const apiKeys = { alchemy: alchemy.apiKey, quicknode: quicknode.apiKey }
+    return getRpcUrl(chain, apiKeys, websocketEnabled)
   }
 
   /**
