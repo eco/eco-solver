@@ -8,13 +8,9 @@ const { apiKey: quickNodeApiKey } = config.get<QuicknodeConfigType>('quicknode')
 export const celo: Chain = {
   ...vcelo,
   rpcUrls: {
-    ...vcelo.rpcUrls,
     default: {
-      http: [
-        `https://ancient-quaint-layer.celo-mainnet.quiknode.pro/${quickNodeApiKey}`,
-        ...vcelo.rpcUrls.default.http,
-      ],
-      webSocket: [`wss://ancient-quaint-layer.celo-mainnet.quiknode.pro/${quickNodeApiKey}`],
+      http: [`https://ancient-quaint-layer.celo-mainnet.quiknode.pro/{QUICKNODE_API_KEY}`],
+      webSocket: [`wss://ancient-quaint-layer.celo-mainnet.quiknode.pro/{QUICKNODE_API_KEY}`],
     },
   },
 }
