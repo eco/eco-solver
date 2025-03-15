@@ -1,9 +1,5 @@
 import { Chain } from 'viem'
 import { celo as vcelo } from 'viem/chains'
-import * as config from 'config'
-import { QuicknodeConfigType } from '@/eco-configs/eco-config.types'
-
-const { apiKey: quickNodeApiKey } = config.get<QuicknodeConfigType>('quicknode')
 
 export const celo: Chain = {
   ...vcelo,
@@ -11,10 +7,12 @@ export const celo: Chain = {
     ...vcelo.rpcUrls,
     default: {
       http: [
-        `https://ancient-quaint-layer.celo-mainnet.quiknode.pro/${quickNodeApiKey}`,
+        `https://ancient-quaint-layer.celo-mainnet.quiknode.pro/3cf3537c51ea8e4471cb435f4dabed1cf674dc53`,
         ...vcelo.rpcUrls.default.http,
       ],
-      webSocket: [`wss://ancient-quaint-layer.celo-mainnet.quiknode.pro/${quickNodeApiKey}`],
+      webSocket: [
+        `wss://ancient-quaint-layer.celo-mainnet.quiknode.pro/3cf3537c51ea8e4471cb435f4dabed1cf674dc53`,
+      ],
     },
   },
 }
