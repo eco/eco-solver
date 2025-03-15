@@ -75,10 +75,10 @@ export class ChainSyncService implements OnApplicationBootstrap {
     const client = await this.kernelAccountClientService.getClient(source.chainID)
 
     const lastRecordedTx = await this.getLastRecordedTx(source)
-    const fromBlock: bigint =
+    const fromBlock: bigint | undefined =
       lastRecordedTx.length > 0
         ? BigInt(lastRecordedTx[0].event.blockNumber) + 1n //start search from next block
-        : 0n
+        : undefined
     const toBlock: BlockTag = 'latest'
     const supportedChains = this.ecoConfigService.getSupportedChains()
     const createIntentLogs = (
