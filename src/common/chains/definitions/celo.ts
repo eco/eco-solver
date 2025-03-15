@@ -5,8 +5,8 @@ export const celo: Chain = {
   ...vcelo,
   rpcUrls: {
     default: {
-      http: [`https://ancient-quaint-layer.celo-mainnet.quiknode.pro/{QUICKNODE_API_KEY}`],
-      webSocket: [`wss://ancient-quaint-layer.celo-mainnet.quiknode.pro/{QUICKNODE_API_KEY}`],
+      http: [`https://responsive-lingering-yard.celo-mainnet.quiknode.pro/{QUICKNODE_API_KEY}`],
+      webSocket: [`wss://responsive-lingering-yard.celo-mainnet.quiknode.pro/{QUICKNODE_API_KEY}`],
     },
   },
 }
