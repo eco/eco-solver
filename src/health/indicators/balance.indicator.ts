@@ -1,22 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
-import { erc20Abi, Hex } from 'viem'
+import { erc20Abi, Hex, isAddressEqual } from 'viem'
 import { Network } from 'alchemy-sdk'
-import { entries } from 'lodash'
-import { TargetContract } from '../../eco-configs/eco-config.types'
-import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { entries, keyBy } from 'lodash'
+import { Solver } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
-type TokenType = { decimal: string; value: string; minBalances?: number }
+type TokenType = { token: Hex; decimal: string; value: string; minBalances?: string }
+type TokenData = { token: Hex; chainID: number; balance: bigint; decimal: bigint }
+
 @Injectable()
 export class BalanceHealthIndicator extends HealthIndicator {
   private logger = new Logger(BalanceHealthIndicator.name)
+
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly configService: EcoConfigService,
   ) {
     super()
   }
+
   async checkBalances(): Promise<HealthIndicatorResult> {
     const minEthBalanceWei = this.configService.getEth().simpleAccount.minEthBalanceWei
     const [accounts, solvers, sources] = await Promise.all([
@@ -24,33 +28,34 @@ export class BalanceHealthIndicator extends HealthIndicator {
       this.getSolvers(),
       this.getSources(),
     ])
-    let isHealthy = solvers.balances.every((solver) => {
-      const tokens = solver.tokens
-      return Object.values(tokens).every((token) => {
+
+    const areNativeTokensHealthy = accounts.every((bal) => BigInt(bal.balance) >= minEthBalanceWei)
+
+    const areTokensHealthy = solvers.balances
+      .flatMap((balance) => Object.values(balance.tokens))
+      .every((token) => {
         if (!token.minBalances) {
+          // Returns true if minimum balance is not defined
           return true
         }
-        const minBalanceDecimal = BigInt(token.minBalances) * BigInt(token.decimal) * 10n
-        return BigInt(token.value) >= minBalanceDecimal
+        return BigInt(token.value) >= BigInt(token.minBalances)
       })
-    })
 
-    isHealthy =
-      isHealthy &&
-      accounts.every((bal) => {
-        return BigInt(bal.balance) >= minEthBalanceWei
-      })
+    const isHealthy = areNativeTokensHealthy && areTokensHealthy
+
     const results = this.getStatus('balances', isHealthy, {
       totalBalance: solvers.totalTokenBalance,
       accounts,
       solvers: solvers.balances,
       sources,
     })
+
     if (isHealthy) {
       return results
     }
     throw new HealthCheckError('Balances failed', results)
   }
+
   private async getAccount(): Promise<any[]> {
     const minEthBalanceWei = this.configService.getEth().simpleAccount.minEthBalanceWei
     const accountBalance: {
@@ -97,9 +102,9 @@ export class BalanceHealthIndicator extends HealthIndicator {
       const accountAddress = client.kernelAccountAddress
 
       const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens)
+      const sourceBalances = this.joinBalance(balances)
 
-      const sourceBalancesString = this.joinBalance(balances, IntentSource.tokens)
-      sources.push({ ...IntentSource, accountAddress, tokens: sourceBalancesString })
+      sources.push({ ...IntentSource, accountAddress, tokens: sourceBalances })
     }
     sources.reverse()
     return sources
@@ -123,12 +128,12 @@ export class BalanceHealthIndicator extends HealthIndicator {
         const client = await this.kernelAccountClientService.getClient(solver.chainID)
         const accountAddress = client.kernelAccountAddress
         const tokens = Object.keys(solver.targets) as Hex[]
+
         const balances = await this.getBalanceCalls(solver.chainID, tokens)
-        const mins = Object.values(solver.targets).map((target) => target.minBalance)
-        const sourceBalancesString = this.joinBalance(balances, tokens, mins)
+        const sourceBalancesString = this.joinBalance(balances, solver.targets)
+
         entries(solver.targets).forEach((target) => {
-          ;(target[1] as TargetContract & { balance: object }).balance =
-            sourceBalancesString[target[0]]
+          ;(target[1] as any).balance = sourceBalancesString[target[0]]
           totalTokenBalance += parseInt(sourceBalancesString[target[0]].value)
         })
 
@@ -142,55 +147,48 @@ export class BalanceHealthIndicator extends HealthIndicator {
     return { balances: solverBalances, totalTokenBalance }
   }
 
-  private async getBalanceCalls(chainID: number, tokens: Hex[]) {
+  private async getBalanceCalls(chainID: number, tokens: Hex[]): Promise<TokenData[]> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const accountAddress = client.kernelAccountAddress
 
-    const balanceCalls = tokens.map((token) => {
-      return [
-        {
-          address: token,
-          abi: erc20Abi,
-          functionName: 'balanceOf',
-          args: [accountAddress],
-        },
-        {
-          address: token,
-          abi: erc20Abi,
-          functionName: 'decimals',
-        },
-      ]
-    })
+    const balanceCalls = tokens.flatMap((token) => [
+      {
+        address: token,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [accountAddress],
+      },
+      {
+        address: token,
+        abi: erc20Abi,
+        functionName: 'decimals',
+      },
+    ])
 
-    return await client.multicall({
-      contracts: balanceCalls.flat(),
+    const results = await client.multicall({ contracts: balanceCalls })
+
+    return tokens.map((token, tokenIndex) => {
+      const index = tokenIndex * 2
+      const [balance, decimal] = [results[index], results[index + 1]]
+      return { chainID, token, balance: BigInt(balance.result!), decimal: BigInt(decimal.result!) }
     })
   }
 
-  private joinBalance(
-    balances: any,
-    tokens: string[],
-    minBalances: number[] = [],
-  ): Record<string, TokenType> {
-    let decimal = 0n,
-      value = 0n,
-      i = 0
-    const sourceBalancesString: Record<string, TokenType> = {}
+  private joinBalance(tokens: TokenData[], targets?: Solver['targets']) {
+    const tokenTypes = tokens.map((token): TokenType => {
+      // Find Target by token address
+      const minBalances = Object.entries(targets ?? []).find(([tokenAddr]) =>
+        isAddressEqual(tokenAddr as Hex, token.token),
+      )?.[1].minBalance
 
-    while (
-      balances.length > 0 &&
-      ([{ result: value as unknown }, { result: decimal as unknown }] = [
-        balances.shift(),
-        balances.shift(),
-      ])
-    ) {
-      sourceBalancesString[tokens[i]] = {
-        decimal: BigInt(decimal).toString(),
-        value: BigInt(value).toString(),
-        ...(minBalances ? { minBalances: minBalances[i] } : {}),
+      return {
+        token: token.token,
+        value: token.balance.toString(),
+        decimal: token.decimal.toString(),
+        minBalances: minBalances?.toString(),
       }
-      i++
-    }
-    return sourceBalancesString
+    })
+
+    return keyBy(tokenTypes, 'token')
   }
 }
