@@ -7,7 +7,13 @@ import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
-type TokenType = { token: Hex; decimal: string; value: string; minBalances?: string }
+type TokenType = {
+  token: Hex
+  decimal: string
+  value: string
+  minBalances?: string
+  isHealthy: boolean
+}
 type TokenData = { token: Hex; chainID: number; balance: bigint; decimal: bigint }
 
 @Injectable()
@@ -33,13 +39,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
 
     const areTokensHealthy = solvers.balances
       .flatMap((balance) => Object.values(balance.tokens))
-      .every((token) => {
-        if (!token.minBalances) {
-          // Returns true if minimum balance is not defined
-          return true
-        }
-        return BigInt(token.value) >= BigInt(token.minBalances)
-      })
+      .every((token) => token.isHealthy)
 
     const isHealthy = areNativeTokensHealthy && areTokensHealthy
 
@@ -177,18 +177,31 @@ export class BalanceHealthIndicator extends HealthIndicator {
   private joinBalance(tokens: TokenData[], targets?: Solver['targets']) {
     const tokenTypes = tokens.map((token): TokenType => {
       // Find Target by token address
-      const minBalances = Object.entries(targets ?? []).find(([tokenAddr]) =>
+      const solverToken = Object.entries(targets ?? []).find(([tokenAddr]) =>
         isAddressEqual(tokenAddr as Hex, token.token),
-      )?.[1].minBalance
+      )?.[1]
+
+      const minBalance = solverToken && BigInt(solverToken.minBalance)
+      const isHealthy = this.isTokenHealthy(token, minBalance)
 
       return {
+        isHealthy,
         token: token.token,
         value: token.balance.toString(),
         decimal: token.decimal.toString(),
-        minBalances: minBalances?.toString(),
+        minBalances: minBalance?.toString(),
       }
     })
 
     return keyBy(tokenTypes, 'token')
+  }
+
+  private isTokenHealthy(token: TokenData, minimumBalance?: bigint) {
+    if (!minimumBalance) {
+      // Returns true if minimum balance is not defined
+      return true
+    }
+
+    return token.balance >= minimumBalance
   }
 }
