@@ -109,7 +109,7 @@ export class TransferCommand extends CommandRunner {
    * Sends all the tokens on a given chain to a recipient
    * @param chainID the chain id
    * @param recipient the recipient address
-   * @returns 
+   * @returns
    */
   async transferTokens(chainID: number, recipient: Hex) {
     const tokens = await this.balanceService.fetchTokenBalancesForChain(chainID)
