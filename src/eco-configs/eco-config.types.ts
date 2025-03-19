@@ -66,6 +66,7 @@ export type EcoConfigType = {
   liquidityManager: LiquidityManagerConfig
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
+  warpRoute: WarpRouteConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -299,5 +300,19 @@ export interface CCTPConfig {
     domain: number
     tokenMessenger: Hex
     messageTransmitter: Hex
+  }[]
+}
+
+export interface WarpRouteConfig {
+  routes: {
+    collateral: {
+      chainId: number
+      token: Hex
+    }
+    chains: {
+      chainId: number
+      token: Hex
+      synthetic: Hex
+    }[]
   }[]
 }

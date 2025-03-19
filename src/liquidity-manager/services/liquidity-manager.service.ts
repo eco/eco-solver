@@ -215,15 +215,17 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       // Calculate the amount to swap
       const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
-      const quote = await this.liquidityProviderManager.getQuote(
+      const tokenQuotes = await this.liquidityProviderManager.getQuote(
         walletAddress,
         surplusToken,
         deficitToken,
         swapAmount,
       )
 
-      quotes.push(quote)
-      currentBalance += quote.amountOut
+      quotes.push(...tokenQuotes)
+
+      const lastQuote = tokenQuotes[tokenQuotes.length - 1]
+      currentBalance += lastQuote.amountOut
 
       if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
     }

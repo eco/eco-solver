@@ -194,6 +194,11 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('crowdLiquidity')
   }
 
+  // Returns the liquidity manager config
+  getWarpRoute(): EcoConfigType['warpRoute'] {
+    return this.get('warpRoute')
+  }
+
   getChainRPCs() {
     const { apiKey, networks } = this.getAlchemy()
     const supportedAlchemyChainIds = _.map(networks, 'id')
