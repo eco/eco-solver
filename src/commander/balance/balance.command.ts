@@ -2,6 +2,7 @@ import { getAddress } from 'viem'
 import { Command, CommandRunner, Option } from 'nest-commander'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 @Command({
   name: 'balance',
@@ -10,12 +11,14 @@ import { BalanceService } from '@/balance/balance.service'
 export class BalanceCommand extends CommandRunner {
   constructor(
     private readonly balanceService: BalanceService,
+    private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly ecoConfigService: EcoConfigService,
   ) {
     super()
   }
 
   async run(passedParams: string[], options?: Record<string, any>): Promise<void> {
+    console.log(`Wallet address: ${await this.getWalletAddress()}`)
     if (Object.values(options || {}).length === 0) {
       console.log('No options provided, fetching all token data')
       const data = await this.balanceService.getAllTokenData()
@@ -42,6 +45,13 @@ export class BalanceCommand extends CommandRunner {
 
     console.log(`You must set the chainID and token to get the balance of a token`)
   }
+
+  async getWalletAddress() {
+    const chains = this.ecoConfigService.getSupportedChains()
+    const client = await this.kernelAccountClientService.getClient(Number(chains[0]))
+    return client.kernelAccount.address
+  }
+
   // 84532 0xAb1D243b07e99C91dE9E4B80DFc2B07a8332A2f7
   @Option({
     flags: '-c, --chainID <chainID>',
