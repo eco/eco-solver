@@ -54,7 +54,7 @@ async function execute<chain extends Chain | undefined, account extends Account 
     const data = encodeFunctionData({
       abi: SimpleAccountAbi,
       functionName: 'execute',
-      args: [tx.to, tx.value || 0n, tx.data],
+      args: [tx.to, tx.value || 0n, tx.data!],
     })
 
     return client.sendTransaction({
@@ -70,7 +70,7 @@ async function execute<chain extends Chain | undefined, account extends Account 
   const data = encodeFunctionData({
     abi: SimpleAccountAbi,
     functionName: 'executeBatch',
-    args: [transactions.map((tx) => tx.to), transactions.map((tx) => tx.data)],
+    args: [transactions.map((tx) => tx.to), transactions.map((tx) => tx.data!)],
   })
 
   return client.sendTransaction({
