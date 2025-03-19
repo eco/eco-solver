@@ -25,12 +25,19 @@ export class BalanceCommand extends CommandRunner {
     }
 
     if (options?.chainID && options?.token) {
-      console.log('Fetching balance for chainID and token')
+      console.log(`Fetching balance on ${options.chainID} for ${options.token}`)
       const data = await this.balanceService.fetchTokenBalances(options.chainID, [options.token])
 
       console.log(`Token data on chain : ${options.chainID}:`)
       console.log(json(data))
       return
+    }
+
+    if (options?.chainID) {
+      console.log(`Fetching all balances on ${options.chainID}`)
+      const data = await this.balanceService.fetchTokenBalancesForChain(options.chainID)
+      console.log(`Tokens data on chain : ${options.chainID}:`)
+      console.log(json(data))
     }
 
     console.log(`You must set the chainID and token to get the balance of a token`)
@@ -54,5 +61,5 @@ export class BalanceCommand extends CommandRunner {
 }
 
 function json(data: any) {
-  return JSON.stringify(data, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
+  return JSON.stringify(data, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
 }
