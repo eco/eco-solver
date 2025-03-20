@@ -131,7 +131,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
 
     // Make sure the Kernel wallet is used
-    if (walletAddress !== client.account?.address) {
+    if (!isAddressEqual(client.kernelAccountAddress, walletAddress as Hex)) {
       throw new Error('Unexpected wallet during WarpRoute execution')
     }
 
@@ -230,8 +230,6 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote[]> {
-    // Case 1: Synthetic -> Collateral -> Token:
-
     const warpTokenIn = this.getWarpRoute(tokenIn.chainId, tokenIn.config.address)
     const warpTokenOut = this.getWarpRoute(tokenOut.chainId, tokenOut.config.address)
 
@@ -239,6 +237,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
 
     if (warpTokenIn.warpRoute) {
+      // Case 1: Synthetic -> Collateral -> Token:
+
       const collateral = warpTokenIn.warpRoute.collateral
       const collateralTokenConfig = this.getTokenConfig(collateral)
 
@@ -282,7 +282,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         BigInt(liFiQuote.context.toAmountMin),
       )
 
-      return [remoteTransferQuote, liFiQuote]
+      return [liFiQuote, remoteTransferQuote]
     }
 
     throw new Error('Unable to get quote for partial action path')
