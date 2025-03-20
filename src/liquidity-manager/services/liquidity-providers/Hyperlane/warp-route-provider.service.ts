@@ -12,7 +12,7 @@ import {
   TransactionRequest,
 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { WarpRouteConfig } from '@/eco-configs/eco-config.types'
+import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { TokenConfig } from '@/balance/types'
 import { BalanceService } from '@/balance/balance.service'
@@ -34,7 +34,7 @@ enum ActionPath {
 export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
   private logger = new Logger(WarpRouteProviderService.name)
 
-  private config: WarpRouteConfig
+  private config: WarpRoutesConfig
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -42,7 +42,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     private readonly liFiProviderService: LiFiProviderService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {
-    this.config = this.ecoConfigService.getWarpRoute()
+    this.config = this.ecoConfigService.getWarpRoutes()
   }
 
   getStrategy() {

@@ -194,8 +194,8 @@ export class EcoConfigService implements OnModuleInit {
   }
 
   // Returns the liquidity manager config
-  getWarpRoute(): EcoConfigType['warpRoute'] {
-    return this.get('warpRoute')
+  getWarpRoutes(): EcoConfigType['warpRoutes'] {
+    return this.get('warpRoutes')
   }
 
   // Returns the liquidity manager config

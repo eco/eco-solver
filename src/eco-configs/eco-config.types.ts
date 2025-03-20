@@ -67,7 +67,7 @@ export type EcoConfigType = {
   liquidityManager: LiquidityManagerConfig
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
-  warpRoute: WarpRouteConfig
+  warpRoutes: WarpRoutesConfig
   indexer: IndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
@@ -318,7 +318,7 @@ export interface CCTPConfig {
   }[]
 }
 
-export interface WarpRouteConfig {
+export interface WarpRoutesConfig {
   routes: {
     collateral: {
       chainId: number
