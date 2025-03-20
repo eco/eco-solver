@@ -88,7 +88,10 @@ export default {
       algorithm: 'linear',
       constants: {
         baseFee: 20_000n,
-        per100UnitFee: 15_000n,
+        tranche: {
+          unitFee: 15_000n,
+          unitSize: 100_000_000n,
+        },
       },
     },
     proofs: {
@@ -140,6 +143,25 @@ export default {
       },
     ],
   },
+
+  indexer: {
+    url: 'https://indexer.eco.com',
+  },
+
+  hyperlane: {
+    useHyperlaneDefaultHook: false,
+  },
+  withdraws: {
+    chunkSize: 20,
+    intervalDuration: 360_000,
+  },
+
+  sendBatch: {
+    chunkSize: 200,
+    intervalDuration: 360_000,
+    defaultGasPerIntent: 25_000,
+  },
+
   externalAPIs: {},
   logger: {
     usePino: true,

@@ -3,9 +3,8 @@ import * as _ from 'lodash'
 import * as config from 'config'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { AwsCredential, KmsConfig, EcoConfigType, IntentSource, Solver } from './eco-config.types'
-import { entries } from 'lodash'
-import { getAddress } from 'viem'
+import { AwsCredential, EcoConfigType, IntentSource, KmsConfig, Solver } from './eco-config.types'
+import { Chain, getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -28,8 +27,6 @@ export class EcoConfigService implements OnModuleInit {
     this.initConfigs()
   }
 
-  async onModuleInit() {}
-
   /**
    * Returns the static configs  for the app, from the 'config' package
    * @returns the configs
@@ -37,6 +34,8 @@ export class EcoConfigService implements OnModuleInit {
   static getStaticConfig(): EcoConfigType {
     return config as unknown as EcoConfigType
   }
+
+  async onModuleInit() {}
 
   // Initialize the configs
   initConfigs() {
@@ -77,20 +76,20 @@ export class EcoConfigService implements OnModuleInit {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
-    const intents = this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
-      intent.tokens = intent.tokens.map((token: string) => {
-        return getAddress(token)
-      })
+    return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource
+      intent.inbox = config.Inbox
       intent.provers = [config.HyperProver]
+      intent.tokens = intent.tokens.map((token: string) => getAddress(token))
+
       //removing storage prover per audit for hyperlane beta release
       // if (config.Prover) {
       //   intent.provers.push(config.Prover)
       // }
+
       return intent
     })
-    return intents
   }
 
   // Returns the intent source for a specific chain or undefined if its not supported
@@ -106,7 +105,7 @@ export class EcoConfigService implements OnModuleInit {
   // Returns the solvers config
   getSolvers(): EcoConfigType['solvers'] {
     const solvers = this.get<Record<number, Solver>>('solvers')
-    entries(solvers).forEach(([, solver]: [string, Solver]) => {
+    _.entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
       solver.inboxAddress = config.Inbox
       solver.targets = addressKeys(solver.targets) ?? {}
@@ -199,15 +198,41 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('warpRoute')
   }
 
-  getChainRPCs() {
-    const { apiKey, networks } = this.getAlchemy()
-    const supportedAlchemyChainIds = _.map(networks, 'id')
+  // Returns the liquidity manager config
+  getHyperlane(): EcoConfigType['hyperlane'] {
+    return this.get('hyperlane')
+  }
 
-    const entries = ChainsSupported.map((chain) => {
-      const rpcApiKey = supportedAlchemyChainIds.includes(chain.id) ? apiKey : undefined
-      return [chain.id, getRpcUrl(chain, rpcApiKey).url]
-    })
+  // Returns the liquidity manager config
+  getWithdraws(): EcoConfigType['withdraws'] {
+    return this.get('withdraws')
+  }
+
+  // Returns the liquidity manager config
+  getSendBatch(): EcoConfigType['sendBatch'] {
+    return this.get('sendBatch')
+  }
+
+  // Returns the liquidity manager config
+  getIndexer(): EcoConfigType['indexer'] {
+    return this.get('indexer')
+  }
+
+  // Returns the liquidity manager config
+  getQuicknode(): EcoConfigType['quicknode'] {
+    return this.get('quicknode')
+  }
+
+  getChainRPCs() {
+    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain).url])
     return Object.fromEntries(entries) as Record<number, string>
+  }
+
+  getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
+    const alchemy = this.getAlchemy()
+    const quicknode = this.getQuicknode()
+    const apiKeys = { alchemy: alchemy.apiKey, quicknode: quicknode.apiKey }
+    return getRpcUrl(chain, apiKeys, websocketEnabled)
   }
 
   /**
@@ -215,6 +240,6 @@ export class EcoConfigService implements OnModuleInit {
    * @returns the supported chains for the event
    */
   getSupportedChains(): bigint[] {
-    return entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+    return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
   }
 }

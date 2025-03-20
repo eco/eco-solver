@@ -6,7 +6,6 @@ import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { IntentSource } from '../eco-configs/eco-config.types'
 import { IntentCreatedLog } from '../contracts'
-import { BlockTag } from 'viem'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
@@ -20,6 +19,8 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 @Injectable()
 export class ChainSyncService implements OnApplicationBootstrap {
   private logger = new Logger(ChainSyncService.name)
+
+  static MAX_BLOCK_RANGE = 10_000n
 
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
@@ -74,25 +75,34 @@ export class ChainSyncService implements OnApplicationBootstrap {
   async getMissingTxs(source: IntentSource): Promise<IntentCreatedLog[]> {
     const client = await this.kernelAccountClientService.getClient(source.chainID)
 
-    const lastRecordedTx = await this.getLastRecordedTx(source)
-    const fromBlock: bigint =
-      lastRecordedTx.length > 0
-        ? BigInt(lastRecordedTx[0].event.blockNumber) + 1n //start search from next block
-        : 0n
-    const toBlock: BlockTag = 'latest'
     const supportedChains = this.ecoConfigService.getSupportedChains()
-    const createIntentLogs = (
-      await client.getContractEvents({
-        address: source.sourceAddress,
-        abi: IntentSourceAbi,
-        eventName: 'IntentCreated',
-        args: {
-          prover: source.provers,
-        },
-        fromBlock,
-        toBlock,
-      })
-    ).filter((log) => supportedChains.includes(log.args.destination || 0n))
+    const [lastRecordedTx] = await this.getLastRecordedTx(source)
+
+    let fromBlock = lastRecordedTx
+      ? BigInt(lastRecordedTx.event.blockNumber) + 1n //start search from next block
+      : undefined
+
+    const toBlock = await client.getBlockNumber()
+
+    if (fromBlock && toBlock - fromBlock > ChainSyncService.MAX_BLOCK_RANGE) {
+      fromBlock = toBlock - ChainSyncService.MAX_BLOCK_RANGE
+    }
+
+    const allCreateIntentLogs = await client.getContractEvents({
+      address: source.sourceAddress,
+      abi: IntentSourceAbi,
+      eventName: 'IntentCreated',
+      strict: true,
+      args: {
+        prover: source.provers,
+      },
+      fromBlock,
+      toBlock,
+    })
+
+    const createIntentLogs = allCreateIntentLogs.filter((log) =>
+      supportedChains.includes(log.args.destination),
+    )
 
     //todo clean out already fulfilled intents
     if (createIntentLogs.length === 0) {

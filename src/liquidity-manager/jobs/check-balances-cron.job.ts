@@ -136,6 +136,15 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       rebalances.push(rebalanceRequest)
     }
 
+    if (!rebalances.length) {
+      processor.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'CheckBalancesCronJob: Rebalancing routes available',
+        }),
+      )
+      return
+    }
+
     processor.logger.log(this.displayRebalancingTable(rebalances))
 
     await processor.liquidityManagerService.startRebalancing(walletAddress, rebalances)

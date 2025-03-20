@@ -19,6 +19,7 @@ export type EcoConfigType = {
   intervals: IntervalConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
+  quicknode: QuicknodeConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -48,7 +49,7 @@ export type EcoConfigType = {
   fulfill: FulfillType
   aws: AwsCredential[]
   kms: KmsConfig
-  whitelist: FeeRecord
+  whitelist: WhitelistFeeRecord
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -67,6 +68,10 @@ export type EcoConfigType = {
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
   warpRoute: WarpRouteConfig
+  indexer: IndexerConfig
+  withdraws: WithdrawsConfig
+  sendBatch: SendBatchConfig
+  hyperlane: HyperlaneConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -177,10 +182,11 @@ export type FeeChainType = {
 }
 
 /**
- * The config type for a fee record for whitelisted addresses
+ * The config type for a fee record for whitelisted addresses. A default is
+ * partial FeeConfigType, so that it can be overridden by chain specific fees.
  */
-export type FeeRecord = {
-  [whitelistedWalletAddress: Hex]: FeeChainType
+export type WhitelistFeeRecord = {
+  [whitelistedWalletAddress: Hex]: Partial<FeeChainType>
 }
 
 /**
@@ -204,6 +210,13 @@ export type AlchemyConfigType = {
 export type AlchemyNetwork = {
   name: Network
   id: number
+}
+
+/**
+ * The whole config type for QuickNode.
+ */
+export type QuicknodeConfigType = {
+  apiKey: string
 }
 
 /**
@@ -257,6 +270,8 @@ export class IntentSource {
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
+  // The address that the Inbox contract is deployed at, we execute fulfills in this contract
+  inbox: Hex
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]
   // The addresses of the provers that we support
@@ -315,4 +330,23 @@ export interface WarpRouteConfig {
       synthetic: Hex
     }[]
   }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
 }

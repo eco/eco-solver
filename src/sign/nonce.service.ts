@@ -51,17 +51,12 @@ export class NonceService extends AtomicNonceService<Nonce> implements OnApplica
 
   protected override async getSyncParams(): Promise<AtomicKeyClientParams[]> {
     const address = this.signerService.getAccount().address
-    const apiKey = this.ecoConfigService.getAlchemy().apiKey
     const paramsAsync = entries(this.ecoConfigService.getSolvers()).map(async ([chainIdString]) => {
       const chainID = parseInt(chainIdString)
-      const chain = extractChain({
-        chains: ChainsSupported,
-        id: chainID,
-      })
-      const client = createPublicClient({
-        chain,
-        transport: getTransport(chain, apiKey),
-      } as any)
+      const chain = extractChain({ chains: ChainsSupported, id: chainID })
+      const { url: rpcUrl, isWebsocket } = this.ecoConfigService.getRpcUrl(chain)
+      const transport = getTransport(rpcUrl, isWebsocket)
+      const client = createPublicClient({ chain, transport })
       return { address, client } as AtomicKeyClientParams
     })
 
