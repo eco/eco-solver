@@ -15,6 +15,7 @@ import { SolverModule } from '../solver/solver.module'
 import { FlagsModule } from '../flags/flags.module'
 import { ValidationService } from '@/intent/validation.sevice'
 import { FeeModule } from '@/fee/fee.module'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { FeeModule } from '@/fee/fee.module'
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
+    CrowdLiquidityService,
     UtilsIntentService,
     ValidationService,
   ],
@@ -41,6 +43,7 @@ import { FeeModule } from '@/fee/fee.module'
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
+    CrowdLiquidityService,
     UtilsIntentService,
     ValidationService,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
