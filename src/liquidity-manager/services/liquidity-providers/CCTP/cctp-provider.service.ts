@@ -57,8 +57,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     swapAmount: number,
   ): Promise<RebalanceQuote<'CCTP'>> {
     if (
-      !this.isSupportedChain(tokenIn.config.chainId) ||
-      !this.isSupportedChain(tokenOut.config.chainId)
+      !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
+      !this.isSupportedToken(tokenOut.config.chainId, tokenOut.config.address)
     ) {
       throw new Error('Unsupported route')
     }
@@ -222,7 +222,9 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return txHash
   }
 
-  private isSupportedChain(chainId: number) {
-    return this.config.chains.some((chain) => chain.chainId === chainId)
+  private isSupportedToken(chainId: number, token: Hex) {
+    return this.config.chains.some(
+      (chain) => chain.chainId === chainId && isAddressEqual(token, chain.token),
+    )
   }
 }

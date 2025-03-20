@@ -297,6 +297,7 @@ export interface CCTPConfig {
   chains: {
     chainId: number
     domain: number
+    token: Hex
     tokenMessenger: Hex
     messageTransmitter: Hex
   }[]
