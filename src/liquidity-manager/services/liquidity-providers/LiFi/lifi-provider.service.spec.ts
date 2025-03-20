@@ -1,5 +1,6 @@
 jest.mock('@lifi/sdk')
 
+import { zeroAddress } from 'viem'
 import { FlowProducer, Queue } from 'bullmq'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
@@ -44,6 +45,8 @@ describe('LiFiProviderService', () => {
 
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
     flowProducer = chainMod.get(getFlowProducerToken(LiquidityManagerQueue.flowName))
+
+    kernelAccountClientService['getAddress'] = jest.fn().mockResolvedValue(zeroAddress)
   })
 
   afterEach(() => {
@@ -115,9 +118,10 @@ describe('LiFiProviderService', () => {
         slippage: 0.05,
         context: { gasCostUSD: 10, steps: [] },
       }
+
       const mockExecuteRoute = jest.spyOn(LiFi, 'executeRoute')
 
-      await lifiProviderService.execute(mockQuote as any)
+      await lifiProviderService.execute(zeroAddress, mockQuote as any)
 
       expect(mockExecuteRoute).toHaveBeenCalledWith(mockQuote.context, expect.any(Object))
     })
