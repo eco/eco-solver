@@ -30,7 +30,7 @@ export class LiquidityProviderService {
     for (const strategy of strategies) {
       try {
         const service = this.getStrategyService(strategy)
-        const quotes = await service.getQuote(tokenIn, tokenOut.config, swapAmount)
+        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
         return Array.isArray(quotes) ? quotes : [quotes]
       } catch (error) {
         this.logger.error(

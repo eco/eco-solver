@@ -1,6 +1,8 @@
 /* eslint @typescript-eslint/no-unused-vars: 0 */
 
-export abstract class BaseJobManager<Job> {
+import { Job as RedisJob } from 'bullmq'
+
+export abstract class BaseJobManager<Job extends RedisJob> {
   /**
    * Checks if the given job is of the specific type.
    * @param job - The job to check.
@@ -15,7 +17,7 @@ export abstract class BaseJobManager<Job> {
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  process(job: Job, processor: unknown): Promise<void> {
+  process(job: Job, processor: unknown): Promise<Job['returnvalue']> {
     throw new Error('Unimplemented function')
   }
 

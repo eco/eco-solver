@@ -14,7 +14,7 @@ export type ExecuteCCTPMintJob = LiquidityManagerJob<
   Hex
 >
 
-export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager {
+export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<ExecuteCCTPMintJob> {
   static async start(queue: Queue, data: ExecuteCCTPMintJob['data']): Promise<void> {
     await queue.add(LiquidityManagerJobName.EXECUTE_CCTP_MINT, data, {
       jobId: `${ExecuteCCTPMintJobManager.name}-${data.messageHash}`,
