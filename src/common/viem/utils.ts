@@ -13,7 +13,7 @@ import { Chain, getAddress, Hex } from 'viem'
 export function getRpcUrl(
   chain: Chain,
   apiKeys: { alchemy: string; quicknode: string },
-  websocketEnabled: boolean = false,
+  websocketEnabled?: boolean,
 ): { url: string; isWebsocket: boolean } {
   let rpcUrl = chain.rpcUrls.default
   for (const key in chain.rpcUrls) {
@@ -23,6 +23,9 @@ export function getRpcUrl(
     rpcUrl = chain.rpcUrls[key]
     break
   }
+
+  websocketEnabled = websocketEnabled ?? getDefaultWebsocketFlag(chain)
+
   const isWebsocket = Boolean(websocketEnabled && rpcUrl.webSocket && rpcUrl.webSocket.length)
 
   let url = isWebsocket ? rpcUrl.webSocket![0] : rpcUrl.http[0]
@@ -79,4 +82,9 @@ export function convertBigIntsToStrings(obj: any): any {
   }
 
   return obj
+}
+
+function getDefaultWebsocketFlag(chain: Chain) {
+  // WebSockets are enabled by default for QuickNode RPCs
+  return chain.rpcUrls.default.http[0].includes('quicknode')
 }

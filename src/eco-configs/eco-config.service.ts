@@ -228,7 +228,7 @@ export class EcoConfigService implements OnModuleInit {
     return Object.fromEntries(entries) as Record<number, string>
   }
 
-  getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
+  getRpcUrl(chain: Chain, websocketEnabled?: boolean) {
     const alchemy = this.getAlchemy()
     const quicknode = this.getQuicknode()
     const apiKeys = { alchemy: alchemy.apiKey, quicknode: quicknode.apiKey }

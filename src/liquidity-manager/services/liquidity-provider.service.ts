@@ -27,7 +27,7 @@ export class LiquidityProviderService {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
 
     // Iterate over strategies and return the first quote
-    for (const strategy of strategies) {
+    const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         const service = this.getStrategyService(strategy)
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
@@ -41,9 +41,48 @@ export class LiquidityProviderService {
           }),
         )
       }
+    })
+
+    const quoteBatchResults = await Promise.all(quoteBatchRequests)
+
+    // Use the quote from the strategy returning the biggest amount out
+    const bestQuote = quoteBatchResults.reduce((bestBatch, quoteBatch) => {
+      if (!bestBatch) return quoteBatch
+      if (!quoteBatch) return bestBatch
+
+      const bestQuote = bestBatch[quoteBatch.length - 1]
+      const quote = quoteBatch[quoteBatch.length - 1]
+
+      return bestQuote.amountOut >= quote.amountOut ? bestBatch : quoteBatch
+    }, quoteBatchResults[0])
+
+    if (!bestQuote) {
+      throw new Error('Unable to get quote for route')
     }
 
-    throw new Error('Unable to get quote for route')
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Quotes for route',
+        properties: {
+          walletAddress,
+          tokenIn: this.formatToken(tokenIn),
+          tokenOut: this.formatToken(tokenOut),
+          bestQuote: this.formatQuoteBatch(bestQuote),
+          quoteBatches: quoteBatchResults.map((quoteBatch, index) => {
+            const strategy = strategies[index]
+            if (!quoteBatch) {
+              return `Failed to get quote for strategy ${strategy}`
+            }
+            return {
+              strategy,
+              quotes: this.formatQuoteBatch(quoteBatch),
+            }
+          }),
+        },
+      }),
+    )
+
+    return bestQuote
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote) {
@@ -70,7 +109,23 @@ export class LiquidityProviderService {
       case crowdLiquidityPoolAddress:
         return ['CCTP']
       default:
-        return ['LiFi', 'CCTP']
+        return ['LiFi', 'CCTP', 'WarpRoute']
     }
+  }
+
+  private formatToken(token: TokenData) {
+    return { chainId: token.chainId, token: token.config.address }
+  }
+
+  private formatQuoteBatch(quoteBatch: RebalanceQuote[]) {
+    return quoteBatch.map((quote) => {
+      return {
+        strategy: quote.strategy,
+        tokenIn: this.formatToken(quote.tokenIn),
+        tokenOut: this.formatToken(quote.tokenOut),
+        amountIn: quote.amountIn.toString(),
+        amountOut: quote.amountOut.toString(),
+      }
+    })
   }
 }
