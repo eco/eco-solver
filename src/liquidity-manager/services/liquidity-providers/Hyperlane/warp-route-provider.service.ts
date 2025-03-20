@@ -87,6 +87,20 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const receipt = await client.waitForTransactionReceipt({ hash: txHash })
 
     const { messageId } = this.getMessageFromReceipt(receipt)
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message:
+          'WarpRouteProviderService: remove transfer executed, waiting for message to get relayed',
+        properties: {
+          chainId: quote.tokenIn.config.chainId,
+          transactionHash: txHash,
+          destinationChainId: quote.tokenOut.config.chainId,
+          messageId,
+        },
+      }),
+    )
+
     // Used to complete the job only after the message is relayed
     await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
 
@@ -183,7 +197,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       })
 
       const approvalTx: TransactionRequest = {
-        to: warpToken.token,
+        to: tokenIn,
         data: approvalData,
       }
 
@@ -205,7 +219,9 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       return isTokenRoute || isCollateral
     })
 
-    const warpToken = warpRoute?.chains.find(isToken)
+    const warpToken =
+      warpRoute?.chains.find(isToken) ||
+      warpRoute?.chains.find((token) => token.chainId === warpRoute?.collateral.chainId) // If token is collateral, get synthetic in the same chain
 
     return { warpRoute, warpToken }
   }
@@ -277,8 +293,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       )
 
       const remoteTransferQuote = this.getRemoteTransferQuote(
-        tokenIn,
         collateralTokenData,
+        tokenOut,
         BigInt(liFiQuote.context.toAmountMin),
       )
 
