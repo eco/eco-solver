@@ -2,7 +2,7 @@ import { Model } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
 import { BalanceService } from '@/balance/balance.service'
@@ -30,15 +30,17 @@ import {
   TokenData,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
+  private logger = new Logger(LiquidityManagerService.name)
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
   constructor(
     @InjectQueue(LiquidityManagerQueue.queueName)
-    queue: LiquidityManagerQueueType,
+    private readonly queue: LiquidityManagerQueueType,
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
     @InjectModel(RebalanceModel.name)
@@ -50,8 +52,17 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
 
-  onApplicationBootstrap() {
+  async onApplicationBootstrap() {
     this.config = this.ecoConfigService.getLiquidityManager()
+
+    const jobSchedulers = await this.queue.getJobSchedulers()
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Liquidity LiquidityManagerService: Active job schedulers',
+        properties: { jobSchedulers },
+      }),
+    )
+
     return this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration)
   }
 
