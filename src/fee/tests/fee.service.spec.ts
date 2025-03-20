@@ -10,6 +10,7 @@ import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
+import * as _ from 'lodash'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -108,6 +109,7 @@ describe('FeeService', () => {
 
     beforeEach(() => {
       feeService['defaultFee'] = defaultFee
+      feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: defaultFee })
     })
 
     it('should return the default fee if no intent in arguments', async () => {
@@ -117,6 +119,14 @@ describe('FeeService', () => {
     it('should set the default fee if its passed in as argument', async () => {
       const argFee = { limitFillBase6: 123n } as any
       expect(feeService.getFeeConfig({ defaultFeeArg: argFee })).toEqual(argFee)
+    })
+
+    it('should return the default fee for the solver if intent is set', async () => {
+      const solverFee = { asd: 123n } as any
+      feeService['whitelist'] = {}
+      feeService['defaultFee'] = { asd: 333n } as any
+      feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: solverFee })
+      expect(feeService.getFeeConfig({ intent })).toEqual(solverFee)
     })
 
     it('should return the default fee if no special fee for creator', async () => {
@@ -129,17 +139,35 @@ describe('FeeService', () => {
       expect(feeService.getFeeConfig({ intent })).toEqual(defaultFee)
     })
 
-    it('should return the source chain creator default fee if no chain specific one', async () => {
+    it('should return the source chain creator default fee, merged, if no chain specific one and its not complete', async () => {
       const creatorDefault = { limitFillBase6: 123n } as any
+      feeService['whitelist'] = { [creator]: { default: creatorDefault } }
+      expect(feeService.getFeeConfig({ intent })).toEqual(_.merge({}, defaultFee, creatorDefault))
+    })
+
+    it('should return the source chain creator default fee without merge if its complete', async () => {
+      const creatorDefault = {
+        limitFillBase6: 1n,
+        algorithm: 'linear',
+        constants: {
+          baseFee: 2n,
+          tranche: {
+            unitFee: 3n,
+            unitSize: 4n,
+          },
+        },
+      } as any
       feeService['whitelist'] = { [creator]: { default: creatorDefault } }
       expect(feeService.getFeeConfig({ intent })).toEqual(creatorDefault)
     })
 
     it('should return the source chain specific fee for a creator', async () => {
-      const chainConfig = { limitFillBase6: 9999n } as any
+      const chainConfig = { constants: { tranche: { unitFee: 9911n } } } as any
       const creatorDefault = { limitFillBase6: 123n } as any
       feeService['whitelist'] = { [creator]: { [source]: chainConfig, default: creatorDefault } }
-      expect(feeService.getFeeConfig({ intent })).toEqual(chainConfig)
+      expect(feeService.getFeeConfig({ intent })).toEqual(
+        _.merge({}, defaultFee, creatorDefault, chainConfig),
+      )
     })
   })
 
@@ -184,53 +212,6 @@ describe('FeeService', () => {
       beforeEach(() => {
         solverSpy = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
         feeSpy = jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(linearSolver.fee)
-      })
-
-      it('should default to eth mainnet/sepolia fee if eth mainnet/sepolia is in the route', async () => {
-        let intent = {
-          route: {
-            destination: 8452n,
-            source: 1n,
-          },
-        } as any
-
-        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
-        expect(solverSpy).toHaveBeenCalledTimes(1)
-        expect(feeSpy).toHaveBeenCalledTimes(1)
-        expect(solverSpy).toHaveBeenCalledWith(intent.route.source)
-
-        intent = {
-          route: {
-            destination: 1n,
-            source: 10n,
-          },
-        } as any
-        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
-        expect(solverSpy).toHaveBeenCalledTimes(2)
-        expect(feeSpy).toHaveBeenCalledTimes(2)
-        expect(solverSpy).toHaveBeenCalledWith(intent.route.destination)
-
-        intent = {
-          route: {
-            destination: 84523n,
-            source: 11155111n,
-          },
-        } as any
-        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
-        expect(solverSpy).toHaveBeenCalledTimes(3)
-        expect(feeSpy).toHaveBeenCalledTimes(3)
-        expect(solverSpy).toHaveBeenCalledWith(intent.route.source)
-
-        intent = {
-          route: {
-            destination: 11155111n,
-            source: 84523n,
-          },
-        } as any
-        expect(feeService.getAsk(1_000_000n, intent)).toBe(1_020_000n)
-        expect(solverSpy).toHaveBeenCalledTimes(4)
-        expect(feeSpy).toHaveBeenCalledTimes(4)
-        expect(solverSpy).toHaveBeenCalledWith(intent.route.destination)
       })
 
       it('should return the correct ask for less than $100', async () => {
@@ -877,6 +858,52 @@ describe('FeeService', () => {
       expect(feeService.deconvertNormalize(100n, orig)).toEqual({ balance: 100n, ...orig })
       const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
       expect(feeService.deconvertNormalize(100n, second)).toEqual({ balance: 1n, ...second })
+    })
+  })
+
+  describe('on getAskRouteDestinationSolver', () => {
+    let solverSpy: jest.SpyInstance
+    beforeEach(() => {
+      solverSpy = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+    })
+
+    it('should return the destination route solver', async () => {
+      let route = {
+        destination: 10n,
+        source: 20n,
+      } as any
+      feeService.getAskRouteDestinationSolver(route)
+      expect(solverSpy).toHaveBeenCalledWith(route.destination)
+    })
+
+    it('should return the eth solver if its one of the networks in the route', async () => {
+      let route = {
+        destination: 1n,
+        source: 2n,
+      } as any
+      feeService.getAskRouteDestinationSolver(route)
+      expect(solverSpy).toHaveBeenCalledWith(1n)
+
+      route = {
+        destination: 2n,
+        source: 1n,
+      } as any
+      feeService.getAskRouteDestinationSolver(route)
+      expect(solverSpy).toHaveBeenCalledWith(1n)
+
+      route = {
+        destination: 11155111n,
+        source: 2n,
+      } as any
+      feeService.getAskRouteDestinationSolver(route)
+      expect(solverSpy).toHaveBeenCalledWith(11155111n)
+
+      route = {
+        destination: 2n,
+        source: 11155111n,
+      } as any
+      feeService.getAskRouteDestinationSolver(route)
+      expect(solverSpy).toHaveBeenCalledWith(11155111n)
     })
   })
 })

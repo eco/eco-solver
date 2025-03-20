@@ -14,6 +14,7 @@ export type EcoConfigType = {
   server: {
     url: string
   }
+  safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
@@ -48,7 +49,7 @@ export type EcoConfigType = {
   fulfill: FulfillType
   aws: AwsCredential[]
   kms: KmsConfig
-  whitelist: FeeRecord
+  whitelist: WhitelistFeeRecord
   database: {
     auth: MongoAuthType
     uriPrefix: string
@@ -84,6 +85,13 @@ export type LaunchDarklyConfig = {
 export type FulfillType = {
   run: 'batch' | 'single'
   type?: 'crowd-liquidity' | 'smart-wallet-account'
+}
+
+/**
+ * The config type for the safe multisig wallet
+ */
+export type SafeType = {
+  owner: Hex
 }
 
 /**
@@ -176,10 +184,11 @@ export type FeeChainType = {
 }
 
 /**
- * The config type for a fee record for whitelisted addresses
+ * The config type for a fee record for whitelisted addresses. A default is
+ * partial FeeConfigType, so that it can be overridden by chain specific fees.
  */
-export type FeeRecord = {
-  [whitelistedWalletAddress: Hex]: FeeChainType
+export type WhitelistFeeRecord = {
+  [whitelistedWalletAddress: Hex]: Partial<FeeChainType>
 }
 
 /**

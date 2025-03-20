@@ -2,7 +2,11 @@ import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { FeeAlgorithmConfig, FeeConfigType, FeeRecord } from '@/eco-configs/eco-config.types'
+import {
+  FeeAlgorithmConfig,
+  FeeConfigType,
+  WhitelistFeeRecord,
+} from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
@@ -11,6 +15,8 @@ import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex } from 'viem'
+import * as _ from 'lodash'
+import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -21,7 +27,7 @@ export const BASE_DECIMALS: number = 6
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
   private defaultFee: FeeConfigType
-  private whitelist: FeeRecord
+  private whitelist: WhitelistFeeRecord
 
   constructor(
     private readonly balanceService: BalanceService,
@@ -50,10 +56,15 @@ export class FeeService implements OnModuleInit {
     const { intent, defaultFeeArg } = args || {}
     let feeConfig = defaultFeeArg || this.defaultFee
     if (intent) {
+      const destDefaultFee = this.getAskRouteDestinationSolver(intent.route).fee
+      feeConfig = defaultFeeArg || destDefaultFee
       const specialFee = this.whitelist[intent.reward.creator]
       if (specialFee) {
-        const chainFee: FeeConfigType = specialFee[Number(intent.route.source)]
-        feeConfig = chainFee || specialFee.default || feeConfig
+        const chainFee = specialFee[Number(intent.route.source)]
+        // return a fee that is a merge of the default fee, the special fee and the chain fee
+        // merges left to right with the rightmost object taking precedence. In this
+        // case that is the user and chain specific fee
+        feeConfig = _.merge({}, feeConfig, specialFee.default, chainFee)
       }
     }
     return feeConfig
@@ -69,18 +80,8 @@ export class FeeService implements OnModuleInit {
   getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
-    const destination =
-      route.destination === 1n || route.source === 1n
-        ? 1n
-        : route.destination === 11155111n || route.source === 11155111n
-          ? 11155111n
-          : route.destination
+    const solver = this.getAskRouteDestinationSolver(route)
 
-    const solver = this.ecoConfigService.getSolver(destination)
-    if (!solver) {
-      //we shouldn't get here after validations are run so throw
-      throw QuoteError.NoSolverForDestination(destination)
-    }
     let fee = 0n
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
     switch (feeConfig.algorithm) {
@@ -91,7 +92,7 @@ export class FeeService implements OnModuleInit {
         const { tranche } = feeConfig.constants as FeeAlgorithmConfig<'linear'>
         fee =
           BigInt(feeConfig.constants.baseFee) +
-          (totalFulfill / tranche.unitSize) * BigInt(tranche.unitFee)
+          (totalFulfill / BigInt(tranche.unitSize)) * BigInt(tranche.unitFee)
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
@@ -438,5 +439,29 @@ export class FeeService implements OnModuleInit {
       balance: normalizeBalance({ balance: original, decimal: BASE_DECIMALS }, token.decimals)
         .balance,
     }
+  }
+
+  /**
+   * Returbs the default route destination solver, unless its a ethereum L1 (mainnet or sepolia).
+   * In which case it returns that one instead
+   *
+   * @param route The route of the quote intent
+   * @returns
+   */
+  getAskRouteDestinationSolver(route: QuoteRouteDataInterface) {
+    //hardcode the destination to eth mainnet/sepolia if its part of the route
+    const destination =
+      route.destination === 1n || route.source === 1n
+        ? 1n
+        : route.destination === 11155111n || route.source === 11155111n
+          ? 11155111n
+          : route.destination
+
+    const solver = this.ecoConfigService.getSolver(destination)
+    if (!solver) {
+      //we shouldn't get here after validations are run so throw
+      throw QuoteError.NoSolverForDestination(destination)
+    }
+    return solver
   }
 }
