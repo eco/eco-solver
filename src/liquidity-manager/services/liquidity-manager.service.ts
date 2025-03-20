@@ -54,7 +54,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     this.config = this.ecoConfigService.getLiquidityManager()
+    await this.checkJobs()
+    return this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration)
+  }
 
+  async checkJobs() {
     const jobSchedulers = await this.queue.getJobSchedulers()
     this.logger.log(
       EcoLogMessage.fromDefault({
@@ -62,8 +66,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         properties: { jobSchedulers },
       }),
     )
-
-    return this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration)
   }
 
   async analyzeTokens() {
@@ -110,6 +112,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   startRebalancing(rebalances: RebalanceRequest[]) {
+    if (rebalances.length) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Liquidity LiquidityManagerService.startRebalancing: Skipping',
+        }),
+      )
+    }
+
     const jobs = rebalances.map((rebalance) =>
       RebalanceJobManager.createJob(rebalance, this.liquidityManagerQueue.name),
     )
