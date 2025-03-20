@@ -14,6 +14,7 @@ export type EcoConfigType = {
   server: {
     url: string
   }
+  safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
@@ -90,6 +91,13 @@ export type LaunchDarklyConfig = {
 export type FulfillType = {
   run: 'batch' | 'single'
   type?: 'crowd-liquidity' | 'smart-wallet-account'
+}
+
+/**
+ * The config type for the safe multisig wallet
+ */
+export type SafeType = {
+  owner: Hex
 }
 
 /**
