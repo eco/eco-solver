@@ -2,10 +2,13 @@ import { Injectable, Logger } from '@nestjs/common'
 import {
   encodeFunctionData,
   erc20Abi,
+  getAbiItem,
   Hex,
   isAddressEqual,
   pad,
+  parseEventLogs,
   parseUnits,
+  TransactionReceipt,
   TransactionRequest,
 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -18,6 +21,8 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
+import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 
 enum ActionPath {
   FULL = 'FULL',
@@ -79,7 +84,13 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
     const txHash = await this._execute(walletAddress, quote)
-    return client.waitForTransactionReceipt({ hash: txHash })
+    const receipt = await client.waitForTransactionReceipt({ hash: txHash })
+
+    const { messageId } = this.getMessageFromReceipt(receipt)
+    // Used to complete the job only after the message is relayed
+    await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
+
+    return txHash
   }
 
   private getRemoteTransferQuote(
@@ -285,5 +296,36 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       targetBalance: 0,
       minBalance: 0,
     }
+  }
+
+  private getMessageFromReceipt(receipt: TransactionReceipt) {
+    const [dispatchIdLog] = parseEventLogs({
+      abi: HyperlaneMailboxAbi,
+      logs: receipt.logs,
+      strict: true,
+      eventName: 'DispatchId',
+    })
+
+    if (!dispatchIdLog) {
+      throw new Error('No message dispatched in transaction')
+    }
+
+    return dispatchIdLog.args
+  }
+
+  private async waitMessageRelay(chainId: number, messageId: Hex) {
+    const client = await this.kernelAccountClientService.getClient(chainId)
+    const { mailbox } = Hyperlane.getChainMetadata(chainId)
+
+    return new Promise((resolve, reject) => {
+      client.watchEvent({
+        address: mailbox as Hex,
+        strict: true,
+        event: getAbiItem({ abi: HyperlaneMailboxAbi, name: 'ProcessId' }),
+        args: { messageId },
+        onLogs: resolve,
+        onError: reject,
+      })
+    })
   }
 }
