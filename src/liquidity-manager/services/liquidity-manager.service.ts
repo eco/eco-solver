@@ -62,7 +62,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const jobSchedulers = await this.queue.getJobSchedulers()
     this.logger.log(
       EcoLogMessage.fromDefault({
-        message: 'Liquidity LiquidityManagerService: Active job schedulers',
+        message: 'LiquidityManagerService: Active job schedulers',
         properties: { jobSchedulers },
       }),
     )

@@ -57,7 +57,16 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param processor - The LiquidityManagerProcessor instance used for processing.
    */
   async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+    processor.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'CheckBalancesCronJobManager',
+        properties: { job },
+      }),
+    )
+
     const { deficit, surplus, items } = await processor.liquidityManagerService.analyzeTokens()
+
+    await processor.liquidityManagerService.checkJobs()
 
     processor.logger.log(
       EcoLogMessage.fromDefault({
