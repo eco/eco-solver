@@ -70,7 +70,9 @@ export class RedisConnectionUtils {
     return [new Redis.Redis(connection as Redis.RedisOptions)]
   }
 
-  private static isClusterConnection(connection: Redis.ClusterNode | Redis.ClusterNode[]): boolean {
+  private static isClusterConnection(
+    connection: Redis.ClusterNode | Redis.ClusterNode[],
+  ): connection is Redis.ClusterNode[] {
     return Array.isArray(connection)
   }
 
