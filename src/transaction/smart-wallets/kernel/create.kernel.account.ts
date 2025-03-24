@@ -181,6 +181,38 @@ export async function addExecutorToKernelAccount<
 }
 
 /**
+ * Encodes the calldata for the OwnableExecutor executeOnOwnedAccount function in order to
+ * transfer an erc20 token owned by the kernel account.
+ * @param kernelAccountAddress the kernel account address
+ * @param tx the transfer transaction on the erc20 token to encode
+ * @returns
+ */
+export function getExecutorTransferData(
+  kernelAccountAddress: Hex,
+  tx: { to: Hex; amount: bigint; tokenAddress: Hex },
+) {
+  //Encode the transfer function of the ERC20 token
+  const transferCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [tx.to, tx.amount],
+  })
+
+  //Encode the calldata for the OwnableExecutor executeOnOwnedAccount function
+  const packed = encodePacked(
+    ['address', 'uint256', 'bytes'],
+    [tx.tokenAddress, BigInt(Number(0)), transferCalldata],
+  )
+
+  const executorCall = encodeFunctionData({
+    abi: OwnableExecutorAbi,
+    functionName: 'executeOnOwnedAccount',
+    args: [kernelAccountAddress, packed], //the owned account is the kernel account
+  })
+  return executorCall
+}
+
+/**
  * Transfers an ERC20 token from an OwnableExecutor eip-7975 module. It
  * calls the underlying `executeOnOwnedAccount` function of the module that then calls the
  * owned Kernel wallet. Serves for generating the calldata needed for the transfer.
