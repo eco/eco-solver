@@ -1,5 +1,6 @@
 import { BalanceCommandModule } from '@/commander/balance/balance-command.module'
 import { EcoConfigCommand } from '@/commander/eco-config.command'
+import { SafeCommandModule } from '@/commander/safe/safe-command.module'
 import { TransferCommandModule } from '@/commander/transfer/transfer-command.module'
 import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -10,6 +11,7 @@ import { LoggerModule } from 'nestjs-pino'
   imports: [
     EcoConfigModule.withAWS(),
     BalanceCommandModule,
+    SafeCommandModule,
     TransferCommandModule,
     LoggerModule.forRootAsync({
       inject: [EcoConfigService],

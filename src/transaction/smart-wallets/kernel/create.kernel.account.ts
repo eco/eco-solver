@@ -102,3 +102,89 @@ export async function createKernelAccountClient<
   const args = await client.deployKernelAccount()
   return { client, args }
 }
+
+/**
+ * Encodes the calldata for the OwnableExecutor executeOnOwnedAccount function in order to
+ * transfer an erc20 token owned by the kernel account.
+ * @param kernelAccountAddress the kernel account address
+ * @param tx the transfer transaction on the erc20 token to encode
+ * @returns
+ */
+export function getExecutorTransferData(
+  kernelAccountAddress: Hex,
+  tx: { to: Hex; amount: bigint; tokenAddress: Hex },
+) {
+  //Encode the transfer function of the ERC20 token
+  const transferCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [tx.to, tx.amount],
+  })
+
+  //Encode the calldata for the OwnableExecutor executeOnOwnedAccount function
+  const packed = encodePacked(
+    ['address', 'uint256', 'bytes'],
+    [tx.tokenAddress, BigInt(Number(0)), transferCalldata],
+  )
+
+  const executorCall = encodeFunctionData({
+    abi: OwnableExecutorAbi,
+    functionName: 'executeOnOwnedAccount',
+    args: [kernelAccountAddress, packed], //the owned account is the kernel account
+  })
+  return executorCall
+}
+
+/**
+ * Transfers an ERC20 token from an OwnableExecutor eip-7975 module. It
+ * calls the underlying `executeOnOwnedAccount` function of the module that then calls the
+ * owned Kernel wallet. Serves for generating the calldata needed for the transfer.
+ * Calldata should be executed on the executor contract.
+ *
+ * @param client the kernel account client
+ * @param tx the token tx data
+ */
+export async function executorTransferERC20Token<
+  entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
+>(
+  client: KernelAccountClient<entryPointVersion>,
+  tx: { to: Hex; amount: bigint; tokenAddress: Hex },
+) {
+  const logger = getLogger()
+
+  //Encode the transfer function of the ERC20 token
+  const transferCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [tx.to, tx.amount],
+  })
+
+  //Encode the calldata for the OwnableExecutor executeOnOwnedAccount function
+  const packed = encodePacked(
+    ['address', 'uint256', 'bytes'],
+    [tx.tokenAddress, BigInt(Number(0)), transferCalldata],
+  )
+
+  // Simulate the contract call
+  const { request } = await client.simulateContract({
+    address: GLOBAL_CONSTANTS.OWNABLE_EXECUTOR_ADDRESS,
+    abi: OwnableExecutorAbi,
+    functionName: 'executeOnOwnedAccount',
+    args: [client.kernelAccount.address, packed], //the owned account is the kernel account
+    account: client.kernelAccount.client.account, //assumes the kernel account signer is the owner of the executor for the kernel contract
+  })
+
+  logger.log(
+    EcoLogMessage.fromDefault({
+      message: `simulated OwnableExecutor executeOnOwnedAccount token transfer`,
+      properties: {
+        kernelAccount: client.kernelAccount.address,
+        request,
+      },
+    }),
+  )
+}
+
+function getLogger() {
+  return new Logger('OwnableExecutor')
+}

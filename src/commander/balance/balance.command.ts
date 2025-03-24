@@ -1,20 +1,22 @@
 import { getAddress } from 'viem'
-import { Command, CommandRunner, Option } from 'nest-commander'
+import { Command, Option } from 'nest-commander'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { jsonBigInt } from '@/commander/utils'
+import { ClientCommand } from '@/commander/transfer/client.command'
 
 @Command({
   name: 'balance',
   description: 'Displays the balance of the Kernel wallet',
 })
-export class BalanceCommand extends CommandRunner {
+export class BalanceCommand extends ClientCommand {
   constructor(
-    private readonly balanceService: BalanceService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly ecoConfigService: EcoConfigService,
+    protected readonly balanceService: BalanceService,
+    protected readonly kernelAccountClientService: KernelAccountClientService,
+    protected readonly ecoConfigService: EcoConfigService,
   ) {
-    super()
+    super(balanceService, kernelAccountClientService, ecoConfigService)
   }
 
   async run(passedParams: string[], options?: Record<string, any>): Promise<void> {
@@ -23,7 +25,7 @@ export class BalanceCommand extends CommandRunner {
       console.log('No options provided, fetching all token data')
       const data = await this.balanceService.getAllTokenData()
       console.log(`Token data:`)
-      console.log(json(data))
+      console.log(jsonBigInt(data))
       return
     }
 
@@ -32,7 +34,7 @@ export class BalanceCommand extends CommandRunner {
       const data = await this.balanceService.fetchTokenBalances(options.chainID, [options.token])
 
       console.log(`Token data on chain : ${options.chainID}:`)
-      console.log(json(data))
+      console.log(jsonBigInt(data))
       return
     }
 
@@ -40,7 +42,7 @@ export class BalanceCommand extends CommandRunner {
       console.log(`Fetching all balances on ${options.chainID}`)
       const data = await this.balanceService.fetchTokenBalancesForChain(options.chainID)
       console.log(`Tokens data on chain : ${options.chainID}:`)
-      console.log(json(data))
+      console.log(jsonBigInt(data))
     }
 
     console.log(`You must set the chainID and token to get the balance of a token`)
@@ -68,8 +70,4 @@ export class BalanceCommand extends CommandRunner {
   parseToken(val: string) {
     return getAddress(val)
   }
-}
-
-function json(data: any) {
-  return JSON.stringify(data, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
 }
