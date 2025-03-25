@@ -32,6 +32,14 @@ export class RewardDataModel implements RewardType {
     this.nativeValue = nativeValue
     this.tokens = tokens
   }
+
+  static getHash(intentDataModel: RewardDataModel) {
+    return hashReward(intentDataModel)
+  }
+
+  static encode(intentDataModel: RewardDataModel) {
+    return encodeReward(intentDataModel)
+  }
 }
 
 export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataModel)

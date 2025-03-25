@@ -4,6 +4,9 @@ import { Strategy, StrategyContext } from '@/liquidity-manager/types/types'
 
 @Schema({ timestamps: true })
 export class RebalanceModel {
+  @Prop({ required: false })
+  wallet?: string
+
   @Prop({ required: true })
   tokenIn: RebalanceTokenModel
 
@@ -25,7 +28,7 @@ export class RebalanceModel {
   @Prop({ required: false })
   groupId?: string
 
-  @Prop({ required: true, type: Object })
+  @Prop({ required: false, type: Object })
   context: StrategyContext
 }
 

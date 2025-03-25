@@ -30,9 +30,17 @@ interface TokenDataAnalyzed extends TokenData {
 // Strategy context
 
 type LiFiStrategyContext = LiFi.Route
+type CCTPStrategyContext = undefined
+type WarpRouteStrategyContext = undefined
 
-type Strategy = 'LiFi'
-type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi' ? LiFiStrategyContext : never
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute'
+type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
+  ? LiFiStrategyContext
+  : S extends 'CCTP'
+    ? CCTPStrategyContext
+    : S extends 'WarpRoute'
+      ? WarpRouteStrategyContext
+      : never
 
 // Quote
 
