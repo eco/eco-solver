@@ -4093,6 +4093,18 @@
   resolved "https://registry.yarnpkg.com/@xtuc/long/-/long-4.2.2.tgz#d291c6a4e97989b5c61d9acf396ae4fe133a718d"
   integrity sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==
 
+"@zerodev/ecdsa-validator@^5.4.4":
+  version "5.4.4"
+  resolved "https://registry.yarnpkg.com/@zerodev/ecdsa-validator/-/ecdsa-validator-5.4.4.tgz#faf1218a4b00a66dfb91803bb8a2ae575cfd305f"
+  integrity sha512-PDmNX3GmmMh2MEpvkBpIl2s1KgmmI6NW9b8K6z5eMZsoM/f5FWgCuboUOGKX1PltNp3Rqo9OY/hNjzCyB4Kmuw==
+
+"@zerodev/sdk@^5.4.26":
+  version "5.4.27"
+  resolved "https://registry.yarnpkg.com/@zerodev/sdk/-/sdk-5.4.27.tgz#fa669762fbe77658f638645658d56b0de6a75475"
+  integrity sha512-e1BRI5AW8in4tUfcpzyjHQ8P9ANNzegYbQsLJjAacoxYEIT5/SoWalonJf1ig+rfyDUjxEKCNJL1cRowPc1X5Q==
+  dependencies:
+    semver "^7.6.0"
+
 JSONStream@^1.3.5:
   version "1.3.5"
   resolved "https://registry.yarnpkg.com/JSONStream/-/JSONStream-1.3.5.tgz#3208c1f08d3a4d99261ab64f92302bc15e111ca0"
@@ -4207,10 +4219,10 @@ ajv@^8.0.0, ajv@^8.0.1:
     json-schema-traverse "^1.0.0"
     require-from-string "^2.0.2"
 
-alchemy-sdk@^3.3.1:
-  version "3.5.0"
-  resolved "https://registry.yarnpkg.com/alchemy-sdk/-/alchemy-sdk-3.5.0.tgz#a4cab2f439d68348727c3a7ca6806e929c1e31bf"
-  integrity sha512-ggY7y+cM6hZKynU7mg6jBUhhAS/68kWn7dPYSyvl9TlCQZnKl3norZKLxbP972NmRDMCqKEDPyYJpvEC6kMj1w==
+alchemy-sdk@^3.5.4:
+  version "3.5.6"
+  resolved "https://registry.yarnpkg.com/alchemy-sdk/-/alchemy-sdk-3.5.6.tgz#89ec0f11cca1257367c60cd25ba7deeb52732e45"
+  integrity sha512-XrrkidbSjeaVp2z5xfW8tVxfTdbdjntpgKAjxnlYZ8N7yudnfNeK9ytHOw4PKtn/dMpwDw/DsgBU92LsuqDwug==
   dependencies:
     "@ethersproject/abi" "^5.7.0"
     "@ethersproject/abstract-provider" "^5.7.0"
@@ -7919,6 +7931,11 @@ semver@^7.3.4, semver@^7.3.5, semver@^7.3.8, semver@^7.5.3, semver@^7.5.4, semve
   version "7.6.3"
   resolved "https://registry.yarnpkg.com/semver/-/semver-7.6.3.tgz#980f7b5550bc175fb4dc09403085627f9eb33143"
   integrity sha512-oVekP1cKtI+CTDvHWYFUcMtsK/00wmAEfyqKfNdARm8u1wNVhSgaX7A8d4UuIlUI5e84iEwOhs7ZPYRmzU9U6A==
+
+semver@^7.6.0:
+  version "7.7.1"
+  resolved "https://registry.yarnpkg.com/semver/-/semver-7.7.1.tgz#abd5098d82b18c6c81f6074ff2647fd3e7220c9f"
+  integrity sha512-hlq8tAfn0m/61p4BVRcPzIGr6LKiMwo4VM6dGi6pt4qcRkmNzTcWq6eCEjEh+qXjkMDvPlOFFSGwQjoEa6gyMA==
 
 send@0.19.0:
   version "0.19.0"
