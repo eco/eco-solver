@@ -131,7 +131,12 @@ export class TransferCommand extends CommandRunner {
    */
   async transferNative(chainID: number, recipient: Hex, amount: bigint) {
     const client = await this.kernelAccountClientService.getClient(chainID)
-    const receipt = await client.execute([{ to: recipient, value: amount }])
-    console.log('Transfer Receipt', receipt)
+    try{
+
+      const receipt = await client.execute([{ to: recipient, value: amount }])
+      console.log('Transfer Receipt', receipt)
+    }catch(e){
+      console.log('Error transferring native tokens', e)
+    }
   }
 }

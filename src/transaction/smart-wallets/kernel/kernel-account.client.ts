@@ -4,6 +4,7 @@ import {
   createPublicClient,
   Hex,
   http,
+  parseEther,
   Prettify,
   RpcSchema,
   Transport,
@@ -62,6 +63,7 @@ async function execute<
   const calls = transactions.map((tx) => ({ to: tx.to, data: tx.data, value: tx.value }))
   const kernelVersion = client.kernelAccount.entryPoint.version == '0.6' ? '0.2.4' : '0.3.1'
   const data = encodeKernelExecuteCallData({ calls, kernelVersion })
+
   return client.sendTransaction({
     data: data,
     kzg: undefined,
