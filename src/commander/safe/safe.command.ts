@@ -28,7 +28,9 @@ export class SafeCommand extends CommandRunner {
         tokenAddress: options.token,
       })
       console.log(`OwnableExecutor transfer data: ${data}`)
-      console.log(`Should execute data on OwnableExecutor contract: ${GLOBAL_CONSTANTS.OWNABLE_EXECUTOR_ADDRESS}`)
+      console.log(
+        `Should execute data on OwnableExecutor contract: ${GLOBAL_CONSTANTS.OWNABLE_EXECUTOR_ADDRESS}`,
+      )
       return
     }
     console.log('You must set the to, amount, token and kernelAddress to generate the calldata')
