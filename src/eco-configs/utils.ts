@@ -30,7 +30,11 @@ export function getNodeEnv(): NodeEnv {
  * @returns true if the node env is preproduction or development
  */
 export function isPreEnv(): boolean {
-  return getNodeEnv() === NodeEnv.preproduction || getNodeEnv() === NodeEnv.development || getNodeEnv() === NodeEnv.staging
+  return (
+    getNodeEnv() === NodeEnv.preproduction ||
+    getNodeEnv() === NodeEnv.development ||
+    getNodeEnv() === NodeEnv.staging
+  )
 }
 
 /**
