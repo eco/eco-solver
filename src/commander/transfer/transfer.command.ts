@@ -103,6 +103,7 @@ export class TransferCommand extends CommandRunner {
       { to: token, data: transferFunctionData, value: BigInt(0) },
     ])
     console.log('Transfer Receipt', receipt)
+    await client.waitForTransactionReceipt({ hash: receipt, confirmations: 5 })
   }
 
   /**
