@@ -3,5 +3,5 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Hex } from 'viem'
 
 export interface IFulfillService {
-  executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<Hex>
+  fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex>
 }
