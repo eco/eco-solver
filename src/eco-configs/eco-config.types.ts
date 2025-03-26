@@ -300,4 +300,12 @@ export interface SendBatchConfig {
 
 export interface HyperlaneConfig {
   useHyperlaneDefaultHook?: boolean
+  chains: Record<
+    string, // Chain ID
+    {
+      mailbox: Hex
+      aggregationHook: Hex
+      hyperlaneAggregationHook: Hex
+    }
+  >
 }

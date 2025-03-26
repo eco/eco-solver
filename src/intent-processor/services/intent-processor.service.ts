@@ -315,7 +315,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     const metadata = Hyperlane.getMetadata(0n, messageGasLimit)
 
-    const { mailbox, ...hooks } = Hyperlane.getChainMetadata(publicClient.chain.id)
+    const { mailbox, ...hooks } = Hyperlane.getChainMetadata(
+      this.config.hyperlane,
+      publicClient.chain.id,
+    )
 
     const aggregationHook = this.config.hyperlane.useHyperlaneDefaultHook
       ? (hooks.hyperlaneAggregationHook as Hex)
@@ -353,7 +356,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     intentCount: number,
   ): Promise<bigint> {
     try {
-      const { mailbox } = Hyperlane.getChainMetadata(source)
+      const { mailbox } = Hyperlane.getChainMetadata(this.config.hyperlane, source)
 
       this.logger.debug(
         EcoLogMessage.fromDefault({

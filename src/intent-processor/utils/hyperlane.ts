@@ -1,6 +1,6 @@
 import { encodeAbiParameters, encodeFunctionData, encodePacked, Hex, pad, PublicClient } from 'viem'
 import { HyperlaneMailboxAbi, MessageRecipientAbi } from '@/contracts/HyperlaneMailbox'
-import * as chainAddresses from '@/common/hyperlane/chainAddresses.json'
+import { HyperlaneConfig } from '@/eco-configs/eco-config.types'
 
 export async function estimateMessageGas(
   publicClient: PublicClient,
@@ -41,8 +41,8 @@ export async function estimateFee(
   })
 }
 
-export function getChainMetadata(chainId: number) {
-  const chain = Object.values(chainAddresses).find((chain) => chain.chainId === chainId)
+export function getChainMetadata(hyperlaneConfig: HyperlaneConfig, chainId: number) {
+  const chain = hyperlaneConfig.chains[chainId.toString()]
   if (!chain) throw new Error(`Hyperlane config not found for chain id ${chainId}`)
   return chain
 }
