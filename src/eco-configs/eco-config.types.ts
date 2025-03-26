@@ -134,6 +134,7 @@ export type IntervalConfig = {
  */
 export type IntentConfig = {
   defaultFee: FeeConfigType
+  skipBalanceCheck?: boolean
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
