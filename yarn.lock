@@ -1856,6 +1856,20 @@
     "@ethersproject/properties" "^5.7.0"
     "@ethersproject/strings" "^5.7.0"
 
+"@fig/complete-commander@^3.0.0":
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/@fig/complete-commander/-/complete-commander-3.2.0.tgz#1aa3df8a11528f1289c1c4782499c185c8612dc2"
+  integrity sha512-1Holl3XtRiANVKURZwgpjCnPuV4RsHp+XC0MhgvyAX/avQwj7F2HUItYOvGi/bXjJCkEzgBZmVfCr0HBA+q+Bw==
+  dependencies:
+    prettier "^3.2.5"
+
+"@golevelup/nestjs-discovery@4.0.3":
+  version "4.0.3"
+  resolved "https://registry.yarnpkg.com/@golevelup/nestjs-discovery/-/nestjs-discovery-4.0.3.tgz#ee9f77d5ba4d9a4663a36f0e35325fefebc34bf9"
+  integrity sha512-8w3CsXHN7+7Sn2i419Eal1Iw/kOjAd6Kb55M/ZqKBBwACCMn4WiEuzssC71LpBMI1090CiDxuelfPRwwIrQK+A==
+  dependencies:
+    lodash "^4.17.21"
+
 "@golevelup/ts-jest@^0.5.0":
   version "0.5.6"
   resolved "https://registry.yarnpkg.com/@golevelup/ts-jest/-/ts-jest-0.5.6.tgz#e63e3d746417de07cbd5d45208de380cd185346a"
@@ -5709,6 +5723,11 @@ combined-stream@^1.0.8:
   dependencies:
     delayed-stream "~1.0.0"
 
+commander@11.1.0:
+  version "11.1.0"
+  resolved "https://registry.yarnpkg.com/commander/-/commander-11.1.0.tgz#62fdce76006a68e5c1ab3314dc92e800eb83d906"
+  integrity sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==
+
 commander@4.1.1:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/commander/-/commander-4.1.1.tgz#9fd602bd936294e9e9ef46a3f4d6964044b18068"
@@ -5817,7 +5836,7 @@ cors@2.8.5:
     object-assign "^4"
     vary "^1"
 
-cosmiconfig@^8.2.0:
+cosmiconfig@8.3.6, cosmiconfig@^8.2.0:
   version "8.3.6"
   resolved "https://registry.yarnpkg.com/cosmiconfig/-/cosmiconfig-8.3.6.tgz#060a2b871d66dba6c8538ea1118ba1ac16f5fae3"
   integrity sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA==
@@ -8360,6 +8379,17 @@ neo-async@^2.6.2:
   resolved "https://registry.yarnpkg.com/neo-async/-/neo-async-2.6.2.tgz#b4aafb93e3aeb2d8174ca53cf163ab7d7308305f"
   integrity sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==
 
+nest-commander@^3.17.0:
+  version "3.17.0"
+  resolved "https://registry.yarnpkg.com/nest-commander/-/nest-commander-3.17.0.tgz#bc179c31a9cd48e9e54751d5b5467d326bb3509c"
+  integrity sha512-1R9vppZT2j/9njKiG0zYTDLAyQOj14KdGWdNuhluveK8VXoQepXNb0t09dRNWy4KCWrI7wDZ2tQTEwb43JyHOw==
+  dependencies:
+    "@fig/complete-commander" "^3.0.0"
+    "@golevelup/nestjs-discovery" "4.0.3"
+    commander "11.1.0"
+    cosmiconfig "8.3.6"
+    inquirer "8.2.6"
+
 nestjs-pino@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/nestjs-pino/-/nestjs-pino-4.1.0.tgz#dc671b8cad5fa3862b49464d0a553b23215ac16a"
@@ -8786,6 +8816,11 @@ prettier@^3.0.0:
   version "3.4.1"
   resolved "https://registry.yarnpkg.com/prettier/-/prettier-3.4.1.tgz#e211d451d6452db0a291672ca9154bc8c2579f7b"
   integrity sha512-G+YdqtITVZmOJje6QkXQWzl3fSfMxFwm1tjTyo9exhkmWSqC4Yhd1+lug++IlR2mvRVAxEDDWYkQdeSztajqgg==
+
+prettier@^3.2.5:
+  version "3.5.3"
+  resolved "https://registry.yarnpkg.com/prettier/-/prettier-3.5.3.tgz#4fc2ce0d657e7a02e602549f053b239cb7dfe1b5"
+  integrity sha512-QQtaxnoDJeAkDvDKWCLiwIXkTgRhwYDEQCghU9Z6q03iyek/rxRh/2lC3HB7P8sWT2xC/y5JDctPLBIGzHKbhw==
 
 pretty-format@^29.0.0, pretty-format@^29.7.0:
   version "29.7.0"
