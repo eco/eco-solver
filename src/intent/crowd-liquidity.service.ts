@@ -278,8 +278,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       uses: '1',
       dAppOwnerWallet: capacityTokenOwner,
       capacityTokenId: capacityTokenId,
-      delegateeAddresses: [pkp.ethAddress],
-      expiration: new Date(Date.now() + 1000 * 60 * 5).toISOString(), // 5 minutes
     })
 
     // ================ Get session sigs ================
