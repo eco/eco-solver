@@ -151,7 +151,10 @@ export async function addExecutorToKernelAccount<
 
     try {
       const transactionHash = await client.execute(installExecutes as any)
-      const receipt = await client.waitForTransactionReceipt({ hash: transactionHash })
+      const receipt = await client.waitForTransactionReceipt({
+        hash: transactionHash,
+        confirmations: 5,
+      })
       logger.log(
         EcoLogMessage.fromDefault({
           message: `installed OwnableExecutor`,
