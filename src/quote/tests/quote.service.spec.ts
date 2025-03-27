@@ -11,6 +11,7 @@ import {
   QuoteError,
   SolverUnsupported,
 } from '@/quote/errors'
+import { QuoteDataDTO } from '../dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
@@ -36,6 +37,7 @@ describe('QuotesService', () => {
   const mockLogError = jest.fn()
 
   beforeEach(async () => {
+    const quotesConfig = { intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'] }
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         QuoteService,
@@ -60,6 +62,7 @@ describe('QuotesService', () => {
     quoteService['logger'].debug = mockLogDebug
     quoteService['logger'].log = mockLogLog
     quoteService['logger'].error = mockLogError
+    quoteService['quotesConfig'] = quotesConfig
   })
 
   afterEach(async () => {
@@ -75,13 +78,15 @@ describe('QuotesService', () => {
     it('should throw an error if it cant store the quote in the db ', async () => {
       const failedStore = new Error('error')
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(failedStore)
-      expect(await quoteService.getQuote({} as any)).toEqual(InternalSaveError(failedStore))
+      const { error } = await quoteService.getQuote({} as any)
+      expect(error).toEqual(InternalSaveError(failedStore))
     })
 
     it('should return a 400 if it fails to validate the quote data', async () => {
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({})
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
-      expect(await quoteService.getQuote({} as any)).toEqual(SolverUnsupported)
+      const { error } = await quoteService.getQuote({} as any)
+      expect(error).toEqual(SolverUnsupported)
     })
 
     it('should save any error in getting the quote to the db', async () => {
@@ -92,20 +97,45 @@ describe('QuotesService', () => {
         throw failedStore
       })
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
-      expect(await quoteService.getQuote({} as any)).toEqual(InternalQuoteError(failedStore))
+      const { error } = await quoteService.getQuote({} as any)
+      expect(error).toBeDefined()
       expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(quoteIntent, InternalQuoteError(failedStore))
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { error })
     })
 
     it('should return the quote', async () => {
-      const quoteReciept = { fee: 1n }
+      const quoteData: QuoteDataDTO = {
+        quoteEntries: [
+          {
+            intentExecutionType: 'SELF_PUBLISH',
+            tokens: [
+              {
+                token: '0x123',
+                amount: 100n,
+              },
+            ],
+            expiryTime: '0',
+          },
+          {
+            intentExecutionType: 'GASLESS',
+            tokens: [
+              {
+                token: '0x456',
+                amount: 200n,
+              },
+            ],
+            expiryTime: '10',
+          },
+        ],
+      }
+
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
-      quoteService.generateQuote = jest.fn().mockResolvedValue(quoteReciept)
+      quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
-      expect(await quoteService.getQuote({} as any)).toEqual(quoteReciept)
+      expect(await quoteService.getQuote({} as any)).toEqual({ response: quoteData })
       expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(quoteIntent, quoteReciept)
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { quoteData })
     })
   })
 
@@ -226,12 +256,14 @@ describe('QuotesService', () => {
     it('should return error on calculate tokens failed', async () => {
       const error = new Error('error') as any
       feeService.calculateTokens = jest.fn().mockResolvedValue({ error } as any)
-      expect(await quoteService.generateQuote({} as any)).toEqual(InternalQuoteError(error))
+      const { error: quoteError } = await quoteService.generateQuote({} as any)
+      expect(quoteError).toEqual(InternalQuoteError(error))
     })
 
     it('should return error on calculate tokens doesnt return the calculated tokens', async () => {
       feeService.calculateTokens = jest.fn().mockResolvedValue({ calculated: undefined } as any)
-      expect(await quoteService.generateQuote({} as any)).toEqual(InternalQuoteError(undefined))
+      const { error } = await quoteService.generateQuote({} as any)
+      expect(error).toEqual(InternalQuoteError(undefined))
     })
 
     it('should return an insufficient balance if the reward doesnt meet the ask', async () => {
@@ -244,7 +276,8 @@ describe('QuotesService', () => {
       jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
       const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
       const askMock = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
-      expect(await quoteService.generateQuote({ route: {} } as any)).toEqual(
+      const { error } = await quoteService.generateQuote({ route: {} } as any)
+      expect(error).toEqual(
         InsufficientBalance(ask, 112n),
       )
       expect(askMock).toHaveBeenCalled()
@@ -263,7 +296,8 @@ describe('QuotesService', () => {
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
-        expect(await quoteService.generateQuote({ route: {} } as any)).toEqual({
+        const { response: quoteDataEntry } = await quoteService.generateQuote({ route: {} } as any)
+        expect(quoteDataEntry).toEqual({
           tokens: expectedTokens,
           expiryTime: expect.any(String),
         })

@@ -82,6 +82,9 @@ export default {
       },
     },
   },
+  quotesConfig: {
+    intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
+  },
   intentConfigs: {
     defaultFee: {
       limitFillBase6: 1000n * 10n ** 6n,

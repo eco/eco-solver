@@ -1,9 +1,10 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
-import { serialize } from '@/common/utils/serialize'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { QuoteDataDTO } from '../quote/dto/quote-data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
+import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteService } from '@/quote/quote.service'
+import { serialize } from '@/liquidity-manager/utils/serialize'
 import {
   BadRequestException,
   Body,
@@ -20,7 +21,7 @@ export class QuoteController {
   constructor(private readonly quoteService: QuoteService) {}
 
   @Post()
-  async getQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO) {
+  async getQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `Received quote request:`,
@@ -29,7 +30,7 @@ export class QuoteController {
         },
       }),
     )
-    const quote = await this.quoteService.getQuote(quoteIntentDataDTO)
+    const { response: quote, error } = await this.quoteService.getQuote(quoteIntentDataDTO)
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `Responding to quote request:`,
@@ -39,16 +40,19 @@ export class QuoteController {
       }),
     )
 
-    const errorStatus = (quote as QuoteErrorsInterface).statusCode
-    if (errorStatus) {
-      switch (errorStatus) {
-        case 400:
-          throw new BadRequestException(serialize(quote))
-        case 500:
-        default:
-          throw new InternalServerErrorException(serialize(quote))
+    if (error) {
+      const errorStatus = (error as QuoteErrorsInterface).statusCode
+      if (errorStatus) {
+        switch (errorStatus) {
+          case 400:
+            throw new BadRequestException(serialize(error))
+          case 500:
+          default:
+            throw new InternalServerErrorException(serialize(error))
+        }
       }
     }
-    return quote
+
+    return quote!
   }
 }
