@@ -206,25 +206,14 @@ export class QuoteService implements OnModuleInit {
     return
   }
 
-  async generateBaseQuote(
+  private async generateBaseQuote(
     quoteIntentModel: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
-    let quoteDataEntry: QuoteDataEntryDTO | undefined
-    let error: any
-
     try {
-      ;({ response: quoteDataEntry, error } = await this.generateQuote(quoteIntentModel))
-
-      if (error) {
-        await this.updateQuoteDb(quoteIntentModel, { error })
-        return { error }
-      }
+      return await this.generateQuote(quoteIntentModel)
     } catch (e) {
-      await this.updateQuoteDb(quoteIntentModel, { error })
       return { error: InternalQuoteError(e) }
     }
-
-    return { response: quoteDataEntry }
   }
 
   private async generateQuoteForIntentExecutionType(
