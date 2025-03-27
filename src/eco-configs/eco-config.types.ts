@@ -8,16 +8,18 @@ import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 
 // The config type that we store in json
 export type EcoConfigType = {
-  server: {
-    url: string
-  }
+  server: ServerConfig
+  gasEstimations: GasEstimationsConfig
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
+  quotesConfig: QuotesConfig
+  solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
   fulfillmentEstimate: FulfillmentEstimateConfig
   alchemy: AlchemyConfigType
@@ -157,6 +159,32 @@ export type FulfillmentEstimateConfig = {
   defaultBlockTime: number
 }
 
+export type ServerConfig = {
+  url: string
+}
+
+export type GasEstimationsConfig = {
+  fundFor: bigint // 150_000n
+  permit: bigint // 60_000n
+  permit2: bigint // 80_000n
+  defaultGasPriceGwei: string // 30
+}
+
+/**
+ * The config type for the quotes section
+ */
+export type QuoteExecutionType = (typeof IntentExecutionTypeKeys)[number]
+
+export type QuotesConfig = {
+  intentExecutionTypes: QuoteExecutionType[]
+}
+
+export type SolverRegistrationConfig = {
+  apiOptions: {
+    baseUrl: string
+  }
+}
+
 /**
  * The config type for the aws credentials
  */
@@ -249,6 +277,7 @@ export type Solver = {
   network: Network
   fee: FeeConfigType
   chainID: number
+
   // The average block time for the chain in seconds
   averageBlockTime: number
 }
