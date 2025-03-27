@@ -82,7 +82,9 @@ describe('QuoteController Test', () => {
     })
 
     it('should return a 500 on server error', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ error: InternalSaveError(quote as any) })
+      jest
+        .spyOn(quoteService, 'getQuote')
+        .mockResolvedValue({ error: InternalSaveError(quote as any) })
       jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
       await expect(quoteController.getQuote({} as any)).rejects.toThrow(
         new InternalServerErrorException(InternalSaveError(quote as any)),
