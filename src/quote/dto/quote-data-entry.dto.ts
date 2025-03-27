@@ -1,17 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import {
-  ArrayNotEmpty,
-  IsArray,
-  IsIn,
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  ValidateNested,
-} from 'class-validator'
+import { ArrayNotEmpty, IsArray, IsIn, IsNotEmpty, IsNumber, IsString, ValidateNested } from 'class-validator'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteCallDataDTO, QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 
 export class QuoteDataEntryDTO {
   @ApiProperty({ enum: IntentExecutionType.enumKeys })
@@ -21,7 +13,6 @@ export class QuoteDataEntryDTO {
   intentExecutionType: string
 
   @IsNotEmpty()
-  @ArrayNotEmpty()
   @IsArray()
   @ApiProperty()
   @ValidateNested()
@@ -37,12 +28,16 @@ export class QuoteDataEntryDTO {
   routeCalls: QuoteCallDataDTO[]
 
   @IsNotEmpty()
-  @ArrayNotEmpty()
   @IsArray()
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRewardTokensDTO)
   rewardTokens: QuoteRewardTokensDTO[]
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @Transform(({ value }) => BigInt(value))
+  rewardNative: bigint
 
   @IsNotEmpty()
   @IsString()

@@ -4,15 +4,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import {
-  InfeasibleQuote,
-  InsufficientBalance,
-  InternalQuoteError,
-  InternalSaveError,
-  InvalidQuoteIntent,
-  Quote400,
-  SolverUnsupported,
-} from '@/quote/errors'
+import { InfeasibleQuote, InsufficientBalance, InternalQuoteError, InternalSaveError, InvalidQuoteIntent, Quote400, SolverUnsupported } from '@/quote/errors'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
@@ -33,6 +25,7 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
+import { isInsufficient } from '../fee/utils'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -50,6 +43,7 @@ interface GenerateQuoteParams {
 @Injectable()
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
+
   private quotesConfig: QuotesConfig
   private gasEstimationsConfig: GasEstimationsConfig
   private intentInitiationService: IntentInitiationService
@@ -440,21 +434,30 @@ export class QuoteService implements OnModuleInit {
       return { error: InternalQuoteError(error) }
     }
 
-    const { srcDeficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
+    const { srcDeficitDescending: fundable, rewards } = calculated as CalculateTokensType
 
-    const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
-    const totalAsk = this.feeService.getAsk(totalFulfill, quoteIntentModel)
-    const totalAvailableRewardAmount = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
-    if (totalAsk > totalAvailableRewardAmount) {
-      return { error: InsufficientBalance(totalAsk, totalAvailableRewardAmount) }
+    const { totalFillNormalized, error: totalFillError } =
+      await this.feeService.getTotalFill(quoteIntentModel)
+    if (Boolean(totalFillError)) {
+      return { error: totalFillError }
+    }
+    const totalAsk = this.feeService.getAsk(totalFillNormalized, quoteIntentModel)
+    const { totalRewardsNormalized, error: totalRewardsError } =
+      await this.feeService.getTotalRewards(quoteIntentModel)
+    if (Boolean(totalRewardsError)) {
+      return { error: totalRewardsError }
+    }
+    if (isInsufficient(totalAsk, totalRewardsNormalized)) {
+      return { error: InsufficientBalance(totalAsk, totalRewardsNormalized) }
     }
     let filled = 0n
+    const totalTokenAsk = totalAsk.token
     const quoteRecord: Record<Hex, RewardTokensInterface> = {}
     for (const deficit of fundable) {
-      if (filled >= totalAsk) {
+      if (filled >= totalTokenAsk) {
         break
       }
-      const left = totalAsk - filled
+      const left = totalTokenAsk - filled
       //Only fill defits first pass
       if (deficit.delta.balance < 0n) {
         const reward = rewards.find((r) => r.address === deficit.delta.address)
@@ -482,12 +485,12 @@ export class QuoteService implements OnModuleInit {
     fundable.sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
 
     //if remaining funds, for those with smallest deltas
-    if (filled < totalAsk) {
+    if (filled < totalTokenAsk) {
       for (const deficit of fundable) {
-        if (filled >= totalAsk) {
+        if (filled >= totalTokenAsk) {
           break
         }
-        const left = totalAsk - filled
+        const left = totalTokenAsk - filled
         const reward = rewards.find((r) => r.address === deficit.delta.address)
         if (reward) {
           const amount = Mathb.min(left, reward.balance)
@@ -509,14 +512,12 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
-    const estimatedFulfillTimeSec =
-      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
-
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
         routeCalls: quoteIntentModel.route.calls,
         rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
+        rewardNative: totalAsk.native,
         expiryTime: this.getQuoteExpiryTime(),
         estimatedFulfillTimeSec,
       } as QuoteDataEntryDTO,
@@ -538,23 +539,21 @@ export class QuoteService implements OnModuleInit {
     if (error || !calculated) {
       return { error: InternalQuoteError(error) }
     }
+    const { destDeficitDescending: fundable, tokens, calls } = calculated as CalculateTokensType
+    const { totalRewardsNormalized, error: totalRewardsError } =
+      await this.feeService.getTotalRewards(intent)
+    if (Boolean(totalRewardsError)) {
+      return { error: totalRewardsError }
+    }
+    const fee = this.feeService.getFee(totalRewardsNormalized, intent)
 
-    const {
-      destDeficitDescending: fundable,
-      rewards,
-      tokens,
-      calls,
-    } = calculated as CalculateTokensType
-
-    const totalReward = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
-    const fee = this.feeService.getFee(totalReward, intent)
-
-    if (fee >= totalReward) {
-      return { error: InsufficientBalance(fee, totalReward) }
+    if (isInsufficient(fee, totalRewardsNormalized)) {
+      return { error: InsufficientBalance(fee, totalRewardsNormalized) }
     }
 
     // Calculate total amount available after fee subtraction
-    const totalAvailableAfterFee = totalReward - fee
+    const totalAvailableAfterFee = totalRewardsNormalized.token - fee.token
+    const totalAvailableAfterFeeNative = totalRewardsNormalized.native - fee.native
     let remainingToFill = totalAvailableAfterFee
 
     const routeCalls = [] as QuoteCallDataDTO[]
@@ -626,6 +625,7 @@ export class QuoteService implements OnModuleInit {
         routeTokens,
         routeCalls,
         rewardTokens: intent.reward.tokens,
+        rewardNative: totalAvailableAfterFeeNative,
         expiryTime: this.getQuoteExpiryTime(),
       } as QuoteDataEntryDTO,
     }
