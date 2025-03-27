@@ -1,11 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing'
+import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
-import { QuoteController } from '@/api/quote.controller'
-import { QuoteService } from '@/quote/quote.service'
+import { IntentExecutionType } from '../../quote/enums/intent-execution-type.enum'
 import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
+import { QuoteController } from '@/api/quote.controller'
+import { QuoteDataDTO } from '../../quote/dto/quote-data.dto'
+import { QuoteService } from '@/quote/quote.service'
 import { serialize } from '@/liquidity-manager/utils/serialize'
+import { Test, TestingModule } from '@nestjs/testing'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController
@@ -47,24 +49,40 @@ describe('QuoteController Test', () => {
   })
 
   describe('getQuote', () => {
-    const quote = {
-      tokens: [
+    const quote: QuoteDataDTO = {
+      quoteEntries: [
         {
-          address: '0x123',
-          amount: 100n,
+          intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+          tokens: [
+            {
+              token: '0x123',
+              amount: 100n,
+            },
+          ],
+          expiryTime: '0',
+        },
+        {
+          intentExecutionType: IntentExecutionType.GASLESS.toString(),
+          tokens: [
+            {
+              token: '0x456',
+              amount: 200n,
+            },
+          ],
+          expiryTime: '10',
         },
       ],
-      expiryTime: 0,
     }
+
     it('should return a 400 on bad request', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(SolverUnsupported)
+      jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ error: SolverUnsupported })
       await expect(quoteController.getQuote({} as any)).rejects.toThrow(
         new BadRequestException(serialize(SolverUnsupported)),
       )
     })
 
     it('should return a 500 on server error', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(InternalSaveError(quote as any))
+      jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ error: InternalSaveError(quote as any) })
       jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
       await expect(quoteController.getQuote({} as any)).rejects.toThrow(
         new InternalServerErrorException(InternalSaveError(quote as any)),
@@ -72,7 +90,7 @@ describe('QuoteController Test', () => {
     })
 
     it('should log and return a quote', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(quote as any)
+      jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ response: quote as any })
 
       const result = await quoteController.getQuote({} as any)
       expect(result).toEqual(quote)
