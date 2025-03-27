@@ -277,9 +277,7 @@ describe('QuotesService', () => {
       const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
       const askMock = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
       const { error } = await quoteService.generateQuote({ route: {} } as any)
-      expect(error).toEqual(
-        InsufficientBalance(ask, 112n),
-      )
+      expect(error).toEqual(InsufficientBalance(ask, 112n))
       expect(askMock).toHaveBeenCalled()
     })
 
