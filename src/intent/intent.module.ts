@@ -27,6 +27,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     ProverModule,
     SolverModule,
     TransactionModule,
+    IntentInitiationModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
   ],
   providers: [
@@ -48,6 +49,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     CrowdLiquidityService,
     UtilsIntentService,
     ValidationService,
+    IntentInitiationModule,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })
