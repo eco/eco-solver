@@ -1,11 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEthereumAddress, IsNotEmpty, ValidateNested } from 'class-validator'
+import { IsEthereumAddress, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
 import { PermitSignatureDTO } from './permit-signature-data.dto'
 import { Type } from 'class-transformer'
 
 export class PermitDTO {
   // one for each rewardToken in the intent
   @ApiProperty()
+  @IsString()
   @IsNotEmpty()
   permitType: string
 
