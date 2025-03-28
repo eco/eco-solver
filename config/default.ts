@@ -96,7 +96,7 @@ export default {
     },
     proofs: {
       storage_duration_seconds: 604800,
-      hyperlane_duration_seconds: 3600,
+      hyperlane_duration_seconds: 86400,
     },
   },
   whitelist: {},
