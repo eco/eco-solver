@@ -5,6 +5,7 @@ import { Type } from 'class-transformer'
 
 export class Permit2DTO {
   @ApiProperty()
+  @IsString()
   @IsNotEmpty()
   permitType: string
 
