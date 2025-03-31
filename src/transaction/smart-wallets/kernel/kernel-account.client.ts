@@ -99,6 +99,7 @@ async function deployKernelAccount<
       chain: client.chain as Chain,
       account: client.account as Account,
     })
+    await client.waitForTransactionReceipt({ hash: args.deployReceipt, confirmations: 5 })
   }
   return args
 }
