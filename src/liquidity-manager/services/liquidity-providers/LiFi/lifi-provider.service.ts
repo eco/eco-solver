@@ -120,6 +120,7 @@ export class LiFiProviderService implements OnModuleInit {
 
     // Execute the quote
     return executeRoute(quote.context, {
+      executeInBackground: true,
       updateRouteHook: (route) => logLiFiProcess(this.logger, route),
       acceptExchangeRateUpdateHook: () => Promise.resolve(true),
     })
