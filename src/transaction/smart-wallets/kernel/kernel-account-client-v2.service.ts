@@ -68,7 +68,7 @@ class KernelAccountClientV2ServiceBase<
     const base = await super.buildChainConfig(chain)
     return {
       ...base,
-      ownerAccount: this.signerService.getAccount(),
+      account: this.signerService.getAccount(),
       useMetaFactory: false,
       entryPoint: {
         address: entryPoint07Address,
