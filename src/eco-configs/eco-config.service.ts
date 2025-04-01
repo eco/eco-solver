@@ -4,7 +4,14 @@ import { entries } from 'lodash'
 import * as config from 'config'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { AwsCredential, EcoConfigType, IntentSource, KmsConfig, Solver } from './eco-config.types'
+import {
+  AwsCredential,
+  EcoConfigType,
+  IntentSource,
+  KmsConfig,
+  SafeType,
+  Solver,
+} from './eco-config.types'
 import { Chain, getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
@@ -101,6 +108,14 @@ export class EcoConfigService implements OnModuleInit {
   // Returns the aws configs
   getKmsConfig(): KmsConfig {
     return this.get('kms')
+  }
+
+  // Returns the safe multisig configs
+  getSafe(): SafeType {
+    const safe = this.get<SafeType>('safe')
+    // validate and checksum the owner address, throws if invalid/not-set
+    safe.owner = getAddress(safe.owner)
+    return safe
   }
 
   // Returns the solvers config
