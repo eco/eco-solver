@@ -8,7 +8,7 @@ import {
   Route,
   RoutesRequest,
   SDKConfig,
-} from '@lifi/sdk'
+} from '@eco-foundation/lifi-sdk'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
@@ -120,7 +120,7 @@ export class LiFiProviderService implements OnModuleInit {
 
     // Execute the quote
     return executeRoute(quote.context, {
-      executeInBackground: true,
+      disableMessageSigning: true,
       updateRouteHook: (route) => logLiFiProcess(this.logger, route),
       acceptExchangeRateUpdateHook: () => Promise.resolve(true),
     })
