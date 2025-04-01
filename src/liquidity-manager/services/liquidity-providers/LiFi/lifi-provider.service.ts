@@ -129,6 +129,8 @@ export class LiFiProviderService implements OnModuleInit {
     const rpcUrl = this.ecoConfigService.getChainRPCs()
     const lifiRPCUrls: SDKConfig['rpcUrls'] = {}
 
+    console.log('getLiFiRPCUrls', { rpcUrl })
+
     for (const chainId in rpcUrl) {
       lifiRPCUrls[parseInt(chainId)] = [rpcUrl[chainId]]
     }
