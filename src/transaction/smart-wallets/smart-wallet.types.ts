@@ -12,7 +12,7 @@ import {
 import { DeployFactoryArgs } from './kernel'
 
 // The type that simple account executes arrays of
-export type ExecuteSmartWalletArg = { to: Hex; data: Hex; value?: bigint }
+export type ExecuteSmartWalletArg = { to: Hex; data?: Hex; value?: bigint }
 
 export type ExecuteSmartWalletArgs = ExecuteSmartWalletArg[]
 
