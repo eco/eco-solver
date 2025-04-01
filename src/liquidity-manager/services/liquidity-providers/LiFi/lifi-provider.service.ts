@@ -1,6 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { parseUnits } from 'viem'
-import { createConfig, EVM, executeRoute, getRoutes, RoutesRequest, SDKConfig } from '@lifi/sdk'
+import {
+  createConfig,
+  EVM,
+  executeRoute,
+  getRoutes,
+  Route,
+  RoutesRequest,
+  SDKConfig,
+} from '@lifi/sdk'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
@@ -61,7 +69,7 @@ export class LiFiProviderService implements OnModuleInit {
 
     const result = await getRoutes(routesRequest)
 
-    const [route] = result.routes
+    const route = this.selectRoute(result.routes)
 
     const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.toAmount)
 
@@ -74,6 +82,19 @@ export class LiFiProviderService implements OnModuleInit {
       strategy: this.getStrategy(),
       context: route,
     }
+  }
+
+  selectRoute(routes: Route[]): Route {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'LiFi routes',
+        properties: {
+          routes,
+        },
+      }),
+    )
+
+    return routes[0]
   }
 
   async execute(quote: RebalanceQuote<'LiFi'>) {

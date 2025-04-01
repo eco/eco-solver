@@ -143,7 +143,10 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `CheckBalancesCronJob: Failed`,
-        properties: { error: (error as any)?.message ?? error },
+        properties: {
+          error: (error as any)?.message ?? error,
+          stack: (error as any)?.stack ?? undefined,
+        },
       }),
     )
   }
