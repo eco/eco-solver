@@ -4090,15 +4090,15 @@
   resolved "https://registry.yarnpkg.com/@xtuc/long/-/long-4.2.2.tgz#d291c6a4e97989b5c61d9acf396ae4fe133a718d"
   integrity sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==
 
-"@zerodev/ecdsa-validator@^5.4.4":
-  version "5.4.4"
-  resolved "https://registry.yarnpkg.com/@zerodev/ecdsa-validator/-/ecdsa-validator-5.4.4.tgz#faf1218a4b00a66dfb91803bb8a2ae575cfd305f"
-  integrity sha512-PDmNX3GmmMh2MEpvkBpIl2s1KgmmI6NW9b8K6z5eMZsoM/f5FWgCuboUOGKX1PltNp3Rqo9OY/hNjzCyB4Kmuw==
+"@zerodev/ecdsa-validator@^5.4.5":
+  version "5.4.5"
+  resolved "https://registry.yarnpkg.com/@zerodev/ecdsa-validator/-/ecdsa-validator-5.4.5.tgz#f70f0efb524bdb132560c083971396fcaf1ea216"
+  integrity sha512-B9QsqqNZBevny+KzTQOiOGlFC1NreU1dlEW2ghZzCpYLVLgpQ7iOpRoOMmFyfsTVJoQQoSNEfgkoE9gzh2V8fw==
 
-"@zerodev/sdk@^5.4.26":
-  version "5.4.26"
-  resolved "https://registry.yarnpkg.com/@zerodev/sdk/-/sdk-5.4.26.tgz#fe092d6d3fffac0018e0a5cf9717dccb0fca9b02"
-  integrity sha512-vzWjoBrus/54SVg+VhjFG0fr2M99208+78ya62tLyuYJzx8PTlLbBfSlzVYHYGtGFbhinmcYelM0q1CuOa4arQ==
+"@zerodev/sdk@^5.4.28":
+  version "5.4.28"
+  resolved "https://registry.yarnpkg.com/@zerodev/sdk/-/sdk-5.4.28.tgz#94a7cb56dcbc29209b06641abdec48014e749450"
+  integrity sha512-gnD9gEmLUHy3nt8XfRJvGivu17XbwJdLzw8/keidr/stLqYpUJ/cWASrB48YeA1EJk0/Vy3Fd/tULi3sl7JUYA==
   dependencies:
     semver "^7.6.0"
 
