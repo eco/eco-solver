@@ -46,7 +46,7 @@
     "@eco-foundation/routes-ts": "1.17.1",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
-    "@lifi/sdk": "^3.5.0",
+    "@lifi/sdk": "^3.6.2",
     "@nestjs/bullmq": "^10.1.1",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^10.0.0",
