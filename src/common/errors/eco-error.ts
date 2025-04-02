@@ -62,6 +62,18 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
+  static QuoteNotFound() {
+    return new EcoError(`Quote not found`)
+  }
+
+  static NoPermitsProvided() {
+    return new EcoError(`At least one permit must be provided`)
+  }
+
+  static AllPermitsMustBeOnSameChain() {
+    return new EcoError(`All Permits must be on the same chain for batching`)
+  }
+
   static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentBatchError = new Error('Could not fulfill batch transaction')

@@ -15,7 +15,6 @@ import { SolverModule } from '../solver/solver.module'
 import { FlagsModule } from '../flags/flags.module'
 import { ValidationService } from '@/intent/validation.sevice'
 import { FeeModule } from '@/fee/fee.module'
-import { IntentInitiationModule } from './intent-initiation/intent-initiation.module'
 
 @Module({
   imports: [
@@ -26,7 +25,6 @@ import { IntentInitiationModule } from './intent-initiation/intent-initiation.mo
     ProverModule,
     SolverModule,
     TransactionModule,
-    IntentInitiationModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
   ],
   providers: [
@@ -45,7 +43,6 @@ import { IntentInitiationModule } from './intent-initiation/intent-initiation.mo
     FulfillIntentService,
     UtilsIntentService,
     ValidationService,
-    IntentInitiationModule,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })
