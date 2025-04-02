@@ -9,6 +9,7 @@ import {
   Client,
   ClientConfig,
   createPublicClient,
+  createWalletClient,
   Hex,
   LocalAccount,
   OneOf,
@@ -69,6 +70,12 @@ export async function createKernelAccountClientV2<
     name,
   })
 
+  const ownerClient = createWalletClient({
+    ...parameters,
+    chain: parameters.chain!,
+    account: account as LocalAccount,
+  })
+
   const kernelVersion = KERNEL_V3_1
   const entryPoint = {
     address: entryPoint07Address,
@@ -95,7 +102,7 @@ export async function createKernelAccountClientV2<
     client: publicClient,
     bundlerTransport: parameters.transport,
     chain: parameters.chain!,
-  }).extend(kernelAccountClientActions(account as LocalAccount)) as unknown as KernelAccountClient<
+  }).extend(kernelAccountClientActions(ownerClient)) as unknown as KernelAccountClient<
     Transport,
     Chain,
     SmartAccount,
@@ -103,7 +110,7 @@ export async function createKernelAccountClientV2<
   >
 }
 
-function kernelAccountClientActions(owner: LocalAccount) {
+function kernelAccountClientActions(ownerClient: WalletClient<Transport, Chain, Account>) {
   return <
     TChain extends Chain | undefined = Chain | undefined,
     TSmartAccount extends SmartAccount | undefined = SmartAccount | undefined,
@@ -112,7 +119,7 @@ function kernelAccountClientActions(owner: LocalAccount) {
   ): Pick<KernelAccountClientActions<TChain, TSmartAccount>, 'sendTransaction'> => {
     return {
       sendTransaction: (args: any) =>
-        executeTransactionsWithKernel(client as KernelAccountClient, owner, [
+        executeTransactionsWithKernel(client as KernelAccountClient, ownerClient, [
           {
             to: args.to,
             value: args.value,
@@ -124,17 +131,16 @@ function kernelAccountClientActions(owner: LocalAccount) {
 }
 
 export async function executeTransactionsWithKernel(
-  client: KernelAccountClient,
-  account: Account,
+  kernelClient: KernelAccountClient,
+  walletClient: WalletClient<Transport, Chain, Account>,
   transactions: ExecuteSmartWalletArgs,
 ): Promise<Hex> {
   const calls = transactions.map((tx) => ({ to: tx.to, data: tx.data, value: tx.value }))
   const data = encodeKernelExecuteCallData({ calls, kernelVersion: '0.3.1' })
-  return client.sendTransaction({
-    account,
+  return walletClient.sendTransaction({
     data: data,
     kzg: undefined,
-    to: client.account?.address,
-    chain: client.chain as Chain,
+    to: kernelClient.account?.address,
+    chain: kernelClient.chain as Chain,
   })
 }
