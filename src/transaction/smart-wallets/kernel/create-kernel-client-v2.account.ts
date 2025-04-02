@@ -1,4 +1,3 @@
-import { SmartAccountClient } from 'permissionless'
 import {
   KernelVersion,
   ToEcdsaKernelSmartAccountParameters,
@@ -20,12 +19,15 @@ import {
 import { entryPoint07Address, SmartAccount } from 'viem/account-abstraction'
 import { entryPointV_0_7 } from '@/transaction/smart-wallets/kernel/create.kernel.account'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
-import { createKernelAccount, createKernelAccountClient } from '@zerodev/sdk'
+import {
+  createKernelAccount,
+  createKernelAccountClient,
+  CreateKernelAccountReturnType,
+  KernelAccountClient,
+} from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { KernelAccountClientConfig } from '@/transaction/smart-wallets/kernel/kernel-account.config'
-import { CreateKernelAccountReturnType } from '@zerodev/sdk/accounts/kernel/createKernelAccount'
-import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 
 export type KernelAccountClientV2Config<
   entryPointVersion extends '0.6' | '0.7',
@@ -44,21 +46,6 @@ export type KernelAccountClientV2Config<
     ToEcdsaKernelSmartAccountParameters<entryPointVersion, kernelVersion, owner> & {
       ownerAccount: Account
     }
->
-
-export type KernelAccountClientV2<
-  entryPointVersion extends '0.6' | '0.7',
-  transport extends Transport = Transport,
-  chain extends Chain | undefined = Chain | undefined,
-  account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
-    | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
-    | undefined,
-  client extends Client | undefined = undefined,
-  rpcSchema extends RpcSchema | undefined = undefined,
-> = Prettify<
-  SmartAccountClient<transport, chain, account, client, rpcSchema> & {
-    ownerAccount: Account
-  }
 >
 
 export async function createKernelAccountClientV2<
