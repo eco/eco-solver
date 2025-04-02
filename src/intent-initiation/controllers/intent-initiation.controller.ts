@@ -1,8 +1,8 @@
-import { API_ROOT, INTENT_INITIATION_ROUTE } from '../../../common/routes/constants'
+import { API_ROOT, INTENT_INITIATION_ROUTE } from '../../common/routes/constants'
 import { ApiOperation, ApiResponse } from '@nestjs/swagger'
-import { GaslessIntentRequestDTO } from '../../../quote/dto/gasless-intent-request.dto'
+import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
 import { IntentInitiationService } from '../services/intent-initiation.service'
-import { QuoteErrorsInterface } from '../../../quote/errors'
+import { QuoteErrorsInterface } from '../../quote/errors'
 import { serialize } from 'v8'
 
 import {

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Hex } from 'viem'
 import { PermitDataDTO } from './permit-data.dto'
 import { Type } from 'class-transformer'
 
@@ -14,7 +15,7 @@ export class GaslessIntentDataDTO {
   @IsNotEmpty()
   @ApiProperty()
   @IsEthereumAddress()
-  funder: string
+  funder: Hex
 
   @IsNotEmpty()
   @ValidateNested()
@@ -26,4 +27,8 @@ export class GaslessIntentDataDTO {
   @IsBoolean()
   @ApiPropertyOptional()
   allowPartial?: boolean = false
+
+  getPermitContractAddress?(): Hex {
+    return this.permitData.getPermitContractAddress?.() as Hex
+  }
 }

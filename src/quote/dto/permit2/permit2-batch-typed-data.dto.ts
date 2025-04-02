@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
+import { Hex } from 'viem'
 import { Permit2TypedDataDetailsDTO } from './permit2-typed-data-details.dto'
 import { Type } from 'class-transformer'
 
@@ -22,7 +23,7 @@ export class Permit2BatchTypedDataDTO {
   @IsNotEmpty()
   @IsEthereumAddress()
   @ApiProperty()
-  spender: string // want to validate that this is the correct spender (no free permits)
+  spender: Hex
 
   @IsNotEmpty()
   @IsNumberString({ no_symbols: true })
