@@ -9,6 +9,7 @@ import {
   Client,
   ClientConfig,
   createPublicClient,
+  Hex,
   LocalAccount,
   OneOf,
   Prettify,
@@ -24,10 +25,13 @@ import {
   createKernelAccountClient,
   CreateKernelAccountReturnType,
   KernelAccountClient,
+  KernelAccountClientActions,
 } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { KernelAccountClientConfig } from '@/transaction/smart-wallets/kernel/kernel-account.config'
+import { ExecuteSmartWalletArgs } from '@/transaction/smart-wallets/smart-wallet.types'
+import { encodeKernelExecuteCallData } from '@/transaction/smart-wallets/kernel/actions/encodeData.kernel'
 
 export type KernelAccountClientV2Config<
   entryPointVersion extends '0.6' | '0.7',
@@ -90,6 +94,47 @@ export async function createKernelAccountClientV2<
     account: kernelAccount,
     client: publicClient,
     bundlerTransport: parameters.transport,
-    chain: parameters.chain,
-  }) as KernelAccountClient<Transport, Chain, SmartAccount, Client>
+    chain: parameters.chain!,
+  }).extend(kernelAccountClientActions(account as LocalAccount)) as unknown as KernelAccountClient<
+    Transport,
+    Chain,
+    SmartAccount,
+    Client
+  >
+}
+
+function kernelAccountClientActions(owner: LocalAccount) {
+  return <
+    TChain extends Chain | undefined = Chain | undefined,
+    TSmartAccount extends SmartAccount | undefined = SmartAccount | undefined,
+  >(
+    client: KernelAccountClient<Transport, TChain, TSmartAccount>,
+  ): Pick<KernelAccountClientActions<TChain, TSmartAccount>, 'sendTransaction'> => {
+    return {
+      sendTransaction: (args: any) =>
+        executeTransactionsWithKernel(client as KernelAccountClient, owner, [
+          {
+            to: args.to,
+            value: args.value,
+            data: args.data,
+          },
+        ]),
+    }
+  }
+}
+
+export async function executeTransactionsWithKernel(
+  client: KernelAccountClient,
+  account: Account,
+  transactions: ExecuteSmartWalletArgs,
+): Promise<Hex> {
+  const calls = transactions.map((tx) => ({ to: tx.to, data: tx.data, value: tx.value }))
+  const data = encodeKernelExecuteCallData({ calls, kernelVersion: '0.3.1' })
+  return client.sendTransaction({
+    account,
+    data: data,
+    kzg: undefined,
+    to: client.account?.address,
+    chain: client.chain as Chain,
+  })
 }
