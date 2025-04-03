@@ -21,8 +21,8 @@ class TestProcessor extends BaseProcessor<Job, TestJobManager> {
   }
 
   constructor(private readonly jobManager: TestJobManager) {
-    // Create with the processor name only - logger will be created internally
-    super('test-processor')
+    // Create with the processor name and job managers
+    super('test-processor', [jobManager])
   }
 }
 

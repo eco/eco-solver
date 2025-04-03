@@ -1,11 +1,10 @@
 import {
   encodeAbiParameters,
-  encodeFunctionData,
   Hex,
   PublicClient,
 } from 'viem'
 import { createMock } from '@golevelup/ts-jest'
-import { HyperlaneMailboxAbi, MessageRecipientAbi } from '@/contracts/HyperlaneMailbox'
+import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import { HyperlaneConfig } from '@/eco-configs/eco-config.types'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 

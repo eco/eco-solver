@@ -3,7 +3,7 @@ import { WalletClientService, WalletClientDefaultSignerService } from '@/transac
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { SignerService } from '@/sign/signer.service'
 import { createMock } from '@golevelup/ts-jest'
-import { extractChain, createPublicClient, createWalletClient } from 'viem'
+import { extractChain, createPublicClient, createWalletClient, Address, Account, Hex } from 'viem'
 import { ChainsSupported } from '@/common/chains/supported'
 
 // Mock external dependencies
@@ -29,8 +29,14 @@ jest.mock('@/common/chains/supported', () => ({
 describe('WalletClientService', () => {
   // Create a concrete implementation of WalletClientService for testing
   class TestWalletClientService extends WalletClientService {
-    getAccount() {
-      return Promise.resolve({ address: '0xtest' })
+    getAccount(): Promise<Account> {
+      return Promise.resolve({ 
+        address: '0xtest' as Address,
+        signMessage: jest.fn(),
+        signTransaction: jest.fn(),
+        signTypedData: jest.fn(),
+        publicKey: '0xpublickey' as Hex
+      } as unknown as Account)
     }
   }
 
@@ -39,7 +45,7 @@ describe('WalletClientService', () => {
 
   beforeEach(async () => {
     ecoConfigService = createMock<EcoConfigService>({
-      getTransports: jest.fn().mockReturnValue({
+      getViem: jest.fn().mockReturnValue({
         rpcUrls: {
           '1': 'https://eth-mainnet.example.com',
         },

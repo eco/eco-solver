@@ -33,12 +33,17 @@ jest.mock('lodash', () => {
       };
     }),
     map: jest.fn().mockImplementation((collection, mapFn) => {
-      if (typeof mapFn === 'string' || typeof mapFn === 'function') {
-        if (mapFn === 'hash') return ['0xhash1', '0xhash2'];
-        if (mapFn === 'routeHash') return ['0xroute1', '0xroute2'];
-        if (mapFn === 'sourceAddress') return collection && collection.length ? collection.map((src: any) => src.sourceAddress) : ['0x5555555555555555555555555555555555555555'];
-        if (mapFn === 'inbox') return collection && collection.length ? collection.map((src: any) => src.inbox) : ['0x6666666666666666666666666666666666666666'];
+      if (typeof mapFn === 'function') {
+        // Handle function mapping
+        return mapFn(collection);
       }
+      
+      // Handle property name mapping
+      if (mapFn === 'hash') return ['0xhash1', '0xhash2'];
+      if (mapFn === 'routeHash') return ['0xroute1', '0xroute2'];
+      if (mapFn === 'sourceAddress') return collection && collection.length ? collection.map((src: any) => src.sourceAddress) : ['0x5555555555555555555555555555555555555555'];
+      if (mapFn === 'inbox') return collection && collection.length ? collection.map((src: any) => src.inbox) : ['0x6666666666666666666666666666666666666666'];
+      
       
       // Handle mapping function for getWithdrawData
       return [

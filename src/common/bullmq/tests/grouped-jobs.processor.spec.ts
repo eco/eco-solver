@@ -35,7 +35,7 @@ class TestGroupedProcessor extends GroupedJobsProcessor<TestGroupJob, TestJobMan
   }
 
   constructor(groupBy: string, queue: Queue, private readonly jobManager: TestJobManager) {
-    super(groupBy as any, 'test-grouped-processor')
+    super(groupBy as any, 'test-grouped-processor', [jobManager])
     this.queue = queue
   }
 }
