@@ -1,24 +1,19 @@
-//jest.mock('@/bullmq/bullmq.helper')
-jest.mock('@nestjs/common', () => {
-  const originalModule = jest.requireActual('@nestjs/common');
-  return {
-    ...originalModule,
-    Module: jest.fn().mockImplementation(metadata => {
-      return function TestModule() {};
-    }),
-  };
-});
+// Basic test to verify the WatchModule is properly defined
+jest.mock('@/bullmq/bullmq.helper', () => ({
+  initBullMQ: jest.fn().mockReturnValue({}),
+}))
 
-// Simple test to verify the module exists
+jest.mock('@/watch/intent/watch-create-intent.service')
+jest.mock('@/watch/intent/watch-fulfillment.service')
+jest.mock('@/transaction/transaction.module', () => ({
+  TransactionModule: class {},
+}))
+
+import { WatchModule } from '../watch.module'
+
 describe('WatchModule', () => {
   it('should be defined', () => {
-    // Just load the module class to make sure it exists
-    // We're just checking it loads without errors - this is enough since
-    // our previous TypeScript warnings were resolved
-    jest.mock('../watch.module', () => ({
-      WatchModule: class {}
-    }));
-    const { WatchModule } = require('../watch.module');
-    expect(WatchModule).toBeDefined();
-  });
+    // Just verify the module class exists
+    expect(WatchModule).toBeDefined()
+  })
 });
