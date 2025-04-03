@@ -2,7 +2,6 @@ import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 import { Job } from 'bullmq'
 import { Logger } from '@nestjs/common'
-import { OnWorkerEvent } from '@nestjs/bullmq'
 
 // Create concrete implementations for testing
 class TestJobManager extends BaseJobManager<Job> {

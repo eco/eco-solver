@@ -4,7 +4,6 @@ import {
 } from '@/intent-processor/jobs/send-batches-cron.job'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 // Mock queue utilities
 jest.mock('@/bullmq/utils/queue', () => ({

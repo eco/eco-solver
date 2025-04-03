@@ -2,7 +2,6 @@ import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 import { Job, Queue } from 'bullmq'
 import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 // Create concrete implementations for testing
 class TestGroupJob extends Job {

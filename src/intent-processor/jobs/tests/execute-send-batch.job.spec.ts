@@ -5,7 +5,7 @@ import {
 } from '@/intent-processor/jobs/execute-send-batch.job'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { serialize } from '@/common/utils/serialize'
-import { Hex, keccak256, encodePacked } from 'viem'
+import { Hex, keccak256 } from 'viem'
 
 // Mock viem functions
 jest.mock('viem', () => ({

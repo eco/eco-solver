@@ -4,7 +4,6 @@ import {
   ExecuteWithdrawsJob
 } from '@/intent-processor/jobs/execute-withdraws.job'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 import { deserialize, serialize } from '@/common/utils/serialize'
 import { Hex, keccak256, encodePacked } from 'viem'
 

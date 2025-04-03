@@ -1,6 +1,6 @@
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import { HyperlaneConfig } from '@/eco-configs/eco-config.types'
-import { Hex, PublicClient, encodeFunctionData } from 'viem'
+import { Hex, PublicClient } from 'viem'
 
 // Mock viem functions
 jest.mock('viem', () => ({

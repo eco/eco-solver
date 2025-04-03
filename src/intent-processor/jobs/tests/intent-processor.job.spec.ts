@@ -4,7 +4,6 @@ import {
 } from '@/intent-processor/jobs/intent-processor.job'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { Job } from 'bullmq'
 
 describe('IntentProcessorJobManager', () => {
   it('should extend BaseJobManager', () => {

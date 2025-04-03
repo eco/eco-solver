@@ -14,7 +14,7 @@ import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 
 // Mock the intent util module BEFORE tests run
 jest.mock('@/intent-processor/utils/intent', () => ({
-  getWithdrawData: jest.fn().mockImplementation((intent) => ({
+  getWithdrawData: jest.fn().mockImplementation(() => ({
     routeHash: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
     reward: { 
       creator: '0x0000000000000000000000000000000000000001' as Hex,
