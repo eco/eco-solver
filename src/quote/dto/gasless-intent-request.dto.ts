@@ -3,20 +3,10 @@ import { GaslessIntentDataDTO } from './gasless-intent-data.dto'
 import { Hex } from 'viem'
 import { IsNotEmpty, ValidateNested, IsString } from 'class-validator'
 import { plainToInstance, Type } from 'class-transformer'
+import { QuoteRewardDataDTO } from './quote.reward.data.dto'
 import { QuoteRouteDataDTO } from './quote.route.data.dto'
-import { RewardDTO } from './reward.dto'
 
 export class GaslessIntentRequestDTO {
-  @IsNotEmpty()
-  @IsString()
-  @ApiProperty()
-  originChainID: number
-
-  @IsNotEmpty()
-  @IsString()
-  @ApiProperty()
-  destinationChainID: number
-
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
@@ -31,14 +21,18 @@ export class GaslessIntentRequestDTO {
   @IsNotEmpty()
   @ValidateNested()
   @ApiProperty()
-  @Type(() => RewardDTO)
-  reward: RewardDTO
+  @Type(() => QuoteRewardDataDTO)
+  reward: QuoteRewardDataDTO
 
   @IsNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData: GaslessIntentDataDTO
+
+  getSourceChainID?(): number {
+    return Number(this.route.source)
+  }
 
   getFunder?(): Hex {
     return this.gaslessIntentData.funder
