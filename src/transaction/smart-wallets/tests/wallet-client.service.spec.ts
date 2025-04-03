@@ -3,7 +3,7 @@ import { WalletClientService, WalletClientDefaultSignerService } from '@/transac
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { SignerService } from '@/sign/signer.service'
 import { createMock } from '@golevelup/ts-jest'
-import { extractChain, createPublicClient, createWalletClient, Address, Account, Hex, TransactionRequest, TransactionSerializable, Hash } from 'viem'
+import { extractChain, createPublicClient, createWalletClient, Address, Account, Hex } from 'viem'
 import { ChainsSupported } from '@/common/chains/supported'
 
 // Mock external dependencies
@@ -33,7 +33,7 @@ describe('WalletClientService', () => {
       return Promise.resolve({ 
         address: '0xtest' as Address,
         signMessage: jest.fn().mockResolvedValue('0xsignature' as Hex),
-        signTransaction: jest.fn().mockImplementation((tx: TransactionRequest) => 
+        signTransaction: jest.fn().mockImplementation(() => 
           Promise.resolve('0xsignedtx' as Hex)
         ),
         signTypedData: jest.fn().mockResolvedValue('0xsignature' as Hex),
@@ -150,7 +150,7 @@ describe('WalletClientDefaultSignerService', () => {
       getAccount: jest.fn().mockReturnValue({ 
         address: '0xsigner' as Address,
         signMessage: jest.fn().mockResolvedValue('0xsignature' as Hex),
-        signTransaction: jest.fn().mockImplementation((tx: TransactionRequest) => 
+        signTransaction: jest.fn().mockImplementation(() => 
           Promise.resolve('0xsignedtx' as Hex)
         ),
         signTypedData: jest.fn().mockResolvedValue('0xsignature' as Hex),

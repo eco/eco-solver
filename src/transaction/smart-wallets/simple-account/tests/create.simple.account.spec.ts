@@ -1,6 +1,4 @@
 import { createSimpleAccountClient } from '../create.simple.account'
-import { createWalletClient, publicActions } from 'viem'
-import { SimpleAccountActions } from '../simple-account.client'
 
 // Skip TypeScript validation and just test the function behavior
 jest.mock('../create.simple.account', () => {
@@ -8,30 +6,17 @@ jest.mock('../create.simple.account', () => {
   return {
     ...original,
     // Make TypeScript skip validation by wrapping
-    createSimpleAccountClient: jest.fn(params => {
-      const client = {
-        ...params,
-        extend: jest.fn().mockReturnThis(),
-        simpleAccountAddress: params.simpleAccountAddress,
-      };
-      return client;
-    }),
+    createSimpleAccountClient: jest.fn(params => ({
+      ...params,
+      extend: jest.fn().mockReturnThis(),
+      simpleAccountAddress: params.simpleAccountAddress,
+    })),
   };
 });
 
-jest.mock('viem', () => ({
-  createWalletClient: jest.fn().mockImplementation(config => ({
-    ...config,
-    extend: jest.fn().mockReturnThis(),
-  })),
-  publicActions: jest.fn().mockReturnValue({}),
-}));
-
-jest.mock('../simple-account.client', () => ({
-  SimpleAccountActions: jest.fn().mockReturnValue({
-    execute: jest.fn(),
-  }),
-}));
+// No need to mock these for our test
+jest.mock('viem', () => ({}));
+jest.mock('../simple-account.client', () => ({}));
 
 describe('createSimpleAccountClient', () => {
   beforeEach(() => {

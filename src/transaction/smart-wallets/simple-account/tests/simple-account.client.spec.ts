@@ -1,6 +1,6 @@
 import { SimpleAccountActions } from '../simple-account.client'
 import { encodeFunctionData, Hex } from 'viem'
-import { SimpleAccountAbi } from '../../../../contracts'
+import { SimpleAccountAbi } from '@/contracts'
 
 // Mock the throwIfValueSendInBatch function
 jest.mock('../../utils', () => ({

@@ -1,18 +1,16 @@
 const mockDecodeFunctionData = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
 import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { UtilsIntentService } from '../utils-intent.service'
 import { getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
+import { QUEUES } from '@/common/redis/constants'
 import { Queue } from 'bullmq'
-import { EcoError } from '../../common/errors/eco-error'
-import { getFunctionBytes } from '../../common/viem/contracts'
+import { EcoError } from '@/common/errors/eco-error'
 import { FulfillmentLog } from '@/contracts/inbox'
-import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { QuoteError } from '@/quote/errors'
 
@@ -31,7 +29,6 @@ describe('UtilsIntentService', () => {
   const mockLogLog = jest.fn()
   const mockLogWarn = jest.fn()
   const address1 = '0x1111111111111111111111111111111111111111'
-  const address2 = '0x2222222222222222222222222222222222222222'
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [

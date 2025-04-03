@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { SimpleAccountClientService } from '../simple-account-client.service'
-import { EcoConfigService } from '../../../../eco-configs/eco-config.service'
-import { SignerService } from '../../../../sign/signer.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { SignerService } from '@/sign/signer.service'
 import { createMock } from '@golevelup/ts-jest'
-import { Chain, Hex, Address, Account, TransactionRequest } from 'viem'
-import { EcoError } from '../../../../common/errors/eco-error'
+import { Chain, Hex, Address, Account } from 'viem'
+import { EcoError } from '@/common/errors/eco-error'
 
 // Mock external dependencies
 jest.mock('viem', () => ({
@@ -43,7 +43,7 @@ describe('SimpleAccountClientService', () => {
   const mockAccount: Account = {
     address: '0xsigner' as Address,
     signMessage: jest.fn().mockResolvedValue('0xsignature' as Hex),
-    signTransaction: jest.fn().mockImplementation((tx: TransactionRequest) => 
+    signTransaction: jest.fn().mockImplementation(() => 
       Promise.resolve('0xsignedtx' as Hex)
     ),
     signTypedData: jest.fn().mockResolvedValue('0xsignature' as Hex),

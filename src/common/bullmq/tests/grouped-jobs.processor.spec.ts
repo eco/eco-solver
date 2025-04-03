@@ -89,24 +89,35 @@ describe('GroupedJobsProcessor', () => {
       // Set the group as active
       processor.getActiveGroups().add('test-group')
       
-      await processor.process(mockJob)
+      // Mock the job object with opts needed for queue.add
+      mockJob.opts = {}
+      
+      // Process the job
+      const result = await processor.process(mockJob)
 
-      expect(mockJob.moveToDelayed).toHaveBeenCalled()
+      // The queue.add method should be called to reschedule the job
+      expect(mockQueue.add).toHaveBeenCalled()
+      
       // The return value should indicate the job was delayed
-      expect(mockJob.returnvalue).toEqual({ delayed: true })
+      expect(result).toEqual({ delayed: true })
     })
 
     it('should not attempt to delay job without a group key', async () => {
       const jobWithoutGroup = {
         ...mockJob,
         data: { value: 123 },
+        opts: {},
       } as unknown as TestGroupJob
 
       const spy = jest.spyOn(jobManager, 'process').mockResolvedValue()
+      
+      // Reset the add method call counter
+      jest.clearAllMocks();
 
       await processor.process(jobWithoutGroup)
 
-      expect(mockJob.moveToDelayed).not.toHaveBeenCalled()
+      // Should not try to add a delayed job
+      expect(mockQueue.add).not.toHaveBeenCalled()
       expect(spy).toHaveBeenCalledWith(jobWithoutGroup, processor)
     })
   })
