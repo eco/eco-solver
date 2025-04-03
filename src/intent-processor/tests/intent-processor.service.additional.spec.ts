@@ -221,9 +221,9 @@ describe('IntentProcessorService - Additional Tests', () => {
       indexerService.getNextSendBatch = jest.fn().mockResolvedValue(batchData)
       
       // Create a spy to capture the job data
-      let capturedJobData: any[] = [];
+      const capturedJobData: any[] = [];
       mockIntentProcessorQueue.addExecuteSendBatchJobs = jest.fn().mockImplementation((jobsData) => {
-        capturedJobData = [...jobsData]; // Make a copy to ensure it's written
+        capturedJobData.push(...jobsData); // Add to array instead of replacing
         return Promise.resolve();
       });
       
@@ -341,7 +341,7 @@ describe('IntentProcessorService - Additional Tests', () => {
 
       // Setup spy for getSendBatchTransaction
       const getSendBatchTxSpy = jest.spyOn(service as any, 'getSendBatchTransaction')
-        .mockImplementation(() => {
+        .mockImplementation((_client, _inbox, _prover, _source, _intentHashes) => {
           return Promise.resolve({
             to: '0x6666666666666666666666666666666666666666' as Hex,
             value: BigInt(1000),

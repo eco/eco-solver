@@ -1,7 +1,6 @@
 import {
   encodeAbiParameters,
   encodeFunctionData,
-  encodePacked,
   Hex,
   PublicClient,
 } from 'viem'
@@ -144,7 +143,7 @@ describe('Hyperlane Utils', () => {
       const gasLimit = 200000n
 
       // Mock the encodePacked function
-      jest.spyOn(require('viem'), 'encodePacked').mockImplementation(() => '0xEncodedMetadata')
+      const encodePacked = jest.spyOn(require('viem'), 'encodePacked').mockImplementation(() => '0xEncodedMetadata')
 
       const result = Hyperlane.getMetadata(value, gasLimit)
 
