@@ -10,51 +10,56 @@ import { Hex } from 'viem'
 // Mock dependencies
 jest.mock('@/intent-processor/utils/intent', () => ({
   getWithdrawData: jest.fn().mockImplementation((intent) => ({
-    routeHash: intent.hash === '0xhash1' ? '0xroute1' as Hex : '0xroute2' as Hex,
-    reward: { 
+    routeHash: intent.hash === '0xhash1' ? ('0xroute1' as Hex) : ('0xroute2' as Hex),
+    reward: {
       creator: '0xcreator' as Hex,
       prover: '0xprover' as Hex,
       deadline: BigInt(1234),
       nativeValue: BigInt(5678),
-      tokens: [] 
+      tokens: [],
     },
   })),
 }))
 
 // Mock lodash functions
 jest.mock('lodash', () => {
-  const actualLodash = jest.requireActual('lodash');
+  const actualLodash = jest.requireActual('lodash')
   return {
     ...actualLodash,
     groupBy: jest.fn().mockImplementation(() => {
       return {
         '1': [{ intent: { hash: '0xhash1', source: '1' } }],
         '10': [{ intent: { hash: '0xhash2', source: '10' } }],
-      };
+      }
     }),
     map: jest.fn().mockImplementation((collection, mapFn) => {
       if (typeof mapFn === 'function') {
         // Handle function mapping
-        return mapFn(collection);
+        return mapFn(collection)
       }
-      
+
       // Handle property name mapping
-      if (mapFn === 'hash') return ['0xhash1', '0xhash2'];
-      if (mapFn === 'routeHash') return ['0xroute1', '0xroute2'];
-      if (mapFn === 'sourceAddress') return collection && collection.length ? collection.map((src: any) => src.sourceAddress) : ['0x5555555555555555555555555555555555555555'];
-      if (mapFn === 'inbox') return collection && collection.length ? collection.map((src: any) => src.inbox) : ['0x6666666666666666666666666666666666666666'];
-      
-      
+      if (mapFn === 'hash') return ['0xhash1', '0xhash2']
+      if (mapFn === 'routeHash') return ['0xroute1', '0xroute2']
+      if (mapFn === 'sourceAddress')
+        return collection && collection.length
+          ? collection.map((src: any) => src.sourceAddress)
+          : ['0x5555555555555555555555555555555555555555']
+      if (mapFn === 'inbox')
+        return collection && collection.length
+          ? collection.map((src: any) => src.inbox)
+          : ['0x6666666666666666666666666666666666666666']
+
       // Handle mapping function for getWithdrawData
       return [
         { routeHash: '0xroute1' as Hex, reward: { tokens: [] } },
         { routeHash: '0xroute2' as Hex, reward: { tokens: [] } },
-      ];
+      ]
     }),
     chunk: jest.fn().mockImplementation((arr) => [arr]),
     uniq: jest.fn().mockImplementation((arr) => arr),
-  };
-});
+  }
+})
 
 describe('IntentProcessorService', () => {
   let service: IntentProcessorService
@@ -72,8 +77,8 @@ describe('IntentProcessorService', () => {
 
     // Define mock intent sources for reuse
     const mockIntentSources = [
-      { 
-        sourceAddress: '0x5555555555555555555555555555555555555555' as Hex, 
+      {
+        sourceAddress: '0x5555555555555555555555555555555555555555' as Hex,
         inbox: '0x6666666666666666666666666666666666666666' as Hex,
         network: 'ethereum',
         chainID: 1,
@@ -84,9 +89,11 @@ describe('IntentProcessorService', () => {
 
     // Mock services
     ecoConfigService = createMock<EcoConfigService>({
-      getSendBatch: jest.fn().mockReturnValue({ intervalDuration: 300000, chunkSize: 200, defaultGasPerIntent: 25000 }),
+      getSendBatch: jest
+        .fn()
+        .mockReturnValue({ intervalDuration: 300000, chunkSize: 200, defaultGasPerIntent: 25000 }),
       getWithdraws: jest.fn().mockReturnValue({ intervalDuration: 300000, chunkSize: 20 }),
-      getHyperlane: jest.fn().mockReturnValue({ 
+      getHyperlane: jest.fn().mockReturnValue({
         useHyperlaneDefaultHook: true,
         chains: {
           '1': {
@@ -98,11 +105,13 @@ describe('IntentProcessorService', () => {
             mailbox: '0x1111111111111111111111111111111111111111' as Hex,
             aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
             hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
-          }
-        }
+          },
+        },
       }),
       getIntentSources: jest.fn().mockReturnValue(mockIntentSources),
-      getEth: jest.fn().mockReturnValue({ claimant: '0x7777777777777777777777777777777777777777' as Hex }),
+      getEth: jest
+        .fn()
+        .mockReturnValue({ claimant: '0x7777777777777777777777777777777777777777' as Hex }),
     })
 
     indexerService = createMock<IndexerService>()
@@ -115,7 +124,7 @@ describe('IntentProcessorService', () => {
       addExecuteWithdrawalsJobs: jest.fn().mockResolvedValue(undefined),
       addExecuteSendBatchJobs: jest.fn().mockResolvedValue(undefined),
     }
-    
+
     // Create service instance directly to avoid NestJS DI issues
     service = new IntentProcessorService(
       mockQueue as any,
@@ -123,13 +132,13 @@ describe('IntentProcessorService', () => {
       indexerService,
       walletClientService,
     )
-    
+
     // Initialize config directly since onApplicationBootstrap won't be called
     service['config'] = {
       sendBatch: {
         intervalDuration: 300000,
         chunkSize: 200,
-        defaultGasPerIntent: 25000
+        defaultGasPerIntent: 25000,
       },
       hyperlane: {
         useHyperlaneDefaultHook: true,
@@ -137,26 +146,26 @@ describe('IntentProcessorService', () => {
           '1': {
             mailbox: '0x1111111111111111111111111111111111111111' as Hex,
             aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
-            hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex
+            hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
           },
           '10': {
             mailbox: '0x1111111111111111111111111111111111111111' as Hex,
             aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
-            hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex
-          }
-        }
+            hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
+          },
+        },
       },
       withdrawals: {
         intervalDuration: 300000,
-        chunkSize: 20
-      }
+        chunkSize: 20,
+      },
     }
-    
+
     // Replace the queue with our mock
     Object.defineProperty(service, 'intentProcessorQueue', {
       value: mockIntentProcessorQueue,
       writable: false,
-    });
+    })
   })
 
   afterEach(() => {
@@ -190,17 +199,21 @@ describe('IntentProcessorService', () => {
       ]
 
       indexerService.getNextBatchWithdrawals = jest.fn().mockResolvedValue(mockWithdrawals)
-      
+
       // We need to mock getIntentSource since it's used by getNextBatchWithdrawals
-      jest.spyOn(service as any, 'getIntentSource').mockReturnValue('0x5555555555555555555555555555555555555555')
+      jest
+        .spyOn(service as any, 'getIntentSource')
+        .mockReturnValue('0x5555555555555555555555555555555555555555')
     })
 
     it('should fetch withdrawals and create jobs', async () => {
       await service.getNextBatchWithdrawals()
 
       // Verify indexer was called
-      expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledWith('0x5555555555555555555555555555555555555555')
-      
+      expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledWith(
+        '0x5555555555555555555555555555555555555555',
+      )
+
       // Verify jobs were created
       expect(mockIntentProcessorQueue.addExecuteWithdrawalsJobs).toHaveBeenCalled()
     })
@@ -257,8 +270,10 @@ describe('IntentProcessorService', () => {
   describe('utility methods', () => {
     it('should return the intent source address', () => {
       // Mock the actual implementation to avoid dependency on lodash
-      jest.spyOn(service as any, 'getIntentSource').mockReturnValue('0x5555555555555555555555555555555555555555')
-      
+      jest
+        .spyOn(service as any, 'getIntentSource')
+        .mockReturnValue('0x5555555555555555555555555555555555555555')
+
       // Call the private method using bracket notation
       const result = (service as any).getIntentSource()
       expect(result).toBe('0x5555555555555555555555555555555555555555')
@@ -267,18 +282,22 @@ describe('IntentProcessorService', () => {
     it('should throw error when multiple intent sources are found', () => {
       // Create a spy that throws the expected error
       jest.spyOn(service as any, 'getIntentSource').mockImplementation(() => {
-        throw new Error('Implementation has to be refactor to support multiple intent source addresses.')
+        throw new Error(
+          'Implementation has to be refactor to support multiple intent source addresses.',
+        )
       })
 
       expect(() => (service as any).getIntentSource()).toThrow(
-        'Implementation has to be refactor to support multiple intent source addresses.'
+        'Implementation has to be refactor to support multiple intent source addresses.',
       )
     })
 
     it('should return the inbox address', () => {
       // Mock the actual implementation to avoid dependency on lodash
-      jest.spyOn(service as any, 'getInbox').mockReturnValue('0x6666666666666666666666666666666666666666')
-      
+      jest
+        .spyOn(service as any, 'getInbox')
+        .mockReturnValue('0x6666666666666666666666666666666666666666')
+
       const result = (service as any).getInbox()
       expect(result).toBe('0x6666666666666666666666666666666666666666')
     })
@@ -290,7 +309,7 @@ describe('IntentProcessorService', () => {
       })
 
       expect(() => (service as any).getInbox()).toThrow(
-        'Implementation has to be refactor to support multiple inbox addresses.'
+        'Implementation has to be refactor to support multiple inbox addresses.',
       )
     })
   })

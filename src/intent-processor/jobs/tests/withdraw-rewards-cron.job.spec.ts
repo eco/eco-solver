@@ -1,6 +1,6 @@
-import { 
+import {
   CheckWithdrawalsCronJobManager,
-  CheckWithdrawsCronJob 
+  CheckWithdrawsCronJob,
 } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { Queue } from 'bullmq'
@@ -16,8 +16,8 @@ describe('CheckWithdrawalsCronJobManager', () => {
   let mockProcessor: any
 
   beforeEach(() => {
-    jest.setTimeout(10000); // Increase timeout for these tests
-    
+    jest.setTimeout(10000) // Increase timeout for these tests
+
     // Setup mocks
     mockQueue = {
       upsertJobScheduler: jest.fn().mockResolvedValue(undefined),
@@ -44,9 +44,9 @@ describe('CheckWithdrawalsCronJobManager', () => {
 
       // Mock setTimeout
       jest.spyOn(global, 'setTimeout').mockImplementation((cb: any) => {
-        cb();
-        return {} as any;
-      });
+        cb()
+        return {} as any
+      })
 
       await CheckWithdrawalsCronJobManager.start(mockQueue, interval)
 
@@ -58,7 +58,7 @@ describe('CheckWithdrawalsCronJobManager', () => {
           opts: {
             removeOnComplete: true,
           },
-        }
+        },
       )
     })
   })
@@ -66,13 +66,13 @@ describe('CheckWithdrawalsCronJobManager', () => {
   describe('is', () => {
     it('should identify jobs by name', () => {
       const manager = new CheckWithdrawalsCronJobManager()
-      
-      const matchingJob = { 
-        name: IntentProcessorJobName.CHECK_WITHDRAWS 
+
+      const matchingJob = {
+        name: IntentProcessorJobName.CHECK_WITHDRAWS,
       } as unknown as CheckWithdrawsCronJob
-      
-      const nonMatchingJob = { 
-        name: IntentProcessorJobName.EXECUTE_WITHDRAWS 
+
+      const nonMatchingJob = {
+        name: IntentProcessorJobName.EXECUTE_WITHDRAWS,
       } as unknown as CheckWithdrawsCronJob
 
       expect(manager.is(matchingJob)).toBe(true)
@@ -83,8 +83,8 @@ describe('CheckWithdrawalsCronJobManager', () => {
   describe('process', () => {
     it('should call the intent processor service', async () => {
       const manager = new CheckWithdrawalsCronJobManager()
-      const job = { 
-        name: IntentProcessorJobName.CHECK_WITHDRAWS 
+      const job = {
+        name: IntentProcessorJobName.CHECK_WITHDRAWS,
       } as unknown as CheckWithdrawsCronJob
 
       await manager.process(job, mockProcessor)
@@ -97,16 +97,16 @@ describe('CheckWithdrawalsCronJobManager', () => {
   describe('onFailed', () => {
     it('should log an error when the job fails', () => {
       const manager = new CheckWithdrawalsCronJobManager()
-      const job = { 
-        name: IntentProcessorJobName.CHECK_WITHDRAWS 
+      const job = {
+        name: IntentProcessorJobName.CHECK_WITHDRAWS,
       } as unknown as CheckWithdrawsCronJob
-      
+
       const error = new Error('Test error')
 
       // Setup spy on EcoLogMessage
       const spy = jest.spyOn(EcoLogMessage, 'fromDefault').mockReturnValue({
         message: 'CheckWithdrawalsCronJobManager: Failed',
-        properties: { error: 'Test error' }
+        properties: { error: 'Test error' },
       } as any)
 
       manager.onFailed(job, mockProcessor, error)
@@ -114,9 +114,9 @@ describe('CheckWithdrawalsCronJobManager', () => {
       // Verify the mock was called
       expect(spy).toHaveBeenCalled()
       expect(mockProcessor.logger.error).toHaveBeenCalled()
-      
+
       // Check the message
-      const mockCall = spy.mock.calls[0];
+      const mockCall = spy.mock.calls[0]
       if (mockCall && mockCall[0]) {
         expect(mockCall[0].message).toContain('Failed')
         // Check that properties exists and has an error property

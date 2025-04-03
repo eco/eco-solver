@@ -46,13 +46,13 @@ describe('BaseProcessor', () => {
 
     jobManager = new TestJobManager()
     processor = new TestProcessor(jobManager)
-    
+
     // Create a mock job
     mockJob = {
       name: 'test-job',
       data: {},
       isCompleted: jest.fn().mockResolvedValue(false),
-      isFailed: jest.fn().mockResolvedValue(false)
+      isFailed: jest.fn().mockResolvedValue(false),
     } as unknown as Job
   })
 
@@ -85,9 +85,9 @@ describe('BaseProcessor', () => {
         const error = new Error('Processing error')
         jest.spyOn(jobManager, 'is').mockReturnValue(true)
         jest.spyOn(jobManager, 'process').mockRejectedValue(error)
-        
+
         await processor.process(mockJob)
-        
+
         // Should not reach here if error is properly propagated
         fail('Expected error to be thrown')
       } catch (error) {

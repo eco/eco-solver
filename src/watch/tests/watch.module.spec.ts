@@ -13,18 +13,18 @@ import { WatchModule } from '../watch.module'
 
 // Need to override the Module decorator to avoid circular dependency issues
 jest.mock('@nestjs/common', () => {
-  const actual = jest.requireActual('@nestjs/common');
+  const actual = jest.requireActual('@nestjs/common')
   return {
     ...actual,
     Module: jest.fn().mockImplementation(() => {
-      return () => {};
+      return () => {}
     }),
-  };
-});
+  }
+})
 
 describe('WatchModule', () => {
   it('should be defined', () => {
     // Just verify the module class exists
     expect(WatchModule).toBeDefined()
   })
-});
+})

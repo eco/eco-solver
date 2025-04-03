@@ -31,25 +31,25 @@ describe('ExecuteWithdrawsJobManager', () => {
         chainId: 1,
         intentSourceAddr: '0x0000000000000000000000000000000000000001' as Hex,
         intents: [
-          { 
-            routeHash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex, 
+          {
+            routeHash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex,
             reward: {
               creator: '0x0000000000000000000000000000000000000002' as Hex,
               prover: '0x0000000000000000000000000000000000000003' as Hex,
               deadline: 1000n,
               nativeValue: 100n,
               tokens: [],
-            }
+            },
           },
-          { 
-            routeHash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex, 
+          {
+            routeHash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex,
             reward: {
               creator: '0x0000000000000000000000000000000000000004' as Hex,
               prover: '0x0000000000000000000000000000000000000005' as Hex,
               deadline: 2000n,
               nativeValue: 200n,
               tokens: [],
-            }
+            },
           },
         ],
       }
@@ -101,15 +101,15 @@ describe('ExecuteWithdrawsJobManager', () => {
         chainId: 1,
         intentSourceAddr: '0xSource' as Hex,
         intents: [
-          { 
-            routeHash: '0x1111' as Hex, 
+          {
+            routeHash: '0x1111' as Hex,
             reward: {
               creator: '0xCreator1' as Hex,
               prover: '0xProver1' as Hex,
               deadline: 1000n,
               nativeValue: 100n,
               tokens: [],
-            }
+            },
           },
         ],
       }
@@ -143,9 +143,9 @@ describe('ExecuteWithdrawsJobManager', () => {
       jobManager.onFailed(job, processor, error)
 
       expect(processor.logger.error).toHaveBeenCalled()
-      const call = (processor.logger.error as jest.Mock).mock.calls[0][0];
-      expect(call).toHaveProperty('msg', 'ExecuteWithdrawsJob: Failed');
-      expect(call).toHaveProperty('error', 'Test error');
+      const call = (processor.logger.error as jest.Mock).mock.calls[0][0]
+      expect(call).toHaveProperty('msg', 'ExecuteWithdrawsJob: Failed')
+      expect(call).toHaveProperty('error', 'Test error')
     })
   })
 })

@@ -31,15 +31,15 @@ describe('ExecuteSendBatchJobManager', () => {
       const jobData: ExecuteSendBatchJobData = {
         chainId: 1,
         proves: [
-          { 
-            hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex, 
-            prover: '0x0000000000000000000000000000000000000001' as Hex, 
-            source: 2 
+          {
+            hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex,
+            prover: '0x0000000000000000000000000000000000000001' as Hex,
+            source: 2,
           },
-          { 
-            hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex, 
-            prover: '0x0000000000000000000000000000000000000001' as Hex, 
-            source: 2 
+          {
+            hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex,
+            prover: '0x0000000000000000000000000000000000000001' as Hex,
+            source: 2,
           },
         ],
       }
@@ -89,9 +89,7 @@ describe('ExecuteSendBatchJobManager', () => {
     it('should call intentProcessorService.executeSendBatch with deserialized data', async () => {
       const jobData: ExecuteSendBatchJobData = {
         chainId: 1,
-        proves: [
-          { hash: '0x1111' as Hex, prover: '0xProver1' as Hex, source: 2 },
-        ],
+        proves: [{ hash: '0x1111' as Hex, prover: '0xProver1' as Hex, source: 2 }],
       }
 
       const job = createMock<ExecuteSendBatchJob>({
@@ -123,9 +121,9 @@ describe('ExecuteSendBatchJobManager', () => {
       jobManager.onFailed(job, processor, error)
 
       expect(processor.logger.error).toHaveBeenCalled()
-      const call = (processor.logger.error as jest.Mock).mock.calls[0][0];
-      expect(call).toHaveProperty('msg', `${ExecuteSendBatchJobManager.name}: Failed`);
-      expect(call).toHaveProperty('error', 'Test error');
+      const call = (processor.logger.error as jest.Mock).mock.calls[0][0]
+      expect(call).toHaveProperty('msg', `${ExecuteSendBatchJobManager.name}: Failed`)
+      expect(call).toHaveProperty('error', 'Test error')
     })
   })
 })

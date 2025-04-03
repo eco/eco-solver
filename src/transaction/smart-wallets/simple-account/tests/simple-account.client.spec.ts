@@ -4,7 +4,7 @@ import { SimpleAccountAbi } from '@/contracts'
 
 // Mock the throwIfValueSendInBatch function
 jest.mock('../../utils', () => ({
-  throwIfValueSendInBatch: jest.fn()
+  throwIfValueSendInBatch: jest.fn(),
 }))
 
 describe('SimpleAccountActions', () => {
@@ -15,7 +15,7 @@ describe('SimpleAccountActions', () => {
       sendTransaction: jest.fn().mockResolvedValue('0xtxhash' as Hex),
       simpleAccountAddress: '0xsimpleaccount' as Hex,
       chain: { id: 1 },
-      account: { address: '0xsigner' }
+      account: { address: '0xsigner' },
     }
   })
 
@@ -26,11 +26,11 @@ describe('SimpleAccountActions', () => {
   describe('execute', () => {
     it('should encode a single transaction and send it through the client', async () => {
       const actions = SimpleAccountActions(mockClient)
-      
+
       const tx = {
         to: '0xrecipient' as Hex,
         data: '0xcalldata' as Hex,
-        value: 100n
+        value: 100n,
       }
 
       // Mock the encodeFunctionData
@@ -43,7 +43,7 @@ describe('SimpleAccountActions', () => {
       expect(encodeFunctionData).toHaveBeenCalledWith({
         abi: SimpleAccountAbi,
         functionName: 'execute',
-        args: [tx.to, tx.value, tx.data]
+        args: [tx.to, tx.value, tx.data],
       })
 
       // Verify sendTransaction was called with the encoded data
@@ -52,7 +52,7 @@ describe('SimpleAccountActions', () => {
         kzg: undefined,
         to: mockClient.simpleAccountAddress,
         chain: mockClient.chain,
-        account: mockClient.account
+        account: mockClient.account,
       })
 
       expect(result).toBe('0xtxhash')
@@ -60,10 +60,10 @@ describe('SimpleAccountActions', () => {
 
     it('should default value to 0n if not provided', async () => {
       const actions = SimpleAccountActions(mockClient)
-      
+
       const tx = {
         to: '0xrecipient' as Hex,
-        data: '0xcalldata' as Hex
+        data: '0xcalldata' as Hex,
         // value not provided
       }
 
@@ -77,22 +77,22 @@ describe('SimpleAccountActions', () => {
       expect(encodeFunctionData).toHaveBeenCalledWith({
         abi: SimpleAccountAbi,
         functionName: 'execute',
-        args: [tx.to, 0n, tx.data]
+        args: [tx.to, 0n, tx.data],
       })
     })
 
     it('should encode multiple transactions as batch and send through the client', async () => {
       const actions = SimpleAccountActions(mockClient)
-      
+
       const txs = [
         {
           to: '0xrecipient1' as Hex,
-          data: '0xcalldata1' as Hex
+          data: '0xcalldata1' as Hex,
         },
         {
           to: '0xrecipient2' as Hex,
-          data: '0xcalldata2' as Hex
-        }
+          data: '0xcalldata2' as Hex,
+        },
       ]
 
       // Mock the throwIfValueSendInBatch function
@@ -111,10 +111,7 @@ describe('SimpleAccountActions', () => {
       expect(encodeFunctionData).toHaveBeenCalledWith({
         abi: SimpleAccountAbi,
         functionName: 'executeBatch',
-        args: [
-          txs.map(tx => tx.to), 
-          txs.map(tx => tx.data)
-        ]
+        args: [txs.map((tx) => tx.to), txs.map((tx) => tx.data)],
       })
 
       // Verify sendTransaction was called with the encoded batch data
@@ -123,7 +120,7 @@ describe('SimpleAccountActions', () => {
         kzg: undefined,
         to: mockClient.simpleAccountAddress,
         chain: mockClient.chain,
-        account: mockClient.account
+        account: mockClient.account,
       })
 
       expect(result).toBe('0xtxhash')

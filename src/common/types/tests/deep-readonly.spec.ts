@@ -72,15 +72,15 @@ describe('DeepReadonly type', () => {
     const frozen = Object.freeze(obj)
 
     // Direct properties are frozen
-    let error: Error | null = null;
+    let error: Error | null = null
     try {
       // This assignment will fail at runtime, but we're catching the error
       // TypeScript error is expected in strict mode
-      Object.defineProperty(frozen, 'x', { value: 10 });
+      Object.defineProperty(frozen, 'x', { value: 10 })
     } catch (e) {
-      error = e as Error;
+      error = e as Error
     }
-    expect(error).toBeInstanceOf(TypeError);
+    expect(error).toBeInstanceOf(TypeError)
 
     // But nested objects aren't frozen by default
     expect(() => {

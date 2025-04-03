@@ -9,14 +9,14 @@ import { EcoError } from '@/common/errors/eco-error'
 // Mock external dependencies
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
-  createWalletClient: jest.fn().mockReturnValue({ 
-    extend: jest.fn().mockImplementation(function(this: any, actions: any) {
+  createWalletClient: jest.fn().mockReturnValue({
+    extend: jest.fn().mockImplementation(function (this: any, actions: any) {
       return {
         ...this,
         ...actions(this),
-        extend: this.extend
+        extend: this.extend,
       }
-    })
+    }),
   }),
   publicActions: jest.fn().mockReturnValue({}),
   extractChain: jest.fn(),
@@ -27,8 +27,8 @@ jest.mock('../create.simple.account', () => ({
     ...config,
     simpleAccountAddress: config.simpleAccountAddress,
     extend: jest.fn().mockReturnThis(),
-    sendTransaction: jest.fn().mockResolvedValue('0xtxhash' as Hex)
-  }))
+    sendTransaction: jest.fn().mockResolvedValue('0xtxhash' as Hex),
+  })),
 }))
 
 describe('SimpleAccountClientService', () => {
@@ -37,33 +37,31 @@ describe('SimpleAccountClientService', () => {
   let signerService: SignerService
 
   const mockSimpleAccountConfig = {
-    walletAddr: '0xsimpleaccount' as Hex
+    walletAddr: '0xsimpleaccount' as Hex,
   }
 
   const mockAccount: Account = {
     address: '0xsigner' as Address,
     signMessage: jest.fn().mockResolvedValue('0xsignature' as Hex),
-    signTransaction: jest.fn().mockImplementation(() => 
-      Promise.resolve('0xsignedtx' as Hex)
-    ),
+    signTransaction: jest.fn().mockImplementation(() => Promise.resolve('0xsignedtx' as Hex)),
     signTypedData: jest.fn().mockResolvedValue('0xsignature' as Hex),
     publicKey: '0xpublickey' as Hex,
     type: 'local',
-    source: 'test'
+    source: 'test',
   } as unknown as Account
 
   beforeEach(async () => {
     ecoConfigService = createMock<EcoConfigService>({
       getAlchemy: jest.fn().mockReturnValue({
         apiKey: 'test-api-key',
-        networks: [{ id: 1, name: 'ethereum' }]
+        networks: [{ id: 1, name: 'ethereum' }],
       }),
       getEth: jest.fn().mockReturnValue({
         pollingInterval: 4000,
-        simpleAccount: mockSimpleAccountConfig
-      })
+        simpleAccount: mockSimpleAccountConfig,
+      }),
     })
-    
+
     signerService = createMock<SignerService>({
       getAccount: jest.fn().mockReturnValue(mockAccount),
     })
@@ -102,7 +100,8 @@ describe('SimpleAccountClientService', () => {
       }
 
       // Spy on parent method
-      jest.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(service)), 'buildChainConfig')
+      jest
+        .spyOn(Object.getPrototypeOf(Object.getPrototypeOf(service)), 'buildChainConfig')
         .mockResolvedValue(baseConfig)
 
       const result = await service['buildChainConfig'](mockChain)
@@ -132,13 +131,14 @@ describe('SimpleAccountClientService', () => {
       }
 
       // Spy on parent method
-      jest.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(service)), 'buildChainConfig')
+      jest
+        .spyOn(Object.getPrototypeOf(Object.getPrototypeOf(service)), 'buildChainConfig')
         .mockResolvedValue(baseConfig)
 
       // Return null for simpleAccount config
       ecoConfigService.getEth = jest.fn().mockReturnValue({
         pollingInterval: 4000,
-        simpleAccount: null
+        simpleAccount: null,
       })
 
       await expect(service['buildChainConfig'](mockChain)).rejects.toBeInstanceOf(EcoError)
@@ -147,13 +147,14 @@ describe('SimpleAccountClientService', () => {
 
   describe('createInstanceClient', () => {
     it('should call createSimpleAccountClient with the provided config', async () => {
-      const createSimpleAccountClient = require('../create.simple.account').createSimpleAccountClient
+      const createSimpleAccountClient =
+        require('../create.simple.account').createSimpleAccountClient
 
       const mockConfig = {
         transport: { type: 'http' },
         chain: { id: 1 } as Chain,
         simpleAccountAddress: '0xsimpleaccount' as Hex,
-        account: mockAccount
+        account: mockAccount,
       }
 
       await service['createInstanceClient'](mockConfig as any)
@@ -164,31 +165,31 @@ describe('SimpleAccountClientService', () => {
 
   describe('getClient', () => {
     it('should call createInstanceClient when creating a client', async () => {
-      const createInstanceSpy = jest.spyOn(service as any, 'createInstanceClient')
+      const createInstanceSpy = jest
+        .spyOn(service as any, 'createInstanceClient')
         .mockResolvedValue({
           simpleAccountAddress: '0xsimpleaccount',
-          chain: { id: 1 }
-        })
-      
-      // Mock getChainConfig to avoid the chain extraction error
-      jest.spyOn(service as any, 'getChainConfig')
-        .mockResolvedValue({
-          transport: { type: 'http' },
           chain: { id: 1 },
-          simpleAccountAddress: '0xsimpleaccount' as Hex,
-          account: mockAccount
         })
-        
+
+      // Mock getChainConfig to avoid the chain extraction error
+      jest.spyOn(service as any, 'getChainConfig').mockResolvedValue({
+        transport: { type: 'http' },
+        chain: { id: 1 },
+        simpleAccountAddress: '0xsimpleaccount' as Hex,
+        account: mockAccount,
+      })
+
       // Mock instances.has to return false initially
-      const originalInstancesHas = service.instances.has;
-      service.instances.has = jest.fn().mockReturnValue(false);
-      
+      const originalInstancesHas = service.instances.has
+      service.instances.has = jest.fn().mockReturnValue(false)
+
       // First call should create new instance
       await service.getClient(1)
       expect(createInstanceSpy).toHaveBeenCalledTimes(1)
-      
+
       // Restore original function
-      service.instances.has = originalInstancesHas;
+      service.instances.has = originalInstancesHas
     })
   })
 })

@@ -197,24 +197,24 @@ describe('SolveIntentProcessor', () => {
   describe('error handling', () => {
     it('should handle errors in onJobFailed', () => {
       const loggerSpy = jest.spyOn(processor['logger'], 'error')
-      
+
       // Create mock job and error
       const mockJob = {
         name: QUEUES.SOURCE_INTENT.jobs.create_intent,
         data: {},
       } as Job
-      
+
       const mockError = new Error('Test error message')
-      
+
       // Call the onJobFailed handler
       processor.onJobFailed(mockJob, mockError)
-      
+
       // Verify that the error was logged
       expect(loggerSpy).toHaveBeenCalledTimes(1)
       // The error log structure may vary, just check that it was called
       expect(loggerSpy).toHaveBeenCalled()
     })
-    
+
     it('should properly propagate service errors', async () => {
       // Create mock job
       const intentHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hex
@@ -222,12 +222,11 @@ describe('SolveIntentProcessor', () => {
         name: QUEUES.SOURCE_INTENT.jobs.validate_intent,
         data: intentHash,
       } as Job
-      
+
       // Make the service throw an error
       const testError = new Error('Service validation error')
-      jest.spyOn(validateIntentService, 'validateIntent')
-        .mockRejectedValue(testError)
-        
+      jest.spyOn(validateIntentService, 'validateIntent').mockRejectedValue(testError)
+
       // Call the processor and expect it to reject with the service error
       await expect(processor.process(mockJob)).rejects.toEqual(testError)
     })

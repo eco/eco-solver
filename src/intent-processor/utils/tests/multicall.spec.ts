@@ -8,7 +8,7 @@ jest.mock('viem', () => ({
 
 // Mock the ChainsSupported import
 jest.mock('@/common/chains/supported', () => ({
-  ChainsSupported: []
+  ChainsSupported: [],
 }))
 
 describe('Multicall Utils', () => {

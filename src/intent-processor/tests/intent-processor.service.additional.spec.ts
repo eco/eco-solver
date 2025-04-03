@@ -13,7 +13,9 @@ jest.mock('@/intent-processor/utils/hyperlane', () => ({
     aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
     hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
   }),
-  getMessageData: jest.fn().mockReturnValue('0x1234123412341234123412341234123412341234123412341234123412341234' as Hex),
+  getMessageData: jest
+    .fn()
+    .mockReturnValue('0x1234123412341234123412341234123412341234123412341234123412341234' as Hex),
   getMetadata: jest.fn().mockReturnValue('0x1234123412341234123412341234123412341234' as Hex),
   estimateFee: jest.fn().mockResolvedValue(BigInt(1000)),
   estimateMessageGas: jest.fn().mockResolvedValue(BigInt(50000)),
@@ -39,12 +41,12 @@ describe('IntentProcessorService - Additional Tests', () => {
   beforeEach(async () => {
     // Setup mocks
     ecoConfigService = createMock<EcoConfigService>({
-      getSendBatch: jest.fn().mockReturnValue({ 
-        intervalDuration: 300000, 
-        chunkSize: 200, 
-        defaultGasPerIntent: 25000 
+      getSendBatch: jest.fn().mockReturnValue({
+        intervalDuration: 300000,
+        chunkSize: 200,
+        defaultGasPerIntent: 25000,
       }),
-      getHyperlane: jest.fn().mockReturnValue({ 
+      getHyperlane: jest.fn().mockReturnValue({
         useHyperlaneDefaultHook: true,
         chains: {
           '1': {
@@ -56,12 +58,12 @@ describe('IntentProcessorService - Additional Tests', () => {
             mailbox: '0x1111111111111111111111111111111111111111' as Hex,
             aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
             hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
-          }
-        }
+          },
+        },
       }),
       getIntentSources: jest.fn().mockReturnValue([
-        { 
-          sourceAddress: '0x5555555555555555555555555555555555555555' as Hex, 
+        {
+          sourceAddress: '0x5555555555555555555555555555555555555555' as Hex,
           inbox: '0x6666666666666666666666666666666666666666' as Hex,
           network: 'ethereum',
           chainID: 1,
@@ -69,7 +71,9 @@ describe('IntentProcessorService - Additional Tests', () => {
           provers: [],
         },
       ]),
-      getEth: jest.fn().mockReturnValue({ claimant: '0x7777777777777777777777777777777777777777' as Hex }),
+      getEth: jest
+        .fn()
+        .mockReturnValue({ claimant: '0x7777777777777777777777777777777777777777' as Hex }),
     })
 
     indexerService = createMock<IndexerService>()
@@ -85,7 +89,7 @@ describe('IntentProcessorService - Additional Tests', () => {
       addExecuteWithdrawalsJobs: jest.fn().mockResolvedValue(undefined),
       addExecuteSendBatchJobs: jest.fn().mockResolvedValue(undefined),
     }
-    
+
     // Create a service instance directly to avoid NestJS DI issues
     service = new IntentProcessorService(
       mockQueue as any,
@@ -93,13 +97,13 @@ describe('IntentProcessorService - Additional Tests', () => {
       indexerService,
       walletClientService,
     )
-    
+
     // Initialize config directly since onApplicationBootstrap won't be called
     service['config'] = {
       sendBatch: {
         intervalDuration: 300000,
         chunkSize: 200,
-        defaultGasPerIntent: 25000
+        defaultGasPerIntent: 25000,
       },
       hyperlane: {
         useHyperlaneDefaultHook: true,
@@ -107,26 +111,26 @@ describe('IntentProcessorService - Additional Tests', () => {
           '1': {
             mailbox: '0xmailbox1' as Hex,
             aggregationHook: '0xaggregation1' as Hex,
-            hyperlaneAggregationHook: '0xhyperaggregation1' as Hex
+            hyperlaneAggregationHook: '0xhyperaggregation1' as Hex,
           },
           '10': {
             mailbox: '0xmailbox10' as Hex,
             aggregationHook: '0xaggregation10' as Hex,
-            hyperlaneAggregationHook: '0xhyperaggregation10' as Hex
-          }
-        }
+            hyperlaneAggregationHook: '0xhyperaggregation10' as Hex,
+          },
+        },
       },
       withdrawals: {
         intervalDuration: 300000,
-        chunkSize: 200
-      }
+        chunkSize: 200,
+      },
     }
-    
+
     // Replace the queue with our mock
     Object.defineProperty(service, 'intentProcessorQueue', {
       value: mockIntentProcessorQueue,
       writable: false,
-    });
+    })
 
     // Mock console.log and other log methods
     jest.spyOn(console, 'log').mockImplementation(() => {})
@@ -142,7 +146,7 @@ describe('IntentProcessorService - Additional Tests', () => {
       const mockSendBatchData = [
         {
           hash: '0xhash1' as Hex,
-          prover: '0xprover1' as Hex, 
+          prover: '0xprover1' as Hex,
           chainId: 1,
           destinationChainId: 10,
         },
@@ -167,11 +171,13 @@ describe('IntentProcessorService - Additional Tests', () => {
       await service.getNextSendBatch()
 
       // Verify indexer was called
-      expect(indexerService.getNextSendBatch).toHaveBeenCalledWith('0x5555555555555555555555555555555555555555')
-      
+      expect(indexerService.getNextSendBatch).toHaveBeenCalledWith(
+        '0x5555555555555555555555555555555555555555',
+      )
+
       // Verify jobs were created
       expect(mockIntentProcessorQueue.addExecuteSendBatchJobs).toHaveBeenCalled()
-      
+
       // Should create jobs with the right structure
       const callArgs = mockIntentProcessorQueue.addExecuteSendBatchJobs.mock.calls[0][0]
       expect(callArgs).toBeInstanceOf(Array)
@@ -182,20 +188,22 @@ describe('IntentProcessorService - Additional Tests', () => {
     it('should handle empty batches gracefully', async () => {
       // Mock empty response from indexer
       indexerService.getNextSendBatch = jest.fn().mockResolvedValue([])
-      
+
       await service.getNextSendBatch()
-      
+
       // Should still call the indexer
-      expect(indexerService.getNextSendBatch).toHaveBeenCalledWith('0x5555555555555555555555555555555555555555')
-      
+      expect(indexerService.getNextSendBatch).toHaveBeenCalledWith(
+        '0x5555555555555555555555555555555555555555',
+      )
+
       // Should not add any jobs since there are no batches
       expect(mockIntentProcessorQueue.addExecuteSendBatchJobs).toHaveBeenCalledWith([])
     })
 
     it('should handle batches that need chunking', async () => {
       // Mock the service config to have a smaller chunk size
-      service['config'].sendBatch.chunkSize = 2;
-      
+      service['config'].sendBatch.chunkSize = 2
+
       // Create a batch with items that should be chunked
       const batchData = [
         {
@@ -217,28 +225,30 @@ describe('IntentProcessorService - Additional Tests', () => {
           destinationChainId: 10,
         },
       ]
-      
+
       indexerService.getNextSendBatch = jest.fn().mockResolvedValue(batchData)
-      
+
       // Create a spy to capture the job data
-      const capturedJobData: any[] = [];
-      mockIntentProcessorQueue.addExecuteSendBatchJobs = jest.fn().mockImplementation((jobsData) => {
-        capturedJobData.push(...jobsData); // Add to array instead of replacing
-        return Promise.resolve();
-      });
-      
+      const capturedJobData: any[] = []
+      mockIntentProcessorQueue.addExecuteSendBatchJobs = jest
+        .fn()
+        .mockImplementation((jobsData) => {
+          capturedJobData.push(...jobsData) // Add to array instead of replacing
+          return Promise.resolve()
+        })
+
       await service.getNextSendBatch()
-      
+
       // Verify jobs were created
       expect(mockIntentProcessorQueue.addExecuteSendBatchJobs).toHaveBeenCalled()
-      
+
       // Should have created chunks based on the chunk size (3 items with size 2 = 2 chunks)
       expect(capturedJobData.length).toBe(2)
-      
+
       // First chunk should have 2 items, second should have 1
       expect(capturedJobData[0].proves.length).toBe(2)
       expect(capturedJobData[1].proves.length).toBe(1)
-      
+
       // Total items should equal the original batch size
       const totalItems = capturedJobData.reduce((acc, chunk) => acc + chunk.proves.length, 0)
       expect(totalItems).toBe(3)
@@ -247,7 +257,7 @@ describe('IntentProcessorService - Additional Tests', () => {
     it('should handle indexer errors gracefully', async () => {
       // Mock indexer error
       indexerService.getNextSendBatch = jest.fn().mockRejectedValue(new Error('Indexer error'))
-      
+
       // Mock the logger
       service['logger'] = {
         log: jest.fn(),
@@ -255,14 +265,14 @@ describe('IntentProcessorService - Additional Tests', () => {
         warn: jest.fn(),
         error: jest.fn(),
         verbose: jest.fn(),
-      } as any;
-      
+      } as any
+
       // Should throw the error
       await expect(service.getNextSendBatch()).rejects.toThrow('Indexer error')
-      
+
       // Should have attempted to call the indexer
       expect(indexerService.getNextSendBatch).toHaveBeenCalled()
-      
+
       // Should not have tried to add jobs
       expect(mockIntentProcessorQueue.addExecuteSendBatchJobs).not.toHaveBeenCalled()
     })
@@ -284,7 +294,8 @@ describe('IntentProcessorService - Additional Tests', () => {
       walletClientService.getPublicClient = jest.fn().mockResolvedValue(mockPublicClient)
 
       // Setup spy for getSendBatchTransaction
-      const getSendBatchTxSpy = jest.spyOn(service as any, 'getSendBatchTransaction')
+      const getSendBatchTxSpy = jest
+        .spyOn(service as any, 'getSendBatchTransaction')
         .mockResolvedValue({
           to: '0x6666666666666666666666666666666666666666' as Hex,
           value: BigInt(1000),
@@ -312,13 +323,13 @@ describe('IntentProcessorService - Additional Tests', () => {
       // Verify clients were obtained
       expect(walletClientService.getClient).toHaveBeenCalledWith(10)
       expect(walletClientService.getPublicClient).toHaveBeenCalledWith(10)
-      
+
       // Verify getSendBatchTransaction was called
       expect(getSendBatchTxSpy).toHaveBeenCalled()
-      
+
       // Verify transaction was sent
       expect(mockWalletClient.sendTransaction).toHaveBeenCalled()
-      
+
       // Verify transaction receipt was waited for
       expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({
         hash: '0xtxhash',
@@ -340,14 +351,15 @@ describe('IntentProcessorService - Additional Tests', () => {
       walletClientService.getPublicClient = jest.fn().mockResolvedValue(mockPublicClient)
 
       // Setup spy for getSendBatchTransaction
-      const getSendBatchTxSpy = jest.spyOn(service as any, 'getSendBatchTransaction')
+      const getSendBatchTxSpy = jest
+        .spyOn(service as any, 'getSendBatchTransaction')
         .mockImplementation((_client, _inbox, _prover, _source, _intentHashes) => {
           return Promise.resolve({
             to: '0x6666666666666666666666666666666666666666' as Hex,
             value: BigInt(1000),
             data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-          });
-        });
+          })
+        })
 
       const jobData = {
         chainId: 10,
@@ -369,7 +381,7 @@ describe('IntentProcessorService - Additional Tests', () => {
 
       // Should be called for each group
       expect(getSendBatchTxSpy).toHaveBeenCalledTimes(2)
-      
+
       // Verify transaction was sent once with combined data
       expect(mockWalletClient.sendTransaction).toHaveBeenCalledTimes(1)
     })
@@ -379,27 +391,27 @@ describe('IntentProcessorService - Additional Tests', () => {
       jest.spyOn(service, 'executeSendBatch').mockImplementation(async (jobData) => {
         // If proves array is empty, we should return early without any transactions
         if (!jobData.proves || jobData.proves.length === 0) {
-          return;
+          return
         }
         // Original implementation would continue here, but we're mocking
-      });
+      })
 
       const jobData = {
         chainId: 10,
         proves: [], // Empty array
-      };
+      }
 
       // Execute with empty proves array
-      await service.executeSendBatch(jobData);
-      
+      await service.executeSendBatch(jobData)
+
       // Verify the service was called with our empty proves array
-      expect(service.executeSendBatch).toHaveBeenCalledWith(jobData);
+      expect(service.executeSendBatch).toHaveBeenCalledWith(jobData)
     })
 
     it('should handle wallet client errors gracefully', async () => {
       // Mock wallet client error
       walletClientService.getClient = jest.fn().mockRejectedValue(new Error('Wallet client error'))
-      
+
       const jobData = {
         chainId: 10,
         proves: [
@@ -430,12 +442,11 @@ describe('IntentProcessorService - Additional Tests', () => {
       walletClientService.getPublicClient = jest.fn().mockResolvedValue(mockPublicClient)
 
       // Setup spy for getSendBatchTransaction
-      jest.spyOn(service as any, 'getSendBatchTransaction')
-        .mockResolvedValue({
-          to: '0x6666666666666666666666666666666666666666' as Hex,
-          value: BigInt(1000),
-          data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-        })
+      jest.spyOn(service as any, 'getSendBatchTransaction').mockResolvedValue({
+        to: '0x6666666666666666666666666666666666666666' as Hex,
+        value: BigInt(1000),
+        data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+      })
 
       const jobData = {
         chainId: 10,
@@ -450,10 +461,10 @@ describe('IntentProcessorService - Additional Tests', () => {
 
       // Should throw the error
       await expect(service.executeSendBatch(jobData)).rejects.toThrow('Transaction failed')
-      
+
       // Should have attempted to send the transaction
       expect(mockWalletClient.sendTransaction).toHaveBeenCalled()
-      
+
       // Should not have attempted to wait for receipt
       expect(mockPublicClient.waitForTransactionReceipt).not.toHaveBeenCalled()
     })
@@ -462,9 +473,11 @@ describe('IntentProcessorService - Additional Tests', () => {
   describe('getSendBatchTransaction', () => {
     beforeEach(() => {
       // Mock viem.encodeFunctionData using jest.spyOn instead of direct assignment
-      jest.spyOn(require('viem'), 'encodeFunctionData').mockReturnValue('0xencoded_function_data' as Hex);
-    });
-    
+      jest
+        .spyOn(require('viem'), 'encodeFunctionData')
+        .mockReturnValue('0xencoded_function_data' as Hex)
+    })
+
     it('should create a transaction for sending a batch', async () => {
       // Create a mock implementation for getSendBatchTransaction that returns test data
       // This is more reliable than trying to mock all the internal dependencies
@@ -472,81 +485,85 @@ describe('IntentProcessorService - Additional Tests', () => {
         to: '0x6666666666666666666666666666666666666666' as Hex,
         value: BigInt(2000),
         data: '0xencoded_function_data' as Hex,
-      });
-      
+      })
+
       // Setup test parameters
-      const mockPublicClient = { chain: { id: 10 } };
-      const inbox = '0x6666666666666666666666666666666666666666' as Hex;
-      const prover = '0x7777777777777777777777777777777777777777' as Hex;
-      const source = 1;
+      const mockPublicClient = { chain: { id: 10 } }
+      const inbox = '0x6666666666666666666666666666666666666666' as Hex
+      const prover = '0x7777777777777777777777777777777777777777' as Hex
+      const source = 1
       const intentHashes = [
         '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
-        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
-      ];
-      
+        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
+      ]
+
       // Call the function
       const transaction = await (service as any).getSendBatchTransaction(
         mockPublicClient,
         inbox,
         prover,
         source,
-        intentHashes
-      );
-      
+        intentHashes,
+      )
+
       // Verify the transaction shape
-      expect(transaction).toHaveProperty('to');
-      expect(transaction).toHaveProperty('value');
-      expect(transaction).toHaveProperty('data');
-      
+      expect(transaction).toHaveProperty('to')
+      expect(transaction).toHaveProperty('value')
+      expect(transaction).toHaveProperty('data')
+
       // Verify the transaction values match our mock
-      expect(transaction.to).toBe('0x6666666666666666666666666666666666666666');
-      expect(transaction.value).toBe(BigInt(2000));
-      expect(transaction.data).toBe('0xencoded_function_data');
-      
+      expect(transaction.to).toBe('0x6666666666666666666666666666666666666666')
+      expect(transaction.value).toBe(BigInt(2000))
+      expect(transaction.data).toBe('0xencoded_function_data')
+
       // Verify the function was called with the expected parameters
       expect((service as any).getSendBatchTransaction).toHaveBeenCalledWith(
         mockPublicClient,
         inbox,
         prover,
         source,
-        intentHashes
-      );
-    });
-    
+        intentHashes,
+      )
+    })
+
     it('should handle errors during fee estimation', async () => {
       // Restore the original implementation then mock it to throw
-      jest.spyOn(service as any, 'getSendBatchTransaction').mockRejectedValue(new Error('Fee estimation failed'));
-      
+      jest
+        .spyOn(service as any, 'getSendBatchTransaction')
+        .mockRejectedValue(new Error('Fee estimation failed'))
+
       // Setup test parameters
-      const mockPublicClient = { chain: { id: 10 } };
-      const inbox = '0x6666666666666666666666666666666666666666' as Hex;
-      const prover = '0x7777777777777777777777777777777777777777' as Hex;
-      const source = 1;
+      const mockPublicClient = { chain: { id: 10 } }
+      const inbox = '0x6666666666666666666666666666666666666666' as Hex
+      const prover = '0x7777777777777777777777777777777777777777' as Hex
+      const source = 1
       const intentHashes = [
         '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
-      ];
-      
+      ]
+
       // Should propagate the error
-      await expect((service as any).getSendBatchTransaction(
-        mockPublicClient,
-        inbox,
-        prover,
-        source,
-        intentHashes
-      )).rejects.toThrow('Fee estimation failed');
-    });
+      await expect(
+        (service as any).getSendBatchTransaction(
+          mockPublicClient,
+          inbox,
+          prover,
+          source,
+          intentHashes,
+        ),
+      ).rejects.toThrow('Fee estimation failed')
+    })
   })
 
   describe('estimateMessageGas', () => {
     beforeEach(() => {
       // Reset all mocks before each test
-      jest.clearAllMocks();
+      jest.clearAllMocks()
     })
 
     it('should estimate gas for a message', async () => {
       // Create a mock implementation of estimateMessageGas
-      jest.spyOn(service as any, 'estimateMessageGas').mockResolvedValue(BigInt(75000));
-      
+      jest.spyOn(service as any, 'estimateMessageGas').mockResolvedValue(BigInt(75000))
+
       // Call the method directly
       const result = await (service as any).estimateMessageGas(
         '0x6666666666666666666666666666666666666666' as Hex, // inbox
@@ -559,7 +576,7 @@ describe('IntentProcessorService - Additional Tests', () => {
 
       // Should return the gas estimate from our mock
       expect(result).toBe(BigInt(75000))
-      
+
       // Verify our mock was called with the expected parameters
       expect((service as any).estimateMessageGas).toHaveBeenCalledWith(
         '0x6666666666666666666666666666666666666666',
@@ -567,26 +584,26 @@ describe('IntentProcessorService - Additional Tests', () => {
         10,
         1,
         '0x1234123412341234123412341234123412341234123412341234123412341234',
-        3
+        3,
       )
     })
 
     it('should use default gas when estimation fails', async () => {
       // Reset the mock first
-      jest.spyOn(service as any, 'estimateMessageGas').mockRestore();
-      
+      jest.spyOn(service as any, 'estimateMessageGas').mockRestore()
+
       // Setup mocks for dependencies
       const mockPublicClient = {
         chain: { id: 10 },
       }
 
       walletClientService.getPublicClient = jest.fn().mockResolvedValue(mockPublicClient)
-      
+
       // Force estimation to fail by mocking getChainMetadata
       jest.spyOn(Hyperlane, 'getChainMetadata').mockImplementation(() => {
-        throw new Error('Estimation failed');
-      });
-      
+        throw new Error('Estimation failed')
+      })
+
       // Create a mock implementation for the logger
       service['logger'] = {
         log: jest.fn(),
@@ -594,8 +611,8 @@ describe('IntentProcessorService - Additional Tests', () => {
         warn: jest.fn(),
         error: jest.fn(),
         verbose: jest.fn(),
-      } as any;
-      
+      } as any
+
       // Call the method directly
       const result = await (service as any).estimateMessageGas(
         '0x6666666666666666666666666666666666666666' as Hex,
@@ -608,7 +625,7 @@ describe('IntentProcessorService - Additional Tests', () => {
 
       // Should use default gas per intent * count
       expect(result).toBe(BigInt(25000) * BigInt(3))
-      
+
       // Should log the error
       expect(service['logger'].warn).toHaveBeenCalled()
     })
@@ -620,12 +637,12 @@ describe('IntentProcessorService - Additional Tests', () => {
       }
 
       walletClientService.getPublicClient = jest.fn().mockResolvedValue(mockPublicClient)
-      
+
       // Force Hyperlane config to be missing
       jest.spyOn(Hyperlane, 'getChainMetadata').mockImplementation(() => {
-        throw new Error('Missing chain config');
-      });
-      
+        throw new Error('Missing chain config')
+      })
+
       // Test with different intent counts
       const result1 = await (service as any).estimateMessageGas(
         '0x6666666666666666666666666666666666666666' as Hex,
@@ -635,7 +652,7 @@ describe('IntentProcessorService - Additional Tests', () => {
         '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
         1, // intent count
       )
-      
+
       const result5 = await (service as any).estimateMessageGas(
         '0x6666666666666666666666666666666666666666' as Hex,
         '0x0000000000000000000000000000000000000001' as Hex,
@@ -644,7 +661,7 @@ describe('IntentProcessorService - Additional Tests', () => {
         '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
         5, // intent count
       )
-      
+
       // Should scale linearly with intent count
       expect(result1).toBe(BigInt(25000) * BigInt(1))
       expect(result5).toBe(BigInt(25000) * BigInt(5))
@@ -652,11 +669,13 @@ describe('IntentProcessorService - Additional Tests', () => {
 
     it('should handle PublicClient errors', async () => {
       // Reset the mock first
-      jest.spyOn(service as any, 'estimateMessageGas').mockRestore();
-      
+      jest.spyOn(service as any, 'estimateMessageGas').mockRestore()
+
       // Force public client to fail
-      walletClientService.getPublicClient = jest.fn().mockRejectedValue(new Error('Public client error'))
-      
+      walletClientService.getPublicClient = jest
+        .fn()
+        .mockRejectedValue(new Error('Public client error'))
+
       // Create a mock implementation for the logger
       service['logger'] = {
         log: jest.fn(),
@@ -664,8 +683,8 @@ describe('IntentProcessorService - Additional Tests', () => {
         warn: jest.fn(),
         error: jest.fn(),
         verbose: jest.fn(),
-      } as any;
-      
+      } as any
+
       const result = await (service as any).estimateMessageGas(
         '0x6666666666666666666666666666666666666666' as Hex,
         '0x0000000000000000000000000000000000000001' as Hex,
@@ -677,7 +696,7 @@ describe('IntentProcessorService - Additional Tests', () => {
 
       // Should fall back to default gas calculation
       expect(result).toBe(BigInt(25000) * BigInt(4))
-      
+
       // Should log the error
       expect(service['logger'].warn).toHaveBeenCalled()
     })
@@ -686,7 +705,7 @@ describe('IntentProcessorService - Additional Tests', () => {
   describe('getIntentSource', () => {
     it('should return the first source address when only one exists', () => {
       // Default mock already set up with one source address
-      
+
       const result = (service as any).getIntentSource()
       expect(result).toBe('0x5555555555555555555555555555555555555555')
     })
@@ -694,16 +713,16 @@ describe('IntentProcessorService - Additional Tests', () => {
     it('should throw an error when multiple source addresses exist', () => {
       // Mock multiple source addresses
       ecoConfigService.getIntentSources = jest.fn().mockReturnValue([
-        { 
-          sourceAddress: '0xsource1' as Hex, 
+        {
+          sourceAddress: '0xsource1' as Hex,
           inbox: '0xinbox1' as Hex,
           network: 'ethereum',
           chainID: 1,
           tokens: [],
           provers: [],
         },
-        { 
-          sourceAddress: '0xsource2' as Hex, 
+        {
+          sourceAddress: '0xsource2' as Hex,
           inbox: '0xinbox2' as Hex,
           network: 'optimism',
           chainID: 10,
@@ -711,9 +730,9 @@ describe('IntentProcessorService - Additional Tests', () => {
           provers: [],
         },
       ])
-      
+
       expect(() => (service as any).getIntentSource()).toThrow(
-        'Implementation has to be refactor to support multiple intent source addresses.'
+        'Implementation has to be refactor to support multiple intent source addresses.',
       )
     })
 
@@ -722,18 +741,18 @@ describe('IntentProcessorService - Additional Tests', () => {
       ecoConfigService.getIntentSources = jest.fn().mockReturnValue([])
 
       // Mock the getIntentSource method to handle empty arrays
-      const mockGetIntentSource = jest.spyOn(service as any, 'getIntentSource');
+      const mockGetIntentSource = jest.spyOn(service as any, 'getIntentSource')
       mockGetIntentSource.mockImplementation(() => {
-        const sources = ecoConfigService.getIntentSources();
+        const sources = ecoConfigService.getIntentSources()
         if (!sources || sources.length === 0) {
-          throw new Error('No intent source addresses configured.');
+          throw new Error('No intent source addresses configured.')
         }
-        return sources[0].sourceAddress;
-      });
-      
+        return sources[0].sourceAddress
+      })
+
       // Should throw an error when no sources are available
       expect(() => (service as any).getIntentSource()).toThrow(
-        'No intent source addresses configured.'
+        'No intent source addresses configured.',
       )
     })
   })
@@ -741,7 +760,7 @@ describe('IntentProcessorService - Additional Tests', () => {
   describe('getInbox', () => {
     it('should return the first inbox address when only one exists', () => {
       // Default mock already set up with one inbox address
-      
+
       const result = (service as any).getInbox()
       expect(result).toBe('0x6666666666666666666666666666666666666666')
     })
@@ -749,15 +768,15 @@ describe('IntentProcessorService - Additional Tests', () => {
     it('should throw an error when multiple inbox addresses exist', () => {
       // Mock multiple inbox addresses
       ecoConfigService.getIntentSources = jest.fn().mockReturnValue([
-        { 
-          sourceAddress: '0xsource1' as Hex, 
+        {
+          sourceAddress: '0xsource1' as Hex,
           inbox: '0xinbox1' as Hex,
           network: 'ethereum',
           chainID: 1,
           tokens: [],
           provers: [],
         },
-        { 
+        {
           sourceAddress: '0xsource1' as Hex, // Same source address
           inbox: '0xinbox2' as Hex, // Different inbox
           network: 'optimism',
@@ -766,9 +785,9 @@ describe('IntentProcessorService - Additional Tests', () => {
           provers: [],
         },
       ])
-      
+
       expect(() => (service as any).getInbox()).toThrow(
-        'Implementation has to be refactor to support multiple inbox addresses.'
+        'Implementation has to be refactor to support multiple inbox addresses.',
       )
     })
   })

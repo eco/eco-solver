@@ -100,7 +100,7 @@ describe('IntentProcessorService', () => {
                 network: Network.ETH_MAINNET,
                 chainID: 1,
                 tokens: ['0xToken1' as Hex],
-                provers: ['0xProver1' as Hex]
+                provers: ['0xProver1' as Hex],
               },
             ]),
             getEth: jest.fn().mockReturnValue({
@@ -161,9 +161,9 @@ describe('IntentProcessorService', () => {
         addExecuteSendBatchJobs: jest.fn().mockResolvedValue(undefined),
       },
       writable: false,
-      configurable: true
-    }) as any;
-    
+      configurable: true,
+    }) as any
+
     // Call onApplicationBootstrap to initialize config
     await service.onApplicationBootstrap()
   })
@@ -191,9 +191,19 @@ describe('IntentProcessorService', () => {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
             destination: '2',
             inbox: mockInbox,
-            rewardTokens: [{ token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' }],
-            routeTokens: [{ token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' }],
-            calls: [{ target: '0x0000000000000000000000000000000000000005' as Hex, data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex, value: '50' }],
+            rewardTokens: [
+              { token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' },
+            ],
+            routeTokens: [
+              { token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' },
+            ],
+            calls: [
+              {
+                target: '0x0000000000000000000000000000000000000005' as Hex,
+                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                value: '50',
+              },
+            ],
           },
         },
         {
@@ -207,17 +217,25 @@ describe('IntentProcessorService', () => {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000002' as Hex,
             destination: '2',
             inbox: mockInbox,
-            rewardTokens: [{ token: '0x0000000000000000000000000000000000000008' as Hex, amount: '400' }],
-            routeTokens: [{ token: '0x0000000000000000000000000000000000000009' as Hex, amount: '500' }],
-            calls: [{ target: '0x000000000000000000000000000000000000000a' as Hex, data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex, value: '60' }],
+            rewardTokens: [
+              { token: '0x0000000000000000000000000000000000000008' as Hex, amount: '400' },
+            ],
+            routeTokens: [
+              { token: '0x0000000000000000000000000000000000000009' as Hex, amount: '500' },
+            ],
+            calls: [
+              {
+                target: '0x000000000000000000000000000000000000000a' as Hex,
+                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                value: '60',
+              },
+            ],
           },
         },
       ]
 
       // Setup mock responses
-      indexerService.getNextBatchWithdrawals = jest
-        .fn()
-        .mockResolvedValue(mockWithdrawals)
+      indexerService.getNextBatchWithdrawals = jest.fn().mockResolvedValue(mockWithdrawals)
 
       // Mock the queue
       const queueAddExecuteWithdrawalsJobs = jest.fn()
@@ -255,9 +273,19 @@ describe('IntentProcessorService', () => {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
             destination: '2',
             inbox: mockInbox,
-            rewardTokens: [{ token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' }],
-            routeTokens: [{ token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' }],
-            calls: [{ target: '0x0000000000000000000000000000000000000005' as Hex, data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex, value: '50' }],
+            rewardTokens: [
+              { token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' },
+            ],
+            routeTokens: [
+              { token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' },
+            ],
+            calls: [
+              {
+                target: '0x0000000000000000000000000000000000000005' as Hex,
+                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                value: '50',
+              },
+            ],
           },
         },
         {
@@ -271,17 +299,25 @@ describe('IntentProcessorService', () => {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000002' as Hex,
             destination: '3',
             inbox: mockInbox,
-            rewardTokens: [{ token: '0x0000000000000000000000000000000000000008' as Hex, amount: '400' }],
-            routeTokens: [{ token: '0x0000000000000000000000000000000000000009' as Hex, amount: '500' }],
-            calls: [{ target: '0x000000000000000000000000000000000000000a' as Hex, data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex, value: '60' }],
+            rewardTokens: [
+              { token: '0x0000000000000000000000000000000000000008' as Hex, amount: '400' },
+            ],
+            routeTokens: [
+              { token: '0x0000000000000000000000000000000000000009' as Hex, amount: '500' },
+            ],
+            calls: [
+              {
+                target: '0x000000000000000000000000000000000000000a' as Hex,
+                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                value: '60',
+              },
+            ],
           },
         },
       ]
 
       // Setup mock responses
-      indexerService.getNextBatchWithdrawals = jest
-        .fn()
-        .mockResolvedValue(mockWithdrawals)
+      indexerService.getNextBatchWithdrawals = jest.fn().mockResolvedValue(mockWithdrawals)
 
       // Mock the queue
       const queueAddExecuteWithdrawalsJobs = jest.fn()
@@ -319,16 +355,24 @@ describe('IntentProcessorService', () => {
             salt: `0x${i.toString().padStart(64, '0')}` as Hex,
             destination: '2',
             inbox: mockInbox,
-            rewardTokens: [{ token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' }],
-            routeTokens: [{ token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' }],
-            calls: [{ target: '0x0000000000000000000000000000000000000005' as Hex, data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex, value: '50' }],
+            rewardTokens: [
+              { token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' },
+            ],
+            routeTokens: [
+              { token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' },
+            ],
+            calls: [
+              {
+                target: '0x0000000000000000000000000000000000000005' as Hex,
+                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                value: '50',
+              },
+            ],
           },
         }))
 
       // Setup mock responses
-      indexerService.getNextBatchWithdrawals = jest
-        .fn()
-        .mockResolvedValue(mockWithdrawals)
+      indexerService.getNextBatchWithdrawals = jest.fn().mockResolvedValue(mockWithdrawals)
 
       // Mock the queue
       const queueAddExecuteWithdrawalsJobs = jest.fn()
@@ -342,13 +386,13 @@ describe('IntentProcessorService', () => {
 
       // Verify jobs were added to queue - should have 3 jobs with 5, 5, and 2 intents
       expect(queueAddExecuteWithdrawalsJobs).toHaveBeenCalledTimes(1)
-      
+
       // Extract the jobs argument
       const jobsArg = queueAddExecuteWithdrawalsJobs.mock.calls[0][0]
-      
+
       // Verify we have 3 jobs (12 intents / chunk size 5 = ceil(2.4) = 3 chunks)
       expect(jobsArg.length).toBe(3)
-      
+
       // Verify chunking
       expect(jobsArg[0].intents.length).toBe(5)
       expect(jobsArg[1].intents.length).toBe(5)
@@ -447,13 +491,49 @@ describe('IntentProcessorService', () => {
       // Create various proves with different provers
       const mockProves = [
         // Mix of different provers and sources
-        { hash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex, prover: '0xa000000000000000000000000000000000000001' as Hex, chainId: 1, destinationChainId: 2, source: 1 },
-        { hash: '0x0000000000000000000000000000000000000000000000000000000000000002' as Hex, prover: '0xa000000000000000000000000000000000000001' as Hex, chainId: 1, destinationChainId: 2, source: 1 },
-        { hash: '0x0000000000000000000000000000000000000000000000000000000000000003' as Hex, prover: '0xa000000000000000000000000000000000000001' as Hex, chainId: 1, destinationChainId: 2, source: 1 },
+        {
+          hash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+          prover: '0xa000000000000000000000000000000000000001' as Hex,
+          chainId: 1,
+          destinationChainId: 2,
+          source: 1,
+        },
+        {
+          hash: '0x0000000000000000000000000000000000000000000000000000000000000002' as Hex,
+          prover: '0xa000000000000000000000000000000000000001' as Hex,
+          chainId: 1,
+          destinationChainId: 2,
+          source: 1,
+        },
+        {
+          hash: '0x0000000000000000000000000000000000000000000000000000000000000003' as Hex,
+          prover: '0xa000000000000000000000000000000000000001' as Hex,
+          chainId: 1,
+          destinationChainId: 2,
+          source: 1,
+        },
         // Only one group with same prover-source combination for this test
-        { hash: '0x0000000000000000000000000000000000000000000000000000000000000004' as Hex, prover: '0xa000000000000000000000000000000000000001' as Hex, chainId: 1, destinationChainId: 2, source: 1 },
-        { hash: '0x0000000000000000000000000000000000000000000000000000000000000005' as Hex, prover: '0xa000000000000000000000000000000000000001' as Hex, chainId: 1, destinationChainId: 2, source: 1 },
-        { hash: '0x0000000000000000000000000000000000000000000000000000000000000006' as Hex, prover: '0xa000000000000000000000000000000000000001' as Hex, chainId: 1, destinationChainId: 2, source: 1 }
+        {
+          hash: '0x0000000000000000000000000000000000000000000000000000000000000004' as Hex,
+          prover: '0xa000000000000000000000000000000000000001' as Hex,
+          chainId: 1,
+          destinationChainId: 2,
+          source: 1,
+        },
+        {
+          hash: '0x0000000000000000000000000000000000000000000000000000000000000005' as Hex,
+          prover: '0xa000000000000000000000000000000000000001' as Hex,
+          chainId: 1,
+          destinationChainId: 2,
+          source: 1,
+        },
+        {
+          hash: '0x0000000000000000000000000000000000000000000000000000000000000006' as Hex,
+          prover: '0xa000000000000000000000000000000000000001' as Hex,
+          chainId: 1,
+          destinationChainId: 2,
+          source: 1,
+        },
       ]
 
       // Setup mock responses
@@ -473,7 +553,7 @@ describe('IntentProcessorService', () => {
       const jobsArg = queueAddExecuteSendBatchJobs.mock.calls[0][0]
 
       // All jobs should be for destination chain 2
-      expect(jobsArg.every(job => job.chainId === 2)).toBe(true)
+      expect(jobsArg.every((job) => job.chainId === 2)).toBe(true)
 
       // Verify sorting and grouping logic
       // We should have at least 4 groups: ProverA-1, ProverA-2, ProverB-1, ProverB-2
@@ -481,7 +561,7 @@ describe('IntentProcessorService', () => {
       for (const job of jobsArg) {
         // Group by prover+source
         const groups = _.groupBy(job.proves, (prove) => [prove.prover, prove.source].join('-'))
-        
+
         // Each job should only have one group (one prover-source combination)
         expect(Object.keys(groups).length).toBe(1)
       }
@@ -632,14 +712,15 @@ describe('IntentProcessorService', () => {
       }
 
       // Mock getSendBatchTransaction to return different transactions
-      jest.spyOn(service as any, 'getSendBatchTransaction')
+      jest
+        .spyOn(service as any, 'getSendBatchTransaction')
         .mockImplementation((client, inbox, prover, source, hashes) => {
           return Promise.resolve({
             to: inbox,
             value: 50000n,
             data: `0xData-${prover}-${source}`,
-          });
-        });
+          })
+        })
 
       // Mock encodeFunctionData
       jest.spyOn(require('viem'), 'encodeFunctionData').mockReturnValue('0xMulticallData')
@@ -676,7 +757,7 @@ describe('IntentProcessorService', () => {
       ]
       const prover = '0x0000000000000000000000000000000000000001' as Hex
       const source = 2
-      
+
       // Mock estimateMessageGas method
       jest.spyOn(service as any, 'estimateMessageGas').mockResolvedValue(BigInt(50000))
 
@@ -781,10 +862,7 @@ describe('IntentProcessorService', () => {
       )
 
       // Verify getChainMetadata was called
-      expect(Hyperlane.getChainMetadata).toHaveBeenCalledWith(
-        service['config'].hyperlane,
-        source,
-      )
+      expect(Hyperlane.getChainMetadata).toHaveBeenCalledWith(service['config'].hyperlane, source)
 
       // Verify getPublicClient was called
       expect(walletClientDefaultSignerService.getPublicClient).toHaveBeenCalledWith(source)
@@ -813,9 +891,7 @@ describe('IntentProcessorService', () => {
       const intentCount = 3
 
       // Make estimateMessageGas throw an error
-      ;(Hyperlane.estimateMessageGas as jest.Mock).mockRejectedValue(
-        new Error('Estimation failed'),
-      )
+      ;(Hyperlane.estimateMessageGas as jest.Mock).mockRejectedValue(new Error('Estimation failed'))
 
       // Execute
       const result = await service['estimateMessageGas'](
@@ -842,21 +918,21 @@ describe('IntentProcessorService', () => {
     it('should throw error if multiple intent sources', () => {
       // Mock multiple intent sources
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
-        { 
-          sourceAddress: '0xSource1' as Hex, 
+        {
+          sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox1' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex]
+          provers: ['0xProver1' as Hex],
         },
-        { 
-          sourceAddress: '0xSource2' as Hex, 
+        {
+          sourceAddress: '0xSource2' as Hex,
           inbox: '0xInbox1' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex]
+          provers: ['0xProver1' as Hex],
         },
       ])
 
@@ -873,21 +949,21 @@ describe('IntentProcessorService', () => {
     it('should throw error if multiple inbox addresses', () => {
       // Mock multiple inboxes
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
-        { 
-          sourceAddress: '0xSource1' as Hex, 
+        {
+          sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox1' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex]
+          provers: ['0xProver1' as Hex],
         },
-        { 
-          sourceAddress: '0xSource1' as Hex, 
+        {
+          sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox2' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex]
+          provers: ['0xProver1' as Hex],
         },
       ])
 

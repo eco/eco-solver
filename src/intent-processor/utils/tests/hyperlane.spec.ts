@@ -1,8 +1,4 @@
-import {
-  encodeAbiParameters,
-  Hex,
-  PublicClient,
-} from 'viem'
+import { encodeAbiParameters, Hex, PublicClient } from 'viem'
 import { createMock } from '@golevelup/ts-jest'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import { HyperlaneConfig } from '@/eco-configs/eco-config.types'
@@ -142,11 +138,16 @@ describe('Hyperlane Utils', () => {
       const gasLimit = 200000n
 
       // Mock the encodePacked function
-      const encodePacked = jest.spyOn(require('viem'), 'encodePacked').mockImplementation(() => '0xEncodedMetadata')
+      const encodePacked = jest
+        .spyOn(require('viem'), 'encodePacked')
+        .mockImplementation(() => '0xEncodedMetadata')
 
       const result = Hyperlane.getMetadata(value, gasLimit)
 
-      expect(encodePacked).toHaveBeenCalledWith(['uint16', 'uint256', 'uint256'], [1, value, gasLimit])
+      expect(encodePacked).toHaveBeenCalledWith(
+        ['uint16', 'uint256', 'uint256'],
+        [1, value, gasLimit],
+      )
       expect(result).toBe('0xEncodedMetadata')
     })
   })

@@ -8,23 +8,23 @@ import { AwsConfigService } from '@/eco-configs/aws-config.service'
 describe('EcoConfigService - New Getters', () => {
   let ecoConfigService: EcoConfigService
   let awsConfigService: DeepMocked<AwsConfigService>
-  
+
   // Define sample configs to return
   const mockIndexerConfig = {
     url: 'https://mock-indexer.eco.com',
   }
-  
+
   const mockWithdrawsConfig = {
     chunkSize: 20,
     intervalDuration: 360000,
   }
-  
+
   const mockSendBatchConfig = {
     chunkSize: 200,
     intervalDuration: 360000,
     defaultGasPerIntent: 25000,
   }
-  
+
   const mockHyperlaneConfig = {
     useHyperlaneDefaultHook: true,
     mappings: {
@@ -35,7 +35,7 @@ describe('EcoConfigService - New Getters', () => {
       },
       '10': {
         mailbox: '0xmailbox10',
-        aggregationHook: '0xaggregation10', 
+        aggregationHook: '0xaggregation10',
         hyperlaneAggregationHook: '0xhyperaggregation10',
       },
     },
@@ -43,7 +43,7 @@ describe('EcoConfigService - New Getters', () => {
 
   beforeEach(async () => {
     awsConfigService = createMock<AwsConfigService>()
-    
+
     const configMod: TestingModule = await Test.createTestingModule({
       providers: [
         {
@@ -59,7 +59,7 @@ describe('EcoConfigService - New Getters', () => {
     }).compile()
 
     ecoConfigService = configMod.get<EcoConfigService>(EcoConfigService)
-    
+
     // Mock the get method to return our sample configs
     jest.spyOn(ecoConfigService, 'get').mockImplementation((key: string) => {
       switch (key) {

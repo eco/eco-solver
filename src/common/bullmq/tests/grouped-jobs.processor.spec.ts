@@ -34,7 +34,11 @@ class TestGroupedProcessor extends GroupedJobsProcessor<TestGroupJob, TestJobMan
     return [this.jobManager]
   }
 
-  constructor(groupBy: string, queue: Queue, private readonly jobManager: TestJobManager) {
+  constructor(
+    groupBy: string,
+    queue: Queue,
+    private readonly jobManager: TestJobManager,
+  ) {
     super(groupBy as any, 'test-grouped-processor', [jobManager])
     this.queue = queue
   }
@@ -58,7 +62,7 @@ describe('GroupedJobsProcessor', () => {
 
     jobManager = new TestJobManager()
     processor = new TestGroupedProcessor('groupKey', mockQueue, jobManager)
-    
+
     // Create a mock job
     mockJob = {
       name: 'test-group-job',
@@ -88,16 +92,16 @@ describe('GroupedJobsProcessor', () => {
     it('should delay job when group is already active', async () => {
       // Set the group as active
       processor.getActiveGroups().add('test-group')
-      
+
       // Mock the job object with opts needed for queue.add
       mockJob.opts = {}
-      
+
       // Process the job
       const result = await processor.process(mockJob)
 
       // The queue.add method should be called to reschedule the job
       expect(mockQueue.add).toHaveBeenCalled()
-      
+
       // The return value should indicate the job was delayed
       expect(result).toEqual({ delayed: true })
     })
@@ -110,9 +114,9 @@ describe('GroupedJobsProcessor', () => {
       } as unknown as TestGroupJob
 
       const spy = jest.spyOn(jobManager, 'process').mockResolvedValue()
-      
+
       // Reset the add method call counter
-      jest.clearAllMocks();
+      jest.clearAllMocks()
 
       await processor.process(jobWithoutGroup)
 
@@ -126,7 +130,7 @@ describe('GroupedJobsProcessor', () => {
     it('should remove group from active groups when job completes', () => {
       // Set the group as active
       processor.getActiveGroups().add('test-group')
-      
+
       // Call the onWorkerEvent handler
       const handler = processor['onCompleted']
       handler.call(processor, mockJob)
@@ -137,7 +141,7 @@ describe('GroupedJobsProcessor', () => {
     it('should not call onComplete hook for delayed jobs', () => {
       // Set the group as active
       processor.getActiveGroups().add('test-group')
-      
+
       // Set the job as delayed
       const delayedJob = {
         ...mockJob,
@@ -145,7 +149,7 @@ describe('GroupedJobsProcessor', () => {
       } as unknown as TestGroupJob
 
       const spy = jest.spyOn(jobManager, 'onComplete')
-      
+
       // Call the onWorkerEvent handler
       const handler = processor['onCompleted']
       handler.call(processor, delayedJob)
@@ -158,7 +162,7 @@ describe('GroupedJobsProcessor', () => {
     it('should remove group from active groups when job fails', () => {
       // Set the group as active
       processor.getActiveGroups().add('test-group')
-      
+
       // Call the onWorkerEvent handler
       const handler = processor['onFailed']
       handler.call(processor, mockJob, new Error('Job failed'))

@@ -23,10 +23,7 @@ describe('IndexerService', () => {
     global.fetch = mockFetch
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        IndexerService,
-        { provide: EcoConfigService, useValue: ecoConfigService },
-      ],
+      providers: [IndexerService, { provide: EcoConfigService, useValue: ecoConfigService }],
     }).compile()
 
     // Mock Logger to avoid console output during tests

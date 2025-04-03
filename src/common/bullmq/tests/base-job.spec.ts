@@ -35,7 +35,7 @@ describe('BaseJobManager', () => {
       expect(typeof BaseJobManager.prototype.process).toBe('function')
       expect(typeof BaseJobManager.prototype.onComplete).toBe('function')
       expect(typeof BaseJobManager.prototype.onFailed).toBe('function')
-      
+
       // Verify the inheritance relationship
       expect(jobManager).toBeInstanceOf(BaseJobManager)
     })
@@ -57,7 +57,7 @@ describe('BaseJobManager', () => {
       const processSpy = jest.spyOn(jobManager, 'process')
 
       await jobManager.process(testJob, mockProcessor)
-      
+
       expect(processSpy).toHaveBeenCalledWith(testJob, mockProcessor)
     })
 

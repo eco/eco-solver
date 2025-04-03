@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { WalletClientService, WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import {
+  WalletClientService,
+  WalletClientDefaultSignerService,
+} from '@/transaction/smart-wallets/wallet-client.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { SignerService } from '@/sign/signer.service'
 import { createMock } from '@golevelup/ts-jest'
@@ -30,16 +33,14 @@ describe('WalletClientService', () => {
   // Create a concrete implementation of WalletClientService for testing
   class TestWalletClientService extends WalletClientService {
     getAccount(): Promise<Account> {
-      return Promise.resolve({ 
+      return Promise.resolve({
         address: '0xtest' as Address,
         signMessage: jest.fn().mockResolvedValue('0xsignature' as Hex),
-        signTransaction: jest.fn().mockImplementation(() => 
-          Promise.resolve('0xsignedtx' as Hex)
-        ),
+        signTransaction: jest.fn().mockImplementation(() => Promise.resolve('0xsignedtx' as Hex)),
         signTypedData: jest.fn().mockResolvedValue('0xsignature' as Hex),
         publicKey: '0xpublickey' as Hex,
         type: 'local',
-        source: 'test'
+        source: 'test',
       } as unknown as Account)
     }
   }
@@ -51,11 +52,11 @@ describe('WalletClientService', () => {
     ecoConfigService = createMock<EcoConfigService>({
       getAlchemy: jest.fn().mockReturnValue({
         apiKey: 'test-api-key',
-        networks: [{ id: 1, name: 'ethereum' }]
+        networks: [{ id: 1, name: 'ethereum' }],
       }),
       getEth: jest.fn().mockReturnValue({
-        pollingInterval: 4000
-      })
+        pollingInterval: 4000,
+      }),
     })
 
     const module: TestingModule = await Test.createTestingModule({
@@ -104,9 +105,9 @@ describe('WalletClientService', () => {
   describe('createInstanceClient', () => {
     it('should create a wallet client with the provided config', async () => {
       // Reset the mock to make sure it returns a value
-      (createWalletClient as jest.Mock).mockReturnValue({ walletClient: true })
-      
-      const config = { 
+      ;(createWalletClient as jest.Mock).mockReturnValue({ walletClient: true })
+
+      const config = {
         account: { address: '0xtest' },
         chain: { id: 1, name: 'Ethereum' },
         transport: { type: 'http', url: 'https://ethereum.example.com' },
@@ -122,10 +123,10 @@ describe('WalletClientService', () => {
   describe('getAccount method', () => {
     it('should return an account object', async () => {
       // Verify the getAccount method returns the expected object
-      const result = await service.getAccount();
-      
+      const result = await service.getAccount()
+
       // Just verify that the method returns something with an address property
-      expect(result).toHaveProperty('address');
+      expect(result).toHaveProperty('address')
     })
   })
 })
@@ -139,24 +140,22 @@ describe('WalletClientDefaultSignerService', () => {
     ecoConfigService = createMock<EcoConfigService>({
       getAlchemy: jest.fn().mockReturnValue({
         apiKey: 'test-api-key',
-        networks: [{ id: 1, name: 'ethereum' }]
+        networks: [{ id: 1, name: 'ethereum' }],
       }),
       getEth: jest.fn().mockReturnValue({
-        pollingInterval: 4000
-      })
+        pollingInterval: 4000,
+      }),
     })
-    
+
     signerService = createMock<SignerService>({
-      getAccount: jest.fn().mockReturnValue({ 
+      getAccount: jest.fn().mockReturnValue({
         address: '0xsigner' as Address,
         signMessage: jest.fn().mockResolvedValue('0xsignature' as Hex),
-        signTransaction: jest.fn().mockImplementation(() => 
-          Promise.resolve('0xsignedtx' as Hex)
-        ),
+        signTransaction: jest.fn().mockImplementation(() => Promise.resolve('0xsignedtx' as Hex)),
         signTypedData: jest.fn().mockResolvedValue('0xsignature' as Hex),
         publicKey: '0xpublickey' as Hex,
         type: 'local',
-        source: 'test'
+        source: 'test',
       } as unknown as Account),
     })
 

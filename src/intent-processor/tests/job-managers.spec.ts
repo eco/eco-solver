@@ -5,7 +5,7 @@ import { IntentProcessorService } from '@/intent-processor/services/intent-proce
 
 // Mock the queue utils first
 jest.mock('@/bullmq/utils/queue', () => ({
-  removeJobSchedulers: jest.fn().mockResolvedValue(undefined)
+  removeJobSchedulers: jest.fn().mockResolvedValue(undefined),
 }))
 
 // Then import the modules that use these utils
@@ -71,13 +71,16 @@ describe('Intent Processor Job Managers', () => {
       // Directly mock the delay to avoid the actual timeout
       // Instead of mocking setTimeout, we'll modify the implementation of withdraw-rewards-cron.job.ts
       // This is done by spying on Promise.all to immediately return
-      jest.spyOn(Promise, 'all').mockImplementation(() => Promise.resolve([]));
+      jest.spyOn(Promise, 'all').mockImplementation(() => Promise.resolve([]))
 
       // Call the static start method
       await CheckWithdrawalsCronJobManager.start(mockQueue, interval)
 
       // Should call removeJobSchedulers to clean up existing job schedulers
-      expect(mockRemoveJobSchedulers).toHaveBeenCalledWith(mockQueue, IntentProcessorJobName.CHECK_WITHDRAWS)
+      expect(mockRemoveJobSchedulers).toHaveBeenCalledWith(
+        mockQueue,
+        IntentProcessorJobName.CHECK_WITHDRAWS,
+      )
 
       // Should call upsertJobScheduler with the correct parameters
       expect(mockQueue.upsertJobScheduler).toHaveBeenCalledWith(
@@ -88,21 +91,21 @@ describe('Intent Processor Job Managers', () => {
           opts: {
             removeOnComplete: true,
           },
-        }
+        },
       )
 
       // Restore Promise.all
-      jest.restoreAllMocks();
+      jest.restoreAllMocks()
     }, 10000)
 
     it('should identify its job correctly', () => {
       const manager = new CheckWithdrawalsCronJobManager()
-      
+
       // Create a job with the CHECK_WITHDRAWS name
       const checkWithdrawsJob = { name: IntentProcessorJobName.CHECK_WITHDRAWS }
       // Create a job with a different name
       const otherJob = { name: IntentProcessorJobName.CHECK_SEND_BATCH }
-      
+
       // The manager should identify its own job type
       expect(manager.is(checkWithdrawsJob as any)).toBe(true)
       expect(manager.is(otherJob as any)).toBe(false)
@@ -111,10 +114,10 @@ describe('Intent Processor Job Managers', () => {
     it('should process withdrawals by calling intentProcessorService', async () => {
       const manager = new CheckWithdrawalsCronJobManager()
       const job = { name: IntentProcessorJobName.CHECK_WITHDRAWS }
-      
+
       // Process the job
       await manager.process(job as any, mockProcessor)
-      
+
       // Should call the service method to get the next batch of withdrawals
       expect(mockProcessor.intentProcessorService.getNextBatchWithdrawals).toHaveBeenCalled()
     })
@@ -123,10 +126,10 @@ describe('Intent Processor Job Managers', () => {
       const manager = new CheckWithdrawalsCronJobManager()
       const job = { name: IntentProcessorJobName.CHECK_WITHDRAWS }
       const error = new Error('Test error')
-      
+
       // Simulate job failure
       manager.onFailed(job as any, mockProcessor, error)
-      
+
       // Should log the error
       expect(mockProcessor.logger.error).toHaveBeenCalled()
     })
@@ -148,7 +151,10 @@ describe('Intent Processor Job Managers', () => {
       await CheckSendBatchCronJobManager.start(mockQueue, interval)
 
       // Should call removeJobSchedulers to clean up existing job schedulers
-      expect(mockRemoveJobSchedulers).toHaveBeenCalledWith(mockQueue, IntentProcessorJobName.CHECK_SEND_BATCH)
+      expect(mockRemoveJobSchedulers).toHaveBeenCalledWith(
+        mockQueue,
+        IntentProcessorJobName.CHECK_SEND_BATCH,
+      )
 
       // Should call upsertJobScheduler with the correct parameters
       expect(mockQueue.upsertJobScheduler).toHaveBeenCalledWith(
@@ -159,18 +165,18 @@ describe('Intent Processor Job Managers', () => {
           opts: {
             removeOnComplete: true,
           },
-        }
+        },
       )
     }, 10000)
 
     it('should identify its job correctly', () => {
       const manager = new CheckSendBatchCronJobManager()
-      
+
       // Create a job with the CHECK_SEND_BATCH name
       const checkSendBatchJob = { name: IntentProcessorJobName.CHECK_SEND_BATCH }
       // Create a job with a different name
       const otherJob = { name: IntentProcessorJobName.CHECK_WITHDRAWS }
-      
+
       // The manager should identify its own job type
       expect(manager.is(checkSendBatchJob as any)).toBe(true)
       expect(manager.is(otherJob as any)).toBe(false)
@@ -179,10 +185,10 @@ describe('Intent Processor Job Managers', () => {
     it('should process send batches by calling intentProcessorService', async () => {
       const manager = new CheckSendBatchCronJobManager()
       const job = { name: IntentProcessorJobName.CHECK_SEND_BATCH }
-      
+
       // Process the job
       await manager.process(job as any, mockProcessor)
-      
+
       // Should call the service method to get the next send batch
       expect(mockProcessor.intentProcessorService.getNextSendBatch).toHaveBeenCalled()
     })
@@ -191,10 +197,10 @@ describe('Intent Processor Job Managers', () => {
       const manager = new CheckSendBatchCronJobManager()
       const job = { name: IntentProcessorJobName.CHECK_SEND_BATCH }
       const error = new Error('Test error')
-      
+
       // Simulate job failure
       manager.onFailed(job as any, mockProcessor, error)
-      
+
       // Should log the error
       expect(mockProcessor.logger.error).toHaveBeenCalled()
     })
@@ -238,12 +244,12 @@ describe('Intent Processor Job Managers', () => {
 
     it('should identify its job correctly', () => {
       const manager = new ExecuteWithdrawsJobManager()
-      
+
       // Create a job with the EXECUTE_WITHDRAWS name
       const executeWithdrawsJob = { name: IntentProcessorJobName.EXECUTE_WITHDRAWS }
       // Create a job with a different name
       const otherJob = { name: IntentProcessorJobName.EXECUTE_SEND_BATCH }
-      
+
       // The manager should identify its own job type
       expect(manager.is(executeWithdrawsJob as any)).toBe(true)
       expect(manager.is(otherJob as any)).toBe(false)
@@ -251,7 +257,7 @@ describe('Intent Processor Job Managers', () => {
 
     it('should process withdrawals by calling intentProcessorService', async () => {
       const manager = new ExecuteWithdrawsJobManager()
-      
+
       // Mock job with serialized data
       const mockData = {
         chainId: 1,
@@ -261,19 +267,19 @@ describe('Intent Processor Job Managers', () => {
 
       // Mock serialization utilities
       jest.mock('@/common/utils/serialize', () => ({
-        serialize: jest.fn().mockImplementation(data => JSON.stringify(data)),
-        deserialize: jest.fn().mockImplementation(data => JSON.parse(data)),
+        serialize: jest.fn().mockImplementation((data) => JSON.stringify(data)),
+        deserialize: jest.fn().mockImplementation((data) => JSON.parse(data)),
       }))
 
       // Create a job with the EXECUTE_WITHDRAWS name and serialized data
-      const job = { 
+      const job = {
         name: IntentProcessorJobName.EXECUTE_WITHDRAWS,
-        data: JSON.stringify(mockData)
+        data: JSON.stringify(mockData),
       }
-      
+
       // Process the job
       await manager.process(job as any, mockProcessor)
-      
+
       // Should call the service method to execute withdrawals
       expect(mockProcessor.intentProcessorService.executeWithdrawals).toHaveBeenCalled()
     })
@@ -282,10 +288,10 @@ describe('Intent Processor Job Managers', () => {
       const manager = new ExecuteWithdrawsJobManager()
       const job = { name: IntentProcessorJobName.EXECUTE_WITHDRAWS }
       const error = new Error('Test error')
-      
+
       // Simulate job failure
       manager.onFailed(job as any, mockProcessor, error)
-      
+
       // Should log the error
       expect(mockProcessor.logger.error).toHaveBeenCalled()
     })
@@ -323,12 +329,12 @@ describe('Intent Processor Job Managers', () => {
 
     it('should identify its job correctly', () => {
       const manager = new ExecuteSendBatchJobManager()
-      
+
       // Create a job with the EXECUTE_SEND_BATCH name
       const executeSendBatchJob = { name: IntentProcessorJobName.EXECUTE_SEND_BATCH }
       // Create a job with a different name
       const otherJob = { name: IntentProcessorJobName.EXECUTE_WITHDRAWS }
-      
+
       // The manager should identify its own job type
       expect(manager.is(executeSendBatchJob as any)).toBe(true)
       expect(manager.is(otherJob as any)).toBe(false)
@@ -336,7 +342,7 @@ describe('Intent Processor Job Managers', () => {
 
     it('should process send batches by calling intentProcessorService', async () => {
       const manager = new ExecuteSendBatchJobManager()
-      
+
       // Mock job with serialized data
       const mockData = {
         chainId: 10,
@@ -351,19 +357,19 @@ describe('Intent Processor Job Managers', () => {
 
       // Mock serialization utilities
       jest.mock('@/common/utils/serialize', () => ({
-        serialize: jest.fn().mockImplementation(data => JSON.stringify(data)),
-        deserialize: jest.fn().mockImplementation(data => JSON.parse(data)),
+        serialize: jest.fn().mockImplementation((data) => JSON.stringify(data)),
+        deserialize: jest.fn().mockImplementation((data) => JSON.parse(data)),
       }))
 
       // Create a job with the EXECUTE_SEND_BATCH name and serialized data
-      const job = { 
+      const job = {
         name: IntentProcessorJobName.EXECUTE_SEND_BATCH,
-        data: JSON.stringify(mockData)
+        data: JSON.stringify(mockData),
       }
-      
+
       // Process the job
       await manager.process(job as any, mockProcessor)
-      
+
       // Should call the service method to execute send batch
       expect(mockProcessor.intentProcessorService.executeSendBatch).toHaveBeenCalled()
     })
@@ -372,10 +378,10 @@ describe('Intent Processor Job Managers', () => {
       const manager = new ExecuteSendBatchJobManager()
       const job = { name: IntentProcessorJobName.EXECUTE_SEND_BATCH }
       const error = new Error('Test error')
-      
+
       // Simulate job failure
       manager.onFailed(job as any, mockProcessor, error)
-      
+
       // Should log the error
       expect(mockProcessor.logger.error).toHaveBeenCalled()
     })

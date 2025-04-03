@@ -1,6 +1,6 @@
-import { 
-  IntentProcessorJob, 
-  IntentProcessorJobManager 
+import {
+  IntentProcessorJob,
+  IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
@@ -42,12 +42,12 @@ describe('Concrete IntentProcessorJobManager implementation', () => {
   })
 
   it('should correctly identify jobs by name', () => {
-    const testJob = { 
-      name: IntentProcessorJobName.CHECK_WITHDRAWS 
+    const testJob = {
+      name: IntentProcessorJobName.CHECK_WITHDRAWS,
     } as unknown as IntentProcessorJob
 
-    const otherJob = { 
-      name: IntentProcessorJobName.EXECUTE_SEND_BATCH 
+    const otherJob = {
+      name: IntentProcessorJobName.EXECUTE_SEND_BATCH,
     } as unknown as IntentProcessorJob
 
     expect(jobManager.is(testJob)).toBe(true)
@@ -55,10 +55,10 @@ describe('Concrete IntentProcessorJobManager implementation', () => {
   })
 
   it('should implement process method', async () => {
-    const testJob = { 
-      name: IntentProcessorJobName.CHECK_WITHDRAWS 
+    const testJob = {
+      name: IntentProcessorJobName.CHECK_WITHDRAWS,
     } as unknown as IntentProcessorJob
-    
+
     const mockProcessor = {}
     const processSpy = jest.spyOn(jobManager, 'process')
 
@@ -67,10 +67,10 @@ describe('Concrete IntentProcessorJobManager implementation', () => {
   })
 
   it('should implement lifecycle hooks', () => {
-    const testJob = { 
-      name: IntentProcessorJobName.CHECK_WITHDRAWS 
+    const testJob = {
+      name: IntentProcessorJobName.CHECK_WITHDRAWS,
     } as unknown as IntentProcessorJob
-    
+
     const mockProcessor = {}
     const error = new Error('Test error')
 

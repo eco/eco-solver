@@ -41,7 +41,7 @@ describe('Intent Utils', () => {
             data: '0xData2',
             value: '200000000000000000', // 0.2 ETH
           },
-        ]
+        ],
       }
 
       // Call function
