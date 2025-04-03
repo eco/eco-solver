@@ -11,7 +11,7 @@ export class PermitTestUtils {
     const permitDTO: PermitDTO = {
       token: '0x0000000000000000000000000000000000000001',
       data: {
-        signature: '0x' + '1'.repeat(130),
+        signature: '0x' + '1'.repeat(130) as Hex,
         deadline: '9999999999',
       },
       ...overrides,

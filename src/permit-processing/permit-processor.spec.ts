@@ -2,12 +2,12 @@ import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { EcoError } from '../common/errors/eco-error'
 import { EcoTester } from '../common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
+import { Hex, TransactionReceipt } from 'viem'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { PermitProcessingParams } from './interfaces/permit-processing-params.interface'
 import { PermitProcessor } from './permit-processor'
 import { PermitTxBuilder } from './permit-tx-builder'
 import { SignerKmsService } from '../sign/signer-kms.service'
-import { TransactionReceipt } from 'viem'
 
 let $: EcoTester
 let processor: PermitProcessor
@@ -26,7 +26,7 @@ describe('PermitProcessor', () => {
     permit: {
       token: '0xdef',
       data: {
-        signature: '0x'.padEnd(132, '1'),
+        signature: '0x'.padEnd(132, '1') as Hex,
         deadline: '1000',
       },
     },

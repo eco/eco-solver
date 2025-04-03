@@ -4,6 +4,7 @@ import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.
 import { IntentInitiationService } from '../services/intent-initiation.service'
 import { QuoteErrorsInterface } from '../../quote/errors'
 import { serialize } from 'v8'
+import { TransactionReceipt } from 'viem'
 
 import {
   BadRequestException,
@@ -29,8 +30,8 @@ export class IntentInitiationController {
   @ApiResponse({ type: GaslessIntentRequestDTO })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<any> {
-    const { response, error } =
+  ): Promise<TransactionReceipt> {
+    const { response: txReceipt, error } =
       await this.intentInitiationService.initiateGaslessIntent(gaslessIntentRequestDTO)
 
     if (error) {
@@ -44,8 +45,11 @@ export class IntentInitiationController {
             throw new InternalServerErrorException(serialize(error))
         }
       }
+
+      // 💥 FIX: throw if error has no statusCode
+      throw new InternalServerErrorException(serialize(error))
     }
 
-    return response!
+    return txReceipt!
   }
 }

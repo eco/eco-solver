@@ -1,4 +1,5 @@
 import { EcoError } from '../../common/errors/eco-error'
+import { EcoLogger } from '../../common/logging/eco-logger'
 import { EcoLogMessage } from '../../common/logging/eco-log-message'
 import { EcoResponse } from '../../common/eco-response'
 import { encodeFunctionData, Hex, TransactionReceipt } from 'viem'
@@ -6,7 +7,7 @@ import { ExecuteSmartWalletArg } from '../../transaction/smart-wallets/smart-wal
 import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
 import { getChainConfig } from '../../eco-configs/utils'
 import { hashRoute, RouteType } from '@eco-foundation/routes-ts'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ModuleRef } from '@nestjs/core'
@@ -15,15 +16,15 @@ import { Permit2Processor } from '../../permit-processing/permit2-processor'
 import { PermitDTO } from '../../quote/dto/permit/permit.dto'
 import { PermitProcessingParams } from '../../permit-processing/interfaces/permit-processing-params.interface'
 import { PermitProcessor } from '../../permit-processing/permit-processor'
+import { QuoteRewardDataDTO } from '../../quote/dto/quote.reward.data.dto'
 import { QuoteService } from '../../quote/quote.service'
-import { RewardDTO } from '../../quote/dto/reward.dto'
 import * as _ from 'lodash'
 
 export const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
-  private logger = new Logger(IntentInitiationService.name)
+  private logger = new EcoLogger(IntentInitiationService.name)
   private quoteService: QuoteService
   private permitProcessor: PermitProcessor
   private permit2Processor: Permit2Processor
@@ -57,6 +58,8 @@ export class IntentInitiationService implements OnModuleInit {
       }),
     )
 
+    gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
+
     // Get the permit tx(s)
     const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
 
@@ -73,9 +76,10 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     const allTxs = [...permitTxs!, fundForTx!]
-    const { originChainID } = gaslessIntentRequestDTO
+    const kernelAccountClient = await this.kernelAccountClientService.getClient(
+      gaslessIntentRequestDTO.getSourceChainID!(),
+    )
 
-    const kernelAccountClient = await this.kernelAccountClientService.getClient(originChainID)
     const txHash = await kernelAccountClient.execute(allTxs)
     const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
 
@@ -113,7 +117,7 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     const realRouteHash = hashRoute(routeWithSalt)
-    const chainConfig = getChainConfig(gaslessIntentRequestDTO.originChainID)
+    const chainConfig = getChainConfig(gaslessIntentRequestDTO.getSourceChainID!())
     const intentSourceContract = chainConfig.IntentSource
 
     // function fundFor(
@@ -153,7 +157,6 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): EcoResponse<ExecuteSmartWalletArg[]> {
     const {
-      originChainID,
       reward,
 
       gaslessIntentData: {
@@ -173,7 +176,7 @@ export class IntentInitiationService implements OnModuleInit {
     )
 
     if (_.size(permit) > 0) {
-      return this.getPermitTxs(originChainID, permit!, funder, reward)
+      return this.getPermitTxs(gaslessIntentRequestDTO.getSourceChainID!(), permit!, funder, reward)
     }
 
     if (_.size(permit2) > 0) {
@@ -187,7 +190,7 @@ export class IntentInitiationService implements OnModuleInit {
     originChainID: number,
     permits: PermitDTO[],
     funder: Hex,
-    reward: RewardDTO,
+    reward: QuoteRewardDataDTO,
   ): EcoResponse<ExecuteSmartWalletArg[]> {
     const chainConfig = getChainConfig(originChainID)
     const intentSourceContract = chainConfig.IntentSource
