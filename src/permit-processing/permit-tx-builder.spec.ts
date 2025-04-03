@@ -31,7 +31,7 @@ describe('PermitTxBuilder', () => {
               '0x' +
               'a'.repeat(64) + // r
               'b'.repeat(64) + // s
-              '1c', // v = 28
+              '1c' as Hex, // v = 28
           },
         },
       }
