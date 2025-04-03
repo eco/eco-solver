@@ -124,7 +124,6 @@ describe('CheckSendBatchCronJobManager', () => {
     it('should handle null or undefined jobs', () => {
       // Need to override the manager's is method to prevent throwing on undefined job.name
       const manager = new CheckSendBatchCronJobManager()
-      const originalIs = manager.is
 
       // Create a safer version of the is method for testing
       jest.spyOn(manager, 'is').mockImplementation((job: any) => {

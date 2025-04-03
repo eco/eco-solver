@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest'
 import { Job } from 'bullmq'
-import { encodePacked, Hex, keccak256 } from 'viem'
+import { Hex } from 'viem'
 import { serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'

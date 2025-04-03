@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { BullModule, getQueueToken } from '@nestjs/bullmq'
+import { getQueueToken } from '@nestjs/bullmq'
 import { createMock } from '@golevelup/ts-jest'
 import * as _ from 'lodash'
 import { Queue } from 'bullmq'
@@ -12,7 +12,6 @@ import { IntentProcessorService } from '@/intent-processor/services/intent-proce
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import * as MulticallUtils from '@/intent-processor/utils/multicall'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 
@@ -714,7 +713,7 @@ describe('IntentProcessorService', () => {
       // Mock getSendBatchTransaction to return different transactions
       jest
         .spyOn(service as any, 'getSendBatchTransaction')
-        .mockImplementation((client, inbox, prover, source, hashes) => {
+        .mockImplementation((client, inbox, prover, source) => {
           return Promise.resolve({
             to: inbox,
             value: 50000n,
