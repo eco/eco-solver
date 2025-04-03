@@ -3,8 +3,8 @@ import { GaslessIntentDataDTO } from '../../quote/dto/gasless-intent-data.dto'
 import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
 import { Hex } from 'viem'
 import { PermitTestUtils } from './permit-test-utils'
+import { QuoteRewardDataDTO } from '../../quote/dto/quote.reward.data.dto'
 import { QuoteTestUtils } from './quote-test-utils'
-import { RewardDTO } from '../../quote/dto/reward.dto'
 import { ZeroAddress } from 'ethers'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {
@@ -20,19 +20,19 @@ export class IntentTestUtils {
   constructor() {
   }
 
-  createRewardDTO(overrides: Partial<RewardDTO> & { token?: Hex } = {}): RewardDTO {
+  createRewardDTO(overrides: Partial<QuoteRewardDataDTO> & { token?: Hex } = {}): QuoteRewardDataDTO {
 
     const {
       token,
-      tokens = token ? [{ token, amount: '1000' }] : [],
+      tokens = token ? [{ token, amount: 1000n }] : [],
       ...rest
     } = overrides
 
     return {
       creator: '0x0000000000000000000000000000000000000006',
       prover: '0x0000000000000000000000000000000000000007',
-      deadline: '9999999999',
-      nativeValue: '0',
+      deadline: 9999999999n,
+      nativeValue: 0n,
       tokens,
       ...rest,
     }
@@ -64,13 +64,15 @@ export class IntentTestUtils {
     }
 
     const gaslessIntentRequestDTO: GaslessIntentRequestDTO = {
-      originChainID: 1,
-      destinationChainID: 137,
       route: this.quoteTestUtils.createQuoteRouteDataDTO(),
       salt: '0x' + 'abcd'.padEnd(64, '0') as Hex,
       reward: this.createRewardDTO({ token }),
       gaslessIntentData,
       ...dtoOverrides,
+
+      getSourceChainID(): number {
+        return Number(this.route.source)
+      },
 
       getFunder(): Hex {
         return this.gaslessIntentData.funder

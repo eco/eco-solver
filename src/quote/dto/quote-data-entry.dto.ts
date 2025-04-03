@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger'
+import { IntentExecutionType } from '../enums/intent-execution-type.enum'
 import { IsArray, IsNotEmpty, IsString } from 'class-validator'
-// import { TokenAmountDataDTO } from '../../intents/dtos/token-amount-data.dto'
 import { RewardTokensInterface } from '@/contracts'
 
 export class QuoteDataEntryDTO {
-  @ApiProperty()
+  @ApiProperty({ enum: IntentExecutionType.enumKeys })
   @IsString()
   @IsNotEmpty()
   intentExecutionType: string
