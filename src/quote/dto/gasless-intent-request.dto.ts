@@ -49,6 +49,6 @@ export class GaslessIntentRequestDTO {
   }
 
   static fromJSON(json: any): GaslessIntentRequestDTO {
-    return json.getRouteData ? json : plainToInstance(GaslessIntentRequestDTO, json)
+    return json.getFunder ? json : plainToInstance(GaslessIntentRequestDTO, json)
   }
 }

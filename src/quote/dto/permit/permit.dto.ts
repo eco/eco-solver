@@ -5,7 +5,6 @@ import { PermitSignatureDTO } from './permit-signature-data.dto'
 import { Type } from 'class-transformer'
 
 export class PermitDTO {
-  // one for each rewardToken in the intent
   @IsNotEmpty()
   @IsEthereumAddress()
   @ApiProperty()
