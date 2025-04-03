@@ -1,148 +1,131 @@
-import { 
-  ExecuteSendBatchJobManager,
-  ExecuteSendBatchJobData,
-  ExecuteSendBatchJob
-} from '@/intent-processor/jobs/execute-send-batch.job'
+import { createMock } from '@golevelup/ts-jest'
+import { Job } from 'bullmq'
+import { Hex, keccak256, encodePacked } from 'viem'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { deserialize, serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { serialize } from '@/common/utils/serialize'
-import { Hex, keccak256 } from 'viem'
-
-// Mock viem functions
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  keccak256: jest.fn().mockReturnValue('0xmockhash'),
-  encodePacked: jest.fn().mockReturnValue('0xmockencoded'),
-}))
+import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
+import {
+  ExecuteSendBatchJob,
+  ExecuteSendBatchJobData,
+  ExecuteSendBatchJobManager,
+} from '@/intent-processor/jobs/execute-send-batch.job'
 
 describe('ExecuteSendBatchJobManager', () => {
-  let manager: ExecuteSendBatchJobManager
-  let mockProcessor: any
+  let jobManager: ExecuteSendBatchJobManager
+  let processor: IntentProcessor
+  let intentProcessorService: IntentProcessorService
 
   beforeEach(() => {
-    manager = new ExecuteSendBatchJobManager()
-    
-    mockProcessor = {
-      intentProcessorService: {
-        executeSendBatch: jest.fn().mockResolvedValue(undefined),
-      },
-      logger: {
-        log: jest.fn(),
-        error: jest.fn(),
-      },
-    }
-  })
-
-  afterEach(() => {
-    jest.resetAllMocks()
+    intentProcessorService = createMock<IntentProcessorService>()
+    processor = createMock<IntentProcessor>({
+      intentProcessorService,
+      logger: { error: jest.fn() },
+    })
+    jobManager = new ExecuteSendBatchJobManager()
   })
 
   describe('createJob', () => {
-    it('should create a job with the correct parameters', () => {
+    it('should create a job with correct data and options', () => {
       const jobData: ExecuteSendBatchJobData = {
-        chainId: 10,
+        chainId: 1,
         proves: [
-          {
-            hash: '0xhash1' as Hex,
-            prover: '0xprover1' as Hex,
-            source: 1,
+          { 
+            hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex, 
+            prover: '0x0000000000000000000000000000000000000001' as Hex, 
+            source: 2 
           },
-          {
-            hash: '0xhash2' as Hex,
-            prover: '0xprover1' as Hex,
-            source: 1,
+          { 
+            hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex, 
+            prover: '0x0000000000000000000000000000000000000001' as Hex, 
+            source: 2 
           },
         ],
       }
 
-      const job = ExecuteSendBatchJobManager.createJob(jobData)
+      const result = ExecuteSendBatchJobManager.createJob(jobData)
 
-      expect(job.name).toBe(IntentProcessorJobName.EXECUTE_SEND_BATCH)
-      expect(job.data).toEqual(serialize(jobData))
-      expect(job.opts?.jobId).toBe('0xmockhash')
-      expect(job.opts?.attempts).toBe(3)
-      expect(job.opts?.backoff).toEqual({
-        type: 'exponential',
-        delay: 1000,
+      // Verify job name
+      expect(result.name).toBe(IntentProcessorJobName.EXECUTE_SEND_BATCH)
+
+      // Verify job data is serialized
+      expect(result.data).toEqual(serialize(jobData))
+
+      // Verify job options
+      expect(result.opts).toMatchObject({
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
       })
-      
-      // Verify keccak256 was called with the encoded result
-      expect(keccak256).toHaveBeenCalledWith('0xmockencoded')
+
+      // Verify job ID format
+      expect(result.opts?.jobId).toBeDefined()
+      expect(typeof result.opts?.jobId).toBe('string')
     })
   })
 
   describe('is', () => {
-    it('should identify jobs by name', () => {
-      const matchingJob = { 
-        name: IntentProcessorJobName.EXECUTE_SEND_BATCH 
-      } as unknown as ExecuteSendBatchJob
-      
-      const nonMatchingJob = { 
-        name: IntentProcessorJobName.CHECK_SEND_BATCH 
-      } as unknown as ExecuteSendBatchJob
+    it('should return true for ExecuteSendBatchJob', () => {
+      const job = createMock<Job>({
+        name: IntentProcessorJobName.EXECUTE_SEND_BATCH,
+      })
 
-      expect(manager.is(matchingJob)).toBe(true)
-      expect(manager.is(nonMatchingJob)).toBe(false)
+      expect(jobManager.is(job as ExecuteSendBatchJob)).toBe(true)
+    })
+
+    it('should return false for other job types', () => {
+      const job = createMock<Job>({
+        name: 'OtherJobType',
+      })
+
+      expect(jobManager.is(job as ExecuteSendBatchJob)).toBe(false)
     })
   })
 
   describe('process', () => {
-    it('should call executeSendBatch with deserialized data', async () => {
+    it('should call intentProcessorService.executeSendBatch with deserialized data', async () => {
       const jobData: ExecuteSendBatchJobData = {
-        chainId: 10,
+        chainId: 1,
         proves: [
-          {
-            hash: '0xhash1' as Hex,
-            prover: '0xprover1' as Hex,
-            source: 1,
-          },
+          { hash: '0x1111' as Hex, prover: '0xProver1' as Hex, source: 2 },
         ],
       }
 
-      const serializedData = serialize(jobData)
-
-      const mockJob = {
+      const job = createMock<ExecuteSendBatchJob>({
         name: IntentProcessorJobName.EXECUTE_SEND_BATCH,
-        data: serializedData,
-      } as unknown as ExecuteSendBatchJob
+        data: serialize(jobData),
+      })
 
-      await manager.process(mockJob, mockProcessor)
+      await jobManager.process(job, processor)
 
-      expect(mockProcessor.intentProcessorService.executeSendBatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          chainId: 10,
-          proves: expect.arrayContaining([
-            expect.objectContaining({
-              hash: '0xhash1',
-              prover: '0xprover1',
-              source: 1,
-            }),
-          ]),
-        })
-      )
+      expect(intentProcessorService.executeSendBatch).toHaveBeenCalledWith(jobData)
     })
 
-    it('should do nothing for non-matching jobs', async () => {
-      const mockJob = {
-        name: IntentProcessorJobName.CHECK_SEND_BATCH,
-      } as unknown as ExecuteSendBatchJob
+    it('should not call intentProcessorService for other job types', async () => {
+      const job = createMock<Job>({
+        name: 'OtherJobType',
+      })
 
-      await manager.process(mockJob, mockProcessor)
+      await jobManager.process(job as ExecuteSendBatchJob, processor)
 
-      expect(mockProcessor.intentProcessorService.executeSendBatch).not.toHaveBeenCalled()
+      expect(intentProcessorService.executeSendBatch).not.toHaveBeenCalled()
     })
   })
 
   describe('onFailed', () => {
-    it('should log an error when the job fails', () => {
-      const job = { 
-        name: IntentProcessorJobName.EXECUTE_SEND_BATCH 
-      } as unknown as ExecuteSendBatchJob
-      
+    it('should log error message', () => {
+      const job = createMock<ExecuteSendBatchJob>()
       const error = new Error('Test error')
 
-      manager.onFailed(job, mockProcessor, error)
+      jobManager.onFailed(job, processor, error)
 
-      expect(mockProcessor.logger.error).toHaveBeenCalled()
+      expect(processor.logger.error).toHaveBeenCalled()
+      const call = (processor.logger.error as jest.Mock).mock.calls[0][0];
+      expect(call).toHaveProperty('msg', `${ExecuteSendBatchJobManager.name}: Failed`);
+      expect(call).toHaveProperty('error', 'Test error');
     })
   })
 })

@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IndexerService } from '@/indexer/services/indexer.service'
@@ -6,10 +5,6 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import { createMock } from '@golevelup/ts-jest'
 import { Hex } from 'viem'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
-import { ExecuteWithdrawsJobManager } from '@/intent-processor/jobs/execute-withdraws.job'
-import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send-batch.job'
-import { Logger } from '@nestjs/common'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 
 // Mock the intent util module BEFORE tests run

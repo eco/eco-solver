@@ -1,9 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IndexerService } from '@/indexer/services/indexer.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { IntentProcessorQueue, IntentProcessorQueueType } from '@/intent-processor/queues/intent-processor.queue'
+import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { createMock } from '@golevelup/ts-jest'
 import { Queue } from 'bullmq'
 import { Hex } from 'viem'
@@ -27,7 +26,7 @@ jest.mock('lodash', () => {
   const actualLodash = jest.requireActual('lodash');
   return {
     ...actualLodash,
-    groupBy: jest.fn().mockImplementation((arr, key) => {
+    groupBy: jest.fn().mockImplementation(() => {
       return {
         '1': [{ intent: { hash: '0xhash1', source: '1' } }],
         '10': [{ intent: { hash: '0xhash2', source: '10' } }],
@@ -37,8 +36,8 @@ jest.mock('lodash', () => {
       if (typeof mapFn === 'string') {
         if (mapFn === 'hash') return ['0xhash1', '0xhash2'];
         if (mapFn === 'routeHash') return ['0xroute1', '0xroute2'];
-        if (mapFn === 'sourceAddress') return arr && arr.length ? arr.map(src => src.sourceAddress) : ['0x5555555555555555555555555555555555555555'];
-        if (mapFn === 'inbox') return arr && arr.length ? arr.map(src => src.inbox) : ['0x6666666666666666666666666666666666666666'];
+        if (mapFn === 'sourceAddress') return arr && arr.length ? arr.map((src: any) => src.sourceAddress) : ['0x5555555555555555555555555555555555555555'];
+        if (mapFn === 'inbox') return arr && arr.length ? arr.map((src: any) => src.inbox) : ['0x6666666666666666666666666666666666666666'];
       }
       
       // Handle mapping function for getWithdrawData

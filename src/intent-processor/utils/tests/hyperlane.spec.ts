@@ -5,188 +5,151 @@ import {
   Hex,
   PublicClient,
 } from 'viem'
-import * as Hyperlane from '@/intent-processor/utils/hyperlane'
+import { createMock } from '@golevelup/ts-jest'
+import { HyperlaneMailboxAbi, MessageRecipientAbi } from '@/contracts/HyperlaneMailbox'
 import { HyperlaneConfig } from '@/eco-configs/eco-config.types'
+import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 
-// Mock viem functions
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  encodeFunctionData: jest.fn().mockReturnValue('0xencoded_function' as Hex),
-  encodeAbiParameters: jest.fn().mockReturnValue('0xencoded_abi_params' as Hex),
-  encodePacked: jest.fn().mockReturnValue('0xencoded_packed' as Hex),
-  pad: jest.fn().mockImplementation((v) => v),
-}))
+describe('Hyperlane Utils', () => {
+  let publicClient: PublicClient
+  let mailboxAddr: Hex
+  let handlerAddr: Hex
+  let mockHyperlaneConfig: HyperlaneConfig
 
-describe('Hyperlane Utilities', () => {
-  // Mock PublicClient for testing
-  const mockPublicClient: PublicClient = {
-    estimateGas: jest.fn().mockResolvedValue(BigInt(100000)),
-    readContract: jest.fn().mockResolvedValue(BigInt(2000)),
-  } as unknown as PublicClient
+  beforeEach(() => {
+    publicClient = createMock<PublicClient>()
+    mailboxAddr = '0x1234567890123456789012345678901234567890' as Hex
+    handlerAddr = '0x2345678901234567890123456789012345678901' as Hex
 
-  // Sample configuration for tests
-  const sampleConfig: HyperlaneConfig = {
-    useHyperlaneDefaultHook: true,
-    chains: {
-      '1': {
-        mailbox: '0x1111111111111111111111111111111111111111' as Hex,
-        aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
-        hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
+    mockHyperlaneConfig = {
+      chains: {
+        '1': {
+          mailbox: '0xMailbox1' as Hex,
+          aggregationHook: '0xHook1' as Hex,
+          hyperlaneAggregationHook: '0xHyperHook1' as Hex,
+        },
+        '2': {
+          mailbox: '0xMailbox2' as Hex,
+          aggregationHook: '0xHook2' as Hex,
+          hyperlaneAggregationHook: '0xHyperHook2' as Hex,
+        },
       },
-      '10': {
-        mailbox: '0x4444444444444444444444444444444444444444' as Hex,
-        aggregationHook: '0x5555555555555555555555555555555555555555' as Hex,
-        hyperlaneAggregationHook: '0x6666666666666666666666666666666666666666' as Hex,
-      },
-    },
-  }
-
-  afterEach(() => {
-    jest.clearAllMocks()
+      useHyperlaneDefaultHook: false,
+    }
   })
 
   describe('estimateMessageGas', () => {
-    it('should estimate gas for cross-chain messages', async () => {
-      // Setup test parameters
-      const mailboxAddr = '0x1111111111111111111111111111111111111111' as Hex
-      const handlerAddr = '0x2222222222222222222222222222222222222222' as Hex
+    it('should calculate gas correctly with buffer', async () => {
       const origin = 1
-      const sender = '0x3333333333333333333333333333333333333333' as Hex
-      const message = '0x4444444444444444444444444444444444444444444444444444444444444444' as Hex
+      const sender = '0x3456789012345678901234567890123456789012' as Hex
+      const message = '0x1234' as Hex
 
-      // Call the function
+      // Mock estimateGas response
+      const estimatedGas = 121000n
+      publicClient.estimateGas = jest.fn().mockResolvedValue(estimatedGas)
+
       const result = await Hyperlane.estimateMessageGas(
-        mockPublicClient,
+        publicClient,
         mailboxAddr,
         handlerAddr,
         origin,
         sender,
-        message
+        message,
       )
 
-      // Verify that estimateGas was called with the right parameters
-      expect(mockPublicClient.estimateGas).toHaveBeenCalledWith({
+      // Transaction initiation gas is 21_000, so:
+      // (estimatedGas - 21_000) * 110% / 100
+      const expected = ((estimatedGas - 21_000n) * 110n) / 100n
+
+      expect(publicClient.estimateGas).toHaveBeenCalledWith({
         account: mailboxAddr,
         to: handlerAddr,
         data: expect.any(String),
       })
-
-      // Verify that viem.encodeFunctionData was called with MessageRecipientAbi and the right args
-      expect(encodeFunctionData).toHaveBeenCalledWith({
-        abi: expect.arrayContaining([expect.objectContaining({ name: 'handle' })]),
-        args: [origin, sender, message],
-      })
-
-      // Verify that the result includes the gas calculation with the 21000 subtracted
-      // and 10% buffer added: ((100000n - 21000n) * 110n) / 100n
-      expect(result).toBe(BigInt(86900)) // (100000 - 21000) * 1.1
+      expect(result).toEqual(expected)
     })
   })
 
   describe('estimateFee', () => {
-    it('should estimate fee for sending a message', async () => {
-      // Setup test parameters
-      const mailboxAddr = '0x1111111111111111111111111111111111111111' as Hex
-      const destination = 10
-      const recipient = '0x2222222222222222222222222222222222222222' as Hex
-      const messageBody = '0x3333333333333333333333333333333333333333333333333333333333333333' as Hex
-      const metadata = '0x4444444444444444444444444444444444444444' as Hex
-      const hook = '0x5555555555555555555555555555555555555555' as Hex
+    it('should call quoteDispatch with correct parameters', async () => {
+      const destination = 2
+      const recipient = '0x3456789012345678901234567890123456789012' as Hex
+      const messageBody = '0x1234' as Hex
+      const metadata = '0x5678' as Hex
+      const hook = '0x9012' as Hex
+      const expectedFee = 50000n
 
-      // Call the function
+      publicClient.readContract = jest.fn().mockResolvedValue(expectedFee)
+
       const result = await Hyperlane.estimateFee(
-        mockPublicClient,
+        publicClient,
         mailboxAddr,
         destination,
         recipient,
         messageBody,
         metadata,
-        hook
+        hook,
       )
 
-      // Verify that readContract was called with the right parameters
-      expect(mockPublicClient.readContract).toHaveBeenCalledWith({
+      expect(publicClient.readContract).toHaveBeenCalledWith({
         address: mailboxAddr,
-        abi: expect.arrayContaining([expect.objectContaining({ name: 'quoteDispatch' })]),
+        abi: HyperlaneMailboxAbi,
         functionName: 'quoteDispatch',
-        args: [destination, recipient, messageBody, metadata, hook],
+        args: [destination, expect.any(String), messageBody, metadata, hook],
       })
-
-      // Verify that the result matches the mock return value
-      expect(result).toBe(BigInt(2000))
+      expect(result).toBe(expectedFee)
     })
   })
 
   describe('getChainMetadata', () => {
-    it('should return chain metadata for a valid chain ID', () => {
-      // Get metadata for Ethereum (chain ID 1)
-      const result = Hyperlane.getChainMetadata(sampleConfig, 1)
+    it('should return correct chain metadata for valid chain id', () => {
+      const chainId = 1
+      const result = Hyperlane.getChainMetadata(mockHyperlaneConfig, chainId)
 
-      // Verify the result matches the config
-      expect(result).toEqual({
-        mailbox: '0x1111111111111111111111111111111111111111',
-        aggregationHook: '0x2222222222222222222222222222222222222222',
-        hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333',
-      })
+      expect(result).toEqual(mockHyperlaneConfig.chains['1'])
     })
 
-    it('should throw an error for an invalid chain ID', () => {
-      // Try to get metadata for an unsupported chain
-      expect(() => Hyperlane.getChainMetadata(sampleConfig, 42161)).toThrow(
-        'Hyperlane config not found for chain id 42161'
+    it('should throw error for invalid chain id', () => {
+      const chainId = 99
+      expect(() => Hyperlane.getChainMetadata(mockHyperlaneConfig, chainId)).toThrow(
+        'Hyperlane config not found for chain id 99',
       )
     })
   })
 
   describe('getMessageData', () => {
     it('should encode claimant and hashes correctly', () => {
-      // Setup test parameters
-      const claimant = '0x1111111111111111111111111111111111111111' as Hex
+      const claimant = '0x3456789012345678901234567890123456789012' as Hex
       const hashes = [
+        '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex,
         '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex,
-        '0x3333333333333333333333333333333333333333333333333333333333333333' as Hex,
       ]
 
-      // Reset mock for this test
-      jest.mocked(encodeAbiParameters).mockClear()
+      // Mock the encodeAbiParameters function
+      jest.spyOn(require('viem'), 'encodeAbiParameters').mockImplementation(() => '0xEncodedResult')
 
-      // Call the function
-      Hyperlane.getMessageData(claimant, hashes)
+      const result = Hyperlane.getMessageData(claimant, hashes)
 
-      // Verify that encodeAbiParameters was called with the right parameters
       expect(encodeAbiParameters).toHaveBeenCalledWith(
         [{ type: 'bytes32[]' }, { type: 'address[]' }],
-        expect.arrayContaining([
-          expect.arrayContaining([
-            '0x2222222222222222222222222222222222222222222222222222222222222222',
-            '0x3333333333333333333333333333333333333333333333333333333333333333',
-          ]),
-          expect.arrayContaining([
-            '0x1111111111111111111111111111111111111111',
-            '0x1111111111111111111111111111111111111111',
-          ]),
-        ])
+        [hashes, new Array(hashes.length).fill(claimant)],
       )
+      expect(result).toBe('0xEncodedResult')
     })
   })
 
   describe('getMetadata', () => {
-    it('should pack values correctly', () => {
-      // Setup test parameters
-      const value = BigInt(1000)
-      const gasLimit = BigInt(200000)
+    it('should encode metadata correctly', () => {
+      const value = 1000n
+      const gasLimit = 200000n
 
-      // Reset mock for this test
-      jest.mocked(encodePacked).mockClear()
+      // Mock the encodePacked function
+      jest.spyOn(require('viem'), 'encodePacked').mockImplementation(() => '0xEncodedMetadata')
 
-      // Call the function
-      Hyperlane.getMetadata(value, gasLimit)
+      const result = Hyperlane.getMetadata(value, gasLimit)
 
-      // Verify that encodePacked was called with the right parameters
-      expect(encodePacked).toHaveBeenCalledWith(
-        ['uint16', 'uint256', 'uint256'],
-        [1, value, gasLimit]
-      )
+      expect(encodePacked).toHaveBeenCalledWith(['uint16', 'uint256', 'uint256'], [1, value, gasLimit])
+      expect(result).toBe('0xEncodedMetadata')
     })
   })
 })

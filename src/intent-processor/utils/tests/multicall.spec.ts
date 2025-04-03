@@ -1,69 +1,74 @@
-import { extractChain, Hex } from 'viem'
 import { getMulticall } from '@/intent-processor/utils/multicall'
+import { extractChain } from 'viem'
 
-// Mock extractChain to provide controlled test responses
-jest.mock('viem', () => {
-  // Keep the original module
-  const original = jest.requireActual('viem')
-  
-  return {
-    ...original,
-    // Mock the extractChain function
-    extractChain: jest.fn().mockImplementation(({ id }) => {
-      if (id === 99999) {
-        return { id, name: 'Unsupported Chain', contracts: { multicall3: null } }
-      }
-      
-      return { 
-        id, 
-        name: 'Mock Chain', 
-        contracts: { 
-          multicall3: { 
-            address: '0xcA11bde05977b3631167028862bE2a173976CA11' as Hex 
-          } 
-        } 
-      }
-    })
-  }
-})
+// Mock the viem extractChain function
+jest.mock('viem', () => ({
+  extractChain: jest.fn(),
+}))
 
-describe('Multicall Utilities', () => {
+// Mock the ChainsSupported import
+jest.mock('@/common/chains/supported', () => ({
+  ChainsSupported: []
+}))
+
+describe('Multicall Utils', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
   describe('getMulticall', () => {
-    afterEach(() => {
-      jest.clearAllMocks()
-    })
-    
-    it('should call extractChain with the correct parameters', () => {
-      // Call getMulticall with a chain ID
-      getMulticall(1)
-      
+    it('should return multicall address if supported for chainID', () => {
+      // Setup mock
+      const mockChain = {
+        contracts: {
+          multicall3: {
+            address: '0x1234567890123456789012345678901234567890',
+          },
+        },
+      }
+      ;(extractChain as jest.Mock).mockReturnValue(mockChain)
+
+      // Execute
+      const result = getMulticall(1)
+
       // Verify extractChain was called with correct params
       expect(extractChain).toHaveBeenCalledWith({
         chains: expect.any(Array),
-        id: 1
+        id: 1,
+      })
+      expect(result).toBe('0x1234567890123456789012345678901234567890')
+    })
+
+    it('should throw error if multicall not supported for chainID', () => {
+      // Setup mock for a chain without multicall
+      const mockChain = {
+        contracts: {},
+      }
+      ;(extractChain as jest.Mock).mockReturnValue(mockChain)
+
+      // Execute and expect error
+      expect(() => getMulticall(999)).toThrow('Multicall not supported for chain 999')
+
+      // Verify extractChain was called
+      expect(extractChain).toHaveBeenCalledWith({
+        chains: expect.any(Array),
+        id: 999,
       })
     })
-    
-    it('should return the multicall address for supported chains', () => {
-      // Get a multicall address for a supported chain
-      const address = getMulticall(1)
-      
-      // Verify the result
-      expect(address).toBe('0xcA11bde05977b3631167028862bE2a173976CA11')
-    })
-    
-    it('should throw error for unsupported chains', () => {
-      // Test with an unsupported chain ID that doesn't have multicall
-      expect(() => getMulticall(99999)).toThrow('Multicall not supported for chain 99999')
-    })
-    
-    it('should verify address format for all supported chains', () => {
-      // Get addresses for a chain
-      const address = getMulticall(1)
-      
-      // All addresses should be the same format (42 chars, starting with 0x)
-      expect(address.length).toBe(42)
-      expect(address.startsWith('0x')).toBe(true)
+
+    it('should throw error if contracts is undefined', () => {
+      // Setup mock for a chain without contracts
+      const mockChain = {}
+      ;(extractChain as jest.Mock).mockReturnValue(mockChain)
+
+      // Execute and expect error
+      expect(() => getMulticall(888)).toThrow('Multicall not supported for chain 888')
+
+      // Verify extractChain was called
+      expect(extractChain).toHaveBeenCalledWith({
+        chains: expect.any(Array),
+        id: 888,
+      })
     })
   })
 })

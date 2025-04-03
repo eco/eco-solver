@@ -1,110 +1,99 @@
 import { Hex } from 'viem'
+import * as RoutesTs from '@eco-foundation/routes-ts'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 
-// Mock the hashIntent function before using it
+// Mock the routes-ts module
 jest.mock('@eco-foundation/routes-ts', () => ({
-  hashIntent: jest.fn().mockReturnValue({ routeHash: '0xroute_hash_from_lib' as Hex }),
+  hashIntent: jest.fn().mockReturnValue({ routeHash: '0xRoutehash' }),
 }))
 
-describe('Intent Utilities', () => {
+describe('Intent Utils', () => {
   describe('getWithdrawData', () => {
-    it('should convert IndexerIntent to the correct format', () => {
-      // Create a mock intent with all required fields
+    it('should convert IndexerIntent to proper format for withdrawal', () => {
+      // Create mock IndexerIntent
       const mockIntent: IndexerIntent = {
-        hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex,
-        creator: '0x2222222222222222222222222222222222222222' as Hex,
-        prover: '0x3333333333333333333333333333333333333333' as Hex,
-        salt: '0x4444444444444444444444444444444444444444444444444444444444444444' as Hex,
-        source: '1',
-        destination: '10',
-        inbox: '0x5555555555555555555555555555555555555555' as Hex,
+        hash: '0xintentHash',
+        creator: '0xCreator',
+        prover: '0xProver',
+        inbox: '0xInbox',
         deadline: '1234567890',
         nativeValue: '1000000000000000000', // 1 ETH
+        salt: '0xSalt',
+        source: '1', // Chain ID 1
+        destination: '2', // Chain ID 2
         rewardTokens: [
-          {
-            token: '0x6666666666666666666666666666666666666666' as Hex,
-            amount: '1000000000000000000', // 1 token
-          },
-          {
-            token: '0x7777777777777777777777777777777777777777' as Hex,
-            amount: '2000000000000000000', // 2 tokens
-          },
+          { token: '0xToken1', amount: '2000000000000000000' }, // 2 tokens
+          { token: '0xToken2', amount: '3000000000000000000' }, // 3 tokens
         ],
         routeTokens: [
-          {
-            token: '0x8888888888888888888888888888888888888888' as Hex,
-            amount: '3000000000000000000', // 3 tokens
-          },
+          { token: '0xToken3', amount: '4000000000000000000' }, // 4 tokens
+          { token: '0xToken4', amount: '5000000000000000000' }, // 5 tokens
         ],
         calls: [
           {
-            target: '0x9999999999999999999999999999999999999999' as Hex,
-            data: '0xabcdef' as Hex,
-            value: '500000000000000000', // 0.5 ETH
+            target: '0xTarget1',
+            data: '0xData1',
+            value: '100000000000000000', // 0.1 ETH
           },
-        ],
+          {
+            target: '0xTarget2',
+            data: '0xData2',
+            value: '200000000000000000', // 0.2 ETH
+          },
+        ]
       }
 
-      // Call the function
+      // Call function
       const result = getWithdrawData(mockIntent)
 
-      // Verify the result structure
-      expect(result).toHaveProperty('reward')
-      expect(result).toHaveProperty('routeHash')
-      
-      // Verify the reward object has been properly constructed
-      expect(result.reward).toEqual({
-        creator: '0x2222222222222222222222222222222222222222',
-        prover: '0x3333333333333333333333333333333333333333',
-        deadline: BigInt(1234567890),
-        nativeValue: BigInt('1000000000000000000'),
+      // Expected reward
+      const expectedReward = {
+        creator: '0xCreator' as Hex,
+        prover: '0xProver' as Hex,
+        deadline: 1234567890n,
+        nativeValue: 1000000000000000000n,
         tokens: [
-          {
-            token: '0x6666666666666666666666666666666666666666',
-            amount: BigInt('1000000000000000000'),
-          },
-          {
-            token: '0x7777777777777777777777777777777777777777',
-            amount: BigInt('2000000000000000000'),
-          },
+          { token: '0xToken1' as Hex, amount: 2000000000000000000n },
+          { token: '0xToken2' as Hex, amount: 3000000000000000000n },
         ],
-      })
-      
-      // Verify that the route hash is generated using hashIntent
-      expect(result.routeHash).toBe('0xroute_hash_from_lib')
-      
-      // Verify that hashIntent was called
-      const hashIntent = require('@eco-foundation/routes-ts').hashIntent;
-      expect(hashIntent).toHaveBeenCalled()
-    })
-
-    it('should handle empty arrays in intent data', () => {
-      // Create a mock intent with minimal data
-      const mockIntent: IndexerIntent = {
-        hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex,
-        creator: '0x2222222222222222222222222222222222222222' as Hex,
-        prover: '0x3333333333333333333333333333333333333333' as Hex,
-        salt: '0x4444444444444444444444444444444444444444444444444444444444444444' as Hex,
-        source: '1',
-        destination: '10',
-        inbox: '0x5555555555555555555555555555555555555555' as Hex,
-        deadline: '1234567890',
-        nativeValue: '1000000000000000000', // 1 ETH
-        rewardTokens: [], // Empty reward tokens
-        routeTokens: [], // Empty route tokens
-        calls: [], // Empty calls
       }
 
-      // Call the function
-      const result = getWithdrawData(mockIntent)
+      // Expected route
+      const expectedRoute = {
+        salt: '0xSalt' as Hex,
+        source: 1n,
+        destination: 2n,
+        inbox: '0xInbox' as Hex,
+        tokens: [
+          { token: '0xToken3' as Hex, amount: 4000000000000000000n },
+          { token: '0xToken4' as Hex, amount: 5000000000000000000n },
+        ],
+        calls: [
+          {
+            target: '0xTarget1' as Hex,
+            data: '0xData1' as Hex,
+            value: 100000000000000000n,
+          },
+          {
+            target: '0xTarget2' as Hex,
+            data: '0xData2' as Hex,
+            value: 200000000000000000n,
+          },
+        ],
+      }
 
-      // Verify the result has empty arrays
-      expect(result.reward.tokens).toEqual([])
-      
-      // Verify hashIntent was called
-      const hashIntent = require('@eco-foundation/routes-ts').hashIntent;
-      expect(hashIntent).toHaveBeenCalled()
+      // Verify hashIntent was called with correct parameters
+      expect(RoutesTs.hashIntent).toHaveBeenCalledWith({
+        reward: expectedReward,
+        route: expectedRoute,
+      })
+
+      // Verify result
+      expect(result).toEqual({
+        reward: expectedReward,
+        routeHash: '0xRoutehash',
+      })
     })
   })
 })

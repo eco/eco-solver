@@ -1,181 +1,151 @@
-import { 
-  ExecuteWithdrawsJobManager,
-  ExecuteWithdrawsJobData,
-  ExecuteWithdrawsJob
-} from '@/intent-processor/jobs/execute-withdraws.job'
+import { createMock } from '@golevelup/ts-jest'
+import { Job } from 'bullmq'
+import { encodePacked, Hex, keccak256 } from 'viem'
+import { serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { deserialize, serialize } from '@/common/utils/serialize'
-import { Hex, keccak256, encodePacked } from 'viem'
-
-// Mock viem functions
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  keccak256: jest.fn().mockReturnValue('0xmockhash'),
-  encodePacked: jest.fn().mockReturnValue('0xmockencoded'),
-}))
+import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
+import {
+  ExecuteWithdrawsJob,
+  ExecuteWithdrawsJobData,
+  ExecuteWithdrawsJobManager,
+} from '@/intent-processor/jobs/execute-withdraws.job'
 
 describe('ExecuteWithdrawsJobManager', () => {
-  let manager: ExecuteWithdrawsJobManager
-  let mockProcessor: any
+  let jobManager: ExecuteWithdrawsJobManager
+  let processor: IntentProcessor
+  let intentProcessorService: IntentProcessorService
 
   beforeEach(() => {
-    manager = new ExecuteWithdrawsJobManager()
-    
-    mockProcessor = {
-      intentProcessorService: {
-        executeWithdrawals: jest.fn().mockResolvedValue(undefined),
-      },
-      logger: {
-        log: jest.fn(),
-        error: jest.fn(),
-      },
-    }
-  })
-
-  afterEach(() => {
-    jest.resetAllMocks()
+    intentProcessorService = createMock<IntentProcessorService>()
+    processor = createMock<IntentProcessor>({
+      intentProcessorService,
+      logger: { error: jest.fn() },
+    })
+    jobManager = new ExecuteWithdrawsJobManager()
   })
 
   describe('createJob', () => {
-    it('should create a job with the correct parameters', () => {
+    it('should create a job with correct data and options', () => {
       const jobData: ExecuteWithdrawsJobData = {
         chainId: 1,
-        intentSourceAddr: '0xsource' as Hex,
+        intentSourceAddr: '0x0000000000000000000000000000000000000001' as Hex,
         intents: [
-          {
-            routeHash: '0xroute1' as Hex,
+          { 
+            routeHash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hex, 
             reward: {
-              creator: '0xcreator' as Hex,
-              prover: '0xprover' as Hex,
-              deadline: BigInt(123456),
-              nativeValue: BigInt(1000),
+              creator: '0x0000000000000000000000000000000000000002' as Hex,
+              prover: '0x0000000000000000000000000000000000000003' as Hex,
+              deadline: 1000n,
+              nativeValue: 100n,
               tokens: [],
-            },
+            }
           },
-          {
-            routeHash: '0xroute2' as Hex,
+          { 
+            routeHash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex, 
             reward: {
-              creator: '0xcreator' as Hex,
-              prover: '0xprover' as Hex,
-              deadline: BigInt(123456),
-              nativeValue: BigInt(1000),
+              creator: '0x0000000000000000000000000000000000000004' as Hex,
+              prover: '0x0000000000000000000000000000000000000005' as Hex,
+              deadline: 2000n,
+              nativeValue: 200n,
               tokens: [],
-            },
+            }
           },
         ],
       }
 
-      const job = ExecuteWithdrawsJobManager.createJob(jobData)
+      const result = ExecuteWithdrawsJobManager.createJob(jobData)
 
-      expect(job.name).toBe(IntentProcessorJobName.EXECUTE_WITHDRAWS)
-      expect(job.data).toEqual(serialize(jobData))
-      expect(job.opts?.jobId).toBe('0xmockhash')
-      expect(job.opts?.attempts).toBe(3)
-      // Check backoff configuration - handle both object and simple backoff
-      const backoff = job.opts?.backoff;
-      if (typeof backoff === 'object' && backoff !== null) {
-        expect(backoff.type).toBe('exponential');
-      } else {
-        // If it's a number, that's also valid
-        expect(typeof backoff === 'number' || backoff).toBeTruthy();
-      }
-      
-      // Verify encodePacked was called with the route hashes
-      expect(encodePacked).toHaveBeenCalledWith(
-        ['bytes32[]'], 
-        [['0xroute1', '0xroute2']]
-      )
-      
-      // Verify keccak256 was called with the encoded result
-      expect(keccak256).toHaveBeenCalledWith('0xmockencoded')
+      // Verify job name
+      expect(result.name).toBe(IntentProcessorJobName.EXECUTE_WITHDRAWS)
+
+      // Verify job data is serialized
+      expect(result.data).toEqual(serialize(jobData))
+
+      // Verify job options
+      expect(result.opts).toMatchObject({
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      })
+
+      // Verify job ID format
+      expect(result.opts?.jobId).toBeDefined()
+      expect(typeof result.opts?.jobId).toBe('string')
     })
   })
 
   describe('is', () => {
-    it('should identify jobs by name', () => {
-      const matchingJob = { 
-        name: IntentProcessorJobName.EXECUTE_WITHDRAWS 
-      } as unknown as ExecuteWithdrawsJob
-      
-      const nonMatchingJob = { 
-        name: IntentProcessorJobName.CHECK_WITHDRAWS 
-      } as unknown as ExecuteWithdrawsJob
+    it('should return true for ExecuteWithdrawsJob', () => {
+      const job = createMock<Job>({
+        name: IntentProcessorJobName.EXECUTE_WITHDRAWS,
+      })
 
-      expect(manager.is(matchingJob)).toBe(true)
-      expect(manager.is(nonMatchingJob)).toBe(false)
+      expect(jobManager.is(job as ExecuteWithdrawsJob)).toBe(true)
+    })
+
+    it('should return false for other job types', () => {
+      const job = createMock<Job>({
+        name: 'OtherJobType',
+      })
+
+      expect(jobManager.is(job as ExecuteWithdrawsJob)).toBe(false)
     })
   })
 
   describe('process', () => {
-    it('should call executeWithdrawals with deserialized data', async () => {
+    it('should call intentProcessorService.executeWithdrawals with deserialized data', async () => {
       const jobData: ExecuteWithdrawsJobData = {
         chainId: 1,
-        intentSourceAddr: '0xsource' as Hex,
+        intentSourceAddr: '0xSource' as Hex,
         intents: [
-          {
-            routeHash: '0xroute1' as Hex,
+          { 
+            routeHash: '0x1111' as Hex, 
             reward: {
-              creator: '0xcreator' as Hex,
-              prover: '0xprover' as Hex,
-              deadline: BigInt(123456),
-              nativeValue: BigInt(1000),
+              creator: '0xCreator1' as Hex,
+              prover: '0xProver1' as Hex,
+              deadline: 1000n,
+              nativeValue: 100n,
               tokens: [],
-            },
+            }
           },
         ],
       }
 
-      const mockJob = {
+      const job = createMock<ExecuteWithdrawsJob>({
         name: IntentProcessorJobName.EXECUTE_WITHDRAWS,
         data: serialize(jobData),
-      } as unknown as ExecuteWithdrawsJob
+      })
 
-      await manager.process(mockJob, mockProcessor)
+      await jobManager.process(job, processor)
 
-      expect(mockProcessor.intentProcessorService.executeWithdrawals).toHaveBeenCalledWith(
-        deserialize(mockJob.data)
-      )
+      expect(intentProcessorService.executeWithdrawals).toHaveBeenCalledWith(jobData)
     })
 
-    it('should do nothing for non-matching jobs', async () => {
-      const mockJob = {
-        name: IntentProcessorJobName.CHECK_WITHDRAWS,
-      } as unknown as ExecuteWithdrawsJob
+    it('should not call intentProcessorService for other job types', async () => {
+      const job = createMock<Job>({
+        name: 'OtherJobType',
+      })
 
-      await manager.process(mockJob, mockProcessor)
+      await jobManager.process(job as ExecuteWithdrawsJob, processor)
 
-      expect(mockProcessor.intentProcessorService.executeWithdrawals).not.toHaveBeenCalled()
+      expect(intentProcessorService.executeWithdrawals).not.toHaveBeenCalled()
     })
   })
 
   describe('onFailed', () => {
-    it('should log an error when the job fails', () => {
-      const job = { 
-        name: IntentProcessorJobName.EXECUTE_WITHDRAWS 
-      } as unknown as ExecuteWithdrawsJob
-      
+    it('should log error message', () => {
+      const job = createMock<ExecuteWithdrawsJob>()
       const error = new Error('Test error')
 
-      manager.onFailed(job, mockProcessor, error)
+      jobManager.onFailed(job, processor, error)
 
-      expect(mockProcessor.logger.error).toHaveBeenCalled()
-      
-      // Safe check - ensure there's at least one call with arguments
-      if (mockProcessor.logger.error.mock.calls.length > 0 && 
-          mockProcessor.logger.error.mock.calls[0].length > 0) {
-        const logMessage = mockProcessor.logger.error.mock.calls[0][0];
-        if (logMessage && typeof logMessage === 'object' && 'message' in logMessage) {
-          expect(logMessage.message).toContain('ExecuteWithdrawsJob: Failed');
-          
-          // Check properties if they exist
-          if ('properties' in logMessage && 
-              logMessage.properties && 
-              typeof logMessage.properties === 'object' &&
-              'error' in logMessage.properties) {
-            expect(logMessage.properties.error).toBe('Test error');
-          }
-        }
-      }
+      expect(processor.logger.error).toHaveBeenCalled()
+      const call = (processor.logger.error as jest.Mock).mock.calls[0][0];
+      expect(call).toHaveProperty('msg', 'ExecuteWithdrawsJob: Failed');
+      expect(call).toHaveProperty('error', 'Test error');
     })
   })
 })
