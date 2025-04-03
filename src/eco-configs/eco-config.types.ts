@@ -17,6 +17,7 @@ export type EcoConfigType = {
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
+  quotesConfig: QuotesConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
   cache: CacheModuleOptions
@@ -134,6 +135,13 @@ export type IntentConfig = {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
   }
+}
+
+/**
+ * The config type for the quotes section
+ */
+export type QuotesConfig = {
+  intentExecutionTypes: string[]
 }
 
 /**

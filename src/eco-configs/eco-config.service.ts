@@ -163,6 +163,11 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('intentConfigs')
   }
 
+  // Returns the quote configs
+  getQuotesConfig(): EcoConfigType['quotesConfig'] {
+    return this.get('quotesConfig')
+  }
+
   // Returns the external APIs config
   getExternalAPIs(): EcoConfigType['externalAPIs'] {
     return this.get('externalAPIs')
