@@ -1,7 +1,5 @@
-import { SmartAccountActions, SmartAccountClient } from 'permissionless'
 import {
   KernelVersion,
-  toEcdsaKernelSmartAccount,
   ToEcdsaKernelSmartAccountParameters,
   ToEcdsaKernelSmartAccountReturnType,
 } from 'permissionless/accounts'
@@ -10,23 +8,31 @@ import {
   Chain,
   Client,
   ClientConfig,
-  createClient,
+  createPublicClient,
   createWalletClient,
-  Hash,
+  Hex,
   LocalAccount,
   OneOf,
   Prettify,
   RpcSchema,
-  SendTransactionParameters,
-  SendTransactionRequest,
   Transport,
   WalletClient,
 } from 'viem'
-import { SendUserOperationParameters } from 'viem/account-abstraction'
-import { encodeKernelExecuteCallData } from '@/transaction/smart-wallets/kernel/actions/encodeData.kernel'
+import { entryPoint07Address, SmartAccount } from 'viem/account-abstraction'
 import { entryPointV_0_7 } from '@/transaction/smart-wallets/kernel/create.kernel.account'
-import { sendTransaction } from 'viem/actions'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
+import {
+  createKernelAccount,
+  createKernelAccountClient,
+  CreateKernelAccountReturnType,
+  KernelAccountClient,
+  KernelAccountClientActions,
+} from '@zerodev/sdk'
+import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
+import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
+import { KernelAccountClientConfig } from '@/transaction/smart-wallets/kernel/kernel-account.config'
+import { ExecuteSmartWalletArgs } from '@/transaction/smart-wallets/smart-wallet.types'
+import { encodeKernelExecuteCallData } from '@/transaction/smart-wallets/kernel/actions/encodeData.kernel'
 
 export type KernelAccountClientV2Config<
   entryPointVersion extends '0.6' | '0.7',
@@ -47,137 +53,94 @@ export type KernelAccountClientV2Config<
     }
 >
 
-export type KernelAccountClientV2<
-  entryPointVersion extends '0.6' | '0.7',
-  transport extends Transport = Transport,
-  chain extends Chain | undefined = Chain | undefined,
-  account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
-    | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
-    | undefined,
-  client extends Client | undefined = undefined,
-  rpcSchema extends RpcSchema | undefined = undefined,
-> = Prettify<
-  SmartAccountClient<transport, chain, account, client, rpcSchema> & {
-    ownerAccount: Account
-  }
->
-
 export async function createKernelAccountClientV2<
   entryPointVersion extends '0.6' | '0.7' = entryPointV_0_7,
   owner extends OneOf<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
   > = LocalAccount,
 >(
-  _parameters: KernelAccountClientV2Config<
-    entryPointVersion,
-    KernelVersion<entryPointVersion>,
-    owner
-  >,
-): Promise<KernelAccountClientV2<entryPointVersion>> {
-  const { ownerAccount, ...parameters } = _parameters
-
-  const { key = 'kernelAccountClientV2', name = 'Kernel Account Client V2', transport } = parameters
+  parameters: KernelAccountClientConfig<entryPointVersion, KernelVersion<entryPointVersion>, owner>,
+): Promise<KernelAccountClient<Transport, Chain, SmartAccount, Client>> {
+  const { key = 'kernelAccountClient', name = 'Kernel Account Client' } = parameters
   const { account } = parameters
 
-  const walletClient = createWalletClient({
+  const publicClient = createPublicClient({
     ...parameters,
-    account,
     key,
     name,
-    transport,
   })
 
-  const kernelAccount = await toEcdsaKernelSmartAccount<
-    entryPointVersion,
-    KernelVersion<entryPointVersion>,
-    owner
-  >({
+  const ownerClient = createWalletClient({
     ...parameters,
-    client: walletClient,
+    chain: parameters.chain!,
+    account: account as LocalAccount,
   })
 
-  const client = Object.assign(
-    createClient({
-      ...parameters,
-      account: kernelAccount,
-      chain: parameters.chain ?? walletClient?.chain,
-    }),
-    { ownerAccount },
-  )
+  const kernelVersion = KERNEL_V3_1
+  const entryPoint = {
+    address: entryPoint07Address,
+    version: '0.7',
+  } as const
 
-  return client.extend(kernelAccountV2Actions) as KernelAccountClientV2<entryPointVersion>
+  const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
+    signer: account as LocalAccount,
+    entryPoint,
+    kernelVersion,
+  })
+
+  const kernelAccount: CreateKernelAccountReturnType = await createKernelAccount(publicClient, {
+    plugins: {
+      sudo: ecdsaValidator,
+    },
+    useMetaFactory: false,
+    entryPoint,
+    kernelVersion,
+  })
+
+  return createKernelAccountClient({
+    account: kernelAccount,
+    client: publicClient,
+    bundlerTransport: parameters.transport,
+    chain: parameters.chain!,
+  }).extend(kernelAccountClientActions(ownerClient)) as unknown as KernelAccountClient<
+    Transport,
+    Chain,
+    SmartAccount,
+    Client
+  >
 }
 
-function kernelAccountV2Actions<
-  entryPointVersion extends '0.6' | '0.7',
-  TChain extends Chain | undefined = Chain | undefined,
-  account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
-    | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
-    | undefined,
->(
-  client: KernelAccountClientV2<entryPointVersion, Transport, TChain, account>,
-): Pick<SmartAccountActions<TChain, account>, 'sendTransaction'> {
-  return {
-    sendTransaction: (args) => sendTransactionWithSWC(client, args as any),
+function kernelAccountClientActions(ownerClient: WalletClient<Transport, Chain, Account>) {
+  return <
+    TChain extends Chain | undefined = Chain | undefined,
+    TSmartAccount extends SmartAccount | undefined = SmartAccount | undefined,
+  >(
+    client: KernelAccountClient<Transport, TChain, TSmartAccount>,
+  ): Pick<KernelAccountClientActions<TChain, TSmartAccount>, 'sendTransaction'> => {
+    return {
+      sendTransaction: (args: any) =>
+        executeTransactionsWithKernel(client as KernelAccountClient, ownerClient, [
+          {
+            to: args.to,
+            value: args.value,
+            data: args.data,
+          },
+        ]),
+    }
   }
 }
 
-async function sendTransactionWithSWC<
-  entryPointVersion extends '0.6' | '0.7',
-  account extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
-    | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
-    | undefined,
-  chain extends Chain | undefined = Chain | undefined,
-  accountOverride extends ToEcdsaKernelSmartAccountReturnType<entryPointVersion> | undefined =
-    | ToEcdsaKernelSmartAccountReturnType<entryPointVersion>
-    | undefined,
-  chainOverride extends Chain | undefined = Chain | undefined,
-  calls extends readonly unknown[] = readonly unknown[],
-  const request extends SendTransactionRequest<chain, chainOverride> = SendTransactionRequest<
-    chain,
-    chainOverride
-  >,
->(
-  client: KernelAccountClientV2<entryPointVersion, Transport, chain, account>,
-  args:
-    | SendTransactionParameters<chain, account, chainOverride>
-    | SendUserOperationParameters<account, accountOverride, calls>,
-): Promise<Hash> {
-  const account = (args.account as Account) ?? client.account
-  if (account?.type !== 'smart') {
-    if (!('to' in args)) throw new Error('Unsupported args')
-    return sendTransaction(client, args as any)
-  }
-
-  let calls: calls
-  let request: request
-
-  if ('to' in args) {
-    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
-      args as SendTransactionParameters<chain, account, chainOverride>
-
-    calls = [{ to, data, value }] as unknown as calls
-    request = { maxFeePerGas, maxPriorityFeePerGas } as request
-  } else if ('calls' in args) {
-    calls = args.calls as unknown as calls
-    request = {} as request
-  } else {
-    throw new Error('Unsupported action in Kernel Client V2')
-  }
-
-  if (!client.account) {
-    throw new Error('Account not defined in Kernel Client V2')
-  }
-
-  const txs = calls.map((tx: any) => ({ to: tx.to, data: tx.data, value: tx.value }))
-  const kernelVersion = client.account.entryPoint.version == '0.6' ? '0.2.4' : '0.3.1'
-  const data = encodeKernelExecuteCallData({ calls: txs, kernelVersion })
-  return sendTransaction(client, {
-    ...(request as any),
+export async function executeTransactionsWithKernel(
+  kernelClient: KernelAccountClient,
+  walletClient: WalletClient<Transport, Chain, Account>,
+  transactions: ExecuteSmartWalletArgs,
+): Promise<Hex> {
+  const calls = transactions.map((tx) => ({ to: tx.to, data: tx.data, value: tx.value }))
+  const data = encodeKernelExecuteCallData({ calls, kernelVersion: '0.3.1' })
+  return walletClient.sendTransaction({
     data: data,
     kzg: undefined,
-    to: client.account.address,
-    chain: client.chain,
-    account: client.ownerAccount,
+    to: kernelClient.account?.address,
+    chain: kernelClient.chain as Chain,
   })
 }
