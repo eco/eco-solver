@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
-import mongoose from 'mongoose'
 import * as crypto from 'crypto'
+import mongoose from 'mongoose'
 
 export class DBTestUtils {
   private connection: mongoose.Connection

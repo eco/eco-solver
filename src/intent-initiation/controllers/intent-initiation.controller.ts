@@ -3,7 +3,6 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger'
 import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
 import { IntentInitiationService } from '../services/intent-initiation.service'
 import { QuoteErrorsInterface } from '../../quote/errors'
-import { serialize } from 'v8'
 import { TransactionReceipt } from 'viem'
 
 import {
@@ -39,15 +38,15 @@ export class IntentInitiationController {
       if (errorStatus) {
         switch (errorStatus) {
           case 400:
-            throw new BadRequestException(serialize(error))
+            throw new BadRequestException(error)
           case 500:
           default:
-            throw new InternalServerErrorException(serialize(error))
+            throw new InternalServerErrorException(error)
         }
       }
 
-      // 💥 FIX: throw if error has no statusCode
-      throw new InternalServerErrorException(serialize(error))
+      // Also throw if error has no statusCode
+      throw new InternalServerErrorException(error)
     }
 
     return txReceipt!
