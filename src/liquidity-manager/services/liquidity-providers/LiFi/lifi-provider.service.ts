@@ -1,13 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { parseUnits } from 'viem'
-import {
-  createConfig,
-  EVM,
-  executeRoute,
-  getRoutes,
-  RoutesRequest,
-  SDKConfig,
-} from '@eco-foundation/lifi-sdk'
+import { createConfig, EVM, executeRoute, getRoutes, RoutesRequest, SDKConfig } from '@lifi/sdk'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
