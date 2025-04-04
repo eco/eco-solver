@@ -62,6 +62,11 @@ describe('IntentInitiationService', () => {
         'Prover.1': '0x0000000000000000000000000000000000000002',
         'HyperProver.1': '0x0000000000000000000000000000000000000003',
         'Inbox.1': '0x0000000000000000000000000000000000000004',
+        rpcs: {
+          keys: {
+            '0x1234': '0x1234',
+          },
+        },
         alchemy: {
           networks: [{ id: 1 }, { id: 137 }],
           apiKey: 'fake-alchemy-api-key',

@@ -1,14 +1,13 @@
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Module } from '@nestjs/common'
-import { PermitValidationModule } from '@/intent-initiation/permit-validation/permit-validation.module'
 
 @Module({
-  imports: [PermitValidationModule],
+  imports: [],
 
   controllers: [],
 
   providers: [IntentInitiationService],
 
-  exports: [IntentInitiationService, PermitValidationModule],
+  exports: [IntentInitiationService],
 })
 export class IntentInitiationModule {}
