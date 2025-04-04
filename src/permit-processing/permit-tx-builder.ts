@@ -1,8 +1,8 @@
 import { encodeFunctionData, hexToBigInt } from 'viem'
-import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger } from '@nestjs/common'
 import { PermitAbi } from '@/contracts/Permit.abi'
-import { PermitProcessingParams } from './interfaces/permit-processing-params.interface'
+import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
 
 /**
  * This class returns a transaction for a permit.

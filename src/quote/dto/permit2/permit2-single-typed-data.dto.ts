@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
 import { IsEthereumAddress, IsNotEmpty, IsNumberString, ValidateNested } from 'class-validator'
-import { Permit2TypedDataDetailsDTO } from './permit2-typed-data-details.dto'
+import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
 import { Type } from 'class-transformer'
 
 export class Permit2SingleTypedDataDTO {

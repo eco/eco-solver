@@ -1,12 +1,12 @@
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoTester } from '../common/test-utils/eco-tester/eco-tester'
-import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Hex, TransactionReceipt } from 'viem'
-import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Permit2DTO } from '../quote/dto/permit2/permit2.dto'
-import { Permit2Processor } from './permit2-processor'
-import { Permit2TxBuilder } from './permit2-tx-builder'
-import { SignerKmsService } from '../sign/signer-kms.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { Permit2Processor } from '@/permit-processing/permit2-processor'
+import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
+import { SignerKmsService } from '@/sign/signer-kms.service'
 
 let $: EcoTester
 let processor: Permit2Processor
@@ -24,12 +24,12 @@ describe('Permit2Processor', () => {
     permitContract: '0xabc',
     signature: '0x' + '1'.repeat(130) as Hex,
     permitData: {
-      getDetails: () => ({
+      getDetails: () => ([{
         token: '0xabc',
         amount: '1000',
         expiration: '9999999999',
         nonce: '1',
-      }),
+      }]),
       getSigDeadline: () => '9999999999',
       getSpender: () => '0xdef',
       batchPermitData: undefined,
