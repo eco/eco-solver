@@ -26,6 +26,8 @@ import { IntentExecutionType } from './enums/intent-execution-type.enum'
 import { QuoteDataDTO } from './dto/quote-data.dto'
 import { QuoteDataEntryDTO } from './dto/quote-data-entry.dto'
 import { QuotesConfig } from '../eco-configs/eco-config.types'
+import { QuoteCallDataDTO, QuoteRouteDataDTO } from './dto/quote.route.data.dto'
+import { QuoteRewardTokensDTO } from './dto/quote.reward.data.dto'
 
 /**
  * Service class for getting configs for the app
@@ -81,6 +83,12 @@ export class QuoteService implements OnModuleInit {
     return { response: quoteData }
   }
 
+  /**
+   * Generates quotes for a set of IntentExecutionTypes. Supported types are configured in the
+   * quotesConfig. Currently only self publish and gasless are supported.
+   * @param quoteIntentModel parameters for the quote
+   * @returns the quote or an error
+   */
   async getQuotesForIntentTypes(quoteIntent: QuoteIntentModel): Promise<EcoResponse<QuoteDataDTO>> {
     const quoteEntries: QuoteDataEntryDTO[] = []
 
@@ -225,6 +233,12 @@ export class QuoteService implements OnModuleInit {
     }
   }
 
+  /**
+   * Generates a quote for given IntentExecutionType
+   * @param quoteIntentModel parameters for the quote
+   * @param intentExecutionType the intent execution type
+   * @returns the quote or an error
+   */
   private async generateQuoteForIntentExecutionType(
     quoteIntentModel: QuoteIntentModel,
     intentExecutionType: IntentExecutionType,
@@ -245,6 +259,11 @@ export class QuoteService implements OnModuleInit {
     }
   }
 
+  /**
+   * Generates a quote for the self publish case.
+   * @param quoteIntentModel parameters for the quote
+   * @returns the quote or an error
+   */
   async generateQuoteForSelfPublish(
     quoteIntentModel: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
@@ -259,6 +278,11 @@ export class QuoteService implements OnModuleInit {
     return { response: quoteDataEntry }
   }
 
+  /**
+   * Generates a quote for the gasless case.
+   * @param quoteIntentModel parameters for the quote
+   * @returns the quote or an error
+   */
   async generateQuoteForGasless(
     quoteIntentModel: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
@@ -361,9 +385,19 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
+    // Pass back the modified route data
+    const route: QuoteRouteDataDTO = {
+      source: quoteIntentModel.route.source,
+      destination: quoteIntentModel.route.destination,
+      inbox: quoteIntentModel.route.inbox,
+      tokens: quoteIntentModel.route.tokens as QuoteRewardTokensDTO[],
+      calls: quoteIntentModel.route.calls as QuoteCallDataDTO[],
+    }
+
     //todo save quote to record
     return {
       response: {
+        route,
         tokens: Object.values(quoteRecord),
         expiryTime: this.getQuoteExpiryTime(),
       } as QuoteDataEntryDTO,

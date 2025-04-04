@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IntentExecutionType } from '../enums/intent-execution-type.enum'
-import { IsArray, IsIn, IsNotEmpty, IsString } from 'class-validator'
+import { IsArray, IsIn, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
+import { QuoteRouteDataDTO } from './quote.route.data.dto'
 import { RewardTokensInterface } from '@/contracts'
+import { Type } from 'class-transformer'
 
 export class QuoteDataEntryDTO {
   @ApiProperty({ enum: IntentExecutionType.enumKeys })
@@ -9,6 +11,12 @@ export class QuoteDataEntryDTO {
   @IsIn(IntentExecutionType.enumKeys)
   @IsNotEmpty()
   intentExecutionType: string
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @ValidateNested()
+  @Type(() => QuoteRouteDataDTO)
+  route: QuoteRouteDataDTO
 
   @IsNotEmpty()
   @IsArray()
