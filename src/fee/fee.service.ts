@@ -5,6 +5,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
   FeeAlgorithmConfig,
   FeeConfigType,
+  IntentConfig,
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedToken } from '@/fee/types'
@@ -26,7 +27,7 @@ export const BASE_DECIMALS: number = 6
 @Injectable()
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
-  private defaultFee: FeeConfigType
+  private intentConfigs: IntentConfig
   private whitelist: WhitelistFeeRecord
 
   constructor(
@@ -35,7 +36,7 @@ export class FeeService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.defaultFee = this.ecoConfigService.getIntentConfigs().defaultFee
+    this.intentConfigs = this.ecoConfigService.getIntentConfigs()
     this.whitelist = this.ecoConfigService.getWhitelist()
   }
 
@@ -54,7 +55,7 @@ export class FeeService implements OnModuleInit {
     defaultFeeArg?: FeeConfigType
   }): FeeConfigType {
     const { intent, defaultFeeArg } = args || {}
-    let feeConfig = defaultFeeArg || this.defaultFee
+    let feeConfig = defaultFeeArg || this.intentConfigs.defaultFee
     if (intent) {
       const destDefaultFee = this.getAskRouteDestinationSolver(intent.route).fee
       feeConfig = defaultFeeArg || destDefaultFee
@@ -343,7 +344,10 @@ export class FeeService implements OnModuleInit {
 
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
         const normMinBalance = this.getNormalizedMinBalance(callTarget)
-        if (transferAmount > callTarget.token.balance - normMinBalance) {
+        if (
+          !this.intentConfigs.skipBalanceCheck &&
+          transferAmount > callTarget.token.balance - normMinBalance
+        ) {
           const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,
             call.target,

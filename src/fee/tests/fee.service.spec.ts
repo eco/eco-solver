@@ -79,7 +79,7 @@ describe('FeeService', () => {
   describe('on onModuleInit', () => {
     it('should set the config defaults', async () => {
       const whitelist = { '0x1': { '10': { limitFillBase6: 123n } } }
-      expect(feeService['defaultFee']).toBeUndefined()
+      expect(feeService['intentConfigs']).toBeUndefined()
       expect(feeService['whitelist']).toBeUndefined()
       const mockGetIntentConfig = jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue({
         defaultFee,
@@ -88,7 +88,7 @@ describe('FeeService', () => {
         .spyOn(ecoConfigService, 'getWhitelist')
         .mockReturnValue(whitelist as any)
       await feeService.onModuleInit()
-      expect(feeService['defaultFee']).toEqual(defaultFee)
+      expect(feeService['intentConfigs']['defaultFee']).toEqual(defaultFee)
       expect(feeService['whitelist']).toEqual(whitelist)
       expect(mockGetIntentConfig).toHaveBeenCalledTimes(1)
       expect(mockGetWhitelist).toHaveBeenCalledTimes(1)
@@ -108,7 +108,7 @@ describe('FeeService', () => {
     } as any
 
     beforeEach(() => {
-      feeService['defaultFee'] = defaultFee
+      feeService['intentConfigs'] = { defaultFee } as any
       feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: defaultFee })
     })
 
@@ -124,7 +124,7 @@ describe('FeeService', () => {
     it('should return the default fee for the solver if intent is set', async () => {
       const solverFee = { asd: 123n } as any
       feeService['whitelist'] = {}
-      feeService['defaultFee'] = { asd: 333n } as any
+      feeService['intentConfigs'] = { defaultFee: { asd: 333n } } as any
       feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: solverFee })
       expect(feeService.getFeeConfig({ intent })).toEqual(solverFee)
     })
@@ -663,6 +663,7 @@ describe('FeeService', () => {
             },
           },
         }
+        feeService['intentConfigs'] = { skipBalanceCheck: false } as any
       })
 
       it('should return an error if tx target data is not for an erc20 transfer', async () => {

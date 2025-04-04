@@ -3,6 +3,7 @@ import { Model } from 'mongoose'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
+import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
@@ -11,10 +12,14 @@ import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
   let liquidityProviderService: LiquidityProviderService
+  let crowdLiquidityService: CrowdLiquidityService
+  let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -26,6 +31,8 @@ describe('LiquidityManagerService', () => {
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
+        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
+        { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
@@ -44,9 +51,16 @@ describe('LiquidityManagerService', () => {
 
     balanceService = chainMod.get(BalanceService)
     ecoConfigService = chainMod.get(EcoConfigService)
+    crowdLiquidityService = chainMod.get(CrowdLiquidityService)
     liquidityManagerService = chainMod.get(LiquidityManagerService)
+    kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
+
+    crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
+    kernelAccountClientService['getClient'] = jest
+      .fn()
+      .mockReturnValue({ kernelAccount: { address: zeroAddress } })
   })
 
   const mockConfig = {
@@ -77,7 +91,7 @@ describe('LiquidityManagerService', () => {
     })
 
     it('should set liquidity manager config', async () => {
-      const mockConfig = { test: 1000n }
+      const mockConfig = { intervalDuration: 1000 }
       jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
       await liquidityManagerService.onApplicationBootstrap()
       expect(liquidityManagerService['config']).toEqual(mockConfig)
@@ -94,9 +108,9 @@ describe('LiquidityManagerService', () => {
 
       liquidityManagerService['config'] = mockConfig
 
-      jest.spyOn(balanceService, 'getAllTokenData').mockResolvedValue(mockTokens as any)
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue(mockTokens as any)
 
-      const result = await liquidityManagerService.analyzeTokens()
+      const result = await liquidityManagerService.analyzeTokens(zeroAddress)
 
       expect(result.items).toHaveLength(3)
       expect(result.surplus.items).toHaveLength(1)
@@ -117,6 +131,7 @@ describe('LiquidityManagerService', () => {
         .mockResolvedValue([{ amountOut: 100 }] as any)
 
       const result = await liquidityManagerService.getOptimizedRebalancing(
+        zeroAddress,
         mockDeficitToken as any,
         mockSurplusTokens as any,
       )
