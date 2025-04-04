@@ -18,8 +18,8 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Model } from 'mongoose'
-import { QuoteTestUtils } from '../../intent-initiation/test-utils/quote-test-utils';
-import { IntentExecutionType } from '../enums/intent-execution-type.enum'
+import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 
 jest.mock('@/intent/utils', () => {
   return {

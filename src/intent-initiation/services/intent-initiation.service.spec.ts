@@ -15,9 +15,9 @@ import { PermitProcessor } from '../../permit-processing/permit-processor'
 import { PermitTxBuilder } from '../../permit-processing/permit-tx-builder'
 import { QuoteIntentModel } from '../../quote/schemas/quote-intent.schema'
 import { QuoteService } from '../../quote/quote.service'
-import { QuoteTestUtils } from '../test-utils/quote-test-utils'
-import { SignerKmsService } from '../../sign/signer-kms.service'
-import { ValidationService } from '../../intent/validation.sevice'
+import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
+import { SignerKmsService } from '@/sign/signer-kms.service'
+import { ValidationService } from '@/intent/validation.sevice'
 
 const logger = new Logger('IntentInitiationServiceSpec')
 
