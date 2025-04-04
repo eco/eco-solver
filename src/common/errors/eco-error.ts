@@ -84,6 +84,9 @@ export class EcoError extends Error {
     return new Error(`There is no unwatch for chain : ${chainID}`)
   }
 
+  // Indexer service
+  static IndexerInvalidDataError = new Error('Indexer service returned invalid data')
+
   // Viem
 
   static UnsupportedChainError(chain: Chain) {

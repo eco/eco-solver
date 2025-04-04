@@ -108,6 +108,21 @@ export default {
       deficit: 0.2,
     },
   },
+
+  indexer: {
+    url: 'https://indexer.eco.com',
+  },
+  withdraws: {
+    chunkSize: 20,
+    intervalDuration: 360_000,
+  },
+
+  sendBatch: {
+    chunkSize: 200,
+    intervalDuration: 360_000,
+    defaultGasPerIntent: 25_000,
+  },
+
   externalAPIs: {},
   logger: {
     usePino: true,

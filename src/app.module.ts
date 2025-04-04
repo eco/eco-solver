@@ -8,6 +8,7 @@ import { IntervalModule } from '@/intervals/interval.module'
 import { QuoteModule } from '@/quote/quote.module'
 import { FeeModule } from '@/fee/fee.module'
 import { KmsModule } from '@/kms/kms.module'
+import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
 import { BalanceModule } from '@/balance/balance.module'
 import { ChainMonitorModule } from '@/chain-monitor/chain-monitor.module'
 import { EcoConfigModule } from '@/eco-configs/eco-config.module'
@@ -48,6 +49,7 @@ import { SolverModule } from '@/solver/solver.module'
     SolverModule,
     LiquidityManagerModule,
     WatchModule,
+    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],

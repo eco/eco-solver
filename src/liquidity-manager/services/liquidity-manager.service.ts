@@ -19,7 +19,7 @@ import {
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
-import { deserialize } from '@/liquidity-manager/utils/serialize'
+import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
