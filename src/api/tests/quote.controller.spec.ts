@@ -8,11 +8,13 @@ import { QuoteDataDTO } from '../../quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { serialize } from '@/liquidity-manager/utils/serialize'
 import { Test, TestingModule } from '@nestjs/testing'
+import { QuoteTestUtils } from '../../intent-initiation/test-utils/quote-test-utils'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController
   let quoteService: QuoteService
   const mockLogLog = jest.fn()
+  const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -53,6 +55,7 @@ describe('QuoteController Test', () => {
       quoteEntries: [
         {
           intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+          route: quoteTestUtils.createQuoteRouteDataDTO(),
           tokens: [
             {
               token: '0x123',
@@ -63,6 +66,7 @@ describe('QuoteController Test', () => {
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
+          route: quoteTestUtils.createQuoteRouteDataDTO(),
           tokens: [
             {
               token: '0x456',
