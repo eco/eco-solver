@@ -1,18 +1,10 @@
-import { API_ROOT, INTENT_INITIATION_ROUTE } from '../../common/routes/constants'
+import { API_ROOT, INTENT_INITIATION_ROUTE } from '@/common/routes/constants'
 import { ApiOperation, ApiResponse } from '@nestjs/swagger'
-import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
-import { IntentInitiationService } from '../services/intent-initiation.service'
-import { QuoteErrorsInterface } from '../../quote/errors'
+import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { QuoteErrorsInterface } from '@/quote/errors'
 import { TransactionReceipt } from 'viem'
-
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  InternalServerErrorException,
-  Logger,
-  Post,
-} from '@nestjs/common'
 
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
 export class IntentInitiationController {
@@ -36,13 +28,8 @@ export class IntentInitiationController {
     if (error) {
       const errorStatus = (error as QuoteErrorsInterface).statusCode
       if (errorStatus) {
-        switch (errorStatus) {
-          case 400:
-            throw new BadRequestException(error)
-          case 500:
-          default:
-            throw new InternalServerErrorException(error)
-        }
+        // If it's *already* an error, stop fucking around. Wasted an hour on this crap.
+        throw error
       }
 
       // Also throw if error has no statusCode
