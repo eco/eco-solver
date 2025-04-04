@@ -1,16 +1,16 @@
-import { BadRequestException, InternalServerErrorException } from "@nestjs/common"
-import { EcoError } from "../../common/errors/eco-error"
-import { EcoTester } from "../../common/test-utils/eco-tester/eco-tester"
-import { IntentInitiationController } from "./intent-initiation.controller"
-import { IntentInitiationService } from "../services/intent-initiation.service"
-import { IntentTestUtils } from "../test-utils/intent-test-utils"
-import { KernelAccountClientService } from "../../transaction/smart-wallets/kernel/kernel-account-client.service"
-import { Permit2Processor } from "../../permit-processing/permit2-processor"
-import { Permit2TxBuilder } from "../../permit-processing/permit2-tx-builder"
-import { PermitProcessor } from "../../permit-processing/permit-processor"
-import { PermitTxBuilder } from "../../permit-processing/permit-tx-builder"
-import { QuoteService } from "../../quote/quote.service"
-import { TransactionReceipt } from "viem"
+import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { IntentInitiationController } from '@/intent-initiation/controllers/intent-initiation.controller'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { Permit2Processor } from '@/permit-processing/permit2-processor'
+import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
+import { PermitProcessor } from '@/permit-processing/permit-processor'
+import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { QuoteService } from '@/quote/quote.service'
+import { TransactionReceipt } from 'viem'
 
 const intentTestUtils = new IntentTestUtils()
 

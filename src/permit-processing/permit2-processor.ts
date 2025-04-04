@@ -1,10 +1,10 @@
-import { EcoResponse } from '../common/eco-response'
-import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
+import { EcoResponse } from '@/common/eco-response'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ModuleRef } from '@nestjs/core'
-import { Permit2DTO } from '../quote/dto/permit2/permit2.dto'
-import { Permit2TxBuilder } from './permit2-tx-builder'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
 import { TransactionReceipt } from 'viem'
 
 /**

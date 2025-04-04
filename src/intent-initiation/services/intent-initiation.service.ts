@@ -1,23 +1,23 @@
-import { EcoError } from '../../common/errors/eco-error'
-import { EcoLogger } from '../../common/logging/eco-logger'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
-import { EcoResponse } from '../../common/eco-response'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogger } from '@/common/logging/eco-logger'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoResponse } from '@/common/eco-response'
 import { encodeFunctionData, Hex, TransactionReceipt } from 'viem'
-import { ExecuteSmartWalletArg } from '../../transaction/smart-wallets/smart-wallet.types'
-import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
-import { getChainConfig } from '../../eco-configs/utils'
-import { hashRoute, RouteType } from '@eco-foundation/routes-ts'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { getChainConfig } from '@/eco-configs/utils'
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { InternalQuoteError } from '@/quote/errors'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ModuleRef } from '@nestjs/core'
-import { Permit2DTO } from '../../quote/dto/permit2/permit2.dto'
-import { Permit2Processor } from '../../permit-processing/permit2-processor'
-import { PermitDTO } from '../../quote/dto/permit/permit.dto'
-import { PermitProcessingParams } from '../../permit-processing/interfaces/permit-processing-params.interface'
-import { PermitProcessor } from '../../permit-processing/permit-processor'
-import { QuoteRewardDataDTO } from '../../quote/dto/quote.reward.data.dto'
-import { QuoteService } from '../../quote/quote.service'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { Permit2Processor } from '@/permit-processing/permit2-processor'
+import { PermitDTO } from '@/quote/dto/permit/permit.dto'
+import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
+import { PermitProcessor } from '@/permit-processing/permit-processor'
+import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteService } from '@/quote/quote.service'
+import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import * as _ from 'lodash'
 
 export const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -51,7 +51,7 @@ export class IntentInitiationService implements OnModuleInit {
   ): Promise<EcoResponse<TransactionReceipt>> {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `createGaslessIntent`,
+        message: `initiateGaslessIntent`,
         properties: {
           gaslessIntentRequestDTO,
         },
@@ -64,7 +64,7 @@ export class IntentInitiationService implements OnModuleInit {
     const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
 
     if (error) {
-      return { error }
+      return { error: InternalQuoteError(error) }
     }
 
     // Get the fundFor tx
@@ -72,7 +72,7 @@ export class IntentInitiationService implements OnModuleInit {
       await this.getIntentFundForTx(gaslessIntentRequestDTO)
 
     if (fundForTxError) {
-      return { error: fundForTxError }
+      return { error: InternalQuoteError(fundForTxError) }
     }
 
     const allTxs = [...permitTxs!, fundForTx!]

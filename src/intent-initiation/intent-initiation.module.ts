@@ -1,5 +1,5 @@
-import { IntentInitiationController } from './controllers/intent-initiation.controller'
-import { IntentInitiationService } from './services/intent-initiation.service'
+import { IntentInitiationController } from '@/intent-initiation/controllers/intent-initiation.controller'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Module } from '@nestjs/common'
 
 @Module({

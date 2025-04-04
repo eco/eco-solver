@@ -1,9 +1,9 @@
 /* eslint-disable prettier/prettier */
-import { BatchPermitDataDTO } from "../../quote/dto/permit2/batch-permit-data.dto";
-import { Hex } from "viem";
-import { Permit2DTO } from "../../quote/dto/permit2/permit2.dto";
-import { PermitDTO } from "../../quote/dto/permit/permit.dto";
-import { SinglePermitDataDTO } from "../../quote/dto/permit2/single-permit-data.dto";
+import { BatchPermitDataDTO } from '@/quote/dto/permit2/batch-permit-data.dto'
+import { Hex } from 'viem'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { PermitDTO } from '@/quote/dto/permit/permit.dto'
+import { SinglePermitDataDTO } from '@/quote/dto/permit2/single-permit-data.dto'
 
 export class PermitTestUtils {
   createPermitDTO(overrides?: Partial<PermitDTO>): PermitDTO {
@@ -56,7 +56,7 @@ export class PermitTestUtils {
     }
 
     const getDetails = () =>
-      opts.isBatch ? batchPermitData.typedData.details : singlePermitData.typedData.details
+      opts.isBatch ? batchPermitData.typedData.details : [singlePermitData.typedData.details]
 
     const getSpender = () =>
       opts.isBatch ? batchPermitData.typedData.spender : singlePermitData.typedData.spender

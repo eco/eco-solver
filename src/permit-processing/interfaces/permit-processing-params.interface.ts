@@ -1,5 +1,5 @@
 import { Hex } from 'viem'
-import { PermitDTO } from '../../quote/dto/permit/permit.dto'
+import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 
 /*
  * This interface defines the parameters required for processing a permit.

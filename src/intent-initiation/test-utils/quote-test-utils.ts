@@ -1,7 +1,7 @@
-import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
-import { QuoteIntentModel } from '../../quote/schemas/quote-intent.schema'
-import { QuoteRewardDataModel } from '../../quote/schemas/quote-reward.schema'
-import { QuoteRouteDataDTO } from '../../quote/dto/quote.route.data.dto'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
+import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 
 export class QuoteTestUtils {
   createQuoteIntentModel(overrides?: Partial<QuoteIntentModel>): QuoteIntentModel {

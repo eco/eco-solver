@@ -1,14 +1,14 @@
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
-import { IntentExecutionType } from '../../quote/enums/intent-execution-type.enum'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
 import { QuoteController } from '@/api/quote.controller'
-import { QuoteDataDTO } from '../../quote/dto/quote-data.dto'
+import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { serialize } from '@/liquidity-manager/utils/serialize'
 import { Test, TestingModule } from '@nestjs/testing'
-import { QuoteTestUtils } from '../../intent-initiation/test-utils/quote-test-utils'
+import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController
