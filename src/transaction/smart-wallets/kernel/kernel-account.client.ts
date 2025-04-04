@@ -1,10 +1,9 @@
 import {
   Account,
   Chain,
-  createPublicClient,
   Hex,
-  http,
   Prettify,
+  publicActions,
   RpcSchema,
   Transport,
   WalletRpcSchema,
@@ -81,10 +80,8 @@ async function deployKernelAccount<
 ): Promise<DeployFactoryArgs> {
   const args: DeployFactoryArgs = {}
 
-  const publicClient = createPublicClient({
-    chain: client.chain,
-    transport: http(),
-  })
+  const publicClient = client.extend(publicActions)
+
   const code = await publicClient.getCode({ address: client.kernelAccount.address })
 
   if (!code) {

@@ -7,6 +7,7 @@ import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -19,6 +20,7 @@ export type EcoConfigType = {
   intervals: IntervalConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
+  quicknode: QuicknodeConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -64,6 +66,13 @@ export type EcoConfigType = {
     pinoConfig: PinoParams
   }
   liquidityManager: LiquidityManagerConfig
+  crowdLiquidity: CrowdLiquidityConfig
+  CCTP: CCTPConfig
+  warpRoutes: WarpRoutesConfig
+  indexer: IndexerConfig
+  withdraws: WithdrawsConfig
+  sendBatch: SendBatchConfig
+  hyperlane: HyperlaneConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -81,6 +90,7 @@ export type LaunchDarklyConfig = {
  */
 export type FulfillType = {
   run: 'batch' | 'single'
+  type?: 'crowd-liquidity' | 'smart-wallet-account'
 }
 
 /**
@@ -211,6 +221,13 @@ export type AlchemyNetwork = {
 }
 
 /**
+ * The whole config type for QuickNode.
+ */
+export type QuicknodeConfigType = {
+  apiKey: string
+}
+
+/**
  * The config type for a single solver configuration
  */
 export type Solver = {
@@ -261,6 +278,8 @@ export class IntentSource {
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
+  // The address that the Inbox contract is deployed at, we execute fulfills in this contract
+  inbox: Hex
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]
   // The addresses of the provers that we support
@@ -275,4 +294,68 @@ export interface LiquidityManagerConfig {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
+}
+
+export interface CrowdLiquidityConfig {
+  litNetwork: LIT_NETWORKS_KEYS
+  capacityTokenId: string
+  capacityTokenOwnerPk: string
+  defaultTargetBalance: number
+  feePercentage: number
+  actions: {
+    fulfill: string
+    rebalance: string
+  }
+  kernel: {
+    address: string
+  }
+  pkp: {
+    ethAddress: string
+    publicKey: string
+  }
+  supportedTokens: { chainId: number; tokenAddress: Hex }[]
+}
+
+export interface CCTPConfig {
+  apiUrl: string
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
+export interface WarpRoutesConfig {
+  routes: {
+    collateral: {
+      chainId: number
+      token: Hex
+    }
+    chains: {
+      chainId: number
+      token: Hex
+      synthetic: Hex
+    }[]
+  }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
 }
