@@ -214,15 +214,6 @@ export class QuoteService implements OnModuleInit {
   }
 
   /**
-   * Fetch a quote from the db
-   * @param query the quote intent data
-   * @returns the quote or an error
-   */
-  async fetchQuoteIntentData(query: object): Promise<QuoteIntentModel | null> {
-    return this.quoteIntentModel.findOne(query)
-  }
-
-  /**
    * Validates that the quote intent data is valid.
    * Checks that there is a solver, that the assert validations pass,
    * and that the quote intent is feasible.
