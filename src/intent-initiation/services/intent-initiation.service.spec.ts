@@ -1,9 +1,9 @@
-import { DBTestUtils } from '../../common/test-utils/db-test-utils'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { EcoError } from '../../common/errors/eco-error'
 import { EcoTester } from '../../common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '../../transaction/smart-wallets/smart-wallet.types'
 import { FeeService } from '../../fee/fee.service'
+import { getModelToken } from '@nestjs/mongoose'
 import { Hex, TransactionReceipt } from 'viem'
 import { IntentInitiationService } from './intent-initiation.service'
 import { IntentTestUtils } from '../test-utils/intent-test-utils'
@@ -13,7 +13,7 @@ import { Permit2Processor } from '../../permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '../../permit-processing/permit2-tx-builder'
 import { PermitProcessor } from '../../permit-processing/permit-processor'
 import { PermitTxBuilder } from '../../permit-processing/permit-tx-builder'
-import { QuoteIntentSchema } from '../../quote/schemas/quote-intent.schema'
+import { QuoteIntentModel } from '../../quote/schemas/quote-intent.schema'
 import { QuoteService } from '../../quote/quote.service'
 import { QuoteTestUtils } from '../test-utils/quote-test-utils'
 import { SignerKmsService } from '../../sign/signer-kms.service'
@@ -22,7 +22,6 @@ import { ValidationService } from '../../intent/validation.sevice'
 const logger = new Logger('IntentInitiationServiceSpec')
 
 let $: EcoTester
-let dbTestUtils: DBTestUtils
 let service: IntentInitiationService
 let permitProcessor: PermitProcessor
 let permit2Processor: Permit2Processor
@@ -70,9 +69,6 @@ describe('IntentInitiationService', () => {
       }),
     }
 
-    dbTestUtils = new DBTestUtils()
-    await dbTestUtils.dbOpen()
-
     $ = EcoTester
       .setupTestFor(IntentInitiationService)
       .withProviders([
@@ -82,16 +78,23 @@ describe('IntentInitiationService', () => {
         KernelAccountClientService,
         PermitTxBuilder,
         Permit2TxBuilder,
+        {
+          provide: getModelToken(QuoteIntentModel.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
+        },
+        {
+          provide: EcoConfigService, // ⬅ inject the actual mocked provider here
+          useValue: new EcoConfigService([mockSource as any]),
+        },
       ])
-      .overridingProvider(EcoConfigService)
-      .with(new EcoConfigService([mockSource as any]))
       .withMocks([
         FeeService,
         ValidationService,
         SignerKmsService,
-      ])
-      .withSchemas([
-        ['QuoteIntentModel', QuoteIntentSchema],
       ])
 
     service = await $.init()
@@ -99,10 +102,6 @@ describe('IntentInitiationService', () => {
     permit2Processor = $.get(Permit2Processor)
     quoteService = $.get(QuoteService)
     kernelAccountClientService = $.get(KernelAccountClientService)
-  })
-
-  afterAll(async () => {
-    await dbTestUtils.dbClose()
   })
 
   it('fails if quote not found', async () => {
