@@ -8,6 +8,7 @@ import { mantle } from './definitions/mantle'
 import { polygon } from './definitions/polygon'
 import { ethereum, sepolia } from './definitions/ethereum'
 import { celo } from './definitions/celo'
+import { ink, unichain } from 'viem/chains'
 
 /**
  * List of supported chains for the solver that have modified RPC URLs or are defined in the project
@@ -25,4 +26,6 @@ export const ChainsSupported: Chain[] = [
   ethereum,
   sepolia,
   celo,
+  ink,
+  unichain
 ]
