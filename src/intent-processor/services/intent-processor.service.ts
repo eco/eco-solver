@@ -88,7 +88,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       })
     }
 
-    this.intentProcessorQueue.addExecuteWithdrawalsJobs(jobsData)
+    await this.intentProcessorQueue.addExecuteWithdrawalsJobs(jobsData)
   }
 
   async getNextSendBatch() {

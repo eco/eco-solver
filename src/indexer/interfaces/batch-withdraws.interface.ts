@@ -1,9 +1,22 @@
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { IsEthereumAddress, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
+import { Type } from 'class-transformer'
+import { IndexerIntentDTO } from '@/indexer/interfaces/intent.interface'
 
-export interface BatchWithdraws {
-  intent: IndexerIntent
-  claimant: {
-    _hash: string
-    _claimant: string
-  }
+class ClaimantDTO {
+  @IsString()
+  @IsNotEmpty()
+  _hash: string
+
+  @IsEthereumAddress()
+  _claimant: string
+}
+
+export class BatchWithdrawsDTO {
+  @ValidateNested()
+  @Type(() => IndexerIntentDTO)
+  intent: IndexerIntentDTO
+
+  @ValidateNested()
+  @Type(() => ClaimantDTO)
+  claimant: ClaimantDTO
 }

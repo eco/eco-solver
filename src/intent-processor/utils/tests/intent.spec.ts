@@ -1,7 +1,7 @@
 import { Hex } from 'viem'
 import * as RoutesTs from '@eco-foundation/routes-ts'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { IndexerIntentDTO } from '@/indexer/interfaces/intent.interface'
 
 // Mock the routes-ts module
 jest.mock('@eco-foundation/routes-ts', () => ({
@@ -10,9 +10,9 @@ jest.mock('@eco-foundation/routes-ts', () => ({
 
 describe('Intent Utils', () => {
   describe('getWithdrawData', () => {
-    it('should convert IndexerIntent to proper format for withdrawal', () => {
-      // Create mock IndexerIntent
-      const mockIntent: IndexerIntent = {
+    it('should convert IndexerIntentDTO to proper format for withdrawal', () => {
+      // Create mock IndexerIntentDTO
+      const mockIntent: IndexerIntentDTO = {
         hash: '0xintentHash',
         creator: '0xCreator',
         prover: '0xProver',

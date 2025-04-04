@@ -1,10 +1,10 @@
 import { Hex } from 'viem'
 import { hashIntent } from '@eco-foundation/routes-ts'
 
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { IndexerIntentDTO } from '@/indexer/interfaces/intent.interface'
 import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 
-export function getWithdrawData(intent: IndexerIntent): {
+export function getWithdrawData(intent: IndexerIntentDTO): {
   reward: RewardInterface
   routeHash: Hex
 } {

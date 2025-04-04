@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Hex } from 'viem'
+import { validate } from 'class-validator'
+import { plainToInstance } from 'class-transformer'
+import { EcoError } from '@/common/errors/eco-error'
 import { IndexerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BatchWithdraws } from '@/indexer/interfaces/batch-withdraws.interface'
+import { BatchWithdrawsDTO } from '@/indexer/interfaces/batch-withdraws.interface'
 import { SendBatchData } from '@/indexer/interfaces/send-batch-data.interface'
 
 @Injectable()
@@ -15,9 +18,22 @@ export class IndexerService {
     this.config = this.ecoConfigService.getIndexer()
   }
 
-  getNextBatchWithdrawals(intentSourceAddr?: Hex) {
+  async getNextBatchWithdrawals(intentSourceAddr?: Hex): Promise<BatchWithdrawsDTO[]> {
     const searchParams = { evt_log_address: intentSourceAddr }
-    return this.fetch<BatchWithdraws[]>('/intents/nextBatchWithdrawals', { searchParams })
+    const rawData = await this.fetch<BatchWithdrawsDTO[]>('/intents/nextBatchWithdrawals', {
+      searchParams,
+    })
+
+    const dtoArray = plainToInstance(BatchWithdrawsDTO, rawData)
+    const validations = await Promise.all(dtoArray.map((item) => validate(item)))
+
+    // If there is an error, a data type is invalid
+    const hasErrors = validations.some((errors) => errors.length > 0)
+    if (hasErrors) {
+      throw EcoError.IndexerInvalidDataError
+    }
+
+    return dtoArray
   }
 
   getNextSendBatch(intentSourceAddr?: Hex) {
