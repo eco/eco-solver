@@ -6,7 +6,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { IndexerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BatchWithdrawsDTO } from '@/indexer/interfaces/batch-withdraws.interface'
-import { SendBatchData } from '@/indexer/interfaces/send-batch-data.interface'
+import { SendBatchDataDTO } from '@/indexer/interfaces/send-batch-data.interface'
 
 @Injectable()
 export class IndexerService {
@@ -36,9 +36,19 @@ export class IndexerService {
     return dtoArray
   }
 
-  getNextSendBatch(intentSourceAddr?: Hex) {
+  async getNextSendBatch(intentSourceAddr?: Hex) {
     const searchParams = { evt_log_address: intentSourceAddr }
-    return this.fetch<SendBatchData[]>('/intents/nextBatch', { searchParams })
+    const raw = await this.fetch<SendBatchDataDTO[]>('/intents/nextBatch', { searchParams })
+    const batches = plainToInstance(SendBatchDataDTO, raw)
+    const validations = await Promise.all(batches.map((item) => validate(item)))
+
+    // If there is an error, a data type is invalid
+    const hasErrors = validations.some((errors) => errors.length > 0)
+    if (hasErrors) {
+      throw EcoError.IndexerInvalidDataError
+    }
+
+    return batches
   }
 
   private async fetch<Data>(

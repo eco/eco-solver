@@ -93,10 +93,13 @@ describe('IndexerService', () => {
   describe('getNextSendBatch', () => {
     const mockResponse = [
       {
-        hash: '0x123',
-        prover: '0xprover',
+        hash: '0xf3c75576957b491eb5941995156833bc57c7d6f101c7f4e2ec85dca851c2540e',
+        prover: '0x0000000000000000000000000000000000000001',
         chainId: 1,
         destinationChainId: 10,
+        intentSourceAddr: '0x0000000000000000000000000000000000000002',
+        claimant: '0x0000000000000000000000000000000000000003',
+        intentCreatedTxHash: '0xf3c75576957b491eb5941995156833bc57c7d6f101c7f4e2ec85dca851c25400',
       },
     ]
 
