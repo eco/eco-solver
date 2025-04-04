@@ -18,6 +18,8 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Model } from 'mongoose'
+import { QuoteTestUtils } from '../../intent-initiation/test-utils/quote-test-utils';
+import { IntentExecutionType } from '../enums/intent-execution-type.enum'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -35,6 +37,7 @@ describe('QuotesService', () => {
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
+  const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
     const quotesConfig = { intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'] }
@@ -107,7 +110,8 @@ describe('QuotesService', () => {
       const quoteData: QuoteDataDTO = {
         quoteEntries: [
           {
-            intentExecutionType: 'SELF_PUBLISH',
+            intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+            route: quoteTestUtils.createQuoteRouteDataDTO(),
             tokens: [
               {
                 token: '0x123',
@@ -117,7 +121,8 @@ describe('QuotesService', () => {
             expiryTime: '0',
           },
           {
-            intentExecutionType: 'GASLESS',
+            intentExecutionType: IntentExecutionType.GASLESS.toString(),
+            route: quoteTestUtils.createQuoteRouteDataDTO(),
             tokens: [
               {
                 token: '0x456',
@@ -203,6 +208,30 @@ describe('QuotesService', () => {
         quoteIntentModel,
       })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, { error: SolverUnsupported })
+    })
+
+    it('should return quote from getQuotesForIntentTypes if one passes', async () => {
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
+      quoteService['quotesConfig'] = { intentExecutionTypes: ['GASLESS'] }
+
+      jest
+        .spyOn(quoteService as any, 'generateQuoteForIntentExecutionType')
+        .mockResolvedValue({ response: { intentExecutionType: 'GASLESS', tokens: [], expiryTime: '123' } })
+
+      const { response } = await quoteService.getQuotesForIntentTypes(quoteIntent)
+      expect(response!.quoteEntries).toHaveLength(1)
+    })
+
+    it('should return error if no quote entries could be generated', async () => {
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
+      quoteService['quotesConfig'] = { intentExecutionTypes: ['GASLESS'] }
+
+      jest
+        .spyOn(quoteService as any, 'generateQuoteForIntentExecutionType')
+        .mockResolvedValue({ error: InternalQuoteError(new Error('bad')) })
+
+      const { error } = await quoteService.getQuotesForIntentTypes(quoteIntent)
+      expect(error?.message).toContain('Failed generate quote')
     })
 
     it('should return invalid quote if the quote fails validations', async () => {
@@ -296,6 +325,7 @@ describe('QuotesService', () => {
         })
         const { response: quoteDataEntry } = await quoteService.generateQuote({ route: {} } as any)
         expect(quoteDataEntry).toEqual({
+          route: {},
           tokens: expectedTokens,
           expiryTime: expect.any(String),
         })
