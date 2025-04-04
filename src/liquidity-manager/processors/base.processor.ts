@@ -1,8 +1,10 @@
 import { Logger } from '@nestjs/common'
-import { Job as BullMQJob } from 'bullmq'
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { BaseJobManager } from '@/common/bullmq/base-job'
+import {
+  LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/jobs/liquidity-manager.job'
 
 /**
  * Abstract class representing a base processor for liquidity manager jobs.
@@ -10,8 +12,8 @@ import { BaseJobManager } from '@/common/bullmq/base-job'
  * @template JobType - The constructor type of the job.
  */
 export abstract class BaseProcessor<
-  Job extends BullMQJob,
-  JobManager extends BaseJobManager<Job> = BaseJobManager<Job>,
+  Job extends LiquidityManagerJob = LiquidityManagerJob,
+  JobManager extends LiquidityManagerJobManager<Job> = LiquidityManagerJobManager<Job>,
 > extends WorkerHost {
   public readonly logger: Logger
 

@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { BaseProcessor } from '@/common/bullmq/base.processor'
+import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
-import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
   LiquidityManagerQueue,
@@ -16,7 +15,7 @@ import {
  */
 @Injectable()
 @Processor(LiquidityManagerQueue.queueName)
-export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> {
+export class LiquidityManagerProcessor extends BaseProcessor {
   /**
    * Constructs a new LiquidityManagerProcessor.
    * @param queue - The queue to process jobs from.

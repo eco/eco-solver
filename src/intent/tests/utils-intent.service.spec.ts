@@ -1,16 +1,18 @@
 const mockDecodeFunctionData = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
 import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { UtilsIntentService } from '../utils-intent.service'
 import { getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '@/common/redis/constants'
+import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoError } from '../../common/errors/eco-error'
+import { getFunctionBytes } from '../../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
+import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { QuoteError } from '@/quote/errors'
 
@@ -29,6 +31,7 @@ describe('UtilsIntentService', () => {
   const mockLogLog = jest.fn()
   const mockLogWarn = jest.fn()
   const address1 = '0x1111111111111111111111111111111111111111'
+  const address2 = '0x2222222222222222222222222222222222222222'
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
@@ -113,9 +116,111 @@ describe('UtilsIntentService', () => {
     })
   })
 
-  // These tests were removed because the methods being tested (selectorsSupported and targetsSupported)
-  // have been moved to the ValidationService class, which already has proper tests for these methods
-  // in validation.service.spec.ts.
+  // describe('on selectorsSupported', () => {
+  //   it('should return false when target length is 0', async () => {
+  //     const model = { intent: { route: { calls: [] } } } as any
+  //     expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(false)
+  //     expect(mockLogLog).toHaveBeenCalledTimes(1)
+  //     expect(mockLogLog).toHaveBeenCalledWith({
+  //       msg: 'validateIntent: Target/data invalid',
+  //       intent: model.intent,
+  //     })
+  //   })
+
+  //   it('should return false some target transactions fail to decode', async () => {
+  //     const model = {
+  //       intent: {
+  //         route: {
+  //           calls: [
+  //             { target: address1, data: '0x11' },
+  //             { target: address2, data: '0x22' },
+  //           ],
+  //         },
+  //       },
+  //     } as any
+  //     utilsIntentService.getTransactionTargetData = jest
+  //       .fn()
+  //       .mockImplementation((model, solver, call) => {
+  //         if (call.target === address2) return null
+  //         return { decoded: true }
+  //       })
+  //     expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(false)
+  //   })
+
+  //   it('should return true when all target transactions decode', async () => {
+  //     const model = {
+  //       intent: {
+  //         route: {
+  //           calls: [
+  //             { target: address1, data: '0x11' },
+  //             { target: address2, data: '0x22' },
+  //           ],
+  //         },
+  //       },
+  //     } as any
+  //     utilsIntentService.getTransactionTargetData = jest.fn().mockReturnValue({ decoded: true })
+  //     expect(utilsIntentService.selectorsSupported(model, {} as any)).toBe(true)
+  //   })
+  // })
+  // describe('on targetsSupported', () => {
+  //   const target = address1
+  //   const target1 = address2
+  //   const targetConfig = { contractType: 'erc20', selectors: [] }
+
+  //   it('should return false if model targets are empty', async () => {
+  //     const model = {
+  //       intent: { route: { calls: [] }, hash: '0x9' },
+  //       event: { sourceNetwork: 'opt-sepolia' },
+  //     } as any
+  //     const solver = { targets: { address1: { contractType: 'erc20', selectors: [] } } }
+  //     expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(false)
+  //     expect(mockLogDebug).toHaveBeenCalledTimes(1)
+  //     expect(mockLogDebug).toHaveBeenCalledWith({
+  //       msg: `Targets not supported for intent ${model.intent.hash}`,
+  //       intentHash: model.intent.hash,
+  //       sourceNetwork: model.event.sourceNetwork,
+  //     })
+  //   })
+
+  //   it('should return false if solver targets are empty', async () => {
+  //     const model = {
+  //       intent: { route: { calls: [{ target, data: '0x' }] }, hash: '0x9' },
+  //       event: { sourceNetwork: 'opt-sepolia' },
+  //     } as any
+  //     const solver = { targets: {} }
+  //     expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(false)
+  //     expect(mockLogDebug).toHaveBeenCalledTimes(1)
+  //     expect(mockLogDebug).toHaveBeenCalledWith({
+  //       msg: `Targets not supported for intent ${model.intent.hash}`,
+  //       intentHash: model.intent.hash,
+  //       sourceNetwork: model.event.sourceNetwork,
+  //     })
+  //   })
+
+  //   it('should return false if solver doesn`t support the targets of the model', async () => {
+  //     const model = {
+  //       intent: { route: { calls: [{ target, data: '0x' }] }, hash: '0x9' },
+  //       event: { sourceNetwork: 'opt-sepolia' },
+  //     } as any
+  //     const solver = { targets: { [target1]: targetConfig } }
+  //     expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(false)
+  //     expect(mockLogDebug).toHaveBeenCalledTimes(1)
+  //     expect(mockLogDebug).toHaveBeenCalledWith({
+  //       msg: `Targets not supported for intent ${model.intent.hash}`,
+  //       intentHash: model.intent.hash,
+  //       sourceNetwork: model.event.sourceNetwork,
+  //     })
+  //   })
+
+  //   it('should return true if model targets are a subset of solver targets', async () => {
+  //     const model = {
+  //       intent: { route: { calls: [{ target, data: '0x' }] }, hash: '0x9' },
+  //       event: { sourceNetwork: 'opt-sepolia' },
+  //     } as any
+  //     const solver = { targets: { [target]: targetConfig, [target1]: targetConfig } }
+  //     expect(utilsIntentService.supportedTargets(model, solver as any)).toBe(true)
+  //   })
+  // })
 
   describe('on getIntentProcessData', () => {
     const intentHash = address1

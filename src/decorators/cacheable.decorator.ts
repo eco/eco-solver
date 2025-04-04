@@ -1,5 +1,5 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { deserialize, serialize } from '@/common/utils/serialize'
+import { deserialize, serialize } from '@/liquidity-manager/utils/serialize'
 import { Cache } from '@nestjs/cache-manager'
 
 /**

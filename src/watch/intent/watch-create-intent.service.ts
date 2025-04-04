@@ -11,7 +11,7 @@ import { IntentCreatedLog } from '@/contracts'
 import { PublicClient } from 'viem'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
-import * as BigIntSerializer from '@/common/utils/serialize'
+import * as BigIntSerializer from '@/liquidity-manager/utils/serialize'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all

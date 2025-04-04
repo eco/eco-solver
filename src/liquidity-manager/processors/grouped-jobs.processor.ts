@@ -1,20 +1,22 @@
-import { BaseProcessor } from '@/common/bullmq/base.processor'
-import { Job, Queue } from 'bullmq'
+import { Logger } from '@nestjs/common'
+import {
+  LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/jobs/liquidity-manager.job'
+import { BaseProcessor } from '@/liquidity-manager/processors/base.processor'
+import { Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { OnWorkerEvent } from '@nestjs/bullmq'
-import { BaseJobManager } from '@/common/bullmq/base-job'
-
-// Extract keys from `data` when `data` is defined
-type DataKeys<T> = T extends { data?: infer D } ? (D extends object ? keyof D : never) : never
 
 /**
  * Abstract class representing a processor for grouped jobs.
  * @template Job - The type of the job.
  */
 export abstract class GroupedJobsProcessor<
-  GroupJob extends Job = Job,
-  JobManager extends BaseJobManager<GroupJob> = BaseJobManager<GroupJob>,
-> extends BaseProcessor<GroupJob, JobManager> {
+  Job extends LiquidityManagerJob = LiquidityManagerJob,
+  JobManager extends LiquidityManagerJobManager<Job> = LiquidityManagerJobManager<Job>,
+> extends BaseProcessor<Job, JobManager> {
+  public readonly logger: Logger
   protected abstract readonly queue: Queue
 
   protected readonly activeGroups = new Set<string>()
@@ -25,7 +27,7 @@ export abstract class GroupedJobsProcessor<
    * @param params - Additional parameters for the base processor.
    */
   constructor(
-    protected readonly groupBy: DataKeys<GroupJob>,
+    protected readonly groupBy: string,
     ...params: ConstructorParameters<typeof BaseProcessor<Job, JobManager>>
   ) {
     super(...params)
@@ -36,7 +38,7 @@ export abstract class GroupedJobsProcessor<
    * @param job - The job to process.
    * @returns A promise that resolves to an object indicating if the job was delayed.
    */
-  async process(job: GroupJob) {
+  async process(job: Job) {
     const group = job.data?.[this.groupBy] as string
 
     if (group) {
@@ -70,7 +72,7 @@ export abstract class GroupedJobsProcessor<
    * @param job - The job that was completed.
    */
   @OnWorkerEvent('completed')
-  onCompleted(job: GroupJob) {
+  onCompleted(job: Job) {
     const returnvalue = job.returnvalue as object
     if (returnvalue && 'delayed' in returnvalue && returnvalue.delayed) {
       // Skip onCompleted hook if job got delayed
@@ -91,7 +93,7 @@ export abstract class GroupedJobsProcessor<
    * @param error - Error.
    */
   @OnWorkerEvent('failed')
-  onFailed(job: GroupJob, error: Error) {
+  onFailed(job: Job, error: Error) {
     if (this.groupBy in job.data && this.activeGroups.has(job.data[this.groupBy] as string)) {
       this.activeGroups.delete(job.data[this.groupBy] as string)
     }

@@ -39,6 +39,7 @@ describe('Eco Config Helper Tests', () => {
 
   it('should merge configs correctly', async () => {
     const oldConfig = ecoConfigService.get('aws') as any
+    ecoConfigService.onModuleInit()
     expect(ecoConfigService.get('aws')).toEqual({
       ...awsConfig.aws,
       ...oldConfig,

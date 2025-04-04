@@ -13,7 +13,7 @@ import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.se
 import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
-import { deserialize, Serialize } from '@/common/utils/serialize'
+import { deserialize, Serialize } from '@/liquidity-manager/utils/serialize'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
