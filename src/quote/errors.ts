@@ -152,7 +152,7 @@ export function InternalSaveError(error: Error): Quote500 {
 export function InternalQuoteError(error?: Error): Quote500 {
   return {
     statusCode: 500,
-    message: 'Internal Server Error: Failed generate quote.',
+    message: `Internal Server Error: Failed generate quote. ${error?.toString()}`,
     code: 2,
     error,
   }
