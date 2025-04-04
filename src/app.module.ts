@@ -20,8 +20,8 @@ import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
-import { PermitProcessingModule } from './permit-processing/permit-processing.module'
-import { IntentInitiationModule } from './intent-initiation/intent-initiation.module'
+import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
+import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 
 @Module({
   imports: [

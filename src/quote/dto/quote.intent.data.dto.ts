@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { GaslessIntentDataDTO } from './gasless-intent-data.dto'
+import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
 import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
 import { QuoteRewardDataDTO, QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'

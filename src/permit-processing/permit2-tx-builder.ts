@@ -1,9 +1,8 @@
 import { encodeFunctionData, Hex } from 'viem'
-import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger } from '@nestjs/common'
-import { Permit2DTO } from '../quote/dto/permit2/permit2.dto'
-import { Permit2TypedDataDetailsDTO } from '../quote/dto/permit2/permit2-typed-data-details.dto'
-
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
 import {
   Permit2BatchPermitAbi,
   Permit2SinglePermitAbi,
@@ -27,15 +26,12 @@ export class Permit2TxBuilder {
    */
   getPermit2Tx(permit: Permit2DTO): ExecuteSmartWalletArg {
     const permitData = permit.permitData
-    const isBatch = permitData.batchPermitData
-    const details = permitData.getDetails() as Permit2TypedDataDetailsDTO
-    const batchDetails = permitData.getDetails() as Permit2TypedDataDetailsDTO[]
 
     const data = this.encodeFunctionData(
       permitData.getSpender(),
       BigInt(permitData.getSigDeadline()),
       permit.signature,
-      isBatch ? batchDetails : [details],
+      permitData.getDetails(),
     )
 
     return {

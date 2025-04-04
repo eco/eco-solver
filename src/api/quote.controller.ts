@@ -1,6 +1,6 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { QuoteDataDTO } from '../quote/dto/quote-data.dto'
+import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteService } from '@/quote/quote.service'

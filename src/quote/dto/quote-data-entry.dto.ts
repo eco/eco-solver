@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IntentExecutionType } from '../enums/intent-execution-type.enum'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IsArray, IsIn, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
-import { QuoteRouteDataDTO } from './quote.route.data.dto'
+import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { RewardTokensInterface } from '@/contracts'
 import { Type } from 'class-transformer'
 
