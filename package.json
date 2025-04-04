@@ -43,10 +43,10 @@
   "dependencies": {
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
-    "@eco-foundation/routes-ts": "1.17.1",
+    "@eco-foundation/lifi-sdk": "^3.6.5",
+    "@eco-foundation/routes-ts": "~1.17.6",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
-    "@eco-foundation/lifi-sdk": "^3.6.5",
     "@nestjs/bullmq": "^10.1.1",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^10.0.0",
