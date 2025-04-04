@@ -7,7 +7,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Job, Queue } from 'bullmq'
 import { EcoError } from '@/common/errors/eco-error'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { serialize } from '@/common/utils/serialize'
+import { serialize } from '@/liquidity-manager/utils/serialize'
 import { IntentCreatedLog } from '@/contracts'
 
 describe('WatchIntentService', () => {

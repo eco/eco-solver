@@ -6,7 +6,7 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { serialize, Serialize } from '@/common/utils/serialize'
+import { serialize, Serialize } from '@/liquidity-manager/utils/serialize'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
 export type RebalanceJobData = {

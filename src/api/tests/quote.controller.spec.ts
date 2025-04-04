@@ -5,7 +5,7 @@ import { QuoteController } from '@/api/quote.controller'
 import { QuoteService } from '@/quote/quote.service'
 import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
-import { serialize } from '@/common/utils/serialize'
+import { serialize } from '@/liquidity-manager/utils/serialize'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController

@@ -22,7 +22,6 @@ export class IntentSourceController {
       network: intent[0].sourceNetwork as Network,
       chainID: Number(intent[0].sourceChainID),
       sourceAddress: '0x',
-      inbox: '0x',
       tokens: [],
       provers: [],
     }

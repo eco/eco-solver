@@ -1,6 +1,6 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
-import { serialize } from '@/common/utils/serialize'
+import { serialize } from '@/liquidity-manager/utils/serialize'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteService } from '@/quote/quote.service'

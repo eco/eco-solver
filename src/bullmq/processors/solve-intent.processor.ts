@@ -9,7 +9,7 @@ import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
-import { Serialize } from '@/common/utils/serialize'
+import { Serialize } from '@/liquidity-manager/utils/serialize'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue)
