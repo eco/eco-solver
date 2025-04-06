@@ -21,7 +21,7 @@ export function getRpcUrl(
     websocketEnabled?: boolean
   },
 ): { url: string; isWebsocket: boolean } {
-  const { alchemyApiKey, rpcUrls: customRpcUrls, websocketEnabled = false } = options
+  const { alchemyApiKey, rpcUrls: customRpcUrls, websocketEnabled } = options
 
   let rpcUrls = chain.rpcUrls.default
   for (const key in chain.rpcUrls) {
@@ -32,7 +32,9 @@ export function getRpcUrl(
 
   rpcUrls = customRpcUrls ?? rpcUrls
 
-  const isWebsocket = Boolean(websocketEnabled && rpcUrls.webSocket && rpcUrls.webSocket.length)
+  const isWebsocket = Boolean(
+    (websocketEnabled ?? customRpcUrls) && rpcUrls.webSocket && rpcUrls.webSocket.length,
+  )
 
   let url = isWebsocket ? rpcUrls.webSocket![0] : rpcUrls.http[0]
 
