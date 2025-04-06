@@ -200,8 +200,8 @@ export class EcoConfigService implements OnModuleInit {
   }
 
   // Returns the liquidity manager config
-  getQuicknode(): EcoConfigType['quicknode'] {
-    return this.get('quicknode')
+  getRpcUrls(): EcoConfigType['rpcUrls'] {
+    return this.get('rpcUrls')
   }
 
   getChainRPCs() {
@@ -211,9 +211,9 @@ export class EcoConfigService implements OnModuleInit {
 
   getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
     const alchemy = this.getAlchemy()
-    const quicknode = this.getQuicknode()
-    const apiKeys = { alchemy: alchemy.apiKey, quicknode: quicknode.apiKey }
-    return getRpcUrl(chain, apiKeys, websocketEnabled)
+    const rpcUrls = this.getRpcUrls()[chain.id.toString()]
+    const options = { alchemyApiKey: alchemy.apiKey, rpcUrls, websocketEnabled }
+    return getRpcUrl(chain, options)
   }
 
   /**

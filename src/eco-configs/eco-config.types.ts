@@ -19,7 +19,7 @@ export type EcoConfigType = {
   intervals: IntervalConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
-  quicknode: QuicknodeConfigType
+  rpcUrls: RpcUrlsConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -214,9 +214,7 @@ export type AlchemyNetwork = {
 /**
  * The whole config type for QuickNode.
  */
-export type QuicknodeConfigType = {
-  apiKey: string
-}
+export type RpcUrlsConfigType = Record<string, { http: string[]; webSocket?: string[] }>
 
 /**
  * The config type for a single solver configuration
