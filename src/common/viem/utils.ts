@@ -32,9 +32,7 @@ export function getRpcUrl(
 
   rpcUrls = customRpcUrls ?? rpcUrls
 
-  const isWebsocket = Boolean(
-    (websocketEnabled ?? customRpcUrls) && rpcUrls.webSocket && rpcUrls.webSocket.length,
-  )
+  const isWebsocket = Boolean((websocketEnabled ?? customRpcUrls) && rpcUrls.webSocket?.length)
 
   let url = isWebsocket ? rpcUrls.webSocket![0] : rpcUrls.http[0]
 
