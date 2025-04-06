@@ -13,6 +13,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit {
@@ -69,6 +70,8 @@ export class LiFiProviderService implements OnModuleInit {
     const result = await getRoutes(routesRequest)
 
     const [route] = result.routes
+
+    if (!route) throw EcoError.RebalancingRouteNotFound()
 
     const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.toAmount)
 

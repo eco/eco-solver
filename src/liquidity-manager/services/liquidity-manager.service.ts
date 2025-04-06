@@ -2,7 +2,7 @@ import { Model } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
 import { BalanceService } from '@/balance/balance.service'
@@ -30,9 +30,12 @@ import {
   TokenData,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
+  private logger = new Logger(LiquidityManagerService.name)
+
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
@@ -168,19 +171,35 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     let currentBalance = deficitToken.analysis.balance.current
 
     for (const surplusToken of sortedSurplusTokens) {
-      // Calculate the amount to swap
-      const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+      try {
+        // Calculate the amount to swap
+        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
-      const quote = await this.liquidityProviderManager.getQuote(
-        surplusToken,
-        deficitToken,
-        swapAmount,
-      )
+        const quote = await this.liquidityProviderManager.getQuote(
+          surplusToken,
+          deficitToken,
+          swapAmount,
+        )
 
-      quotes.push(quote)
-      currentBalance += quote.amountOut
+        quotes.push(quote)
+        currentBalance += quote.amountOut
 
-      if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+        if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: 'Unable to find quote for route',
+            properties: {
+              surplusToken: surplusToken.config,
+              deficitToken: deficitToken.config,
+              error: {
+                message: error.message,
+                stack: error.stack,
+              },
+            },
+          }),
+        )
+      }
     }
 
     return quotes
