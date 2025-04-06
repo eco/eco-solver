@@ -36,7 +36,7 @@ export function getRpcUrl(
 
   let url = isWebsocket ? rpcUrls.webSocket![0] : rpcUrls.http[0]
 
-  if (url.includes('g.alchemy.com')) {
+  if (!customRpcUrls && url.includes('g.alchemy.com')) {
     url += '/' + alchemyApiKey
   }
 
