@@ -97,9 +97,9 @@ export function InvalidQuote(
   results: (
     | false
     | {
-        solvent: boolean
-        profitable: boolean
-      }
+      solvent: boolean
+      profitable: boolean
+    }
     | undefined
   )[],
 ): Quote400 {
@@ -115,9 +115,9 @@ export function InsolventUnprofitableQuote(
   results: (
     | false
     | {
-        solvent: boolean
-        profitable: boolean
-      }
+      solvent: boolean
+      profitable: boolean
+    }
     | undefined
   )[],
 ): Quote400 {
@@ -200,6 +200,12 @@ export class QuoteError extends Error {
   static RouteIsInfeasable(ask: bigint, reward: bigint) {
     return new EcoError(
       `The route is not infeasable: the reward ${reward} is less than the ask ${ask}`,
+    )
+  }
+
+  static RewardIsInfeasable(fee: bigint, reward: bigint) {
+    return new EcoError(
+      `The reward is infeasable: the reward ${reward} is less than the fee ${fee}`,
     )
   }
 
