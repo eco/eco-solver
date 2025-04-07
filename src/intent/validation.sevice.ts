@@ -20,7 +20,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-    IntentModelWithHashInterface {}
+  IntentModelWithHashInterface { }
 
 /**
  * Type that holds all the possible validations that can fail
@@ -70,7 +70,7 @@ export class ValidationService {
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   /**
    * Executes all the validations we have on the model and solver
@@ -82,14 +82,22 @@ export class ValidationService {
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
+<<<<<<< HEAD
     txValidationFn: TxValidationFn = () => true,
+=======
+    isReverseQuote: boolean = false,
+>>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       sourceChainID: intent.route.source,
       prover: intent.reward.prover,
     })
     const supportedTargets = this.supportedTargets(intent, solver)
+<<<<<<< HEAD
     const supportedSelectors = this.supportedSelectors(intent, solver, txValidationFn)
+=======
+    const supportedSelectors = this.supportedSelectors(intent, solver, isReverseQuote)
+>>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
     const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
@@ -136,7 +144,11 @@ export class ValidationService {
   supportedSelectors(
     intent: ValidationIntentInterface,
     solver: Solver,
+<<<<<<< HEAD
     txValidationFn: TxValidationFn = () => true,
+=======
+    isReverseQuote: boolean = false,
+>>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
   ): boolean {
     if (intent.route.calls.length == 0) {
       this.logger.log(
@@ -148,7 +160,14 @@ export class ValidationService {
     }
     return intent.route.calls.every((call) => {
       const tx = getTransactionTargetData(solver, call)
+<<<<<<< HEAD
       return tx && txValidationFn(tx)
+=======
+      if (isReverseQuote) {
+        return tx && tx.decodedFunctionData.functionName === 'transfer'
+      }
+      return tx
+>>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
     })
   }
 
