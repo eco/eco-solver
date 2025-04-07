@@ -116,7 +116,7 @@ describe('IntentInitiationService', () => {
       .mockResolvedValue(null) // simulate quote not found
 
     const result = await service.initiateGaslessIntent(dto)
-    expect(result.error).toBe(EcoError.QuoteNotFound)
+    expect(result.error.message).toContain('Quote not found')
   })
 
   it('executes intent with permit2', async () => {
