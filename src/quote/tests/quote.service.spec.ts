@@ -215,11 +215,9 @@ describe('QuotesService', () => {
       const quoteIntent = quoteTestUtils.createQuoteIntentModel()
       quoteService['quotesConfig'] = { intentExecutionTypes: ['GASLESS'] }
 
-      jest
-        .spyOn(quoteService as any, 'generateQuoteForIntentExecutionType')
-        .mockResolvedValue({
-          response: { intentExecutionType: 'GASLESS', tokens: [], expiryTime: '123' },
-        })
+      jest.spyOn(quoteService as any, 'generateQuoteForIntentExecutionType').mockResolvedValue({
+        response: { intentExecutionType: 'GASLESS', tokens: [], expiryTime: '123' },
+      })
 
       const { response } = await quoteService.getQuotesForIntentTypes(quoteIntent)
       expect(response!.quoteEntries).toHaveLength(1)
