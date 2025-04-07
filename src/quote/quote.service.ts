@@ -42,7 +42,7 @@ export class QuoteService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
@@ -80,6 +80,35 @@ export class QuoteService implements OnModuleInit {
       return { error }
     }
 
+    return { response: quoteData }
+  }
+
+
+  async getReverseQuote(
+    quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<EcoResponse<QuoteDataDTO>> {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Getting reverse quote for intent`,
+        properties: {
+          quoteIntentDataDTO,
+        },
+      }),
+    )
+    const quoteIntent = await this.storeQuoteIntentData(quoteIntentDataDTO)
+    if (quoteIntent instanceof Error) {
+      return { error: InternalSaveError(quoteIntent) }
+    }
+    const res = await this.validateQuoteIntentData(quoteIntent, true)
+    if (res) {
+      return { error: res }
+    }
+    // TODO: fetch reverse quotes
+    const { response: quoteData, error } = await this.getQuotesForIntentTypes(quoteIntent)
+    await this.updateQuoteDb(quoteIntent, { quoteData, error })
+    if (error) {
+      return { error }
+    }
     return { response: quoteData }
   }
 
@@ -173,7 +202,10 @@ export class QuoteService implements OnModuleInit {
    * @param quoteIntentModel the model to validate
    * @returns an res 400, or undefined if the quote intent is valid
    */
-  async validateQuoteIntentData(quoteIntentModel: QuoteIntentModel): Promise<Quote400 | undefined> {
+  async validateQuoteIntentData(
+    quoteIntentModel: QuoteIntentModel,
+    isReverseQuote: boolean = false,
+  ): Promise<Quote400 | undefined> {
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.destination)
     if (!solver) {
       this.logger.log(
@@ -181,6 +213,7 @@ export class QuoteService implements OnModuleInit {
           message: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
           properties: {
             quoteIntentModel,
+            isReverseQuote,
           },
         }),
       )
@@ -188,7 +221,11 @@ export class QuoteService implements OnModuleInit {
       return SolverUnsupported
     }
 
-    const validations = await this.validationService.assertValidations(quoteIntentModel, solver)
+    const validations = await this.validationService.assertValidations(
+      quoteIntentModel,
+      solver,
+      isReverseQuote,
+    )
     if (!validationsSucceeded(validations)) {
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -196,6 +233,7 @@ export class QuoteService implements OnModuleInit {
           properties: {
             quoteIntentModel,
             validations,
+            isReverseQuote,
           },
         }),
       )
