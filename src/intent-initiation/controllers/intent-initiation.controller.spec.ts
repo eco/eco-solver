@@ -4,6 +4,7 @@ import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { IntentInitiationController } from '@/intent-initiation/controllers/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
+import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
@@ -54,17 +55,17 @@ describe('IntentInitiationController', () => {
     const dto = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
-      error: { ...EcoError.QuoteNotFound, statusCode: 400 },
+      error: { ...InternalQuoteError(), statusCode: 400 },
     })
 
     await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(BadRequestException)
   })
 
-  it('throws InternalServerErrorException for unknown error', async () => {
+  it('throws InternalServerErrorException for unexpected error', async () => {
     const dto = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
-      error: { ...EcoError.QuoteNotFound, statusCode: 500 },
+      error: { ...InternalQuoteError(EcoError.QuoteNotFound) },
     })
 
     await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(InternalServerErrorException)
@@ -74,7 +75,7 @@ describe('IntentInitiationController', () => {
     const dto = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
-      error: { message: 'Something went wrong' }, // ← no `statusCode`!
+      error: { ...InternalQuoteError(new Error('Something went wrong')) }, // ← no `statusCode`!
     })
 
     await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(InternalServerErrorException)
