@@ -1,7 +1,7 @@
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { IntentInitiationController } from '@/intent-initiation/controllers/intent-initiation.controller'
+import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
