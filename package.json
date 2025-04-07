@@ -61,7 +61,7 @@
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/terminus": "^10.2.3",
     "@rhinestone/module-sdk": "^0.2.7",
-    "@shelf/jest-mongodb": "^5.1.0",
+    "@shelf/jest-mongodb": "^4.1.7",
     "@web3-kms-signer/core": "1.0.6",
     "@web3-kms-signer/kms-provider-aws": "1.0.6",
     "@web3-kms-signer/kms-wallets": "1.0.6",
