@@ -33,7 +33,7 @@ export class FeeService implements OnModuleInit {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -82,7 +82,6 @@ export class FeeService implements OnModuleInit {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const solver = this.getAskRouteDestinationSolver(route)
-
     let fee = 0n
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
     switch (feeConfig.algorithm) {
