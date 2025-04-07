@@ -91,7 +91,7 @@ export type FulfillType = {
  * The config type for the safe multisig wallet
  */
 export type SafeType = {
-  owner: Hex
+  owner?: Hex
 }
 
 /**

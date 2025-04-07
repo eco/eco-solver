@@ -110,8 +110,10 @@ export class EcoConfigService {
   // Returns the safe multisig configs
   getSafe(): SafeType {
     const safe = this.get<SafeType>('safe')
-    // validate and checksum the owner address, throws if invalid/not-set
-    safe.owner = getAddress(safe.owner)
+    if (safe.owner) {
+      // validate and checksum the owner address, throws if invalid/not-set
+      safe.owner = getAddress(safe.owner)
+    }
     return safe
   }
 
