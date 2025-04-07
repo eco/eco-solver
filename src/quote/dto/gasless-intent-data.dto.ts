@@ -26,7 +26,7 @@ export class GaslessIntentDataDTO {
   @IsOptional()
   @IsBoolean()
   @ApiPropertyOptional()
-  allowPartial?: boolean = false
+  allowPartial: boolean = false
 
   getPermitContractAddress?(): Hex {
     return this.permitData.getPermitContractAddress?.() as Hex

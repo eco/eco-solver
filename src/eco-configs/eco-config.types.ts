@@ -151,8 +151,10 @@ export type IntentConfig = {
 /**
  * The config type for the quotes section
  */
+export type QuoteExecutionType = (typeof IntentExecutionTypeKeys)[number]
+
 export type QuotesConfig = {
-  intentExecutionTypes: string[]
+  intentExecutionTypes: QuoteExecutionType[]
 }
 
 /**
