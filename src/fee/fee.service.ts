@@ -33,7 +33,7 @@ export class FeeService implements OnModuleInit {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -72,17 +72,16 @@ export class FeeService implements OnModuleInit {
   }
 
   /**
-   * Gets the ask for the quote
+   * Calculates the fee for the transaction based on an amount and the intent
    *
-   * @param totalFulfill the total amount to fulfill, assumes base6
-   * @param route the route of the quote intent
-   * @returns a bigint representing the ask
+   * @param amount the amount to use for the fee
+   * @param intent the quote intent
+   * @returns a bigint representing the fee
    */
-  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+  getFee(amount: bigint, intent: QuoteIntentDataInterface) {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const solver = this.getAskRouteDestinationSolver(route)
-
     let fee = 0n
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
     switch (feeConfig.algorithm) {
@@ -113,13 +112,13 @@ export class FeeService implements OnModuleInit {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
     }
-    const { totalFillNormalized, error } = await this.getTotalFill(quote)
-    if (!!error) {
-      return { error }
+    const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
+    if (Boolean(totalFillError)) {
+      return { error: totalFillError }
     }
-    const { totalRewardsNormalized, error: error1 } = await this.getTotalRewards(quote)
-    if (!!error1) {
-      return { error: error1 }
+    const { totalRewardsNormalized, error: totalRewardsError } = await this.getTotalRewards(quote)
+    if (Boolean(totalRewardsError)) {
+      return { error: totalRewardsError }
     }
     const ask = this.getAsk(totalFillNormalized, quote)
     return {
@@ -127,6 +126,21 @@ export class FeeService implements OnModuleInit {
         totalRewardsNormalized >= ask
           ? undefined
           : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
+    }
+  }
+
+  async isRewardFeasible(quote: QuoteIntentDataInterface): Promise<{ error?: Error }> {
+    const { totalRewardsNormalized, error } = await this.getTotalRewards(quote)
+    if (error) {
+      return { error }
+    }
+    const fee = this.getFee(totalRewardsNormalized, quote)
+
+    return {
+      error:
+        totalRewardsNormalized >= fee
+          ? undefined
+          : QuoteError.RewardIsInfeasable(fee, totalRewardsNormalized),
     }
   }
 
