@@ -22,14 +22,16 @@ describe('Permit2Processor', () => {
 
   const permit: Permit2DTO = {
     permitContract: '0xabc',
-    signature: '0x' + '1'.repeat(130) as Hex,
+    signature: ('0x' + '1'.repeat(130)) as Hex,
     permitData: {
-      getDetails: () => ([{
-        token: '0xabc',
-        amount: '1000',
-        expiration: '9999999999',
-        nonce: '1',
-      }]),
+      getDetails: () => [
+        {
+          token: '0xabc',
+          amount: '1000',
+          expiration: '9999999999',
+          nonce: '1',
+        },
+      ],
       getSigDeadline: () => '9999999999',
       getSpender: () => '0xdef',
       batchPermitData: undefined,
@@ -37,8 +39,7 @@ describe('Permit2Processor', () => {
   }
 
   beforeAll(async () => {
-    $ = EcoTester
-      .setupTestFor(Permit2Processor)
+    $ = EcoTester.setupTestFor(Permit2Processor)
       .withProviders([Permit2TxBuilder, KernelAccountClientService])
       .withMocks([EcoConfigService, SignerKmsService])
 
@@ -56,7 +57,9 @@ describe('Permit2Processor', () => {
 
   it('executes Permit2 tx', async () => {
     const mockExecute = jest.fn().mockResolvedValue('0xtx')
-    const mockWait = jest.fn().mockResolvedValue({ transactionHash: '0xtx' } as unknown as TransactionReceipt)
+    const mockWait = jest
+      .fn()
+      .mockResolvedValue({ transactionHash: '0xtx' } as unknown as TransactionReceipt)
 
     jest.spyOn(builder, 'getPermit2Tx').mockReturnValue(fakeTx)
     jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({

@@ -7,11 +7,10 @@ import { SinglePermitDataDTO } from '@/quote/dto/permit2/single-permit-data.dto'
 
 export class PermitTestUtils {
   createPermitDTO(overrides?: Partial<PermitDTO>): PermitDTO {
-
     const permitDTO: PermitDTO = {
       token: '0x0000000000000000000000000000000000000001',
       data: {
-        signature: '0x' + '1'.repeat(130) as Hex,
+        signature: ('0x' + '1'.repeat(130)) as Hex,
         deadline: '9999999999',
       },
       ...overrides,
@@ -34,9 +33,9 @@ export class PermitTestUtils {
           nonce: '1',
           expiration: '9999999999',
         },
-        spender: '0x' + '0'.repeat(40) as Hex,
+        spender: ('0x' + '0'.repeat(40)) as Hex,
         sigDeadline: '9999999999',
-      }
+      },
     }
 
     const batchPermitData: BatchPermitDataDTO = {
@@ -50,7 +49,7 @@ export class PermitTestUtils {
             expiration: '9999999999',
           },
         ],
-        spender: '0x' + '0'.repeat(40) as Hex,
+        spender: ('0x' + '0'.repeat(40)) as Hex,
         sigDeadline: '9999999999',
       },
     }
@@ -66,7 +65,7 @@ export class PermitTestUtils {
 
     return {
       permitContract: '0x0000000000000000000000000000000000000002',
-      signature: '0x' + '1'.repeat(130) as Hex,
+      signature: ('0x' + '1'.repeat(130)) as Hex,
       permitData: {
         singlePermitData: opts.isBatch ? undefined : singlePermitData,
         batchPermitData: opts.isBatch ? batchPermitData : undefined,

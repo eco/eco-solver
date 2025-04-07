@@ -21,8 +21,7 @@ let service: IntentInitiationService
 
 describe('IntentInitiationController', () => {
   beforeAll(async () => {
-    $ = EcoTester
-      .setupTestFor(IntentInitiationController)
+    $ = EcoTester.setupTestFor(IntentInitiationController)
       .withProviders([
         PermitProcessor,
         Permit2Processor,
@@ -32,10 +31,7 @@ describe('IntentInitiationController', () => {
         Permit2TxBuilder,
         IntentInitiationService,
       ])
-      .withMocks([
-        QuoteService,
-        KernelAccountClientService,
-      ])
+      .withMocks([QuoteService, KernelAccountClientService])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)
@@ -68,7 +64,9 @@ describe('IntentInitiationController', () => {
       error: { ...InternalQuoteError(EcoError.QuoteNotFound) },
     })
 
-    await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(InternalServerErrorException)
+    await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(
+      InternalServerErrorException,
+    )
   })
 
   it('throws InternalServerErrorException for error without statusCode', async () => {
@@ -78,6 +76,8 @@ describe('IntentInitiationController', () => {
       error: { ...InternalQuoteError(new Error('Something went wrong')) }, // ← no `statusCode`!
     })
 
-    await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(InternalServerErrorException)
+    await expect(controller.initiateGaslessIntent(dto)).rejects.toThrow(
+      InternalServerErrorException,
+    )
   })
 })
