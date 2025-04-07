@@ -40,7 +40,6 @@ export const createMockEcoConfigService = () => ({
   getEth: jest.fn().mockReturnValue({ pollingInterval: 1000 }),
 })
 
-
 describe('IntentInitiationService', () => {
   const mockTx: ExecuteSmartWalletArg = {
     to: '0x8c182a808f75a29c0f02d4ba80ab236ab01c0ace',
@@ -69,8 +68,7 @@ describe('IntentInitiationService', () => {
       }),
     }
 
-    $ = EcoTester
-      .setupTestFor(IntentInitiationService)
+    $ = EcoTester.setupTestFor(IntentInitiationService)
       .withProviders([
         PermitProcessor,
         Permit2Processor,
@@ -91,11 +89,7 @@ describe('IntentInitiationService', () => {
           useValue: new EcoConfigService([mockSource as any]),
         },
       ])
-      .withMocks([
-        FeeService,
-        ValidationService,
-        SignerKmsService,
-      ])
+      .withMocks([FeeService, ValidationService, SignerKmsService])
 
     service = await $.init()
     permitProcessor = $.get(PermitProcessor)
@@ -111,9 +105,7 @@ describe('IntentInitiationService', () => {
       token: '0x0000000000000000000000000000000000000001',
     })
 
-    jest
-      .spyOn(quoteService, 'fetchQuoteIntentData')
-      .mockResolvedValue(null) // simulate quote not found
+    jest.spyOn(quoteService, 'fetchQuoteIntentData').mockResolvedValue(null) // simulate quote not found
 
     const result = await service.initiateGaslessIntent(dto)
     expect(result.error.message).toContain('Quote not found')
@@ -129,7 +121,9 @@ describe('IntentInitiationService', () => {
     const permit2Tx = { ...mockTx, data: '0xpermit2' as Hex }
 
     jest.spyOn(permit2Processor, 'generateTxs').mockReturnValue({ response: [permit2Tx] })
-    jest.spyOn(quoteService, 'fetchQuoteIntentData').mockResolvedValue(quoteTestUtils.asQuoteIntentModel(dto))
+    jest
+      .spyOn(quoteService, 'fetchQuoteIntentData')
+      .mockResolvedValue(quoteTestUtils.asQuoteIntentModel(dto))
     jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
       execute: jest.fn().mockResolvedValue('0xtx'),
       waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
@@ -149,7 +143,9 @@ describe('IntentInitiationService', () => {
     const permitTx = { ...mockTx, data: '0xpermit' as Hex }
 
     jest.spyOn(permitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
-    jest.spyOn(quoteService, 'fetchQuoteIntentData').mockResolvedValue(quoteTestUtils.asQuoteIntentModel(dto))
+    jest
+      .spyOn(quoteService, 'fetchQuoteIntentData')
+      .mockResolvedValue(quoteTestUtils.asQuoteIntentModel(dto))
     jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
       execute: jest.fn().mockResolvedValue('0xtx'),
       waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),

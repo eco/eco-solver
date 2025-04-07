@@ -217,7 +217,9 @@ describe('QuotesService', () => {
 
       jest
         .spyOn(quoteService as any, 'generateQuoteForIntentExecutionType')
-        .mockResolvedValue({ response: { intentExecutionType: 'GASLESS', tokens: [], expiryTime: '123' } })
+        .mockResolvedValue({
+          response: { intentExecutionType: 'GASLESS', tokens: [], expiryTime: '123' },
+        })
 
       const { response } = await quoteService.getQuotesForIntentTypes(quoteIntent)
       expect(response!.quoteEntries).toHaveLength(1)

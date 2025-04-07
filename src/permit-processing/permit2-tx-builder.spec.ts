@@ -15,8 +15,7 @@ let builder: Permit2TxBuilder
 
 describe('Permit2TxBuilder', () => {
   beforeAll(async () => {
-    $ = EcoTester
-      .setupTestFor(Permit2TxBuilder)
+    $ = EcoTester.setupTestFor(Permit2TxBuilder)
 
     builder = await $.init<Permit2TxBuilder>()
   })

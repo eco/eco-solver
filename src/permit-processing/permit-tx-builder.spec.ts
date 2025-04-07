@@ -8,10 +8,8 @@ let $: EcoTester
 let builder: PermitTxBuilder
 
 describe('PermitTxBuilder', () => {
-
   beforeAll(async () => {
-    $ = EcoTester
-      .setupTestFor(PermitTxBuilder)
+    $ = EcoTester.setupTestFor(PermitTxBuilder)
 
     builder = await $.init<PermitTxBuilder>()
   })
@@ -27,11 +25,10 @@ describe('PermitTxBuilder', () => {
           token: '0x3333333333333333333333333333333333333333',
           data: {
             deadline: '1700000000',
-            signature:
-              '0x' +
+            signature: ('0x' +
               'a'.repeat(64) + // r
               'b'.repeat(64) + // s
-              '1c' as Hex, // v = 28
+              '1c') as Hex, // v = 28
           },
         },
       }
@@ -47,8 +44,8 @@ describe('PermitTxBuilder', () => {
           params.value,
           BigInt(params.permit.data.deadline),
           28,
-          '0x' + 'a'.repeat(64) as Hex,
-          '0x' + 'b'.repeat(64) as Hex,
+          ('0x' + 'a'.repeat(64)) as Hex,
+          ('0x' + 'b'.repeat(64)) as Hex,
         ],
       })
 

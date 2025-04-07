@@ -5,15 +5,11 @@ import mongoose from 'mongoose'
 export class DBTestUtils {
   private connection: mongoose.Connection
 
-  getRandomString(
-    len: number
-  ): string {
+  getRandomString(len: number): string {
     return crypto.randomBytes(len / 2).toString('hex')
   }
 
-  async dbOpen(
-  ): Promise<mongoose.Connection> {
-
+  async dbOpen(): Promise<mongoose.Connection> {
     const connectOptions = { autoCreate: false, autoIndex: false } as mongoose.ConnectOptions
 
     // Use a random database name to avoid conflicts
@@ -24,8 +20,7 @@ export class DBTestUtils {
     return this.connection
   }
 
-  async dbClose(
-  ): Promise<any> {
+  async dbClose(): Promise<any> {
     if (this.connection) {
       await this.connection.close()
     }
