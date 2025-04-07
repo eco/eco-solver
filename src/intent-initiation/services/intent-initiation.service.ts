@@ -1,6 +1,5 @@
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { encodeFunctionData, Hex, TransactionReceipt } from 'viem'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
@@ -49,15 +48,6 @@ export class IntentInitiationService implements OnModuleInit {
   async initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<TransactionReceipt>> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `initiateGaslessIntent`,
-        properties: {
-          gaslessIntentRequestDTO,
-        },
-      }),
-    )
-
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
     // Get the permit tx(s)
@@ -164,16 +154,6 @@ export class IntentInitiationService implements OnModuleInit {
         permitData: { permit, permit2 },
       },
     } = gaslessIntentRequestDTO
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `processPermitCalls: permits`,
-        properties: {
-          permit: permit || 'N/A',
-          permit2: permit2 || 'N/A',
-        },
-      }),
-    )
 
     if (_.size(permit) > 0) {
       return this.getPermitTxs(gaslessIntentRequestDTO.getSourceChainID!(), permit!, funder, reward)

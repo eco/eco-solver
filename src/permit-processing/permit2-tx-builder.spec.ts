@@ -56,7 +56,7 @@ describe('Permit2TxBuilder', () => {
       permitData: {
         ...commonPermitProps,
         batchPermitData: undefined,
-        getDetails: () => singlePermitDetail,
+        getDetails: () => [singlePermitDetail],
         getSpender: () => spender,
       },
     } as unknown as Permit2DTO
