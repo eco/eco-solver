@@ -241,7 +241,14 @@ export class QuoteService implements OnModuleInit {
       return InvalidQuoteIntent(validations)
     }
 
-    const { error } = await this.feeService.isRouteFeasible(quoteIntentModel)
+    let error: Error | undefined
+    if (isReverseQuote) {
+      const { error: reverseQuoteError } = await this.feeService.isRewardFeasible(quoteIntentModel)
+      error = reverseQuoteError
+    } else {
+      const { error: defaultQuoteError } = await this.feeService.isRouteFeasible(quoteIntentModel)
+      error = defaultQuoteError
+    }
 
     if (error) {
       const quoteError = InfeasibleQuote(error)
@@ -252,6 +259,7 @@ export class QuoteService implements OnModuleInit {
             quoteIntentModel,
             feasable: false,
             error: quoteError,
+            isReverseQuote,
           },
         }),
       )
