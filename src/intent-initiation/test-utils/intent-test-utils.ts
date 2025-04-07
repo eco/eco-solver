@@ -60,7 +60,9 @@ export class IntentTestUtils {
 
       getPermitContractAddress(): Hex {
         return this.permitData.getPermitContractAddress() as Hex
-      }
+      },
+
+      allowPartial: false,
     }
 
     const gaslessIntentRequestDTO: GaslessIntentRequestDTO = {

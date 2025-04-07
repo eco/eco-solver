@@ -20,6 +20,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Model } from 'mongoose'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { QuotesConfig } from '@/eco-configs/eco-config.types'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -65,7 +66,7 @@ describe('QuotesService', () => {
     quoteService['logger'].debug = mockLogDebug
     quoteService['logger'].log = mockLogLog
     quoteService['logger'].error = mockLogError
-    quoteService['quotesConfig'] = quotesConfig
+    quoteService['quotesConfig'] = quotesConfig as QuotesConfig
   })
 
   afterEach(async () => {
