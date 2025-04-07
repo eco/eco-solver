@@ -19,7 +19,6 @@ export function provideEcoConfigServiceWithStatic(ecoConfig: any): Provider {
 }
 
 export function provideAndMock(type: any, options?: any): Provider {
-
   const provider = {
     provide: type,
     useValue: createMock<typeof type>(options),
@@ -43,12 +42,8 @@ export function mongooseWithSchemas(schemas: Array<[string, any]>): DynamicModul
   ]
 
   schemas.forEach(([name, schema]) => {
-
-    root.push(
-    MongooseModule.forFeature([
-      { name, schema },
-    ]),
-  )})
+    root.push(MongooseModule.forFeature([{ name, schema }]))
+  })
 
   return root
 }

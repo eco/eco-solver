@@ -9,7 +9,11 @@ import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { DynamicModule, Provider } from '@nestjs/common'
 import { EcoTesterHttp } from './eco-tester-http'
-import { mongooseWithSchemas, provideAndMock, provideEcoConfigServiceWithStatic } from '../nest-mock-utils'
+import {
+  mongooseWithSchemas,
+  provideAndMock,
+  provideEcoConfigServiceWithStatic,
+} from '../nest-mock-utils'
 import { Queue } from 'bullmq'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Type } from '@nestjs/common/interfaces/type.interface'
@@ -17,7 +21,6 @@ import { Type } from '@nestjs/common/interfaces/type.interface'
 export type EcoTesterTuple = [...any[]]
 
 export class EcoTester {
-
   public testModule: TestingModule
   public http: EcoTesterHttp
 
@@ -29,7 +32,7 @@ export class EcoTester {
   private mocks: Provider[] = []
   private imports: DynamicModule[] = []
   private queuesToMock: string[]
-  public providersToOverride: Array<[Provider|string, any]> = []
+  public providersToOverride: Array<[Provider | string, any]> = []
 
   private userID: string
 
@@ -65,13 +68,17 @@ export class EcoTester {
   }
 
   public get objectsUnderTest(): EcoTesterTuple {
-    return [...this.objectsToTest.map((obj) => ({} as (typeof obj)))]
+    return [...this.objectsToTest.map((obj) => ({}) as typeof obj)]
   }
 
-  public get<TInput = any, TResult = TInput>(typeOrToken: Type<TInput> | Abstract<TInput> | string | symbol): TResult {
+  public get<TInput = any, TResult = TInput>(
+    typeOrToken: Type<TInput> | Abstract<TInput> | string | symbol,
+  ): TResult {
     const provider = this.testModule.get<TInput, TResult>(typeOrToken)
     if (!provider) {
-      throw new Error(`Cannot find provider for ${typeOrToken.toString()} - make sure to init() first`)
+      throw new Error(
+        `Cannot find provider for ${typeOrToken.toString()} - make sure to init() first`,
+      )
     }
     return provider
   }
@@ -80,7 +87,9 @@ export class EcoTester {
     return this.mockOf(getQueueToken(queueName))
   }
 
-  public mockOf<TInput = any, TResult = TInput>(typeOrToken: Type<TInput> | Abstract<TInput> | string | symbol): DeepMocked<TResult> {
+  public mockOf<TInput = any, TResult = TInput>(
+    typeOrToken: Type<TInput> | Abstract<TInput> | string | symbol,
+  ): DeepMocked<TResult> {
     const mock = this.testModule.get<TInput, TResult>(typeOrToken) as DeepMocked<TResult>
     if (!mock) {
       throw new Error(`Cannot find mock for ${String(typeOrToken)} - make sure to init() first`)
@@ -89,7 +98,10 @@ export class EcoTester {
     return mock
   }
 
-  public static setupTestFor(objectsToTest: any | EcoTesterTuple, refTuple?: EcoTesterTuple): EcoTester {
+  public static setupTestFor(
+    objectsToTest: any | EcoTesterTuple,
+    refTuple?: EcoTesterTuple,
+  ): EcoTester {
     const testBuilder = new EcoTester(objectsToTest)
 
     const objsArray = Array.isArray(objectsToTest) ? objectsToTest : [objectsToTest]
@@ -152,7 +164,6 @@ export class EcoTester {
     const queuesArray = Array.isArray(queuesToMock) ? queuesToMock : [queuesToMock]
     this.queuesToMock = queuesArray
     queuesArray.forEach((queueToAdd) => {
-
       const options = {
         name: queueToAdd,
         prefix: `{${queueToAdd}}`,
@@ -162,15 +173,9 @@ export class EcoTester {
     return this
   }
 
-  public withSchemas(
-    schemasToMock: [string, any] | Array<[string, any]>,
-  ): EcoTester {
+  public withSchemas(schemasToMock: [string, any] | Array<[string, any]>): EcoTester {
     const schemasArray = Array.isArray(schemasToMock) ? schemasToMock : [schemasToMock]
-    this.imports.push(
-      ...mongooseWithSchemas([
-        ...schemasArray,
-      ]),
-    )
+    this.imports.push(...mongooseWithSchemas([...schemasArray]))
 
     return this
   }
@@ -195,10 +200,7 @@ export class EcoTester {
     const builder = Test.createTestingModule({
       controllers: this.controllers,
       imports: this.imports,
-      providers: [
-        ...this.providers,
-        ...this.mocks,
-      ],
+      providers: [...this.providers, ...this.mocks],
     })
 
     if (this.providersToOverride) {
@@ -209,7 +211,8 @@ export class EcoTester {
 
     if (this.queuesToMock) {
       this.queuesToMock.forEach((queueName) =>
-        builder.overrideProvider(getQueueToken(queueName)).useValue(createMock<Queue>()))
+        builder.overrideProvider(getQueueToken(queueName)).useValue(createMock<Queue>()),
+      )
     }
 
     this.testModule = await builder.compile()
@@ -233,7 +236,6 @@ export class EcoTester {
   }
 
   public async initMany(objs?: EcoTesterTuple): Promise<EcoTesterTuple> {
-
     await this.initInternal()
     if (Array.isArray(this.objectsToTest) && !objs) {
       return this.objectsToTest.map((obj) => this.get(obj))
@@ -248,7 +250,6 @@ export class EcoTester {
     }
 
     throw new Error('Cannot initMany() when only one object under test is provided')
-
   }
 
   public async initApp(): Promise<INestApplication> {
@@ -259,57 +260,47 @@ export class EcoTester {
     return this.nestApp
   }
 
-  public EcoTesterOverrideWith = (
-    () => {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const tester = this
+  public EcoTesterOverrideWith = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const tester = this
 
-      class EcoTesterOverrideWith implements EcoTesterWith {
-        constructor(
-          public provider: Provider | string,
-        ) {
-        }
+    class EcoTesterOverrideWith implements EcoTesterWith {
+      constructor(public provider: Provider | string) {}
 
-        public with(value: any): EcoTester {
-          tester.providersToOverride.push([this.provider, value])
-          return tester
-        }
-
-        public withMock(): EcoTester {
-          const mock = createMock<Provider>()
-          tester.providersToOverride.push([this.provider, mock])
-          return tester
-        }
+      public with(value: any): EcoTester {
+        tester.providersToOverride.push([this.provider, value])
+        return tester
       }
-      return EcoTesterOverrideWith
-    }
-  )()
 
-  public EcoTesterCustomImplementation = (
-    () => {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const tester = this
-
-      class EcoTesterCustomImplementation implements EcoTesterWith {
-        constructor(
-          public provider: Provider,
-        ) {
-        }
-
-        public with(mock: any): EcoTester {
-          tester.mocks.push(provideAndMock(this.provider, mock))
-          return tester
-        }
-
-        public withMock(): EcoTester {
-          const mock = createMock<Provider>()
-          tester.providersToOverride.push([this.provider, mock])
-          return tester
-        }
+      public withMock(): EcoTester {
+        const mock = createMock<Provider>()
+        tester.providersToOverride.push([this.provider, mock])
+        return tester
       }
-      return EcoTesterCustomImplementation
     }
-  )()
+    return EcoTesterOverrideWith
+  })()
+
+  public EcoTesterCustomImplementation = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const tester = this
+
+    class EcoTesterCustomImplementation implements EcoTesterWith {
+      constructor(public provider: Provider) {}
+
+      public with(mock: any): EcoTester {
+        tester.mocks.push(provideAndMock(this.provider, mock))
+        return tester
+      }
+
+      public withMock(): EcoTester {
+        const mock = createMock<Provider>()
+        tester.providersToOverride.push([this.provider, mock])
+        return tester
+      }
+    }
+    return EcoTesterCustomImplementation
+  })()
 }
 
 export interface EcoTesterWith {

@@ -36,16 +36,9 @@ describe('PermitProcessor', () => {
   }
 
   beforeAll(async () => {
-    $ = EcoTester
-      .setupTestFor(PermitProcessor)
-      .withProviders([
-        PermitTxBuilder,
-        KernelAccountClientService,
-      ])
-      .withMocks([
-        EcoConfigService,
-        SignerKmsService,
-      ])
+    $ = EcoTester.setupTestFor(PermitProcessor)
+      .withProviders([PermitTxBuilder, KernelAccountClientService])
+      .withMocks([EcoConfigService, SignerKmsService])
 
     processor = await $.init<PermitProcessor>()
     permitTxBuilder = $.get<PermitTxBuilder>(PermitTxBuilder)
@@ -75,7 +68,9 @@ describe('PermitProcessor', () => {
 
   it('executes transactions when input is valid', async () => {
     const mockExecute = jest.fn().mockResolvedValue('0xtx')
-    const mockWait = jest.fn().mockResolvedValue({ transactionHash: '0xtx' } as unknown as TransactionReceipt)
+    const mockWait = jest
+      .fn()
+      .mockResolvedValue({ transactionHash: '0xtx' } as unknown as TransactionReceipt)
 
     jest.spyOn(permitTxBuilder, 'getPermitTx').mockReturnValue(fakeTx)
     jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({

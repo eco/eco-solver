@@ -17,16 +17,12 @@ export class IntentTestUtils {
   private permitTestUtils: PermitTestUtils = new PermitTestUtils()
   private quoteTestUtils: QuoteTestUtils = new QuoteTestUtils()
 
-  constructor() {
-  }
+  constructor() {}
 
-  createRewardDTO(overrides: Partial<QuoteRewardDataDTO> & { token?: Hex } = {}): QuoteRewardDataDTO {
-
-    const {
-      token,
-      tokens = token ? [{ token, amount: 1000n }] : [],
-      ...rest
-    } = overrides
+  createRewardDTO(
+    overrides: Partial<QuoteRewardDataDTO> & { token?: Hex } = {},
+  ): QuoteRewardDataDTO {
+    const { token, tokens = token ? [{ token, amount: 1000n }] : [], ...rest } = overrides
 
     return {
       creator: '0x0000000000000000000000000000000000000006',
@@ -38,24 +34,22 @@ export class IntentTestUtils {
     }
   }
 
-  createGaslessIntentRequestDTO(overrides: GaslessIntentFactoryOptions = {}): GaslessIntentRequestDTO {
-
-    const {
-      usePermit = true,
-      isBatchPermit2 = false,
-      token,
-      ...dtoOverrides
-    } = overrides
+  createGaslessIntentRequestDTO(
+    overrides: GaslessIntentFactoryOptions = {},
+  ): GaslessIntentRequestDTO {
+    const { usePermit = true, isBatchPermit2 = false, token, ...dtoOverrides } = overrides
 
     const gaslessIntentData: GaslessIntentDataDTO = {
       funder: '0x8c182a808f75a29c0f02d4ba80ab236ab01c0ace',
       permitData: {
         permit: usePermit ? [this.permitTestUtils.createPermitDTO({ token })] : [],
-        permit2: usePermit ? undefined : this.permitTestUtils.createPermit2DTO({}, { isBatch: isBatchPermit2, token }),
+        permit2: usePermit
+          ? undefined
+          : this.permitTestUtils.createPermit2DTO({}, { isBatch: isBatchPermit2, token }),
 
         getPermitContractAddress(): Hex {
           return (this.permit ? ZeroAddress : this.permit2!.permitContract) as Hex
-        }
+        },
       },
 
       getPermitContractAddress(): Hex {
@@ -67,7 +61,7 @@ export class IntentTestUtils {
 
     const gaslessIntentRequestDTO: GaslessIntentRequestDTO = {
       route: this.quoteTestUtils.createQuoteRouteDataDTO(),
-      salt: '0x' + 'abcd'.padEnd(64, '0') as Hex,
+      salt: ('0x' + 'abcd'.padEnd(64, '0')) as Hex,
       reward: this.createRewardDTO({ token }),
       gaslessIntentData,
       ...dtoOverrides,
