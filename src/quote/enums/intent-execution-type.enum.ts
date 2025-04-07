@@ -27,3 +27,5 @@ export class IntentExecutionType extends Enumify {
     return this.enumKey
   }
 }
+
+export const IntentExecutionTypeKeys = ['SELF_PUBLISH', 'GASLESS'] as const
