@@ -1,11 +1,11 @@
-jest.mock('@eco-foundation/lifi-sdk')
+jest.mock('@lifi/sdk')
 
 import { zeroAddress } from 'viem'
 import { FlowProducer, Queue } from 'bullmq'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import * as LiFi from '@eco-foundation/lifi-sdk'
+import * as LiFi from '@lifi/sdk'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'

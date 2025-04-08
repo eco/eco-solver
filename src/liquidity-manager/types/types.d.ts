@@ -1,5 +1,5 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
-import * as LiFi from '@eco-foundation/lifi-sdk'
+import * as LiFi from '@lifi/sdk'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
