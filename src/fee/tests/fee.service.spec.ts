@@ -416,11 +416,7 @@ describe('FeeService', () => {
     } as any
     const destination = {
       chainID: 11n,
-      tokens: [
-        '0x1',
-        '0x2',
-        '0x3',
-      ],
+      tokens: ['0x1', '0x2', '0x3'],
     } as any
 
     const tokenAnalysis = [
