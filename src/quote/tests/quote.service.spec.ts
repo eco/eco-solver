@@ -209,6 +209,7 @@ describe('QuotesService', () => {
       )
       expect(mockLogLog).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledWith({
+        isReverseQuote: false,
         msg: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
         quoteIntentModel,
       })
@@ -248,6 +249,7 @@ describe('QuotesService', () => {
       )
       expect(mockLogLog).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledWith({
+        isReverseQuote: false,
         msg: `validateQuoteIntentData: Some validations failed`,
         quoteIntentModel,
         validations: failValidations,
@@ -270,6 +272,7 @@ describe('QuotesService', () => {
         msg: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
         quoteIntentModel,
         feasable: false,
+        isReverseQuote: false,
         error: InfeasibleQuote(error),
       })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
