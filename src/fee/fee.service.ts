@@ -213,7 +213,7 @@ export class FeeService implements OnModuleInit {
       if (!source) {
         error = QuoteError.NoIntentSourceForSource(srcChainID)
       } else if (!destination) {
-        error = QuoteError.NoIntentSourceForSource(destChainID)
+        error = QuoteError.NoIntentSourceForDestination(destChainID)
       } else if (!solver) {
         error = QuoteError.NoSolverForDestination(destChainID)
       }

@@ -173,6 +173,10 @@ export class QuoteError extends Error {
     return new EcoError(`No intent source found for source chain ${source}`)
   }
 
+  static NoIntentSourceForDestination(destination: bigint) {
+    return new EcoError(`No intent source found for destination chain ${destination}`)
+  }
+
   static FetchingRewardTokensFailed(chainID: bigint) {
     return new EcoError(`Error occured when fetching reward tokens for ${chainID}`)
   }
