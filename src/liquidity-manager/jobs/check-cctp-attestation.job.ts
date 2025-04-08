@@ -15,7 +15,7 @@ export type CheckCCTPAttestationJob = LiquidityManagerJob<
   { status: 'pending' } | { status: 'complete'; attestation: Hex }
 >
 
-export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager {
+export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<CheckCCTPAttestationJob> {
   /**
    * Starts a job scheduler for checking CCTP attestation.
    *
