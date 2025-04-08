@@ -414,6 +414,14 @@ describe('FeeService', () => {
         '0x3',
       ],
     } as any
+    const destination = {
+      chainID: 11n,
+      tokens: [
+        '0x1',
+        '0x2',
+        '0x3',
+      ],
+    } as any
 
     const tokenAnalysis = [
       {
@@ -461,7 +469,7 @@ describe('FeeService', () => {
     })
 
     it('should return error if fetching token data fails', async () => {
-      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(undefined as any)
       await expect(feeService.calculateTokens(quote as any)).rejects.toThrow(
@@ -471,7 +479,7 @@ describe('FeeService', () => {
 
     it('should return error if getRewardsNormalized fails', async () => {
       const error = { error: 'error' }
-      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
@@ -486,7 +494,7 @@ describe('FeeService', () => {
 
     it('should return error if getCallsNormalized fails', async () => {
       const error = { error: 'error' }
-      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
@@ -500,7 +508,7 @@ describe('FeeService', () => {
     })
 
     it('should calculate the delta for all tokens', async () => {
-      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source])
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
@@ -518,10 +526,11 @@ describe('FeeService', () => {
           solver: linearSolver,
           rewards,
           calls,
-          deficitDescending,
+          srcDeficitDescending: deficitDescending,
+          destDeficitDescending: deficitDescending,
         },
       })
-      expect(cal).toHaveBeenCalledTimes(tokenAnalysis.length)
+      expect(cal).toHaveBeenCalledTimes(tokenAnalysis.length * 2)
       expect(rew).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
     })
