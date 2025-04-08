@@ -33,7 +33,7 @@ export class FeeService implements OnModuleInit {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -192,12 +192,17 @@ export class FeeService implements OnModuleInit {
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == srcChainID)!
+    const destination = this.ecoConfigService
+      .getIntentSources()
+      .find((intent) => BigInt(intent.chainID) == destChainID)!
     const solver = this.ecoConfigService.getSolver(destChainID)!
 
     if (!source || !solver) {
       let error: Error | undefined
       if (!source) {
         error = QuoteError.NoIntentSourceForSource(srcChainID)
+      } else if (!destination) {
+        error = QuoteError.NoIntentSourceForSource(destChainID)
       } else if (!solver) {
         error = QuoteError.NoSolverForDestination(destChainID)
       }
@@ -217,12 +222,29 @@ export class FeeService implements OnModuleInit {
     }
 
     //Get the tokens the solver accepts on the source chain
-    const balance = await this.balanceService.fetchTokenData(Number(srcChainID))
-    if (!balance) {
+    const srcBalance = await this.balanceService.fetchTokenData(Number(srcChainID))
+    if (!srcBalance) {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
-    const deficitDescending = balance
+    const srcDeficitDescending = srcBalance
       .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
+      .map((token) => {
+        return {
+          ...token,
+          //calculates, converts and normalizes the delta
+          delta: this.calculateDelta(token),
+        }
+      })
+      //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
+      .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
+
+    //Get the tokens the solver accepts on the destination chain
+    const destBalance = await this.balanceService.fetchTokenData(Number(destChainID))
+    if (!destBalance) {
+      throw QuoteError.FetchingCallTokensFailed(quote.route.destination)
+    }
+    const destDeficitDescending = destBalance
+      .filter((tokenAnalysis) => destination.tokens.includes(tokenAnalysis.token.address))
       .map((token) => {
         return {
           ...token,
@@ -244,7 +266,8 @@ export class FeeService implements OnModuleInit {
         solver,
         rewards,
         calls,
-        deficitDescending, //token liquidity with deficit first descending
+        srcDeficitDescending, //token liquidity with deficit first descending
+        destDeficitDescending,
       },
     }
   }
