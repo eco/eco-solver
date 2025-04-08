@@ -47,6 +47,7 @@
     "@eco-foundation/routes-ts": "~1.17.6",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
+    "@lifi/sdk": "^3.6.6",
     "@nestjs/bullmq": "^10.1.1",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^10.0.0",
@@ -83,7 +84,7 @@
     "rxjs": "^7.8.1",
     "table": "^6.8.2",
     "uuid": "^11.0.5",
-    "viem": "^2.23.10"
+    "viem": "^2.25.0"
   },
   "devDependencies": {
     "@golevelup/ts-jest": "^0.5.0",
