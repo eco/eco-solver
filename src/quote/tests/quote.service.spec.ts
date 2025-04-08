@@ -117,11 +117,11 @@ describe('QuotesService', () => {
             routeTokens: route.tokens,
             routeCalls: route.calls,
             rewardTokens: [
-                {
-                  token: '0x123',
-                  amount: 100n,
-                },
-              ],
+              {
+                token: '0x123',
+                amount: 100n,
+              },
+            ],
             expiryTime: '0',
           },
           {
@@ -129,11 +129,11 @@ describe('QuotesService', () => {
             routeTokens: route.tokens,
             routeCalls: route.calls,
             rewardTokens: [
-                {
-                  token: '0x456',
-                  amount: 200n,
-                },
-              ],
+              {
+                token: '0x456',
+                amount: 200n,
+              },
+            ],
             expiryTime: '10',
           },
         ],
@@ -331,7 +331,10 @@ describe('QuotesService', () => {
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
-        const { response: quoteDataEntry } = await quoteService.generateQuote({ route: {}, reward: {} } as any)
+        const { response: quoteDataEntry } = await quoteService.generateQuote({
+          route: {},
+          reward: {},
+        } as any)
         expect(quoteDataEntry).toEqual({
           rewardTokens: expectedTokens,
           expiryTime: expect.any(String),

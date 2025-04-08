@@ -59,11 +59,11 @@ describe('QuoteController Test', () => {
           routeTokens: route.tokens,
           routeCalls: route.calls,
           rewardTokens: [
-              {
-                token: '0x123',
-                amount: 100n,
-              },
-            ],
+            {
+              token: '0x123',
+              amount: 100n,
+            },
+          ],
           expiryTime: '0',
         },
         {
@@ -71,11 +71,11 @@ describe('QuoteController Test', () => {
           routeTokens: route.tokens,
           routeCalls: route.calls,
           rewardTokens: [
-              {
-                token: '0x456',
-                amount: 200n,
-              },
-            ],
+            {
+              token: '0x456',
+              amount: 200n,
+            },
+          ],
           expiryTime: '10',
         },
       ],
