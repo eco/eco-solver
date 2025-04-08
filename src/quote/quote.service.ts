@@ -25,8 +25,8 @@ import { EcoResponse } from '@/common/eco-response'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteRewardDataDTO, QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteRouteDataDTO, QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { getTransactionTargetData } from '@/intent/utils'
 
@@ -448,28 +448,12 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
-    // Pass back the modified route data
-    const route: QuoteRouteDataDTO = {
-      source: quoteIntentModel.route.source,
-      destination: quoteIntentModel.route.destination,
-      inbox: quoteIntentModel.route.inbox,
-      tokens: quoteIntentModel.route.tokens as QuoteRewardTokensDTO[],
-      calls: quoteIntentModel.route.calls as QuoteCallDataDTO[],
-    }
-
-    const reward: QuoteRewardDataDTO = {
-      creator: quoteIntentModel.reward.creator,
-      prover: quoteIntentModel.reward.prover,
-      deadline: quoteIntentModel.reward.deadline,
-      nativeValue: quoteIntentModel.reward.nativeValue,
-      tokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
-    }
-
     //todo save quote to record
     return {
       response: {
-        route,
-        reward,
+        routeTokens: quoteIntentModel.route.tokens,
+        routeCalls: quoteIntentModel.route.calls,
+        rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
         expiryTime: this.getQuoteExpiryTime(),
       } as QuoteDataEntryDTO,
     }
@@ -578,27 +562,11 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
-    // Pass back the modified route and reward data
-    const route: QuoteRouteDataDTO = {
-      source: intent.route.source,
-      destination: intent.route.destination,
-      inbox: intent.route.inbox,
-      tokens: routeTokens,
-      calls: routeCalls,
-    }
-
-    const reward: QuoteRewardDataDTO = {
-      creator: intent.reward.creator,
-      prover: intent.reward.prover,
-      deadline: intent.reward.deadline,
-      nativeValue: intent.reward.nativeValue,
-      tokens: intent.reward.tokens as QuoteRewardTokensDTO[],
-    }
-
     return {
       response: {
-        route,
-        reward,
+        routeTokens,
+        routeCalls,
+        rewardTokens: intent.reward.tokens,
         expiryTime: this.getQuoteExpiryTime(),
       } as QuoteDataEntryDTO,
     }

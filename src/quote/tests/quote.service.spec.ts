@@ -21,6 +21,7 @@ import { Model } from 'mongoose'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
+import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -108,32 +109,31 @@ describe('QuotesService', () => {
     })
 
     it('should return the quote', async () => {
+      const route = quoteTestUtils.createQuoteRouteDataDTO()
       const quoteData: QuoteDataDTO = {
         quoteEntries: [
           {
             intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
-            route: quoteTestUtils.createQuoteRouteDataDTO(),
-            reward: quoteTestUtils.createQuoteRewardDataDTO({
-              tokens: [
+            routeTokens: route.tokens,
+            routeCalls: route.calls,
+            rewardTokens: [
                 {
                   token: '0x123',
                   amount: 100n,
                 },
               ],
-            }),
             expiryTime: '0',
           },
           {
             intentExecutionType: IntentExecutionType.GASLESS.toString(),
-            route: quoteTestUtils.createQuoteRouteDataDTO(),
-            reward: quoteTestUtils.createQuoteRewardDataDTO({
-              tokens: [
+            routeTokens: route.tokens,
+            routeCalls: route.calls,
+            rewardTokens: [
                 {
                   token: '0x456',
                   amount: 200n,
                 },
               ],
-            }),
             expiryTime: '10',
           },
         ],
@@ -308,7 +308,7 @@ describe('QuotesService', () => {
         solver: {},
         rewards: [{ balance: 10n }, { balance: 102n }],
         calls: [{ balance: 280n }, { balance: 102n }],
-        deficitDescending: [],
+        srcDeficitDescending: [],
       } as any
       jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
       const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
@@ -331,10 +331,9 @@ describe('QuotesService', () => {
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
-        const { response: quoteDataEntry } = await quoteService.generateQuote({ route: {} } as any)
+        const { response: quoteDataEntry } = await quoteService.generateQuote({ route: {}, reward: {} } as any)
         expect(quoteDataEntry).toEqual({
-          route: {},
-          tokens: expectedTokens,
+          rewardTokens: expectedTokens,
           expiryTime: expect.any(String),
         })
       }
@@ -347,7 +346,7 @@ describe('QuotesService', () => {
             { address: '0x2', balance: 200n },
           ],
           calls: [{ balance: 50n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n }, address: '0x2' },
           ],
@@ -360,7 +359,7 @@ describe('QuotesService', () => {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
           calls: [{ balance: 150n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
           ],
@@ -373,7 +372,7 @@ describe('QuotesService', () => {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
           calls: [{ balance: 40n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: 100n, address: '0x1' } },
             { delta: { balance: 200n, address: '0x2' } },
           ],
@@ -389,7 +388,7 @@ describe('QuotesService', () => {
             { address: '0x2', balance: 200n },
           ],
           calls: [{ balance: 150n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
           ],
@@ -405,7 +404,7 @@ describe('QuotesService', () => {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
           calls: [{ balance: 150n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: 100n, address: '0x2' } },
           ],
@@ -422,7 +421,7 @@ describe('QuotesService', () => {
             { address: '0x3', balance: 200n },
           ],
           calls: [{ balance: 150n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
             { delta: { balance: 100n, address: '0x3' } },
@@ -443,7 +442,7 @@ describe('QuotesService', () => {
             { address: '0x2', balance: 200n },
           ],
           calls: [{ balance: 250n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
           ],
@@ -462,7 +461,7 @@ describe('QuotesService', () => {
             { address: '0x2', balance: 150n },
           ],
           calls: [{ balance: 250n }],
-          deficitDescending: [
+          srcDeficitDescending: [
             { delta: { balance: 10n, address: '0x1' } },
             { delta: { balance: 20n, address: '0x2' } },
           ],
