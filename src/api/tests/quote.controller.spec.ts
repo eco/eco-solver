@@ -51,32 +51,31 @@ describe('QuoteController Test', () => {
   })
 
   describe('getQuote', () => {
+    const route = quoteTestUtils.createQuoteRouteDataDTO()
     const quote: QuoteDataDTO = {
       quoteEntries: [
         {
           intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
-          route: quoteTestUtils.createQuoteRouteDataDTO(),
-          reward: quoteTestUtils.createQuoteRewardDataDTO({
-            tokens: [
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
               {
                 token: '0x123',
                 amount: 100n,
               },
             ],
-          }),
           expiryTime: '0',
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
-          route: quoteTestUtils.createQuoteRouteDataDTO(),
-          reward: quoteTestUtils.createQuoteRewardDataDTO({
-            tokens: [
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
               {
                 token: '0x456',
                 amount: 200n,
               },
             ],
-          }),
           expiryTime: '10',
         },
       ],
