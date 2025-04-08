@@ -1,6 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { parseUnits } from 'viem'
-import { createConfig, EVM, executeRoute, getRoutes, RoutesRequest, SDKConfig } from '@lifi/sdk'
+import {
+  createConfig,
+  EVM,
+  executeRoute,
+  getRoutes,
+  Route,
+  RoutesRequest,
+  SDKConfig,
+} from '@lifi/sdk'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
@@ -61,10 +69,7 @@ export class LiFiProviderService implements OnModuleInit {
     }
 
     const result = await getRoutes(routesRequest)
-
-    const [route] = result.routes
-
-    if (!route) throw EcoError.RebalancingRouteNotFound()
+    const route = this.selectRoute(result.routes)
 
     const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.toAmount)
 
@@ -77,6 +82,75 @@ export class LiFiProviderService implements OnModuleInit {
       strategy: this.getStrategy(),
       context: route,
     }
+  }
+
+  /**
+   * Attempts to get a quote by routing through a core token when no direct route exists
+   * @param tokenIn The source token
+   * @param tokenOut The destination token
+   * @param swapAmount The amount to swap
+   * @returns A quote for the route through a core token
+   */
+  async fallback(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    swapAmount: number,
+  ): Promise<RebalanceQuote> {
+    // Log that we're using the fallback method with core tokens
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'LiFi: Using fallback method with core tokens',
+        properties: {
+          fromToken: tokenIn.config.address,
+          fromChain: tokenIn.chainId,
+          toToken: tokenOut.config.address,
+          toChain: tokenOut.chainId,
+        },
+      }),
+    )
+
+    // Try each core token as an intermediary
+    const { coreTokens } = this.ecoConfigService.getLiquidityManager()
+
+    for (const coreToken of coreTokens) {
+      try {
+        // Create core token data structure
+        const coreTokenData = {
+          chainId: coreToken.chainID,
+          config: {
+            address: coreToken.token,
+            chainId: coreToken.chainID,
+          },
+        } as TokenData
+
+        // Try routing through core token
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Trying core token as intermediary',
+            properties: {
+              coreToken: coreToken.token,
+              coreChain: coreToken.chainID,
+            },
+          }),
+        )
+
+        return await this.getQuote(tokenIn, coreTokenData, swapAmount)
+      } catch (coreError) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Failed to route through core token',
+            properties: {
+              coreToken: coreToken.token,
+              coreChain: coreToken.chainID,
+              error: coreError instanceof Error ? coreError.message : String(coreError),
+            },
+          }),
+        )
+      }
+    }
+
+    // If we get here, no core token route worked
+    throw EcoError.RebalancingRouteNotFound()
   }
 
   async execute(quote: RebalanceQuote<'LiFi'>) {
@@ -106,6 +180,12 @@ export class LiFiProviderService implements OnModuleInit {
       updateRouteHook: (route) => logLiFiProcess(this.logger, route),
       acceptExchangeRateUpdateHook: () => Promise.resolve(true),
     })
+  }
+
+  private selectRoute(routes: Route[]): Route {
+    const [route] = routes
+    if (!route) throw EcoError.RebalancingRouteNotFound()
+    return route
   }
 
   private getLiFiRPCUrls() {

@@ -287,6 +287,11 @@ export interface LiquidityManagerConfig {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
+  // Core tokens are used as intermediaries between two chains
+  coreTokens: {
+    token: Hex
+    chainID: number
+  }[]
 }
 
 export interface IndexerConfig {
