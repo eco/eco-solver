@@ -97,9 +97,9 @@ export function InvalidQuote(
   results: (
     | false
     | {
-      solvent: boolean
-      profitable: boolean
-    }
+        solvent: boolean
+        profitable: boolean
+      }
     | undefined
   )[],
 ): Quote400 {
@@ -115,9 +115,9 @@ export function InsolventUnprofitableQuote(
   results: (
     | false
     | {
-      solvent: boolean
-      profitable: boolean
-    }
+        solvent: boolean
+        profitable: boolean
+      }
     | undefined
   )[],
 ): Quote400 {

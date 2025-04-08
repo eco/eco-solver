@@ -19,7 +19,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-  IntentModelWithHashInterface { }
+    IntentModelWithHashInterface {}
 
 /**
  * Type that holds all the possible validations that can fail
@@ -67,7 +67,7 @@ export class ValidationService {
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   /**
    * Executes all the validations we have on the model and solver
