@@ -40,5 +40,6 @@ export type CalculateTokensType = {
   solver: Solver
   rewards: NormalizedToken[]
   calls: NormalizedToken[]
-  deficitDescending: DeficitDescending[]
+  srcDeficitDescending: DeficitDescending[]
+  destDeficitDescending: DeficitDescending[]
 }
