@@ -197,7 +197,7 @@ export class FeeService implements OnModuleInit {
       .find((intent) => BigInt(intent.chainID) == destChainID)!
     const solver = this.ecoConfigService.getSolver(destChainID)!
 
-    if (!source || !solver) {
+    if (!source || !destination || !solver) {
       let error: Error | undefined
       if (!source) {
         error = QuoteError.NoIntentSourceForSource(srcChainID)
