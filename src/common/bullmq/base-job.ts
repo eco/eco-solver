@@ -1,23 +1,20 @@
 /* eslint @typescript-eslint/no-unused-vars: 0 */
+import { Job as BullMQJob } from 'bullmq'
 
-export abstract class BaseJobManager<Job> {
+export abstract class BaseJobManager<Job extends BullMQJob> {
   /**
    * Checks if the given job is of the specific type.
    * @param job - The job to check.
    * @returns A boolean indicating if the job is of the specific type.
    */
-  is(job: Job): boolean {
-    throw new Error('Unimplemented function')
-  }
+  abstract is(job: Job): boolean
 
   /**
    * Processes the given job.
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  process(job: Job, processor: unknown): Promise<void> {
-    throw new Error('Unimplemented function')
-  }
+  abstract process(job: Job, processor: unknown): Promise<Job['returnvalue']>
 
   /**
    * Hook triggered when a job is completed.
