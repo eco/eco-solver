@@ -56,23 +56,27 @@ describe('QuoteController Test', () => {
         {
           intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
           route: quoteTestUtils.createQuoteRouteDataDTO(),
-          tokens: [
-            {
-              token: '0x123',
-              amount: 100n,
-            },
-          ],
+          reward: quoteTestUtils.createQuoteRewardDataDTO({
+            tokens: [
+              {
+                token: '0x123',
+                amount: 100n,
+              },
+            ],
+          }),
           expiryTime: '0',
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
           route: quoteTestUtils.createQuoteRouteDataDTO(),
-          tokens: [
-            {
-              token: '0x456',
-              amount: 200n,
-            },
-          ],
+          reward: quoteTestUtils.createQuoteRewardDataDTO({
+            tokens: [
+              {
+                token: '0x456',
+                amount: 200n,
+              },
+            ],
+          }),
           expiryTime: '10',
         },
       ],
