@@ -2,13 +2,21 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { FeeService } from '@/fee/fee.service'
-import { getTransactionTargetData } from '@/intent/utils'
+import {
+  equivalentNativeGas,
+  getFunctionCalls,
+  getFunctionTargets,
+  getTransactionTargetData,
+  isNativeIntent,
+} from '@/intent/utils'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
+import { CallDataInterface } from '../contracts'
+import { isGreaterEqual } from '../fee/utils'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -20,15 +28,16 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-  IntentModelWithHashInterface { }
+    IntentModelWithHashInterface {}
 
 /**
  * Type that holds all the possible validations that can fail
  */
 export type ValidationChecks = {
   supportedProver: boolean
+  supportedNative: boolean
   supportedTargets: boolean
-  supportedSelectors: boolean
+  supportedTransaction: boolean
   validTransferLimit: boolean
   validExpirationTime: boolean
   validDestination: boolean
@@ -57,21 +66,25 @@ export function validationsFailed(validations: ValidationType): boolean {
  * Type that holds all the possible validations that can fail
  */
 export type ValidationType = {
-  [key: string]: boolean
+  [key in keyof ValidationChecks]: boolean
 }
 
 export type TxValidationFn = (tx: TransactionTargetData) => boolean
 
 @Injectable()
-export class ValidationService {
+export class ValidationService implements OnModuleInit {
+  private isNativeEnabled = false
   private readonly logger = new Logger(ValidationService.name)
 
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
+  onModuleInit() {
+    this.isNativeEnabled = this.ecoConfigService.getIntentConfigs().isNativeSupported
+  }
   /**
    * Executes all the validations we have on the model and solver
    *
@@ -82,31 +95,25 @@ export class ValidationService {
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
-<<<<<<< HEAD
     txValidationFn: TxValidationFn = () => true,
-=======
-    isReverseQuote: boolean = false,
->>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       sourceChainID: intent.route.source,
       prover: intent.reward.prover,
     })
+    const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
-<<<<<<< HEAD
-    const supportedSelectors = this.supportedSelectors(intent, solver, txValidationFn)
-=======
-    const supportedSelectors = this.supportedSelectors(intent, solver, isReverseQuote)
->>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
+    const supportedTransaction = this.supportedTransaction(intent, solver, txValidationFn)
     const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
 
     return {
+      supportedNative,
       supportedProver,
       supportedTargets,
-      supportedSelectors,
+      supportedTransaction,
       validTransferLimit,
       validExpirationTime,
       validDestination,
@@ -134,56 +141,39 @@ export class ValidationService {
   }
 
   /**
-   * Verifies that the intent targets and data arrays are equal in length, and
-   * that every target-data can be decoded
+   * Verifies that the intent is a supported native.
+   *
+   * If native intents are enabled, it checks that the native token is the same on both chains
+   * If native intents are disabled, it checks that the intent is not a native intent and has no native value components
    *
    * @param intent the intent model
-   * @param solver the solver for the intent
    * @returns
    */
-  supportedSelectors(
-    intent: ValidationIntentInterface,
-    solver: Solver,
-<<<<<<< HEAD
-    txValidationFn: TxValidationFn = () => true,
-=======
-    isReverseQuote: boolean = false,
->>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
-  ): boolean {
-    if (intent.route.calls.length == 0) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `supportedSelectors: Target/data invalid`,
-        }),
-      )
-      return false
-    }
-    return intent.route.calls.every((call) => {
-      const tx = getTransactionTargetData(solver, call)
-<<<<<<< HEAD
-      return tx && txValidationFn(tx)
-=======
-      if (isReverseQuote) {
-        return tx && tx.decodedFunctionData.functionName === 'transfer'
+  supportedNative(intent: ValidationIntentInterface): boolean {
+    if (this.isNativeEnabled) {
+      if (isNativeIntent(intent)) {
+        return equivalentNativeGas(intent, this.logger)
       }
-      return tx
->>>>>>> 1dd5be8 (Adding additional validation for reverse quotes and initial getReverseQuotes method implementation)
-    })
+      return true
+    } else {
+      return !isNativeIntent(intent)
+    }
   }
 
   /**
-   * Verifies that all the intent targets are supported by the solver
+   * Verifies that all the intent targets are supported by the solver. The targets must
+   * have data in the transaction in order to be checked. Non-data targets are expected to be
+   * pure gas token transfers
    *
    * @param intent the intent model
    * @param solver the solver for the intent
    * @returns
    */
   supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
-    const intentTargets = intent.route.calls.map((call) => call.target)
+    const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
-    const exist = solverTargets.length > 0 && intentTargets.length > 0
-    const targetsSupported = exist && difference(intentTargets, solverTargets).length == 0
+    const targetsSupported = difference(intentFunctionTargets, solverTargets).length == 0
 
     if (!targetsSupported) {
       this.logger.debug(
@@ -202,6 +192,32 @@ export class ValidationService {
   }
 
   /**
+   * Verifies that the intent calls that are function calls are supported by the solver.
+   *
+   * @param intent the intent model
+   * @param solver the solver for the intent
+   * @returns
+   */
+  supportedTransaction(
+    intent: ValidationIntentInterface,
+    solver: Solver,
+    txValidationFn: TxValidationFn = () => true,
+  ): boolean {
+    if (intent.route.calls.length == 0) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `supportedSelectors: Target/data invalid`,
+        }),
+      )
+      return false
+    }
+    const functionCalls = getFunctionCalls(intent.route.calls as CallDataInterface[])
+    return functionCalls.every((call) => {
+      const tx = getTransactionTargetData(solver, call)
+      return tx && txValidationFn(tx)
+    })
+  }
+  /**
    * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
    * @param intent the source intent model
    * @returns  true if the transfer is within the bounds
@@ -209,10 +225,35 @@ export class ValidationService {
   async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
     const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
     if (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `validTransferLimit: Error getting total fill`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            source: intent.route.source,
+          },
+        }),
+      )
       return false
     }
-    const limitFillBase6 = this.feeService.getFeeConfig({ intent }).limitFillBase6
-    return totalFillNormalized <= limitFillBase6
+
+    const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `validTransferLimit: Total fill normalized`,
+        properties: {
+          tokenTotalFillNormalized: totalFillNormalized.token.toString(),
+          nativeTotalFillNormalized: totalFillNormalized.native.toString(),
+          tokenBase6: tokenBase6.toString(),
+          nativeBase18: nativeBase18.toString(),
+        },
+      }),
+    )
+
+    // convert to a normalized total to use utils compare function
+    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
   }
 
   /**

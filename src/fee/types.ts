@@ -24,6 +24,9 @@ export interface NormalizedTokens {
 
 export type NormalizedCall = NormalizedToken & {
   recipient: Hex
+  native: {
+    amount: bigint
+  }
 }
 
 /**
@@ -34,6 +37,14 @@ export type NormalizedToken = {
   chainID: bigint
   address: Hex
   decimals: number
+}
+
+/**
+ * The type fo rthe normalized sum of tokens an native gas for a call
+ */
+export type NormalizedTotal = {
+  token: bigint
+  native: bigint
 }
 
 /**
