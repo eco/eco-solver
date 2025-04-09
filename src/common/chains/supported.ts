@@ -7,6 +7,7 @@ import { arbitrum } from './definitions/arbitrum'
 import { mantle } from './definitions/mantle'
 import { polygon } from './definitions/polygon'
 import { ethereum, sepolia } from './definitions/ethereum'
+import { anvil } from './definitions/anvil'
 
 /**
  * List of supported chains for the solver that have modified RPC URLs or are defined in the project
@@ -23,4 +24,5 @@ export const ChainsSupported: Chain[] = [
   polygon,
   ethereum,
   sepolia,
+  anvil,
 ]

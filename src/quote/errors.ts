@@ -152,7 +152,7 @@ export function InternalSaveError(error: Error): Quote500 {
 export function InternalQuoteError(error?: Error): Quote500 {
   return {
     statusCode: 500,
-    message: 'Internal Server Error: Failed generate quote.',
+    message: `Internal Server Error: Failed generate quote. ${error?.toString()}`,
     code: 2,
     error,
   }
@@ -171,6 +171,10 @@ export class QuoteError extends Error {
 
   static NoIntentSourceForSource(source: bigint) {
     return new EcoError(`No intent source found for source chain ${source}`)
+  }
+
+  static NoIntentSourceForDestination(destination: bigint) {
+    return new EcoError(`No intent source found for destination chain ${destination}`)
   }
 
   static FetchingRewardTokensFailed(chainID: bigint) {
@@ -200,6 +204,12 @@ export class QuoteError extends Error {
   static RouteIsInfeasable(ask: bigint, reward: bigint) {
     return new EcoError(
       `The route is not infeasable: the reward ${reward} is less than the ask ${ask}`,
+    )
+  }
+
+  static RewardIsInfeasable(fee: bigint, reward: bigint) {
+    return new EcoError(
+      `The reward is infeasable: the reward ${reward} is less than the fee ${fee}`,
     )
   }
 

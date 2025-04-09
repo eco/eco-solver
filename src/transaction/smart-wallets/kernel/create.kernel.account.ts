@@ -23,7 +23,7 @@ import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { KernelVersion } from 'permissionless/accounts'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
-import { entryPoint07Address, EntryPointVersion } from 'viem/account-abstraction'
+import { entryPoint07Address } from 'viem/account-abstraction'
 import { createKernelAccount } from '@zerodev/sdk'
 import {
   getAccount,
@@ -35,6 +35,7 @@ import {
 import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { OwnableExecutorAbi } from '@/contracts'
+import { GetKernelVersion } from '@zerodev/sdk/types'
 
 export type entryPointV_0_7 = '0.7'
 
@@ -62,10 +63,16 @@ export async function createKernelAccountClient<
     name,
     transport,
   }) as KernelAccountClient<entryPointVersion>
-  const kernelVersion = KERNEL_V3_1
-  const entryPoint = {
-    address: entryPoint07Address,
-    version: '0.7' as EntryPointVersion,
+  const kernelVersion = KERNEL_V3_1 as GetKernelVersion<entryPointVersion>
+
+  // Don't override the entryPoint address if it was provided by the caller!
+  let entryPoint = parameters.entryPoint
+
+  if (!entryPoint) {
+    entryPoint = {
+      address: entryPoint07Address,
+      version: '0.7' as entryPointVersion,
+    }
   }
 
   const ecdsaValidator = await signerToEcdsaValidator(walletClient, {

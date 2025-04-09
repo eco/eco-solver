@@ -79,13 +79,14 @@ export class ValidationService {
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
+    isReverseQuote: boolean = false,
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       sourceChainID: intent.route.source,
       prover: intent.reward.prover,
     })
     const supportedTargets = this.supportedTargets(intent, solver)
-    const supportedSelectors = this.supportedSelectors(intent, solver)
+    const supportedSelectors = this.supportedSelectors(intent, solver, isReverseQuote)
     const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
@@ -129,7 +130,11 @@ export class ValidationService {
    * @param solver the solver for the intent
    * @returns
    */
-  supportedSelectors(intent: ValidationIntentInterface, solver: Solver): boolean {
+  supportedSelectors(
+    intent: ValidationIntentInterface,
+    solver: Solver,
+    isReverseQuote: boolean = false,
+  ): boolean {
     if (intent.route.calls.length == 0) {
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -140,6 +145,9 @@ export class ValidationService {
     }
     return intent.route.calls.every((call) => {
       const tx = getTransactionTargetData(solver, call)
+      if (isReverseQuote) {
+        return tx && tx.decodedFunctionData.functionName === 'transfer'
+      }
       return tx
     })
   }

@@ -62,7 +62,7 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
     if (chain) {
       return this.buildChainConfig(chain)
     } else {
-      throw EcoError.UnsupportedChainError(chain[0])
+      throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
     }
   }
 
