@@ -25,15 +25,15 @@ describe('LiquidityProviderService', () => {
       const mockTokenOut = { chainId: 2 }
       const mockSwapAmount = 100
       const mockQuote = { amountIn: 100n, amountOut: 200n }
-      
+
       jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
-      
+
       const result = await liquidityProviderService.getQuote(
         mockTokenIn as any,
         mockTokenOut as any,
         mockSwapAmount,
       )
-      
+
       expect(liFiProviderService.getQuote).toHaveBeenCalledWith(
         mockTokenIn,
         mockTokenOut,
@@ -49,15 +49,15 @@ describe('LiquidityProviderService', () => {
       const mockTokenOut = { chainId: 2 }
       const mockSwapAmount = 100
       const mockQuote = { amountIn: 100n, amountOut: 200n }
-      
+
       jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuote as any)
-      
+
       const result = await liquidityProviderService.fallback(
         mockTokenIn as any,
         mockTokenOut as any,
         mockSwapAmount,
       )
-      
+
       expect(liFiProviderService.fallback).toHaveBeenCalledWith(
         mockTokenIn,
         mockTokenOut,
@@ -70,17 +70,17 @@ describe('LiquidityProviderService', () => {
   describe('execute', () => {
     it('should execute LiFi quote', async () => {
       const mockQuote = { strategy: 'LiFi', tokenIn: {}, tokenOut: {} }
-      
+
       jest.spyOn(liFiProviderService, 'execute').mockResolvedValue(undefined as any)
-      
+
       await liquidityProviderService.execute(mockQuote as any)
-      
+
       expect(liFiProviderService.execute).toHaveBeenCalledWith(mockQuote)
     })
 
     it('should throw error for unsupported strategy', async () => {
       const mockQuote = { strategy: 'UnsupportedStrategy' }
-      
+
       await expect(liquidityProviderService.execute(mockQuote as any)).rejects.toThrow(
         'Strategy not supported: UnsupportedStrategy',
       )
