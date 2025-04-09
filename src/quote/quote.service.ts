@@ -74,7 +74,7 @@ export class QuoteService implements OnModuleInit {
       return { error: res }
     }
 
-    const { response: quoteData, error } = await this.getQuotesForIntentTypes(quoteIntent)
+    const { response: quoteData, error } = await this.getQuotesForIntentTypes(quoteIntentDataDTO)
     await this.updateQuoteDb(quoteIntent, { quoteData, error })
 
     if (error) {
@@ -118,7 +118,7 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   async getQuotesForIntentTypes(
-    quoteIntent: QuoteIntentModel,
+    quoteIntent: QuoteIntentDataInterface,
     isReverseQuote: boolean = false,
   ): Promise<EcoResponse<QuoteDataDTO>> {
     const quoteEntries: QuoteDataEntryDTO[] = []
@@ -273,7 +273,7 @@ export class QuoteService implements OnModuleInit {
   }
 
   private async generateBaseQuote(
-    quoteIntentModel: QuoteIntentModel,
+    quoteIntentModel: QuoteIntentDataInterface,
     isReverseQuote: boolean = false,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
     try {
@@ -294,7 +294,7 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   private async generateQuoteForIntentExecutionType(
-    quoteIntentModel: QuoteIntentModel,
+    quoteIntentModel: QuoteIntentDataInterface,
     intentExecutionType: IntentExecutionType,
     isReverseQuote: boolean = false,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
@@ -320,7 +320,7 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   async generateQuoteForSelfPublish(
-    quoteIntentModel: QuoteIntentModel,
+    quoteIntentModel: QuoteIntentDataInterface,
     isReverseQuote: boolean = false,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
@@ -343,7 +343,7 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   async generateQuoteForGasless(
-    quoteIntentModel: QuoteIntentModel,
+    quoteIntentModel: QuoteIntentDataInterface,
     isReverseQuote: boolean = false,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
