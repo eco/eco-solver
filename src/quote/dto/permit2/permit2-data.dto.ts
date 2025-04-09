@@ -35,7 +35,7 @@ export class Permit2DataDTO {
     return this.batchPermitData!.typedData.spender
   }
 
-  getSigDeadline(): string {
+  getSigDeadline(): bigint {
     if (this.singlePermitData) {
       return this.singlePermitData.typedData.sigDeadline
     }

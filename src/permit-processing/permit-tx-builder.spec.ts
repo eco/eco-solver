@@ -24,7 +24,7 @@ describe('PermitTxBuilder', () => {
         permit: {
           token: '0x3333333333333333333333333333333333333333',
           data: {
-            deadline: '1700000000',
+            deadline: 1700000000n,
             signature: ('0x' +
               'a'.repeat(64) + // r
               'b'.repeat(64) + // s
@@ -63,7 +63,7 @@ describe('PermitTxBuilder', () => {
         permit: {
           token: '0x3333333333333333333333333333333333333333',
           data: {
-            deadline: '1700000000',
+            deadline: 1700000000n,
             signature: '0xdeadbeef',
           },
         },

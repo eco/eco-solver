@@ -32,7 +32,7 @@ describe('Permit2Processor', () => {
           nonce: '1',
         },
       ],
-      getSigDeadline: () => '9999999999',
+      getSigDeadline: () => 9999999999n,
       getSpender: () => '0xdef',
       batchPermitData: undefined,
     },

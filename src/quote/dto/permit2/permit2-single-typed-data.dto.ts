@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
 import { IsEthereumAddress, IsNotEmpty, IsNumberString, ValidateNested } from 'class-validator'
 import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 
 export class Permit2SingleTypedDataDTO {
   @IsNotEmpty()
@@ -19,5 +19,6 @@ export class Permit2SingleTypedDataDTO {
   @IsNotEmpty()
   @IsNumberString({ no_symbols: true })
   @ApiProperty()
-  sigDeadline: string // string of a UNIX seconds since epoch integer
+  @Transform(({ value }) => BigInt(value))
+  sigDeadline: bigint // string of a UNIX seconds since epoch integer
 }
