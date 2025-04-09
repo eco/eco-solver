@@ -12,6 +12,4 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>//$1',
   },
-
-  maxWorkers: 1,
 }
