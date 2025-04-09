@@ -1,7 +1,10 @@
+/* eslint-disable prettier/prettier */
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { encodeFunctionData, Hex, TransactionReceipt } from 'viem'
+import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getChainConfig } from '@/eco-configs/utils'
@@ -50,6 +53,92 @@ export class IntentInitiationService implements OnModuleInit {
   ): Promise<EcoResponse<TransactionReceipt>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
+    // Get all the txs
+    const { response: allTxs, error } =
+      await this.generateGaslessIntentTransactions(gaslessIntentRequestDTO)
+
+    if (error) {
+      return { error }
+    }
+
+    const kernelAccountClient = await this.kernelAccountClientService.getClient(
+      gaslessIntentRequestDTO.getSourceChainID!(),
+    )
+
+    const txHash = await kernelAccountClient.execute(allTxs!)
+    const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
+
+    return { response: receipt }
+  }
+
+  /*
+   * This function is used to calculate the gas quote for the gasless intent.
+   * @param gaslessIntentRequestDTO
+   * @returns
+   */
+  async calculateGasQuoteForIntent(
+    gaslessIntentRequest: GaslessIntentRequestDTO,
+    bufferPercent = 10,
+  ): Promise<EcoResponse<EstimatedGasDataForIntentInitiation>> {
+    // fromJSON does a plainToInstance on the POJO to make it into a class instance with methods
+    gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequest)
+
+    // Generate the actual txs (permit(s) + fundFor)
+    const { response: allTxs, error } =
+      await this.generateGaslessIntentTransactions(gaslessIntentRequest)
+
+    if (error) {
+      return { error }
+    }
+
+    try {
+      const chainID = gaslessIntentRequest.getSourceChainID!()
+      const { response: estimatedGasData, error: estimateError } = await this.kernelAccountClientService.estimateGasForKernelExecution(chainID, allTxs!)
+
+      if (estimateError) {
+        return { error: estimateError }
+      }
+
+      const { gasEstimate: estimatedGasInWei, gasPrice } = estimatedGasData!
+
+      // Apply a buffer (e.g., 10%)
+      const buffer = BigInt(Math.floor(Number(estimatedGasInWei) * bufferPercent / 100))
+      const totalWithBuffer = estimatedGasInWei + buffer
+      const gasCost = totalWithBuffer * gasPrice
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `calculateGasQuoteForIntent: estimated gas details`,
+          properties: {
+            estimatedGas: estimatedGasInWei,
+            price: gasPrice,
+            totalCost: gasCost,
+          },
+        }),
+      )
+
+      return {
+        response: {
+          gasEstimate: estimatedGasInWei,
+          gasPrice,
+          gasCost,
+        },
+      }
+    } catch (ex) {
+      return { error: InternalQuoteError(new Error(`Gas estimation failed: ${ex.message}`)) }
+    }
+  }
+
+  /**
+   * This function is used to generate the transactions for the gasless intent. It generates the permit transactions and fund transaction.
+   * @param gaslessIntentRequestDTO
+   * @returns
+   */
+  async generateGaslessIntentTransactions(
+    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+  ): Promise<EcoResponse<ExecuteSmartWalletArg[]>> {
+    gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
+
     // Get the permit tx(s)
     const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
 
@@ -65,15 +154,7 @@ export class IntentInitiationService implements OnModuleInit {
       return { error: InternalQuoteError(fundForTxError) }
     }
 
-    const allTxs = [...permitTxs!, fundForTx!]
-    const kernelAccountClient = await this.kernelAccountClientService.getClient(
-      gaslessIntentRequestDTO.getSourceChainID!(),
-    )
-
-    const txHash = await kernelAccountClient.execute(allTxs)
-    const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
-
-    return { response: receipt }
+    return { response: [...permitTxs!, fundForTx!] }
   }
 
   /**
