@@ -11,7 +11,7 @@ export class PermitTestUtils {
       token: '0x0000000000000000000000000000000000000001',
       data: {
         signature: ('0x' + '1'.repeat(130)) as Hex,
-        deadline: '9999999999',
+        deadline: 9999999999n,
       },
       ...overrides,
     }
@@ -34,7 +34,7 @@ export class PermitTestUtils {
           expiration: '9999999999',
         },
         spender: ('0x' + '0'.repeat(40)) as Hex,
-        sigDeadline: '9999999999',
+        sigDeadline: 9999999999n,
       },
     }
 
@@ -50,7 +50,7 @@ export class PermitTestUtils {
           },
         ],
         spender: ('0x' + '0'.repeat(40)) as Hex,
-        sigDeadline: '9999999999',
+        sigDeadline: 9999999999n,
       },
     }
 

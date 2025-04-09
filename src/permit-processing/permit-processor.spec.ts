@@ -27,7 +27,7 @@ describe('PermitProcessor', () => {
       token: '0xdef',
       data: {
         signature: '0x'.padEnd(132, '1') as Hex,
-        deadline: '1000',
+        deadline: 1000n,
       },
     },
     owner: '0xowner',
