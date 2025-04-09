@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
-import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
 import { QuoteRewardDataDTO, QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { Type } from 'class-transformer'
@@ -15,9 +16,10 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @ApiProperty()
   dAppID: string
 
-  @ApiProperty()
+  @ApiProperty({ isArray: true, enum: IntentExecutionType.enumKeys })
   @IsArray()
   @IsString({ each: true })
+  @IsIn(IntentExecutionType.enumKeys, { each: true })
   @IsNotEmpty()
   intentExecutionTypes: string[]
 
