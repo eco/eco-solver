@@ -480,11 +480,34 @@ describe('FeeService', () => {
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ error } as any)
+      const tok = jest
+        .spyOn(feeService, 'getTokensNormalized')
+        .mockResolvedValue({ tokens: [] } as any)
       const call = jest
         .spyOn(feeService, 'getCallsNormalized')
-        .mockReturnValue({ calls: {} } as any)
+        .mockReturnValue({ calls: [] } as any)
       expect(await feeService.calculateTokens(quote as any)).toEqual({ error })
       expect(rew).toHaveBeenCalledTimes(1)
+      expect(tok).toHaveBeenCalledTimes(1)
+      expect(call).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return error if getTokensNormalized fails', async () => {
+      const error = { error: 'error' }
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
+      jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
+      const rew = jest
+        .spyOn(feeService, 'getRewardsNormalized')
+        .mockReturnValue({ rewards: [] } as any)
+      const tok = jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ error } as any)
+      const call = jest
+        .spyOn(feeService, 'getCallsNormalized')
+        .mockReturnValue({ calls: [] } as any)
+      expect(await feeService.calculateTokens(quote as any)).toEqual({ error })
+      expect(rew).toHaveBeenCalledTimes(1)
+      expect(tok).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
     })
 
@@ -497,9 +520,13 @@ describe('FeeService', () => {
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
         .mockReturnValue({ rewards: {} } as any)
+      const tok = jest
+        .spyOn(feeService, 'getTokensNormalized')
+        .mockResolvedValue({ tokens: [] } as any)
       const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ error } as any)
       expect(await feeService.calculateTokens(quote as any)).toEqual({ error })
       expect(rew).toHaveBeenCalledTimes(1)
+      expect(tok).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
     })
 
@@ -512,6 +539,8 @@ describe('FeeService', () => {
       })
       const rewards = { stuff: 'asdf' } as any
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ rewards } as any)
+      const tokens = { stuff: '123' } as any
+      const tok = jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ tokens } as any)
       const calls = { stuff: '123' } as any
       const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls } as any)
       const deficitDescending = tokenAnalysis.map((ta) => {
@@ -521,6 +550,7 @@ describe('FeeService', () => {
         calculated: {
           solver: linearSolver,
           rewards,
+          tokens,
           calls,
           srcDeficitDescending: deficitDescending,
           destDeficitDescending: deficitDescending,
@@ -528,6 +558,7 @@ describe('FeeService', () => {
       })
       expect(cal).toHaveBeenCalledTimes(tokenAnalysis.length * 2)
       expect(rew).toHaveBeenCalledTimes(1)
+      expect(tok).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
     })
   })
@@ -796,12 +827,14 @@ describe('FeeService', () => {
               chainID: solver.chainID,
               address: '0x1',
               decimals: BASE_DECIMALS,
+              recipient: 0,
             },
             {
               balance: transferAmount * 10n ** 2n,
               chainID: solver.chainID,
               address: '0x4',
               decimals: BASE_DECIMALS,
+              recipient: 0,
             },
           ],
         })

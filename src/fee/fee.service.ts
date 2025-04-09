@@ -8,7 +8,7 @@ import {
   IntentConfig,
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
-import { CalculateTokensType, NormalizedToken } from '@/fee/types'
+import { CalculateTokensType, NormalizedCall, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
@@ -257,14 +257,16 @@ export class FeeService implements OnModuleInit {
 
     //ge/calculate the rewards for the quote intent
     const { rewards, error: errorRewards } = await this.getRewardsNormalized(quote)
+    const { tokens, error: errorTokens } = await this.getTokensNormalized(quote)
     const { calls, error: errorCalls } = await this.getCallsNormalized(quote)
-    if (errorCalls || errorRewards) {
-      return { error: errorCalls || errorRewards }
+    if (errorCalls || errorTokens || errorRewards) {
+      return { error: errorCalls || errorTokens || errorRewards }
     }
     return {
       calculated: {
         solver,
         rewards,
+        tokens,
         calls,
         srcDeficitDescending, //token liquidity with deficit first descending
         destDeficitDescending,
@@ -310,6 +312,39 @@ export class FeeService implements OnModuleInit {
     }
   }
 
+  async getTokensNormalized(
+    quote: QuoteIntentDataInterface,
+  ): Promise<{ tokens: NormalizedToken[]; error?: Error }> {
+    const destChainID = quote.route.destination
+    const source = this.ecoConfigService
+      .getIntentSources()
+      .find((intent) => BigInt(intent.chainID) == destChainID)
+    if (!source) {
+      return { tokens: [], error: QuoteError.NoIntentSourceForDestination(destChainID) }
+    }
+    const acceptedTokens = quote.route.tokens
+      .filter((route) => source.tokens.includes(route.token))
+      .map((route) => route.token)
+    const erc20Rewards = await this.balanceService.fetchTokenBalances(
+      Number(destChainID),
+      acceptedTokens,
+    )
+    if (Object.keys(erc20Rewards).length === 0) {
+      return { tokens: [], error: QuoteError.FetchingRewardTokensFailed(BigInt(destChainID)) }
+    }
+
+    return {
+      tokens: Object.values(erc20Rewards).map((tb) => {
+        const token = quote.route.tokens.find((route) => getAddress(route.token) === tb.address)
+        return this.convertNormalize(token!.amount, {
+          chainID: destChainID,
+          address: tb.address,
+          decimals: tb.decimals,
+        })
+      }),
+    }
+  }
+
   /**
    * Fetches the call tokens for the quote intent, grabs their info from the erc20 contracts and then converts
    * to a standard reserve value for comparisons
@@ -321,7 +356,7 @@ export class FeeService implements OnModuleInit {
    * @returns
    */
   async getCallsNormalized(quote: QuoteIntentDataInterface): Promise<{
-    calls: NormalizedToken[]
+    calls: NormalizedCall[]
     error: Error | undefined
   }> {
     const solver = this.ecoConfigService.getSolver(quote.route.destination)
@@ -356,7 +391,7 @@ export class FeeService implements OnModuleInit {
 
     let error: Error | undefined
 
-    let calls: NormalizedToken[] = []
+    let calls: NormalizedCall[] = []
     try {
       calls = quote.route.calls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
@@ -379,6 +414,7 @@ export class FeeService implements OnModuleInit {
           throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
         }
 
+        const recipient = ttd!.decodedFunctionData.args![0] as Hex
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
         const normMinBalance = this.getNormalizedMinBalance(callTarget)
         if (
@@ -404,11 +440,14 @@ export class FeeService implements OnModuleInit {
           )
           throw err
         }
-        return this.convertNormalize(transferAmount, {
-          chainID: BigInt(solver.chainID),
-          address: call.target,
-          decimals: callTarget.token.decimals,
-        })
+        return {
+          ...this.convertNormalize(transferAmount, {
+            chainID: BigInt(solver.chainID),
+            address: call.target,
+            decimals: callTarget.token.decimals,
+          }),
+          recipient,
+        }
       })
     } catch (e) {
       error = e

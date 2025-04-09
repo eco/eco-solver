@@ -22,6 +22,7 @@ import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
+import { zeroAddress } from 'viem'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -144,6 +145,77 @@ describe('QuotesService', () => {
       quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
       expect(await quoteService.getQuote({} as any)).toEqual({ response: quoteData })
+      expect(mockDb).toHaveBeenCalled()
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { quoteData })
+    })
+  })
+
+  describe('on getReverseQuote', () => {
+    const quoteIntent = { reward: { tokens: [] }, route: {} } as any
+
+    it('should throw an error if it cant store the quote in the db ', async () => {
+      const failedStore = new Error('error')
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(failedStore)
+      const { error } = await quoteService.getReverseQuote({} as any)
+      expect(error).toEqual(InternalSaveError(failedStore))
+    })
+
+    it('should return a 400 if it fails to validate the quote data', async () => {
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({})
+      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
+      const { error } = await quoteService.getReverseQuote({} as any)
+      expect(error).toEqual(SolverUnsupported)
+    })
+
+    it('should save any error in getting the quote to the db', async () => {
+      const failedStore = new Error('error')
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
+      quoteService.generateReverseQuote = jest.fn().mockImplementation(() => {
+        throw failedStore
+      })
+      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
+      const { error } = await quoteService.getReverseQuote({} as any)
+      expect(error).toBeDefined()
+      expect(mockDb).toHaveBeenCalled()
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { error })
+    })
+
+    it('should pass isReverseQuote=true to validateQuoteIntentData', async () => {
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      const validateSpy = jest
+        .spyOn(quoteService, 'validateQuoteIntentData')
+        .mockResolvedValue(undefined)
+      quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: {} })
+
+      await quoteService.getReverseQuote({} as any)
+      expect(validateSpy).toHaveBeenCalledWith(quoteIntent, true)
+    })
+
+    it('should return the reverse quote', async () => {
+      const route = quoteTestUtils.createQuoteRouteDataDTO()
+      const quoteData: QuoteDataDTO = {
+        quoteEntries: [
+          {
+            intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+            routeTokens: route.tokens,
+            routeCalls: route.calls,
+            rewardTokens: [
+              {
+                token: '0x123',
+                amount: 100n,
+              },
+            ],
+            expiryTime: '0',
+          },
+        ],
+      }
+
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
+      quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
+      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
+      expect(await quoteService.getReverseQuote({} as any)).toEqual({ response: quoteData })
       expect(mockDb).toHaveBeenCalled()
       expect(mockDb).toHaveBeenCalledWith(quoteIntent, { quoteData })
     })
@@ -348,7 +420,7 @@ describe('QuotesService', () => {
             { address: '0x1', balance: 100n },
             { address: '0x2', balance: 200n },
           ],
-          calls: [{ balance: 50n }],
+          calls: [{ address: '0x3', balance: 50n }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n }, address: '0x2' },
@@ -473,6 +545,112 @@ describe('QuotesService', () => {
           { token: '0x1', amount: 150n },
           { token: '0x2', amount: 100n },
         ])
+      })
+    })
+  })
+
+  describe('on generateReverseQuote', () => {
+    it('should return error on calculate tokens failed', async () => {
+      const error = new Error('error') as any
+      feeService.calculateTokens = jest.fn().mockResolvedValue({ error } as any)
+      const { error: quoteError } = await quoteService.generateReverseQuote({} as any)
+      expect(quoteError).toEqual(InternalQuoteError(error))
+    })
+
+    it('should return error on calculate tokens doesnt return the calculated tokens', async () => {
+      feeService.calculateTokens = jest.fn().mockResolvedValue({ calculated: undefined } as any)
+      const { error } = await quoteService.generateReverseQuote({} as any)
+      expect(error).toEqual(InternalQuoteError(undefined))
+    })
+
+    it('should return an insufficient balance if the fee exceeds total reward', async () => {
+      const calculated = {
+        solver: {},
+        rewards: [{ balance: 10n }, { balance: 20n }],
+        destDeficitDescending: [],
+      } as any
+
+      jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
+      const totalReward = calculated.rewards.reduce((acc, reward) => acc + reward.balance, 0n)
+      const fee = totalReward + 1n
+      const feeMock = jest.spyOn(feeService, 'getFee').mockReturnValue(fee)
+
+      const intent = { route: { tokens: [], calls: [] } } as any
+      const { error } = await quoteService.generateReverseQuote(intent)
+      expect(error).toEqual(InsufficientBalance(fee, totalReward))
+      expect(feeMock).toHaveBeenCalled()
+    })
+
+    describe('on building reverse quote', () => {
+      beforeEach(() => {})
+
+      async function generateReverseHelper(
+        calculated: any,
+        expectedRouteTokens: { token: string; amount: bigint }[] = [],
+      ) {
+        jest.spyOn(feeService, 'getFee').mockReturnValue(0n)
+        jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
+        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
+          return { balance: amount }
+        })
+        feeService.convertNormalize = jest.fn().mockImplementation((amount) => {
+          return { balance: amount }
+        })
+
+        const { response: quoteDataEntry } = await quoteService.generateReverseQuote({
+          route: {},
+          reward: {},
+        } as any)
+        expect(quoteDataEntry).toBeDefined()
+        expect(quoteDataEntry).toHaveProperty('routeTokens')
+        expect(quoteDataEntry!.routeTokens).toEqual(expectedRouteTokens)
+      }
+
+      it('should subtract fees from tokens that solver needs least', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 50n }],
+          tokens: [
+            { address: '0x2', balance: 100n },
+            { address: '0x3', balance: 200n },
+          ],
+          calls: [
+            { address: '0x2', balance: 100n, recipient: zeroAddress },
+            { address: '0x3', balance: 200n, recipient: zeroAddress },
+          ],
+          destDeficitDescending: [
+            {
+              delta: {
+                address: '0x2',
+                balance: -100n,
+              },
+              token: {},
+            },
+            {
+              delta: {
+                address: '0x3',
+                balance: -50n,
+              },
+              token: {},
+            },
+          ],
+        } as any
+        await generateReverseHelper(calculated, [{ token: '0x3', amount: 50n }])
+      })
+
+      it('should fill deficit that has a call to fill it', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 200n }],
+          tokens: [{ address: '0x2', balance: 200n }],
+          calls: [{ address: '0x2', balance: 200n, recipient: zeroAddress }],
+          destDeficitDescending: [
+            { delta: { balance: -100n, address: '0x2' }, token: {} },
+            { delta: { balance: -50n, address: '0x3' }, token: {} },
+          ],
+        } as any
+
+        await generateReverseHelper(calculated, [{ token: '0x2', amount: 200n }])
       })
     })
   })
