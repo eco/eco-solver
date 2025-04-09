@@ -65,8 +65,12 @@ export class KernelAccountClientServiceBase<
         }),
       )
     }
-    //Conditionally adds an OwnableExecutor to the Kernel Account
-    await addExecutorToKernelAccount(client, this.ecoConfigService.getSafe().owner)
+    const owner = this.ecoConfigService.getSafe().owner
+    if (owner) {
+      //Conditionally adds an OwnableExecutor to the Kernel Account
+      await addExecutorToKernelAccount(client, owner)
+    }
+
     return client
   }
 

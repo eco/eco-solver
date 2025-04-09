@@ -1,10 +1,10 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteErrorsInterface } from '@/quote/errors'
+import { serialize } from '@/common/utils/serialize'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
+import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteService } from '@/quote/quote.service'
-import { serialize } from '@/liquidity-manager/utils/serialize'
 import {
   BadRequestException,
   Body,

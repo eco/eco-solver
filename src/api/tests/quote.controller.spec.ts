@@ -6,7 +6,7 @@ import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
 import { QuoteController } from '@/api/quote.controller'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { serialize } from '@/liquidity-manager/utils/serialize'
+import { serialize } from '@/common/utils/serialize'
 import { Test, TestingModule } from '@nestjs/testing'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 

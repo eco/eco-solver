@@ -66,6 +66,10 @@ export type EcoConfigType = {
     pinoConfig: PinoParams
   }
   liquidityManager: LiquidityManagerConfig
+  indexer: IndexerConfig
+  withdraws: WithdrawsConfig
+  sendBatch: SendBatchConfig
+  hyperlane: HyperlaneConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -89,7 +93,7 @@ export type FulfillType = {
  * The config type for the safe multisig wallet
  */
 export type SafeType = {
-  owner: Hex
+  owner?: Hex
 }
 
 /**
@@ -272,6 +276,8 @@ export class IntentSource {
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
+  // The address that the Inbox contract is deployed at, we execute fulfills in this contract
+  inbox: Hex
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]
   // The addresses of the provers that we support
@@ -286,4 +292,31 @@ export interface LiquidityManagerConfig {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
+  chains: Record<
+    string, // Chain ID
+    {
+      mailbox: Hex
+      aggregationHook: Hex
+      hyperlaneAggregationHook: Hex
+    }
+  >
 }

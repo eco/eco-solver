@@ -1,17 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import * as config from 'config'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
-  KmsConfig,
   EcoConfigType,
   IntentSource,
-  Solver,
+  KmsConfig,
   SafeType,
+  Solver,
 } from './eco-config.types'
-import { entries } from 'lodash'
 import { getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
@@ -21,7 +20,7 @@ import { getChainConfig } from './utils'
  * Service class for getting configs for the app
  */
 @Injectable()
-export class EcoConfigService implements OnModuleInit {
+export class EcoConfigService {
   private logger = new Logger(EcoConfigService.name)
   private externalConfigs: any = {}
   private ecoConfig: config.IConfig
@@ -34,8 +33,6 @@ export class EcoConfigService implements OnModuleInit {
     this.ecoConfig = config
     this.initConfigs()
   }
-
-  async onModuleInit() {}
 
   /**
    * Returns the static configs  for the app, from the 'config' package
@@ -84,20 +81,20 @@ export class EcoConfigService implements OnModuleInit {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
-    const intents = this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
-      intent.tokens = intent.tokens.map((token: string) => {
-        return getAddress(token)
-      })
+    return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource
+      intent.inbox = config.Inbox
       intent.provers = [config.HyperProver]
+      intent.tokens = intent.tokens.map((token: string) => getAddress(token))
+
       //removing storage prover per audit for hyperlane beta release
       // if (config.Prover) {
       //   intent.provers.push(config.Prover)
       // }
+
       return intent
     })
-    return intents
   }
 
   // Returns the intent source for a specific chain or undefined if its not supported
@@ -113,15 +110,17 @@ export class EcoConfigService implements OnModuleInit {
   // Returns the safe multisig configs
   getSafe(): SafeType {
     const safe = this.get<SafeType>('safe')
-    // validate and checksum the owner address, throws if invalid/not-set
-    safe.owner = getAddress(safe.owner)
+    if (safe.owner) {
+      // validate and checksum the owner address, throws if invalid/not-set
+      safe.owner = getAddress(safe.owner)
+    }
     return safe
   }
 
   // Returns the solvers config
   getSolvers(): EcoConfigType['solvers'] {
     const solvers = this.get<Record<number, Solver>>('solvers')
-    entries(solvers).forEach(([, solver]: [string, Solver]) => {
+    _.entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
       solver.inboxAddress = config.Inbox
       solver.targets = addressKeys(solver.targets) ?? {}
@@ -204,6 +203,26 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('whitelist')
   }
 
+  // Returns the liquidity manager config
+  getHyperlane(): EcoConfigType['hyperlane'] {
+    return this.get('hyperlane')
+  }
+
+  // Returns the liquidity manager config
+  getWithdraws(): EcoConfigType['withdraws'] {
+    return this.get('withdraws')
+  }
+
+  // Returns the liquidity manager config
+  getSendBatch(): EcoConfigType['sendBatch'] {
+    return this.get('sendBatch')
+  }
+
+  // Returns the liquidity manager config
+  getIndexer(): EcoConfigType['indexer'] {
+    return this.get('indexer')
+  }
+
   getChainRPCs() {
     const { apiKey, networks } = this.getAlchemy()
     const supportedAlchemyChainIds = _.map(networks, 'id')
@@ -220,6 +239,6 @@ export class EcoConfigService implements OnModuleInit {
    * @returns the supported chains for the event
    */
   getSupportedChains(): bigint[] {
-    return entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+    return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
   }
 }
