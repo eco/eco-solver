@@ -26,7 +26,7 @@ export class PermitTxBuilder {
     const data = encodeFunctionData({
       abi: PermitAbi,
       functionName: 'permit',
-      args: [owner, spender, value, BigInt(deadline), v, r, s],
+      args: [owner, spender, value, deadline, v, r, s],
     })
 
     return {

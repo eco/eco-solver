@@ -29,7 +29,7 @@ export class Permit2TxBuilder {
 
     const data = this.encodeFunctionData(
       permitData.getSpender(),
-      BigInt(permitData.getSigDeadline()),
+      permitData.getSigDeadline(),
       permit.signature,
       permitData.getDetails(),
     )
