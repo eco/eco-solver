@@ -19,6 +19,14 @@ export interface NormalizedTokens {
 }
 
 /**
+ * The normalized call type
+ */
+
+export type NormalizedCall = NormalizedToken & {
+  recipient: Hex
+}
+
+/**
  * The normalized token type
  */
 export type NormalizedToken = {
@@ -39,7 +47,8 @@ export type DeficitDescending = Prettify<TokenFetchAnalysis & { delta: Normalize
 export type CalculateTokensType = {
   solver: Solver
   rewards: NormalizedToken[]
-  calls: NormalizedToken[]
+  tokens: NormalizedToken[]
+  calls: NormalizedCall[]
   srcDeficitDescending: DeficitDescending[]
   destDeficitDescending: DeficitDescending[]
 }

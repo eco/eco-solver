@@ -181,4 +181,62 @@ describe('QuoteController Test', () => {
       expect(mockLogLog).toHaveBeenCalledTimes(2)
     })
   })
+
+  describe('getReverseQuote', () => {
+    const route = quoteTestUtils.createQuoteRouteDataDTO()
+    const quote: QuoteDataDTO = {
+      quoteEntries: [
+        {
+          intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
+            {
+              token: '0x123',
+              amount: 100n,
+            },
+          ],
+          expiryTime: '0',
+        },
+        {
+          intentExecutionType: IntentExecutionType.GASLESS.toString(),
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
+            {
+              token: '0x456',
+              amount: 200n,
+            },
+          ],
+          expiryTime: '10',
+        },
+      ],
+    }
+
+    it('should return a 400 on bad request', async () => {
+      jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
+      await expect(quoteController.getReverseQuote({} as any)).rejects.toThrow(
+        new BadRequestException(serialize(SolverUnsupported)),
+      )
+    })
+
+    it('should return a 500 on server error', async () => {
+      jest
+        .spyOn(quoteService, 'getReverseQuote')
+        .mockResolvedValue({ error: InternalSaveError(quote as any) })
+      jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
+      await expect(quoteController.getReverseQuote({} as any)).rejects.toThrow(
+        new InternalServerErrorException(InternalSaveError(quote as any)),
+      )
+    })
+
+    it('should log and return a reverse quote', async () => {
+      jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: quote as any })
+
+      const result = await quoteController.getReverseQuote({} as any)
+      expect(result).toEqual(quote)
+      expect(quoteService.getReverseQuote).toHaveBeenCalled()
+      expect(mockLogLog).toHaveBeenCalledTimes(2)
+    })
+  })
 })
