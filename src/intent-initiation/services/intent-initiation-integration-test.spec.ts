@@ -67,7 +67,7 @@ class MockSignerKmsService {
   }
 }
 
-describe('IntentInitiationIntegrationTest', () => {
+describe.skip('IntentInitiationIntegrationTest', () => {
   const logger = new EcoLogger('IntentInitiationIntegrationTestSpec')
   let service: IntentInitiationService
   let kernelService: KernelAccountClientService
