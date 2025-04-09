@@ -1,36 +1,46 @@
 import { Chain, getAddress, Hex } from 'viem'
 
 /**
- * Gets the url for a chain with the given api key, either websocket or http. It tries
- * to find a non default rpc url if it exists and returns the first one it finds,
- * otherwise it returns the default one.
+ * Generates the RPC URL for a given blockchain network and configuration options.
  *
- * @param chain the chain to get the url for
- * @param apiKey the api key if it is required
- * @param websocketEnabled whether to try the websocket url if there is one
- * @returns
+ * @param {Chain} chain - The blockchain network details, including RPC URLs.
+ * @param {Object} options - Configuration options for generating the RPC URL.
+ * @param {string} options.alchemy - The Alchemy API key for connecting to Alchemy services.
+ * @param {string[]} [options.rpcUrls] - A list of custom RPC URLs to override the default settings.
+ * @param {boolean} [options.websocketEnabled] - Indicates whether a WebSocket URL should be returned.
+ *
+ * @return {Object} An object containing the connection URL and a flag indicating if it's a WebSocket URL.
+ * @return {string} return.url - The generated RPC URL.
+ * @return {boolean} return.isWebsocket - A flag indicating whether the returned URL is a WebSocket URL.
  */
 export function getRpcUrl(
   chain: Chain,
-  apiKey?: string,
-  websocketEnabled: boolean = false,
+  options: {
+    alchemyApiKey: string
+    rpcUrls?: Chain['rpcUrls']['default']
+    websocketEnabled?: boolean
+  },
 ): { url: string; isWebsocket: boolean } {
-  let rpcUrl = chain.rpcUrls.default
+  const { alchemyApiKey, rpcUrls: customRpcUrls, websocketEnabled } = options
+
+  let rpcUrls = chain.rpcUrls.default
   for (const key in chain.rpcUrls) {
-    if (key === 'default') {
-      continue
-    }
-    rpcUrl = chain.rpcUrls[key]
+    if (key === 'default') continue
+    rpcUrls = chain.rpcUrls[key]
     break
   }
-  const isWebsocket =
-    websocketEnabled && rpcUrl.webSocket != undefined && rpcUrl.webSocket.length > 0
-  const url = isWebsocket ? rpcUrl.webSocket![0] : rpcUrl.http[0]
 
-  return {
-    url: apiKey ? url + '/' + apiKey : url,
-    isWebsocket,
+  rpcUrls = customRpcUrls ?? rpcUrls
+
+  const isWebsocket = Boolean((websocketEnabled ?? customRpcUrls) && rpcUrls.webSocket?.length)
+
+  let url = isWebsocket ? rpcUrls.webSocket![0] : rpcUrls.http[0]
+
+  if (!customRpcUrls && url.includes('g.alchemy.com')) {
+    url += '/' + alchemyApiKey
   }
+
+  return { url, isWebsocket }
 }
 
 /**

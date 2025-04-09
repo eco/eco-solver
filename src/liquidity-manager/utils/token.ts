@@ -87,5 +87,5 @@ export function getGroupTotal(group: TokenDataAnalyzed[]) {
 }
 
 export function getSortGroupByDiff(group: TokenDataAnalyzed[]) {
-  return group.sort((a, b) => b.analysis.diff - a.analysis.diff)
+  return [...group].sort((a, b) => b.analysis.diff - a.analysis.diff)
 }

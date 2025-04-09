@@ -4,7 +4,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 
 @Injectable()
 export class LiquidityProviderService {
-  constructor(protected readonly liFiProvider: LiFiProviderService) {}
+  constructor(public readonly liFiProvider: LiFiProviderService) {}
 
   async getQuote(
     tokenIn: TokenData,
@@ -12,6 +12,21 @@ export class LiquidityProviderService {
     swapAmount: number,
   ): Promise<RebalanceQuote> {
     return this.liFiProvider.getQuote(tokenIn, tokenOut, swapAmount)
+  }
+
+  /**
+   * Attempts a route using fallback mechanisms (like core tokens)
+   * @param tokenIn The source token
+   * @param tokenOut The destination token
+   * @param swapAmount The amount to swap
+   * @returns A quote using the fallback mechanism
+   */
+  async fallback(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    swapAmount: number,
+  ): Promise<RebalanceQuote> {
+    return this.liFiProvider.fallback(tokenIn, tokenOut, swapAmount)
   }
 
   async execute(quote: RebalanceQuote) {
