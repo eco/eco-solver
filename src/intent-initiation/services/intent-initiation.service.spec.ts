@@ -170,9 +170,7 @@ describe('IntentInitiationService', () => {
       const mockGasEstimate = 100_000n
       const mockGasPrice = 50_000_000_000n // 50 gwei
 
-      jest
-        .spyOn(service, 'generateGaslessIntentTransactions')
-        .mockResolvedValue({ response: txs })
+      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({ response: txs })
 
       kernelMock.estimateGasForKernelExecution.mockResolvedValue({
         response: {
@@ -195,9 +193,7 @@ describe('IntentInitiationService', () => {
       const dto = new GaslessIntentRequestDTO()
       dto.getSourceChainID = () => 5
 
-      jest
-        .spyOn(service, 'generateGaslessIntentTransactions')
-        .mockResolvedValue({ response: [] })
+      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({ response: [] })
 
       kernelMock.estimateGasForKernelExecution.mockRejectedValue(new Error('boom'))
 

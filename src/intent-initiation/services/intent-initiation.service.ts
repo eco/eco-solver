@@ -93,7 +93,8 @@ export class IntentInitiationService implements OnModuleInit {
 
     try {
       const chainID = gaslessIntentRequest.getSourceChainID!()
-      const { response: estimatedGasData, error: estimateError } = await this.kernelAccountClientService.estimateGasForKernelExecution(chainID, allTxs!)
+      const { response: estimatedGasData, error: estimateError } =
+        await this.kernelAccountClientService.estimateGasForKernelExecution(chainID, allTxs!)
 
       if (estimateError) {
         return { error: estimateError }
@@ -102,7 +103,7 @@ export class IntentInitiationService implements OnModuleInit {
       const { gasEstimate: estimatedGasInWei, gasPrice } = estimatedGasData!
 
       // Apply a buffer (e.g., 10%)
-      const buffer = BigInt(Math.floor(Number(estimatedGasInWei) * bufferPercent / 100))
+      const buffer = BigInt(Math.floor((Number(estimatedGasInWei) * bufferPercent) / 100))
       const totalWithBuffer = estimatedGasInWei + buffer
       const gasCost = totalWithBuffer * gasPrice
 

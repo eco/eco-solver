@@ -18,7 +18,6 @@ async function getClient(id: number) {
 }
 
 describe('KernelAccountClientService', () => {
-
   beforeAll(async () => {
     const mockSource = {
       getConfig: () => ({
@@ -46,11 +45,10 @@ describe('KernelAccountClientService', () => {
           },
         },
       ])
-      .withMocks([
-      ])
+      .withMocks([])
 
-      kernelAccountClientService = await $.init()
-      kernelAccountClientService.getClient = getClient
+    kernelAccountClientService = await $.init()
+    kernelAccountClientService.getClient = getClient
   })
 
   it('should estimate gas for Kernel executeBatch', async () => {

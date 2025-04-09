@@ -137,7 +137,7 @@ describe.skip('IntentInitiationIntegrationTest', () => {
         },
         {
           provide: SignerKmsService,
-          useClass: MockSignerKmsService
+          useClass: MockSignerKmsService,
         },
         {
           provide: getModelToken(QuoteIntentModel.name),
@@ -155,21 +155,23 @@ describe.skip('IntentInitiationIntegrationTest', () => {
 
     // 👇 Override buildChainConfig for chain ID 31337
     const originalBuildChainConfig = kernelService['buildChainConfig'].bind(kernelService)
-    jest.spyOn(kernelService as any, 'buildChainConfig').mockImplementation(async (chain: Chain) => {
-      const config = await originalBuildChainConfig(chain)
+    jest
+      .spyOn(kernelService as any, 'buildChainConfig')
+      .mockImplementation(async (chain: Chain) => {
+        const config = await originalBuildChainConfig(chain)
 
-      if (chain.id === 31337) {
-        return {
-          ...config,
-          entryPoint: {
-            address: '0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108', // your test entryPoint
-            version: '0.7',
-          },
+        if (chain.id === 31337) {
+          return {
+            ...config,
+            entryPoint: {
+              address: '0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108', // your test entryPoint
+              version: '0.7',
+            },
+          }
         }
-      }
 
-      return config
-    })
+        return config
+      })
   })
 
   it('should estimate gas and cost for an actual gasless intent (real simulation)', async () => {
@@ -189,7 +191,8 @@ describe.skip('IntentInitiationIntegrationTest', () => {
       response: [tx],
     })
 
-    const { response: estimatedGasDataForIntentInitiation, error } = await service.calculateGasQuoteForIntent(mockRequest)
+    const { response: estimatedGasDataForIntentInitiation, error } =
+      await service.calculateGasQuoteForIntent(mockRequest)
     expect(error).toBeUndefined()
 
     const { gasEstimate, gasPrice, gasCost } = estimatedGasDataForIntentInitiation!
