@@ -10,6 +10,7 @@ import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { TransactionReceipt } from 'viem'
 
@@ -31,7 +32,7 @@ describe('IntentInitiationController', () => {
         Permit2TxBuilder,
         IntentInitiationService,
       ])
-      .withMocks([QuoteService, KernelAccountClientService])
+      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)

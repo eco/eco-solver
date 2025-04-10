@@ -176,10 +176,10 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     const routeHash = hashRoute(route)
-    const quote = await this.quoteService.fetchQuoteIntentData({ routeHash })
+    const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({ routeHash })
 
-    if (!quote) {
-      return { error: EcoError.QuoteNotFound }
+    if (error) {
+      return { error }
     }
 
     // Now we need to get the route hash with the real salt
@@ -202,7 +202,7 @@ export class IntentInitiationService implements OnModuleInit {
 
     const args = [
       realRouteHash,
-      quote.reward,
+      quote!.reward,
       gaslessIntentRequestDTO.getFunder!(),
       gaslessIntentRequestDTO.getPermitContractAddress!(),
       false,

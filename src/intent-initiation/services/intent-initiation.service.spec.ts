@@ -1,5 +1,6 @@
 import { createMock } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { FeeService } from '@/fee/fee.service'
@@ -16,6 +17,7 @@ import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
@@ -70,6 +72,7 @@ describe('IntentInitiationService', () => {
         PermitProcessor,
         Permit2Processor,
         QuoteService,
+        QuoteRepository,
         PermitTxBuilder,
         Permit2TxBuilder,
         {
@@ -106,7 +109,7 @@ describe('IntentInitiationService', () => {
         token: '0x0000000000000000000000000000000000000001',
       })
 
-      jest.spyOn(quoteService, 'fetchQuoteIntentData').mockResolvedValue(null) // simulate quote not found
+      jest.spyOn(quoteService, 'fetchQuoteIntentData').mockResolvedValue({ error: EcoError.QuoteNotFound }) // simulate quote not found
 
       const result = await service.initiateGaslessIntent(dto)
       expect(result.error.message).toContain('Quote not found')
@@ -124,7 +127,7 @@ describe('IntentInitiationService', () => {
       jest.spyOn(permit2Processor, 'generateTxs').mockReturnValue({ response: [permit2Tx] })
       jest
         .spyOn(quoteService, 'fetchQuoteIntentData')
-        .mockResolvedValue(quoteTestUtils.asQuoteIntentModel(dto))
+        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
       jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
         execute: jest.fn().mockResolvedValue('0xtx'),
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
@@ -146,7 +149,7 @@ describe('IntentInitiationService', () => {
       jest.spyOn(permitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
       jest
         .spyOn(quoteService, 'fetchQuoteIntentData')
-        .mockResolvedValue(quoteTestUtils.asQuoteIntentModel(dto))
+        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
       jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
         execute: jest.fn().mockResolvedValue('0xtx'),
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
