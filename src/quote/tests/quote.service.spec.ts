@@ -21,8 +21,8 @@ import { Model } from 'mongoose'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
-import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { zeroAddress } from 'viem'
+import { QuoteRepository } from '@/quote/quote.repository'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -33,6 +33,7 @@ jest.mock('@/intent/utils', () => {
 
 describe('QuotesService', () => {
   let quoteService: QuoteService
+  let quoteRepository: QuoteRepository
   let feeService: DeepMocked<FeeService>
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
@@ -47,6 +48,7 @@ describe('QuotesService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         QuoteService,
+        QuoteRepository,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
@@ -59,6 +61,7 @@ describe('QuotesService', () => {
     }).compile()
 
     quoteService = chainMod.get(QuoteService)
+    quoteRepository = chainMod.get(QuoteRepository)
     feeService = chainMod.get(FeeService)
     validationService = chainMod.get(ValidationService)
 
@@ -69,6 +72,11 @@ describe('QuotesService', () => {
     quoteService['logger'].log = mockLogLog
     quoteService['logger'].error = mockLogError
     quoteService['quotesConfig'] = quotesConfig as QuotesConfig
+
+    quoteRepository['logger'].debug = mockLogDebug
+    quoteRepository['logger'].log = mockLogLog
+    quoteRepository['logger'].error = mockLogError
+    quoteRepository['quotesConfig'] = quotesConfig as QuotesConfig
   })
 
   afterEach(async () => {
@@ -83,13 +91,13 @@ describe('QuotesService', () => {
     const quoteIntent = { reward: { tokens: [] }, route: {} } as any
     it('should throw an error if it cant store the quote in the db ', async () => {
       const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(failedStore)
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ error: failedStore })
       const { error } = await quoteService.getQuote({} as any)
       expect(error).toEqual(InternalSaveError(failedStore))
     })
 
     it('should return a 400 if it fails to validate the quote data', async () => {
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({})
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: {} })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
       const { error } = await quoteService.getQuote({} as any)
       expect(error).toEqual(SolverUnsupported)
@@ -97,7 +105,7 @@ describe('QuotesService', () => {
 
     it('should save any error in getting the quote to the db', async () => {
       const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
       quoteService.generateQuote = jest.fn().mockImplementation(() => {
         throw failedStore
@@ -140,7 +148,7 @@ describe('QuotesService', () => {
         ],
       }
 
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
       quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
@@ -155,13 +163,13 @@ describe('QuotesService', () => {
 
     it('should throw an error if it cant store the quote in the db ', async () => {
       const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(failedStore)
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ error: failedStore })
       const { error } = await quoteService.getReverseQuote({} as any)
       expect(error).toEqual(InternalSaveError(failedStore))
     })
 
     it('should return a 400 if it fails to validate the quote data', async () => {
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({})
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: {} })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
       const { error } = await quoteService.getReverseQuote({} as any)
       expect(error).toEqual(SolverUnsupported)
@@ -169,7 +177,7 @@ describe('QuotesService', () => {
 
     it('should save any error in getting the quote to the db', async () => {
       const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
       quoteService.generateReverseQuote = jest.fn().mockImplementation(() => {
         throw failedStore
@@ -179,17 +187,6 @@ describe('QuotesService', () => {
       expect(error).toBeDefined()
       expect(mockDb).toHaveBeenCalled()
       expect(mockDb).toHaveBeenCalledWith(quoteIntent, { error })
-    })
-
-    it('should pass isReverseQuote=true to validateQuoteIntentData', async () => {
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
-      const validateSpy = jest
-        .spyOn(quoteService, 'validateQuoteIntentData')
-        .mockResolvedValue(undefined)
-      quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: {} })
-
-      await quoteService.getReverseQuote({} as any)
-      expect(validateSpy).toHaveBeenCalledWith(quoteIntent, true)
     })
 
     it('should return the reverse quote', async () => {
@@ -211,7 +208,7 @@ describe('QuotesService', () => {
         ],
       }
 
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue(quoteIntent)
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
       quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
@@ -225,16 +222,18 @@ describe('QuotesService', () => {
     it('should log error if storing fails', async () => {
       const failedStore = new Error('error')
       jest.spyOn(quoteModel, 'create').mockRejectedValue(failedStore)
-      const r = await quoteService.storeQuoteIntentData({} as any)
-      expect(r).toEqual(failedStore)
+      const quoteIntent = quoteTestUtils.createQuoteIntentDataDTO()
+      const { error } = await quoteService.storeQuoteIntentData(quoteIntent)
+      expect(error).toBeDefined()
       expect(mockLogError).toHaveBeenCalled()
     })
 
     it('should save the DTO and return a record', async () => {
+      const quoteIntent = quoteTestUtils.createQuoteIntentDataDTO()
       const data = { fee: 1n }
       jest.spyOn(quoteModel, 'create').mockResolvedValue(data as any)
-      const r = await quoteService.storeQuoteIntentData({} as any)
-      expect(r).toEqual(data)
+      const { response: quoteIntentModel } = await quoteService.storeQuoteIntentData(quoteIntent)
+      expect(quoteIntentModel).toEqual(data)
       expect(mockLogError).not.toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalled()
     })
@@ -281,7 +280,6 @@ describe('QuotesService', () => {
       )
       expect(mockLogLog).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledWith({
-        isReverseQuote: false,
         msg: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
         quoteIntentModel,
       })
@@ -321,7 +319,6 @@ describe('QuotesService', () => {
       )
       expect(mockLogLog).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledWith({
-        isReverseQuote: false,
         msg: `validateQuoteIntentData: Some validations failed`,
         quoteIntentModel,
         validations: failValidations,
@@ -344,7 +341,6 @@ describe('QuotesService', () => {
         msg: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
         quoteIntentModel,
         feasable: false,
-        isReverseQuote: false,
         error: InfeasibleQuote(error),
       })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
