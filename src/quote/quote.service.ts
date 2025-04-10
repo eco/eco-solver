@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable prettier/prettier */
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { validationsSucceeded, ValidationService } from '@/intent/validation.sevice'
+import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
@@ -15,8 +17,6 @@ import {
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
 import * as dayjs from 'dayjs'
 import { encodeFunctionData, erc20Abi, Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
@@ -28,6 +28,10 @@ import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { QuoteRepository } from '@/quote/quote.repository'
+import { TransactionTargetData } from '@/intent/utils-intent.service'
+
+type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
 
 /**
  * Service class for getting configs for the app
@@ -38,7 +42,7 @@ export class QuoteService implements OnModuleInit {
   private quotesConfig: QuotesConfig
 
   constructor(
-    @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
+    private readonly quoteRepository: QuoteRepository,
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
@@ -64,23 +68,11 @@ export class QuoteService implements OnModuleInit {
         },
       }),
     )
-    const quoteIntent = await this.storeQuoteIntentData(quoteIntentDataDTO)
-    if (quoteIntent instanceof Error) {
-      return { error: InternalSaveError(quoteIntent) }
-    }
-    const res = await this.validateQuoteIntentData(quoteIntent)
-    if (res) {
-      return { error: res }
-    }
 
-    const { response: quoteData, error } = await this.getQuotesForIntentTypes(quoteIntentDataDTO)
-    await this.updateQuoteDb(quoteIntent, { quoteData, error })
+    const txValidationFn: TxValidationFn = (tx: TransactionTargetData) => true
+    const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRouteFeasible.bind(this.feeService)
 
-    if (error) {
-      return { error }
-    }
-
-    return { response: quoteData }
+    return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, false)
   }
 
   async getReverseQuote(
@@ -94,19 +86,38 @@ export class QuoteService implements OnModuleInit {
         },
       }),
     )
-    const quoteIntent = await this.storeQuoteIntentData(quoteIntentDataDTO)
-    if (quoteIntent instanceof Error) {
-      return { error: InternalSaveError(quoteIntent) }
+
+    const txValidationFn: TxValidationFn = (tx: TransactionTargetData) => (tx && tx.decodedFunctionData.functionName === 'transferFrom')
+    const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRewardFeasible.bind(this.feeService)
+
+    return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, true)
+  }
+
+  private async _getQuote(
+    quoteIntentDataDTO: QuoteIntentDataDTO,
+    txValidationFn: TxValidationFn,
+    quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn,
+    isReverseQuote: boolean,
+  ): Promise<EcoResponse<QuoteDataDTO>> {
+
+    const { response: quoteIntent, error: saveError } = await this.storeQuoteIntentData(quoteIntentDataDTO)
+
+    if (saveError) {
+      return { error: InternalSaveError(saveError) }
     }
-    const res = await this.validateQuoteIntentData(quoteIntent, true)
+
+    const res = await this.validateQuoteIntentData(quoteIntent!, txValidationFn, quoteFeasibilityCheckFn)
     if (res) {
       return { error: res }
     }
-    const { response: quoteData, error } = await this.getQuotesForIntentTypes(quoteIntent, true)
-    await this.updateQuoteDb(quoteIntent, { quoteData, error })
+
+    const { response: quoteData, error } = await this.getQuotesForIntentTypes(quoteIntentDataDTO, isReverseQuote)
+    await this.updateQuoteDb(quoteIntent!, { quoteData, error })
+
     if (error) {
       return { error }
     }
+
     return { response: quoteData }
   }
 
@@ -162,30 +173,8 @@ export class QuoteService implements OnModuleInit {
    */
   async storeQuoteIntentData(
     quoteIntentDataDTO: QuoteIntentDataDTO,
-  ): Promise<QuoteIntentModel | Error> {
-    try {
-      const record = await this.quoteIntentModel.create(quoteIntentDataDTO)
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Recorded quote intent`,
-          properties: {
-            record,
-          },
-        }),
-      )
-      return record
-    } catch (e) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in storeQuoteIntentData`,
-          properties: {
-            quoteIntentDataDTO,
-            error: e,
-          },
-        }),
-      )
-      return e
-    }
+  ): Promise<EcoResponse<QuoteIntentModel>> {
+    return this.quoteRepository.storeQuoteIntentData(quoteIntentDataDTO)
   }
 
   /**
@@ -193,8 +182,8 @@ export class QuoteService implements OnModuleInit {
    * @param query the quote intent data
    * @returns the quote or an error
    */
-  async fetchQuoteIntentData(query: object): Promise<QuoteIntentModel | null> {
-    return this.quoteIntentModel.findOne(query)
+  async fetchQuoteIntentData(query: object): Promise<EcoResponse<QuoteIntentModel>> {
+    return this.quoteRepository.fetchQuoteIntentData(query)
   }
 
   /**
@@ -206,7 +195,8 @@ export class QuoteService implements OnModuleInit {
    */
   async validateQuoteIntentData(
     quoteIntentModel: QuoteIntentModel,
-    isReverseQuote: boolean = false,
+    txValidationFn: TxValidationFn = () => true,
+    quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRouteFeasible.bind(this.feeService),
   ): Promise<Quote400 | undefined> {
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.destination)
     if (!solver) {
@@ -215,7 +205,6 @@ export class QuoteService implements OnModuleInit {
           message: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
           properties: {
             quoteIntentModel,
-            isReverseQuote,
           },
         }),
       )
@@ -226,8 +215,9 @@ export class QuoteService implements OnModuleInit {
     const validations = await this.validationService.assertValidations(
       quoteIntentModel,
       solver,
-      isReverseQuote,
+      txValidationFn,
     )
+
     if (!validationsSucceeded(validations)) {
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -235,22 +225,16 @@ export class QuoteService implements OnModuleInit {
           properties: {
             quoteIntentModel,
             validations,
-            isReverseQuote,
           },
         }),
       )
-      await this.updateQuoteDb(quoteIntentModel, { error: InvalidQuoteIntent(validations) })
+      await this.updateQuoteDb(quoteIntentModel, {
+        error: InvalidQuoteIntent(validations),
+      })
       return InvalidQuoteIntent(validations)
     }
 
-    let error: Error | undefined
-    if (isReverseQuote) {
-      const { error: reverseQuoteError } = await this.feeService.isRewardFeasible(quoteIntentModel)
-      error = reverseQuoteError
-    } else {
-      const { error: defaultQuoteError } = await this.feeService.isRouteFeasible(quoteIntentModel)
-      error = defaultQuoteError
-    }
+    const { error } = await quoteFeasibilityCheckFn(quoteIntentModel)
 
     if (error) {
       const quoteError = InfeasibleQuote(error)
@@ -261,7 +245,6 @@ export class QuoteService implements OnModuleInit {
             quoteIntentModel,
             feasable: false,
             error: quoteError,
-            isReverseQuote,
           },
         }),
       )
@@ -580,22 +563,6 @@ export class QuoteService implements OnModuleInit {
    * @returns
    */
   async updateQuoteDb(quoteIntentModel: QuoteIntentModel, receipt?: any) {
-    try {
-      if (receipt) {
-        quoteIntentModel.receipt = receipt
-      }
-      await this.quoteIntentModel.updateOne({ _id: quoteIntentModel._id }, quoteIntentModel)
-    } catch (e) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in updateQuoteDb`,
-          properties: {
-            quoteIntentModel,
-            error: e,
-          },
-        }),
-      )
-      return e
-    }
+    return this.quoteRepository.updateQuoteDb(quoteIntentModel, receipt)
   }
 }
