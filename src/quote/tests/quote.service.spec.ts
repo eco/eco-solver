@@ -96,7 +96,9 @@ describe('QuotesService', () => {
     })
 
     it('should return a 400 if it fails to validate the quote data', async () => {
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: [quoteTestUtils.createQuoteIntentModel()] })
+      quoteService.storeQuoteIntentData = jest
+        .fn()
+        .mockResolvedValue({ response: [quoteTestUtils.createQuoteIntentModel()] })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
       const { error } = await quoteService.getQuote({} as any)
       expect(error).toEqual([SolverUnsupported])
@@ -121,10 +123,9 @@ describe('QuotesService', () => {
 
       expect(error).toBeDefined()
       expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(
-        quoteIntent,
-        { error: expect.objectContaining({ message: expect.stringContaining('error') }) },
-      )
+      expect(mockDb).toHaveBeenCalledWith(quoteIntent, {
+        error: expect.objectContaining({ message: expect.stringContaining('error') }),
+      })
     })
   })
 
@@ -139,10 +140,16 @@ describe('QuotesService', () => {
     })
 
     it('should save the DTO and return a record', async () => {
-      const quoteIntentData = quoteTestUtils.createQuoteIntentDataDTO({ intentExecutionTypes: [IntentExecutionType.GASLESS.toString()] })
-      const quoteIntentModel = quoteTestUtils.getQuoteIntentModel(quoteIntentData.intentExecutionTypes[0], quoteIntentData)
+      const quoteIntentData = quoteTestUtils.createQuoteIntentDataDTO({
+        intentExecutionTypes: [IntentExecutionType.GASLESS.toString()],
+      })
+      const quoteIntentModel = quoteTestUtils.getQuoteIntentModel(
+        quoteIntentData.intentExecutionTypes[0],
+        quoteIntentData,
+      )
       jest.spyOn(quoteModel, 'create').mockResolvedValue(quoteIntentModel as any)
-      const { response: quoteIntentModels } = await quoteService.storeQuoteIntentData(quoteIntentData)
+      const { response: quoteIntentModels } =
+        await quoteService.storeQuoteIntentData(quoteIntentData)
       expect(quoteIntentModels).toEqual([quoteIntentModel])
       expect(mockLogError).not.toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalled()

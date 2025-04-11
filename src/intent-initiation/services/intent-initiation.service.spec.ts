@@ -109,7 +109,9 @@ describe('IntentInitiationService', () => {
         token: '0x0000000000000000000000000000000000000001',
       })
 
-      jest.spyOn(quoteService, 'fetchQuoteIntentData').mockResolvedValue({ error: EcoError.QuoteNotFound }) // simulate quote not found
+      jest
+        .spyOn(quoteService, 'fetchQuoteIntentData')
+        .mockResolvedValue({ error: EcoError.QuoteNotFound }) // simulate quote not found
 
       const result = await service.initiateGaslessIntent(dto)
       expect(result.error.message).toContain('Quote not found')

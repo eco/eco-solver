@@ -30,9 +30,7 @@ describe('QuoteService', () => {
             getQuotesConfig: () => ({ intentExecutionTypes: ['GASLESS', 'SELF_PUBLISH'] }),
             getSolver: () => ({ targets: { '0xabc': {} } }),
             getSupportedChains: () => [31337],
-            getIntentSources: () => [
-              { chainID: 31337, provers: ['0xprover'] },
-            ],
+            getIntentSources: () => [{ chainID: 31337, provers: ['0xprover'] }],
           },
         },
         {
@@ -77,7 +75,6 @@ describe('QuoteService', () => {
   })
 
   describe('QuoteService - regular quotes & error handling', () => {
-
     it('should store and generate quote for GASLESS', async () => {
       const model = quoteTestUtils.createQuoteIntentModel({ intentExecutionType: 'GASLESS' })
 
@@ -100,7 +97,9 @@ describe('QuoteService', () => {
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
-      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
       jest.spyOn(quoteService, 'generateQuote').mockResolvedValue({ response: mockEntry })
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
@@ -115,7 +114,9 @@ describe('QuoteService', () => {
         intentExecutionTypes: ['GASLESS'],
       })
       const mockIntent = quoteTestUtils.createQuoteIntentModel()
-      jest.spyOn(quoteRepository, 'storeQuoteIntentData').mockResolvedValue({ response: [mockIntent] })
+      jest
+        .spyOn(quoteRepository, 'storeQuoteIntentData')
+        .mockResolvedValue({ response: [mockIntent] })
       jest.spyOn(quoteService['ecoConfigService'], 'getSolver').mockReturnValue(undefined)
 
       const result = await quoteService.getQuote(dto)
@@ -150,7 +151,9 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
       }
 
-      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
@@ -158,12 +161,13 @@ describe('QuoteService', () => {
       expect(result.error).toBeDefined()
       expect(result.error![0].name).toBe(InvalidQuoteIntent(failedValidations).name)
       expect(mockUpdate).toHaveBeenCalled()
-      expect(mockUpdate).toHaveBeenCalledWith(model, { error: InvalidQuoteIntent(failedValidations) })
+      expect(mockUpdate).toHaveBeenCalledWith(model, {
+        error: InvalidQuoteIntent(failedValidations),
+      })
     })
   })
 
   describe('QuoteService - reverse quotes & error handling', () => {
-
     it('should generate a reverse quote when route is feasible and valid', async () => {
       const model = quoteTestUtils.createQuoteIntentModel({ intentExecutionType: 'GASLESS' })
 
@@ -186,10 +190,15 @@ describe('QuoteService', () => {
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
-      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
       jest.spyOn(quoteService, 'generateReverseQuote').mockResolvedValue({ response: mockEntry })
 
-      const result = await quoteService.getReverseQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
+      const result = await quoteService.getReverseQuote({
+        ...model,
+        intentExecutionTypes: ['GASLESS'],
+      })
       expect(result.response!.quoteEntries.length).toBe(1)
       expect(result.response!.quoteEntries[0]).toEqual(mockEntry)
       expect(mockUpdate).toHaveBeenCalled()
@@ -217,10 +226,15 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
       }
 
-      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
 
-      const result = await quoteService.getReverseQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
+      const result = await quoteService.getReverseQuote({
+        ...model,
+        intentExecutionTypes: ['GASLESS'],
+      })
       expect(result.error![0].name).toBe(InfeasibleQuote(error).name)
       expect(mockUpdate).toHaveBeenCalled()
       expect(mockUpdate).toHaveBeenCalledWith(model, { error: InfeasibleQuote(error) })
