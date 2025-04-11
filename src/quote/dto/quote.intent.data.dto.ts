@@ -12,6 +12,11 @@ import { Type } from 'class-transformer'
  * on-chain data fields removed.
  */
 export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  quoteID: string
+
   @IsNotEmpty()
   @ApiProperty()
   dAppID: string

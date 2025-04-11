@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
-import { IsEthereumAddress, IsNotEmpty, IsNumberString, ValidateNested } from 'class-validator'
+import { IsEthereumAddress, IsNotEmpty, ValidateNested } from 'class-validator'
 import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
 import { Transform, Type } from 'class-transformer'
 
@@ -17,7 +17,6 @@ export class Permit2SingleTypedDataDTO {
   spender: Hex // want to validate that this is the correct spender (no free permits)
 
   @IsNotEmpty()
-  @IsNumberString({ no_symbols: true })
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
   sigDeadline: bigint // string of a UNIX seconds since epoch integer

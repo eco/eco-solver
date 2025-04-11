@@ -7,6 +7,16 @@ import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 
 export class GaslessIntentRequestDTO {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  quoteID: string
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @IsString()
+  dAppID: string
+
   @IsNotEmpty()
   @IsString()
   @ApiProperty()

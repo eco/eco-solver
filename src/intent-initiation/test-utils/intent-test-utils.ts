@@ -60,6 +60,8 @@ export class IntentTestUtils {
     }
 
     const gaslessIntentRequestDTO: GaslessIntentRequestDTO = {
+      quoteID: 'QuoteID',
+      dAppID: 'Portal',
       route: this.quoteTestUtils.createQuoteRouteDataDTO(),
       salt: ('0x' + 'abcd'.padEnd(64, '0')) as Hex,
       reward: this.createRewardDTO({ token }),

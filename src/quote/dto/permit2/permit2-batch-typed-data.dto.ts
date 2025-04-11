@@ -5,7 +5,6 @@ import { Transform, Type } from 'class-transformer'
 
 import {
   IsNotEmpty,
-  IsNumberString,
   ArrayNotEmpty,
   IsArray,
   ValidateNested,
@@ -26,7 +25,6 @@ export class Permit2BatchTypedDataDTO {
   spender: Hex
 
   @IsNotEmpty()
-  @IsNumberString({ no_symbols: true })
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
   sigDeadline: bigint // string of a UNIX seconds since epoch integer
