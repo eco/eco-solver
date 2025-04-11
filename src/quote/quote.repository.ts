@@ -1,15 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
+import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
+import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
-import { QuoteExecutionType, QuotesConfig } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoResponse } from '@/common/eco-response'
-import { EcoError } from '@/common/errors/eco-error'
+import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -35,61 +37,61 @@ export class QuoteRepository {
    * @param quoteIntentDataDTO the quote intent data
    * @returns the stored record or an error
    */
-  // async storeQuoteIntentData(
-  //   quoteIntentDataDTO: QuoteIntentDataDTO,
-  // ): Promise<EcoResponse<QuoteIntentModel>> {
-  //   const intentExecutionTypes = quoteIntentDataDTO.intentExecutionTypes
+  async storeQuoteIntentData(
+    quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<EcoResponse<QuoteIntentModel[]>> {
+    const supportedIntentExecutionTypes = this.quotesConfig.intentExecutionTypes as string[]
+    const errors: any[] = []
+    const quoteIntentModels: QuoteIntentModel[] = []
 
-  //   for (const intentExecutionType of quoteIntentDataDTO.intentExecutionTypes) {
-  //     // Check if the intent execution type is valid
-  //     if (intentExecutionTypes.includes(intentExecutionType as QuoteExecutionType)) {
-  //       const { error } = await this.storeQuoteIntentDataForExecutionType(quoteIntentDataDTO)
+    for (const intentExecutionType of quoteIntentDataDTO.intentExecutionTypes) {
+      // Check if the intent execution type is valid
+      if (supportedIntentExecutionTypes.includes(intentExecutionType)) {
+        const quoteIntentModel = this.getQuoteIntentModel(intentExecutionType, quoteIntentDataDTO)
+        const { response: dbQuoteIntentModel, error } =
+          await this.storeQuoteIntentDataForExecutionType(quoteIntentModel)
 
-  //       if (error) {
-  //         this.logger.error(
-  //           EcoLogMessage.fromDefault({
-  //             message: `storeQuoteIntentData: error storing quote for: ${intentExecutionType}`,
-  //             properties: {
-  //               error,
-  //             },
-  //           }),
-  //         )
+        if (error) {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: `storeQuoteIntentData: error storing quote for: ${intentExecutionType}`,
+              properties: {
+                error,
+              },
+            }),
+          )
 
-  //         return { error }
-  //       }
-  //     }
-  //   }
-  // }
+          errors.push(error)
+          continue
+        }
+
+        quoteIntentModel._id = dbQuoteIntentModel!._id
+        quoteIntentModels.push(quoteIntentModel)
+      }
+    }
+
+    if (quoteIntentModels.length === 0) {
+      return { error: errors }
+    }
+
+    return { response: quoteIntentModels }
+  }
 
   /**
    * Stores the quote into the db
    * @param quoteIntentDataDTO the quote intent data
    * @returns the stored record or an error
    */
-  async storeQuoteIntentData(
-    quoteIntentDataDTO: QuoteIntentDataDTO,
+  private async storeQuoteIntentDataForExecutionType(
+    quoteIntentModel: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteIntentModel>> {
     try {
-      const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
-
-      // Hash the route using a bogus zero hash
-      const saltedRoute: RouteType = {
-        salt: ZERO_SALT,
-        ...quoteRoute,
-      }
-
-      const quoteIntentModel: QuoteIntentModel = {
-        dAppID,
-        routeHash: hashRoute(saltedRoute),
-        route: quoteRoute,
-        reward,
-      } as QuoteIntentModel
-
       const record = await this.quoteIntentModel.create(quoteIntentModel)
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Recorded quote intent`,
           properties: {
+            quoteIntentModel,
             record,
           },
         }),
@@ -100,13 +102,30 @@ export class QuoteRepository {
         EcoLogMessage.fromDefault({
           message: `Error in storeQuoteIntentData`,
           properties: {
-            quoteIntentDataDTO,
+            quoteIntentModel,
             error: ex.message,
           },
         }),
       )
       return { error: ex }
     }
+  }
+
+  private getQuoteIntentModel(
+    intentExecutionType: string,
+    quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): QuoteIntentModel {
+    const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
+
+    const quoteIntentModel: QuoteIntentModel = {
+      dAppID,
+      intentExecutionType,
+      routeHash: this.getRouteHash(quoteRoute),
+      route: quoteRoute,
+      reward,
+    } as QuoteIntentModel
+
+    return quoteIntentModel
   }
 
   /**
@@ -129,23 +148,68 @@ export class QuoteRepository {
    * @param quoteIntentModel the model to update
    * @returns
    */
-  async updateQuoteDb(quoteIntentModel: QuoteIntentModel, receipt?: any) {
+  async updateQuoteDb(
+    quoteIntentModel: QuoteIntentModel,
+    updateQuoteParams: UpdateQuoteParams,
+  ): Promise<EcoResponse<QuoteIntentModel>> {
     try {
-      if (receipt) {
-        quoteIntentModel.receipt = receipt
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `updateQuoteDb`,
+          properties: {
+            quoteIntentModel,
+            updateQuoteParams,
+          },
+        }),
+      )
+
+      const { error, quoteDataEntry } = updateQuoteParams
+      const { routeTokens, routeCalls, rewardTokens } = quoteDataEntry!
+
+      // Get the updated route
+      const updatedRoute: QuoteRouteDataModel = {
+        ...quoteIntentModel.route,
+        tokens: routeTokens,
+        calls: routeCalls,
       }
-      await this.quoteIntentModel.updateOne({ _id: quoteIntentModel._id }, quoteIntentModel)
-    } catch (e) {
+
+      // Update the quote intent model in the db
+      const updates = {
+        receipt: error ? { error } : { quoteDataEntry },
+        routeHash: this.getRouteHash(updatedRoute),
+        'route.tokens': routeTokens,
+        'route.calls': routeCalls,
+        'reward.tokens': rewardTokens,
+      }
+
+      const updatedModel = await this.quoteIntentModel.findOneAndUpdate(
+        { _id: quoteIntentModel._id },
+        { $set: updates },
+        { upsert: false, new: true },
+      )
+
+      return { response: updatedModel! }
+    } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `Error in updateQuoteDb`,
           properties: {
             quoteIntentModel,
-            error: e,
+            error: ex.message,
           },
         }),
       )
-      return e
+      return { error: EcoError.QuoteDBUpdateError }
     }
+  }
+
+  private getRouteHash(quoteRoute: QuoteRouteDataInterface): string {
+    // Hash the route using a bogus zero hash
+    const saltedRoute: RouteType = {
+      ...quoteRoute,
+      salt: ZERO_SALT,
+    }
+
+    return hashRoute(saltedRoute)
   }
 }

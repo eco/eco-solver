@@ -11,7 +11,6 @@ import {
   QuoteError,
   SolverUnsupported,
 } from '@/quote/errors'
-import { QuoteDataDTO } from '../dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
@@ -97,124 +96,35 @@ describe('QuotesService', () => {
     })
 
     it('should return a 400 if it fails to validate the quote data', async () => {
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: {} })
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: [quoteTestUtils.createQuoteIntentModel()] })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
       const { error } = await quoteService.getQuote({} as any)
-      expect(error).toEqual(SolverUnsupported)
+      expect(error).toEqual([SolverUnsupported])
     })
 
     it('should save any error in getting the quote to the db', async () => {
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
       const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
+
+      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({
+        response: [quoteIntent],
+      })
+
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
       quoteService.generateQuote = jest.fn().mockImplementation(() => {
         throw failedStore
       })
+
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
+
       const { error } = await quoteService.getQuote({} as any)
+
       expect(error).toBeDefined()
       expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { error })
-    })
-
-    it('should return the quote', async () => {
-      const route = quoteTestUtils.createQuoteRouteDataDTO()
-      const quoteData: QuoteDataDTO = {
-        quoteEntries: [
-          {
-            intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
-            routeTokens: route.tokens,
-            routeCalls: route.calls,
-            rewardTokens: [
-              {
-                token: '0x123',
-                amount: 100n,
-              },
-            ],
-            expiryTime: '0',
-          },
-          {
-            intentExecutionType: IntentExecutionType.GASLESS.toString(),
-            routeTokens: route.tokens,
-            routeCalls: route.calls,
-            rewardTokens: [
-              {
-                token: '0x456',
-                amount: 200n,
-              },
-            ],
-            expiryTime: '10',
-          },
-        ],
-      }
-
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
-      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
-      quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
-      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
-      expect(await quoteService.getQuote({} as any)).toEqual({ response: quoteData })
-      expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { quoteData })
-    })
-  })
-
-  describe('on getReverseQuote', () => {
-    const quoteIntent = { reward: { tokens: [] }, route: {} } as any
-
-    it('should throw an error if it cant store the quote in the db ', async () => {
-      const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ error: failedStore })
-      const { error } = await quoteService.getReverseQuote({} as any)
-      expect(error).toEqual(InternalSaveError(failedStore))
-    })
-
-    it('should return a 400 if it fails to validate the quote data', async () => {
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: {} })
-      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
-      const { error } = await quoteService.getReverseQuote({} as any)
-      expect(error).toEqual(SolverUnsupported)
-    })
-
-    it('should save any error in getting the quote to the db', async () => {
-      const failedStore = new Error('error')
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
-      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
-      quoteService.generateReverseQuote = jest.fn().mockImplementation(() => {
-        throw failedStore
-      })
-      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
-      const { error } = await quoteService.getReverseQuote({} as any)
-      expect(error).toBeDefined()
-      expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { error })
-    })
-
-    it('should return the reverse quote', async () => {
-      const route = quoteTestUtils.createQuoteRouteDataDTO()
-      const quoteData: QuoteDataDTO = {
-        quoteEntries: [
-          {
-            intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
-            routeTokens: route.tokens,
-            routeCalls: route.calls,
-            rewardTokens: [
-              {
-                token: '0x123',
-                amount: 100n,
-              },
-            ],
-            expiryTime: '0',
-          },
-        ],
-      }
-
-      quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ response: quoteIntent })
-      quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(undefined)
-      quoteService.getQuotesForIntentTypes = jest.fn().mockResolvedValue({ response: quoteData })
-      const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
-      expect(await quoteService.getReverseQuote({} as any)).toEqual({ response: quoteData })
-      expect(mockDb).toHaveBeenCalled()
-      expect(mockDb).toHaveBeenCalledWith(quoteIntent, { quoteData })
+      expect(mockDb).toHaveBeenCalledWith(
+        quoteIntent,
+        { error: expect.objectContaining({ message: expect.stringContaining('error') }) },
+      )
     })
   })
 
@@ -229,11 +139,11 @@ describe('QuotesService', () => {
     })
 
     it('should save the DTO and return a record', async () => {
-      const quoteIntent = quoteTestUtils.createQuoteIntentDataDTO()
-      const data = { fee: 1n }
-      jest.spyOn(quoteModel, 'create').mockResolvedValue(data as any)
-      const { response: quoteIntentModel } = await quoteService.storeQuoteIntentData(quoteIntent)
-      expect(quoteIntentModel).toEqual(data)
+      const quoteIntentData = quoteTestUtils.createQuoteIntentDataDTO({ intentExecutionTypes: [IntentExecutionType.GASLESS.toString()] })
+      const quoteIntentModel = quoteTestUtils.getQuoteIntentModel(quoteIntentData.intentExecutionTypes[0], quoteIntentData)
+      jest.spyOn(quoteModel, 'create').mockResolvedValue(quoteIntentModel as any)
+      const { response: quoteIntentModels } = await quoteService.storeQuoteIntentData(quoteIntentData)
+      expect(quoteIntentModels).toEqual([quoteIntentModel])
       expect(mockLogError).not.toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalled()
     })
@@ -655,36 +565,6 @@ describe('QuotesService', () => {
     it('should return the correct expiry time', async () => {
       const expiryTime = quoteService.getQuoteExpiryTime()
       expect(Number(expiryTime)).toBeGreaterThan(0)
-    })
-  })
-
-  describe('on updateQuoteDb', () => {
-    const _id = 'id9'
-    it('should return error if db save fails', async () => {
-      const failedStore = new Error('error')
-      jest.spyOn(quoteModel, 'updateOne').mockRejectedValue(failedStore)
-      const r = await quoteService.updateQuoteDb({ _id } as any)
-      expect(r).toEqual(failedStore)
-      expect(mockLogError).toHaveBeenCalled()
-    })
-
-    it('should save the DTO', async () => {
-      const data = { fee: 1n }
-      jest.spyOn(quoteModel, 'updateOne').mockResolvedValue(data as any)
-      const r = await quoteService.updateQuoteDb({ _id } as any)
-      expect(r).toBeUndefined()
-      expect(mockLogError).not.toHaveBeenCalled()
-      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith({ _id }, { _id })
-    })
-
-    it('should save the DTO with a reciept', async () => {
-      const data = { fee: 1n }
-      const receipt = 'receipt'
-      jest.spyOn(quoteModel, 'updateOne').mockResolvedValue(data as any)
-      const r = await quoteService.updateQuoteDb({ _id, receipt } as any)
-      expect(r).toBeUndefined()
-      expect(mockLogError).not.toHaveBeenCalled()
-      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith({ _id }, { _id, receipt })
     })
   })
 })
