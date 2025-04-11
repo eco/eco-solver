@@ -30,17 +30,16 @@ describe('QuoteRepository', () => {
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
-    const $ = EcoTester.setupTestFor(QuoteRepository)
-      .withProviders([
-        {
-          provide: getModelToken(QuoteIntentModel.name),
-          useValue: mockQuoteIntentModel,
-        },
-        {
-          provide: EcoConfigService,
-          useValue: mockEcoConfigService,
-        },
-      ])
+    const $ = EcoTester.setupTestFor(QuoteRepository).withProviders([
+      {
+        provide: getModelToken(QuoteIntentModel.name),
+        useValue: mockQuoteIntentModel,
+      },
+      {
+        provide: EcoConfigService,
+        useValue: mockEcoConfigService,
+      },
+    ])
 
     quoteRepository = await $.init()
     quoteRepository.onModuleInit()
@@ -148,9 +147,7 @@ describe('QuoteRepository', () => {
         { target: addressTargetA, data: '0xabc' as Hex, value: 0n },
         { target: addressTargetB, data: '0xdef' as Hex, value: 0n },
       ]
-      const fullRewardTokens = [
-        { token: addressReward1, amount: 21000n },
-      ]
+      const fullRewardTokens = [{ token: addressReward1, amount: 21000n }]
 
       const fullRoute = {
         ...quoteIntentModel.route,
@@ -199,7 +196,10 @@ describe('QuoteRepository', () => {
       const originalRouteHash = (quoteRepository as any).getRouteHash(quoteIntentModel.route)
 
       const newToken = quoteTestUtils.getRandomAddress()
-      const modifiedRouteTokens = [...quoteIntentModel.route.tokens, { token: newToken, amount: 1234n }]
+      const modifiedRouteTokens = [
+        ...quoteIntentModel.route.tokens,
+        { token: newToken, amount: 1234n },
+      ]
       const modifiedRoute = {
         ...quoteIntentModel.route,
         tokens: modifiedRouteTokens,
@@ -230,9 +230,7 @@ describe('QuoteRepository', () => {
       const quoteIntentModel = quoteTestUtils.createQuoteIntentModel()
       const originalHash = (quoteRepository as any).getRouteHash(quoteIntentModel.route)
 
-      const modifiedRewardTokens = [
-        { token: quoteTestUtils.getRandomAddress(), amount: 98765n },
-      ]
+      const modifiedRewardTokens = [{ token: quoteTestUtils.getRandomAddress(), amount: 98765n }]
 
       mockFindOneAndUpdate.mockResolvedValue({
         ...quoteIntentModel,
@@ -262,11 +260,14 @@ describe('QuoteRepository', () => {
       const hashBefore = (quoteRepository as any).getRouteHash(route)
       const newRoute = {
         ...route,
-        calls: [...route.calls, {
-          target: quoteTestUtils.getRandomAddress(),
-          data: '0xdeadbeef',
-          value: 0n,
-        }],
+        calls: [
+          ...route.calls,
+          {
+            target: quoteTestUtils.getRandomAddress(),
+            data: '0xdeadbeef',
+            value: 0n,
+          },
+        ],
       }
       const hashAfter = (quoteRepository as any).getRouteHash(newRoute)
 
