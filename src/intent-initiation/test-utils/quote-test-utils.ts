@@ -99,7 +99,7 @@ export class QuoteTestUtils {
     const quoteIntentModel: QuoteIntentModel = {
       dAppID,
       intentExecutionType,
-      routeHash: this.getRouteHash(quoteRoute),
+      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
     } as QuoteIntentModel
