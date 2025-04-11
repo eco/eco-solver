@@ -170,12 +170,12 @@ export class IntentInitiationService implements OnModuleInit {
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
     // First fetch the quote using the bogus zero hash
     const { salt, route: quoteRoute } = gaslessIntentRequestDTO
-    const route: RouteType = {
-      salt: ZERO_SALT,
+    const saltedRoute: RouteType = {
       ...quoteRoute,
+      salt: ZERO_SALT,
     }
 
-    const routeHash = hashRoute(route)
+    const routeHash = hashRoute(saltedRoute)
     const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({ routeHash })
 
     if (error) {
