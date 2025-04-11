@@ -53,10 +53,14 @@ describe('QuoteService', () => {
 =======
             getSolver: () => ({ targets: { '0xabc': {} } }),
             getSupportedChains: () => [31337],
+<<<<<<< HEAD
             getIntentSources: () => [
               { chainID: 31337, provers: ['0xprover'] },
             ],
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+            getIntentSources: () => [{ chainID: 31337, provers: ['0xprover'] }],
+>>>>>>> e5064b0 ( - Passed thru uglifier)
           },
         },
         {
@@ -111,9 +115,12 @@ describe('QuoteService', () => {
 
   describe('QuoteService - regular quotes & error handling', () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+>>>>>>> e5064b0 ( - Passed thru uglifier)
     it('should store and generate quote for GASLESS', async () => {
       const model = quoteTestUtils.createQuoteIntentModel({ intentExecutionType: 'GASLESS' })
 
@@ -141,12 +148,18 @@ describe('QuoteService', () => {
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
 <<<<<<< HEAD
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
 =======
       const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
+>>>>>>> e5064b0 ( - Passed thru uglifier)
       jest.spyOn(quoteService, 'generateQuote').mockResolvedValue({ response: mockEntry })
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
@@ -162,12 +175,18 @@ describe('QuoteService', () => {
       })
       const mockIntent = quoteTestUtils.createQuoteIntentModel()
 <<<<<<< HEAD
+<<<<<<< HEAD
       jest
         .spyOn(quoteRepository, 'storeQuoteIntentData')
         .mockResolvedValue({ response: [mockIntent] })
 =======
       jest.spyOn(quoteRepository, 'storeQuoteIntentData').mockResolvedValue({ response: [mockIntent] })
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+      jest
+        .spyOn(quoteRepository, 'storeQuoteIntentData')
+        .mockResolvedValue({ response: [mockIntent] })
+>>>>>>> e5064b0 ( - Passed thru uglifier)
       jest.spyOn(quoteService['ecoConfigService'], 'getSolver').mockReturnValue(undefined)
 
       const result = await quoteService.getQuote(dto)
@@ -206,12 +225,18 @@ describe('QuoteService', () => {
       }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
 =======
       const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
+>>>>>>> e5064b0 ( - Passed thru uglifier)
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
@@ -220,20 +245,29 @@ describe('QuoteService', () => {
       expect(result.error![0].name).toBe(InvalidQuoteIntent(failedValidations).name)
       expect(mockUpdate).toHaveBeenCalled()
 <<<<<<< HEAD
+<<<<<<< HEAD
       expect(mockUpdate).toHaveBeenCalledWith(model, {
         error: InvalidQuoteIntent(failedValidations),
       })
 =======
       expect(mockUpdate).toHaveBeenCalledWith(model, { error: InvalidQuoteIntent(failedValidations) })
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+      expect(mockUpdate).toHaveBeenCalledWith(model, {
+        error: InvalidQuoteIntent(failedValidations),
+      })
+>>>>>>> e5064b0 ( - Passed thru uglifier)
     })
   })
 
   describe('QuoteService - reverse quotes & error handling', () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+>>>>>>> e5064b0 ( - Passed thru uglifier)
     it('should generate a reverse quote when route is feasible and valid', async () => {
       const model = quoteTestUtils.createQuoteIntentModel({ intentExecutionType: 'GASLESS' })
 
@@ -261,6 +295,7 @@ describe('QuoteService', () => {
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
 <<<<<<< HEAD
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
@@ -276,6 +311,17 @@ describe('QuoteService', () => {
 
       const result = await quoteService.getReverseQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
+      jest.spyOn(quoteService, 'generateReverseQuote').mockResolvedValue({ response: mockEntry })
+
+      const result = await quoteService.getReverseQuote({
+        ...model,
+        intentExecutionTypes: ['GASLESS'],
+      })
+>>>>>>> e5064b0 ( - Passed thru uglifier)
       expect(result.response!.quoteEntries.length).toBe(1)
       expect(result.response!.quoteEntries[0]).toEqual(mockEntry)
       expect(mockUpdate).toHaveBeenCalled()
@@ -304,6 +350,7 @@ describe('QuoteService', () => {
       }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
@@ -319,6 +366,17 @@ describe('QuoteService', () => {
 
       const result = await quoteService.getReverseQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
+
+      const result = await quoteService.getReverseQuote({
+        ...model,
+        intentExecutionTypes: ['GASLESS'],
+      })
+>>>>>>> e5064b0 ( - Passed thru uglifier)
       expect(result.error![0].name).toBe(InfeasibleQuote(error).name)
       expect(mockUpdate).toHaveBeenCalled()
       expect(mockUpdate).toHaveBeenCalledWith(model, { error: InfeasibleQuote(error) })
