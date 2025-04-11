@@ -115,9 +115,10 @@ export class QuoteRepository {
     intentExecutionType: string,
     quoteIntentDataDTO: QuoteIntentDataDTO,
   ): QuoteIntentModel {
-    const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
+    const { quoteID, dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
 
     const quoteIntentModel: QuoteIntentModel = {
+      quoteID,
       dAppID,
       intentExecutionType,
       routeHash: this.getRouteHash(quoteRoute),

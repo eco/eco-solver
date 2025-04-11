@@ -51,6 +51,31 @@ export class IntentInitiationService implements OnModuleInit {
   async initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<TransactionReceipt>> {
+    try {
+      return await this._initiateGaslessIntent(gaslessIntentRequestDTO)
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `initiateGaslessIntent: error`,
+          properties: {
+            error: ex.message,
+          },
+        }),
+        ex.stack,
+      )
+
+      return { error: InternalQuoteError(ex) }
+    }
+  }
+
+  /**
+   * This function is used to initiate a gasless intent. It generates the permit transactions and fund transaction.
+   * @param gaslessIntentRequestDTO
+   * @returns
+   */
+  async _initiateGaslessIntent(
+    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+  ): Promise<EcoResponse<TransactionReceipt>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
     // Get all the txs
@@ -168,15 +193,8 @@ export class IntentInitiationService implements OnModuleInit {
   private async getIntentFundForTx(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
-    // First fetch the quote using the bogus zero hash
-    const { salt, route: quoteRoute } = gaslessIntentRequestDTO
-    const saltedRoute: RouteType = {
-      ...quoteRoute,
-      salt: ZERO_SALT,
-    }
-
-    const routeHash = hashRoute(saltedRoute)
-    const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({ routeHash })
+    const { quoteID, salt, route: quoteRoute } = gaslessIntentRequestDTO
+    const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({ quoteID })
 
     if (error) {
       return { error }
@@ -184,8 +202,8 @@ export class IntentInitiationService implements OnModuleInit {
 
     // Now we need to get the route hash with the real salt
     const routeWithSalt: RouteType = {
-      salt,
       ...quoteRoute,
+      salt,
     }
 
     const realRouteHash = hashRoute(routeWithSalt)
