@@ -9,6 +9,7 @@ import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getChainConfig } from '@/eco-configs/utils'
 import { Injectable, OnModuleInit } from '@nestjs/common'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ModuleRef } from '@nestjs/core'
@@ -21,8 +22,6 @@ import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import * as _ from 'lodash'
-
-export const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
@@ -77,6 +76,15 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<TransactionReceipt>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
+
+    const quoteExists = await this.quoteService.quoteExists({
+      quoteID: gaslessIntentRequestDTO.quoteID,
+      intentExecutionType: IntentExecutionType.GASLESS.toString(),
+    })
+
+    if (!quoteExists) {
+      return { error: EcoError.QuoteNotFound }
+    }
 
     // Get all the txs
     const { response: allTxs, error } =
@@ -194,7 +202,11 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
     const { quoteID, salt, route: quoteRoute } = gaslessIntentRequestDTO
-    const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({ quoteID })
+
+    const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({
+      quoteID,
+      intentExecutionType: IntentExecutionType.GASLESS.toString(),
+    })
 
     if (error) {
       return { error }

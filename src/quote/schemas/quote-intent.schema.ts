@@ -18,8 +18,8 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
   @Prop({ required: true, enum: IntentExecutionType.enumKeys })
   intentExecutionType: string
 
-  @Prop({ required: true, type: String })
-  routeHash: string
+  // @Prop({ required: true, type: String })
+  // routeHash: string
 
   @Prop({ required: true, type: QuoteRouteDataSchema })
   route: QuoteRouteDataModel
@@ -35,4 +35,4 @@ export const QuoteIntentSchema = SchemaFactory.createForClass(QuoteIntentModel)
 QuoteIntentSchema.index({ quoteID: 1 }, { unique: false })
 QuoteIntentSchema.index({ dAppID: 1 }, { unique: false })
 QuoteIntentSchema.index({ intentExecutionType: 1 }, { unique: false })
-QuoteIntentSchema.index({ routeHash: 1 }, { unique: false })
+// QuoteIntentSchema.index({ routeHash: 1 }, { unique: false })

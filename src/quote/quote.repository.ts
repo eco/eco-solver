@@ -121,7 +121,7 @@ export class QuoteRepository {
       quoteID,
       dAppID,
       intentExecutionType,
-      routeHash: this.getRouteHash(quoteRoute),
+      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
     } as QuoteIntentModel
@@ -142,6 +142,16 @@ export class QuoteRepository {
     }
 
     return { response: quoteIntentData }
+  }
+
+  /**
+   * Checks if a quote exists in the db
+   * @param query the quote intent data
+   * @returns true if the quote exists, false otherwise
+   */
+  async quoteExists(query: object): Promise<boolean> {
+    const quoteIntentData = await this.quoteIntentModel.findOne(query)
+    return Boolean(quoteIntentData)
   }
 
   /**
