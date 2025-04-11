@@ -218,6 +218,15 @@ export class QuoteService implements OnModuleInit {
   }
 
   /**
+   * Fetch a quote from the db
+   * @param query the quote intent data
+   * @returns the quote or an error
+   */
+  async quoteExists(query: object): Promise<boolean> {
+    return this.quoteRepository.quoteExists(query)
+  }
+
+  /**
    * Validates that the quote intent data is valid.
    * Checks that there is a solver, that the assert validations pass,
    * and that the quote intent is feasible.
