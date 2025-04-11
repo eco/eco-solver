@@ -1,11 +1,16 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@/fee/fee.service'
+<<<<<<< HEAD
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Logger } from '@nestjs/common'
 import { parseGwei } from 'viem'
+=======
+import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
+import { Logger } from '@nestjs/common'
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
@@ -21,7 +26,10 @@ describe('QuoteService', () => {
   let quoteRepository: QuoteRepository
   let feeService: FeeService
   let validationService: ValidationService
+<<<<<<< HEAD
   let intentInitiationService: IntentInitiationService
+=======
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 
   const quoteTestUtils = new QuoteTestUtils()
 
@@ -32,6 +40,7 @@ describe('QuoteService', () => {
           provide: EcoConfigService,
           useValue: {
             getQuotesConfig: () => ({ intentExecutionTypes: ['GASLESS', 'SELF_PUBLISH'] }),
+<<<<<<< HEAD
             getGasEstimationsConfig: () => ({
               fundFor: 150_000n,
               permit: 60_000n,
@@ -41,6 +50,13 @@ describe('QuoteService', () => {
             getSolver: () => ({ targets: { '0xabc': {} } }),
             getSupportedChains: () => [31337],
             getIntentSources: () => [{ chainID: 31337, provers: ['0xprover'] }],
+=======
+            getSolver: () => ({ targets: { '0xabc': {} } }),
+            getSupportedChains: () => [31337],
+            getIntentSources: () => [
+              { chainID: 31337, provers: ['0xprover'] },
+            ],
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
           },
         },
         {
@@ -65,8 +81,11 @@ describe('QuoteService', () => {
         },
       ])
       .withMocks([
+<<<<<<< HEAD
         IntentInitiationService,
         FulfillmentEstimateService,
+=======
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
         QuoteRepository,
         {
           provide: EcoConfigService,
@@ -81,13 +100,20 @@ describe('QuoteService', () => {
 
     quoteService = await $.init()
     quoteRepository = await $.get(QuoteRepository)
+<<<<<<< HEAD
     intentInitiationService = await $.get(IntentInitiationService)
+=======
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
     feeService = await $.get(FeeService)
     validationService = await $.get(ValidationService)
     quoteService.onModuleInit()
   })
 
   describe('QuoteService - regular quotes & error handling', () => {
+<<<<<<< HEAD
+=======
+
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
     it('should store and generate quote for GASLESS', async () => {
       const model = quoteTestUtils.createQuoteIntentModel({ intentExecutionType: 'GASLESS' })
 
@@ -96,7 +122,10 @@ describe('QuoteService', () => {
       })
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
+<<<<<<< HEAD
       jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('50'))
+=======
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 
       const successfulValidations = {
         supportedProver: true,
@@ -111,9 +140,13 @@ describe('QuoteService', () => {
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
+=======
+      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
       jest.spyOn(quoteService, 'generateQuote').mockResolvedValue({ response: mockEntry })
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
@@ -128,15 +161,33 @@ describe('QuoteService', () => {
         intentExecutionTypes: ['GASLESS'],
       })
       const mockIntent = quoteTestUtils.createQuoteIntentModel()
+<<<<<<< HEAD
       jest
         .spyOn(quoteRepository, 'storeQuoteIntentData')
         .mockResolvedValue({ response: [mockIntent] })
+=======
+      jest.spyOn(quoteRepository, 'storeQuoteIntentData').mockResolvedValue({ response: [mockIntent] })
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
       jest.spyOn(quoteService['ecoConfigService'], 'getSolver').mockReturnValue(undefined)
 
       const result = await quoteService.getQuote(dto)
       expect(result.error).toBeDefined()
     })
 
+<<<<<<< HEAD
+=======
+    it('should call generateQuoteForIntentExecutionType for all supported types', async () => {
+      const model = quoteTestUtils.createQuoteIntentModel()
+
+      jest.spyOn(quoteService, 'generateQuote').mockResolvedValue({
+        response: quoteTestUtils.createQuoteDataEntryDTO(),
+      })
+
+      const result = await quoteService.getQuotesForIntentTypes(model)
+      expect(result.response!.quoteEntries.length).toBeGreaterThan(0)
+    })
+
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
     it('should return InvalidQuoteIntent error when validations fail', async () => {
       const model = quoteTestUtils.createQuoteIntentModel()
 
@@ -154,9 +205,13 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
       }
 
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
+=======
+      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
@@ -164,13 +219,21 @@ describe('QuoteService', () => {
       expect(result.error).toBeDefined()
       expect(result.error![0].name).toBe(InvalidQuoteIntent(failedValidations).name)
       expect(mockUpdate).toHaveBeenCalled()
+<<<<<<< HEAD
       expect(mockUpdate).toHaveBeenCalledWith(model, {
         error: InvalidQuoteIntent(failedValidations),
       })
+=======
+      expect(mockUpdate).toHaveBeenCalledWith(model, { error: InvalidQuoteIntent(failedValidations) })
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
     })
   })
 
   describe('QuoteService - reverse quotes & error handling', () => {
+<<<<<<< HEAD
+=======
+
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
     it('should generate a reverse quote when route is feasible and valid', async () => {
       const model = quoteTestUtils.createQuoteIntentModel({ intentExecutionType: 'GASLESS' })
 
@@ -179,7 +242,10 @@ describe('QuoteService', () => {
       })
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
+<<<<<<< HEAD
       jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('35'))
+=======
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 
       const successfulValidations = {
         supportedProver: true,
@@ -194,6 +260,7 @@ describe('QuoteService', () => {
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
@@ -203,6 +270,12 @@ describe('QuoteService', () => {
         ...model,
         intentExecutionTypes: ['GASLESS'],
       })
+=======
+      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+      jest.spyOn(quoteService, 'generateReverseQuote').mockResolvedValue({ response: mockEntry })
+
+      const result = await quoteService.getReverseQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
       expect(result.response!.quoteEntries.length).toBe(1)
       expect(result.response!.quoteEntries[0]).toEqual(mockEntry)
       expect(mockUpdate).toHaveBeenCalled()
@@ -230,6 +303,7 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
       }
 
+<<<<<<< HEAD
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
@@ -239,6 +313,12 @@ describe('QuoteService', () => {
         ...model,
         intentExecutionTypes: ['GASLESS'],
       })
+=======
+      const mockUpdate = jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: model })
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
+
+      const result = await quoteService.getReverseQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
       expect(result.error![0].name).toBe(InfeasibleQuote(error).name)
       expect(mockUpdate).toHaveBeenCalled()
       expect(mockUpdate).toHaveBeenCalledWith(model, { error: InfeasibleQuote(error) })
@@ -280,6 +360,7 @@ describe('QuoteService', () => {
       expect(error).toEqual(InfeasibleQuote(expect.any(Error)))
     })
   })
+<<<<<<< HEAD
 
   describe('estimateFlatFee', () => {
     it('should estimate flat fee correctly with 2 reward tokens', async () => {
@@ -319,4 +400,6 @@ describe('QuoteService', () => {
       expect(intentInitiationService.getGasPrice).toHaveBeenCalled()
     })
   })
+=======
+>>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 })
