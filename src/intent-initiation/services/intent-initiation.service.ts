@@ -77,14 +77,14 @@ export class IntentInitiationService implements OnModuleInit {
   ): Promise<EcoResponse<TransactionReceipt>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
-    const quoteExists = await this.quoteService.quoteExists({
-      quoteID: gaslessIntentRequestDTO.quoteID,
-      intentExecutionType: IntentExecutionType.GASLESS.toString(),
-    })
+    // const quoteExists = await this.quoteService.quoteExists({
+    //   quoteID: gaslessIntentRequestDTO.quoteID,
+    //   intentExecutionType: IntentExecutionType.GASLESS.toString(),
+    // })
 
-    if (!quoteExists) {
-      return { error: EcoError.QuoteNotFound }
-    }
+    // if (!quoteExists) {
+    //   return { error: EcoError.QuoteNotFound }
+    // }
 
     // Get all the txs
     const { response: allTxs, error } =
