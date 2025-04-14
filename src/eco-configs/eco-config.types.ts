@@ -11,14 +11,13 @@ import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enu
 
 // The config type that we store in json
 export type EcoConfigType = {
-  server: {
-    url: string
-  }
+  server: ServerConfig
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
   quotesConfig: QuotesConfig
+  solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
   cache: CacheModuleOptions
@@ -142,6 +141,10 @@ export type IntentConfig = {
   }
 }
 
+export type ServerConfig = {
+  url: string
+}
+
 /**
  * The config type for the quotes section
  */
@@ -149,6 +152,12 @@ export type QuoteExecutionType = (typeof IntentExecutionTypeKeys)[number]
 
 export type QuotesConfig = {
   intentExecutionTypes: QuoteExecutionType[]
+}
+
+export type SolverRegistrationConfig = {
+  apiOptions: {
+    baseUrl: string
+  }
 }
 
 /**
