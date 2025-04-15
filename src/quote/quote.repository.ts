@@ -175,6 +175,17 @@ export class QuoteRepository {
       )
 
       const { error, quoteDataEntry } = updateQuoteParams
+
+      if (error) {
+        const updatedModel = await this.quoteIntentModel.findOneAndUpdate(
+          { _id: quoteIntentModel._id },
+          { $set: { receipt: { error } } },
+          { upsert: false, new: true },
+        )
+
+        return { response: updatedModel! }
+      }
+
       const { routeTokens, routeCalls, rewardTokens } = quoteDataEntry!
 
       // Get the updated route
@@ -186,7 +197,7 @@ export class QuoteRepository {
 
       // Update the quote intent model in the db
       const updates = {
-        receipt: error ? { error } : { quoteDataEntry },
+        receipt: { quoteDataEntry },
         routeHash: this.getRouteHash(updatedRoute),
         'route.tokens': routeTokens,
         'route.calls': routeCalls,
