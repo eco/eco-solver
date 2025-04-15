@@ -11,7 +11,7 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { getAddress } from 'viem'
+import { Chain, getAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -41,6 +41,8 @@ export class EcoConfigService {
   static getStaticConfig(): EcoConfigType {
     return config as unknown as EcoConfigType
   }
+
+  async onModuleInit() {}
 
   // Initialize the configs
   initConfigs() {
@@ -228,15 +230,20 @@ export class EcoConfigService {
     return this.get('indexer')
   }
 
-  getChainRPCs() {
-    const { apiKey, networks } = this.getAlchemy()
-    const supportedAlchemyChainIds = _.map(networks, 'id')
+  getRpcUrls(): EcoConfigType['rpcUrls'] {
+    return this.get('rpcUrls')
+  }
 
-    const entries = ChainsSupported.map((chain) => {
-      const rpcApiKey = supportedAlchemyChainIds.includes(chain.id) ? apiKey : undefined
-      return [chain.id, getRpcUrl(chain, rpcApiKey).url]
-    })
+  getChainRPCs() {
+    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain).url])
     return Object.fromEntries(entries) as Record<number, string>
+  }
+
+  getRpcUrl(chain: Chain, websocketEnabled?: boolean) {
+    const alchemy = this.getAlchemy()
+    const rpcUrls = this.getRpcUrls()[chain.id.toString()]
+    const options = { alchemyApiKey: alchemy.apiKey, rpcUrls, websocketEnabled }
+    return getRpcUrl(chain, options)
   }
 
   /**

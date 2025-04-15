@@ -69,6 +69,9 @@ export class EcoError extends Error {
     `All Permits must be on the same chain for batching`,
   )
   static GasEstimationError = new Error('Error estimating gas')
+  static RebalancingRouteNotFound() {
+    return new EcoError(`A rebalancing route not found`)
+  }
 
   static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')

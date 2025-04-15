@@ -88,7 +88,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
         surplus.items,
       )
 
-      if (!rebalancingQuotes) {
+      if (!rebalancingQuotes.length) {
         processor.logger.debug(
           EcoLogMessage.fromDefault({
             message: 'CheckBalancesCronJob: No rebalancing quotes found',

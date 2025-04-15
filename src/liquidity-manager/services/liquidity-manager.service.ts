@@ -2,7 +2,7 @@ import { Model } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
 import { BalanceService } from '@/balance/balance.service'
@@ -30,9 +30,12 @@ import {
   TokenData,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
+  private logger = new Logger(LiquidityManagerService.name)
+
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
@@ -165,22 +168,95 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     const quotes: RebalanceQuote[] = []
+    const failedSurplusTokens: TokenDataAnalyzed[] = []
     let currentBalance = deficitToken.analysis.balance.current
 
+    // First try all direct routes from surplus tokens to deficit token
     for (const surplusToken of sortedSurplusTokens) {
-      // Calculate the amount to swap
-      const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+      try {
+        // Calculate the amount to swap
+        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
-      const quote = await this.liquidityProviderManager.getQuote(
-        surplusToken,
-        deficitToken,
-        swapAmount,
-      )
+        // Try with direct route
+        const quote = await this.liquidityProviderManager.getQuote(
+          surplusToken,
+          deficitToken,
+          swapAmount,
+        )
 
-      quotes.push(quote)
-      currentBalance += quote.amountOut
+        quotes.push(quote)
+        currentBalance += quote.amountOut
 
+        if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+      } catch (error) {
+        // Track failed surplus tokens
+        failedSurplusTokens.push(surplusToken)
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Direct route not found, will try with fallback',
+            properties: {
+              surplusToken: surplusToken.config,
+              deficitToken: deficitToken.config,
+              error: {
+                message: error.message,
+              },
+            },
+          }),
+        )
+      }
+    }
+
+    // If we've reached the target balance or have no more tokens to try, return what we've got
+    if (currentBalance >= deficitToken.analysis.targetSlippage.min || !failedSurplusTokens.length) {
+      return quotes
+    }
+
+    // Try the failed surplus tokens with the fallback (core token) strategies
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'Still below target balance, trying fallback routes with core tokens',
+        properties: {
+          currentBalance: currentBalance.toString(),
+          targetMin: deficitToken.analysis.targetSlippage.min.toString(),
+          failedTokensCount: failedSurplusTokens.length,
+        },
+      }),
+    )
+
+    // Try each failed token with the fallback method
+    for (const surplusToken of failedSurplusTokens) {
+      // Skip if we've already reached target balance
       if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+
+      try {
+        // Calculate the amount to swap
+        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+
+        // Use the fallback method that routes through core tokens
+        const quote = await this.liquidityProviderManager.fallback(
+          surplusToken,
+          deficitToken,
+          swapAmount,
+        )
+
+        quotes.push(quote)
+        currentBalance += quote.amountOut
+      } catch (fallbackError) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: 'Unable to find fallback route',
+            properties: {
+              surplusToken: surplusToken.config,
+              deficitToken: deficitToken.config,
+              error: {
+                message: fallbackError.message,
+                stack: fallbackError.stack,
+              },
+            },
+          }),
+        )
+      }
     }
 
     return quotes
