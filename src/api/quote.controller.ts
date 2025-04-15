@@ -4,7 +4,7 @@ import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { serialize } from '@/liquidity-manager/utils/serialize'
+import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import {
   BadRequestException,
   Body,
@@ -36,24 +36,26 @@ export class QuoteController {
         message: `Responding to quote request:`,
         properties: {
           quote,
+          error,
         },
       }),
     )
 
-    if (error) {
-      const errorStatus = (error as QuoteErrorsInterface).statusCode
-      if (errorStatus) {
-        switch (errorStatus) {
-          case 400:
-            throw new BadRequestException(serialize(error))
-          case 500:
-          default:
-            throw new InternalServerErrorException(serialize(error))
-        }
-      }
+    if (!error) {
+      return quote!
     }
 
-    return quote!
+    const errorStatus = (error as QuoteErrorsInterface).statusCode
+
+    if (errorStatus) {
+      throw getEcoServiceException({ error })
+    }
+
+    // Also throw a generic InternalServerErrorException if error has no statusCode
+    throw getEcoServiceException({
+      httpExceptionClass: InternalServerErrorException,
+      error: { message: error.message || JSON.stringify(error) },
+    })
   }
 
   @Post('/reverse')
