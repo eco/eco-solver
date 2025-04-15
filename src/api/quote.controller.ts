@@ -1,19 +1,11 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { serialize } from '@/common/utils/serialize'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteService } from '@/quote/quote.service'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  InternalServerErrorException,
-  Logger,
-  Post,
-} from '@nestjs/common'
+import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 
 @Controller(API_ROOT + QUOTE_ROUTE)
 export class QuoteController {
@@ -75,23 +67,25 @@ export class QuoteController {
         message: `Responding to reverse quote request:`,
         properties: {
           quote,
+          error,
         },
       }),
     )
 
-    if (error) {
-      const errorStatus = (error as QuoteErrorsInterface).statusCode
-      if (errorStatus) {
-        switch (errorStatus) {
-          case 400:
-            throw new BadRequestException(serialize(error))
-          case 500:
-          default:
-            throw new InternalServerErrorException(serialize(error))
-        }
-      }
+    if (!error) {
+      return quote!
     }
 
-    return quote!
+    const errorStatus = (error as QuoteErrorsInterface).statusCode
+
+    if (errorStatus) {
+      throw getEcoServiceException({ error })
+    }
+
+    // Also throw a generic InternalServerErrorException if error has no statusCode
+    throw getEcoServiceException({
+      httpExceptionClass: InternalServerErrorException,
+      error: { message: error.message || JSON.stringify(error) },
+    })
   }
 }
