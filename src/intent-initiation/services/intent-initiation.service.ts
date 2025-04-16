@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -18,15 +17,15 @@ import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
+import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteService } from '@/quote/quote.service'
 import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import * as _ from 'lodash'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
   private logger = new EcoLogger(IntentInitiationService.name)
-  private quoteService: QuoteService
+  private quoteRepository: QuoteRepository
   private permitProcessor: PermitProcessor
   private permit2Processor: Permit2Processor
   private kernelAccountClientService: KernelAccountClientService
@@ -34,7 +33,7 @@ export class IntentInitiationService implements OnModuleInit {
   constructor(private readonly moduleRef: ModuleRef) {}
 
   onModuleInit() {
-    this.quoteService = this.moduleRef.get(QuoteService, { strict: false })
+    this.quoteRepository = this.moduleRef.get(QuoteRepository, { strict: false })
     this.permitProcessor = this.moduleRef.get(PermitProcessor, { strict: false })
     this.permit2Processor = this.moduleRef.get(Permit2Processor, { strict: false })
     this.kernelAccountClientService = this.moduleRef.get(KernelAccountClientService, {
@@ -76,15 +75,6 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<TransactionReceipt>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
-
-    // const quoteExists = await this.quoteService.quoteExists({
-    //   quoteID: gaslessIntentRequestDTO.quoteID,
-    //   intentExecutionType: IntentExecutionType.GASLESS.toString(),
-    // })
-
-    // if (!quoteExists) {
-    //   return { error: EcoError.QuoteNotFound }
-    // }
 
     // Get all the txs
     const { response: allTxs, error } =
@@ -173,13 +163,6 @@ export class IntentInitiationService implements OnModuleInit {
   ): Promise<EcoResponse<ExecuteSmartWalletArg[]>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
-    // Get the permit tx(s)
-    const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
-
-    if (error) {
-      return { error: InternalQuoteError(error) }
-    }
-
     // Get the fundFor tx
     const { response: fundForTx, error: fundForTxError } =
       await this.getIntentFundForTx(gaslessIntentRequestDTO)
@@ -188,12 +171,19 @@ export class IntentInitiationService implements OnModuleInit {
       return { error: InternalQuoteError(fundForTxError) }
     }
 
+    // Get the permit tx(s)
+    const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
+
+    if (error) {
+      return { error: InternalQuoteError(error) }
+    }
+
     return { response: [...permitTxs!, fundForTx!] }
   }
 
   /**
-   * This function is used to get the fund transaction for the gasless intent.
-   * It fetches the quote using the bogus zero hash and then gets the route hash with the real salt.
+   * This function is used to get the set of transactions for the gasless intent.
+   * These comprise the fundFor tx as well as the permit/permit2 txs.
    * @param gaslessIntentRequestDTO
    * @param salt
    * @returns
@@ -203,7 +193,7 @@ export class IntentInitiationService implements OnModuleInit {
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
     const { quoteID, salt, route: quoteRoute } = gaslessIntentRequestDTO
 
-    const { response: quote, error } = await this.quoteService.fetchQuoteIntentData({
+    const { response: quote, error } = await this.quoteRepository.fetchQuoteIntentData({
       quoteID,
       intentExecutionType: IntentExecutionType.GASLESS.toString(),
     })

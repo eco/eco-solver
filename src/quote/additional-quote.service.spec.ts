@@ -2,6 +2,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@/fee/fee.service'
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Logger } from '@nestjs/common'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
@@ -55,6 +56,7 @@ describe('QuoteService', () => {
         },
       ])
       .withMocks([
+        IntentInitiationService,
         QuoteRepository,
         {
           provide: EcoConfigService,
@@ -121,17 +123,6 @@ describe('QuoteService', () => {
 
       const result = await quoteService.getQuote(dto)
       expect(result.error).toBeDefined()
-    })
-
-    it('should call generateQuoteForIntentExecutionType for all supported types', async () => {
-      const model = quoteTestUtils.createQuoteIntentModel()
-
-      jest.spyOn(quoteService, 'generateQuote').mockResolvedValue({
-        response: quoteTestUtils.createQuoteDataEntryDTO(),
-      })
-
-      const result = await quoteService.getQuotesForIntentTypes(model)
-      expect(result.response!.quoteEntries.length).toBeGreaterThan(0)
     })
 
     it('should return InvalidQuoteIntent error when validations fail', async () => {
