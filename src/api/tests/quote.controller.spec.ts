@@ -1,4 +1,3 @@
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
@@ -6,7 +5,6 @@ import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
 import { QuoteController } from '@/api/quote.controller'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { serialize } from '@/liquidity-manager/utils/serialize'
 import { Test, TestingModule } from '@nestjs/testing'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 
@@ -83,9 +81,13 @@ describe('QuoteController Test', () => {
 
     it('should return a 400 on bad request', async () => {
       jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ error: SolverUnsupported })
-      await expect(quoteController.getQuote({} as any)).rejects.toThrow(
-        new BadRequestException(serialize(SolverUnsupported)),
-      )
+
+      try {
+        const response = await quoteController.getQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(400)
+        expect(ex.response.errorDesc).toContain('The solver doesn\'t support that chain.')
+      }
     })
 
     it('should return a 500 on server error', async () => {
@@ -93,9 +95,13 @@ describe('QuoteController Test', () => {
         .spyOn(quoteService, 'getQuote')
         .mockResolvedValue({ error: InternalSaveError(quote as any) })
       jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
-      await expect(quoteController.getQuote({} as any)).rejects.toThrow(
-        new InternalServerErrorException(InternalSaveError(quote as any)),
-      )
+
+      try {
+        const response = await quoteController.getQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(500)
+        expect(ex.response.errorDesc).toContain('Internal Server Error')
+      }
     })
 
     it('should log and return a quote', async () => {
@@ -141,9 +147,13 @@ describe('QuoteController Test', () => {
 
     it('should return a 400 on bad request', async () => {
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
-      await expect(quoteController.getReverseQuote({} as any)).rejects.toThrow(
-        new BadRequestException(serialize(SolverUnsupported)),
-      )
+
+      try {
+        const response = await quoteController.getReverseQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(400)
+        expect(ex.response.errorDesc).toContain('The solver doesn\'t support that chain.')
+      }
     })
 
     it('should return a 500 on server error', async () => {
@@ -151,9 +161,13 @@ describe('QuoteController Test', () => {
         .spyOn(quoteService, 'getReverseQuote')
         .mockResolvedValue({ error: InternalSaveError(quote as any) })
       jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
-      await expect(quoteController.getReverseQuote({} as any)).rejects.toThrow(
-        new InternalServerErrorException(InternalSaveError(quote as any)),
-      )
+
+      try {
+        const response = await quoteController.getReverseQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(500)
+        expect(ex.response.errorDesc).toContain('Internal Server Error')
+      }
     })
 
     it('should log and return a reverse quote', async () => {
