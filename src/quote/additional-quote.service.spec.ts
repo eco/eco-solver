@@ -9,6 +9,7 @@ import { Logger } from '@nestjs/common'
 import { parseGwei } from 'viem'
 =======
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Logger } from '@nestjs/common'
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 import { QuoteRepository } from '@/quote/quote.repository'
@@ -86,10 +87,14 @@ describe('QuoteService', () => {
       ])
       .withMocks([
 <<<<<<< HEAD
+<<<<<<< HEAD
         IntentInitiationService,
         FulfillmentEstimateService,
 =======
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+        IntentInitiationService,
+>>>>>>> 7f0c474 ( - Added call to estimate gas cost for gasless intent quotes)
         QuoteRepository,
         {
           provide: EcoConfigService,
@@ -194,6 +199,7 @@ describe('QuoteService', () => {
     })
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     it('should call generateQuoteForIntentExecutionType for all supported types', async () => {
       const model = quoteTestUtils.createQuoteIntentModel()
@@ -207,6 +213,8 @@ describe('QuoteService', () => {
     })
 
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+>>>>>>> 7f0c474 ( - Added call to estimate gas cost for gasless intent quotes)
     it('should return InvalidQuoteIntent error when validations fail', async () => {
       const model = quoteTestUtils.createQuoteIntentModel()
 
