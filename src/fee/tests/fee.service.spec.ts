@@ -242,7 +242,7 @@ describe('FeeService', () => {
         // 20_000n + (50_000_000n * 15_000n) / 100_000_000n = 20_000n + 7_500n = 27_500n
         // Plus the original amount: 50_000_000n + 27_500n = 50_027_500n
         expect(feeService.getAsk(50_000_000n, intent)).toBe(50_027_500n)
-        
+
         // For 33_333_333n, the calculation should be:
         // 20_000n + (33_333_333n * 15_000n) / 100_000_000n = 20_000n + 4_999n = 24_999n
         // Plus the original amount: 33_333_333n + 24_999n = 33_358_332n
