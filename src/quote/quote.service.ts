@@ -366,7 +366,7 @@ export class QuoteService implements OnModuleInit {
     }
 
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
-    await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
+    // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
     quoteDataEntry!.intentExecutionType = IntentExecutionType.GASLESS.toString()
     return { response: quoteDataEntry }
   }
