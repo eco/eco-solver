@@ -86,7 +86,7 @@ describe('QuoteController Test', () => {
         const response = await quoteController.getQuote({} as any)
       } catch (ex) {
         expect(ex.status).toEqual(400)
-        expect(ex.response.errorDesc).toContain('The solver doesn\'t support that chain.')
+        expect(ex.response.errorDesc).toContain("The solver doesn't support that chain.")
       }
     })
 
@@ -152,7 +152,7 @@ describe('QuoteController Test', () => {
         const response = await quoteController.getReverseQuote({} as any)
       } catch (ex) {
         expect(ex.status).toEqual(400)
-        expect(ex.response.errorDesc).toContain('The solver doesn\'t support that chain.')
+        expect(ex.response.errorDesc).toContain("The solver doesn't support that chain.")
       }
     })
 
