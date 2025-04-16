@@ -22,6 +22,7 @@ import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { zeroAddress } from 'viem'
 import { QuoteRepository } from '@/quote/quote.repository'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -48,6 +49,7 @@ describe('QuotesService', () => {
       providers: [
         QuoteService,
         QuoteRepository,
+        IntentInitiationService,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
@@ -201,30 +203,6 @@ describe('QuotesService', () => {
         quoteIntentModel,
       })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, { error: SolverUnsupported })
-    })
-
-    it('should return quote from getQuotesForIntentTypes if one passes', async () => {
-      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
-      quoteService['quotesConfig'] = { intentExecutionTypes: ['GASLESS'] }
-
-      jest.spyOn(quoteService as any, 'generateQuoteForIntentExecutionType').mockResolvedValue({
-        response: { intentExecutionType: 'GASLESS', tokens: [], expiryTime: '123' },
-      })
-
-      const { response } = await quoteService.getQuotesForIntentTypes(quoteIntent)
-      expect(response!.quoteEntries).toHaveLength(1)
-    })
-
-    it('should return error if no quote entries could be generated', async () => {
-      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
-      quoteService['quotesConfig'] = { intentExecutionTypes: ['GASLESS'] }
-
-      jest
-        .spyOn(quoteService as any, 'generateQuoteForIntentExecutionType')
-        .mockResolvedValue({ error: InternalQuoteError(new Error('bad')) })
-
-      const { error } = await quoteService.getQuotesForIntentTypes(quoteIntent)
-      expect(error?.message).toContain('Failed generate quote')
     })
 
     it('should return invalid quote if the quote fails validations', async () => {

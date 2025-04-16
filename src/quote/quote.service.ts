@@ -29,8 +29,19 @@ import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { ModuleRef } from '@nestjs/core'
+
+const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
+interface GenerateQuoteParams {
+  quoteIntent: QuoteIntentDataInterface
+  intentExecutionType: IntentExecutionType
+  isReverseQuote: boolean
+  gaslessIntentRequest: GaslessIntentRequestDTO
+}
 
 /**
  * Service class for getting configs for the app
@@ -39,16 +50,21 @@ type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ er
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
   private quotesConfig: QuotesConfig
+  private intentInitiationService: IntentInitiationService
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
+    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
+      strict: false,
+    })
   }
 
   /**
@@ -129,11 +145,12 @@ export class QuoteService implements OnModuleInit {
       }
 
       const { response: quoteDataEntry, error: quoteError } =
-        await this.generateQuoteForIntentExecutionType(
+        await this.generateQuoteForIntentExecutionType({
           quoteIntent,
-          IntentExecutionType.fromString(quoteIntent.intentExecutionType)!,
+          intentExecutionType: IntentExecutionType.fromString(quoteIntent.intentExecutionType)!,
           isReverseQuote,
-        )
+          gaslessIntentRequest: this.getGaslessIntentRequest(quoteIntentDataDTO),
+        })
 
       if (quoteError) {
         errors.push(quoteError)
@@ -152,48 +169,14 @@ export class QuoteService implements OnModuleInit {
     return { response: quoteDataDTO }
   }
 
-  /**
-   * Generates quotes for a set of IntentExecutionTypes. Supported types are configured in the
-   * quotesConfig. Currently only self publish and gasless are supported.
-   * @param quoteIntentModel parameters for the quote
-   * @returns the quote or an error
-   */
-  async getQuotesForIntentTypes(
-    quoteIntent: QuoteIntentDataInterface,
-    isReverseQuote: boolean = false,
-  ): Promise<EcoResponse<QuoteDataDTO>> {
-    const quoteEntries: QuoteDataEntryDTO[] = []
-
-    for (const intentExecutionType of this.quotesConfig.intentExecutionTypes) {
-      const { response: quoteDataEntry, error } = await this.generateQuoteForIntentExecutionType(
-        quoteIntent,
-        IntentExecutionType.fromString(intentExecutionType)!,
-        isReverseQuote,
-      )
-
-      if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `Error getting quote for: ${intentExecutionType}`,
-            properties: {
-              error,
-            },
-          }),
-        )
-        continue
-      }
-
-      quoteEntries.push(quoteDataEntry!)
-    }
-
-    if (quoteEntries.length === 0) {
-      return { error: InternalQuoteError(new Error('No quotes generated')) }
-    }
-
+  private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
     return {
-      response: {
-        quoteEntries,
-      },
+      quoteID: quoteIntentDataDTO.quoteID,
+      dAppID: quoteIntentDataDTO.dAppID,
+      salt: ZERO_SALT,
+      route: quoteIntentDataDTO.route,
+      reward: quoteIntentDataDTO.reward,
+      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
     }
   }
 
@@ -318,16 +301,16 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   private async generateQuoteForIntentExecutionType(
-    quoteIntentModel: QuoteIntentDataInterface,
-    intentExecutionType: IntentExecutionType,
-    isReverseQuote: boolean = false,
+    params: GenerateQuoteParams,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { intentExecutionType } = params
+
     switch (true) {
       case intentExecutionType.isSelfPublish():
-        return this.generateQuoteForSelfPublish(quoteIntentModel, isReverseQuote)
+        return this.generateQuoteForSelfPublish(params)
 
       case intentExecutionType.isGasless():
-        return this.generateQuoteForGasless(quoteIntentModel, isReverseQuote)
+        return this.generateQuoteForGasless(params)
 
       default:
         return {
@@ -344,11 +327,12 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   async generateQuoteForSelfPublish(
-    quoteIntentModel: QuoteIntentDataInterface,
-    isReverseQuote: boolean = false,
+    params: GenerateQuoteParams,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { quoteIntent, isReverseQuote } = params
+
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
-      quoteIntentModel,
+      quoteIntent,
       isReverseQuote,
     )
 
@@ -367,11 +351,13 @@ export class QuoteService implements OnModuleInit {
    * @returns the quote or an error
    */
   async generateQuoteForGasless(
-    quoteIntentModel: QuoteIntentDataInterface,
-    isReverseQuote: boolean = false,
+    params: GenerateQuoteParams,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { quoteIntent, isReverseQuote, gaslessIntentRequest } = params
+
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
-      quoteIntentModel,
+      quoteIntent,
       isReverseQuote,
     )
 
@@ -380,6 +366,7 @@ export class QuoteService implements OnModuleInit {
     }
 
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
+    await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
     quoteDataEntry!.intentExecutionType = IntentExecutionType.GASLESS.toString()
     return { response: quoteDataEntry }
   }
@@ -472,7 +459,6 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
-    //todo save quote to record
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
