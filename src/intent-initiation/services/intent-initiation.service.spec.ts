@@ -18,7 +18,6 @@ import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
-import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
@@ -29,7 +28,7 @@ let $: EcoTester
 let service: IntentInitiationService
 let permitProcessor: PermitProcessor
 let permit2Processor: Permit2Processor
-let quoteService: QuoteService
+let quoteRepository: QuoteRepository
 let kernelAccountClientService: KernelAccountClientService
 
 const intentTestUtils = new IntentTestUtils()
@@ -71,7 +70,7 @@ describe('IntentInitiationService', () => {
       .withProviders([
         PermitProcessor,
         Permit2Processor,
-        QuoteService,
+        // QuoteService,
         QuoteRepository,
         PermitTxBuilder,
         Permit2TxBuilder,
@@ -97,7 +96,7 @@ describe('IntentInitiationService', () => {
     service = await $.init()
     permitProcessor = $.get(PermitProcessor)
     permit2Processor = $.get(Permit2Processor)
-    quoteService = $.get(QuoteService)
+    quoteRepository = $.get(QuoteRepository)
     kernelAccountClientService = $.get(KernelAccountClientService)
   })
 
@@ -110,7 +109,7 @@ describe('IntentInitiationService', () => {
       })
 
       jest
-        .spyOn(quoteService, 'fetchQuoteIntentData')
+        .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ error: EcoError.QuoteNotFound }) // simulate quote not found
 
       const result = await service.initiateGaslessIntent(dto)
@@ -128,7 +127,7 @@ describe('IntentInitiationService', () => {
 
       jest.spyOn(permit2Processor, 'generateTxs').mockReturnValue({ response: [permit2Tx] })
       jest
-        .spyOn(quoteService, 'fetchQuoteIntentData')
+        .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
       jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
         execute: jest.fn().mockResolvedValue('0xtx'),
@@ -150,7 +149,7 @@ describe('IntentInitiationService', () => {
 
       jest.spyOn(permitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
       jest
-        .spyOn(quoteService, 'fetchQuoteIntentData')
+        .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
       jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
         execute: jest.fn().mockResolvedValue('0xtx'),
