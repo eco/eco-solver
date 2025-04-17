@@ -88,37 +88,20 @@ export class IntentInitiationService implements OnModuleInit {
     const kernelAccountClient = await this.kernelAccountClientService.getClient(
       gaslessIntentRequestDTO.getSourceChainID!(),
     )
-
-    const fundForTx = allTxs!.pop()
-
-    const permitTxsHash = await kernelAccountClient.execute(allTxs!)
-    const permitTxsReceipt = await kernelAccountClient.waitForTransactionReceipt({ hash: permitTxsHash })
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `_initiateGaslessIntent: permitTxsReceipt`,
-        properties: {
-          permitTxsReceipt,
-        },
-      }),
-    )
-
-    const fundForTxHash = await kernelAccountClient.execute([fundForTx!])
-    const fundForTxReceipt = await kernelAccountClient.waitForTransactionReceipt({ hash: fundForTxHash })
-
+  
+    const txHash = await kernelAccountClient.execute(allTxs!)
+    const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
+    
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `_initiateGaslessIntent`,
         properties: {
-          fundForTxReceipt,
+          receipt,
         },
       }),
     )
 
-    // const txHash = await kernelAccountClient.execute(allTxs!)
-    // const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
-
-    return { response: fundForTxReceipt }
+    return { response: receipt }
   }
 
   /*
