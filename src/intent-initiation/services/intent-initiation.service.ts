@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -88,10 +87,10 @@ export class IntentInitiationService implements OnModuleInit {
     const kernelAccountClient = await this.kernelAccountClientService.getClient(
       gaslessIntentRequestDTO.getSourceChainID!(),
     )
-  
+
     const txHash = await kernelAccountClient.execute(allTxs!)
     const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
-    
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `_initiateGaslessIntent`,

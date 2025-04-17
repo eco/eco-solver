@@ -109,7 +109,11 @@ export class Permit2TxBuilder {
    * @param details - The details for the permit processing.
    * @returns The permit argument for a single permit.
    */
-  private buildPermitSingleArg(spender: Hex, sigDeadline: bigint, details: Permit2TypedDataDetailsDTO): PermitSingleArg {
+  private buildPermitSingleArg(
+    spender: Hex,
+    sigDeadline: bigint,
+    details: Permit2TypedDataDetailsDTO,
+  ): PermitSingleArg {
     return {
       details: {
         token: details.token,
@@ -131,7 +135,11 @@ export class Permit2TxBuilder {
    * @param details - The details for the permit processing.
    * @returns The permit argument for a batch of permits.
    */
-  private buildPermitBatchArg(spender: Hex, sigDeadline: bigint, details: Permit2TypedDataDetailsDTO[]): PermitBatchArg {
+  private buildPermitBatchArg(
+    spender: Hex,
+    sigDeadline: bigint,
+    details: Permit2TypedDataDetailsDTO[],
+  ): PermitBatchArg {
     return {
       details: details.map((detail) => ({
         token: detail.token,
