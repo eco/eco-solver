@@ -1,3 +1,4 @@
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
@@ -263,11 +264,14 @@ export class IntentInitiationService implements OnModuleInit {
     const {
       reward,
 
-      gaslessIntentData: {
-        funder,
-        permitData: { permit, permit2 },
-      },
+      gaslessIntentData: { funder, permitData },
     } = gaslessIntentRequestDTO
+
+    if (_.size(permitData) > 0) {
+      return { response: [] }
+    }
+
+    const { permit, permit2 } = permitData!
 
     if (_.size(permit) > 0) {
       return this.getPermitTxs(gaslessIntentRequestDTO.getSourceChainID!(), permit!, funder, reward)
@@ -277,9 +281,7 @@ export class IntentInitiationService implements OnModuleInit {
       return this.getPermit2Txs(permit2!)
     }
 
-    // We got here because there are no permits. This is a valid outcome
-    // We should return an empty array of transactions, rather than an error
-    return { response: [] }
+    return { error: EcoError.NoPermitsProvided }
   }
 
   private getPermitTxs(
