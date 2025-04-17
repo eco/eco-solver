@@ -267,7 +267,7 @@ export class IntentInitiationService implements OnModuleInit {
       gaslessIntentData: { funder, permitData },
     } = gaslessIntentRequestDTO
 
-    if (_.size(permitData) > 0) {
+    if (_.size(permitData) === 0) {
       return { response: [] }
     }
 
