@@ -88,12 +88,12 @@ export class FeeService implements OnModuleInit {
     switch (feeConfig.algorithm) {
       // the default
       // 0.02 cents + $0.015 per 100$
-      // 20_000n + (totalFulfill / 100_000_000n) * 15_000n
+      // 20_000n + (totalFulfill * 15_000n) / 100_000_000n
       case 'linear':
         const { tranche } = feeConfig.constants as FeeAlgorithmConfig<'linear'>
         fee =
           BigInt(feeConfig.constants.baseFee) +
-          (totalFulfill / BigInt(tranche.unitSize)) * BigInt(tranche.unitFee)
+          (totalFulfill * BigInt(tranche.unitFee)) / BigInt(tranche.unitSize)
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)

@@ -216,14 +216,47 @@ describe('FeeService', () => {
 
       it('should return the correct ask for less than $100', async () => {
         const ask = feeService.getAsk(1_000_000n, intent)
-        expect(ask).toBe(1_020_000n)
+        // 1_000_000n + 20_000n + (1_000_000n * 15_000n) / 100_000_000n = 1_000_000n + 20_000n + 150n = 1_020_150n
+        expect(ask).toBe(1_020_150n)
       })
 
       it('should return the correct ask for multiples of $100', async () => {
-        expect(feeService.getAsk(99_000_000n, intent)).toBe(99_020_000n)
+        // 99_000_000n + 20_000n + (99_000_000n * 15_000n) / 100_000_000n = 99_000_000n + 20_000n + 14_850n = 99_034_850n
+        expect(feeService.getAsk(99_000_000n, intent)).toBe(99_034_850n)
+        // 100_000_000n + 20_000n + (100_000_000n * 15_000n) / 100_000_000n = 100_000_000n + 20_000n + 15_000n = 100_035_000n
         expect(feeService.getAsk(100_000_000n, intent)).toBe(100_035_000n)
-        expect(feeService.getAsk(999_000_000n, intent)).toBe(999_155_000n)
-        expect(feeService.getAsk(1_000_000_000n, intent)).toBe(1000_170_000n)
+        // 999_000_000n + 20_000n + (999_000_000n * 15_000n) / 100_000_000n = 999_000_000n + 20_000n + 149_850n = 999_169_850n
+        expect(feeService.getAsk(999_000_000n, intent)).toBe(999_169_850n)
+        // 1_000_000_000n + 20_000n + (1_000_000_000n * 15_000n) / 100_000_000n = 1_000_000_000n + 20_000n + 150_000n = 1_000_170_000n
+        expect(feeService.getAsk(1_000_000_000n, intent)).toBe(1_000_170_000n)
+      })
+
+      it('should correctly handle division precision with small numbers', async () => {
+        expect(feeService.getAsk(1n, intent)).toBe(20_001n)
+        expect(feeService.getAsk(10n, intent)).toBe(20_010n)
+        expect(feeService.getAsk(100n, intent)).toBe(20_100n)
+      })
+
+      it('should handle division with non-divisible amounts correctly', async () => {
+        // For 50_000_000n, the calculation should be:
+        // 20_000n + (50_000_000n * 15_000n) / 100_000_000n = 20_000n + 7_500n = 27_500n
+        // Plus the original amount: 50_000_000n + 27_500n = 50_027_500n
+        expect(feeService.getAsk(50_000_000n, intent)).toBe(50_027_500n)
+
+        // For 33_333_333n, the calculation should be:
+        // 20_000n + (33_333_333n * 15_000n) / 100_000_000n = 20_000n + 4_999n = 24_999n
+        // Plus the original amount: 33_333_333n + 24_999n = 33_358_332n
+        expect(feeService.getAsk(33_333_333n, intent)).toBe(33_358_332n)
+      })
+
+      it('should correctly calculate fee for very small amounts', async () => {
+        // Testing with small amounts that would be affected by division-before-multiplication
+        // For 7n, the calculation should be:
+        // 20_000n + (7n * 15_000n) / 100_000_000n = 20_000n + 0n = 20_000n
+        // If multiplication happened first: 7n * 15_000n = 105_000n
+        // Then divide: 105_000n / 100_000_000n = 0n (due to integer division)
+        // With multiplication-before-division: 20_000n + 0n + 7n = 20_007n
+        expect(feeService.getAsk(7n, intent)).toBe(20_007n)
       })
     })
   })
