@@ -263,8 +263,7 @@ export class IntentInitiationService implements OnModuleInit {
   ): EcoResponse<ExecuteSmartWalletArg[]> {
     const {
       reward,
-
-      gaslessIntentData: { funder, permitData },
+      gaslessIntentData: { funder, permitData, vaultAddress },
     } = gaslessIntentRequestDTO
 
     if (_.size(permitData) === 0) {
@@ -274,7 +273,13 @@ export class IntentInitiationService implements OnModuleInit {
     const { permit, permit2 } = permitData!
 
     if (_.size(permit) > 0) {
-      return this.getPermitTxs(gaslessIntentRequestDTO.getSourceChainID!(), permit!, funder, reward)
+      return this.getPermitTxs(
+        gaslessIntentRequestDTO.getSourceChainID!(),
+        permit!,
+        funder,
+        reward,
+        vaultAddress!,
+      )
     }
 
     if (_.size(permit2) > 0) {
@@ -289,9 +294,8 @@ export class IntentInitiationService implements OnModuleInit {
     permits: PermitDTO[],
     funder: Hex,
     reward: QuoteRewardDataDTO,
+    vaultAddress: Hex,
   ): EcoResponse<ExecuteSmartWalletArg[]> {
-    const chainConfig = getChainConfig(originChainID)
-    const intentSourceContract = chainConfig.IntentSource
     const permitMap: Record<string, PermitDTO> = {}
 
     for (const permit of permits) {
@@ -310,7 +314,7 @@ export class IntentInitiationService implements OnModuleInit {
           permit: tokenPermit,
           chainID: originChainID,
           owner: funder,
-          spender: intentSourceContract,
+          spender: vaultAddress,
           value: BigInt(token.amount),
         })
       }

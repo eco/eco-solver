@@ -25,6 +25,11 @@ export class GaslessIntentDataDTO {
   permitData?: PermitDataDTO
 
   @IsOptional()
+  @ApiProperty()
+  @IsEthereumAddress()
+  vaultAddress?: Hex
+
+  @IsOptional()
   @IsBoolean()
   @ApiPropertyOptional()
   allowPartial: boolean = false
