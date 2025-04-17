@@ -1,9 +1,10 @@
-import { encodeFunctionData, Hex, hexToBigInt, parseAbi } from 'viem'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { encodeFunctionData, Hex, hexToBigInt } from 'viem'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger } from '@nestjs/common'
-// import { PermitAbi } from '@/contracts/Permit.abi'
+import { PermitAbi } from '@/contracts/Permit.abi'
 import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+
 interface SplitSignature {
   r: Hex
   s: Hex
@@ -27,7 +28,7 @@ export class PermitTxBuilder {
   getPermitTx(params: PermitProcessingParams): ExecuteSmartWalletArg {
     const { permit, owner, spender, value } = params
     const { signature, deadline } = permit.data
-    // const { r, s, v } = splitSignature(signature)
+    const { r, s, v } = this.splitSignature(signature)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -37,26 +38,28 @@ export class PermitTxBuilder {
           spender,
           value,
           deadline,
-          signature,
+          v,
+          r,
+          s,
         },
       }),
     )
 
-    // const data = encodeFunctionData({
-    //   abi: PermitAbi,
-    //   functionName: 'permit',
-    //   args: [owner, spender, value, deadline, v, r, s],
-    // })
-
-    const parsedAbi = parseAbi([
-      'function permit(address owner, address spender, uint256 value, uint256 deadline, bytes signature)',
-    ])
-
     const data = encodeFunctionData({
-      abi: parsedAbi,
+      abi: PermitAbi,
       functionName: 'permit',
-      args: [owner, spender, value, deadline, signature],
+      args: [owner, spender, value, deadline, v, r, s],
     })
+
+    // const parsedAbi = parseAbi([
+    //   'function permit(address owner, address spender, uint256 value, uint256 deadline, bytes signature)',
+    // ])
+
+    // const data = encodeFunctionData({
+    //   abi: parsedAbi,
+    //   functionName: 'permit',
+    //   args: [owner, spender, value, deadline, signature],
+    // })
 
     return {
       to: permit.token,
