@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { ValidateIntentService } from './validate-intent.service'
 import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '../common/logging/eco-log-message'

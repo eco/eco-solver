@@ -1,4 +1,4 @@
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'

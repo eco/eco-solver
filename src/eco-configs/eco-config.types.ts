@@ -1,4 +1,4 @@
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { ClusterNode } from 'ioredis'
 import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
