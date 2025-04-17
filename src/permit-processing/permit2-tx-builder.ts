@@ -9,6 +9,7 @@ import {
   PermitArgBatch,
   PermitArgSingle,
 } from './permit2-abis'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 /**
  * This class returns a transaction for a permit2.
@@ -58,12 +59,36 @@ export class Permit2TxBuilder {
     details: Permit2TypedDataDetailsDTO[],
   ): Hex {
     if (details.length === 1) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `encodeFunctionData: single permit`,
+          properties: {
+            details: details[0],
+            spender,
+            sigDeadline,
+            signature,
+          },
+        }),
+      )
+
       return encodeFunctionData({
         abi: Permit2SinglePermitAbi,
         functionName: 'permitTransferFrom',
         args: [this.buildPermitArgSingle(details[0]), spender, sigDeadline, signature],
       })
     }
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `encodeFunctionData: batch permit`,
+        properties: {
+          details,
+          spender,
+          sigDeadline,
+          signature,
+        },
+      }),
+    )
 
     return encodeFunctionData({
       abi: Permit2BatchPermitAbi,

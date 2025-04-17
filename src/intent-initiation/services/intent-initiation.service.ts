@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -88,10 +89,36 @@ export class IntentInitiationService implements OnModuleInit {
       gaslessIntentRequestDTO.getSourceChainID!(),
     )
 
-    const txHash = await kernelAccountClient.execute(allTxs!)
-    const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
+    const fundForTx = allTxs!.pop()
 
-    return { response: receipt }
+    const permitTxsHash = await kernelAccountClient.execute(allTxs!)
+    const permitTxsReceipt = await kernelAccountClient.waitForTransactionReceipt({ hash: permitTxsHash })
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `_initiateGaslessIntent: permitTxsReceipt`,
+        properties: {
+          permitTxsReceipt,
+        },
+      }),
+    )
+
+    const fundForTxHash = await kernelAccountClient.execute([fundForTx!])
+    const fundForTxReceipt = await kernelAccountClient.waitForTransactionReceipt({ hash: fundForTxHash })
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `_initiateGaslessIntent`,
+        properties: {
+          fundForTxReceipt,
+        },
+      }),
+    )
+
+    // const txHash = await kernelAccountClient.execute(allTxs!)
+    // const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
+
+    return { response: fundForTxReceipt }
   }
 
   /*
