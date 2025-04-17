@@ -46,7 +46,11 @@ export class Permit2Processor implements OnModuleInit {
    * @param permit - The parameters for the permit processing.
    * @returns The transaction receipt for the permit tx.
    */
-  async executeTxs(funder: Hex, chainID: number, permit: Permit2DTO): Promise<EcoResponse<TransactionReceipt>> {
+  async executeTxs(
+    funder: Hex,
+    chainID: number,
+    permit: Permit2DTO,
+  ): Promise<EcoResponse<TransactionReceipt>> {
     const executeSmartWalletArg = this.permit2TxBuilder.getPermit2Tx(funder, permit)
     const kernelAccountClient = await this.kernelAccountClientService.getClient(chainID!)
     const txHash = await kernelAccountClient.execute([executeSmartWalletArg])
