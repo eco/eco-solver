@@ -83,9 +83,15 @@ export function analyzeTokenGroup(group: TokenDataAnalyzed[]) {
 }
 
 export function getGroupTotal(group: TokenDataAnalyzed[]) {
-  return group.reduce((acc, item) => acc + item.analysis.diff, 0)
+  if (!group || !Array.isArray(group) || group.length === 0) {
+    return 0
+  }
+  return group.reduce((acc, item) => acc + (item?.analysis?.diff || 0), 0)
 }
 
 export function getSortGroupByDiff(group: TokenDataAnalyzed[]) {
-  return group.sort((a, b) => b.analysis.diff - a.analysis.diff)
+  if (!group || !Array.isArray(group)) {
+    return []
+  }
+  return [...group].sort((a, b) => b.analysis.diff - a.analysis.diff)
 }

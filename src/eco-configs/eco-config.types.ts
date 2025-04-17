@@ -20,6 +20,7 @@ export type EcoConfigType = {
   intervals: IntervalConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
+  rpcUrls: RpcUrlsConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -220,6 +221,11 @@ export type AlchemyNetwork = {
 }
 
 /**
+ * The whole config type for QuickNode.
+ */
+export type RpcUrlsConfigType = Record<string, { http: string[]; webSocket?: string[] }>
+
+/**
  * The config type for a single solver configuration
  */
 export type Solver = {
@@ -286,6 +292,11 @@ export interface LiquidityManagerConfig {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
+  // Core tokens are used as intermediaries between two chains
+  coreTokens: {
+    token: Hex
+    chainID: number
+  }[]
 }
 
 export interface IndexerConfig {

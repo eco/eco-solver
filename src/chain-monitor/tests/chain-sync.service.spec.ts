@@ -95,6 +95,7 @@ describe('ChainSyncService', () => {
       },
     } as any as Solver[]
 
+    const toBlock = 100n
     const model = { event: { blockNumber: 50n, sourceChainID: intentSource.chainID } }
     const supportedChains = Object.keys(solvers).map((key) => BigInt(key))
     beforeEach(() => {
@@ -102,12 +103,13 @@ describe('ChainSyncService', () => {
 
       accountService.getClient = jest.fn().mockReturnValue({
         getContractEvents: mockGetContractEvents,
+        getBlockNumber: jest.fn().mockReturnValue(toBlock),
       })
 
       ecoConfigService.getSolvers.mockReturnValue(solvers)
     })
 
-    it('should set fromBlock to 0x0 when no transactions in db', async () => {
+    it('should set fromBlock to undefined when no transactions in db', async () => {
       await chainSyncService.syncTxsPerSource(intentSource)
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
@@ -117,8 +119,9 @@ describe('ChainSyncService', () => {
         args: {
           prover: intentSource.provers,
         },
-        fromBlock: 0n,
-        toBlock: 'latest',
+        strict: true,
+        fromBlock: undefined,
+        toBlock,
       })
     })
 
@@ -135,7 +138,8 @@ describe('ChainSyncService', () => {
           prover: intentSource.provers,
         },
         fromBlock: model.event.blockNumber + 1n, // we search from the next block
-        toBlock: 'latest',
+        toBlock,
+        strict: true,
       })
     })
 
