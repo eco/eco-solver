@@ -6,8 +6,8 @@ import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-da
 import {
   Permit2BatchPermitAbi,
   Permit2SinglePermitAbi,
-  PermitArgBatch,
-  PermitArgSingle,
+  PermitBatchArg,
+  PermitSingleArg,
 } from './permit2-abis'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
@@ -25,10 +25,11 @@ export class Permit2TxBuilder {
    * @param permit - The parameters for the permit processing.
    * @returns The transaction object for the permit.
    */
-  getPermit2Tx(permit: Permit2DTO): ExecuteSmartWalletArg {
+  getPermit2Tx(funder: Hex, permit: Permit2DTO): ExecuteSmartWalletArg {
     const permitData = permit.permitData
 
     const data = this.encodeFunctionData(
+      funder,
       permitData.getSpender(),
       permitData.getSigDeadline(),
       permit.signature,
@@ -46,6 +47,7 @@ export class Permit2TxBuilder {
    * This function encodes the function data for the permit2 function. It uses the ABI and function name to encode
    * the arguments and returns the encoded data.
    *
+   * @param owner - The address of the owner.
    * @param spender - The address of the spender.
    * @param sigDeadline - The signature deadline.
    * @param signature - The signature.
@@ -53,6 +55,7 @@ export class Permit2TxBuilder {
    * @returns The encoded function data.
    */
   private encodeFunctionData(
+    owner: Hex,
     spender: Hex,
     sigDeadline: bigint,
     signature: Hex,
@@ -73,8 +76,8 @@ export class Permit2TxBuilder {
 
       return encodeFunctionData({
         abi: Permit2SinglePermitAbi,
-        functionName: 'permitTransferFrom',
-        args: [this.buildPermitArgSingle(details[0]), spender, sigDeadline, signature],
+        functionName: 'permit',
+        args: [owner, this.buildPermitSingleArg(spender, sigDeadline, details[0]), signature],
       })
     }
 
@@ -92,8 +95,8 @@ export class Permit2TxBuilder {
 
     return encodeFunctionData({
       abi: Permit2BatchPermitAbi,
-      functionName: 'permitTransferFrom',
-      args: [this.buildPermitArgBatch(details), spender, sigDeadline, signature],
+      functionName: 'permit',
+      args: [owner, this.buildPermitBatchArg(spender, sigDeadline, details), signature],
     })
   }
 
@@ -101,17 +104,21 @@ export class Permit2TxBuilder {
    * This function builds the permit argument for a single permit. It takes the details and returns an object
    * containing the permitted token, amount, nonce, and deadline.
    *
+   * @param spender - The address of the spender.
+   * @param sigDeadline - The signature deadline.
    * @param details - The details for the permit processing.
    * @returns The permit argument for a single permit.
    */
-  private buildPermitArgSingle(details: Permit2TypedDataDetailsDTO): PermitArgSingle {
+  private buildPermitSingleArg(spender: Hex, sigDeadline: bigint, details: Permit2TypedDataDetailsDTO): PermitSingleArg {
     return {
-      permitted: {
-        token: details.token as `0x${string}`,
+      details: {
+        token: details.token,
         amount: BigInt(details.amount),
+        expiration: Number(details.expiration),
+        nonce: Number(details.nonce),
       },
-      nonce: BigInt(details.nonce),
-      deadline: BigInt(details.expiration), // this maps to 'deadline'
+      spender,
+      sigDeadline,
     }
   }
 
@@ -119,17 +126,21 @@ export class Permit2TxBuilder {
    * This function builds the permit argument for a batch of permits. It takes the details and returns an object
    * containing the permitted tokens, amounts, nonce, and deadline.
    *
+   * @param spender - The address of the spender.
+   * @param sigDeadline - The signature deadline.
    * @param details - The details for the permit processing.
    * @returns The permit argument for a batch of permits.
    */
-  private buildPermitArgBatch(details: Permit2TypedDataDetailsDTO[]): PermitArgBatch {
+  private buildPermitBatchArg(spender: Hex, sigDeadline: bigint, details: Permit2TypedDataDetailsDTO[]): PermitBatchArg {
     return {
-      permitted: details.map((d) => ({
-        token: d.token as `0x${string}`,
-        amount: BigInt(d.amount),
+      details: details.map((detail) => ({
+        token: detail.token,
+        amount: BigInt(detail.amount),
+        expiration: Number(detail.expiration),
+        nonce: Number(detail.nonce),
       })),
-      nonce: BigInt(details[0].nonce), // assuming shared nonce
-      deadline: BigInt(details[0].expiration), // assuming shared deadline
+      spender,
+      sigDeadline,
     }
   }
 }

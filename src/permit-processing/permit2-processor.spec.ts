@@ -1,7 +1,7 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { Hex, TransactionReceipt } from 'viem'
+import { Hex, TransactionReceipt, zeroAddress } from 'viem'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2Processor } from '@/permit-processing/permit2-processor'
@@ -51,7 +51,7 @@ describe('Permit2Processor', () => {
   it('generates a Permit2 tx', () => {
     jest.spyOn(builder, 'getPermit2Tx').mockReturnValue(fakeTx)
 
-    const result = processor.generateTxs(permit)
+    const result = processor.generateTxs(zeroAddress, permit)
     expect(result.response).toEqual([fakeTx])
   })
 
@@ -67,7 +67,7 @@ describe('Permit2Processor', () => {
       waitForTransactionReceipt: mockWait,
     } as any)
 
-    const result = await processor.executeTxs(1, permit)
+    const result = await processor.executeTxs(zeroAddress, 1, permit)
     expect(result.response?.transactionHash).toEqual('0xtx')
     expect(mockExecute).toHaveBeenCalledWith([fakeTx])
   })

@@ -1,5 +1,5 @@
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { encodeFunctionData } from 'viem'
+import { encodeFunctionData, zeroAddress } from 'viem'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2SinglePermitAbi, Permit2BatchPermitAbi } from '@/permit-processing/permit2-abis'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
@@ -60,22 +60,23 @@ describe('Permit2TxBuilder', () => {
       },
     } as unknown as Permit2DTO
 
-    const tx = builder.getPermit2Tx(permit)
+    const tx = builder.getPermit2Tx(zeroAddress, permit)
 
     const expectedData = encodeFunctionData({
       abi: Permit2SinglePermitAbi,
-      functionName: 'permitTransferFrom',
+      functionName: 'permit',
       args: [
+        zeroAddress,
         {
-          permitted: {
+          details: {
             token: address1,
             amount: 1000n,
+            nonce: 1,
+            expiration: 9999999999,
           },
-          nonce: 1n,
-          deadline: 9999999999n,
+          spender,
+          sigDeadline: 9999999999n,
         },
-        spender,
-        9999999999n,
         permit.signature,
       ],
     })
@@ -98,22 +99,22 @@ describe('Permit2TxBuilder', () => {
       },
     } as unknown as Permit2DTO
 
-    const tx = builder.getPermit2Tx(permit)
+    const tx = builder.getPermit2Tx(zeroAddress, permit)
 
     const expectedData = encodeFunctionData({
       abi: Permit2BatchPermitAbi,
-      functionName: 'permitTransferFrom',
+      functionName: 'permit',
       args: [
+        zeroAddress,
         {
-          permitted: [
-            { token: address1, amount: 1000n },
-            { token: address2, amount: 2000n },
+          details: [
+            { token: address1, amount: 1000n, nonce: 1, expiration: 9999999999 },
+            { token: address2, amount: 2000n, nonce: 2, expiration: 9999999999 },
           ],
-          nonce: 1n,
-          deadline: 9999999999n,
+          spender,
+          sigDeadline: 9999999999n,
         },
-        spender,
-        9999999999n,
+        
         permit.signature,
       ],
     })
