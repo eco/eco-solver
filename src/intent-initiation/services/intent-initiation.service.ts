@@ -1,4 +1,3 @@
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
@@ -278,7 +277,9 @@ export class IntentInitiationService implements OnModuleInit {
       return this.getPermit2Txs(permit2!)
     }
 
-    return { error: EcoError.NoPermitsProvided }
+    // We got here because there are no permits. This is a valid outcome
+    // We should return an empty array of transactions, rather than an error
+    return { response: [] }
   }
 
   private getPermitTxs(
