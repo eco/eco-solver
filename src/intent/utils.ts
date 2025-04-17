@@ -5,6 +5,7 @@ import { Solver, TargetContract } from '@/eco-configs/eco-config.types'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
 import { decodeFunctionData, toFunctionSelector } from 'viem'
+import { mainnet } from 'viem/chains'
 
 /**
  * Decodes the function data for a target contract
@@ -34,4 +35,19 @@ export function getTransactionTargetData(
     return null
   }
   return { decodedFunctionData: tx, selector, targetConfig }
+}
+
+/**
+ * Gets the timeout in milliseconds for waiting for a transaction to be mined
+ * on the given chain.
+ * @param chainID the chain id
+ * @returns the timeout or undefined if not set
+ */
+export function getWaitForTransactionTimeout(chainID: bigint) {
+  switch (Number(chainID)) {
+    case mainnet.id:
+      return 1000 * 60 * 5 // 5 minutes
+    default:
+      return undefined
+  }
 }
