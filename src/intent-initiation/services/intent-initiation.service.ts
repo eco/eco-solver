@@ -310,7 +310,7 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     if (_.size(permit2) > 0) {
-      return this.getPermit2Txs(permit2!)
+      return this.getPermit2Txs(funder, permit2!)
     }
 
     return { error: EcoError.NoPermitsProvided }
@@ -350,7 +350,7 @@ export class IntentInitiationService implements OnModuleInit {
     return this.permitProcessor.generateTxs(...executions)
   }
 
-  private getPermit2Txs(permit2DTO: Permit2DTO): EcoResponse<ExecuteSmartWalletArg[]> {
-    return this.permit2Processor.generateTxs(permit2DTO)
+  private getPermit2Txs(funder: Hex, permit2DTO: Permit2DTO): EcoResponse<ExecuteSmartWalletArg[]> {
+    return this.permit2Processor.generateTxs(funder, permit2DTO)
   }
 }
