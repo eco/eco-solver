@@ -228,6 +228,19 @@ export class IntentInitiationService implements OnModuleInit {
       false,
     ] as const
 
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getIntentFundForTx: encodeFunctionData args:`,
+        properties: {
+          routeHash: realRouteHash,
+          reward: quote!.reward,
+          funder: gaslessIntentRequestDTO.getFunder!(),
+          permitContact: gaslessIntentRequestDTO.getPermitContractAddress!(),
+          allowPartial: false,
+        },
+      }),
+    )
+
     // Encode transaction
     const data = encodeFunctionData({
       abi: IntentSourceAbi,
