@@ -7,7 +7,7 @@ import {
   FeeConfigType,
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
-import { CalculateTokensType, NormalizedToken } from '@/fee/types'
+import { CalculateTokensType, NormalizedCall, NormalizedToken } from '@/fee/types'
 import { normalizeBalance } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
@@ -71,17 +71,16 @@ export class FeeService implements OnModuleInit {
   }
 
   /**
-   * Gets the ask for the quote
+   * Calculates the fee for the transaction based on an amount and the intent
    *
-   * @param totalFulfill the total amount to fulfill, assumes base6
-   * @param route the route of the quote intent
-   * @returns a bigint representing the ask
+   * @param amount the amount to use for the fee
+   * @param intent the quote intent
+   * @returns a bigint representing the fee
    */
-  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+  getFee(amount: bigint, intent: QuoteIntentDataInterface) {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const solver = this.getAskRouteDestinationSolver(route)
-
     let fee = 0n
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
     switch (feeConfig.algorithm) {
@@ -92,11 +91,23 @@ export class FeeService implements OnModuleInit {
         const { tranche } = feeConfig.constants as FeeAlgorithmConfig<'linear'>
         fee =
           BigInt(feeConfig.constants.baseFee) +
-          (totalFulfill / BigInt(tranche.unitSize)) * BigInt(tranche.unitFee)
+          (amount / BigInt(tranche.unitSize)) * BigInt(tranche.unitFee)
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
     }
+    return fee
+  }
+
+  /**
+   * Gets the ask for the quote
+   *
+   * @param totalFulfill the total amount to fulfill, assumes base6
+   * @param intent the quote intent
+   * @returns a bigint representing the ask
+   */
+  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+    const fee = this.getFee(totalFulfill, intent)
     return fee + totalFulfill
   }
 
@@ -112,13 +123,13 @@ export class FeeService implements OnModuleInit {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
     }
-    const { totalFillNormalized, error } = await this.getTotalFill(quote)
-    if (!!error) {
-      return { error }
+    const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
+    if (Boolean(totalFillError)) {
+      return { error: totalFillError }
     }
-    const { totalRewardsNormalized, error: error1 } = await this.getTotalRewards(quote)
-    if (!!error1) {
-      return { error: error1 }
+    const { totalRewardsNormalized, error: totalRewardsError } = await this.getTotalRewards(quote)
+    if (Boolean(totalRewardsError)) {
+      return { error: totalRewardsError }
     }
     const ask = this.getAsk(totalFillNormalized, quote)
     return {
@@ -126,6 +137,21 @@ export class FeeService implements OnModuleInit {
         totalRewardsNormalized >= ask
           ? undefined
           : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
+    }
+  }
+
+  async isRewardFeasible(quote: QuoteIntentDataInterface): Promise<{ error?: Error }> {
+    const { totalRewardsNormalized, error } = await this.getTotalRewards(quote)
+    if (error) {
+      return { error }
+    }
+    const fee = this.getFee(totalRewardsNormalized, quote)
+
+    return {
+      error:
+        totalRewardsNormalized >= fee
+          ? undefined
+          : QuoteError.RewardIsInfeasable(fee, totalRewardsNormalized),
     }
   }
 
@@ -177,12 +203,17 @@ export class FeeService implements OnModuleInit {
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == srcChainID)!
+    const destination = this.ecoConfigService
+      .getIntentSources()
+      .find((intent) => BigInt(intent.chainID) == destChainID)!
     const solver = this.ecoConfigService.getSolver(destChainID)!
 
-    if (!source || !solver) {
+    if (!source || !destination || !solver) {
       let error: Error | undefined
       if (!source) {
         error = QuoteError.NoIntentSourceForSource(srcChainID)
+      } else if (!destination) {
+        error = QuoteError.NoIntentSourceForDestination(destChainID)
       } else if (!solver) {
         error = QuoteError.NoSolverForDestination(destChainID)
       }
@@ -202,12 +233,29 @@ export class FeeService implements OnModuleInit {
     }
 
     //Get the tokens the solver accepts on the source chain
-    const balance = await this.balanceService.fetchTokenData(Number(srcChainID))
-    if (!balance) {
+    const srcBalance = await this.balanceService.fetchTokenData(Number(srcChainID))
+    if (!srcBalance) {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
-    const deficitDescending = balance
+    const srcDeficitDescending = srcBalance
       .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
+      .map((token) => {
+        return {
+          ...token,
+          //calculates, converts and normalizes the delta
+          delta: this.calculateDelta(token),
+        }
+      })
+      //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
+      .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
+
+    //Get the tokens the solver accepts on the destination chain
+    const destBalance = await this.balanceService.fetchTokenData(Number(destChainID))
+    if (!destBalance) {
+      throw QuoteError.FetchingCallTokensFailed(quote.route.destination)
+    }
+    const destDeficitDescending = destBalance
+      .filter((tokenAnalysis) => destination.tokens.includes(tokenAnalysis.token.address))
       .map((token) => {
         return {
           ...token,
@@ -220,16 +268,19 @@ export class FeeService implements OnModuleInit {
 
     //ge/calculate the rewards for the quote intent
     const { rewards, error: errorRewards } = await this.getRewardsNormalized(quote)
+    const { tokens, error: errorTokens } = await this.getTokensNormalized(quote)
     const { calls, error: errorCalls } = await this.getCallsNormalized(quote)
-    if (errorCalls || errorRewards) {
-      return { error: errorCalls || errorRewards }
+    if (errorCalls || errorTokens || errorRewards) {
+      return { error: errorCalls || errorTokens || errorRewards }
     }
     return {
       calculated: {
         solver,
         rewards,
+        tokens,
         calls,
-        deficitDescending, //token liquidity with deficit first descending
+        srcDeficitDescending, //token liquidity with deficit first descending
+        destDeficitDescending,
       },
     }
   }
@@ -272,6 +323,39 @@ export class FeeService implements OnModuleInit {
     }
   }
 
+  async getTokensNormalized(
+    quote: QuoteIntentDataInterface,
+  ): Promise<{ tokens: NormalizedToken[]; error?: Error }> {
+    const destChainID = quote.route.destination
+    const source = this.ecoConfigService
+      .getIntentSources()
+      .find((intent) => BigInt(intent.chainID) == destChainID)
+    if (!source) {
+      return { tokens: [], error: QuoteError.NoIntentSourceForDestination(destChainID) }
+    }
+    const acceptedTokens = quote.route.tokens
+      .filter((route) => source.tokens.includes(route.token))
+      .map((route) => route.token)
+    const erc20Rewards = await this.balanceService.fetchTokenBalances(
+      Number(destChainID),
+      acceptedTokens,
+    )
+    if (Object.keys(erc20Rewards).length === 0) {
+      return { tokens: [], error: QuoteError.FetchingRewardTokensFailed(BigInt(destChainID)) }
+    }
+
+    return {
+      tokens: Object.values(erc20Rewards).map((tb) => {
+        const token = quote.route.tokens.find((route) => getAddress(route.token) === tb.address)
+        return this.convertNormalize(token!.amount, {
+          chainID: destChainID,
+          address: tb.address,
+          decimals: tb.decimals,
+        })
+      }),
+    }
+  }
+
   /**
    * Fetches the call tokens for the quote intent, grabs their info from the erc20 contracts and then converts
    * to a standard reserve value for comparisons
@@ -283,7 +367,7 @@ export class FeeService implements OnModuleInit {
    * @returns
    */
   async getCallsNormalized(quote: QuoteIntentDataInterface): Promise<{
-    calls: NormalizedToken[]
+    calls: NormalizedCall[]
     error: Error | undefined
   }> {
     const solver = this.ecoConfigService.getSolver(quote.route.destination)
@@ -318,7 +402,7 @@ export class FeeService implements OnModuleInit {
 
     let error: Error | undefined
 
-    let calls: NormalizedToken[] = []
+    let calls: NormalizedCall[] = []
     try {
       calls = quote.route.calls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
@@ -341,6 +425,7 @@ export class FeeService implements OnModuleInit {
           throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
         }
 
+        const recipient = ttd!.decodedFunctionData.args![0] as Hex
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
         const normMinBalance = this.getNormalizedMinBalance(callTarget)
         if (transferAmount > callTarget.token.balance - normMinBalance) {
@@ -363,11 +448,14 @@ export class FeeService implements OnModuleInit {
           )
           throw err
         }
-        return this.convertNormalize(transferAmount, {
-          chainID: BigInt(solver.chainID),
-          address: call.target,
-          decimals: callTarget.token.decimals,
-        })
+        return {
+          ...this.convertNormalize(transferAmount, {
+            chainID: BigInt(solver.chainID),
+            address: call.target,
+            decimals: callTarget.token.decimals,
+          }),
+          recipient,
+        }
       })
     } catch (e) {
       error = e

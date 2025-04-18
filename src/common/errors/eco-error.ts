@@ -62,6 +62,13 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
+  static QuoteNotFound = new Error('Quote not found')
+  static QuoteDBUpdateError = new Error('Quote not found')
+  static NoPermitsProvided = new Error('At least one permit must be provided')
+  static AllPermitsMustBeOnSameChain = new Error(
+    `All Permits must be on the same chain for batching`,
+  )
+  static GasEstimationError = new Error('Error estimating gas')
   static RebalancingRouteNotFound() {
     return new EcoError(`A rebalancing route not found`)
   }

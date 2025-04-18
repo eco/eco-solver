@@ -7,16 +7,17 @@ import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 
 // The config type that we store in json
 export type EcoConfigType = {
-  server: {
-    url: string
-  }
+  server: ServerConfig
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
+  quotesConfig: QuotesConfig
+  solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
   rpcUrls: RpcUrlsConfigType
@@ -138,6 +139,25 @@ export type IntentConfig = {
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
+  }
+}
+
+export type ServerConfig = {
+  url: string
+}
+
+/**
+ * The config type for the quotes section
+ */
+export type QuoteExecutionType = (typeof IntentExecutionTypeKeys)[number]
+
+export type QuotesConfig = {
+  intentExecutionTypes: QuoteExecutionType[]
+}
+
+export type SolverRegistrationConfig = {
+  apiOptions: {
+    baseUrl: string
   }
 }
 

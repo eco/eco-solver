@@ -1,5 +1,6 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
+  preset: '@shelf/jest-mongodb',
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: {

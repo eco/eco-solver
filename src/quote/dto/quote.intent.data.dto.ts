@@ -1,8 +1,10 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
 import { QuoteRewardDataDTO, QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { ApiProperty } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsNotEmpty, ValidateNested } from 'class-validator'
 
 /**
  * The DTO for the intent data. Similar to {@link IntentType} except modified to
@@ -10,9 +12,21 @@ import { IsNotEmpty, ValidateNested } from 'class-validator'
  * on-chain data fields removed.
  */
 export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  quoteID: string
+
   @IsNotEmpty()
   @ApiProperty()
   dAppID: string
+
+  @ApiProperty({ isArray: true, enum: IntentExecutionType.enumKeys })
+  @IsArray()
+  @IsString({ each: true })
+  @IsIn(IntentExecutionType.enumKeys, { each: true })
+  @IsNotEmpty()
+  intentExecutionTypes: string[]
 
   @IsNotEmpty()
   @ApiProperty()
@@ -25,6 +39,12 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @ValidateNested()
   @Type(() => QuoteRewardDataDTO)
   reward: QuoteRewardDataDTO
+
+  @IsOptional()
+  @ValidateNested()
+  @ApiPropertyOptional()
+  @Type(() => GaslessIntentDataDTO)
+  gaslessIntentData?: GaslessIntentDataDTO
 }
 
 export interface QuoteIntentDataInterface {

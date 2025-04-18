@@ -3,6 +3,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { FeeService } from '@/fee/fee.service'
 import { getTransactionTargetData } from '@/intent/utils'
+import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger } from '@nestjs/common'
@@ -59,6 +60,8 @@ export type ValidationType = {
   [key: string]: boolean
 }
 
+export type TxValidationFn = (tx: TransactionTargetData) => boolean
+
 @Injectable()
 export class ValidationService {
   private readonly logger = new Logger(ValidationService.name)
@@ -79,13 +82,14 @@ export class ValidationService {
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
+    txValidationFn: TxValidationFn = () => true,
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       sourceChainID: intent.route.source,
       prover: intent.reward.prover,
     })
     const supportedTargets = this.supportedTargets(intent, solver)
-    const supportedSelectors = this.supportedSelectors(intent, solver)
+    const supportedSelectors = this.supportedSelectors(intent, solver, txValidationFn)
     const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
@@ -129,7 +133,11 @@ export class ValidationService {
    * @param solver the solver for the intent
    * @returns
    */
-  supportedSelectors(intent: ValidationIntentInterface, solver: Solver): boolean {
+  supportedSelectors(
+    intent: ValidationIntentInterface,
+    solver: Solver,
+    txValidationFn: TxValidationFn = () => true,
+  ): boolean {
     if (intent.route.calls.length == 0) {
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -140,7 +148,7 @@ export class ValidationService {
     }
     return intent.route.calls.every((call) => {
       const tx = getTransactionTargetData(solver, call)
-      return tx
+      return tx && txValidationFn(tx)
     })
   }
 
