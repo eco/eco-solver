@@ -109,7 +109,7 @@ describe('Permit2TxBuilder', () => {
         {
           details: [
             { token: address1, amount: 1000n, nonce: 1, expiration: 9999999999 },
-            { token: address2, amount: 2000n, nonce: 2, expiration: 9999999999 },
+            { token: address2, amount: 2000n, nonce: 1, expiration: 9999999999 },
           ],
           spender,
           sigDeadline: 9999999999n,
