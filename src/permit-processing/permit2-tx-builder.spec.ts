@@ -114,7 +114,6 @@ describe('Permit2TxBuilder', () => {
           spender,
           sigDeadline: 9999999999n,
         },
-
         permit.signature,
       ],
     })
