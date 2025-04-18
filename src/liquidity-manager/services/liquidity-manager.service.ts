@@ -206,7 +206,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     if (!Array.isArray(surplusTokens) || surplusTokens.length === 0) {
       return []
     }
-    
+
     const sortedSurplusTokens = getSortGroupByDiff(surplusTokens)
     const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
 
