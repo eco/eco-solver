@@ -1,41 +1,44 @@
 import { Chain, getAddress, Hex } from 'viem'
 
 /**
- * Gets the url for a chain with the given api key, either websocket or http. It tries
- * to find a non default rpc url if it exists and returns the first one it finds,
- * otherwise it returns the default one.
+ * Generates the RPC URL for a given blockchain network and configuration options.
  *
- * @param chain the chain to get the url for
- * @param apiKeys the api key if it is required
- * @param websocketEnabled whether to try the websocket url if there is one
- * @returns
+ * @param {Chain} chain - The blockchain network details, including RPC URLs.
+ * @param {Object} options - Configuration options for generating the RPC URL.
+ * @param {string} options.alchemy - The Alchemy API key for connecting to Alchemy services.
+ * @param {string[]} [options.rpcUrls] - A list of custom RPC URLs to override the default settings.
+ * @param {boolean} [options.websocketEnabled] - Indicates whether a WebSocket URL should be returned.
+ *
+ * @return {Object} An object containing the connection URL and a flag indicating if it's a WebSocket URL.
+ * @return {string} return.url - The generated RPC URL.
+ * @return {boolean} return.isWebsocket - A flag indicating whether the returned URL is a WebSocket URL.
  */
 export function getRpcUrl(
   chain: Chain,
-  apiKeys: { alchemy: string; quicknode: string },
-  websocketEnabled?: boolean,
+  options: {
+    alchemyApiKey: string
+    rpcUrls?: Chain['rpcUrls']['default']
+    websocketEnabled?: boolean
+  },
 ): { url: string; isWebsocket: boolean } {
-  let rpcUrl = chain.rpcUrls.default
+  const { alchemyApiKey, rpcUrls: customRpcUrls, websocketEnabled } = options
+
+  let rpcUrls = chain.rpcUrls.default
   for (const key in chain.rpcUrls) {
-    if (key === 'default') {
-      continue
-    }
-    rpcUrl = chain.rpcUrls[key]
+    if (key === 'default') continue
+    rpcUrls = chain.rpcUrls[key]
     break
   }
 
-  websocketEnabled = websocketEnabled ?? getDefaultWebsocketFlag(chain)
+  rpcUrls = customRpcUrls ?? rpcUrls
 
-  const isWebsocket = Boolean(websocketEnabled && rpcUrl.webSocket && rpcUrl.webSocket.length)
+  const isWebsocket = Boolean((websocketEnabled ?? customRpcUrls) && rpcUrls.webSocket?.length)
 
-  let url = isWebsocket ? rpcUrl.webSocket![0] : rpcUrl.http[0]
+  let url = isWebsocket ? rpcUrls.webSocket![0] : rpcUrls.http[0]
 
-  if (url.includes('g.alchemy.com')) {
-    url += '/' + apiKeys.alchemy
+  if (!customRpcUrls && url.includes('g.alchemy.com')) {
+    url += '/' + alchemyApiKey
   }
-
-  // Replace placeholder text with QuickNode API Key
-  url = url.replace('{QUICKNODE_API_KEY}', apiKeys.quicknode)
 
   return { url, isWebsocket }
 }

@@ -90,6 +90,21 @@ export class LiquidityProviderService {
     return service.execute(walletAddress, quote)
   }
 
+  /**
+   * Attempts a route using fallback mechanisms (like core tokens)
+   * @param tokenIn The source token
+   * @param tokenOut The destination token
+   * @param swapAmount The amount to swap
+   * @returns A quote using the fallback mechanism
+   */
+  async fallback(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    swapAmount: number,
+  ): Promise<RebalanceQuote> {
+    return this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+  }
+
   private getStrategyService(strategy: Strategy): IRebalanceProvider<Strategy> {
     switch (strategy) {
       case 'LiFi':

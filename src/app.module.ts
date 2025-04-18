@@ -9,6 +9,17 @@ import { QuoteModule } from '@/quote/quote.module'
 import { FeeModule } from '@/fee/fee.module'
 import { KmsModule } from '@/kms/kms.module'
 import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
+import { BalanceModule } from '@/balance/balance.module'
+import { ChainMonitorModule } from '@/chain-monitor/chain-monitor.module'
+import { EcoConfigModule } from '@/eco-configs/eco-config.module'
+import { FlagsModule } from '@/flags/flags.module'
+import { HealthModule } from '@/health/health.module'
+import { IntentModule } from '@/intent/intent.module'
+import { SignModule } from '@/sign/sign.module'
+import { ProcessorModule } from '@/bullmq/processors/processor.module'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { ProverModule } from '@/prover/prover.module'
+import { SolverModule } from '@/solver/solver.module'
 
 @Module({
   imports: [

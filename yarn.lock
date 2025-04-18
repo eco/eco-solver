@@ -1448,25 +1448,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/lifi-sdk@^3.6.5":
-  version "3.6.5"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/lifi-sdk/-/lifi-sdk-3.6.5.tgz#db04e6951bc16f6ccfd6dd7811c32a1943bc13e2"
-  integrity sha512-S8oMIxWjz/fJrbJwJhTl00gQVw4FACt9jwYTWpjbR5gnhtFqcVFy0o60Qbb9dgpmVmQ0wk2A7fxqypl7cehGvw==
-  dependencies:
-    "@bigmi/core" "^0.1.1"
-    "@lifi/types" "^17.9.0"
-    "@noble/curves" "^1.8.1"
-    "@solana/wallet-adapter-base" "^0.9.24"
-    "@solana/web3.js" "^1.98.0"
-    bech32 "^2.0.0"
-    bitcoinjs-lib "^7.0.0-rc.0"
-    bs58 "^6.0.0"
-    viem "^2.24.3"
-
-"@eco-foundation/routes-ts@1.17.1":
-  version "1.17.1"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.17.1.tgz#64f24ca6ce5342c2c8be90e5e16262ea6b8d423c"
-  integrity sha512-QMAMFIoZWoHCE0j+817BXTYjIRhB2uZ+14i8Q6ghFQIwg5gbHCkqDQ9uFXI3OApNbQy7Fl7UhsakpwZvlph8Mw==
+"@eco-foundation/routes-ts@1.18.1":
+  version "1.18.1"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.18.1.tgz#0287c42cfa44e8355b5ca3c53fe260060aedb156"
+  integrity sha512-5b+0TA7LjDmOXBtR2LWVkWwcKciapRSjqxxqyWyb129C4kBV0EF3l0lIlESVe/FWrc++NkrNWxLkzX4SL9F9Mw==
   dependencies:
     viem "^2.22.21"
 
@@ -2223,10 +2208,25 @@
   dependencies:
     tslib "2.4.1"
 
-"@lifi/types@^17.9.0":
-  version "17.9.0"
-  resolved "https://registry.yarnpkg.com/@lifi/types/-/types-17.9.0.tgz#884ea90d4395a05b22549bcdc13732a39ee44064"
-  integrity sha512-p5N9EsE7VGCVonFgdoum41ckrq7oXtUegkoXyvccmQ64YHIqRgZIEDX+MqboG6EDfZ/qBa+r+N06jPwF0+TujA==
+"@lifi/sdk@^3.6.6":
+  version "3.6.6"
+  resolved "https://registry.yarnpkg.com/@lifi/sdk/-/sdk-3.6.6.tgz#f17acd194b833c169693f92921e115796ee3fa9c"
+  integrity sha512-mag7QJKSl+06oNYhJNMnGoKDED9tIWrqAtUpKFKY3SA4PFirG+3D4GIXoUCD3afAE5vTnJ2hzeIcqAmEHkYGVA==
+  dependencies:
+    "@bigmi/core" "^0.1.1"
+    "@lifi/types" "^17.10.0"
+    "@noble/curves" "^1.8.1"
+    "@solana/wallet-adapter-base" "^0.9.24"
+    "@solana/web3.js" "^1.98.0"
+    bech32 "^2.0.0"
+    bitcoinjs-lib "^7.0.0-rc.0"
+    bs58 "^6.0.0"
+    viem "^2.25.0"
+
+"@lifi/types@^17.10.0":
+  version "17.10.0"
+  resolved "https://registry.yarnpkg.com/@lifi/types/-/types-17.10.0.tgz#12d23f1a553b0ddafebe1b131c6245fa94ecddfc"
+  integrity sha512-nC18YgEPkojiGEb5KG5BxuybCajz072StT8t57IW5pUywISdFfy0+1aajPZxOjCMEApBtYDz87jH+Azo3mkP3A==
   dependencies:
     viem "^2.24.3"
 
@@ -10677,10 +10677,24 @@ viem@^2.22.21:
     ox "0.6.9"
     ws "8.18.1"
 
-viem@^2.23.10, viem@^2.24.3:
+viem@^2.24.3:
   version "2.24.3"
   resolved "https://registry.yarnpkg.com/viem/-/viem-2.24.3.tgz#e34f686eed9d19caa2e8a162a29a85bee4efc21e"
   integrity sha512-FAoW0hqqpGOlZvfL6GbizDNUd6ZvUyNYYF8HouXbGATrO0RLLh28MOElFNF63hg++uZi2R/EcISs0bvY185z8g==
+  dependencies:
+    "@noble/curves" "1.8.1"
+    "@noble/hashes" "1.7.1"
+    "@scure/bip32" "1.6.2"
+    "@scure/bip39" "1.5.4"
+    abitype "1.0.8"
+    isows "1.0.6"
+    ox "0.6.9"
+    ws "8.18.1"
+
+viem@^2.25.0:
+  version "2.25.0"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.25.0.tgz#53e2438512f21233be1f2850b9862e80fc512041"
+  integrity sha512-TtFgfQkZOfb642s8+i+h27dRhBfZV//WWOkZ9saoS1Ml8kipj9RiOiDaSmAUly1rhq9kbnYhni1xVtb195XVGA==
   dependencies:
     "@noble/curves" "1.8.1"
     "@noble/hashes" "1.7.1"

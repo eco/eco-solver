@@ -112,8 +112,10 @@ export class EcoConfigService {
   // Returns the safe multisig configs
   getSafe(): SafeType {
     const safe = this.get<SafeType>('safe')
-    // validate and checksum the owner address, throws if invalid/not-set
-    safe.owner = getAddress(safe.owner)
+    if (safe.owner) {
+      // validate and checksum the owner address, throws if invalid/not-set
+      safe.owner = getAddress(safe.owner)
+    }
     return safe
   }
 
@@ -199,21 +201,6 @@ export class EcoConfigService {
   }
 
   // Returns the liquidity manager config
-  getCCTP(): EcoConfigType['CCTP'] {
-    return this.get('CCTP')
-  }
-
-  // Returns the liquidity manager config
-  getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
-    return this.get('crowdLiquidity')
-  }
-
-  // Returns the liquidity manager config
-  getWarpRoutes(): EcoConfigType['warpRoutes'] {
-    return this.get('warpRoutes')
-  }
-
-  // Returns the liquidity manager config
   getHyperlane(): EcoConfigType['hyperlane'] {
     return this.get('hyperlane')
   }
@@ -234,8 +221,22 @@ export class EcoConfigService {
   }
 
   // Returns the liquidity manager config
-  getQuicknode(): EcoConfigType['quicknode'] {
-    return this.get('quicknode')
+  getCCTP(): EcoConfigType['CCTP'] {
+    return this.get('CCTP')
+  }
+
+  // Returns the liquidity manager config
+  getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
+    return this.get('crowdLiquidity')
+  }
+
+  // Returns the liquidity manager config
+  getWarpRoutes(): EcoConfigType['warpRoutes'] {
+    return this.get('warpRoutes')
+  }
+
+  getRpcUrls(): EcoConfigType['rpcUrls'] {
+    return this.get('rpcUrls')
   }
 
   getChainRPCs() {
@@ -245,9 +246,9 @@ export class EcoConfigService {
 
   getRpcUrl(chain: Chain, websocketEnabled?: boolean) {
     const alchemy = this.getAlchemy()
-    const quicknode = this.getQuicknode()
-    const apiKeys = { alchemy: alchemy.apiKey, quicknode: quicknode.apiKey }
-    return getRpcUrl(chain, apiKeys, websocketEnabled)
+    const rpcUrls = this.getRpcUrls()[chain.id.toString()]
+    const options = { alchemyApiKey: alchemy.apiKey, rpcUrls, websocketEnabled }
+    return getRpcUrl(chain, options)
   }
 
   /**

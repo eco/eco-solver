@@ -20,7 +20,7 @@ export type EcoConfigType = {
   intervals: IntervalConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
-  quicknode: QuicknodeConfigType
+  rpcUrls: RpcUrlsConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -66,13 +66,13 @@ export type EcoConfigType = {
     pinoConfig: PinoParams
   }
   liquidityManager: LiquidityManagerConfig
-  crowdLiquidity: CrowdLiquidityConfig
-  CCTP: CCTPConfig
-  warpRoutes: WarpRoutesConfig
   indexer: IndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
   hyperlane: HyperlaneConfig
+  crowdLiquidity: CrowdLiquidityConfig
+  CCTP: CCTPConfig
+  warpRoutes: WarpRoutesConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -97,7 +97,7 @@ export type FulfillType = {
  * The config type for the safe multisig wallet
  */
 export type SafeType = {
-  owner: Hex
+  owner?: Hex
 }
 
 /**
@@ -140,6 +140,7 @@ export type IntervalConfig = {
  */
 export type IntentConfig = {
   defaultFee: FeeConfigType
+  skipBalanceCheck?: boolean
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
@@ -223,9 +224,7 @@ export type AlchemyNetwork = {
 /**
  * The whole config type for QuickNode.
  */
-export type QuicknodeConfigType = {
-  apiKey: string
-}
+export type RpcUrlsConfigType = Record<string, { http: string[]; webSocket?: string[] }>
 
 /**
  * The config type for a single solver configuration
@@ -294,6 +293,38 @@ export interface LiquidityManagerConfig {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
+  // Core tokens are used as intermediaries between two chains
+  coreTokens: {
+    token: Hex
+    chainID: number
+  }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
+  chains: Record<
+    string, // Chain ID
+    {
+      mailbox: Hex
+      aggregationHook: Hex
+      hyperlaneAggregationHook: Hex
+    }
+  >
 }
 
 export interface CrowdLiquidityConfig {

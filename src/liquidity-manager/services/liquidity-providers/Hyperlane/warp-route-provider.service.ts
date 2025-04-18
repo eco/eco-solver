@@ -331,7 +331,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
   private async waitMessageRelay(chainId: number, messageId: Hex) {
     const client = await this.kernelAccountClientService.getClient(chainId)
-    const { mailbox } = Hyperlane.getChainMetadata(chainId)
+    const { mailbox } = Hyperlane.getChainMetadata(this.ecoConfigService.getHyperlane(), chainId)
 
     return new Promise((resolve, reject) => {
       client.watchEvent({

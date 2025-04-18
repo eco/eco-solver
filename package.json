@@ -43,10 +43,10 @@
   "dependencies": {
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
-    "@eco-foundation/routes-ts": "1.17.1",
+    "@eco-foundation/routes-ts": "1.18.1",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
-    "@eco-foundation/lifi-sdk": "^3.6.5",
+    "@lifi/sdk": "^3.6.6",
     "@lit-protocol/auth-helpers": "^7.0.4",
     "@lit-protocol/constants": "^7.0.4",
     "@lit-protocol/lit-node-client": "^7.0.4",
@@ -86,7 +86,7 @@
     "rxjs": "^7.8.1",
     "table": "^6.8.2",
     "uuid": "^11.0.5",
-    "viem": "^2.23.10"
+    "viem": "^2.25.0"
   },
   "devDependencies": {
     "@golevelup/ts-jest": "^0.5.0",

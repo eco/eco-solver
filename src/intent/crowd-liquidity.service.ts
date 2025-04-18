@@ -53,7 +53,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve the intent.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  executeFulfillIntent(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
     // Unused variable
     solver
 
@@ -65,7 +65,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
     }
 
-    return this.fulfill(model.intent)
+    return this._fulfill(model.intent)
   }
 
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
@@ -206,7 +206,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     return this.config.kernel.address as Hex
   }
 
-  private async fulfill(intentModel: IntentDataModel): Promise<Hex> {
+  private async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
     const { kernel, pkp, actions } = this.config
 
     const publicClient = await this.publicClient.getClient(Number(intentModel.route.destination))
@@ -278,8 +278,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       uses: '1',
       dAppOwnerWallet: capacityTokenOwner,
       capacityTokenId: capacityTokenId,
-      delegateeAddresses: [pkp.ethAddress],
-      expiration: new Date(Date.now() + 1000 * 60 * 5).toISOString(), // 5 minutes
     })
 
     // ================ Get session sigs ================
