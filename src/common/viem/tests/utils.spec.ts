@@ -1,6 +1,8 @@
 import { getRpcUrl, addressKeys, convertBigIntsToStrings } from '../utils'
 import { Chain, InvalidAddressError } from 'viem'
 
+const mockApiKeys = { alchemy: 'alchemy', quicknode: 'quicknode' }
+
 describe('Viem Utils', () => {
   describe('getRpcUrl', () => {
     let defaultOpts

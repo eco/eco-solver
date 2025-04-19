@@ -9,15 +9,16 @@ import {
   RoutesRequest,
   SDKConfig,
 } from '@lifi/sdk'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
-import { EcoError } from '@/common/errors/eco-error'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 
 @Injectable()
-export class LiFiProviderService implements OnModuleInit {
+export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
   private walletAddress: string
 
@@ -46,15 +47,15 @@ export class LiFiProviderService implements OnModuleInit {
     })
   }
 
-  getStrategy(): Strategy {
-    return 'LiFi'
+  getStrategy() {
+    return 'LiFi' as const
   }
 
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<RebalanceQuote> {
+  ): Promise<RebalanceQuote<'LiFi'>> {
     const routesRequest: RoutesRequest = {
       // Origin chain
       fromAddress: this.walletAddress,
@@ -82,6 +83,24 @@ export class LiFiProviderService implements OnModuleInit {
       strategy: this.getStrategy(),
       context: route,
     }
+  }
+
+  async execute(walletAddress: string, quote: RebalanceQuote<'LiFi'>) {
+    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
+
+    if (kernelWalletAddress !== walletAddress) {
+      const error = new Error('LiFi is not configured with the provided wallet')
+      this.logger.error(
+        EcoLogMessage.withError({
+          error,
+          message: error.message,
+          properties: { walletAddress, kernelWalletAddress },
+        }),
+      )
+      throw error
+    }
+
+    return this._execute(quote)
   }
 
   /**
@@ -153,7 +172,7 @@ export class LiFiProviderService implements OnModuleInit {
     throw EcoError.RebalancingRouteNotFound()
   }
 
-  async execute(quote: RebalanceQuote<'LiFi'>) {
+  async _execute(quote: RebalanceQuote<'LiFi'>) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: 'LiFiProviderService: executing quote',

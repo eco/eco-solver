@@ -1,0 +1,38 @@
+{
+  "ethereum": {
+    "chainId": 1,
+    "mailbox": "0xc005dc82818d67AF737725bD4bf75435d065D239",
+    "aggregationHook": "0x1c5b60e118e34e49104f467bdb27ba8a687fecff",
+    "hyperlaneAggregationHook": "0xb87AC8EA4533AE017604E44470F7c1E550AC6F10"
+  },
+  "mantle": {
+    "chainId": 5000,
+    "mailbox": "0x398633D19f4371e1DB5a8EFE90468eB70B1176AA",
+    "aggregationHook": "0x52349430445c44b9fbae5b9b81b0f42e1be37aec",
+    "hyperlaneAggregationHook": "0x76b396EaCBF3580B80Ee34C94e780a1Dee76EC72"
+  },
+  "arbitrum": {
+    "chainId": 42161,
+    "mailbox": "0x979Ca5202784112f4738403dBec5D0F3B9daabB9",
+    "aggregationHook": "0x3ac12ad5cfe85a302cbdbd7907aa2e747d5f9a61",
+    "hyperlaneAggregationHook": "0xe0cb37cFc47296f1c4eD77EFf92Aed478644d10c"
+  },
+  "optimism": {
+    "chainId": 10,
+    "mailbox": "0xd4C1905BB1D26BC93DAC913e13CaCC278CdCC80D",
+    "aggregationHook": "0x485ff18015e5b7e98b3c6a8912f0d4c1e5b029a8",
+    "hyperlaneAggregationHook": "0x4ccC6d8eB79f2a1EC9bcb0f211fef7907631F91f"
+  },
+  "base": {
+    "chainId": 8453,
+    "mailbox": "0xeA87ae93Fa0019a82A727bfd3eBd1cFCa8f64f1D",
+    "aggregationHook": "0xe130eadf60e36e3246d4f13e56af947579067a2b",
+    "hyperlaneAggregationHook": "0x13f3d4B0Ee0a713430fded9E18f7fb6c91A6E41F"
+  },
+  "polygon": {
+    "chainId": 137,
+    "mailbox": "0x5d934f4e2f797775e53561bB72aca21ba36B96BB",
+    "aggregationHook": "0xc3f578d8a79411a8e260282a56d088f597cd8f27",
+    "hyperlaneAggregationHook": "0x34dAb05650Cf590088bA18aF9d597f3e081bCc47"
+  }
+}
