@@ -177,12 +177,14 @@ describe('LiquidityManagerService', () => {
           if (tokenIn.config.address === '0xSurplus1') {
             return Promise.reject(new Error('Route not found'))
           } else {
-            return Promise.resolve({
-              amountIn: 100n,
-              amountOut: 80n,
-              tokenIn,
-              tokenOut,
-            } as any)
+            return Promise.resolve([
+              {
+                amountIn: 100n,
+                amountOut: 80n,
+                tokenIn,
+                tokenOut,
+              },
+            ] as any)
           }
         })
 
@@ -233,10 +235,12 @@ describe('LiquidityManagerService', () => {
       liquidityManagerService['config'] = mockConfig
 
       // Setup getQuote to return a quote that reaches the target
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue({
-        amountIn: 100n,
-        amountOut: 100n, // This will make current balance reach the min
-      } as any)
+      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+        {
+          amountIn: 100n,
+          amountOut: 100n, // This will make current balance reach the min
+        },
+      ] as any)
 
       const fallbackSpy = jest.spyOn(liquidityProviderService, 'fallback')
 

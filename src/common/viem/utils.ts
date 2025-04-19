@@ -86,8 +86,3 @@ export function convertBigIntsToStrings(obj: any): any {
 
   return obj
 }
-
-function getDefaultWebsocketFlag(chain: Chain) {
-  // WebSockets are enabled by default for QuickNode RPCs
-  return chain.rpcUrls.default.http[0].includes('quicknode')
-}

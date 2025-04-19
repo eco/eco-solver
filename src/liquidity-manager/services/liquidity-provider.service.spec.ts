@@ -4,6 +4,7 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -11,7 +12,7 @@ describe('LiquidityProviderService', () => {
   let liquidityProviderService: LiquidityProviderService
   let liFiProviderService: LiFiProviderService
   let cctpProviderService: CCTPProviderService
-  let crowdLiquidityService: CrowdLiquidityService
+  let warpRouteProviderService: WarpRouteProviderService
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,23 +21,33 @@ describe('LiquidityProviderService', () => {
         { provide: LiFiProviderService, useValue: createMock<LiFiProviderService>() },
         { provide: CCTPProviderService, useValue: createMock<CCTPProviderService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: WarpRouteProviderService, useValue: createMock<WarpRouteProviderService>() },
       ],
     }).compile()
 
     liquidityProviderService = module.get<LiquidityProviderService>(LiquidityProviderService)
     liFiProviderService = module.get<LiFiProviderService>(LiFiProviderService)
     cctpProviderService = module.get<CCTPProviderService>(CCTPProviderService)
-    crowdLiquidityService = module.get<CrowdLiquidityService>(CrowdLiquidityService)
+    warpRouteProviderService = module.get<WarpRouteProviderService>(WarpRouteProviderService)
   })
 
   describe('getQuote', () => {
     it('should call liFiProvider.getQuote', async () => {
-      const mockTokenIn = { chainId: 1 }
-      const mockTokenOut = { chainId: 2 }
+      const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
+      const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
       const mockSwapAmount = 100
-      const mockQuote = { amountIn: 100n, amountOut: 200n }
+      const mockQuote = [
+        {
+          amountIn: 100n,
+          amountOut: 200n,
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+        },
+      ]
 
       jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(cctpProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
         walletAddr,
