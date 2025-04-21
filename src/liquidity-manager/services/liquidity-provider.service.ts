@@ -124,7 +124,7 @@ export class LiquidityProviderService {
       case crowdLiquidityPoolAddress:
         return ['CCTP']
       default:
-        return ['LiFi', 'CCTP', 'WarpRoute']
+        return ['LiFi', 'WarpRoute']
     }
   }
 
