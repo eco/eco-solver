@@ -63,21 +63,23 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    // Remove existing job schedulers for CHECK_BALANCES
     await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
 
+    // Get wallet addresses we'll be monitoring
     this.config = this.ecoConfigService.getLiquidityManager()
 
     // Use OP as the default chain assuming the Kernel wallet is the same across all chains
     const opChainId = 10
     const client = await this.kernelAccountClientService.getClient(opChainId)
     const kernelAddress = client.kernelAccount.address
+    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
 
     // Track rebalances for Solver
     await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
     this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
 
     // Track rebalances for Crowd Liquidity
-    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
     await this.liquidityManagerQueue.startCronJobs(
       this.config.intervalDuration,
       crowdLiquidityPoolAddress,
