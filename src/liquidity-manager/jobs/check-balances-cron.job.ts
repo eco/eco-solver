@@ -24,7 +24,16 @@ type CheckBalancesCronJob = LiquidityManagerJob<
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
 export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
-  static readonly jobSchedulerName = 'job-scheduler-check-balances'
+  static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
+
+  /**
+   * Gets the unique job scheduler name for a specific wallet
+   * @param walletAddress - Wallet address for the job
+   * @returns The unique job scheduler name
+   */
+  static getJobSchedulerName(walletAddress: string): string {
+    return `${this.jobSchedulerNamePrefix}-${walletAddress}`
+  }
 
   /**
    * Starts the CheckBalancesCronJob by removing existing repeatable jobs and adding a new one to the queue.
@@ -48,7 +57,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     }
 
     await queue.upsertJobScheduler(
-      CheckBalancesCronJobManager.jobSchedulerName,
+      CheckBalancesCronJobManager.getJobSchedulerName(walletAddress),
       { every: interval },
       job,
     )
