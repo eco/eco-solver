@@ -89,7 +89,7 @@ describe('LiquidityManagerService', () => {
 
       const upsertJobScheduler = jest.spyOn(queue, 'upsertJobScheduler')
       expect(upsertJobScheduler).toHaveBeenCalledWith(
-        CheckBalancesCronJobManager.jobSchedulerName,
+        CheckBalancesCronJobManager.getJobSchedulerName(zeroAddress),
         { every: intervalDuration },
         expect.anything(),
       )
