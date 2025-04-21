@@ -234,6 +234,19 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           swapAmount,
         )
 
+        this.logger.log(
+          EcoLogMessage.fromDefault({
+            message: 'Quotes from strategies',
+            properties: {
+              strategyQuotes,
+              surplusToken,
+              deficitToken,
+              swapAmount,
+              walletAddress,
+            },
+          }),
+        )
+
         for (const quote of strategyQuotes) {
           quotes.push(quote)
           currentBalance += quote.amountOut
