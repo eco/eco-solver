@@ -265,6 +265,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
               deficitToken: deficitToken.config,
               error: {
                 message: error.message,
+                stack: error.stack,
               },
             },
           }),
