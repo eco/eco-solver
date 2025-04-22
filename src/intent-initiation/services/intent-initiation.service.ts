@@ -1,3 +1,4 @@
+import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -29,6 +30,7 @@ export class IntentInitiationService implements OnModuleInit {
   private permitProcessor: PermitProcessor
   private permit2Processor: Permit2Processor
   private kernelAccountClientService: KernelAccountClientService
+  private createIntentService: CreateIntentService
 
   constructor(private readonly moduleRef: ModuleRef) {}
 
@@ -39,6 +41,7 @@ export class IntentInitiationService implements OnModuleInit {
     this.kernelAccountClientService = this.moduleRef.get(KernelAccountClientService, {
       strict: false,
     })
+    this.createIntentService = this.moduleRef.get(CreateIntentService, { strict: false })
   }
 
   /**
@@ -217,9 +220,19 @@ export class IntentInitiationService implements OnModuleInit {
       salt,
     }
 
+    const funder = gaslessIntentRequestDTO.getFunder!()
     const realRouteHash = hashRoute(routeWithSalt)
     const chainConfig = getChainConfig(gaslessIntentRequestDTO.getSourceChainID!())
     const intentSourceContract = chainConfig.IntentSource
+    const reward = quote!.reward
+
+    // Update intent db
+    await this.createIntentService.createIntentFromIntentInitiation(
+      quoteID,
+      funder,
+      routeWithSalt,
+      reward,
+    )
 
     // function fundFor(
     //   bytes32 routeHash,
@@ -231,8 +244,8 @@ export class IntentInitiationService implements OnModuleInit {
 
     const args = [
       realRouteHash,
-      quote!.reward,
-      gaslessIntentRequestDTO.getFunder!(),
+      reward,
+      funder,
       gaslessIntentRequestDTO.getPermitContractAddress!(),
       false,
     ] as const

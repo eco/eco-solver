@@ -1,29 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { getIntentJobId } from '@/common/utils/strings'
+import { Injectable, Logger } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
+import { IntentFundedLog } from '@/contracts'
+import { IntentSource } from '@/eco-configs/eco-config.types'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { Log, PublicClient } from 'viem'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
-import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '@/common/utils/strings'
-import { IntentSource } from '@/eco-configs/eco-config.types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { IntentCreatedLog } from '@/contracts'
-import { Log, PublicClient } from 'viem'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
-import * as BigIntSerializer from '@/common/utils/serialize'
 
 /**
- * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
+ * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
  * supported chains and prover addresses. When an event is emitted, it mutates the event log, and then
  * adds it intent queue for processing.
  */
 @Injectable()
-export class WatchCreateIntentService extends WatchEventService<IntentSource> {
-  protected logger = new Logger(WatchCreateIntentService.name)
+export class WatchIntentFundedService extends WatchEventService<IntentSource> {
+  protected logger = new Logger(WatchIntentFundedService.name)
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
+    private readonly intentFundedEventRepository: IntentFundedEventRepository,
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {
@@ -31,7 +32,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   }
 
   /**
-   * Subscribes to all IntentSource contracts for IntentCreated events. It subscribes on all supported chains
+   * Subscribes to all IntentSource contracts for IntentFunded events. It subscribes on all supported chains
    * filtering on the prover addresses and destination chain ids. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */
@@ -54,7 +55,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   async subscribeTo(client: PublicClient, source: IntentSource) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `watch create intent: subscribeToSource`,
+        message: `watch intent funded: subscribeToSource`,
         properties: {
           source,
         },
@@ -66,7 +67,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       },
       address: source.sourceAddress,
       abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
+      eventName: 'IntentFunded',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
@@ -77,30 +78,50 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   }
 
   addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
-    return async (logs: IntentCreatedLog[]) => {
+    return async (logs: IntentFundedLog[]) => {
       for (const log of logs) {
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
 
         // bigint as it can't serialize to JSON
-        const createIntent = BigIntSerializer.serialize(log)
-        const jobId = getIntentJobId(
-          'watch-create-intent',
-          createIntent.args.hash,
-          createIntent.logIndex,
-        )
+        const intentFunded = log
+        const intentHash = intentFunded.args.intentHash
+
+        const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
+
         this.logger.debug(
           EcoLogMessage.fromDefault({
-            message: `watch intent`,
-            properties: { createIntent, jobId },
+            message: `watch intent funded`,
+            properties: { intentFunded, jobId },
           }),
         )
-        // add to processing queue
-        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.create_intent, createIntent, {
+
+        // Add to db
+        await this.addIntentFundedEvent(intentFunded)
+
+        // Add to processing queue
+        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_funded_intent, intentHash, {
           jobId,
           ...this.intentJobConfig,
         })
       }
+    }
+  }
+
+  async addIntentFundedEvent(addIntentFundedEvent: IntentFundedLog): Promise<void> {
+    try {
+      // Check db if the intent is already filled
+      await this.intentFundedEventRepository.addEvent(addIntentFundedEvent)
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Error in addIntentFundedEvent ${addIntentFundedEvent.transactionHash}`,
+          properties: {
+            intentHash: addIntentFundedEvent.transactionHash,
+            error: ex.message,
+          },
+        }),
+      )
     }
   }
 }

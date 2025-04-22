@@ -1,5 +1,6 @@
 import { Address, privateKeyToAccount } from 'viem/accounts'
 import { Chain } from 'viem'
+import { CreateIntentService } from '@/intent/create-intent.service'
 import { createTestClient, Hex, http, parseEther, publicActions } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogger } from '@/common/logging/eco-logger'
@@ -148,7 +149,7 @@ describe.skip('IntentInitiationIntegrationTest', () => {
           },
         },
       ])
-      .withMocks([FeeService, ValidationService])
+      .withMocks([FeeService, ValidationService, CreateIntentService])
 
     service = await $.init()
     kernelService = await $.get(KernelAccountClientService)
