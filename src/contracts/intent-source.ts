@@ -1,6 +1,6 @@
 import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
 
