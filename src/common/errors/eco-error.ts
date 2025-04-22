@@ -62,6 +62,7 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
+  static SolverRegistrationError = new Error('Solver registration failed')
   static IntentNotFound = new Error('Intent not found')
   static QuoteNotFound = new Error('Quote not found')
   static QuoteDBUpdateError = new Error('Quote not found')
