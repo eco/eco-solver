@@ -4,6 +4,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
+import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
@@ -54,10 +55,10 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    */
   async getMissingTxs(source: IntentSource): Promise<IntentFundedLog[]> {
     const client = await this.kernelAccountClientService.getClient(source.chainID)
-    const [lastRecordedTx] = await this.getLastRecordedTx(source)
+    const lastRecordedTx = await this.getLastRecordedTx(source)
 
     let fromBlock = lastRecordedTx
-      ? BigInt(lastRecordedTx.event.blockNumber) + 1n //start search from next block
+      ? BigInt(lastRecordedTx.blockNumber) + 1n //start search from next block
       : undefined
 
     const toBlock = await client.getBlockNumber()
@@ -110,11 +111,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @param source the source intent to get the last recorded transaction for
    * @returns
    */
-  async getLastRecordedTx(source: IntentSource): Promise<IntentSourceModel[]> {
-    return await this.intentModel
-      .find({ 'event.sourceChainID': source.chainID })
-      .sort({ 'event.blockNumber': -1 })
-      .limit(1)
-      .exec()
+  async getLastRecordedTx(source: IntentSource): Promise<IntentFundedEventModel | undefined> {
+    return this.watchIntentService.getLastRecordedTx(BigInt(source.chainID))
   }
 }

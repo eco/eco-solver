@@ -52,6 +52,6 @@ export class IntentFundedEventRepository {
       .limit(1)
       .exec()
 
-    return lastTxs ? lastTxs[0] : undefined
+    return lastTxs[0]
   }
 }

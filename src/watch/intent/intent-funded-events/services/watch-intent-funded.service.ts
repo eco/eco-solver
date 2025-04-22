@@ -3,6 +3,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
@@ -123,5 +124,15 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         }),
       )
     }
+  }
+
+  /**
+   * Returns the last recorded transaction for a source intent contract.
+   *
+   * @param sourceChainID the sourceChainID to get the last recorded transaction for
+   * @returns
+   */
+  async getLastRecordedTx(sourceChainID: bigint): Promise<IntentFundedEventModel | undefined> {
+    return this.intentFundedEventRepository.getLastRecordedTx(sourceChainID)
   }
 }
