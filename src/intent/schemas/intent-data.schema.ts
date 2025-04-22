@@ -6,36 +6,69 @@ import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.sch
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
 
+export interface CreateIntentDataModelParams {
+  quoteID?: string
+  hash: Hex
+  salt: Hex
+  source: bigint
+  destination: bigint
+  inbox: Hex
+  routeTokens: RewardTokensInterface[]
+  calls: CallDataInterface[]
+  creator: Hex
+  prover: Hex
+  deadline: bigint
+  nativeValue: bigint
+  rewardTokens: RewardTokensInterface[]
+  logIndex: number
+  funder?: Hex
+}
+
 @Schema({ timestamps: true })
 export class IntentDataModel implements IntentType {
+  @Prop({ required: false, type: String })
+  quoteID?: string
+
   @Prop({ required: true, type: String })
   hash: Hex
+
   @Prop({ required: true, type: RouteDataSchema })
   route: RouteDataModel
+
   @Prop({ required: true, type: RewardDataModelSchema })
   reward: RewardDataModel
+
   //log
   @Prop({ required: true })
   logIndex: number
 
-  constructor(
-    hash: Hex,
-    salt: Hex,
-    source: bigint,
-    destination: bigint,
-    inbox: Hex,
-    routeTokens: RewardTokensInterface[],
-    calls: CallDataInterface[],
-    creator: Hex,
-    prover: Hex,
-    deadline: bigint,
-    nativeValue: bigint,
-    rewardTokens: RewardTokensInterface[],
-    logIndex: number,
-  ) {
+  @Prop({ required: false })
+  funder?: Hex
+
+  constructor(params: CreateIntentDataModelParams) {
+    const {
+      quoteID,
+      hash,
+      salt,
+      source,
+      destination,
+      inbox,
+      routeTokens,
+      calls,
+      creator,
+      prover,
+      deadline,
+      nativeValue,
+      rewardTokens,
+      logIndex,
+      funder,
+    } = params
+
     if (calls.length == 0 || rewardTokens.length == 0 || routeTokens.length == 0) {
       throw EcoError.IntentSourceDataInvalidParams
     }
+
+    this.quoteID = quoteID
     this.hash = hash
 
     this.route = new RouteDataModel(
@@ -65,6 +98,7 @@ export class IntentDataModel implements IntentType {
     )
 
     this.logIndex = logIndex
+    this.funder = funder
   }
 
   static getHash(intentDataModel: IntentDataModel) {
@@ -77,21 +111,21 @@ export class IntentDataModel implements IntentType {
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
     const e = event.args
-    return new IntentDataModel(
-      e.hash,
-      e.salt,
-      e.source,
-      e.destination,
-      e.inbox,
-      e.routeTokens as Mutable<typeof e.routeTokens>,
-      e.calls as Mutable<typeof e.calls>,
-      e.creator,
-      e.prover,
-      e.deadline,
-      e.nativeValue,
-      e.rewardTokens as Mutable<typeof e.rewardTokens>,
+    return new IntentDataModel({
+      hash: e.hash,
+      salt: e.salt,
+      source: e.source,
+      destination: e.destination,
+      inbox: e.inbox,
+      routeTokens: e.routeTokens as Mutable<typeof e.routeTokens>,
+      calls: e.calls as Mutable<typeof e.calls>,
+      creator: e.creator,
+      prover: e.prover,
+      deadline: e.deadline,
+      nativeValue: e.nativeValue,
+      rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
       logIndex,
-    )
+    })
   }
 
   static toChainIntent(intent: IntentDataModel): IntentType {
