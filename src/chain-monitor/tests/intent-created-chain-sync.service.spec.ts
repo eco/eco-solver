@@ -1,18 +1,17 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { ChainSyncService } from '../chain-sync.service'
-import { WatchCreateIntentService } from '../../watch/intent/watch-create-intent.service'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
-import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
+import { IntentCreatedChainSyncService } from '@/chain-monitor/intent-created-chain-sync.service'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '../../intent/schemas/intent-source.schema'
+import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { Solver, IntentSource } from '../../eco-configs/eco-config.types'
-import { entries } from 'lodash'
-import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { Test, TestingModule } from '@nestjs/testing'
+import { WatchCreateIntentService } from '../../watch/intent/watch-create-intent.service'
 
-describe('ChainSyncService', () => {
-  let chainSyncService: ChainSyncService
+describe('IntentCreatedChainSyncService', () => {
+  let chainSyncService: IntentCreatedChainSyncService
   let accountService: DeepMocked<KernelAccountClientService>
   let watchIntentService: DeepMocked<WatchCreateIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
@@ -20,7 +19,7 @@ describe('ChainSyncService', () => {
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
-        ChainSyncService,
+        IntentCreatedChainSyncService,
         {
           provide: KernelAccountClientService,
           useValue: createMock<KernelAccountClientService>(),
@@ -34,7 +33,7 @@ describe('ChainSyncService', () => {
       ],
     }).compile()
 
-    chainSyncService = chainMod.get(ChainSyncService)
+    chainSyncService = chainMod.get(IntentCreatedChainSyncService)
     accountService = chainMod.get(KernelAccountClientService)
     watchIntentService = chainMod.get(WatchCreateIntentService)
     ecoConfigService = chainMod.get(EcoConfigService) as DeepMocked<EcoConfigService>

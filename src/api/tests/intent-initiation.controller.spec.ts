@@ -1,4 +1,5 @@
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
+import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
@@ -32,7 +33,7 @@ describe('IntentInitiationController', () => {
         Permit2TxBuilder,
         IntentInitiationService,
       ])
-      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService])
+      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)

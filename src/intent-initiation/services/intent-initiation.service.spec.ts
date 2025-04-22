@@ -1,3 +1,4 @@
+import { CreateIntentService } from '@/intent/create-intent.service'
 import { createMock } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
@@ -91,7 +92,7 @@ describe('IntentInitiationService', () => {
           useValue: kernelMock,
         },
       ])
-      .withMocks([FeeService, ValidationService, SignerKmsService])
+      .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])
 
     service = await $.init()
     permitProcessor = $.get(PermitProcessor)
