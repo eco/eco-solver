@@ -6,7 +6,7 @@ import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
 import { ModuleRef } from '@nestjs/core'
 import {
   QuotesConfig,
@@ -16,9 +16,10 @@ import {
 } from '@/eco-configs/eco-config.types'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
-export class SolverRegistrationService implements OnModuleInit {
+export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
   private logger = new EcoLogger(SolverRegistrationService.name)
   private serverConfig: ServerConfig
   private solverRegistrationConfig: SolverRegistrationConfig
@@ -54,29 +55,52 @@ export class SolverRegistrationService implements OnModuleInit {
     )
   }
 
+  async onApplicationBootstrap() {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `${SolverRegistrationService.name}.onApplicationBootstrap()`,
+      }),
+    )
+
+    await this.registerSolver()
+  }
+
   async registerSolver(): Promise<EcoResponse<void>> {
-    const solverRegistrationDTO = this.getSolverRegistrationDTO()
+    try {
+      const solverRegistrationDTO = this.getSolverRegistrationDTO()
 
-    const { error } = await this.apiRequestExecutor.executeRequest<void>({
-      method: 'post',
-      endPoint: '/api/v1/solverRegistry/registerSolver',
-      body: solverRegistrationDTO,
-    })
+      const { error } = await this.apiRequestExecutor.executeRequest<void>({
+        method: 'post',
+        endPoint: '/api/v1/solverRegistry/registerSolver',
+        body: solverRegistrationDTO,
+      })
 
-    if (error) {
+      if (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Error registering solver`,
+            properties: {
+              error,
+            },
+          }),
+        )
+
+        return { error }
+      }
+
+      return {}
+    } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `Error registering solver`,
+          message: `Exception registering solver`,
           properties: {
-            error,
+            error: ex.message,
           },
         }),
       )
 
-      return { error }
+      return { error: EcoError.SolverRegistrationError }
     }
-
-    return {}
   }
 
   private getSolverRegistrationDTO(): SolverRegistrationDTO {
