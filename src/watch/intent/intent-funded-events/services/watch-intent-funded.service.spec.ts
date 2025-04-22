@@ -18,7 +18,6 @@ let ecoConfigService: EcoConfigService
 let publicClientService: MultichainPublicClientService
 
 describe('WatchIntentFundedService', () => {
-
   const mockDb: any[] = []
 
   const mockIntentFundedEventModel = {
@@ -32,14 +31,13 @@ describe('WatchIntentFundedService', () => {
   }
 
   beforeAll(async () => {
-
     const mockSource = {
       getConfig: () => ({
         'IntentSource.1': '0x0000000000000000000000000000000000000001',
         'Prover.1': '0x0000000000000000000000000000000000000002',
         'HyperProver.1': '0x0000000000000000000000000000000000000003',
         'Inbox.1': '0x0000000000000000000000000000000000000004',
-        'intentSources': [
+        intentSources: [
           {
             chainID: 1,
             sourceAddress: '0x0000000000000000000000000000000000000001',
@@ -72,12 +70,8 @@ describe('WatchIntentFundedService', () => {
           useValue: new EcoConfigService([mockSource as any]),
         },
       ])
-      .withMocks([
-        MultichainPublicClientService,
-      ])
-      .withQueues([
-        QUEUES.SOURCE_INTENT.queue,
-      ])
+      .withMocks([MultichainPublicClientService])
+      .withQueues([QUEUES.SOURCE_INTENT.queue])
 
     service = await $.init()
     ecoConfigService = $.get(EcoConfigService)
@@ -88,9 +82,7 @@ describe('WatchIntentFundedService', () => {
     mockDb.length = 0
   })
 
-
-  afterAll(async () => {
-  })
+  afterAll(async () => {})
 
   it('subscribes to configured sources', async () => {
     const fakeClient = createMock<PublicClient>()
@@ -114,19 +106,24 @@ describe('WatchIntentFundedService', () => {
       logIndex: 0,
       transactionHash: '0xtx',
       transactionIndex: 1,
-      data: '0x',          // <-- required, even if empty
-      removed: false,      // <-- required
-      topics: [],          // <-- required
+      data: '0x', // <-- required, even if empty
+      removed: false, // <-- required
+      topics: [], // <-- required
       eventName: 'IntentFunded',
       sourceNetwork: Network.ETH_MAINNET, // <-- required for your code
-      sourceChainID: 1n,        // <-- required for your code
+      sourceChainID: 1n, // <-- required for your code
       args: {
         intentHash: '0xintent',
         funder: '0x1',
       },
     }
 
-    const source = { chainID: 1, sourceAddress: '0xabc', provers: ['0x1'], network: 'mainnet' } as unknown as IntentSource
+    const source = {
+      chainID: 1,
+      sourceAddress: '0xabc',
+      provers: ['0x1'],
+      network: 'mainnet',
+    } as unknown as IntentSource
 
     const addJob = service['addJob'](source)
     await addJob([log])
@@ -165,13 +162,13 @@ describe('WatchIntentFundedService', () => {
         logIndex: 0,
         transactionHash: '0xtxhash',
         transactionIndex: 0,
-        data: '0x',          // <-- required, even if empty
-        removed: false,      // <-- required
-        topics: [],          // <-- required
+        data: '0x', // <-- required, even if empty
+        removed: false, // <-- required
+        topics: [], // <-- required
         eventName: 'IntentFunded',
         sourceNetwork: Network.ETH_MAINNET, // <-- required for your code
-        sourceChainID: 1n,        // <-- required for your code
-          args: {
+        sourceChainID: 1n, // <-- required for your code
+        args: {
           intentHash: '0xintent123',
           funder: '0x1',
         },
@@ -187,7 +184,6 @@ describe('WatchIntentFundedService', () => {
 
     jest.spyOn(publicClientService, 'getClient').mockResolvedValue(fakeClient)
 
-
     const sources = [
       { chainID: 1, sourceAddress: '0xabc', provers: ['0x1'], network: 'mainnet' },
     ] as unknown[] as IntentSource[]
@@ -202,7 +198,7 @@ describe('WatchIntentFundedService', () => {
     expect($.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add).toHaveBeenCalledWith(
       QUEUES.SOURCE_INTENT.jobs.fulfill_funded_intent,
       '0xintent123',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 })
