@@ -10,6 +10,7 @@ import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
+import { EcoResponse } from '@/common/eco-response'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -34,6 +35,65 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
       ecoConfigService,
       new Logger(IntentCreatedChainSyncService.name),
     )
+  }
+
+  async onApplicationBootstrap() {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `IntentCreatedChainSyncService:OnApplicationBootstrap`,
+      }),
+    )
+
+    await this.fixIndex()
+    await super.onApplicationBootstrap()
+  }
+
+  private async fixIndex(): Promise<EcoResponse<void>> {
+    const { error } = await this.dropIndex()
+
+    if (!error) {
+      const result = await this.createIndex()
+
+      if (!result.error) {
+        this.logger.debug('Successfully migrated index on event.transactionHash')
+      }
+
+      return result
+    }
+
+    return { error }
+  }
+
+  private async dropIndex(): Promise<EcoResponse<void>> {
+    try {
+      await this.intentModel.collection.dropIndex('event.transactionHash_1')
+      this.logger.debug('Dropped old index on event.transactionHash')
+    } catch (err) {
+      // MongoError: IndexNotFound is usually codeName: 'IndexNotFound'
+      if (err.codeName === 'IndexNotFound' || err.message?.includes('index not found')) {
+        this.logger.warn('Index event.transactionHash_1 not found, skipping drop.')
+      } else {
+        this.logger.error('Failed to drop index on event.transactionHash', err)
+        return { error: err.message }
+      }
+    }
+
+    return {}
+  }
+
+  private async createIndex(): Promise<EcoResponse<void>> {
+    try {
+      await this.intentModel.collection.createIndex(
+        { 'event.transactionHash': 1 },
+        { unique: true, sparse: true },
+      )
+      this.logger.debug('Created sparse unique index on event.transactionHash')
+    } catch (err) {
+      this.logger.error('Failed to create index on event.transactionHash', err)
+      return { error: err.message }
+    }
+
+    return {}
   }
 
   /**
