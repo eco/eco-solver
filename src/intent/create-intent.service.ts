@@ -175,8 +175,8 @@ export class CreateIntentService implements OnModuleInit {
       })
 
       await this.intentModel.create({
-        event: null,
-        intent: intent,
+        // event: null,
+        intent,
         receipt: null,
         status: 'PENDING',
       })

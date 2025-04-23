@@ -95,7 +95,14 @@ describe('IntentCreatedChainSyncService', () => {
     } as any as Solver[]
 
     const toBlock = 100n
-    const model = { event: { blockNumber: 50n, sourceChainID: intentSource.chainID } }
+
+    const model = {
+      intent: {
+        route: { source: intentSource.chainID },
+      },
+      event: { blockNumber: 50n, sourceChainID: intentSource.chainID },
+    } as unknown as IntentSourceModel
+
     const supportedChains = Object.keys(solvers).map((key) => BigInt(key))
     beforeEach(() => {
       mockGetContractEvents = jest.fn().mockResolvedValue([])
@@ -136,7 +143,7 @@ describe('IntentCreatedChainSyncService', () => {
         args: {
           prover: intentSource.provers,
         },
-        fromBlock: model.event.blockNumber + 1n, // we search from the next block
+        fromBlock: model.event!.blockNumber + 1n, // we search from the next block
         toBlock,
         strict: true,
       })
@@ -150,10 +157,10 @@ describe('IntentCreatedChainSyncService', () => {
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockLog).toHaveBeenCalledTimes(1)
       // we search from the next block
-      const searchFromBlock = model.event.blockNumber + 1n
+      const searchFromBlock = model.event!.blockNumber + 1n
       expect(mockLog).toHaveBeenCalledWith({
         msg: `No transactions found for source ${intentSource.network} to sync from block ${searchFromBlock}`,
-        chainID: model.event.sourceChainID,
+        chainID: IntentSourceModel.getSource(model),
         fromBlock: searchFromBlock,
       })
     })

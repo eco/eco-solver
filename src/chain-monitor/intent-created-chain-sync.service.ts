@@ -51,7 +51,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
     const [lastRecordedTx] = await this.getLastRecordedTx(source)
 
     let fromBlock = lastRecordedTx
-      ? BigInt(lastRecordedTx.event.blockNumber) + 1n //start search from next block
+      ? BigInt(lastRecordedTx.event!.blockNumber) + 1n //start search from next block
       : undefined
 
     const toBlock = await client.getBlockNumber()
@@ -108,7 +108,10 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    */
   async getLastRecordedTx(source: IntentSource): Promise<IntentSourceModel[]> {
     return await this.intentModel
-      .find({ 'event.sourceChainID': source.chainID })
+      .find({
+        event: { $exists: true },
+        'event.sourceChainID': source.chainID,
+      })
       .sort({ 'event.blockNumber': -1 })
       .limit(1)
       .exec()
