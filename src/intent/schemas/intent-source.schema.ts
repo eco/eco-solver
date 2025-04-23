@@ -14,7 +14,12 @@ export type IntentSourceStatus =
 
 @Schema({ timestamps: true })
 export class IntentSourceModel {
-  @Prop({ required: false, type: WatchEventSchema })
+  @Prop({
+    required: false,
+    type: WatchEventSchema,
+    _id: false,
+    default: undefined,
+  })
   event?: WatchEventModel
 
   @Prop({ required: true, type: IntentSourceDataSchema })

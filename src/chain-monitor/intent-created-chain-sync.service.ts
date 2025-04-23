@@ -168,10 +168,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    */
   async getLastRecordedTx(source: IntentSource): Promise<IntentSourceModel[]> {
     return await this.intentModel
-      .find({
-        event: { $exists: true },
-        'event.sourceChainID': source.chainID,
-      })
+      .find({ 'event.sourceChainID': source.chainID })
       .sort({ 'event.blockNumber': -1 })
       .limit(1)
       .exec()
