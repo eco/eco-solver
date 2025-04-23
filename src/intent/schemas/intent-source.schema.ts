@@ -14,8 +14,8 @@ export type IntentSourceStatus =
 
 @Schema({ timestamps: true })
 export class IntentSourceModel {
-  @Prop({ required: true, type: WatchEventSchema })
-  event: WatchEventModel
+  @Prop({ required: false, type: WatchEventSchema })
+  event?: WatchEventModel
 
   @Prop({ required: true, type: IntentSourceDataSchema })
   intent: IntentDataModel
@@ -25,6 +25,10 @@ export class IntentSourceModel {
 
   @Prop({ required: true, type: String })
   status: IntentSourceStatus
+
+  static getSource(intentSourceModel: IntentSourceModel): bigint {
+    return intentSourceModel.intent.route.source
+  }
 }
 
 export const IntentSourceSchema = SchemaFactory.createForClass(IntentSourceModel)

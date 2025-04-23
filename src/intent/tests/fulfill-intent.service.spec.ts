@@ -12,6 +12,7 @@ import { FulfillIntentService } from '../fulfill-intent.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { FeeService } from '@/fee/fee.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 
 jest.mock('viem', () => {
   return {
@@ -72,14 +73,14 @@ describe('FulfillIntentService', () => {
   const solver = { inboxAddress: address1, chainID: 1 }
   const model = {
     intent: {
-      route: { hash, destination: 85432, getHash: () => '0x6543' },
+      route: { hash, source: 11111, destination: 85432, getHash: () => '0x6543' },
       reward: { getHash: () => '0x123abc' },
       getHash: () => {
         return { intentHash: '0xaaaa999' }
       },
     },
     event: { sourceChainID: 11111 },
-  }
+  } as unknown as IntentSourceModel
   const emptyTxs = [{ data: undefined, to: hash, value: 0n }]
 
   beforeEach(async () => {
@@ -301,7 +302,7 @@ describe('FulfillIntentService', () => {
           msg: `Fulfilled transactionHash ${transactionHash}`,
           userOPHash: { transactionHash },
           destinationChainID: model.intent.route.destination,
-          sourceChainID: model.event.sourceChainID,
+          sourceChainID: IntentSourceModel.getSource(model),
         })
       })
 

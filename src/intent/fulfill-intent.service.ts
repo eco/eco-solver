@@ -107,7 +107,7 @@ export class FulfillIntentService {
           properties: {
             userOPHash: receipt,
             destinationChainID: model.intent.route.destination,
-            sourceChainID: model.event.sourceChainID,
+            sourceChainID: IntentSourceModel.getSource(model),
           },
         }),
       )
@@ -285,7 +285,7 @@ export class FulfillIntentService {
     )
     const functionName = 'fetchFee'
     const args: ContractFunctionArgs<typeof InboxAbi, 'view', typeof functionName> = [
-      model.event.sourceChainID, //_sourceChainID
+      IntentSourceModel.getSource(model), //_sourceChainID
       pad(model.intent.reward.prover), //_prover
       encodedMessageBody, //_messageBody
       '0x0', //_metadata
