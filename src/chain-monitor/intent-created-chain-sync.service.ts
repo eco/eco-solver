@@ -44,7 +44,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
       }),
     )
 
-    await this.fixIndex()
+    // await this.fixIndex()
     await super.onApplicationBootstrap()
   }
 
