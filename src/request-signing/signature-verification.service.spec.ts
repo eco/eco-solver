@@ -1,8 +1,8 @@
-import { EcoConfigService } from "@/eco-configs/eco-config.service"
-import { EcoTester } from "@/common/test-utils/eco-tester/eco-tester"
-import { SignatureGenerator } from "@/request-signing/signature-generator"
-import { SignatureVerificationService } from "@/request-signing/signature-verification.service"
-import { SigningService } from "@/request-signing/signing-service"
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { SignatureGenerator } from '@/request-signing/signature-generator'
+import { SignatureVerificationService } from '@/request-signing/signature-verification.service'
+import { SigningService } from '@/request-signing/signing-service'
 
 describe('SignatureVerificationService', () => {
   let $: EcoTester
@@ -18,15 +18,14 @@ describe('SignatureVerificationService', () => {
       }),
     }
 
-    $ = EcoTester.setupTestFor(SignatureVerificationService)
-      .withProviders([
-        SigningService,
-        SignatureGenerator,
-        {
-          provide: EcoConfigService, // ⬅ inject the actual mocked provider here
-          useValue: mockEcoConfigService,
-        },
-      ])
+    $ = EcoTester.setupTestFor(SignatureVerificationService).withProviders([
+      SigningService,
+      SignatureGenerator,
+      {
+        provide: EcoConfigService, // ⬅ inject the actual mocked provider here
+        useValue: mockEcoConfigService,
+      },
+    ])
 
     service = await $.init()
     signingService = $.get(SigningService)
