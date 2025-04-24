@@ -23,6 +23,7 @@ import { SolverModule } from '@/solver/solver.module'
 import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
+import { RequestSigningModule } from '@/request-signing/request-signing.module'
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
     PermitProcessingModule,
     IntentInitiationModule,
     SolverRegistrationModule,
+    RequestSigningModule,
     KmsModule,
     SignModule,
     IntervalModule,

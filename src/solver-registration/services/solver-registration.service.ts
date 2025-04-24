@@ -14,9 +14,11 @@ import {
   Solver,
   SolverRegistrationConfig,
 } from '@/eco-configs/eco-config.types'
-import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
-import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 import { EcoError } from '@/common/errors/eco-error'
+import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
+import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
+import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
+import { SigningService } from '../../request-signing/signing-service'
 
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
@@ -25,6 +27,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   private solverRegistrationConfig: SolverRegistrationConfig
   private quotesConfig: QuotesConfig
   private solversConfig: Record<number, Solver>
+  private signingService: SigningService
   private apiRequestExecutor: APIRequestExecutor
 
   constructor(
@@ -38,6 +41,9 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
     this.solversConfig = this.ecoConfigService.getSolvers()
+    this.signingService = this.moduleRef.get<SigningService>(SigningService, {
+      strict: false,
+    })
 
     this.apiRequestExecutor = new APIRequestExecutor(
       this.httpService,
@@ -65,6 +71,11 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     await this.registerSolver()
   }
 
+  private async getRequestSignatureHeaders(payload: object): Promise<SignatureHeaders> {
+    const expiryTime = Date.now() + 1000 * 60 * 2 // 2 minutes
+    return this.signingService.getHeaders(payload, expiryTime)
+  }
+
   async registerSolver(): Promise<EcoResponse<void>> {
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
@@ -73,6 +84,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
         method: 'post',
         endPoint: '/api/v1/solverRegistry/registerSolver',
         body: solverRegistrationDTO,
+        additionalHeaders: this.getRequestSignatureHeaders(solverRegistrationDTO),
       })
 
       if (error) {
