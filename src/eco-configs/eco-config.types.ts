@@ -7,6 +7,10 @@ import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
+import {
+  IntentExecutionType,
+  IntentExecutionTypeKeys,
+} from '@/quote/enums/intent-execution-type.enum'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -68,6 +72,7 @@ export type EcoConfigType = {
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
   hyperlane: HyperlaneConfig
+  quotesConfig: QuotesConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -328,4 +333,11 @@ export interface HyperlaneConfig {
       hyperlaneAggregationHook: Hex
     }
   >
+}
+
+/**
+ * The config type for the quotes section
+ */
+export type QuotesConfig = {
+  intentExecutionTypes: IntentExecutionType[]
 }

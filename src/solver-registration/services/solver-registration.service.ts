@@ -1,12 +1,19 @@
-import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
+import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
+import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
-import { ServerConfig, SolverRegistrationConfig } from '@/eco-configs/eco-config.types'
+import {
+  QuotesConfig,
+  ServerConfig,
+  Solver,
+  SolverRegistrationConfig,
+} from '@/eco-configs/eco-config.types'
+import { EcoError } from '@/common/errors/eco-error'
+import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { QuotesServerSigningService } from '@/request-signing/quotes-server-signing.service'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
@@ -16,6 +23,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   private logger = new Logger(SolverRegistrationService.name)
   private serverConfig: ServerConfig
   private solverRegistrationConfig: SolverRegistrationConfig
+  private quotesConfig: QuotesConfig
+  private solversConfig: Record<number, Solver>
   private apiRequestExecutor: APIRequestExecutor
 
   constructor(
@@ -27,6 +36,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   onModuleInit() {
     this.serverConfig = this.ecoConfigService.getServer()
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
+    this.quotesConfig = this.ecoConfigService.getQuotesConfig()
+    this.solversConfig = this.ecoConfigService.getSolvers()
 
     this.apiRequestExecutor = new APIRequestExecutor(
       this.httpService,
@@ -52,11 +63,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     )
 
     await this.registerSolver()
-  }
-
-  private async getRequestSignatureHeaders(payload: object): Promise<SignatureHeaders> {
-    const expiryTime = Date.now() + 1000 * 60 * 2 // 2 minutes
-    return this.quotesServerSigningService.getHeaders(payload, expiryTime)
   }
 
   async registerSolver(): Promise<EcoResponse<void>> {
@@ -98,12 +104,51 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     }
   }
 
+  private async getRequestSignatureHeaders(payload: object): Promise<SignatureHeaders> {
+    const expiryTime = Date.now() + 1000 * 60 * 2 // 2 minutes
+    return this.quotesServerSigningService.getHeaders(payload, expiryTime)
+  }
+
   private getSolverRegistrationDTO(): SolverRegistrationDTO {
-    const solverRegistrationDTO: SolverRegistrationDTO = {
+    return {
+      intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
-      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}/unsupported/receiveSignedIntent`,
+      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}`,
+
+      crossChainRoutes: {
+        crossChainRoutesConfig: this.getCrossChainRoutesConfig(),
+      },
+    }
+  }
+
+  private getCrossChainRoutesConfig() {
+    /*
+      Looks like this:
+
+      "*": {
+        "84532": [
+          { send: "*", receive: ["0xAb1D243b07e99C91dE9E4B80DFc2B07a8332A2f7", "0x8bDa9F5C33FBCB04Ea176ea5Bc1f5102e934257f"] }
+        ],
+        "11155420": [
+          { send: "*", receive: ["0x5fd84259d66Cd46123540766Be93DFE6D43130D7"] }
+        ],
+      }
+    */
+    const crossChainRoutesConfig: CrossChainRoutesConfigDTO = {
+      '*': {},
     }
 
-    return solverRegistrationDTO
+    for (const solver of Object.values(this.solversConfig)) {
+      const chainID = solver.chainID.toString()
+
+      const routeTokensDTO: RouteTokensDTO = {
+        send: '*',
+        receive: Object.keys(solver.targets),
+      }
+
+      crossChainRoutesConfig['*'][chainID] = [routeTokensDTO]
+    }
+
+    return crossChainRoutesConfig
   }
 }
