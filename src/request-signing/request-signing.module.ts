@@ -5,7 +5,7 @@ import { SignatureVerificationService } from '@/request-signing/signature-verifi
 import { QuotesServerSigningService } from '@/request-signing/quotes-server-signing.service'
 
 @Module({
-  imports: [EcoConfigModule],
+  imports: [],
 
   controllers: [],
 
