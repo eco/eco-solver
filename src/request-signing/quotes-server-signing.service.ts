@@ -9,7 +9,7 @@ import { SignedMessage } from '@/request-signing/interfaces/signed-message.inter
 import { WalletClient } from 'viem'
 
 @Injectable()
-export class SigningService implements OnModuleInit {
+export class QuotesServerSigningService implements OnModuleInit {
   private requestSignerConfig: any
   private walletClient: WalletClient<HttpTransport, typeof mainnet, PrivateKeyAccount>
 

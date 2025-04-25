@@ -6,10 +6,9 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
-import { ModuleRef } from '@nestjs/core'
 import { ServerConfig, SolverRegistrationConfig } from '@/eco-configs/eco-config.types'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
-import { SigningService } from '@/request-signing/signing-service'
+import { QuotesServerSigningService } from '@/request-signing/quotes-server-signing.service'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 
 @Injectable()
@@ -17,21 +16,17 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   private logger = new Logger(SolverRegistrationService.name)
   private serverConfig: ServerConfig
   private solverRegistrationConfig: SolverRegistrationConfig
-  private signingService: SigningService
   private apiRequestExecutor: APIRequestExecutor
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private httpService: HttpService,
-    private readonly moduleRef: ModuleRef,
+    private readonly httpService: HttpService,
+    private readonly quotesServerSigningService: QuotesServerSigningService,
   ) {}
 
   onModuleInit() {
     this.serverConfig = this.ecoConfigService.getServer()
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
-    this.signingService = this.moduleRef.get<SigningService>(SigningService, {
-      strict: false,
-    })
 
     this.apiRequestExecutor = new APIRequestExecutor(
       this.httpService,
@@ -61,7 +56,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
   private async getRequestSignatureHeaders(payload: object): Promise<SignatureHeaders> {
     const expiryTime = Date.now() + 1000 * 60 * 2 // 2 minutes
-    return this.signingService.getHeaders(payload, expiryTime)
+    return this.quotesServerSigningService.getHeaders(payload, expiryTime)
   }
 
   async registerSolver(): Promise<EcoResponse<void>> {
