@@ -118,6 +118,14 @@ export class EcoError extends Error {
     return this._logError(this.getErrorObject(error), caller, srcLogger, properties, true)
   }
 
+  // Solver Registration
+  static SolverRegistrationError = new EcoError()
+
+  // Signature Validations
+  static TypedDataVerificationFailed = new EcoError()
+  static SignatureExpired = new EcoError()
+  static InvalidSignature = new EcoError()
+
   static _logError(
     error: Error,
     caller: string,

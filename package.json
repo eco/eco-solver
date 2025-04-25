@@ -64,8 +64,10 @@
     "@zerodev/ecdsa-validator": "^5.4.5",
     "@zerodev/sdk": "^5.4.28",
     "asn1js": "^3.0.5",
+    "axios": "0.21.4",
     "bullmq": "^5.8.5",
     "cache-manager": "^6.4.0",
+    "canonicalize": "^2.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "config": "^3.3.11",
@@ -86,6 +88,7 @@
   },
   "devDependencies": {
     "@golevelup/ts-jest": "^0.5.0",
+    "@nestjs/axios": "^3.0.0",
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.4.16",

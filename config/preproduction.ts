@@ -1,4 +1,14 @@
 export default {
+  server: {
+    url: 'https://solver-preprod.bend.eco',
+  },
+
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: 'https://quoter-preprod.bend.eco',
+    },
+  },
+
   aws: [
     {
       region: 'us-east-2',

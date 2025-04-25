@@ -169,6 +169,11 @@ export class EcoConfigService {
     return this.get('externalAPIs')
   }
 
+  // Returns the solver registration config
+  getSolverRegistrationConfig(): EcoConfigType['solverRegistrationConfig'] {
+    return this.get('solverRegistrationConfig')
+  }
+
   getLoggerConfig(): EcoConfigType['logger'] {
     return this.get('logger')
   }

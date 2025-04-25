@@ -10,13 +10,12 @@ import { CacheModuleOptions } from '@nestjs/cache-manager'
 
 // The config type that we store in json
 export type EcoConfigType = {
-  server: {
-    url: string
-  }
+  server: ServerConfig
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
+  solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
   alchemy: AlchemyConfigType
   rpcUrls: RpcUrlsConfigType
@@ -138,6 +137,16 @@ export type IntentConfig = {
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
+  }
+}
+
+export type ServerConfig = {
+  url: string
+}
+
+export type SolverRegistrationConfig = {
+  apiOptions: {
+    baseUrl: string
   }
 }
 

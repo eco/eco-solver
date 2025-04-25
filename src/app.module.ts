@@ -20,6 +20,7 @@ import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
+import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SolverModule } from '@/solver/solver.module'
     LiquidityManagerModule,
     WatchModule,
     IntentProcessorModule,
+    SolverRegistrationModule,
     ...getPino(),
   ],
   controllers: [],

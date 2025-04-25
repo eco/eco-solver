@@ -1,4 +1,14 @@
 export default {
+  server: {
+    url: 'http://localhost:3000',
+  },
+
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: 'http://localhost:4000',
+    },
+  },
+
   logger: {
     usePino: false,
   },

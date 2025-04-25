@@ -1,4 +1,14 @@
 export default {
+  server: {
+    url: 'https://solver.staging.bend.eco',
+  },
+
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: 'https://quoter.staging.bend.eco',
+    },
+  },
+
   aws: [
     {
       region: 'us-east-2',
