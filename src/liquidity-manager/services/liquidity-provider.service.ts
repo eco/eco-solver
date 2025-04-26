@@ -53,7 +53,7 @@ export class LiquidityProviderService {
       const bestQuote = bestBatch[quoteBatch.length - 1]
       const quote = quoteBatch[quoteBatch.length - 1]
 
-      return bestQuote.amountOut >= quote.amountOut ? bestBatch : quoteBatch
+      return (bestQuote?.amountOut ?? 0n) >= (quote?.amountOut ?? 0n) ? bestBatch : quoteBatch
     }, quoteBatchResults[0])
 
     if (!bestQuote) {
