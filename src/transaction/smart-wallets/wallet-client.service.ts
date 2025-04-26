@@ -6,6 +6,7 @@ import {
   createPublicClient,
   createWalletClient,
   extractChain,
+  LocalAccount,
   ParseAccount,
   Transport,
   WalletClient,
@@ -68,7 +69,7 @@ export class WalletClientDefaultSignerService extends WalletClientService {
     super(ecoConfigService)
   }
 
-  getAccount(): Promise<Account> {
+  getAccount(): Promise<LocalAccount> {
     return Promise.resolve(this.signerService.getAccount())
   }
 }

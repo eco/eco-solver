@@ -1,44 +1,36 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { HttpTransport } from 'viem'
+import { LocalAccount } from 'viem'
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { mainnet } from 'viem/chains'
-import { PrivateKeyAccount } from 'viem/accounts'
 import { SignatureGenerator } from '@/request-signing/signature-generator'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface'
-import { WalletClient } from 'viem'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class QuotesServerSigningService implements OnModuleInit {
-  private requestSignerConfig: any
-  private walletClient: WalletClient<HttpTransport, typeof mainnet, PrivateKeyAccount>
+  private walletAccount: LocalAccount
 
   constructor(
-    private readonly ecoConfigService: EcoConfigService,
     private readonly signatureGenerator: SignatureGenerator,
+    private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
   ) {}
 
-  onModuleInit() {
-    // this.requestSignerConfig = this.ecoConfigService.getRequestSignerConfig()
-    // const privateKey = this.requestSignerConfig.privateKey as Hex
-    // const address = '0xc3dD6EB9cd9683c3dd8B3d48421B3d5404FeedAC'
-    const privateKey = '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9'
-    this.walletClient = this.signatureGenerator.getWalletClient(privateKey)
+  async onModuleInit() {
+    this.walletAccount = await this.walletClientDefaultSignerService.getAccount()
   }
 
-  getAccountAddress(): string {
-    return this.walletClient.account.address
+  getAccountAddress() {
+    return this.walletAccount.address
   }
 
   async getHeaders(payload: object, expiryTime: number): Promise<SignatureHeaders> {
     return this.signatureGenerator.getHeadersWithWalletClient(
-      this.walletClient,
+      this.walletAccount,
       payload,
       expiryTime,
     )
   }
 
   async signPayload(payload: object, expiryTime: number): Promise<SignedMessage> {
-    return this.signatureGenerator.signPayload(this.walletClient, payload, expiryTime)
+    return this.signatureGenerator.signPayload(this.walletAccount, payload, expiryTime)
   }
 }
