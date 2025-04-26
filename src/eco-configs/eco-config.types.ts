@@ -7,10 +7,7 @@ import { JobsOptions, RepeatOptions } from 'bullmq'
 import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
-import {
-  IntentExecutionType,
-  IntentExecutionTypeKeys,
-} from '@/quote/enums/intent-execution-type.enum'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 
 // The config type that we store in json
 export type EcoConfigType = {
