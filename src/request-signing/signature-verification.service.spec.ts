@@ -1,8 +1,28 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from "@/common/errors/eco-error"
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { SignatureGenerator } from '@/request-signing/signature-generator'
 import { SignatureVerificationService } from '@/request-signing/signature-verification.service'
-import { SigningService } from '@/request-signing/signing-service'
+import { SigningService } from '@/request-signing/signing.service'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { LocalAccount, privateKeyToAccount } from 'viem/accounts'
+import { Hex } from 'viem'
+
+const TestWalletAddress = '0xc3dD6EB9cd9683c3dd8B3d48421B3d5404FeedAC'
+const TestPrivateKey = '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9'
+
+class MockWalletClientDefaultSignerService {
+  private account: LocalAccount
+
+  constructor() {
+    const privateKey: Hex = TestPrivateKey
+    this.account = privateKeyToAccount(privateKey)
+  }
+
+  async getAccount(): Promise<LocalAccount> {
+    return this.account
+  }
+}
 
 describe('SignatureVerificationService', () => {
   let $: EcoTester
@@ -13,7 +33,7 @@ describe('SignatureVerificationService', () => {
     const mockEcoConfigService = {
       getConfig: () => ({
         requestSigner: {
-          privateKey: '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9',
+          privateKey: TestPrivateKey,
         },
       }),
     }
@@ -21,6 +41,10 @@ describe('SignatureVerificationService', () => {
     $ = EcoTester.setupTestFor(SignatureVerificationService).withProviders([
       SigningService,
       SignatureGenerator,
+      {
+        provide: WalletClientDefaultSignerService,
+        useClass: MockWalletClientDefaultSignerService,
+      },
       {
         provide: EcoConfigService, // ⬅ inject the actual mocked provider here
         useValue: mockEcoConfigService,
@@ -33,22 +57,22 @@ describe('SignatureVerificationService', () => {
 
   it('should verify a valid signature and return the signer address', async () => {
     const payload = { hello: 'world' }
-    const expiryTime = Math.floor(Date.now() / 1000) + 60
+    const expiryTime = Date.now() + 60_000
 
     const { signature } = await signingService.signPayload(payload, expiryTime)
 
-    const recoveredAddress = await service.verifySignature(payload, signature, expiryTime)
+    const { response: recoveredAddress, error } = await service.verifySignature(payload, signature, expiryTime, TestWalletAddress)
 
+    expect(error).toBeUndefined()
     expect(recoveredAddress).toEqual(signingService.getAccountAddress())
   })
 
   it('should throw if signature is expired', async () => {
     const payload = { expired: true }
-    const expiryTime = Math.floor(Date.now() / 1000) - 10 // already expired
+    const expiryTime = Date.now() - 60_000 // 60s in the past
     const { signature } = await signingService.signPayload(payload, expiryTime)
 
-    await expect(service.verifySignature(payload, signature, expiryTime)).rejects.toThrow(
-      /Signature expired/,
-    )
+    const { error } = await service.verifySignature(payload, signature, expiryTime, TestWalletAddress)
+    expect(error).toEqual(EcoError.SignatureExpired)
   })
 })

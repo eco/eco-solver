@@ -62,7 +62,6 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
-  static SolverRegistrationError = new Error('Solver registration failed')
   static IntentNotFound = new Error('Intent not found')
   static QuoteNotFound = new Error('Quote not found')
   static QuoteDBUpdateError = new Error('Quote not found')
@@ -108,6 +107,14 @@ export class EcoError extends Error {
   static KmsCredentialsError(config?: AwsCredential) {
     return new EcoError(`Could not get AWS KMS credentials: ${config}`)
   }
+
+  // Solver Registration
+  static SolverRegistrationError = new EcoError()
+
+  // Signature Validations
+  static TypedDataVerificationFailed = new EcoError()
+  static SignatureExpired = new EcoError()
+  static InvalidSignature = new EcoError()
 
   // EcoConfig Service
 

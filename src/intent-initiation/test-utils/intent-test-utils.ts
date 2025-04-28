@@ -5,7 +5,7 @@ import { Hex } from 'viem'
 import { PermitTestUtils } from '@/intent-initiation/test-utils/permit-test-utils'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { ZeroAddress } from 'ethers'
+import { zeroAddress } from 'viem'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {
   usePermit?: boolean
@@ -48,7 +48,7 @@ export class IntentTestUtils {
           : this.permitTestUtils.createPermit2DTO({}, { isBatch: isBatchPermit2, token }),
 
         getPermitContractAddress(): Hex {
-          return (this.permit ? ZeroAddress : this.permit2!.permitContract) as Hex
+          return (this.permit ? zeroAddress : this.permit2!.permitContract) as Hex
         },
       },
 
