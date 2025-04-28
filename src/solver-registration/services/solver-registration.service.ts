@@ -18,7 +18,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
-import { SigningService } from '../../request-signing/signing-service'
+import { SigningService } from '../../request-signing/signing.service'
 
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {

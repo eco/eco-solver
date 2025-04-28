@@ -4,7 +4,7 @@ import { Hex } from 'viem'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { Type } from 'class-transformer'
-import { ZeroAddress } from 'ethers'
+import { zeroAddress } from 'viem'
 
 export class PermitDataDTO {
   @IsOptional()
@@ -22,6 +22,6 @@ export class PermitDataDTO {
   permit2?: Permit2DTO
 
   getPermitContractAddress?(): Hex {
-    return (this.permit ? ZeroAddress : this.permit2!.permitContract) as Hex
+    return (this.permit ? zeroAddress : this.permit2!.permitContract) as Hex
   }
 }
