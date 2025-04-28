@@ -1,30 +1,26 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { HttpTransport } from 'viem'
+import { Chain, Transport, WalletClient } from 'viem'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { mainnet } from 'viem/chains'
 import { PrivateKeyAccount } from 'viem/accounts'
 import { SignatureGenerator } from '@/request-signing/signature-generator'
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface'
-import { WalletClient } from 'viem'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class SigningService implements OnModuleInit {
   private requestSignerConfig: any
-  private walletClient: WalletClient<HttpTransport, typeof mainnet, PrivateKeyAccount>
+  private walletClient: WalletClient<Transport, Chain, PrivateKeyAccount>
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
+    private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly signatureGenerator: SignatureGenerator,
   ) {}
 
-  onModuleInit() {
-    // this.requestSignerConfig = this.ecoConfigService.getRequestSignerConfig()
-    // const privateKey = this.requestSignerConfig.privateKey as Hex
-    // const address = '0xc3dD6EB9cd9683c3dd8B3d48421B3d5404FeedAC'
-    // TODO: Use the private key from the config
-    const privateKey = '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9'
-    this.walletClient = this.signatureGenerator.getWalletClient(privateKey)
+  async onModuleInit() {
+    this.walletClient = await this.walletClientService.getClient(mainnet.id)
   }
 
   getAccountAddress(): string {

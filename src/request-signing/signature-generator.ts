@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const canonicalize = require('canonicalize')
-import { createWalletClient, Hex, http, WalletClient } from 'viem'
-import { HttpTransport } from 'viem'
+import { Chain, createWalletClient, Hex, http, HttpTransport, Transport, WalletClient } from 'viem'
 import { Injectable } from '@nestjs/common'
 import { mainnet } from 'viem/chains'
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
@@ -27,7 +26,7 @@ export class SignatureGenerator {
   // }
 
   async getHeaders(
-    walletClient: WalletClient<HttpTransport, typeof mainnet, PrivateKeyAccount>,
+    walletClient: WalletClient<Transport, Chain, PrivateKeyAccount>,
     payload: object,
     expiryTime: number,
   ): Promise<SignatureHeaders> {
@@ -40,7 +39,7 @@ export class SignatureGenerator {
   }
 
   async signPayload(
-    walletClient: WalletClient<HttpTransport, typeof mainnet, PrivateKeyAccount>,
+    walletClient: WalletClient<Transport, Chain, PrivateKeyAccount>,
     payload: object,
     expiryTime: number,
   ): Promise<SignedMessage> {
