@@ -1,5 +1,5 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoError } from "@/common/errors/eco-error"
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { SignatureGenerator } from '@/request-signing/signature-generator'
 import { SignatureVerificationService } from '@/request-signing/signature-verification.service'
@@ -61,7 +61,12 @@ describe('SignatureVerificationService', () => {
 
     const { signature } = await signingService.signPayload(payload, expiryTime)
 
-    const { response: recoveredAddress, error } = await service.verifySignature(payload, signature, expiryTime, TestWalletAddress)
+    const { response: recoveredAddress, error } = await service.verifySignature(
+      payload,
+      signature,
+      expiryTime,
+      TestWalletAddress,
+    )
 
     expect(error).toBeUndefined()
     expect(recoveredAddress).toEqual(signingService.getAccountAddress())
@@ -72,7 +77,12 @@ describe('SignatureVerificationService', () => {
     const expiryTime = Date.now() - 60_000 // 60s in the past
     const { signature } = await signingService.signPayload(payload, expiryTime)
 
-    const { error } = await service.verifySignature(payload, signature, expiryTime, TestWalletAddress)
+    const { error } = await service.verifySignature(
+      payload,
+      signature,
+      expiryTime,
+      TestWalletAddress,
+    )
     expect(error).toEqual(EcoError.SignatureExpired)
   })
 })
