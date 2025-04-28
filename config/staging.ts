@@ -21,7 +21,7 @@ export default {
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: 'https://quoter.staging.bend.eco',
+      baseUrl: 'https://quotes-preprod.eco.com',
     },
   },
 }
