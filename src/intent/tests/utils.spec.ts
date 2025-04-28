@@ -2,7 +2,7 @@ const mockDecodeFunctionData = jest.fn()
 import { EcoError } from '@/common/errors/eco-error'
 import { getFunctionBytes } from '@/common/viem/contracts'
 import { CallDataInterface } from '@/contracts'
-import { getTransactionTargetData } from '@/intent/utils'
+import { getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
 
 jest.mock('viem', () => {
   return {
@@ -57,6 +57,17 @@ describe('utils tests', () => {
         selector: getFunctionBytes(callData.data),
         targetConfig,
       })
+    })
+  })
+
+  describe('on getWaitForTransactionTimeout', () => {
+    it('should return the timeout for mainnet', () => {
+      expect(getWaitForTransactionTimeout(1n)).toEqual(1000 * 60 * 5)
+    })
+    it('should return undefined for other chains', () => {
+      expect(getWaitForTransactionTimeout(2n)).toEqual(undefined)
+      expect(getWaitForTransactionTimeout(137n)).toEqual(undefined)
+      expect(getWaitForTransactionTimeout(84523n)).toEqual(undefined)
     })
   })
 })
