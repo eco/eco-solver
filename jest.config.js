@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable prettier/prettier */
-process.env.MONGOMS_VERSION = '4.0.3';
-process.env.MONGOMS_DISABLE_POSTINSTALL = '1';
-process.env.MONGOMS_DOWNLOAD_DIR = '~/.cache/mongodb-binaries';
+process.env.MONGOMS_VERSION = '4.0.3'
+process.env.MONGOMS_DISABLE_POSTINSTALL = '1'
+process.env.MONGOMS_DOWNLOAD_DIR = '~/.cache/mongodb-binaries'
 
-const { mongodbMemoryServerOptions } = require('./jest-mongodb-config.js');
+const { mongodbMemoryServerOptions } = require('./jest-mongodb-config.js')
 
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
