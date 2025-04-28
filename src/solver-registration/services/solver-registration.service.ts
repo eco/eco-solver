@@ -80,11 +80,11 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
 
-      const { error } = await this.apiRequestExecutor.executeRequest<void>({
+      const { response, error } = await this.apiRequestExecutor.executeRequest<void>({
         method: 'post',
         endPoint: '/api/v1/solverRegistry/registerSolver',
         body: solverRegistrationDTO,
-        additionalHeaders: this.getRequestSignatureHeaders(solverRegistrationDTO),
+        additionalHeaders: await this.getRequestSignatureHeaders(solverRegistrationDTO),
       })
 
       if (error) {
@@ -99,6 +99,13 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
         return { error }
       }
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `${SolverRegistrationService.name}.registerSolver(): Solver has been registered`,
+          properties: { response },
+        }),
+      )
 
       return {}
     } catch (ex) {
