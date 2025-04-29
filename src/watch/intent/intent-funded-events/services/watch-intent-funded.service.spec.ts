@@ -7,7 +7,7 @@ import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { PublicClient } from 'viem'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'

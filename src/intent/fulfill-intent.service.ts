@@ -24,7 +24,7 @@ import { ProofService } from '../prover/proof.service'
 import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InboxAbi } from '@eco-foundation/routes-ts'
-import { getTransactionTargetData } from '@/intent/utils'
+import { getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
 import { FeeService } from '@/fee/fee.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
@@ -92,7 +92,10 @@ export class FulfillIntentService {
 
       const transactionHash = await kernelAccountClient.execute(transactions)
 
-      const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: transactionHash })
+      const receipt = await kernelAccountClient.waitForTransactionReceipt({
+        hash: transactionHash,
+        timeout: getWaitForTransactionTimeout(model.intent.route.destination),
+      })
 
       // set the status and receipt for the model
       model.receipt = receipt as any

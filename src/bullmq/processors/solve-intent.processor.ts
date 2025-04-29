@@ -12,7 +12,7 @@ import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 
 @Injectable()
-@Processor(QUEUES.SOURCE_INTENT.queue)
+@Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })
 export class SolveIntentProcessor extends WorkerHost {
   private logger = new Logger(SolveIntentProcessor.name)
 

@@ -73,7 +73,7 @@ describe('FulfillIntentService', () => {
   const solver = { inboxAddress: address1, chainID: 1 }
   const model = {
     intent: {
-      route: { hash, source: 11111, destination: 85432, getHash: () => '0x6543' },
+      route: { hash, destination: 1, getHash: () => '0x6543' },
       reward: { getHash: () => '0x123abc' },
       getHash: () => {
         return { intentHash: '0xaaaa999' }
@@ -293,7 +293,10 @@ describe('FulfillIntentService', () => {
 
       it('should get a receipt', async () => {
         expect(mockWaitForTransactionReceipt).toHaveBeenCalledTimes(1)
-        expect(mockWaitForTransactionReceipt).toHaveBeenCalledWith({ hash: transactionHash })
+        expect(mockWaitForTransactionReceipt).toHaveBeenCalledWith({
+          hash: transactionHash,
+          timeout: 300000,
+        })
       })
 
       it('should log', async () => {
