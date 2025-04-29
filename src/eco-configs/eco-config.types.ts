@@ -262,6 +262,10 @@ export interface TargetContract {
 export type TargetContractType = 'erc20' | 'erc721' | 'erc1155'
 
 /**
+ * Defaults to append any provers in configs to the npm package
+ */
+export const ProverEcoRoutesProverAppend = 'append'
+/**
  * The config type for a single prover source configuration
  */
 export class IntentSource {
@@ -277,6 +281,11 @@ export class IntentSource {
   tokens: Hex[]
   // The addresses of the provers that we support
   provers: Hex[]
+  // custom configs for the intent source
+  config?: {
+    // Defaults to append, @eco-foundation/routes-ts provers will append to the provers in configs
+    ecoRoutes: 'append' | 'replace'
+  }
 }
 
 export interface LiquidityManagerConfig {
