@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
 import { erc20Abi, Hex, isAddressEqual } from 'viem'
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { entries, keyBy } from 'lodash'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
