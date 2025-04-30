@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { JobsOptions, Queue } from 'bullmq'
 import { QUEUES } from '../common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'

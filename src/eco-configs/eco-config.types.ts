@@ -1,4 +1,4 @@
-import { Network } from 'alchemy-sdk'
+import { Network } from '@/common/alchemy/network'
 import { ClusterNode } from 'ioredis'
 import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
@@ -72,6 +72,7 @@ export type EcoConfigType = {
   hyperlane: HyperlaneConfig
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
+  warpRoutes: WarpRoutesConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -355,4 +356,37 @@ export interface CCTPConfig {
     tokenMessenger: Hex
     messageTransmitter: Hex
   }[]
+}
+
+export interface WarpRoutesConfig {
+  routes: {
+    collateral: {
+      chainId: number
+      token: Hex
+    }
+    chains: {
+      chainId: number
+      token: Hex
+      synthetic: Hex
+    }[]
+  }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
 }

@@ -11,7 +11,7 @@ import { FeeService } from '@/fee/fee.service'
 import { ProofService } from '@/prover/proof.service'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { getTransactionTargetData } from '@/intent/utils'
+import { getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
@@ -64,7 +64,10 @@ export class WalletFulfillService implements IFulfillService {
 
       const transactionHash = await kernelAccountClient.execute(transactions)
 
-      const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: transactionHash })
+      const receipt = await kernelAccountClient.waitForTransactionReceipt({
+        hash: transactionHash,
+        timeout: getWaitForTransactionTimeout(model.intent.route.destination),
+      })
 
       // set the status and receipt for the model
       model.receipt = receipt as any

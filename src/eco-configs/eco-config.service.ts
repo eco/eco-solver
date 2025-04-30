@@ -230,6 +230,11 @@ export class EcoConfigService {
     return this.get('crowdLiquidity')
   }
 
+  // Returns the liquidity manager config
+  getWarpRoutes(): EcoConfigType['warpRoutes'] {
+    return this.get('warpRoutes')
+  }
+
   getRpcUrls(): EcoConfigType['rpcUrls'] {
     return this.get('rpcUrls')
   }

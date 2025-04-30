@@ -73,19 +73,21 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const opChainId = 10
     const client = await this.kernelAccountClientService.getClient(opChainId)
     const kernelAddress = client.kernelAccount.address
-    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
 
     // Track rebalances for Solver
     await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
     this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
 
-    // Track rebalances for Crowd Liquidity
-    await this.liquidityManagerQueue.startCronJobs(
-      this.config.intervalDuration,
-      crowdLiquidityPoolAddress,
-    )
-    this.tokensPerWallet[crowdLiquidityPoolAddress] =
-      this.crowdLiquidityService.getSupportedTokens()
+    if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
+      // Track rebalances for Crowd Liquidity
+      const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
+      await this.liquidityManagerQueue.startCronJobs(
+        this.config.intervalDuration,
+        crowdLiquidityPoolAddress,
+      )
+      this.tokensPerWallet[crowdLiquidityPoolAddress] =
+        this.crowdLiquidityService.getSupportedTokens()
+    }
   }
 
   async analyzeTokens(walletAddress: string) {
@@ -227,14 +229,30 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         // Calculate the amount to swap
         const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
-        const quote = await this.liquidityProviderManager.getQuote(
+        const strategyQuotes = await this.liquidityProviderManager.getQuote(
           walletAddress,
           surplusToken,
           deficitToken,
           swapAmount,
         )
-        quotes.push(quote)
-        currentBalance += quote.amountOut
+
+        this.logger.log(
+          EcoLogMessage.fromDefault({
+            message: 'Quotes from strategies',
+            properties: {
+              strategyQuotes,
+              surplusToken,
+              deficitToken,
+              swapAmount,
+              walletAddress,
+            },
+          }),
+        )
+
+        for (const quote of strategyQuotes) {
+          quotes.push(quote)
+          currentBalance += quote.amountOut
+        }
 
         if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
       } catch (error) {
@@ -249,6 +267,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
               deficitToken: deficitToken.config,
               error: {
                 message: error.message,
+                stack: error.stack,
               },
             },
           }),

@@ -163,6 +163,11 @@ export default {
       },
     ],
   },
+
+  hyperlane: {
+    useHyperlaneDefaultHook: false,
+  },
+
   externalAPIs: {},
   logger: {
     usePino: true,
