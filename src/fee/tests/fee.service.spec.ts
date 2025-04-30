@@ -215,15 +215,26 @@ describe('FeeService', () => {
       })
 
       it('should return the correct ask for less than $100', async () => {
+        const {
+          baseFee,
+          tranche: { unitFee },
+        } = linearSolver.fee.constants
         const ask = feeService.getAsk(1_000_000n, intent)
-        expect(ask).toBe(1_020_000n)
+        expect(ask).toBe(1_000_000n + baseFee + 1n * unitFee)
       })
 
       it('should return the correct ask for multiples of $100', async () => {
-        expect(feeService.getAsk(99_000_000n, intent)).toBe(99_020_000n)
-        expect(feeService.getAsk(100_000_000n, intent)).toBe(100_035_000n)
-        expect(feeService.getAsk(999_000_000n, intent)).toBe(999_155_000n)
-        expect(feeService.getAsk(1_000_000_000n, intent)).toBe(1000_170_000n)
+        const {
+          baseFee,
+          tranche: { unitFee },
+        } = linearSolver.fee.constants
+        //0-100 should have defaultFee
+        expect(feeService.getAsk(99_000_000n, intent)).toBe(99_000_000n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk(100_000_000n, intent)).toBe(100_000_000n + baseFee + 2n * unitFee)
+        expect(feeService.getAsk(999_000_000n, intent)).toBe(999_000_000n + baseFee + 10n * unitFee)
+        expect(feeService.getAsk(1_000_000_000n, intent)).toBe(
+          1_000_000_000n + baseFee + 11n * unitFee,
+        )
       })
     })
   })
