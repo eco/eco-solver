@@ -3,10 +3,11 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { encodeFunctionData, Hex, TransactionReceipt } from 'viem'
+import { encodeFunctionData, Hex } from 'viem'
 import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getChainConfig } from '@/eco-configs/utils'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
@@ -51,7 +52,7 @@ export class IntentInitiationService implements OnModuleInit {
    */
   async initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<TransactionReceipt>> {
+  ): Promise<EcoResponse<GaslessIntentResponseDTO>> {
     try {
       return await this._initiateGaslessIntent(gaslessIntentRequestDTO)
     } catch (ex) {
@@ -76,7 +77,7 @@ export class IntentInitiationService implements OnModuleInit {
    */
   async _initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<TransactionReceipt>> {
+  ): Promise<EcoResponse<GaslessIntentResponseDTO>> {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
     // Get all the txs
@@ -91,19 +92,23 @@ export class IntentInitiationService implements OnModuleInit {
       gaslessIntentRequestDTO.getSourceChainID!(),
     )
 
-    const txHash = await kernelAccountClient.execute(allTxs!)
-    const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
+    const transactionHash = await kernelAccountClient.execute(allTxs!)
+    // const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `_initiateGaslessIntent`,
         properties: {
-          receipt,
+          transactionHash,
         },
       }),
     )
 
-    return { response: receipt }
+    return {
+      response: {
+        transactionHash,
+      },
+    }
   }
 
   /*

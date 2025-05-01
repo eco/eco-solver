@@ -10,11 +10,11 @@ import {
 } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { ModuleRef } from '@nestjs/core'
 import { QuoteErrorsInterface } from '@/quote/errors'
-import { TransactionReceipt } from 'viem'
 
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
 export class IntentInitiationController implements OnModuleInit {
@@ -34,10 +34,10 @@ export class IntentInitiationController implements OnModuleInit {
     summary: 'Initiate Gasless Intent',
   })
   @Post('/initiateGaslessIntent')
-  @ApiResponse({ type: GaslessIntentRequestDTO })
+  @ApiResponse({ type: GaslessIntentResponseDTO })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<TransactionReceipt> {
+  ): Promise<GaslessIntentResponseDTO> {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `Received Initiate Gasless Intent Request:`,
