@@ -32,7 +32,7 @@ export function getRpcUrl(
     break
   }
 
-  rpcUrls = customRpcUrls
+  rpcUrls = customRpcUrls?.http
     ? { http: customRpcUrls.http, webSocket: customRpcUrls.webSocket }
     : rpcUrls
 
