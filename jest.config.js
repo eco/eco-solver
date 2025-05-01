@@ -12,7 +12,12 @@ module.exports = {
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.(t|j)s$': [
+      'ts-jest',
+      {
+        tsconfig: '<rootDir>/../tsconfig.json',
+      },
+    ],
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
@@ -21,9 +26,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>//$1',
   },
   globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/../tsconfig.json',
-    },
     mongodbMemoryServerOptions, // 👈 Inject manually here!
   },
   setupFiles: ['<rootDir>/../jest.setup.js'],
