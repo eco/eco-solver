@@ -1,4 +1,6 @@
 import { Chain, getAddress, Hex } from 'viem'
+import { EcoConfigType } from '@/eco-configs/eco-config.types'
+import { TransportOptions } from '@/common/chains/transport'
 
 /**
  * Generates the RPC URL for a given blockchain network and configuration options.
@@ -17,10 +19,10 @@ export function getRpcUrl(
   chain: Chain,
   options: {
     alchemyApiKey: string
-    rpcUrls?: Chain['rpcUrls']['default']
+    rpcUrls?: EcoConfigType['rpcUrls'][string]
     websocketEnabled?: boolean
   },
-): { url: string; isWebsocket: boolean } {
+): { url: string; transportOptions: TransportOptions } {
   const { alchemyApiKey, rpcUrls: customRpcUrls, websocketEnabled } = options
 
   let rpcUrls = chain.rpcUrls.default
@@ -30,7 +32,9 @@ export function getRpcUrl(
     break
   }
 
-  rpcUrls = customRpcUrls ?? rpcUrls
+  rpcUrls = customRpcUrls
+    ? { http: customRpcUrls.http, webSocket: customRpcUrls.webSocket }
+    : rpcUrls
 
   const isWebsocket = Boolean((websocketEnabled ?? customRpcUrls) && rpcUrls.webSocket?.length)
 
@@ -40,7 +44,12 @@ export function getRpcUrl(
     url += '/' + alchemyApiKey
   }
 
-  return { url, isWebsocket }
+  const transportOptions: TransportOptions = {
+    isWebsocket: isWebsocket,
+    options: customRpcUrls?.options,
+  }
+
+  return { url, transportOptions }
 }
 
 /**
