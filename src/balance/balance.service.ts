@@ -132,6 +132,11 @@ export class BalanceService implements OnApplicationBootstrap {
           address: tokenAddress,
           functionName: 'decimals',
         },
+        {
+          abi: erc20Abi,
+          address: tokenAddress,
+          functionName: 'symbol',
+        },
       ]),
       allowFailure: false,
     })) as MulticallReturnType
@@ -139,7 +144,7 @@ export class BalanceService implements OnApplicationBootstrap {
     const tokenBalances: Record<Hex, TokenBalance> = {}
 
     tokenAddresses.forEach((tokenAddress, index) => {
-      const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
+      const [balance = 0n, decimals = 0, symbol = ""] = [results[index * 2], results[index * 2 + 1], results[index * 2 + 2]]
       //throw if we suddenly start supporting tokens with not 6 decimals
       //audit conversion of validity to see its support
       if ((decimals as number) != 6) {
@@ -149,6 +154,7 @@ export class BalanceService implements OnApplicationBootstrap {
         address: tokenAddress,
         balance: balance as bigint,
         decimals: decimals as number,
+        symbol: symbol as string,
       }
     })
     return tokenBalances

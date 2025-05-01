@@ -220,6 +220,10 @@ export class EcoConfigService {
     return this.get('indexer')
   }
 
+  getHats(): EcoConfigType['hats'] {
+    return this.get('hats')
+  }
+
   getRpcUrls(): EcoConfigType['rpcUrls'] {
     return this.get('rpcUrls')
   }

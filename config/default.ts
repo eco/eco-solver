@@ -117,6 +117,13 @@ export default {
     intervalDuration: 360_000,
   },
 
+  hats: {
+    supabase: {
+      'secure:url': 'From SecretsManager',
+      'secure:key': 'From SecretsManager',
+    },
+  },
+
   sendBatch: {
     chunkSize: 200,
     intervalDuration: 360_000,

@@ -6,9 +6,11 @@ import { BalanceModule } from '../../balance/balance.module'
 import { IntentModule } from '../../intent/intent.module'
 import { SignModule } from '../../sign/sign.module'
 import { InboxProcessor } from '@/bullmq/processors/inbox.processor'
+import { HatsProcessor } from '@/bullmq/processors/hats.processor'
+import { HatsModule } from '@/hats/hats.module'
 
 @Module({
-  imports: [BalanceModule, IntentModule, SignModule],
-  providers: [EthWebsocketProcessor, SignerProcessor, SolveIntentProcessor, InboxProcessor],
+  imports: [BalanceModule, IntentModule, SignModule, HatsModule],
+  providers: [EthWebsocketProcessor, SignerProcessor, SolveIntentProcessor, InboxProcessor, HatsProcessor],
 })
 export class ProcessorModule {}

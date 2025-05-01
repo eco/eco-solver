@@ -20,6 +20,8 @@ import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
+import { HatsModule } from '@/hats/hats.module'
+import { TasksModule } from '@/tasks/tasks.module'
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { SolverModule } from '@/solver/solver.module'
     EcoConfigModule.withAWS(),
     FeeModule,
     FlagsModule,
+    HatsModule,
+    TasksModule,
     HealthModule,
     IntentModule,
     KmsModule,
@@ -47,6 +51,7 @@ import { SolverModule } from '@/solver/solver.module'
     ProverModule,
     QuoteModule,
     SolverModule,
+    
     LiquidityManagerModule,
     WatchModule,
     IntentProcessorModule,

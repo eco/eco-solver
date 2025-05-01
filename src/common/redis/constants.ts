@@ -43,6 +43,13 @@ export const QUEUES: Record<any, QueueInterface> = {
     prefix: '{solver}',
     jobs: {},
   },
+  HATS: {
+    queue: 'hats',
+    prefix: '{hats}',
+    jobs: {
+      distribute: 'distribute',
+    }
+  }
 }
 
 export interface QueueMetadata {
