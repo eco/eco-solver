@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable prettier/prettier */
-process.env.MONGOMS_VERSION = '4.0.3'
+const path = require('path')
+const os = require('os')
+
+process.env.MONGOMS_VERSION = '6.0.9'
 process.env.MONGOMS_DISABLE_POSTINSTALL = '1'
-process.env.MONGOMS_DOWNLOAD_DIR = '~/.cache/mongodb-binaries'
+process.env.MONGOMS_DOWNLOAD_DIR = path.join(os.homedir(), '.cache/mongodb-binaries')
 
 const { mongodbMemoryServerOptions } = require('./jest-mongodb-config.js')
 
