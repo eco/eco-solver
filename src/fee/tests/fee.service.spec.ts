@@ -245,7 +245,7 @@ describe('FeeService', () => {
 
         expect(feeService.getAsk(1n, intent)).toBe(1n + baseFee + 1n * unitFee)
         expect(feeService.getAsk(10n, intent)).toBe(10n + baseFee + 1n * unitFee)
-        expect(feeService.getAsk(100n, intent)).toBe(10n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk(100n, intent)).toBe(100n + baseFee + 1n * unitFee)
       })
 
       it('should handle division with non-divisible amounts correctly', async () => {
