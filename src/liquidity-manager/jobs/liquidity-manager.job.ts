@@ -8,7 +8,8 @@ import {
 export type LiquidityManagerJob<
   NameType extends LiquidityManagerJobName = LiquidityManagerJobName,
   DataType extends LiquidityManagerQueueDataType = LiquidityManagerQueueDataType,
-> = Job<DataType, unknown, NameType>
+  ReturnData = unknown,
+> = Job<DataType, ReturnData, NameType>
 
 export abstract class LiquidityManagerJobManager<
   Job extends LiquidityManagerJob = LiquidityManagerJob,

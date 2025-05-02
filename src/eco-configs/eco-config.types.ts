@@ -4,9 +4,10 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex } from 'viem'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -69,6 +70,9 @@ export type EcoConfigType = {
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
   hyperlane: HyperlaneConfig
+  crowdLiquidity: CrowdLiquidityConfig
+  CCTP: CCTPConfig
+  warpRoutes: WarpRoutesConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -86,6 +90,7 @@ export type LaunchDarklyConfig = {
  */
 export type FulfillType = {
   run: 'batch' | 'single'
+  type?: 'crowd-liquidity' | 'smart-wallet-account'
 }
 
 /**
@@ -135,6 +140,7 @@ export type IntervalConfig = {
  */
 export type IntentConfig = {
   defaultFee: FeeConfigType
+  skipBalanceCheck?: boolean
   proofs: {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
@@ -218,7 +224,10 @@ export type AlchemyNetwork = {
 /**
  * The whole config type for QuickNode.
  */
-export type RpcUrlsConfigType = Record<string, { http: string[]; webSocket?: string[] }>
+export type RpcUrlsConfigType = Record<
+  string,
+  { http: string[]; webSocket?: string[]; options?: WebSocketTransportConfig | HttpTransportConfig }
+>
 
 /**
  * The config type for a single solver configuration
@@ -319,4 +328,68 @@ export interface HyperlaneConfig {
       hyperlaneAggregationHook: Hex
     }
   >
+}
+
+export interface CrowdLiquidityConfig {
+  litNetwork: LIT_NETWORKS_KEYS
+  capacityTokenId: string
+  capacityTokenOwnerPk: string
+  defaultTargetBalance: number
+  feePercentage: number
+  actions: {
+    fulfill: string
+    rebalance: string
+  }
+  kernel: {
+    address: string
+  }
+  pkp: {
+    ethAddress: string
+    publicKey: string
+  }
+  supportedTokens: { chainId: number; tokenAddress: Hex }[]
+}
+
+export interface CCTPConfig {
+  apiUrl: string
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
+export interface WarpRoutesConfig {
+  routes: {
+    collateral: {
+      chainId: number
+      token: Hex
+    }
+    chains: {
+      chainId: number
+      token: Hex
+      synthetic: Hex
+    }[]
+  }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
 }

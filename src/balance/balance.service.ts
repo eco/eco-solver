@@ -42,19 +42,6 @@ export class BalanceService implements OnApplicationBootstrap {
   }
 
   /**
-   * Get the token balance of the solver
-   * @returns
-   */
-  async getTokenBalance(chainID: number, tokenAddress: Hex) {
-    return (
-      this.tokenBalances.get(getDestinationNetworkAddressKey(chainID, tokenAddress)) ?? {
-        balance: 0n,
-        decimals: 0n,
-      }
-    )
-  }
-
-  /**
    * Updates the token balance of the solver, called from {@link EthWebsocketProcessor}
    * @returns
    */
@@ -107,10 +94,26 @@ export class BalanceService implements OnApplicationBootstrap {
   ): Promise<Record<Hex, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const walletAddress = client.kernelAccount.address
+    return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+  }
+
+  /**
+   * Fetches the token balances of a wallet for the given token list.
+   * @param chainID the chain id
+   * @param walletAddress wallet address
+   * @param tokenAddresses the tokens to fetch balances for
+   * @returns
+   */
+  async fetchWalletTokenBalances(
+    chainID: number,
+    walletAddress: string,
+    tokenAddresses: Hex[],
+  ): Promise<Record<Hex, TokenBalance>> {
+    const client = await this.kernelAccountClientService.getClient(chainID)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `fetchTokenBalances`,
+        message: `fetchWalletTokenBalances`,
         properties: {
           chainID,
           tokenAddresses,
@@ -193,6 +196,28 @@ export class BalanceService implements OnApplicationBootstrap {
       const configs = tokensByChainId[chainId]
       const tokenAddresses = configs.map((token) => token.address)
       const balances = await this.fetchTokenBalances(parseInt(chainId), tokenAddresses)
+      return zipWith(configs, Object.values(balances), (config, balance) => ({
+        config,
+        balance,
+        chainId: parseInt(chainId),
+      }))
+    })
+
+    return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())
+  }
+
+  async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
+    const tokensByChainId = groupBy(tokens, 'chainId')
+    const chainIds = Object.keys(tokensByChainId)
+
+    const balancesPerChainIdPromise = chainIds.map(async (chainId) => {
+      const configs = tokensByChainId[chainId]
+      const tokenAddresses = configs.map((token) => token.address)
+      const balances = await this.fetchWalletTokenBalances(
+        parseInt(chainId),
+        walletAddress,
+        tokenAddresses,
+      )
       return zipWith(configs, Object.values(balances), (config, balance) => ({
         config,
         balance,

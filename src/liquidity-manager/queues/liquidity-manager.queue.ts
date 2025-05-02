@@ -1,13 +1,19 @@
 import { Queue } from 'bullmq'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
+import {
+  CheckCCTPAttestationJob,
+  CheckCCTPAttestationJobManager,
+} from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
   CHECK_BALANCES = 'CHECK_BALANCES',
+  CHECK_CCTP_ATTESTATION = 'CHECK_CCTP_ATTESTATION',
+  EXECUTE_CCTP_MINT = 'EXECUTE_CCTP_MINT',
 }
 
-export type LiquidityManagerQueueDataType = { network: string; [k: string]: unknown }
+export type LiquidityManagerQueueDataType = { [k: string]: unknown }
 
 export type LiquidityManagerQueueType = Queue<
   LiquidityManagerQueueDataType,
@@ -42,7 +48,11 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  startCronJobs(interval: number) {
-    return CheckBalancesCronJobManager.start(this.queue, interval)
+  startCronJobs(interval: number, walletAddress: string): Promise<void> {
+    return CheckBalancesCronJobManager.start(this.queue, interval, walletAddress)
+  }
+
+  startCCTPAttestationCheck(data: CheckCCTPAttestationJob['data']): Promise<void> {
+    return CheckCCTPAttestationJobManager.start(this.queue, data)
   }
 }

@@ -9,6 +9,9 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
+import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
+import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -21,15 +24,19 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
    * Constructs a new LiquidityManagerProcessor.
    * @param queue - The queue to process jobs from.
    * @param liquidityManagerService - The service for managing liquidity.
+   * @param cctpProviderService - The service for CCTP.
    */
   constructor(
     @InjectQueue(LiquidityManagerQueue.queueName)
-    protected readonly queue: LiquidityManagerQueueType,
+    public readonly queue: LiquidityManagerQueueType,
     public readonly liquidityManagerService: LiquidityManagerService,
+    public readonly cctpProviderService: CCTPProviderService,
   ) {
     super(LiquidityManagerProcessor.name, [
       new CheckBalancesCronJobManager(),
       new RebalanceJobManager(),
+      new ExecuteCCTPMintJobManager(),
+      new CheckCCTPAttestationJobManager(),
     ])
   }
 }

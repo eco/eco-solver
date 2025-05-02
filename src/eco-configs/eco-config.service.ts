@@ -220,6 +220,21 @@ export class EcoConfigService {
     return this.get('indexer')
   }
 
+  // Returns the liquidity manager config
+  getCCTP(): EcoConfigType['CCTP'] {
+    return this.get('CCTP')
+  }
+
+  // Returns the liquidity manager config
+  getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
+    return this.get('crowdLiquidity')
+  }
+
+  // Returns the liquidity manager config
+  getWarpRoutes(): EcoConfigType['warpRoutes'] {
+    return this.get('warpRoutes')
+  }
+
   getRpcUrls(): EcoConfigType['rpcUrls'] {
     return this.get('rpcUrls')
   }

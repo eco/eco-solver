@@ -1,34 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common'
-import {
-  ContractFunctionArgs,
-  ContractFunctionName,
-  encodeAbiParameters,
-  encodeFunctionData,
-  erc20Abi,
-  Hex,
-  pad,
-  zeroAddress,
-} from 'viem'
-import {
-  IntentProcessData,
-  TransactionTargetData,
-  UtilsIntentService,
-} from './utils-intent.service'
-import { getERC20Selector } from '../contracts'
-import { EcoError } from '../common/errors/eco-error'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { Solver } from '../eco-configs/eco-config.types'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { ProofService } from '../prover/proof.service'
-import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
-import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { InboxAbi } from '@eco-foundation/routes-ts'
-import { getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
-import { FeeService } from '@/fee/fee.service'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-
-type FulfillmentMethod = ContractFunctionName<typeof InboxAbi>
+import { Hex } from 'viem'
+import { UtilsIntentService } from './utils-intent.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Solver } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -38,284 +16,60 @@ export class FulfillIntentService {
   private logger = new Logger(FulfillIntentService.name)
 
   constructor(
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly proofService: ProofService,
-    private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly walletFulfillService: WalletFulfillService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
   ) {}
 
   /**
-   * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
-   * to the chain. It then updates the db model of the intent with the status and receipt.
+   * Processes and fulfills a specified intent based on its type.
    *
-   * @param intentHash the intent hash to fulfill
-   * @returns
+   * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
+   * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
    */
-  async executeFulfillIntent(intentHash: Hex) {
+  async fulfill(intentHash: Hex): Promise<unknown> {
     const data = await this.utilsIntentService.getIntentProcessData(intentHash)
     const { model, solver, err } = data ?? {}
-    if (!data || !model || !solver) {
-      if (err) {
-        throw err
-      }
-      return
-    }
-    // If the intent is already solved, return
-    // Could happen if redis has pending job while this is still executing
-    if (model.status === 'SOLVED') {
-      return
-    }
 
-    const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
+    if (err) throw err
+    if (!data || !model || !solver) return
+    if (model.status === 'SOLVED') return
 
-    // Create transactions for intent targets
-    const targetSolveTxs = this.getTransactionsForTargets(data)
+    const { type } = this.ecoConfigService.getFulfill()
 
-    // Create fulfill tx
-    const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
-
-    // Combine all transactions
-    const transactions = [...targetSolveTxs, fulfillTx]
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Fulfilling ${this.getFulfillment()} transaction`,
-        properties: {
-          transactions,
-        },
-      }),
-    )
-
-    try {
-      await this.finalFeasibilityCheck(model.intent)
-
-      const transactionHash = await kernelAccountClient.execute(transactions)
-
-      const receipt = await kernelAccountClient.waitForTransactionReceipt({
-        hash: transactionHash,
-        timeout: getWaitForTransactionTimeout(model.intent.route.destination),
-      })
-
-      // set the status and receipt for the model
-      model.receipt = receipt as any
-      if (receipt.status === 'reverted') {
-        throw EcoError.FulfillIntentRevertError(receipt)
-      }
-      model.status = 'SOLVED'
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Fulfilled transactionHash ${receipt.transactionHash}`,
-          properties: {
-            userOPHash: receipt,
-            destinationChainID: model.intent.route.destination,
-            sourceChainID: model.event.sourceChainID,
-          },
-        }),
-      )
-    } catch (e) {
-      model.status = 'FAILED'
-      model.receipt = model.receipt ? { previous: model.receipt, current: e } : e
-
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: `fulfillIntent: Invalid transaction`,
-          error: EcoError.FulfillIntentBatchError,
-          properties: {
-            model: model,
-            flatExecuteData: transactions,
-            errorPassed: e,
-          },
-        }),
-      )
-
-      // Throw error to retry job
-      throw e
-    } finally {
-      // Update the db model
-      await this.utilsIntentService.updateIntentModel(model)
-    }
-  }
-
-  /**
-   * Checks that the intent is feasible for the fulfillment. This
-   * could occur due to changes to the fees/limits of the intent. A failed
-   * intent might retry later when its no longer profitable, etc.
-   * Throws an error if the intent is not feasible.
-   * @param intent the intent to check
-   */
-  async finalFeasibilityCheck(intent: IntentDataModel) {
-    const { error } = await this.feeService.isRouteFeasible(intent)
-    if (error) {
-      throw error
-    }
-  }
-
-  /**
-   * Checks if the transaction is feasible for an erc20 token transfer.
-   *
-   * @param tt the transaction target data
-   * @param solver the target solver
-   * @param target the target ERC20 address
-   * @returns
-   */
-  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex) {
-    switch (tt.selector) {
-      case getERC20Selector('transfer'):
-        const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-        // Approve the inbox to spend the amount, inbox contract pulls the funds
-        // then does the transfer call for the target
-        const transferFunctionData = encodeFunctionData({
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [solver.inboxAddress, dstAmount], //spender, amount
-        })
-
-        return [{ to: target, data: transferFunctionData }]
+    switch (type) {
+      case 'crowd-liquidity':
+        return this.executeFulfillIntentWithCL(model, solver)
       default:
-        return []
+        return this.walletFulfillService.fulfill(model, solver)
     }
   }
 
   /**
-   * Returns the transactions for the intent targets
-   * @param intentProcessData
-   * @private
+   * Executes the fulfillment of an intent using crowd liquidity.
+   *
+   * @param {IntentSourceModel} model - The model representing the intent to be fulfilled.
+   * @param {Solver} solver - The solver responsible for executing the fulfillment of the intent.
+   * @return {Promise<void>} A promise that resolves when the intent fulfillment is successfully executed.
    */
-  private getTransactionsForTargets(intentProcessData: IntentProcessData) {
-    const { model, solver } = intentProcessData
-    if (!model || !solver) {
-      return []
-    }
-
-    // Create transactions for intent targets
-    return model.intent.route.calls.flatMap((call) => {
-      const tt = getTransactionTargetData(solver, call)
-      if (tt === null) {
+  async executeFulfillIntentWithCL(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    if (this.crowdLiquidityService.isRouteSupported(model)) {
+      try {
+        return await this.crowdLiquidityService.fulfill(model, solver)
+      } catch (error) {
         this.logger.error(
           EcoLogMessage.withError({
-            message: `fulfillIntent: Invalid transaction data`,
-            error: EcoError.FulfillIntentNoTransactionError,
-            properties: {
-              model: model,
-            },
+            message: 'Failed to fulfill using Crowd Liquidity, proceeding to use solver',
+            properties: { intentHash: model.intent.hash },
+            error,
           }),
         )
-        return []
-      }
-
-      switch (tt.targetConfig.contractType) {
-        case 'erc20':
-          return this.handleErc20(tt, solver, call.target)
-        case 'erc721':
-        case 'erc1155':
-        default:
-          return []
-      }
-    })
-  }
-
-  /**
-   * Returns the fulfill intent data
-   * @param inboxAddress
-   * @param model
-   * @private
-   */
-  private async getFulfillIntentTx(
-    inboxAddress: Hex,
-    model: IntentSourceModel,
-  ): Promise<ExecuteSmartWalletArg> {
-    const claimant = this.ecoConfigService.getEth().claimant
-    const isHyperlane = this.proofService.isHyperlaneProver(model.intent.reward.prover)
-    const functionName: FulfillmentMethod = this.proofService.isStorageProver(
-      model.intent.reward.prover,
-    )
-      ? 'fulfillStorage'
-      : this.getFulfillment()
-
-    const args = [
-      model.intent.route,
-      // @ts-expect-error we dynamically set the args
-      model.intent.reward.getHash(),
-      claimant,
-      // @ts-expect-error we dynamically set the args
-      model.intent.getHash().intentHash,
-    ]
-
-    if (isHyperlane) {
-      args.push(model.intent.reward.prover)
-      if (functionName === 'fulfillHyperInstantWithRelayer') {
-        args.push('0x0')
-        args.push(zeroAddress)
       }
     }
-    let fee = 0n
-    if (isHyperlane && functionName === 'fulfillHyperInstantWithRelayer') {
-      fee = BigInt((await this.getHyperlaneFee(inboxAddress, model)) || '0x0')
-    }
 
-    const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
-      functionName,
-      // @ts-expect-error we dynamically set the args
-      args,
-    })
-
-    return {
-      to: inboxAddress,
-      data: fulfillIntentData,
-      // ...(isHyperlane && fee > 0 && { value: fee }),
-      value: fee,
-    }
-  }
-
-  /**
-   * Returns the hyperlane fee
-   * @param prover
-   * @private
-   */
-  private async getHyperlaneFee(
-    inboxAddress: Hex,
-    model: IntentSourceModel,
-  ): Promise<Hex | undefined> {
-    const client = await this.kernelAccountClientService.getClient(
-      Number(model.intent.route.destination),
-    )
-    const encodedMessageBody = encodeAbiParameters(
-      [{ type: 'bytes[]' }, { type: 'address[]' }],
-      [[model.intent.hash], [this.ecoConfigService.getEth().claimant]],
-    )
-    const functionName = 'fetchFee'
-    const args: ContractFunctionArgs<typeof InboxAbi, 'view', typeof functionName> = [
-      model.event.sourceChainID, //_sourceChainID
-      pad(model.intent.reward.prover), //_prover
-      encodedMessageBody, //_messageBody
-      '0x0', //_metadata
-      zeroAddress, //_postDispatchHook
-    ]
-    const callData = encodeFunctionData({
-      abi: InboxAbi,
-      functionName,
-      args,
-    })
-    const proverData = await client.call({
-      to: inboxAddress,
-      data: callData,
-    })
-    return proverData.data
-  }
-
-  /**
-   * @returns the fulfillment method
-   */
-  private getFulfillment(): FulfillmentMethod {
-    switch (this.ecoConfigService.getFulfill().run) {
-      case 'batch':
-        return 'fulfillHyperBatched'
-      case 'single':
-      default:
-        return 'fulfillHyperInstantWithRelayer'
-    }
+    // If crowd liquidity is not available for current route, or it failed to fulfill the intent
+    // Fulfill the intent using the solver
+    return this.walletFulfillService.fulfill(model, solver)
   }
 }

@@ -48,7 +48,7 @@ describe('config utils tests', () => {
       expect(isPreEnv()).toBe(false)
 
       config.util.getEnv = jest.fn().mockReturnValue('staging')
-      expect(isPreEnv()).toBe(false)
+      expect(isPreEnv()).toBe(true)
     })
   })
 
@@ -61,7 +61,7 @@ describe('config utils tests', () => {
       expect(getChainConfig(10)).toEqual(mockRoutes.EcoProtocolAddresses['10-pre'])
 
       config.util.getEnv = jest.fn().mockReturnValue('staging')
-      expect(getChainConfig(84523)).toEqual(mockRoutes.EcoProtocolAddresses['84523'])
+      expect(getChainConfig(84523)).toEqual(mockRoutes.EcoProtocolAddresses['84523-pre'])
 
       config.util.getEnv = jest.fn().mockReturnValue('development')
       expect(getChainConfig(84523)).toEqual(mockRoutes.EcoProtocolAddresses['84523-pre'])
@@ -75,7 +75,7 @@ describe('config utils tests', () => {
       expect(() => getChainConfig(4)).toThrow(EcoError.ChainConfigNotFound('4-pre'))
 
       config.util.getEnv = jest.fn().mockReturnValue('staging')
-      expect(() => getChainConfig(3)).toThrow(EcoError.ChainConfigNotFound('3'))
+      expect(() => getChainConfig(3)).toThrow(EcoError.ChainConfigNotFound('3-pre'))
 
       config.util.getEnv = jest.fn().mockReturnValue('development')
       expect(() => getChainConfig(4)).toThrow(EcoError.ChainConfigNotFound('4-pre'))

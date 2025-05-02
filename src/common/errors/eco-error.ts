@@ -100,6 +100,16 @@ export class EcoError extends Error {
     return new EcoError(`Could not get AWS KMS credentials: ${config}`)
   }
 
+  // Crowd Liquidity
+
+  static CrowdLiquidityRewardNotEnough(intentHash: string) {
+    return new EcoError(`Intent rewards are not enough: ${intentHash}`)
+  }
+
+  static CrowdLiquidityPoolNotSolvent(intentHash: string) {
+    return new EcoError(`CrowdLiquidity pool is not solvent for intent: ${intentHash}`)
+  }
+
   // EcoConfig Service
 
   static isEcoError(error: any): boolean {
