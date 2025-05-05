@@ -22,6 +22,7 @@ import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
 import { HatsModule } from '@/hats/hats.module'
 import { TasksModule } from '@/tasks/tasks.module'
+import { ScheduleModule } from '@nestjs/schedule'
 
 @Module({
   imports: [
@@ -32,13 +33,12 @@ import { TasksModule } from '@/tasks/tasks.module'
     FeeModule,
     FlagsModule,
     HatsModule,
-    TasksModule,
     HealthModule,
     IntentModule,
-    KmsModule,
-    SignModule,
+    IntentProcessorModule,
     IntervalModule,
-    ProcessorModule,
+    KmsModule,
+    LiquidityManagerModule,
     MongooseModule.forRootAsync({
       inject: [EcoConfigService],
       useFactory: async (configService: EcoConfigService) => {
@@ -48,13 +48,14 @@ import { TasksModule } from '@/tasks/tasks.module'
         }
       },
     }),
+    ProcessorModule,
     ProverModule,
     QuoteModule,
+    ScheduleModule.forRoot(),
+    SignModule,
     SolverModule,
-    
-    LiquidityManagerModule,
+    TasksModule,
     WatchModule,
-    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],
