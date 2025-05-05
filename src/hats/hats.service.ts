@@ -22,7 +22,7 @@ export class HatsService implements OnModuleInit {
   private readonly REWARD_PERIOD_DURATION = 600; // 10 minutes in seconds
   
   // private readonly REWARD_PERIOD_RANGE = [28800, 72000]; // 8-20 hours in seconds
-  private readonly REWARD_PERIOD_RANGE = [60, 120]; // 1-2 minutes in seconds
+  private readonly REWARD_PERIOD_RANGE = [600, 1200]; // 10-20 minutes in seconds
 
   constructor(
     @InjectQueue(QUEUES.HATS.queue)
