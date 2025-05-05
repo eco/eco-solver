@@ -8,6 +8,7 @@ import {
   EcoConfigType,
   IntentSource,
   KmsConfig,
+  ProverEcoRoutesProverAppend,
   SafeType,
   Solver,
 } from './eco-config.types'
@@ -87,14 +88,22 @@ export class EcoConfigService {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource
       intent.inbox = config.Inbox
-      intent.provers = [config.HyperProver]
+      const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
+      // todo add metaprover when package supports it
+      const ecoNpmProvers = [config.HyperProver]
+      switch (ecoNpm) {
+        case 'replace':
+          intent.provers = ecoNpmProvers
+          break
+        case 'append':
+        default:
+          intent.provers = [...intent.provers, ...ecoNpmProvers]
+          break
+      }
+      //remove duplicates
+      intent.provers = _.uniq(intent.provers)
+
       intent.tokens = intent.tokens.map((token: string) => getAddress(token))
-
-      //removing storage prover per audit for hyperlane beta release
-      // if (config.Prover) {
-      //   intent.provers.push(config.Prover)
-      // }
-
       return intent
     })
   }
