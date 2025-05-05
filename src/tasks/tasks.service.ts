@@ -20,7 +20,8 @@ export class TasksService implements OnModuleInit {
     );
   }
 
-  @Cron('0 0 * * 5', { timeZone: "America/Los_Angeles" })
+  // @Cron('0 0 * * 5', { timeZone: "America/Los_Angeles" }) midnight on Friday Pacific Time
+  @Cron('0 * * * *', { timeZone: 'America/Los_Angeles' }) // every hour
   async hatsWeeklyTurnover() {
     this.logger.debug(EcoLogMessage.fromDefault({
       message: `${TasksService.name}.hatsWeeklyTurnover`,
