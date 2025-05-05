@@ -56,12 +56,12 @@ export class HatsService implements OnModuleInit {
       }),
     );
 
-    // get and update the last accumulation period if it exists
-    const { data: firstAccumulationPeriod, error } = await this.supabaseClient.from('accumulation_periods').select().order('created_at', { ascending: true }).limit(1).maybeSingle();
+    // get and update the previous accumulation period if it exists
+    const { data: prevAccumulationPeriod, error } = await this.supabaseClient.from('accumulation_periods').select().order('created_at', { ascending: false }).limit(1).single();
 
-    if (!error && firstAccumulationPeriod) {
+    if (!error && prevAccumulationPeriod) {
       // get the starting balance of all the accumulation periods
-      const startingSolverBalance = BigInt(firstAccumulationPeriod.starting_solver_balance);
+      const startingSolverBalance = BigInt(prevAccumulationPeriod.starting_solver_balance);
 
       // calculate the distribution amount for this week that just ended
       const distributionAmount = currentSolverBalance - startingSolverBalance;
@@ -74,6 +74,34 @@ export class HatsService implements OnModuleInit {
             message: `${HatsService.name}.weeklyUpdate - failed to update last week's distribution amount`,
             properties: {
               error: updateError,
+              distributionAmount: formatUnits(distributionAmount, 6),
+            },
+          }),
+        );
+      }
+
+      // Create a reward period for the completed accumulation period
+      const rewardPeriodData = await this.createNewRewardPeriod(prevAccumulationPeriod.id);
+
+      if (rewardPeriodData) {
+        const delay = Math.floor((rewardPeriodData.endTime.getTime() - Date.now())) + 10_000; // add 10 seconds to ensure it fires after the period ends
+
+        this.hatsQueue.add(QUEUES.HATS.jobs.distribute, {
+          accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
+          rewardPeriodId: rewardPeriodData.rewardPeriodId,
+        }, {
+          jobId: QUEUES.HATS.jobs.distribute,
+          delay,
+          removeOnComplete: true,
+        })
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `${HatsService.name}.weeklyUpdate - reward period created and distribution scheduled`,
+            properties: {
+              rewardPeriodId: rewardPeriodData.rewardPeriodId,
+              accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
+              endTime: rewardPeriodData.endTime.toISOString(),
             },
           }),
         );
@@ -99,79 +127,28 @@ export class HatsService implements OnModuleInit {
       );
     }
 
-    // Create a reward period with start time 8-20 hours from now, 10 minute duration
-    const rewardPeriodData = await this.createNewRewardPeriod(accumulationPeriod!.id);
-
-    if (rewardPeriodData) {
-      const delay = Math.floor((rewardPeriodData.endTime.getTime() - Date.now())) + 10_000; // add 10 seconds to ensure it fires after the period ends
-
-      this.hatsQueue.add(QUEUES.HATS.jobs.distribute, null, {
-        jobId: QUEUES.HATS.jobs.distribute,
-        delay,
-        removeOnComplete: true,
-      })
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `${HatsService.name}.weeklyUpdate - reward period created and distribution scheduled`,
-          properties: {
-            rewardPeriodId: rewardPeriodData.rewardPeriodId,
-            accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
-            endTime: rewardPeriodData.endTime.toISOString(),
-          },
-        }),
-      );
-
-      this.logger.debug(EcoLogMessage.fromDefault({
-        message: `${HatsService.name}.weeklyUpdate complete`,
-      }));
-    }
+    this.logger.debug(EcoLogMessage.fromDefault({
+      message: `${HatsService.name}.weeklyUpdate complete`,
+    }));
   }
 
-  async executeDistribution() {
-    // Get the last accumulation period that:
-    // 1. Has a distribution amount that isn't null
-    // 2. Has a reward period that has ended
-    // 3. Hasn't had a distribution yet
+  async executeDistribution(accumulationPeriodId: number, rewardPeriodId: number) {
     const { data: eligiblePeriod, error: queryError } = await this.supabaseClient
       .from('accumulation_periods')
       .select(`
-        id,
-        distribution_amount,
-        reward_periods (
-          id,
-          ended_at
-        )
+      id,
+      distribution_amount
       `)
-      .not('distribution_amount', 'is', null)
-      .not('id', 'in', this.supabaseClient
-        .from('distributions')
-        .select('accumulation_period_id')
-      )
-      .order('created_at', { ascending: false })
-      .limit(1)
+      .eq('id', accumulationPeriodId)
       .single();
-    
+
     if (queryError || !eligiblePeriod) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `${HatsService.name}.executeDistribution - no eligible accumulation period found`,
+          message: `${HatsService.name}.executeDistribution - failed to fetch eligible accumulation period`,
           properties: {
             error: queryError,
-          },
-        }),
-      );
-      return;
-    }
-
-    // Check if there's an associated reward period that has ended
-    const rewardPeriod = eligiblePeriod.reward_periods?.[0];
-    if (!rewardPeriod || !rewardPeriod.ended_at) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `${HatsService.name}.executeDistribution - reward period hasn't ended yet or doesn't exist`,
-          properties: {
-            accumulationPeriodId: eligiblePeriod.id,
+            accumulationPeriodId,
           },
         }),
       );
@@ -182,7 +159,7 @@ export class HatsService implements OnModuleInit {
     const { data: claims, error: claimsError } = await this.supabaseClient
       .from('claims')
       .select('wallet_address')
-      .eq('reward_period_id', rewardPeriod.id)
+      .eq('reward_period_id', rewardPeriodId)
       .not('wallet_address', 'is', null);
 
     if (claimsError) {
@@ -191,7 +168,7 @@ export class HatsService implements OnModuleInit {
           message: `${HatsService.name}.executeDistribution - failed to fetch claims`,
           properties: {
             error: claimsError,
-            rewardPeriodId: rewardPeriod.id,
+            rewardPeriodId: rewardPeriodId,
           },
         }),
       );
@@ -205,7 +182,7 @@ export class HatsService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: `${HatsService.name}.executeDistribution - no valid claims found for distribution`,
           properties: {
-            rewardPeriodId: rewardPeriod.id,
+            rewardPeriodId: rewardPeriodId,
           },
         }),
       );
