@@ -66,3 +66,10 @@ config/*
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
+
+# Yarn 4
+.yarn/install-state.gz
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/cache
