@@ -10,18 +10,13 @@ import { HatsProcessor } from '@/bullmq/processors/hats.processor'
 import { HatsModule } from '@/hats/hats.module'
 
 @Module({
-  imports: [
-    BalanceModule,
-    IntentModule,
-    SignModule,
-    HatsModule
-  ],
+  imports: [BalanceModule, IntentModule, SignModule, HatsModule],
   providers: [
     EthWebsocketProcessor,
     SignerProcessor,
     SolveIntentProcessor,
     InboxProcessor,
-    HatsProcessor
+    HatsProcessor,
   ],
 })
 export class ProcessorModule {}

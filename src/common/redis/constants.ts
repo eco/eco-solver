@@ -48,8 +48,8 @@ export const QUEUES: Record<any, QueueInterface> = {
     prefix: '{hats}',
     jobs: {
       distribute: 'distribute',
-    }
-  }
+    },
+  },
 }
 
 export interface QueueMetadata {

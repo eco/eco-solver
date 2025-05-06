@@ -124,8 +124,8 @@ export default {
     },
     slack: {
       'secure:token': 'From SecretsManager',
-      conversationID: 'C08ELBV9KU7'
-    }
+      conversationID: 'C08ELBV9KU7',
+    },
   },
 
   sendBatch: {

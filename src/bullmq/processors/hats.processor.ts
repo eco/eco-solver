@@ -28,7 +28,10 @@ export class HatsProcessor extends WorkerHost {
 
     switch (job.name) {
       case QUEUES.HATS.jobs.distribute:
-        return await this.hatsService.executeDistribution(job.data.accumulationPeriodId, job.data.rewardPeriodId)
+        return await this.hatsService.executeDistribution(
+          job.data.accumulationPeriodId,
+          job.data.rewardPeriodId,
+        )
       default:
         this.logger.error(
           EcoLogMessage.fromDefault({
