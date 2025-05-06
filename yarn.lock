@@ -1467,10 +1467,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/routes-ts@~1.17.6":
-  version "1.17.6"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.17.6.tgz#387d83bee390a78f22fbad4dd178b7c9e3688f12"
-  integrity sha512-VN/cWbpPx1mM7Ewxj8z1zgYsuQZRdtOWclvE4WdW4YR9x02sonVk62mr0uXEHLRmhqF9mND2m+MeUir3sQSC/A==
+"@eco-foundation/routes-ts@~1.18.1":
+  version "1.18.1"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-1.18.1.tgz#0287c42cfa44e8355b5ca3c53fe260060aedb156"
+  integrity sha512-5b+0TA7LjDmOXBtR2LWVkWwcKciapRSjqxxqyWyb129C4kBV0EF3l0lIlESVe/FWrc++NkrNWxLkzX4SL9F9Mw==
   dependencies:
     viem "^2.22.21"
 

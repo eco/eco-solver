@@ -202,7 +202,8 @@ export class HatsService implements OnModuleInit {
           message: `${HatsService.name}.executeDistribution - preparing distribution`,
           properties: {
             totalAmount: formatUnits(totalDistributionAmount, 6),
-            recipients: validClaims.length,
+            recipients: validClaims.map(claim => claim.wallet_address),
+            recipientCount: validClaims.length,
             amountPerWallet: formatUnits(amountPerWallet, 6),
           },
         }),
