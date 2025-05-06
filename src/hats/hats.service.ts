@@ -51,7 +51,7 @@ export class HatsService implements OnModuleInit {
 
   async weeklyUpdate() {
     // fetch solver balance
-    const currentSolverBalance = parseUnits((await this.fetchSolverBalance()).toString(), 6)
+    const currentSolverBalance = await this.fetchSolverBalance()
 
     // log balance at this time just incase there is a failure
     this.logger.debug(
@@ -73,7 +73,7 @@ export class HatsService implements OnModuleInit {
 
     if (!error && firstAccumulationPeriod) {
       // get the starting balance of all the accumulation periods
-      const startingSolverBalance = BigInt(firstAccumulationPeriod.starting_solver_balance)
+      const startingSolverBalance = parseUnits(firstAccumulationPeriod.starting_solver_balance.toString(), 6)
 
       // calculate the distribution amount for this week that just ended
       const distributionAmount = currentSolverBalance - startingSolverBalance
