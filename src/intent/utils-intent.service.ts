@@ -50,13 +50,15 @@ export class UtilsIntentService {
   ) {}
 
   /**
-   * updateOne the intent model in the database, using the intent hash as the query
+   * updateOne the intent model in the database, using the intent hash as the query, upsersts if not found
    *
    * @param intentModel the model factory to use
    * @param model the new model data
    */
   async updateIntentModel(model: IntentSourceModel) {
-    return await this.intentModel.updateOne({ 'intent.hash': model.intent.hash }, model)
+    return await this.intentModel.updateOne({ 'intent.hash': model.intent.hash }, model, {
+      upsert: true,
+    })
   }
 
   /**

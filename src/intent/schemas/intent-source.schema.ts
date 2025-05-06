@@ -25,6 +25,9 @@ export class IntentSourceModel {
 
   @Prop({ required: true, type: String })
   status: IntentSourceStatus
+
+  @Prop({ required: true, default: 'EVM' })
+  chain: 'EVM' | 'SVM'
 }
 
 export const IntentSourceSchema = SchemaFactory.createForClass(IntentSourceModel)

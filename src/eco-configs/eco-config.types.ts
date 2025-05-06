@@ -67,6 +67,7 @@ export type EcoConfigType = {
   }
   liquidityManager: LiquidityManagerConfig
   indexer: IndexerConfig
+  solanaIndexer: SolanaIndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
   hyperlane: HyperlaneConfig
@@ -314,6 +315,12 @@ export interface LiquidityManagerConfig {
 
 export interface IndexerConfig {
   url: string
+}
+
+export interface SolanaIndexerConfig {
+  rpc_url: string
+  rpc_ws_url: string
+  router_program_id: string
 }
 
 export interface WithdrawsConfig {

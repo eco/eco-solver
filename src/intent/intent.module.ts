@@ -28,6 +28,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     SolverModule,
     TransactionModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
+    initBullMQ(QUEUES.SOLANA_INTENT),
   ],
   providers: [
     CreateIntentService,

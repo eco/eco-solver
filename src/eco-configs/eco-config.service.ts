@@ -229,6 +229,10 @@ export class EcoConfigService {
     return this.get('indexer')
   }
 
+  getSolanaIndexer(): EcoConfigType['solanaIndexer'] {
+    return this.get('solanaIndexer')
+  }
+
   // Returns the liquidity manager config
   getCCTP(): EcoConfigType['CCTP'] {
     return this.get('CCTP')

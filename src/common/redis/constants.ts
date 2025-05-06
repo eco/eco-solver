@@ -10,6 +10,16 @@ export const QUEUES: Record<any, QueueInterface> = {
       retry_intent: 'retry_intent',
     },
   },
+  SOLANA_INTENT: {
+    queue: 'solana_intent',
+    prefix: '{solana-intent}',
+    jobs: {
+      validate_intent: 'validate_intent',
+      feasable_intent: 'feasable_intent',
+      fulfill_intent: 'fulfill_intent',
+      retry_intent: 'retry_intent',
+    },
+  },
   INTERVAL: {
     queue: 'interval',
     prefix: '{interval}',
