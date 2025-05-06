@@ -249,67 +249,45 @@ export class HatsService implements OnModuleInit {
         }),
       )
 
-      // Find the chain with the highest USDC balance
-      let highestBalanceChain: number | null = null
-      let highestBalance = BigInt(0)
+      let balance: bigint = BigInt(0)
 
-      for (const chain of ChainsSupported) {
-        try {
-          const tokens = await this.balanceService.fetchTokenData(chain.id)
-          const usdcBalance = tokens.reduce((acc, { token }) => {
-            if (token.symbol !== 'USDC') {
-              return acc
-            }
-            return acc + token.balance
-          }, BigInt(0))
-
-          if (usdcBalance > highestBalance) {
-            highestBalance = usdcBalance
-            highestBalanceChain = chain.id
+      try {
+        const tokens = await this.balanceService.fetchTokenData(8453) // Base
+        const usdcBalance = tokens.reduce((acc, { token }) => {
+          if (token.symbol !== 'USDC') {
+            return acc
           }
+          return acc + token.balance
+        }, BigInt(0))
 
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `${HatsService.name}.executeDistribution - chain balance`,
-              properties: {
-                chainId: chain.id,
-                chainName: chain.name,
-                usdcBalance: formatUnits(usdcBalance, 6),
-              },
-            }),
-          )
-        } catch (error) {
-          this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: `${HatsService.name}.executeDistribution - failed to get balance for chain`,
-              properties: {
-                error,
-                chainId: chain.id,
-                chainName: chain.name,
-              },
-            }),
-          )
-        }
-      }
-
-      // Verify we found a chain with USDC balance
-      if (!highestBalanceChain) {
-        this.logger.error(
+        this.logger.debug(
           EcoLogMessage.fromDefault({
-            message: `${HatsService.name}.executeDistribution - no chain found with USDC balance`,
+            message: `${HatsService.name}.executeDistribution - Base USDC balance`,
+            properties: {
+              usdcBalance: formatUnits(usdcBalance, 6),
+            },
           }),
         )
-        return
+
+        balance = usdcBalance
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `${HatsService.name}.executeDistribution - failed to get Base balances`,
+            properties: {
+              error,
+            },
+          }),
+        )
       }
 
       // Verify the balance is sufficient for the distribution
-      if (highestBalance < totalDistributionAmount) {
+      if (balance < totalDistributionAmount) {
         this.logger.error(
           EcoLogMessage.fromDefault({
             message: `${HatsService.name}.executeDistribution - insufficient USDC balance for distribution`,
             properties: {
-              chainId: highestBalanceChain,
-              availableBalance: formatUnits(highestBalance, 6),
+              availableBalance: formatUnits(balance, 6),
               requiredAmount: formatUnits(totalDistributionAmount, 6),
             },
           }),
@@ -318,16 +296,13 @@ export class HatsService implements OnModuleInit {
       }
 
       // Prepare for the transaction
-      const tokens = await this.balanceService.fetchTokenData(highestBalanceChain)
+      const tokens = await this.balanceService.fetchTokenData(8453)
       const usdcToken = tokens.find(({ token }) => token.symbol === 'USDC')
 
       if (!usdcToken) {
         this.logger.error(
           EcoLogMessage.fromDefault({
-            message: `${HatsService.name}.executeDistribution - USDC token not found on selected chain`,
-            properties: {
-              chainId: highestBalanceChain,
-            },
+            message: `${HatsService.name}.executeDistribution - USDC token not found on Base`,
           }),
         )
         return
@@ -356,7 +331,6 @@ export class HatsService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: `${HatsService.name}.executeDistribution - executing multicall transfer`,
           properties: {
-            chainId: highestBalanceChain,
             tokenAddress: usdcToken.token.address,
             recipientCount: calls.length,
             totalAmount: formatUnits(totalDistributionAmount, 6),
@@ -366,7 +340,7 @@ export class HatsService implements OnModuleInit {
       )
 
       // Get the kernel account client and execute the transaction
-      const client = await this.kernelAccountClientService.getClient(highestBalanceChain)
+      const client = await this.kernelAccountClientService.getClient(8453)
 
       try {
         // Execute the transaction
@@ -376,7 +350,6 @@ export class HatsService implements OnModuleInit {
           EcoLogMessage.fromDefault({
             message: `${HatsService.name}.executeDistribution - multicall transfer executed`,
             properties: {
-              chainId: highestBalanceChain,
               callCount: calls.length,
               transactionHash: txHash,
             },
@@ -400,7 +373,6 @@ export class HatsService implements OnModuleInit {
             message: `${HatsService.name}.executeDistribution - transaction execution failed`,
             properties: {
               error: txError,
-              chainId: highestBalanceChain,
             },
           }),
         )
