@@ -59,6 +59,7 @@
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/terminus": "^10.2.3",
     "@rhinestone/module-sdk": "^0.2.7",
+    "@slack/web-api": "^7.9.1",
     "@supabase/supabase-js": "^2.49.4",
     "@web3-kms-signer/core": "1.0.6",
     "@web3-kms-signer/kms-provider-aws": "1.0.6",

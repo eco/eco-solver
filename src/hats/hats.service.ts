@@ -10,11 +10,14 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUES } from '@/common/redis/constants';
 import { Queue } from 'bullmq';
+import { WebClient } from '@slack/web-api';
+import { getRandomDistributionMessage } from '@/hats/utils';
 
 @Injectable()
 export class HatsService implements OnModuleInit {
   private readonly logger = new Logger(HatsService.name);
   private supabaseClient: SupabaseClient<Database>;
+  private slackWebClient: WebClient;
 
   // private readonly ACCUMULATION_PERIOD_DURATION = 604800; // 7 days in seconds
   private readonly ACCUMULATION_PERIOD_DURATION = 3600; // 1 hour in seconds
@@ -34,6 +37,7 @@ export class HatsService implements OnModuleInit {
 
   async onModuleInit() {
     this.supabaseClient = createClient<Database>(this.ecoConfigService.getHats().supabase.url, this.ecoConfigService.getHats().supabase.key);
+    this.slackWebClient = new WebClient(this.ecoConfigService.getHats().slack.token);
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -57,18 +61,18 @@ export class HatsService implements OnModuleInit {
     );
 
     // get and update the previous accumulation period if it exists
-    const { data: prevAccumulationPeriod, error } = await this.supabaseClient.from('accumulation_periods').select().order('created_at', { ascending: false }).limit(1).single();
+    const { data: firstAccumulationPeriod, error } = await this.supabaseClient.from('accumulation_periods').select().order('created_at', { ascending: true }).limit(1).single();
 
-    if (!error && prevAccumulationPeriod) {
+    if (!error && firstAccumulationPeriod) {
       // get the starting balance of all the accumulation periods
-      const startingSolverBalance = BigInt(prevAccumulationPeriod.starting_solver_balance);
+      const startingSolverBalance = BigInt(firstAccumulationPeriod.starting_solver_balance);
 
       // calculate the distribution amount for this week that just ended
       const distributionAmount = currentSolverBalance - startingSolverBalance;
 
       // update this last week's distribution amount
-      const { error: updateError } = await this.supabaseClient.from('accumulation_periods').update({ distribution_amount: parseFloat(formatUnits(distributionAmount, 6)) }).order('created_at', { ascending: false }).limit(1).single();
-      if (updateError) {
+      const { data: prevAccumulationPeriod, error: updateError } = await this.supabaseClient.from('accumulation_periods').update({ distribution_amount: parseFloat(formatUnits(distributionAmount, 6)) }).select('id').order('created_at', { ascending: false }).limit(1).single();
+      if (updateError || !prevAccumulationPeriod) {
         this.logger.error(
           EcoLogMessage.fromDefault({
             message: `${HatsService.name}.weeklyUpdate - failed to update last week's distribution amount`,
@@ -80,31 +84,35 @@ export class HatsService implements OnModuleInit {
         );
       }
 
-      // Create a reward period for the completed accumulation period
-      const rewardPeriodData = await this.createNewRewardPeriod(prevAccumulationPeriod.id);
+      if (distributionAmount > 0) {
+        // Create a reward period for the completed accumulation period
+        const rewardPeriodData = await this.createNewRewardPeriod(prevAccumulationPeriod!.id);
 
-      if (rewardPeriodData) {
-        const delay = Math.floor((rewardPeriodData.endTime.getTime() - Date.now())) + 10_000; // add 10 seconds to ensure it fires after the period ends
+        if (rewardPeriodData) {
+          const delay = Math.floor((rewardPeriodData.endTime.getTime() - Date.now())) + 10_000; // add 10 seconds to ensure it fires after the period ends
 
-        this.hatsQueue.add(QUEUES.HATS.jobs.distribute, {
-          accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
-          rewardPeriodId: rewardPeriodData.rewardPeriodId,
-        }, {
-          jobId: QUEUES.HATS.jobs.distribute,
-          delay,
-          removeOnComplete: true,
-        })
+          this.hatsQueue.add(QUEUES.HATS.jobs.distribute, {
+            accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
+            rewardPeriodId: rewardPeriodData.rewardPeriodId,
+          }, {
+            jobId: QUEUES.HATS.jobs.distribute,
+            delay,
+            removeOnComplete: true,
+          })
 
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `${HatsService.name}.weeklyUpdate - reward period created and distribution scheduled`,
-            properties: {
-              rewardPeriodId: rewardPeriodData.rewardPeriodId,
-              accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
-              endTime: rewardPeriodData.endTime.toISOString(),
-            },
-          }),
-        );
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `${HatsService.name}.weeklyUpdate - reward period created and distribution scheduled`,
+              properties: {
+                rewardPeriodId: rewardPeriodData.rewardPeriodId,
+                accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
+                endTime: rewardPeriodData.endTime.toISOString(),
+              },
+            }),
+          );
+
+          this.sendSlackNotification(getRandomDistributionMessage(distributionAmount, rewardPeriodData.startTime, rewardPeriodData.endTime));
+        }
       }
     }
 
@@ -404,7 +412,7 @@ export class HatsService implements OnModuleInit {
     }
   }
 
-  async createNewRewardPeriod(accumulationPeriodId: number) {
+  private async createNewRewardPeriod(accumulationPeriodId: number) {
     // Calculate a random start time in the reward period range
     const now = new Date();
     const minOffset = this.REWARD_PERIOD_RANGE[0];
@@ -494,5 +502,24 @@ export class HatsService implements OnModuleInit {
     }
 
     return totalBalance;
+  }
+
+  private async sendSlackNotification(message: string) {
+    try {
+      await this.slackWebClient.chat.postMessage({
+        channel: this.ecoConfigService.getHats().slack.conversationID,
+        text: message,
+      });
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `${HatsService.name}.sendSlackNotification - failed to send Slack notification`,
+          properties: {
+            error,
+            slackMessage: message
+          },
+        }),
+      );
+    }
   }
 }

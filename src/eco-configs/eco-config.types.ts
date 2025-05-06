@@ -118,6 +118,10 @@ export type HatsConfig = {
   supabase: {
     url: string
     key: string
+  },
+  slack: {
+    token: string
+    conversationID: string
   }
 }
 
