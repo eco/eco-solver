@@ -196,7 +196,7 @@ describe('WatchIntentFundedService', () => {
     const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xtxhash' })
     expect(saved).toBeDefined()
     expect($.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add).toHaveBeenCalledWith(
-      QUEUES.SOURCE_INTENT.jobs.fulfill_funded_intent,
+      QUEUES.SOURCE_INTENT.jobs.validate_intent,
       '0xintent123',
       expect.any(Object),
     )
