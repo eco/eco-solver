@@ -83,7 +83,7 @@ export class WalletFulfillService implements IFulfillService {
           properties: {
             userOPHash: receipt,
             destinationChainID: model.intent.route.destination,
-            sourceChainID: model.event.sourceChainID,
+            sourceChainID: IntentSourceModel.getSource(model),
           },
         }),
       )
@@ -367,25 +367,21 @@ export class WalletFulfillService implements IFulfillService {
     proverAddr: Hex,
     messageData: Hex,
   ): Promise<bigint> {
-    const client = await this.kernelAccountClientService.getClient(
-      Number(model.intent.route.destination),
-    )
+    const sourceChainId = Number(IntentSourceModel.getSource(model))
+    const destinationChainId = Number(model.intent.route.destination)
 
-    const callData = encodeFunctionData({
+    const client = await this.kernelAccountClientService.getClient(destinationChainId)
+
+    return client.readContract({
+      address: proverAddr,
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        model.event.sourceChainID, //_sourceChainID
+        sourceChainId,
         [model.intent.hash],
         [this.ecoConfigService.getEth().claimant],
         messageData,
       ],
     })
-
-    const proverData = await client.call({
-      to: proverAddr,
-      data: callData,
-    })
-    return BigInt(proverData.data ?? 0)
   }
 }

@@ -82,6 +82,7 @@ export class FeeService implements OnModuleInit {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const solver = this.getAskRouteDestinationSolver(route)
+
     let fee = 0n
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
     switch (feeConfig.algorithm) {
@@ -92,11 +93,23 @@ export class FeeService implements OnModuleInit {
         const { tranche } = feeConfig.constants as FeeAlgorithmConfig<'linear'>
         fee =
           BigInt(feeConfig.constants.baseFee) +
-          (totalFulfill / BigInt(tranche.unitSize) + 1n) * BigInt(tranche.unitFee)
+          (amount / BigInt(tranche.unitSize) + 1n) * BigInt(tranche.unitFee)
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
     }
+    return fee
+  }
+
+  /**
+   * Gets the ask for the quote
+   *
+   * @param totalFulfill the total amount to fulfill, assumes base6
+   * @param intent the quote intent
+   * @returns a bigint representing the ask
+   */
+  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+    const fee = this.getFee(totalFulfill, intent)
     return fee + totalFulfill
   }
 

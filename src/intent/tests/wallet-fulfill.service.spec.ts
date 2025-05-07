@@ -2,19 +2,20 @@ const mockEncodeFunctionData = jest.fn()
 const mockGetTransactionTargetData = jest.fn()
 const mockEncodeAbiParameters = jest.fn()
 const mockGetChainConfig = jest.fn()
-import { Test, TestingModule } from '@nestjs/testing'
-import { Hex, zeroAddress, pad } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
+import { CrowdLiquidityService } from '../crowd-liquidity.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
+import { FeeService } from '@/fee/fee.service'
+import { Hex, zeroAddress, pad } from 'viem'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ProofService } from '@/prover/proof.service'
+import { RewardDataModel } from '../schemas/reward-data.schema'
+import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
-import { CrowdLiquidityService } from '../crowd-liquidity.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { FeeService } from '@/fee/fee.service'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { RewardDataModel } from '../schemas/reward-data.schema'
 
 jest.mock('viem', () => {
   return {
@@ -320,7 +321,7 @@ describe('WalletFulfillService', () => {
           msg: `Fulfilled transactionHash ${transactionHash}`,
           userOPHash: { transactionHash },
           destinationChainID: model.intent.route.destination,
-          sourceChainID: model.event.sourceChainID,
+          sourceChainID: IntentSourceModel.getSource(model),
         })
       })
 
