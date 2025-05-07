@@ -55,6 +55,10 @@ export class EcoError extends Error {
     return new EcoError(`Chain config not found for chain ${chainID}`)
   }
 
+  static ChainRPCNotFound(chainID: number) {
+    return new EcoError(`Chain rpc not found for chain ${chainID}`)
+  }
+
   static InvalidSimpleAccountConfig() {
     return new EcoError(`The simple account config is invalid`)
   }
@@ -70,6 +74,16 @@ export class EcoError extends Error {
   static RebalancingRouteNotFound() {
     return new EcoError(`A rebalancing route not found`)
   }
+
+  static IntentNotFound = new Error('Intent not found')
+  static QuoteNotFound = new Error('Quote not found')
+  static QuoteDBUpdateError = new Error('Quote not found')
+  static NoPermitsProvided = new Error('At least one permit must be provided')
+  static AllPermitsMustBeOnSameChain = new Error(
+    `All Permits must be on the same chain for batching`,
+  )
+
+  static GasEstimationError = new Error('Error estimating gas')
 
   static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
@@ -123,30 +137,6 @@ export class EcoError extends Error {
   static TypedDataVerificationFailed = new EcoError()
   static SignatureExpired = new EcoError()
   static InvalidSignature = new EcoError()
-
-  // Permit Validations
-  static InvalidVaultAddress = new EcoError('Permit spender does not match expected vault address')
-  static InvalidPermit2Address = new EcoError('Permit2 contract is not whitelisted')
-  static InvalidPermitSignature = new EcoError('Invalid permit signature for owner')
-  static InvalidPermitNonce = new EcoError('Nonce mismatch for token')
-  static PermitExpired = new EcoError('Permit expired for token')
-  static PermitExpirationMismatch = new EcoError(
-    'On-chain expiration is earlier than signed expiration',
-  )
-  static PermitSimulationsFailed = new EcoError(`One or more permit simulations failed`)
-  static VaultAlreadyClaimed = new EcoError(`Vault for intent has already been claimed`)
-  static VaultAlreadyFunded = new EcoError(`Vault for intent is already fully funded`)
-  static VaultNotFullyFundedAfterPermit = new EcoError('Vault not fully funded after permit')
-
-  static IntentNotFound = new Error('Intent not found')
-  static QuoteNotFound = new Error('Quote not found')
-  static QuoteDBUpdateError = new Error('Quote not found')
-  static NoPermitsProvided = new Error('At least one permit must be provided')
-  static AllPermitsMustBeOnSameChain = new Error(
-    `All Permits must be on the same chain for batching`,
-  )
-
-  static GasEstimationError = new Error('Error estimating gas')
 
   // EcoConfig Service
 
