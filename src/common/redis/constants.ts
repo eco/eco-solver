@@ -4,7 +4,6 @@ export const QUEUES: Record<any, QueueInterface> = {
     prefix: '{source-intent}',
     jobs: {
       create_intent: 'create_intent',
-      fulfill_funded_intent: 'fulfill_funded_intent',
       validate_intent: 'validate_intent',
       feasable_intent: 'feasable_intent',
       fulfill_intent: 'fulfill_intent',
