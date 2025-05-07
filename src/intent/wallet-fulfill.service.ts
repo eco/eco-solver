@@ -82,7 +82,7 @@ export class WalletFulfillService implements IFulfillService {
           properties: {
             userOPHash: receipt,
             destinationChainID: model.intent.route.destination,
-            sourceChainID: model.event.sourceChainID,
+            sourceChainID: IntentSourceModel.getSource(model),
           },
         }),
       )
@@ -341,7 +341,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fetchFee',
       args: [
-        model.event.sourceChainID, //_sourceChainID
+        IntentSourceModel.getSource(model), //_sourceChainID
         pad(model.intent.reward.prover), //_prover
         encodedMessageBody, //_messageBody
         '0x0', //_metadata

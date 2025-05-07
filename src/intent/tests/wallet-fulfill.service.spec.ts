@@ -12,6 +12,7 @@ import { CrowdLiquidityService } from '../crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { FeeService } from '@/fee/fee.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 
 jest.mock('viem', () => {
   return {
@@ -308,7 +309,7 @@ describe('WalletFulfillService', () => {
           msg: `Fulfilled transactionHash ${transactionHash}`,
           userOPHash: { transactionHash },
           destinationChainID: model.intent.route.destination,
-          sourceChainID: model.event.sourceChainID,
+          sourceChainID: IntentSourceModel.getSource(model),
         })
       })
 
