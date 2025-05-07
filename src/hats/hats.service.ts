@@ -4,14 +4,14 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Database } from './database.types'
 import { BalanceService } from '@/balance/balance.service'
-import { formatUnits, parseUnits } from 'viem'
+import { Call, formatUnits, Hex, parseUnits } from 'viem'
 import { ChainsSupported } from '@/common/chains/supported'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { Queue } from 'bullmq'
 import { WebClient } from '@slack/web-api'
-import { getRandomDistributionMessage } from '@/hats/utils'
+import { getRandomRewardPeriodMessage } from '@/hats/utils'
 
 @Injectable()
 export class HatsService implements OnModuleInit {
@@ -26,6 +26,8 @@ export class HatsService implements OnModuleInit {
 
   // private readonly REWARD_PERIOD_RANGE = [28800, 72000]; // 8-20 hours in seconds
   private readonly REWARD_PERIOD_RANGE = [600, 1200] // 10-20 minutes in seconds
+
+  private readonly DISTRIBUTION_BATCH_SIZE = 300 // Max number of transfers per batch
 
   constructor(
     @InjectQueue(QUEUES.HATS.queue)
@@ -73,7 +75,10 @@ export class HatsService implements OnModuleInit {
 
     if (!error && firstAccumulationPeriod) {
       // get the starting balance of all the accumulation periods
-      const startingSolverBalance = parseUnits(firstAccumulationPeriod.starting_solver_balance.toString(), 6)
+      const startingSolverBalance = parseUnits(
+        firstAccumulationPeriod.starting_solver_balance.toString(),
+        6,
+      )
 
       // calculate the distribution amount for this week that just ended
       const distributionAmount = currentSolverBalance - startingSolverBalance
@@ -130,7 +135,7 @@ export class HatsService implements OnModuleInit {
           )
 
           this.sendSlackNotification(
-            getRandomDistributionMessage(
+            getRandomRewardPeriodMessage(
               distributionAmount,
               rewardPeriodData.startTime,
               rewardPeriodData.endTime,
@@ -313,7 +318,7 @@ export class HatsService implements OnModuleInit {
       const { ERC20Abi } = await import('@/contracts/ERC20.contract')
 
       // Create multicall transaction with ERC20 transfers
-      const calls = validClaims.map((claim) => {
+      const calls: Call[] = validClaims.map((claim) => {
         const callData = encodeFunctionData({
           abi: ERC20Abi,
           functionName: 'transfer',
@@ -342,28 +347,56 @@ export class HatsService implements OnModuleInit {
       // Get the kernel account client and execute the transaction
       const client = await this.kernelAccountClientService.getClient(8453)
 
+      // Batch the transfer calls with a max of 300 transfers per call
+      const callBatches: Call[][] = []
+
+      for (let i = 0; i < calls.length; i += this.DISTRIBUTION_BATCH_SIZE) {
+        callBatches.push(calls.slice(i, i + this.DISTRIBUTION_BATCH_SIZE))
+      }
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `${HatsService.name}.executeDistribution - batching transfers`,
+          properties: {
+            totalCalls: calls.length,
+            batchCount: callBatches.length,
+            batchSize: this.DISTRIBUTION_BATCH_SIZE,
+          },
+        }),
+      )
+
+      const txHashes: Hex[] = []
       try {
-        // Execute the transaction
-        const txHash = await client.execute(calls)
+        // Execute each batch of transactions
+        for (let i = 0; i < callBatches.length; i++) {
+          const batch = callBatches[i]
+          const txHash = await client.execute(batch)
+
+          txHashes.push(txHash)
+
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `${HatsService.name}.executeDistribution - batch ${i + 1}/${callBatches.length} multicall transfer executed`,
+              properties: {
+                batchNumber: i + 1,
+                totalBatches: callBatches.length,
+                callCount: batch.length,
+                transactionHash: txHash,
+              },
+            }),
+          )
+
+          // Wait for confirmation before sending the next batch
+          await client.waitForTransactionReceipt({ hash: txHash, confirmations: 5 })
+        }
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
-            message: `${HatsService.name}.executeDistribution - multicall transfer executed`,
+            message: `${HatsService.name}.executeDistribution - all batches executed successfully`,
             properties: {
-              callCount: calls.length,
-              transactionHash: txHash,
-            },
-          }),
-        )
-
-        // Wait for confirmation
-        await client.waitForTransactionReceipt({ hash: txHash, confirmations: 5 })
-
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `${HatsService.name}.executeDistribution - transaction confirmed`,
-            properties: {
-              transactionHash: txHash,
+              totalCalls: calls.length,
+              batchCount: callBatches.length,
+              transactionHashes: txHashes,
             },
           }),
         )
@@ -373,6 +406,7 @@ export class HatsService implements OnModuleInit {
             message: `${HatsService.name}.executeDistribution - transaction execution failed`,
             properties: {
               error: txError,
+              transactionHashes: txHashes,
             },
           }),
         )
