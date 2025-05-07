@@ -5,8 +5,8 @@ import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
 import { QuoteController } from '@/api/quote.controller'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { Test, TestingModule } from '@nestjs/testing'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
+import { Test, TestingModule } from '@nestjs/testing'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController

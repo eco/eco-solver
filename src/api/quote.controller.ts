@@ -1,12 +1,11 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
+import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { getEcoServiceException } from '@/common/errors/eco-service-exception'
-import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 
 @Controller(API_ROOT + QUOTE_ROUTE)
 export class QuoteController {
