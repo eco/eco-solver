@@ -4,9 +4,9 @@ import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Hex, TransactionReceipt } from 'viem'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { PermitProcessingParams } from '@/common/permit/interfaces/permit-processing-params.interface'
+import { PermitProcessor } from '@/common/permit/permit-processor'
+import { PermitTxBuilder } from '@/common/permit/permit-tx-builder'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 
 let $: EcoTester
@@ -64,22 +64,5 @@ describe('PermitProcessor', () => {
 
     const result = processor.generateTxs(permitParams)
     expect(result.response).toEqual([fakeTx])
-  })
-
-  it('executes transactions when input is valid', async () => {
-    const mockExecute = jest.fn().mockResolvedValue('0xtx')
-    const mockWait = jest
-      .fn()
-      .mockResolvedValue({ transactionHash: '0xtx' } as unknown as TransactionReceipt)
-
-    jest.spyOn(permitTxBuilder, 'getPermitTx').mockReturnValue(fakeTx)
-    jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
-      execute: mockExecute,
-      waitForTransactionReceipt: mockWait,
-    } as any)
-
-    const result = await processor.executeTxs(permitParams)
-    expect(result.response?.transactionHash).toEqual('0xtx')
-    expect(mockExecute).toHaveBeenCalledWith([fakeTx])
   })
 })

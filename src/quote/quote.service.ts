@@ -174,6 +174,7 @@ export class QuoteService implements OnModuleInit {
       quoteID: quoteIntentDataDTO.quoteID,
       dAppID: quoteIntentDataDTO.dAppID,
       salt: ZERO_SALT,
+      intents: [{}],
       route: quoteIntentDataDTO.route,
       reward: quoteIntentDataDTO.reward,
       gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,

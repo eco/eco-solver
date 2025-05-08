@@ -7,10 +7,8 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { PermitProcessor } from '@/common/permit/permit-processor'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { TransactionReceipt } from 'viem'
@@ -29,8 +27,6 @@ describe('IntentInitiationController', () => {
         Permit2Processor,
         QuoteService,
         KernelAccountClientService,
-        PermitTxBuilder,
-        Permit2TxBuilder,
         IntentInitiationService,
       ])
       .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])

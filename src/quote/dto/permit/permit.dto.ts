@@ -1,18 +1,41 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
-import { IsEthereumAddress, IsNotEmpty, ValidateNested } from 'class-validator'
-import { PermitSignatureDTO } from '@/quote/dto/permit/permit-signature-data.dto'
-import { Type } from 'class-transformer'
+import { Transform } from 'class-transformer'
+import { IsEthereumAddress, IsInt, IsNotEmpty, IsString } from 'class-validator'
 
 export class PermitDTO {
   @IsNotEmpty()
-  @IsEthereumAddress()
+  @IsInt()
   @ApiProperty()
-  token: Hex // permit supported ERC20 to call 'permit' on, also the reward token to match up with
+  chainID: number
 
   @IsNotEmpty()
-  @ValidateNested()
   @ApiProperty()
-  @Type(() => PermitSignatureDTO)
-  data: PermitSignatureDTO
+  @IsEthereumAddress()
+  funder: Hex
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @IsEthereumAddress()
+  spender: Hex
+
+  @IsNotEmpty()
+  @IsEthereumAddress()
+  @ApiProperty()
+  token: Hex
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
+  signature: Hex
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @Transform(({ value }) => BigInt(value))
+  deadline: bigint
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @Transform(({ value }) => BigInt(value))
+  value: bigint
 }

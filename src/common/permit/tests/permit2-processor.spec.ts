@@ -4,8 +4,8 @@ import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.
 import { Hex, TransactionReceipt, zeroAddress } from 'viem'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { Permit2TxBuilder } from '@/common/permit/permit2-tx-builder'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 
 let $: EcoTester

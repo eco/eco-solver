@@ -1,49 +1,40 @@
+import { Injectable } from '@nestjs/common'
+import { hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { encodeFunctionData, Hex, zeroAddress } from 'viem'
+import * as _ from 'lodash'
 import { CreateIntentService } from '@/intent/create-intent.service'
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { encodeFunctionData, Hex } from 'viem'
 import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getChainConfig } from '@/eco-configs/utils'
-import { Injectable, OnModuleInit } from '@nestjs/common'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { InternalQuoteError } from '@/quote/errors'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { ModuleRef } from '@nestjs/core'
-import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { PermitDTO } from '@/quote/dto/permit/permit.dto'
-import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuoteRepository } from '@/quote/quote.repository'
-import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import * as _ from 'lodash'
+import { PermitDTO } from '@/quote/dto/permit/permit.dto'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
+import { GaslessIntentRequestDTO, IntentDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { EcoError } from '@/common/errors/eco-error'
+import { PermitProcessor } from '@/common/permit/permit-processor'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
+import { Permit3Processor } from '@/common/permit/permit3-processor'
+
+type PermitResult = { funder: Hex; permitContract: Hex; transactions: ExecuteSmartWalletArg[] }
 
 @Injectable()
-export class IntentInitiationService implements OnModuleInit {
+export class IntentInitiationService {
   private logger = new EcoLogger(IntentInitiationService.name)
-  private quoteRepository: QuoteRepository
-  private permitProcessor: PermitProcessor
-  private permit2Processor: Permit2Processor
-  private kernelAccountClientService: KernelAccountClientService
-  private createIntentService: CreateIntentService
 
-  constructor(private readonly moduleRef: ModuleRef) {}
-
-  onModuleInit() {
-    this.quoteRepository = this.moduleRef.get(QuoteRepository, { strict: false })
-    this.permitProcessor = this.moduleRef.get(PermitProcessor, { strict: false })
-    this.permit2Processor = this.moduleRef.get(Permit2Processor, { strict: false })
-    this.kernelAccountClientService = this.moduleRef.get(KernelAccountClientService, {
-      strict: false,
-    })
-    this.createIntentService = this.moduleRef.get(CreateIntentService, { strict: false })
-  }
+  constructor(
+    private readonly quoteRepository: QuoteRepository,
+    private readonly createIntentService: CreateIntentService,
+    private readonly walletClientService: WalletClientDefaultSignerService,
+  ) {}
 
   /**
    * This function is used to initiate a gasless intent. It generates the permit transactions and fund transaction.
@@ -52,7 +43,7 @@ export class IntentInitiationService implements OnModuleInit {
    */
   async initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<GaslessIntentResponseDTO>> {
+  ): Promise<EcoResponse<Record<number, string>>> {
     try {
       return await this._initiateGaslessIntent(gaslessIntentRequestDTO)
     } catch (ex) {
@@ -77,38 +68,36 @@ export class IntentInitiationService implements OnModuleInit {
    */
   async _initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<GaslessIntentResponseDTO>> {
-    gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
-
+  ): Promise<EcoResponse<Record<number, Hex>>> {
     // Get all the txs
     const { response: allTxs, error } =
       await this.generateGaslessIntentTransactions(gaslessIntentRequestDTO)
 
-    if (error) {
+    if (error || !allTxs) {
       return { error }
     }
 
-    const kernelAccountClient = await this.kernelAccountClientService.getClient(
-      gaslessIntentRequestDTO.getSourceChainID!(),
-    )
+    const chainIDs = allTxs.keys()
 
-    const transactionHash = await kernelAccountClient.execute(allTxs!)
-    // const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
+    const receiptPromises = Array.from(chainIDs).map(async (chainID) => {
+      const walletClient = await this.walletClientService.getClient(chainID)
+      const txs = allTxs.get(chainID)!
+      return walletClient.sendTransaction(batchTransactionsWithMulticall(chainID, txs))
+    })
+
+    const receipts: Record<number, Hex> = _.zipObject(
+      Array.from(chainIDs),
+      await Promise.all(receiptPromises),
+    )
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `_initiateGaslessIntent`,
-        properties: {
-          transactionHash,
-        },
+        properties: { receipts },
       }),
     )
 
-    return {
-      response: {
-        transactionHash,
-      },
-    }
+    return { response: receipts }
   }
 
   /*
@@ -120,38 +109,40 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequest: GaslessIntentRequestDTO,
     bufferPercent = 10,
   ): Promise<EcoResponse<EstimatedGasDataForIntentInitiation>> {
-    // fromJSON does a plainToInstance on the POJO to make it into a class instance with methods
-    gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequest)
-
     // Generate the actual txs (permit(s) + fundFor)
     const { response: allTxs, error } =
       await this.generateGaslessIntentTransactions(gaslessIntentRequest)
 
-    if (error) {
+    if (error || !allTxs) {
       return { error }
     }
 
-    try {
-      const chainID = gaslessIntentRequest.getSourceChainID!()
-      const { response: estimatedGasData, error: estimateError } =
-        await this.kernelAccountClientService.estimateGasForKernelExecution(chainID, allTxs!)
+    const chainIDs = Array.from(allTxs.keys())
 
-      if (estimateError) {
-        return { error: estimateError }
+    const estimationRequests = chainIDs.map(async (chainID): Promise<EstimatedGasData> => {
+      const transactions = allTxs.get(chainID)!
+      const { response: estimatedGasData, error: estimateError } =
+        await this.walletClientService.estimateGas(chainID, transactions)
+
+      if (estimateError || !estimatedGasData) {
+        throw estimateError
       }
 
-      const { gasEstimate: estimatedGasInWei, gasPrice } = estimatedGasData!
+      const { gasEstimate: estimatedGasInWei, gasPrice } = estimatedGasData
 
       // Apply a buffer (e.g., 10%)
-      const buffer = BigInt(Math.floor((Number(estimatedGasInWei) * bufferPercent) / 100))
-      const totalWithBuffer = estimatedGasInWei + buffer
+      const base = 1_000_000n
+      const totalWithBuffer =
+        (estimatedGasInWei * BigInt((1 + bufferPercent / 100) * Number(base))) / base
       const gasCost = totalWithBuffer * gasPrice
 
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `calculateGasQuoteForIntent: estimated gas details`,
           properties: {
+            chainID,
             estimatedGas: estimatedGasInWei,
+            totalWithBuffer,
             price: gasPrice,
             totalCost: gasCost,
           },
@@ -159,9 +150,20 @@ export class IntentInitiationService implements OnModuleInit {
       )
 
       return {
+        chainID,
+        gasEstimate: estimatedGasInWei,
+        gasPrice,
+        gasCost,
+      }
+    })
+
+    try {
+      const estimations = await Promise.all(estimationRequests)
+      const gasCost = estimations.reduce((acc, item) => acc + item.gasCost, 0n)
+
+      return {
         response: {
-          gasEstimate: estimatedGasInWei,
-          gasPrice,
+          estimations,
           gasCost,
         },
       }
@@ -177,93 +179,80 @@ export class IntentInitiationService implements OnModuleInit {
    */
   async generateGaslessIntentTransactions(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<ExecuteSmartWalletArg[]>> {
-    gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
+  ): Promise<EcoResponse<Map<number, ExecuteSmartWalletArg[]>>> {
+    const { intents } = gaslessIntentRequestDTO
 
-    // Get the fundFor tx
-    const { response: fundForTx, error: fundForTxError } =
-      await this.getIntentFundForTx(gaslessIntentRequestDTO)
+    // Mapping chain ids to transactions
+    const txsPerChain = new Map<number, ExecuteSmartWalletArg[]>()
 
-    if (fundForTxError) {
-      return { error: InternalQuoteError(fundForTxError) }
+    for (const intent of intents) {
+      const chainId = Number(intent.route.source)
+
+      // Get the permit tx(s)
+      const { response: permitData, error: permitError } = this.generatePermitTxs(
+        chainId,
+        gaslessIntentRequestDTO,
+      )
+
+      if (permitError || !permitData) {
+        return { error: InternalQuoteError(permitError) }
+      }
+
+      // Get the fundFor tx
+      const { response: fundForTx, error: fundForTxError } = await this.getIntentFundForTx(
+        intent,
+        permitData.funder,
+        permitData.permitContract,
+      )
+
+      if (fundForTxError || !fundForTx) {
+        return { error: InternalQuoteError(fundForTxError) }
+      }
+
+      txsPerChain.set(chainId, [fundForTx, ...permitData.transactions])
     }
 
-    // Get the permit tx(s)
-    const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
-
-    if (error) {
-      return { error: InternalQuoteError(error) }
-    }
-
-    return { response: [...permitTxs!, fundForTx!] }
+    return { response: txsPerChain }
   }
 
   /**
    * This function is used to get the set of transactions for the gasless intent.
    * These comprise the fundFor tx as well as the permit/permit2 txs.
-   * @param gaslessIntentRequestDTO
-   * @param salt
    * @returns
+   * @param intent
+   * @param funder
+   * @param permitContract
    */
   private async getIntentFundForTx(
-    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+    intent: IntentDTO,
+    funder: Hex,
+    permitContract: Hex,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
-    const { quoteID, salt, route: quoteRoute } = gaslessIntentRequestDTO
+    const { quoteID, route } = intent
 
     const { response: quote, error } = await this.quoteRepository.fetchQuoteIntentData({
       quoteID,
       intentExecutionType: IntentExecutionType.GASLESS.toString(),
     })
 
-    if (error) {
+    if (error || !quote) {
       return { error }
     }
 
-    // Now we need to get the route hash with the real salt
-    const routeWithSalt: RouteType = {
-      ...quoteRoute,
-      salt,
-    }
-
-    const funder = gaslessIntentRequestDTO.getFunder!()
-    const realRouteHash = hashRoute(routeWithSalt)
-    const chainConfig = getChainConfig(gaslessIntentRequestDTO.getSourceChainID!())
+    const routeHash = hashRoute(route)
+    const chainConfig = getChainConfig(Number(intent.route.source))
     const intentSourceContract = chainConfig.IntentSource
-    const reward = quote!.reward
+    const reward = quote.reward
 
     // Update intent db
-    await this.createIntentService.createIntentFromIntentInitiation(
-      quoteID,
-      funder,
-      routeWithSalt,
-      reward,
-    )
-
-    // function fundFor(
-    //   bytes32 routeHash,
-    //   Reward calldata reward,
-    //   address funder,
-    //   address permitContact,
-    //   bool allowPartial
-    // )
-
-    const args = [
-      realRouteHash,
-      reward,
-      funder,
-      gaslessIntentRequestDTO.getPermitContractAddress!(),
-      false,
-    ] as const
+    await this.createIntentService.createIntentFromIntentInitiation(quoteID, funder, route, reward)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `getIntentFundForTx: encodeFunctionData args:`,
         properties: {
-          routeHash: realRouteHash,
+          routeHash: routeHash,
           reward: quote!.reward,
-          funder: gaslessIntentRequestDTO.getFunder!(),
-          permitContact: gaslessIntentRequestDTO.getPermitContractAddress!(),
-          allowPartial: false,
         },
       }),
     )
@@ -272,7 +261,7 @@ export class IntentInitiationService implements OnModuleInit {
     const data = encodeFunctionData({
       abi: IntentSourceAbi,
       functionName: 'fundFor',
-      args,
+      args: [routeHash, reward, funder, permitContract, false],
     })
 
     // Final transaction object
@@ -286,71 +275,73 @@ export class IntentInitiationService implements OnModuleInit {
   }
 
   private generatePermitTxs(
+    chainId: number,
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): EcoResponse<ExecuteSmartWalletArg[]> {
-    const {
-      reward,
-      gaslessIntentData: { funder, permitData, vaultAddress },
-    } = gaslessIntentRequestDTO
+  ): EcoResponse<PermitResult> {
+    const { permitData } = gaslessIntentRequestDTO.gaslessIntentData
 
-    if (_.size(permitData) === 0) {
-      return { response: [] }
-    }
+    const { permit = [], permit2 = [], permit3 } = permitData ?? {}
 
-    const { permit, permit2 } = permitData!
+    const permitResult = this.getPermitTxs(chainId, permit)
+    if (!permitResult.error) return { error: permitResult.error }
+    if (permitResult.response) return { response: permitResult.response }
 
-    if (_.size(permit) > 0) {
-      return this.getPermitTxs(
-        gaslessIntentRequestDTO.getSourceChainID!(),
-        permit!,
-        funder,
-        reward,
-        vaultAddress!,
-      )
-    }
+    const permit2Result = this.getPermit2Txs(chainId, permit2)
+    if (permit2Result.error) return { error: permit2Result.error }
+    if (permit2Result.response) return { response: permit2Result.response }
 
-    if (_.size(permit2) > 0) {
-      return this.getPermit2Txs(funder, permit2!)
-    }
+    const permit3Result = this.getPermit3Txs(chainId, permit3)
+    if (permit3Result.error) return { error: permit3Result.error }
+    if (permit3Result.response) return { response: permit3Result.response }
 
     return { error: EcoError.NoPermitsProvided }
   }
 
   private getPermitTxs(
-    originChainID: number,
+    chainID: number,
     permits: PermitDTO[],
-    funder: Hex,
-    reward: QuoteRewardDataDTO,
-    vaultAddress: Hex,
-  ): EcoResponse<ExecuteSmartWalletArg[]> {
-    const permitMap: Record<string, PermitDTO> = {}
+  ): EcoResponse<PermitResult | undefined> {
+    const executions = permits.filter((permit) => permit.chainID === chainID)
+    if (executions.length === 0) return { response: undefined }
 
-    for (const permit of permits) {
-      permitMap[permit.token.toLowerCase()] = permit
-    }
+    const { funder } = executions[0]
+    const { response: transactions, error } = PermitProcessor.generateTxs(...executions)
 
-    // Iterate over the reward tokens and call permit on that token contract if there exists a permit with a matching token address
-    const { tokens } = reward
-    const executions: PermitProcessingParams[] = []
+    if (error || !transactions) return { error }
 
-    for (const token of tokens) {
-      const tokenPermit = permitMap[token.token.toLowerCase()]
-
-      if (tokenPermit) {
-        executions.push({
-          permit: tokenPermit,
-          chainID: originChainID,
-          owner: funder,
-          spender: vaultAddress,
-          value: BigInt(token.amount),
-        })
-      }
-    }
-
-    return this.permitProcessor.generateTxs(...executions)
+    return { response: { funder, permitContract: zeroAddress, transactions } }
   }
 
-  private getPermit2Txs(funder: Hex, permit2DTO: Permit2DTO): EcoResponse<ExecuteSmartWalletArg[]> {
-    return this.permit2Processor.generateTxs(funder, permit2DTO)
+  private getPermit2Txs(
+    chainID: number,
+    permit2DTO: Permit2DTO[],
+  ): EcoResponse<PermitResult | undefined> {
+    const transactions = permit2DTO
+      .filter((permit) => permit.chainID === chainID)
+      .flatMap((permit2) => Permit2Processor.generateTxs(permit2))
+
+    if (transactions.length === 0) return { response: undefined }
+
+    const { permitContract, funder } = permit2DTO[0]
+
+    return { response: { permitContract, funder, transactions } }
+  }
+
+  private getPermit3Txs(
+    chainID: number,
+    permit3DTO?: Permit3DTO,
+  ): EcoResponse<PermitResult | undefined> {
+    if (!permit3DTO) return { response: undefined }
+
+    const transaction = Permit3Processor.generateTxs(chainID, permit3DTO)
+    if (!transaction) return { response: undefined }
+
+    return {
+      response: {
+        funder: permit3DTO.owner,
+        permitContract: permit3DTO.permitContract,
+        transactions: [transaction],
+      },
+    }
   }
 }
