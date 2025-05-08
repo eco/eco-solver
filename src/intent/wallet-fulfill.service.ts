@@ -312,9 +312,6 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    // TODO: Throw error when trying to use the storage prover since it is not production ready.
-    throw new Error('Unsupported fulfillment method')
-
     const { Prover: storageProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
     if (!storageProverAddr) {

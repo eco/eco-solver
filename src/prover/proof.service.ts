@@ -166,8 +166,6 @@ export class ProofService implements OnModuleInit {
    */
   private getProofTypeFromString(proof: string): ProofType {
     switch (proof) {
-      case 'storage':
-        return PROOF_STORAGE
       case 'Hyperlane':
       case 'Metalayer':
         return PROOF_HYPERLANE
