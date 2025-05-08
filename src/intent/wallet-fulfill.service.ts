@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { encodeAbiParameters, encodeFunctionData, erc20Abi, Hex, pad, zeroAddress } from 'viem'
-import { InboxAbi } from '@eco-foundation/routes-ts'
+import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -16,6 +16,7 @@ import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { getChainConfig } from '@/eco-configs/utils'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -251,15 +252,17 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
+    const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
+
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
-      functionName: 'fulfillHyperBatched',
+      functionName: 'fulfill',
       args: [
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
-        model.intent.reward.prover,
+        hyperProverAddr,
       ],
     })
 
@@ -275,19 +278,25 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const fee = await this.getHyperlaneFee(inboxAddress, model)
+    const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
+
+    const messageData = encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+      [pad(model.intent.reward.prover), '0x', zeroAddress],
+    )
+
+    const fee = await this.getHyperlaneFee(model, hyperProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
-      functionName: 'fulfillHyperInstantWithRelayer',
+      functionName: 'fulfillAndProve',
       args: [
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
-        model.intent.reward.prover,
-        '0x0',
-        zeroAddress,
+        hyperProverAddr,
+        messageData,
       ],
     })
 
@@ -303,14 +312,22 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
+    const { Prover: storageProverAddr } = getChainConfig(Number(model.intent.route.destination))
+
+    if (!storageProverAddr) {
+      throw EcoError.FulfillIntentProverNotFound
+    }
+
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
-      functionName: 'fulfillStorage',
+      functionName: 'fulfillAndProve',
       args: [
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
+        storageProverAddr!,
+        '0x',
       ],
     })
 
@@ -324,33 +341,33 @@ export class WalletFulfillService implements IFulfillService {
   /**
    * Calculates the fee required for a hyperlane transaction by calling the inbox contract.
    *
-   * @param {Hex} inboxAddress - The address of the inbox smart contract.
    * @param {IntentSourceModel} model - The model containing intent details, including route, hash, and reward information.
+   * @param hyperProverAddr
+   * @param messageData
    * @return {Promise<Hex | undefined>} A promise that resolves to the fee in hexadecimal format, or undefined if the fee could not be determined.
    */
-  private async getHyperlaneFee(inboxAddress: Hex, model: IntentSourceModel): Promise<bigint> {
+  private async getHyperlaneFee(
+    model: IntentSourceModel,
+    hyperProverAddr: Hex,
+    messageData: Hex,
+  ): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(
       Number(model.intent.route.destination),
     )
-    const encodedMessageBody = encodeAbiParameters(
-      [{ type: 'bytes[]' }, { type: 'address[]' }],
-      [[model.intent.hash], [this.ecoConfigService.getEth().claimant]],
-    )
 
     const callData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        IntentSourceModel.getSource(model), //_sourceChainID
-        pad(model.intent.reward.prover), //_prover
-        encodedMessageBody, //_messageBody
-        '0x0', //_metadata
-        zeroAddress, //_postDispatchHook
+        model.event.sourceChainID, //_sourceChainID
+        [model.intent.hash],
+        [this.ecoConfigService.getEth().claimant],
+        messageData,
       ],
     })
 
     const proverData = await client.call({
-      to: inboxAddress,
+      to: hyperProverAddr,
       data: callData,
     })
     return BigInt(proverData.data ?? 0)

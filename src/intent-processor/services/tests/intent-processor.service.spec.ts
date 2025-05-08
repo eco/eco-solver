@@ -17,6 +17,11 @@ import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs
 
 jest.mock('@/intent-processor/utils/hyperlane')
 jest.mock('@/intent-processor/utils/multicall')
+jest.mock('viem', () => ({
+  ...jest.requireActual('viem'),
+  encodeFunctionData: jest.fn(),
+  encodeAbiParameters: jest.fn(),
+}))
 
 describe('IntentProcessorService', () => {
   let service: IntentProcessorService
@@ -162,6 +167,10 @@ describe('IntentProcessorService', () => {
       writable: false,
       configurable: true,
     }) as any
+
+    jest
+      .spyOn(require('@/eco-configs/utils'), 'getChainConfig')
+      .mockReturnValue({ HyperProver: '0x0000000000000000000000000000000000000010' })
 
     // Call onApplicationBootstrap to initialize config
     await service.onApplicationBootstrap()
