@@ -173,6 +173,16 @@ export class EcoConfigService {
     return this.get('intentConfigs')
   }
 
+  // Returns the quote configs
+  getQuotesConfig(): EcoConfigType['quotesConfig'] {
+    return this.get('quotesConfig')
+  }
+
+  // Returns the solver registration config
+  getSolverRegistrationConfig(): EcoConfigType['solverRegistrationConfig'] {
+    return this.get('solverRegistrationConfig')
+  }
+
   // Returns the external APIs config
   getExternalAPIs(): EcoConfigType['externalAPIs'] {
     return this.get('externalAPIs')

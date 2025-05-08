@@ -1,7 +1,7 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { validationsSucceeded, ValidationService } from '@/intent/validation.sevice'
+import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
@@ -10,32 +10,62 @@ import {
   InternalSaveError,
   InvalidQuoteIntent,
   Quote400,
-  Quote500,
   SolverUnsupported,
 } from '@/quote/errors'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as dayjs from 'dayjs'
-import { Hex } from 'viem'
+import { encodeFunctionData, erc20Abi, Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
+import { EcoResponse } from '@/common/eco-response'
+import { QuotesConfig } from '@/eco-configs/eco-config.types'
+import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
+import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
+import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { QuoteRepository } from '@/quote/quote.repository'
+import { TransactionTargetData } from '@/intent/utils-intent.service'
+import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { ModuleRef } from '@nestjs/core'
+
+const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
+interface GenerateQuoteParams {
+  quoteIntent: QuoteIntentDataInterface
+  intentExecutionType: IntentExecutionType
+  isReverseQuote: boolean
+  gaslessIntentRequest: GaslessIntentRequestDTO
+}
 
 /**
  * Service class for getting configs for the app
  */
 @Injectable()
-export class QuoteService {
+export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
+  private quotesConfig: QuotesConfig
+  private intentInitiationService: IntentInitiationService
 
   constructor(
-    @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
+    private readonly quoteRepository: QuoteRepository,
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  onModuleInit() {
+    this.quotesConfig = this.ecoConfigService.getQuotesConfig()
+    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
+      strict: false,
+    })
+  }
 
   /**
    * Generates a quote for the quote intent data.
@@ -44,7 +74,7 @@ export class QuoteService {
    * @param quoteIntentDataDTO the quote intent data
    * @returns
    */
-  async getQuote(quoteIntentDataDTO: QuoteIntentDataDTO) {
+  async getQuote(quoteIntentDataDTO: QuoteIntentDataDTO): Promise<EcoResponse<QuoteDataDTO>> {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `Getting quote for intent`,
@@ -53,32 +83,101 @@ export class QuoteService {
         },
       }),
     )
-    const quoteIntent = await this.storeQuoteIntentData(quoteIntentDataDTO)
-    if (quoteIntent instanceof Error) {
-      return InternalSaveError(quoteIntent)
-    }
-    const res = await this.validateQuoteIntentData(quoteIntent)
-    if (res) {
-      return res
+
+    const txValidationFn: TxValidationFn = () => true
+    const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRouteFeasible.bind(
+      this.feeService,
+    )
+
+    return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, false)
+  }
+
+  async getReverseQuote(
+    quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<EcoResponse<QuoteDataDTO>> {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Getting reverse quote for intent`,
+        properties: {
+          quoteIntentDataDTO,
+        },
+      }),
+    )
+
+    const txValidationFn: TxValidationFn = (tx: TransactionTargetData) =>
+      tx && tx.decodedFunctionData.functionName === 'transfer'
+    const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRewardFeasible.bind(
+      this.feeService,
+    )
+
+    return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, true)
+  }
+
+  private async _getQuote(
+    quoteIntentDataDTO: QuoteIntentDataDTO,
+    txValidationFn: TxValidationFn,
+    quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn,
+    isReverseQuote: boolean,
+  ): Promise<EcoResponse<QuoteDataDTO>> {
+    const { response: quoteIntents, error: saveError } =
+      await this.storeQuoteIntentData(quoteIntentDataDTO)
+
+    if (saveError) {
+      return { error: InternalSaveError(saveError) }
     }
 
-    let quoteRes:
-      | Quote400
-      | Quote500
-      | {
-          tokens: RewardTokensInterface[]
-          expiryTime: string
-        }
-      | Error
-    try {
-      quoteRes = await this.generateQuote(quoteIntent)
-    } catch (e) {
-      quoteRes = InternalQuoteError(e)
-    } finally {
-      await this.updateQuoteDb(quoteIntent, quoteRes!)
+    const errors: any[] = []
+
+    const quoteDataDTO: QuoteDataDTO = {
+      quoteEntries: [],
     }
 
-    return quoteRes
+    for (const quoteIntent of quoteIntents!) {
+      const error = await this.validateQuoteIntentData(
+        quoteIntent,
+        txValidationFn,
+        quoteFeasibilityCheckFn,
+      )
+
+      if (error) {
+        errors.push(error)
+        continue
+      }
+
+      const { response: quoteDataEntry, error: quoteError } =
+        await this.generateQuoteForIntentExecutionType({
+          quoteIntent,
+          intentExecutionType: IntentExecutionType.fromString(quoteIntent.intentExecutionType)!,
+          isReverseQuote,
+          gaslessIntentRequest: this.getGaslessIntentRequest(quoteIntentDataDTO),
+        })
+
+      if (quoteError) {
+        errors.push(quoteError)
+        await this.updateQuoteDb(quoteIntent, { error: quoteError })
+        continue
+      }
+
+      quoteDataDTO.quoteEntries.push(quoteDataEntry!)
+      await this.updateQuoteDb(quoteIntent, { quoteDataEntry })
+    }
+
+    if (quoteDataDTO.quoteEntries.length === 0) {
+      return { error: errors }
+    }
+
+    return { response: quoteDataDTO }
+  }
+
+  private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
+    return {
+      quoteID: quoteIntentDataDTO.quoteID,
+      dAppID: quoteIntentDataDTO.dAppID,
+      salt: ZERO_SALT,
+      route: quoteIntentDataDTO.route,
+      reward: quoteIntentDataDTO.reward,
+      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
+    }
   }
 
   /**
@@ -88,30 +187,26 @@ export class QuoteService {
    */
   async storeQuoteIntentData(
     quoteIntentDataDTO: QuoteIntentDataDTO,
-  ): Promise<QuoteIntentModel | Error> {
-    try {
-      const record = await this.quoteIntentModel.create(quoteIntentDataDTO)
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Recorded quote intent`,
-          properties: {
-            record,
-          },
-        }),
-      )
-      return record
-    } catch (e) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in storeQuoteIntentData`,
-          properties: {
-            quoteIntentDataDTO,
-            error: e,
-          },
-        }),
-      )
-      return e
-    }
+  ): Promise<EcoResponse<QuoteIntentModel[]>> {
+    return this.quoteRepository.storeQuoteIntentData(quoteIntentDataDTO)
+  }
+
+  /**
+   * Fetch a quote from the db
+   * @param query the quote intent data
+   * @returns the quote or an error
+   */
+  async fetchQuoteIntentData(query: object): Promise<EcoResponse<QuoteIntentModel>> {
+    return this.quoteRepository.fetchQuoteIntentData(query)
+  }
+
+  /**
+   * Fetch a quote from the db
+   * @param query the quote intent data
+   * @returns the quote or an error
+   */
+  async quoteExists(query: object): Promise<boolean> {
+    return this.quoteRepository.quoteExists(query)
   }
 
   /**
@@ -121,7 +216,13 @@ export class QuoteService {
    * @param quoteIntentModel the model to validate
    * @returns an res 400, or undefined if the quote intent is valid
    */
-  async validateQuoteIntentData(quoteIntentModel: QuoteIntentModel): Promise<Quote400 | undefined> {
+  async validateQuoteIntentData(
+    quoteIntentModel: QuoteIntentModel,
+    txValidationFn: TxValidationFn = () => true,
+    quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRouteFeasible.bind(
+      this.feeService,
+    ),
+  ): Promise<Quote400 | undefined> {
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.destination)
     if (!solver) {
       this.logger.log(
@@ -136,7 +237,12 @@ export class QuoteService {
       return SolverUnsupported
     }
 
-    const validations = await this.validationService.assertValidations(quoteIntentModel, solver)
+    const validations = await this.validationService.assertValidations(
+      quoteIntentModel,
+      solver,
+      txValidationFn,
+    )
+
     if (!validationsSucceeded(validations)) {
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -147,11 +253,13 @@ export class QuoteService {
           },
         }),
       )
-      await this.updateQuoteDb(quoteIntentModel, { error: InvalidQuoteIntent(validations) })
+      await this.updateQuoteDb(quoteIntentModel, {
+        error: InvalidQuoteIntent(validations),
+      })
       return InvalidQuoteIntent(validations)
     }
 
-    const { error } = await this.feeService.isRouteFeasible(quoteIntentModel)
+    const { error } = await quoteFeasibilityCheckFn(quoteIntentModel)
 
     if (error) {
       const quoteError = InfeasibleQuote(error)
@@ -171,6 +279,98 @@ export class QuoteService {
     return
   }
 
+  private async generateBaseQuote(
+    quoteIntentModel: QuoteIntentDataInterface,
+    isReverseQuote: boolean = false,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    try {
+      if (isReverseQuote) {
+        return await this.generateReverseQuote(quoteIntentModel)
+      } else {
+        return await this.generateQuote(quoteIntentModel)
+      }
+    } catch (e) {
+      return { error: InternalQuoteError(e) }
+    }
+  }
+
+  /**
+   * Generates a quote for given IntentExecutionType
+   * @param quoteIntentModel parameters for the quote
+   * @param intentExecutionType the intent execution type
+   * @returns the quote or an error
+   */
+  private async generateQuoteForIntentExecutionType(
+    params: GenerateQuoteParams,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { intentExecutionType } = params
+
+    switch (true) {
+      case intentExecutionType.isSelfPublish():
+        return this.generateQuoteForSelfPublish(params)
+
+      case intentExecutionType.isGasless():
+        return this.generateQuoteForGasless(params)
+
+      default:
+        return {
+          error: InternalQuoteError(
+            new Error(`Unsupported intent execution type: ${intentExecutionType}`),
+          ),
+        }
+    }
+  }
+
+  /**
+   * Generates a quote for the self publish case.
+   * @param quoteIntentModel parameters for the quote
+   * @returns the quote or an error
+   */
+  async generateQuoteForSelfPublish(
+    params: GenerateQuoteParams,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { quoteIntent, isReverseQuote } = params
+
+    const { response: quoteDataEntry, error } = await this.generateBaseQuote(
+      quoteIntent,
+      isReverseQuote,
+    )
+
+    if (error) {
+      return { error }
+    }
+
+    // We wil just use the base quote as is for the self publish case
+    quoteDataEntry!.intentExecutionType = IntentExecutionType.SELF_PUBLISH.toString()
+    return { response: quoteDataEntry }
+  }
+
+  /**
+   * Generates a quote for the gasless case.
+   * @param quoteIntentModel parameters for the quote
+   * @returns the quote or an error
+   */
+  async generateQuoteForGasless(
+    params: GenerateQuoteParams,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { quoteIntent, isReverseQuote, gaslessIntentRequest } = params
+
+    const { response: quoteDataEntry, error } = await this.generateBaseQuote(
+      quoteIntent,
+      isReverseQuote,
+    )
+
+    if (error) {
+      return { error }
+    }
+
+    // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
+    // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
+    quoteDataEntry!.intentExecutionType = IntentExecutionType.GASLESS.toString()
+    return { response: quoteDataEntry }
+  }
+
   /**
    * Generates a quote for the quote intent model. The quote is generated by:
    * 1. Converting the call and reward tokens to a standard reserve value for comparisons
@@ -182,19 +382,21 @@ export class QuoteService {
    * @param quoteIntentModel the quote intent model
    * @returns the quote or an error 400 for insufficient reward to generate the quote
    */
-  async generateQuote(quoteIntentModel: QuoteIntentDataInterface) {
+  async generateQuote(
+    quoteIntentModel: QuoteIntentDataInterface,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
     const { calculated, error } = await this.feeService.calculateTokens(quoteIntentModel)
     if (error || !calculated) {
-      return InternalQuoteError(error)
+      return { error: InternalQuoteError(error) }
     }
 
-    const { deficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
+    const { srcDeficitDescending: fundable, calls, rewards } = calculated as CalculateTokensType
 
     const totalFulfill = calls.reduce((acc, call) => acc + call.balance, 0n)
     const totalAsk = this.feeService.getAsk(totalFulfill, quoteIntentModel)
     const totalAvailableRewardAmount = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
     if (totalAsk > totalAvailableRewardAmount) {
-      return InsufficientBalance(totalAsk, totalAvailableRewardAmount)
+      return { error: InsufficientBalance(totalAsk, totalAvailableRewardAmount) }
     }
     let filled = 0n
     const quoteRecord: Record<Hex, RewardTokensInterface> = {}
@@ -257,10 +459,121 @@ export class QuoteService {
       }
     }
 
-    //todo save quote to record
     return {
-      tokens: Object.values(quoteRecord),
-      expiryTime: this.getQuoteExpiryTime(),
+      response: {
+        routeTokens: quoteIntentModel.route.tokens,
+        routeCalls: quoteIntentModel.route.calls,
+        rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
+        expiryTime: this.getQuoteExpiryTime(),
+      } as QuoteDataEntryDTO,
+    }
+  }
+
+  /**
+   * Generates a reverse quote for the quote intent model. The quote is generated by:
+   * 1. Converting the call and reward tokens to a standard reserve value for comparisons
+   * 2. Subtracting the fee from the normalized reward tokens
+   * 3. Distributing the remaining reward amount to the calls starting with the tokens the solver needs the least
+   * @param intent the quote intent model
+   * @returns the quote or an error 400 for insufficient reward to generate the quote
+   */
+  async generateReverseQuote(
+    intent: QuoteIntentDataInterface,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { calculated, error } = await this.feeService.calculateTokens(intent)
+    if (error || !calculated) {
+      return { error: InternalQuoteError(error) }
+    }
+
+    const {
+      destDeficitDescending: fundable,
+      rewards,
+      tokens,
+      calls,
+    } = calculated as CalculateTokensType
+
+    const totalReward = rewards.reduce((acc, reward) => acc + reward.balance, 0n)
+    const fee = this.feeService.getFee(totalReward, intent)
+
+    if (fee >= totalReward) {
+      return { error: InsufficientBalance(fee, totalReward) }
+    }
+
+    // Calculate total amount available after fee subtraction
+    const totalAvailableAfterFee = totalReward - fee
+    let remainingToFill = totalAvailableAfterFee
+
+    const routeCalls = [] as QuoteCallDataDTO[]
+    const routeTokens = [] as QuoteRewardTokensDTO[]
+
+    // Sort calls by which ones the solver needs the least
+    // Sort from best to fill (least needed) to worst (most needed)
+    fundable.sort((a, b) => Mathb.compare(b.delta.balance, a.delta.balance))
+
+    // Fill tokens that the solver needs the least first, up to their original amount
+    for (const deficit of fundable) {
+      if (remainingToFill <= 0n) {
+        break
+      }
+
+      // Find the corresponding token in route.tokens and calls
+      const originalToken = tokens.find((token) => token.address === deficit.delta.address)
+      const originalCall = calls.find((call) => call.address === deficit.delta.address)
+
+      if (originalToken && originalCall) {
+        // Get the original amount from the token in its normalized form
+        const originalNormalizedAmount = this.feeService.convertNormalize(
+          BigInt(originalToken.balance),
+          {
+            chainID: intent.route.destination,
+            address: deficit.delta.address,
+            decimals: deficit.token.decimals,
+          },
+        ).balance
+
+        // Calculate how much we can fill for this token
+        // We cannot fill more than the original amount or the remaining amount to fill
+        const amountToFill = Mathb.min(originalNormalizedAmount, remainingToFill)
+
+        if (amountToFill > 0n) {
+          // Convert back to original decimals
+          const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
+            chainID: intent.route.destination,
+            address: deficit.delta.address,
+            decimals: deficit.token.decimals,
+          }).balance
+
+          // Add to route tokens and calls
+          routeTokens.push({
+            token: originalToken.address,
+            amount: finalAmount,
+          })
+
+          const newData = encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [originalCall.recipient, finalAmount],
+          })
+
+          routeCalls.push({
+            target: originalCall.address,
+            data: newData,
+            value: 0n,
+          })
+
+          // Update remaining amount to fill
+          remainingToFill -= amountToFill
+        }
+      }
+    }
+
+    return {
+      response: {
+        routeTokens,
+        routeCalls,
+        rewardTokens: intent.reward.tokens,
+        expiryTime: this.getQuoteExpiryTime(),
+      } as QuoteDataEntryDTO,
     }
   }
 
@@ -277,23 +590,10 @@ export class QuoteService {
    * @param quoteIntentModel the model to update
    * @returns
    */
-  async updateQuoteDb(quoteIntentModel: QuoteIntentModel, receipt?: any) {
-    try {
-      if (receipt) {
-        quoteIntentModel.receipt = receipt
-      }
-      await this.quoteIntentModel.updateOne({ _id: quoteIntentModel._id }, quoteIntentModel)
-    } catch (e) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in updateQuoteDb`,
-          properties: {
-            quoteIntentModel,
-            error: e,
-          },
-        }),
-      )
-      return e
-    }
+  async updateQuoteDb(
+    quoteIntentModel: QuoteIntentModel,
+    updateQuoteParams: UpdateQuoteParams,
+  ): Promise<EcoResponse<QuoteIntentModel>> {
+    return this.quoteRepository.updateQuoteDb(quoteIntentModel, updateQuoteParams)
   }
 }

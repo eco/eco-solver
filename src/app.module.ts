@@ -20,6 +20,9 @@ import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
+import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
+import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
+import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
 
 @Module({
   imports: [
@@ -31,6 +34,9 @@ import { SolverModule } from '@/solver/solver.module'
     FlagsModule,
     HealthModule,
     IntentModule,
+    PermitProcessingModule,
+    IntentInitiationModule,
+    SolverRegistrationModule,
     KmsModule,
     SignModule,
     IntervalModule,

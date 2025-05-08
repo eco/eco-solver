@@ -1,4 +1,8 @@
 export default {
+  server: {
+    url: 'http://localhost:3000',
+  },
+
   logger: {
     usePino: false,
   },
@@ -90,6 +94,12 @@ export default {
       },
       network: 'opt-sepolia',
       chainID: 11155420,
+    },
+  },
+
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: 'http://localhost:4000',
     },
   },
 }

@@ -66,8 +66,19 @@ export class EcoError extends Error {
     return new EcoError(`A rebalancing route not found`)
   }
 
+  static IntentNotFound = new Error('Intent not found')
+  static QuoteNotFound = new Error('Quote not found')
+  static QuoteDBUpdateError = new Error('Quote not found')
+  static NoPermitsProvided = new Error('At least one permit must be provided')
+  static AllPermitsMustBeOnSameChain = new Error(
+    `All Permits must be on the same chain for batching`,
+  )
+
+  static GasEstimationError = new Error('Error estimating gas')
+
   static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
+  static FulfillIntentProverNotFound = new Error('Storage prover not found')
   static FulfillIntentBatchError = new Error('Could not fulfill batch transaction')
   static FulfillIntentRevertError(receipt: TransactionReceipt) {
     const msg = JSON.stringify(receipt, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
@@ -109,6 +120,14 @@ export class EcoError extends Error {
   static CrowdLiquidityPoolNotSolvent(intentHash: string) {
     return new EcoError(`CrowdLiquidity pool is not solvent for intent: ${intentHash}`)
   }
+
+  // Solver Registration
+  static SolverRegistrationError = new EcoError()
+
+  // Signature Validations
+  static TypedDataVerificationFailed = new EcoError()
+  static SignatureExpired = new EcoError()
+  static InvalidSignature = new EcoError()
 
   // EcoConfig Service
 

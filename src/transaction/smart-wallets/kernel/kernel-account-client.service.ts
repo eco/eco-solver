@@ -5,6 +5,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
   Account,
   Chain,
+  encodeFunctionData,
   Hex,
   LocalAccount,
   OneOf,
@@ -23,6 +24,11 @@ import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { EcoLogMessage } from '../../../common/logging/eco-log-message'
 import { SignerKmsService } from '@/sign/signer-kms.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoResponse } from '@/common/eco-response'
+import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { KernelExecuteAbi } from '@/contracts'
 
 @Injectable()
 export class KernelAccountClientServiceBase<
@@ -35,7 +41,7 @@ export class KernelAccountClientServiceBase<
   KernelAccountClient<entryPointVersion>,
   KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>
 > {
-  private logger = new Logger(KernelAccountClientServiceBase.name)
+  protected logger = new Logger(KernelAccountClientServiceBase.name)
 
   constructor(
     readonly ecoConfigService: EcoConfigService,
@@ -107,5 +113,55 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
 > {
   constructor(ecoConfigService: EcoConfigService, signerService: SignerKmsService) {
     super(ecoConfigService, signerService)
+  }
+
+  async estimateGasForKernelExecution(
+    chainID: number,
+    transactions: ExecuteSmartWalletArg[],
+  ): Promise<EcoResponse<EstimatedGasData>> {
+    try {
+      const clientKernel = await this.getClient(chainID)
+      const kernelAddress = clientKernel.kernelAccount?.address
+
+      // Encode the execute function call with the batch of transactions
+      const callData = encodeFunctionData({
+        abi: KernelExecuteAbi,
+        functionName: 'executeBatch',
+        args: [
+          transactions.map((tx) => ({
+            to: tx.to,
+            value: tx.value ?? 0n,
+            data: tx.data ?? '0x',
+          })),
+        ],
+      })
+
+      // Simulate the contract execution to estimate gas
+      const gasEstimate = await clientKernel.estimateGas({
+        account: kernelAddress,
+        to: kernelAddress,
+        data: callData,
+      })
+
+      const gasPrice = await clientKernel.getGasPrice()
+
+      return {
+        response: {
+          gasEstimate,
+          gasPrice,
+        },
+      }
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `estimateGasForKernelExecution: error`,
+          properties: {
+            error: ex.message,
+          },
+        }),
+      )
+
+      return { error: EcoError.GasEstimationError }
+    }
   }
 }
