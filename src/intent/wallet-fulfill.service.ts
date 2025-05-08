@@ -359,7 +359,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        model.event.sourceChainID, //_sourceChainID
+        IntentSourceModel.getSource(model), //_sourceChainID
         [model.intent.hash],
         [this.ecoConfigService.getEth().claimant],
         messageData,
