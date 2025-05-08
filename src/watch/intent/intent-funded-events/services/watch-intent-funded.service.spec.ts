@@ -12,6 +12,15 @@ import { PublicClient } from 'viem'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
 
+jest.mock('@/eco-configs/utils', () => {
+  return {
+    ...jest.requireActual('@/eco-configs/utils'),
+    getChainConfig: jest
+      .fn()
+      .mockReturnValue({ IntentSource: '0x0000000000000000000000000000000000000001' }),
+  }
+})
+
 let $: EcoTester
 let service: WatchIntentFundedService
 let ecoConfigService: EcoConfigService

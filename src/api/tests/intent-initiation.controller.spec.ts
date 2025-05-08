@@ -6,12 +6,12 @@ import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { TransactionReceipt } from 'viem'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 const intentTestUtils = new IntentTestUtils()
 
@@ -26,10 +26,15 @@ describe('IntentInitiationController', () => {
         PermitProcessor,
         Permit2Processor,
         QuoteService,
-        KernelAccountClientService,
+        WalletClientDefaultSignerService,
         IntentInitiationService,
       ])
-      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])
+      .withMocks([
+        QuoteService,
+        QuoteRepository,
+        WalletClientDefaultSignerService,
+        CreateIntentService,
+      ])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)

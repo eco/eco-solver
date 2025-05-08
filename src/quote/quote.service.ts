@@ -29,11 +29,7 @@ import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { ModuleRef } from '@nestjs/core'
-
-const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
 interface GenerateQuoteParams {
@@ -50,21 +46,16 @@ interface GenerateQuoteParams {
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
   private quotesConfig: QuotesConfig
-  private intentInitiationService: IntentInitiationService
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
-    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
-      strict: false,
-    })
   }
 
   /**
@@ -170,15 +161,17 @@ export class QuoteService implements OnModuleInit {
   }
 
   private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
-    return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
-      salt: ZERO_SALT,
-      intents: [{}],
-      route: quoteIntentDataDTO.route,
-      reward: quoteIntentDataDTO.reward,
-      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
-    }
+    const dto = new GaslessIntentRequestDTO()
+    dto.dAppID = quoteIntentDataDTO.dAppID
+    dto.intents = [
+      {
+        quoteID: quoteIntentDataDTO.quoteID,
+        route: quoteIntentDataDTO.route,
+        reward: quoteIntentDataDTO.reward,
+      },
+    ]
+    dto.gaslessIntentData = quoteIntentDataDTO.gaslessIntentData!
+    return dto
   }
 
   /**

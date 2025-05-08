@@ -77,18 +77,15 @@ export class IntentInitiationService {
       return { error }
     }
 
-    const chainIDs = allTxs.keys()
+    const chainIDs = Array.from(allTxs.keys())
 
-    const receiptPromises = Array.from(chainIDs).map(async (chainID) => {
+    const receiptPromises = chainIDs.map(async (chainID) => {
       const walletClient = await this.walletClientService.getClient(chainID)
       const txs = allTxs.get(chainID)!
       return walletClient.sendTransaction(batchTransactionsWithMulticall(chainID, txs))
     })
 
-    const receipts: Record<number, Hex> = _.zipObject(
-      Array.from(chainIDs),
-      await Promise.all(receiptPromises),
-    )
+    const receipts: Record<number, Hex> = _.zipObject(chainIDs, await Promise.all(receiptPromises))
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -283,7 +280,7 @@ export class IntentInitiationService {
     const { permit = [], permit2 = [], permit3 } = permitData ?? {}
 
     const permitResult = this.getPermitTxs(chainId, permit)
-    if (!permitResult.error) return { error: permitResult.error }
+    if (permitResult.error) return { error: permitResult.error }
     if (permitResult.response) return { response: permitResult.response }
 
     const permit2Result = this.getPermit2Txs(chainId, permit2)

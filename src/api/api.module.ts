@@ -7,6 +7,7 @@ import { QuoteModule } from '@/quote/quote.module'
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
+import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
       inject: [EcoConfigService],
     }),
     QuoteModule,
+    IntentInitiationModule,
   ],
   controllers: [BalanceController, QuoteController, IntentInitiationController],
   providers: [

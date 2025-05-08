@@ -1,31 +1,18 @@
 import { API_ROOT, INTENT_INITIATION_ROUTE } from '@/common/routes/constants'
 import { ApiOperation, ApiResponse } from '@nestjs/swagger'
-import {
-  Body,
-  Controller,
-  InternalServerErrorException,
-  Logger,
-  OnModuleInit,
-  Post,
-} from '@nestjs/common'
+import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
-import { ModuleRef } from '@nestjs/core'
 import { QuoteErrorsInterface } from '@/quote/errors'
 
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
-export class IntentInitiationController implements OnModuleInit {
+export class IntentInitiationController {
   private logger = new Logger(IntentInitiationController.name)
-  private intentInitiationService: IntentInitiationService
 
-  constructor(private readonly moduleRef: ModuleRef) {}
-
-  onModuleInit() {
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, { strict: false })
-  }
+  constructor(private readonly intentInitiationService: IntentInitiationService) {}
 
   /*
    * Initiate Gasless Intent
@@ -37,7 +24,8 @@ export class IntentInitiationController implements OnModuleInit {
   @ApiResponse({ type: GaslessIntentResponseDTO })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<GaslessIntentResponseDTO> {
+  ): Promise<Record<number, string>> {
+    // Using any to accommodate the actual returned transaction receipt structure
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `Received Initiate Gasless Intent Request:`,

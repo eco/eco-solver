@@ -7,8 +7,9 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
+import { hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import * as crypto from 'crypto'
+import { Types } from 'mongoose'
 
 const AddressLen = 40
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -96,15 +97,16 @@ export class QuoteTestUtils {
   ): QuoteIntentModel {
     const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
 
-    const quoteIntentModel: QuoteIntentModel = {
+    // Create the model without casting to avoid TypeScript error
+    return {
+      _id: 'mock-id' as any,
+      quoteID: quoteIntentDataDTO.quoteID,
       dAppID,
       intentExecutionType,
-      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
-    } as QuoteIntentModel
-
-    return quoteIntentModel
+      receipt: null,
+    }
   }
 
   private getRouteHash(quoteRoute: QuoteRouteDataInterface): string {
@@ -118,32 +120,30 @@ export class QuoteTestUtils {
   }
 
   asQuoteIntentModel(dto: GaslessIntentRequestDTO): QuoteIntentModel {
+    if (!dto.intents || dto.intents.length === 0) {
+      throw new Error('GaslessIntentRequestDTO must have at least one intent')
+    }
+
+    // Use the first intent from the array
+    const intent = dto.intents[0]
+
     return this.createQuoteIntentModel({
-      route: dto.route,
-      reward: {
-        creator: dto.reward.creator as `0x${string}`,
-        prover: dto.reward.prover as `0x${string}`,
-        deadline: BigInt(dto.reward.deadline),
-        nativeValue: BigInt(dto.reward.nativeValue),
-        tokens: dto.reward.tokens.map((t) => ({
-          token: t.token as `0x${string}`,
-          amount: BigInt(t.amount),
-        })),
-      },
+      dAppID: dto.dAppID,
+      route: intent.route,
+      reward: intent.reward,
     })
   }
 
   createQuoteRouteDataDTO(overrides: Partial<QuoteRouteDataDTO> = {}): QuoteRouteDataDTO {
-    const quoteRouteDataDTO: QuoteRouteDataDTO = {
+    return {
       source: 1n,
       destination: 137n,
+      salt: ZERO_SALT,
       inbox: '0x0000000000000000000000000000000000000005',
       tokens: [],
       calls: [],
       ...overrides,
     }
-
-    return quoteRouteDataDTO
   }
 
   createQuoteRewardDataDTO(overrides: Partial<QuoteRewardDataModel> = {}): QuoteRewardDataModel {

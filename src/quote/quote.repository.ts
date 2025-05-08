@@ -4,13 +4,13 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
+import { Model, Types } from 'mongoose'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
-import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
+import { hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -117,16 +117,15 @@ export class QuoteRepository {
   ): QuoteIntentModel {
     const { quoteID, dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
 
-    const quoteIntentModel: QuoteIntentModel = {
+    return {
+      _id: new Types.ObjectId(),
       quoteID,
       dAppID,
       intentExecutionType,
-      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
-    } as QuoteIntentModel
-
-    return quoteIntentModel
+      receipt: null,
+    }
   }
 
   /**

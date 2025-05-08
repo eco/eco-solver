@@ -13,9 +13,7 @@ import { getModelToken } from '@nestjs/mongoose'
 import { IntentInitiationService } from './intent-initiation.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
-import { Permit2TxBuilder } from '@/common/permit/permit2-tx-builder'
 import { PermitProcessor } from '@/common/permit/permit-processor'
-import { PermitTxBuilder } from '@/common/permit/permit-tx-builder'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteService } from '@/quote/quote.service'
 import { SignerKmsService } from '@/sign/signer-kms.service'
@@ -125,8 +123,6 @@ describe.skip('IntentInitiationIntegrationTest', () => {
         PermitProcessor,
         Permit2Processor,
         QuoteService,
-        PermitTxBuilder,
-        Permit2TxBuilder,
 
         {
           provide: KernelAccountClientService,
@@ -178,7 +174,55 @@ describe.skip('IntentInitiationIntegrationTest', () => {
   it('should estimate gas and cost for an actual gasless intent (real simulation)', async () => {
     // Use a valid GaslessIntentRequestDTO
     const mockRequest = new GaslessIntentRequestDTO()
-    mockRequest.getSourceChainID = () => foundry.id
+    mockRequest.dAppID = 'test-dapp'
+    mockRequest.intents = [
+      {
+        quoteID: 'test-quote-id',
+        route: {
+          source: BigInt(foundry.id),
+          destination: BigInt(1),
+          salt: ('0x' + '0'.repeat(64)) as Hex,
+          inbox: '0xInbox',
+          calls: [],
+          tokens: [],
+        },
+        reward: {
+          tokens: [],
+          creator: '0xCreator',
+          prover: ('0x' + '2'.repeat(40)) as Hex,
+          deadline: BigInt(9999999999),
+          nativeValue: BigInt(0),
+        },
+      },
+    ]
+    mockRequest.gaslessIntentData = {
+      permitData: {
+        permit2: [
+          {
+            chainID: 1,
+            permitContract: '0x1234567890123456789012345678901234567890' as Hex,
+            funder: '0x0000000000000000000000000000000000000004' as Hex,
+            spender: '0xSpender',
+            sigDeadline: 9999999n,
+            signature: '0x1234567890' as Hex,
+            details: [
+              {
+                token: '0x0000000000000000000000000000000000000001' as Hex,
+                amount: 1000n,
+                expiration: '9999999999',
+                nonce: '1',
+              },
+              {
+                token: '0x0000000000000000000000000000000000000003' as Hex,
+                amount: 3000n,
+                expiration: '8888888888',
+                nonce: '3',
+              },
+            ],
+          },
+        ],
+      },
+    }
 
     // Create mock intent tx (e.g. just self-call with no-op)
     const tx = {
@@ -196,17 +240,20 @@ describe.skip('IntentInitiationIntegrationTest', () => {
       await service.calculateGasQuoteForIntent(mockRequest)
     expect(error).toBeUndefined()
 
-    const { gasEstimate, gasPrice, gasCost } = estimatedGasDataForIntentInitiation!
-    expect(gasEstimate).toBeGreaterThan(0n)
-    expect(gasPrice).toBeGreaterThan(0n)
+    const { gasCost, estimations } = estimatedGasDataForIntentInitiation!
+    expect(estimations.length).toBeGreaterThan(0)
+
+    // Get the first estimation
+    const firstEstimation = estimations[0]
+    expect(firstEstimation.gasEstimate).toBeGreaterThan(0n)
+    expect(firstEstimation.gasPrice).toBeGreaterThan(0n)
     expect(gasCost).toBeGreaterThan(0n)
 
     logger.error(
       EcoLogMessage.fromDefault({
         message: `calculateGasQuoteForIntent: estimated gas details`,
         properties: {
-          estimatedGas: gasEstimate,
-          price: gasPrice,
+          estimations,
           totalCost: gasCost,
         },
       }),
