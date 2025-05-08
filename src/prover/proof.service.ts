@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex } from 'viem'
+import { getAddress, Hex } from 'viem'
 import { entries } from 'lodash'
 import { addSeconds, compareAsc } from 'date-fns'
 import { IProverAbi } from '@eco-foundation/routes-ts'
@@ -66,7 +66,7 @@ export class ProofService implements OnModuleInit {
   getProvers(proofType: ProofType): Hex[] {
     return entries(this.proofContracts)
       .filter(([, type]) => type === proofType)
-      .map(([address]) => address as Hex)
+      .map(([address]) => getAddress(address))
   }
 
   /**

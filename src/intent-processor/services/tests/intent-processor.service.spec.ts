@@ -170,7 +170,7 @@ describe('IntentProcessorService', () => {
 
     jest
       .spyOn(require('@/eco-configs/utils'), 'getChainConfig')
-      .mockReturnValue({ HyperProver: '0xHyperProver' })
+      .mockReturnValue({ HyperProver: '0x0000000000000000000000000000000000000010' })
 
     // Call onApplicationBootstrap to initialize config
     await service.onApplicationBootstrap()
