@@ -79,7 +79,7 @@ describe('FeeService', () => {
   describe('on onModuleInit', () => {
     it('should set the config defaults', async () => {
       const whitelist = { '0x1': { '10': { limitFillBase6: 123n } } }
-      expect(feeService['defaultFee']).toBeUndefined()
+      expect(feeService['intentConfigs']).toBeUndefined()
       expect(feeService['whitelist']).toBeUndefined()
       const mockGetIntentConfig = jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue({
         defaultFee,
@@ -88,7 +88,7 @@ describe('FeeService', () => {
         .spyOn(ecoConfigService, 'getWhitelist')
         .mockReturnValue(whitelist as any)
       await feeService.onModuleInit()
-      expect(feeService['defaultFee']).toEqual(defaultFee)
+      expect(feeService['intentConfigs']['defaultFee']).toEqual(defaultFee)
       expect(feeService['whitelist']).toEqual(whitelist)
       expect(mockGetIntentConfig).toHaveBeenCalledTimes(1)
       expect(mockGetWhitelist).toHaveBeenCalledTimes(1)
@@ -108,7 +108,7 @@ describe('FeeService', () => {
     } as any
 
     beforeEach(() => {
-      feeService['defaultFee'] = defaultFee
+      feeService['intentConfigs'] = { defaultFee } as any
       feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: defaultFee })
     })
 
@@ -124,7 +124,7 @@ describe('FeeService', () => {
     it('should return the default fee for the solver if intent is set', async () => {
       const solverFee = { asd: 123n } as any
       feeService['whitelist'] = {}
-      feeService['defaultFee'] = { asd: 333n } as any
+      feeService['intentConfigs'] = { defaultFee: { asd: 333n } } as any
       feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: solverFee })
       expect(feeService.getFeeConfig({ intent })).toEqual(solverFee)
     })
@@ -235,6 +235,37 @@ describe('FeeService', () => {
         expect(feeService.getAsk(1_000_000_000n, intent)).toBe(
           1_000_000_000n + baseFee + 11n * unitFee,
         )
+      })
+
+      it('should correctly handle division precision with small numbers', async () => {
+        const {
+          baseFee,
+          tranche: { unitFee },
+        } = linearSolver.fee.constants
+
+        expect(feeService.getAsk(1n, intent)).toBe(1n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk(10n, intent)).toBe(10n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk(100n, intent)).toBe(100n + baseFee + 1n * unitFee)
+      })
+
+      it('should handle division with non-divisible amounts correctly', async () => {
+        const {
+          baseFee,
+          tranche: { unitFee },
+        } = linearSolver.fee.constants
+
+        expect(feeService.getAsk(50_000_000n, intent)).toBe(50_000_000n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk(33_333_333n, intent)).toBe(33_333_333n + baseFee + 1n * unitFee)
+      })
+
+      it('should correctly calculate fee for very small amounts', async () => {
+        const {
+          baseFee,
+          tranche: { unitFee },
+        } = linearSolver.fee.constants
+
+        // Testing with small amounts that would be affected by division-before-multiplication
+        expect(feeService.getAsk(7n, intent)).toBe(7n + baseFee + 1n * unitFee)
       })
     })
   })
@@ -674,6 +705,7 @@ describe('FeeService', () => {
             },
           },
         }
+        feeService['intentConfigs'] = { skipBalanceCheck: false } as any
       })
 
       it('should return an error if tx target data is not for an erc20 transfer', async () => {

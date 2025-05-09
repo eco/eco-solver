@@ -1,6 +1,8 @@
 import { getRpcUrl, addressKeys, convertBigIntsToStrings } from '../utils'
 import { Chain, InvalidAddressError } from 'viem'
 
+const mockApiKeys = { alchemy: 'alchemy', quicknode: 'quicknode' }
+
 describe('Viem Utils', () => {
   describe('getRpcUrl', () => {
     let defaultOpts
@@ -39,40 +41,52 @@ describe('Viem Utils', () => {
 
       it('should return the default HTTP URL when websocket is disabled', () => {
         const result = getRpcUrl(mockChain, defaultOpts)
-        expect(result).toEqual({ url: mockChain.rpcUrls.default.http[0], isWebsocket: false })
+        expect(result).toEqual({
+          url: mockChain.rpcUrls.default.http[0],
+          transportOptions: { isWebsocket: false },
+        })
       })
 
       it('should return the default WebSocket URL when websocket is enabled', () => {
         const result = getRpcUrl(mockChain, { ...defaultOpts, websocketEnabled: true })
-        expect(result).toEqual({ url: mockChain.rpcUrls.default.webSocket![0], isWebsocket: true })
+        expect(result).toEqual({
+          url: mockChain.rpcUrls.default.webSocket![0],
+          transportOptions: { isWebsocket: true },
+        })
       })
     })
 
     describe('when the chain has a secondary RPC URL', () => {
       it('should return the secondary HTTP URL when websocket is disabled', () => {
         const result = getRpcUrl(mockChain, defaultOpts)
-        expect(result).toEqual({ url: mockChain.rpcUrls.secondary.http[0], isWebsocket: false })
+        expect(result).toEqual({
+          url: mockChain.rpcUrls.secondary.http[0],
+          transportOptions: { isWebsocket: false },
+        })
       })
 
       it('should return the secondary WebSocket URL when websocket is enabled', () => {
         const result = getRpcUrl(mockChain, { ...defaultOpts, websocketEnabled: true })
         expect(result).toEqual({
           url: mockChain.rpcUrls.secondary.webSocket![0],
-          isWebsocket: true,
+          transportOptions: { isWebsocket: true },
         })
       })
 
       it('should return the secondary HTTP URL when websocket is enabled but does not exist', () => {
         delete mockChain.rpcUrls.secondary.webSocket
         const result = getRpcUrl(mockChain, { ...defaultOpts, websocketEnabled: true })
-        expect(result).toEqual({ url: mockChain.rpcUrls.secondary.http[0], isWebsocket: false })
+        expect(result).toEqual({
+          url: mockChain.rpcUrls.secondary.http[0],
+          transportOptions: { isWebsocket: false },
+        })
       })
 
       it('should not append the API key if the URL provided is not from Alchemy', () => {
         const result = getRpcUrl(mockChain, defaultOpts)
         expect(result).toEqual({
           url: mockChain.rpcUrls.secondary.http[0],
-          isWebsocket: false,
+          transportOptions: { isWebsocket: false },
         })
       })
 
@@ -80,7 +94,7 @@ describe('Viem Utils', () => {
         const result = getRpcUrl(mockAlchemyChain, defaultOpts)
         expect(result).toEqual({
           url: mockAlchemyChain.rpcUrls.alchemy.http[0] + `/${defaultOpts.alchemyApiKey}`,
-          isWebsocket: false,
+          transportOptions: { isWebsocket: false },
         })
       })
     })
@@ -90,7 +104,7 @@ describe('Viem Utils', () => {
         const result = getRpcUrl(mockAlchemyChain, { ...defaultOpts, rpcUrls: customRpcUrls })
         expect(result).toEqual({
           url: customRpcUrls.http[0],
-          isWebsocket: false,
+          transportOptions: { isWebsocket: false },
         })
       })
     })

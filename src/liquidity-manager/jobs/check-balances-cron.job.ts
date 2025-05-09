@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq'
+import { Queue, JobsOptions } from 'bullmq'
 import { formatUnits } from 'viem'
 import { table } from 'table'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -9,36 +9,57 @@ import {
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { shortAddr } from '@/liquidity-manager/utils/address'
-import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import {
   RebalanceQuote,
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
 
+type CheckBalancesCronJob = LiquidityManagerJob<
+  LiquidityManagerJobName.CHECK_BALANCES,
+  { wallet: string }
+>
+
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
 export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
-  static readonly jobSchedulerName = 'job-scheduler-check-balances'
+  static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
+
+  /**
+   * Gets the unique job scheduler name for a specific wallet
+   * @param walletAddress - Wallet address for the job
+   * @returns The unique job scheduler name
+   */
+  static getJobSchedulerName(walletAddress: string): string {
+    return `${this.jobSchedulerNamePrefix}-${walletAddress}`
+  }
 
   /**
    * Starts the CheckBalancesCronJob by removing existing repeatable jobs and adding a new one to the queue.
    * @param queue - The job queue to add the job to.
    * @param interval - Interval duration in which the job is repeated
+   * @param walletAddress - Wallet address
    */
-  static async start(queue: Queue, interval: number): Promise<void> {
-    await removeJobSchedulers(queue, LiquidityManagerJobName.CHECK_BALANCES)
+  static async start(queue: Queue, interval: number, walletAddress: string): Promise<void> {
+    const job: {
+      name: CheckBalancesCronJob['name']
+      data: CheckBalancesCronJob['data']
+      opts?: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
+    } = {
+      name: LiquidityManagerJobName.CHECK_BALANCES,
+      data: {
+        wallet: walletAddress,
+      },
+      opts: {
+        removeOnComplete: true,
+      },
+    }
 
     await queue.upsertJobScheduler(
-      CheckBalancesCronJobManager.jobSchedulerName,
+      CheckBalancesCronJobManager.getJobSchedulerName(walletAddress),
       { every: interval },
-      {
-        name: LiquidityManagerJobName.CHECK_BALANCES,
-        opts: {
-          removeOnComplete: true,
-        },
-      },
+      job,
     )
   }
 
@@ -47,7 +68,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param job - The job to check.
    * @returns True if the job is a CheckBalancesCronJob.
    */
-  is(job: LiquidityManagerJob): boolean {
+  is(job: LiquidityManagerJob): job is CheckBalancesCronJob {
     return job.name === LiquidityManagerJobName.CHECK_BALANCES
   }
 
@@ -57,12 +78,25 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param processor - The LiquidityManagerProcessor instance used for processing.
    */
   async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
-    const { deficit, surplus, items } = await processor.liquidityManagerService.analyzeTokens()
+    if (!this.is(job)) {
+      processor.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'CheckBalancesCronJobManager: It is not a CheckBalancesCron job',
+        }),
+      )
+      return
+    }
+
+    const { wallet: walletAddress } = job.data
+
+    const { deficit, surplus, items } =
+      await processor.liquidityManagerService.analyzeTokens(walletAddress)
 
     processor.logger.log(
       EcoLogMessage.fromDefault({
         message: `CheckBalancesCronJob: process`,
         properties: {
+          walletAddress,
           surplus: surplus.total,
           deficit: deficit.total,
         },
@@ -84,6 +118,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
 
     for (const deficitToken of deficit.items) {
       const rebalancingQuotes = await processor.liquidityManagerService.getOptimizedRebalancing(
+        walletAddress,
         deficitToken,
         surplus.items,
       )
@@ -105,7 +140,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
 
       // Store rebalance request on DB
-      await processor.liquidityManagerService.storeRebalancing(rebalanceRequest)
+      await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
 
       rebalances.push(rebalanceRequest)
     }
@@ -121,7 +156,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
 
     processor.logger.log(this.displayRebalancingTable(rebalances))
 
-    await processor.liquidityManagerService.startRebalancing(rebalances)
+    await processor.liquidityManagerService.startRebalancing(walletAddress, rebalances)
   }
 
   /**

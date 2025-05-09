@@ -49,11 +49,13 @@ describe('Eco Config Helper Tests', () => {
     const mockIS = {
       chainID: 1,
       tokens: ['0x12346817e7F6210A5b320F1A0bC96FfCf713A9b9'],
+      provers: ['0x123CustomProver'],
     }
     const mockChainConfig = {
       IntentSource: 'source',
       Prover: 'prover',
       HyperProver: 'hyperprover',
+      Inbox: 'inbox',
     }
 
     beforeEach(() => {
@@ -76,7 +78,7 @@ describe('Eco Config Helper Tests', () => {
       expect(mockgetChainConfig).toHaveBeenCalled()
     })
 
-    it('should return the intent sources', () => {
+    it('should return the intent sources with default config (append)', () => {
       mockgetChainConfig.mockReturnValue(mockChainConfig)
       ecoConfigService.get = jest.fn().mockReturnValue([mockIS])
       const result = ecoConfigService.getIntentSources()
@@ -84,11 +86,73 @@ describe('Eco Config Helper Tests', () => {
         {
           ...mockIS,
           sourceAddress: mockChainConfig.IntentSource,
-          provers: [mockChainConfig.HyperProver], // removed per audit warn =>  , mockChainConfig.Prover
+          inbox: mockChainConfig.Inbox,
+          provers: ['0x123CustomProver', mockChainConfig.HyperProver],
         },
       ])
       expect(mockgetChainConfig).toHaveBeenCalled()
       expect(mockgetChainConfig).toHaveBeenCalledWith(mockIS.chainID)
+    })
+
+    it('should append eco npm provers when config.ecoRoutes is "append"', () => {
+      mockgetChainConfig.mockReturnValue(mockChainConfig)
+      ecoConfigService.get = jest.fn().mockReturnValue([
+        {
+          ...mockIS,
+          config: { ecoRoutes: 'append' },
+        },
+      ])
+      const result = ecoConfigService.getIntentSources()
+      expect(result).toEqual([
+        {
+          ...mockIS,
+          sourceAddress: mockChainConfig.IntentSource,
+          inbox: mockChainConfig.Inbox,
+          provers: ['0x123CustomProver', mockChainConfig.HyperProver],
+          config: { ecoRoutes: 'append' },
+        },
+      ])
+      expect(mockgetChainConfig).toHaveBeenCalled()
+    })
+
+    it('should replace provers with eco npm provers when config.ecoRoutes is "replace"', () => {
+      mockgetChainConfig.mockReturnValue(mockChainConfig)
+      ecoConfigService.get = jest.fn().mockReturnValue([
+        {
+          ...mockIS,
+          config: { ecoRoutes: 'replace' },
+        },
+      ])
+      const result = ecoConfigService.getIntentSources()
+      expect(result).toEqual([
+        {
+          ...mockIS,
+          sourceAddress: mockChainConfig.IntentSource,
+          inbox: mockChainConfig.Inbox,
+          provers: [mockChainConfig.HyperProver],
+          config: { ecoRoutes: 'replace' },
+        },
+      ])
+      expect(mockgetChainConfig).toHaveBeenCalled()
+    })
+
+    it('should remove duplicate provers', () => {
+      const customProver = '0x123CustomProver'
+      mockgetChainConfig.mockReturnValue({
+        ...mockChainConfig,
+        HyperProver: customProver, // Same as the one in mockIS.provers
+      })
+      const mockISWithCustomProver = {
+        ...mockIS,
+        provers: [customProver],
+      }
+      ecoConfigService.get = jest.fn().mockReturnValue([mockISWithCustomProver])
+      const result = ecoConfigService.getIntentSources()
+
+      // The result should have the provers deduped
+      expect(result[0].provers).toHaveLength(1)
+      expect(result[0].provers).toContain(customProver)
+      expect(mockgetChainConfig).toHaveBeenCalled()
     })
   })
 
