@@ -5,7 +5,7 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { Hex } from 'viem'
+import { Hex, parseUnits } from 'viem'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
@@ -255,12 +255,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        const swapAmountBig = parseUnits(swapAmount.toString(), surplusToken.balance.decimals)
 
         const strategyQuotes = await this.liquidityProviderManager.getQuote(
           walletAddress,
           surplusToken,
           deficitToken,
-          swapAmount,
+          swapAmountBig,
         )
 
         this.logger.log(
@@ -327,12 +328,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        const swapAmountBig = parseUnits(swapAmount.toString(), surplusToken.balance.decimals)
 
         // Use the fallback method that routes through core tokens
         const quote = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
-          swapAmount,
+          swapAmountBig,
         )
 
         quotes.push(quote)

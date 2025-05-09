@@ -22,7 +22,7 @@ export class LiquidityProviderService {
     walletAddress: string,
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
 
@@ -100,7 +100,7 @@ export class LiquidityProviderService {
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote> {
     return this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
   }

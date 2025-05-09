@@ -304,8 +304,6 @@ export class WrappedTokenService {
         return
       }
 
-      const amount = Number.parseFloat(formatUnits(wethBalance, wethDecimals))
-
       // Create WETH token data
       const WETHToken: TokenData = {
         chainId,
@@ -349,7 +347,7 @@ export class WrappedTokenService {
           walletAddress,
           WETHToken,
           tokenOut,
-          amount,
+          wethBalance,
         )
 
         if (!quotes.length) {
@@ -360,7 +358,7 @@ export class WrappedTokenService {
                 chainId,
                 wethAddr,
                 tokenOutAddr: tokenOut.config.address,
-                amount,
+                amount: wethBalance.toString(),
               },
             }),
           )
@@ -374,7 +372,7 @@ export class WrappedTokenService {
               chainId,
               wethAddr,
               tokenOutAddr: tokenOut.config.address,
-              amount,
+              amount: wethBalance.toString(),
               error:
                 error instanceof Error ? { message: error.message, stack: error.stack } : error,
             },

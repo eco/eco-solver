@@ -54,14 +54,14 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const routesRequest: RoutesRequest = {
       // Origin chain
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
       fromTokenAddress: tokenIn.config.address,
-      fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
+      fromAmount: swapAmount.toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
@@ -113,7 +113,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(

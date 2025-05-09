@@ -133,7 +133,9 @@ describe('LiquidityManagerService', () => {
         config: { chainId: 1 },
         analysis: { diff: 100, balance: { current: 50 }, targetSlippage: { min: 150 } },
       }
-      const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200 } }]
+      const mockSurplusTokens = [
+        { config: { chainId: 1 }, analysis: { diff: 200 }, balance: { decimals: 6 } },
+      ]
 
       jest
         .spyOn(liquidityProviderService, 'getQuote')
@@ -164,10 +166,12 @@ describe('LiquidityManagerService', () => {
         {
           config: { chainId: 1, address: '0xSurplus1' },
           analysis: { diff: 50 },
+          balance: { decimals: 0 },
         },
         {
           config: { chainId: 3, address: '0xSurplus2' },
           analysis: { diff: 150 },
+          balance: { decimals: 0 },
         },
       ]
 
@@ -211,7 +215,7 @@ describe('LiquidityManagerService', () => {
       expect(liquidityProviderService.fallback).toHaveBeenCalledWith(
         mockSurplusTokens[0],
         mockDeficitToken,
-        50, // min of deficit diff and surplus diff
+        50n, // min of deficit diff and surplus diff
       )
 
       // Verify the result includes both quotes
@@ -231,8 +235,16 @@ describe('LiquidityManagerService', () => {
         },
       }
       const mockSurplusTokens = [
-        { config: { chainId: 1, address: '0xSurplus1' }, analysis: { diff: 50 } },
-        { config: { chainId: 3, address: '0xSurplus2' }, analysis: { diff: 150 } },
+        {
+          config: { chainId: 1, address: '0xSurplus1' },
+          analysis: { diff: 50 },
+          balance: { decimals: 6 },
+        },
+        {
+          config: { chainId: 3, address: '0xSurplus2' },
+          analysis: { diff: 150 },
+          balance: { decimals: 6 },
+        },
       ]
 
       // Make sure the config is set with the mock core tokens
