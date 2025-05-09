@@ -105,7 +105,11 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
 
     processor.logger.log(this.displayTokenTable(items))
 
-    if (!deficit.total) {
+    // Get WETH rebalances to unwrap excess WETH into usable tokens
+    // See docs/wrapped-token-rebalancing.md for more information
+    const wethRebalances = await processor.liquidityManagerService.getWETHRebalances(walletAddress)
+
+    if (!deficit.total && !wethRebalances.length) {
       processor.logger.log(
         EcoLogMessage.fromDefault({
           message: `CheckBalancesCronJob: No deficits found`,
@@ -144,10 +148,6 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
 
       tokenRebalances.push(rebalanceRequest)
     }
-
-    // Get WETH rebalances to unwrap excess WETH into usable tokens
-    // See docs/wrapped-token-rebalancing.md for more information
-    const wethRebalances = await processor.liquidityManagerService.getWETHRebalances(walletAddress)
 
     // Combine both WETH and token rebalances
     const rebalances = [...wethRebalances, ...tokenRebalances]
