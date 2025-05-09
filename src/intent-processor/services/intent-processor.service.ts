@@ -20,6 +20,7 @@ import {
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
+import { HatsService } from '@/hats/hats.service'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -38,6 +39,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     private readonly ecoConfigService: EcoConfigService,
     private readonly indexerService: IndexerService,
     private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
+    private readonly hatsService: HatsService,
   ) {
     this.intentProcessorQueue = new IntentProcessorQueue(queue)
   }
@@ -169,6 +171,15 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     )
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+    // update hats distribution amount
+    const feeAccuired = _.reduce(
+      intents.map((intent) => intent.fee),
+      (sum, amount) => sum + amount,
+      BigInt(0),
+    )
+
+    this.hatsService.incrementDistributionAmount(feeAccuired)
   }
 
   async executeSendBatch(data: ExecuteSendBatchJobData) {

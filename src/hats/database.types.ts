@@ -1,12 +1,37 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       accumulation_periods: {
         Row: {
           created_at: string | null
-          distribution_amount: number | null
+          distribution_amount: number
           duration: unknown
           id: number
           started_at: string
@@ -14,7 +39,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          distribution_amount?: number | null
+          distribution_amount?: number
           duration: unknown
           id?: number
           started_at: string
@@ -22,7 +47,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          distribution_amount?: number | null
+          distribution_amount?: number
           duration?: unknown
           id?: number
           started_at?: string
@@ -177,7 +202,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_latest_distribution_amount: {
+        Args: { amount: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -290,6 +318,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

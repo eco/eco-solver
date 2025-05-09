@@ -12,6 +12,7 @@ import { QUEUES } from '@/common/redis/constants'
 import { Queue } from 'bullmq'
 import { WebClient } from '@slack/web-api'
 import { getRandomRewardPeriodMessage } from '@/hats/utils'
+import { erc20Abi, encodeFunctionData } from 'viem'
 
 @Injectable()
 export class HatsService implements OnModuleInit {
@@ -65,86 +66,6 @@ export class HatsService implements OnModuleInit {
       }),
     )
 
-    // get and update the previous accumulation period if it exists
-    const { data: firstAccumulationPeriod, error } = await this.supabaseClient
-      .from('accumulation_periods')
-      .select()
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .single()
-
-    if (!error && firstAccumulationPeriod) {
-      // get the starting balance of all the accumulation periods
-      const startingSolverBalance = parseUnits(
-        firstAccumulationPeriod.starting_solver_balance.toString(),
-        6,
-      )
-
-      // calculate the distribution amount for this week that just ended
-      const distributionAmount = currentSolverBalance - startingSolverBalance
-
-      // update this last week's distribution amount
-      const { data: prevAccumulationPeriod, error: updateError } = await this.supabaseClient
-        .from('accumulation_periods')
-        .update({ distribution_amount: parseFloat(formatUnits(distributionAmount, 6)) })
-        .select('id')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      if (updateError || !prevAccumulationPeriod) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `${HatsService.name}.weeklyUpdate - failed to update last week's distribution amount`,
-            properties: {
-              error: updateError,
-              distributionAmount: formatUnits(distributionAmount, 6),
-            },
-          }),
-        )
-      }
-
-      if (distributionAmount > 0) {
-        // Create a reward period for the completed accumulation period
-        const rewardPeriodData = await this.createNewRewardPeriod(prevAccumulationPeriod!.id)
-
-        if (rewardPeriodData) {
-          const delay = Math.floor(rewardPeriodData.endTime.getTime() - Date.now()) + 10_000 // add 10 seconds to ensure it fires after the period ends
-
-          this.hatsQueue.add(
-            QUEUES.HATS.jobs.distribute,
-            {
-              accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
-              rewardPeriodId: rewardPeriodData.rewardPeriodId,
-            },
-            {
-              jobId: QUEUES.HATS.jobs.distribute,
-              delay,
-              removeOnComplete: true,
-            },
-          )
-
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `${HatsService.name}.weeklyUpdate - reward period created and distribution scheduled`,
-              properties: {
-                rewardPeriodId: rewardPeriodData.rewardPeriodId,
-                accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
-                endTime: rewardPeriodData.endTime.toISOString(),
-              },
-            }),
-          )
-
-          this.sendSlackNotification(
-            getRandomRewardPeriodMessage(
-              distributionAmount,
-              rewardPeriodData.startTime,
-              rewardPeriodData.endTime,
-            ),
-          )
-        }
-      }
-    }
-
     // create a new accumulation period and set the starting balance to the current solver balance
     const { error: createError, data: accumulationPeriod } = await this.supabaseClient
       .from('accumulation_periods')
@@ -166,6 +87,75 @@ export class HatsService implements OnModuleInit {
           },
         }),
       )
+    }
+
+    // get last week's distribution amount
+    const { data: prevAccumulationPeriod, error: prevAccumulationPeriodError } =
+      await this.supabaseClient
+        .from('accumulation_periods')
+        .select('id, distribution_amount')
+        .order('created_at', { ascending: false })
+        .range(1, 1)
+        .single()
+    if (prevAccumulationPeriodError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `${HatsService.name}.weeklyUpdate - failed to get last week's distribution amount`,
+          properties: {
+            error: prevAccumulationPeriodError,
+          },
+        }),
+      )
+    } else if (!prevAccumulationPeriod) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `${HatsService.name}.weeklyUpdate - no previous accumulation period found`,
+        }),
+      )
+      return
+    }
+
+    const distributionAmount = parseUnits(prevAccumulationPeriod!.distribution_amount.toString(), 6)
+
+    if (distributionAmount > 0) {
+      // Create a reward period for the completed accumulation period
+      const rewardPeriodData = await this.createNewRewardPeriod(prevAccumulationPeriod!.id)
+
+      if (rewardPeriodData) {
+        const delay = Math.floor(rewardPeriodData.endTime.getTime() - Date.now()) + 10_000 // add 10 seconds to ensure it fires after the period ends
+
+        this.hatsQueue.add(
+          QUEUES.HATS.jobs.distribute,
+          {
+            accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
+            rewardPeriodId: rewardPeriodData.rewardPeriodId,
+          },
+          {
+            jobId: QUEUES.HATS.jobs.distribute,
+            delay,
+            removeOnComplete: true,
+          },
+        )
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `${HatsService.name}.weeklyUpdate - reward period created and distribution scheduled`,
+            properties: {
+              rewardPeriodId: rewardPeriodData.rewardPeriodId,
+              accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
+              endTime: rewardPeriodData.endTime.toISOString(),
+            },
+          }),
+        )
+
+        this.sendSlackNotification(
+          getRandomRewardPeriodMessage(
+            distributionAmount,
+            rewardPeriodData.startTime,
+            rewardPeriodData.endTime,
+          ),
+        )
+      }
     }
 
     this.logger.debug(
@@ -220,6 +210,8 @@ export class HatsService implements OnModuleInit {
       return
     }
 
+    const totalDistributionAmount = parseUnits(eligiblePeriod.distribution_amount!.toString(), 6)
+
     // Check if there are any valid claims
     const validClaims = claims.filter((claim) => claim.wallet_address)
     if (validClaims.length === 0) {
@@ -232,14 +224,14 @@ export class HatsService implements OnModuleInit {
         }),
       )
 
-      // Insert a distribution record anyway to mark this as processed
-      await this.recordDistribution(eligiblePeriod.id)
+      // carry over the distribution amount to the current period by incrementing it
+      await this.incrementDistributionAmount(totalDistributionAmount)
+
       return
     }
 
     try {
       // Calculate distribution amount per wallet
-      const totalDistributionAmount = parseUnits(eligiblePeriod.distribution_amount!.toString(), 6)
       const amountPerWallet = totalDistributionAmount / BigInt(validClaims.length)
 
       this.logger.debug(
@@ -313,16 +305,12 @@ export class HatsService implements OnModuleInit {
         return
       }
 
-      // Import required functions from viem
-      const { encodeFunctionData } = await import('viem')
-      const { ERC20Abi } = await import('@/contracts/ERC20.contract')
-
       // Create multicall transaction with ERC20 transfers
       const calls: Call[] = validClaims.map((claim) => {
         const callData = encodeFunctionData({
-          abi: ERC20Abi,
+          abi: erc20Abi,
           functionName: 'transfer',
-          args: [claim.wallet_address as `0x${string}`, amountPerWallet],
+          args: [claim.wallet_address as Hex, amountPerWallet],
         })
 
         return {
@@ -422,6 +410,41 @@ export class HatsService implements OnModuleInit {
           properties: {
             error,
             accumulationPeriodId: eligiblePeriod.id,
+          },
+        }),
+      )
+    }
+  }
+
+  async incrementDistributionAmount(amount: bigint) {
+    // update the current accumulation period with the new distribution amount
+    try {
+      const formattedAmount = formatUnits(amount, 6)
+
+      const { error } = await this.supabaseClient.rpc('increment_latest_distribution_amount', {
+        amount: parseFloat(formattedAmount),
+      })
+
+      if (error) {
+        throw error
+      }
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `${HatsService.name}.incrementDistributionAmount - distribution amount incremented`,
+          properties: {
+            amount: amount.toString(),
+            formattedAmount: formattedAmount,
+          },
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `${HatsService.name}.incrementDistributionAmount - failed to increment distribution amount`,
+          properties: {
+            error,
+            amount: amount.toString(),
           },
         }),
       )

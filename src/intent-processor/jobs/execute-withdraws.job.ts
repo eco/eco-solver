@@ -17,6 +17,7 @@ export type ExecuteWithdrawsJobData = {
   intents: {
     routeHash: Hex
     reward: RewardInterface
+    fee: bigint
   }[]
 }
 
