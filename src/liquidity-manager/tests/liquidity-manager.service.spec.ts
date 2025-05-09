@@ -15,6 +15,7 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -23,6 +24,7 @@ describe('LiquidityManagerService', () => {
   let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let wrappedTokenService: DeepMocked<WrappedTokenService>
   let queue: DeepMocked<Queue>
 
   beforeEach(async () => {
@@ -34,6 +36,7 @@ describe('LiquidityManagerService', () => {
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: WrappedTokenService, useValue: createMock<WrappedTokenService>() },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
@@ -56,6 +59,7 @@ describe('LiquidityManagerService', () => {
     liquidityManagerService = chainMod.get(LiquidityManagerService)
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
+    wrappedTokenService = chainMod.get(WrappedTokenService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
 
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
@@ -274,216 +278,32 @@ describe('LiquidityManagerService', () => {
   })
 
   describe('getWETHRebalances', () => {
-    it('should return empty array when wallet address is not kernel address', async () => {
-      const walletAddress = '0xUserWallet'
+    it('should delegate to the WrappedTokenService', async () => {
+      const walletAddress = '0xWalletAddress'
+      const mockRebalanceRequests = [{ token: { chainId: 1 }, quotes: [] }]
       
-      // Mock getClient to return a different address than the walletAddress
-      kernelAccountClientService.getClient = jest.fn().mockResolvedValue({
-        kernelAccount: { address: '0xDifferentAddress' }
-      })
-
+      // Mock wrapped token service response
+      wrappedTokenService.getWrappedTokenRebalances = jest.fn().mockResolvedValue(mockRebalanceRequests)
+      
       const result = await liquidityManagerService.getWETHRebalances(walletAddress)
       
+      expect(result).toEqual(mockRebalanceRequests)
+      expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
+    })
+    
+    it('should handle errors from WrappedTokenService', async () => {
+      const walletAddress = '0xWalletAddress'
+      
+      // Mock wrapped token service to throw an error
+      wrappedTokenService.getWrappedTokenRebalances = jest.fn().mockRejectedValue(
+        new Error('Test error')
+      )
+      
+      const result = await liquidityManagerService.getWETHRebalances(walletAddress)
+      
+      // Should return empty array on error
       expect(result).toEqual([])
-      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(10) // OP chain
-    })
-
-    it('should call getWETHRebalance for each chain and return valid results', async () => {
-      const kernelAddress = '0xKernelAddress'
-      
-      // Mock getClient to return the same address as walletAddress
-      kernelAccountClientService.getClient = jest.fn().mockResolvedValue({
-        kernelAccount: { address: kernelAddress }
-      })
-
-      // Setup tokensPerWallet for multiple chains
-      liquidityManagerService['tokensPerWallet'] = {
-        [kernelAddress]: [
-          { chainId: 1, address: '0xToken1' },
-          { chainId: 10, address: '0xToken2' },
-        ]
-      }
-
-      // Mock getWETHRebalance to return rebalance requests
-      const rebalanceRequest1 = { token: { chainId: 1 }, quotes: [] }
-      const rebalanceRequest2 = { token: { chainId: 10 }, quotes: [] }
-      
-      // First call returns a rebalance, second returns undefined (no need to rebalance)
-      jest.spyOn(liquidityManagerService as any, 'getWETHRebalance')
-        .mockImplementation((address, chainId) => {
-          if (chainId === 1) return Promise.resolve(rebalanceRequest1)
-          if (chainId === 10) return Promise.resolve(rebalanceRequest2)
-          return Promise.resolve(undefined)
-        })
-
-      const result = await liquidityManagerService.getWETHRebalances(kernelAddress)
-      
-      expect(result).toEqual([rebalanceRequest1, rebalanceRequest2])
-      expect(liquidityManagerService['getWETHRebalance']).toHaveBeenCalledTimes(2)
-      expect(liquidityManagerService['getWETHRebalance']).toHaveBeenCalledWith(
-        kernelAddress, 1, expect.anything()
-      )
-      expect(liquidityManagerService['getWETHRebalance']).toHaveBeenCalledWith(
-        kernelAddress, 10, expect.anything()
-      )
-    })
-
-    it('should filter out undefined results from getWETHRebalance', async () => {
-      const kernelAddress = '0xKernelAddress'
-      
-      // Mock getClient to return the same address as walletAddress
-      kernelAccountClientService.getClient = jest.fn().mockResolvedValue({
-        kernelAccount: { address: kernelAddress }
-      })
-
-      // Setup tokensPerWallet for multiple chains
-      liquidityManagerService['tokensPerWallet'] = {
-        [kernelAddress]: [
-          { chainId: 1, address: '0xToken1' },
-          { chainId: 10, address: '0xToken2' },
-        ]
-      }
-
-      // Mock getWETHRebalance to return one rebalance request and one undefined
-      const rebalanceRequest = { token: { chainId: 1 }, quotes: [] }
-      
-      jest.spyOn(liquidityManagerService as any, 'getWETHRebalance')
-        .mockImplementation((address, chainId) => {
-          if (chainId === 1) return Promise.resolve(rebalanceRequest)
-          return Promise.resolve(undefined)
-        })
-
-      const result = await liquidityManagerService.getWETHRebalances(kernelAddress)
-      
-      expect(result).toEqual([rebalanceRequest])
-      expect(result.length).toBe(1)
-      expect(liquidityManagerService['getWETHRebalance']).toHaveBeenCalledTimes(2)
-    })
-  })
-
-  describe('getWETHRebalance', () => {
-    it('should return undefined when no WETH address is configured for the chain', async () => {
-      const walletAddress = '0xWalletAddress'
-      const chainId = 999 // Chain ID not present in addresses
-      const token = { chainId: 999, address: '0xToken1' }
-      
-      // Mock config with no address for chainId 999
-      const mockWETHConfig = {
-        addresses: { 1: '0xWETHAddress' },
-        threshold: '100'
-      }
-      ecoConfigService.getWETH = jest.fn().mockReturnValue(mockWETHConfig)
-      
-      const result = await (liquidityManagerService as any).getWETHRebalance(
-        walletAddress, chainId, token
-      )
-      
-      expect(result).toBeUndefined()
-      expect(kernelAccountClientService.getClient).not.toHaveBeenCalled()
-    })
-    
-    it('should return undefined when WETH balance is below threshold', async () => {
-      const walletAddress = '0xWalletAddress'
-      const chainId = 1
-      const token = { chainId: 1, address: '0xToken1' }
-      
-      // Mock client
-      const mockClient = {
-        readContract: jest.fn().mockResolvedValue(10n) // Low balance
-      }
-      kernelAccountClientService.getClient = jest.fn().mockResolvedValue(mockClient)
-      
-      // Mock config
-      const mockWETHConfig = {
-        addresses: { 1: '0xWETHAddress' },
-        threshold: '100' // Higher than current balance
-      }
-      ecoConfigService.getWETH = jest.fn().mockReturnValue(mockWETHConfig)
-      
-      const result = await (liquidityManagerService as any).getWETHRebalance(
-        walletAddress, chainId, token
-      )
-      
-      expect(result).toBeUndefined()
-      expect(mockClient.readContract).toHaveBeenCalledWith({
-        abi: expect.anything(),
-        functionName: 'balanceOf',
-        address: '0xWETHAddress',
-        args: [walletAddress]
-      })
-    })
-    
-    it('should return rebalance request when WETH balance exceeds threshold', async () => {
-      const walletAddress = '0xWalletAddress'
-      const chainId = 1
-      const token = { 
-        chainId: 1, 
-        address: '0xToken1',
-        type: 'erc20',
-        targetBalance: 100, 
-        minBalance: 50
-      }
-      
-      // Mock client with high WETH balance
-      const wethBalance = 200n
-      const mockClient = {
-        readContract: jest.fn().mockResolvedValue(wethBalance),
-        kernelAccount: { address: walletAddress }
-      }
-      kernelAccountClientService.getClient = jest.fn().mockResolvedValue(mockClient)
-      
-      // Mock WETH config with lower threshold
-      const wethAddress = '0xWETHAddress'
-      const mockWETHConfig = {
-        addresses: { 1: wethAddress },
-        threshold: '100' // Lower than current balance
-      }
-      ecoConfigService.getWETH = jest.fn().mockReturnValue(mockWETHConfig)
-      
-      // Mock token data response
-      const mockTokenOut = { 
-        config: { address: '0xToken1', chainId: 1 },
-        balance: { balance: 50n }
-      }
-      balanceService.getAllTokenDataForAddress = jest.fn().mockResolvedValue([mockTokenOut])
-      
-      // Mock quote response
-      const mockQuotes = [{ amountIn: 100n, amountOut: 95n }]
-      liquidityProviderService.getQuote = jest.fn().mockResolvedValue(mockQuotes)
-      
-      const result = await (liquidityManagerService as any).getWETHRebalance(
-        walletAddress, chainId, token
-      )
-      
-      // Verify the result structure
-      expect(result).toBeDefined()
-      expect(result.token).toEqual({
-        chainId,
-        config: { 
-          address: wethAddress, 
-          chainId, 
-          type: 'erc20', 
-          targetBalance: 0, 
-          minBalance: 0 
-        },
-        balance: { 
-          balance: wethBalance, 
-          address: wethAddress, 
-          decimals: 18 
-        }
-      })
-      expect(result.quotes).toEqual(mockQuotes)
-      
-      // Verify liquidity provider was called correctly
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledWith(
-        walletAddress,
-        expect.objectContaining({ 
-          chainId,
-          config: { address: wethAddress } 
-        }),
-        mockTokenOut,
-        expect.any(Number)
-      )
+      expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
     })
   })
 })

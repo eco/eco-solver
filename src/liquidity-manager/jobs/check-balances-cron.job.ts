@@ -145,8 +145,11 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       tokenRebalances.push(rebalanceRequest)
     }
 
+    // Get WETH rebalances to unwrap excess WETH into usable tokens
+    // See docs/wrapped-token-rebalancing.md for more information
     const wethRebalances = await processor.liquidityManagerService.getWETHRebalances(walletAddress)
 
+    // Combine both WETH and token rebalances
     const rebalances = [...wethRebalances, ...tokenRebalances]
 
     if (!rebalances.length) {

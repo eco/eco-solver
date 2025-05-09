@@ -6,7 +6,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
 import * as _ from 'lodash'
-import { erc20Abi, formatUnits, Hex, parseUnits } from 'viem'
+import { formatUnits, Hex } from 'viem'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
@@ -38,6 +38,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -60,6 +61,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly liquidityProviderManager: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly wrappedTokenService: WrappedTokenService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
@@ -332,71 +334,27 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     return quotes
   }
 
+  /**
+   * Gets all WETH rebalance requests for the given wallet address
+   * This method delegates to the WrappedTokenService for handling wrapped token operations
+   * @param walletAddress The wallet address to check for WETH rebalances
+   * @returns Array of rebalance requests
+   */
   async getWETHRebalances(walletAddress: string): Promise<RebalanceRequest[]> {
-    // Use OP as the default chain assuming the Kernel wallet is the same across all chains
-    const opChainId = 10
-    const client = await this.kernelAccountClientService.getClient(opChainId)
-    const kernelAddress = client.kernelAccount.address
-
-    if (kernelAddress !== walletAddress) {
+    try {
+      // Delegate to the specialized WrappedTokenService
+      return await this.wrappedTokenService.getWrappedTokenRebalances(walletAddress as Hex)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error getting WETH rebalances',
+          properties: {
+            walletAddress,
+            error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+          },
+        }),
+      )
       return []
     }
-
-    const tokensByChain = _.groupBy(this.tokensPerWallet[kernelAddress], 'chainId')
-    const chainIDs = Object.keys(tokensByChain)
-
-    const requests = Array.from(chainIDs).map((chainID) =>
-      this.getWETHRebalance(walletAddress, Number(chainID), tokensByChain[chainID][0]),
-    )
-
-    const quotes = await Promise.all(requests)
-    return quotes.flatMap((quote) => (quote ? [quote] : [])) as RebalanceRequest[]
-  }
-
-  private async getWETHRebalance(
-    walletAddress: Hex,
-    chainId: number,
-    token: TokenConfig,
-  ): Promise<RebalanceRequest | undefined> {
-    const { addresses, threshold } = this.ecoConfigService.getWETH()
-    const wethAddr = addresses[chainId]
-    
-    // Skip if no WETH address is configured for this chain
-    if (!wethAddr) {
-      return
-    }
-    
-    const client = await this.kernelAccountClientService.getClient(chainId)
-    const maximumBalance = parseUnits(threshold, 18)
-
-    const wethBalance = await client.readContract({
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      address: wethAddr,
-      args: [walletAddress],
-    })
-
-    if (wethBalance < maximumBalance) {
-      return
-    }
-
-    const amount = Number.parseFloat(formatUnits(wethBalance, 18))
-
-    const WETHToken: TokenData = {
-      chainId,
-      config: { address: wethAddr, chainId, type: 'erc20', targetBalance: 0, minBalance: 0 },
-      balance: { balance: wethBalance, address: wethAddr, decimals: 18 },
-    }
-
-    const [tokenOut] = await this.balanceService.getAllTokenDataForAddress(walletAddress, [token])
-
-    const quotes = await this.liquidityProviderManager.getQuote(
-      walletAddress,
-      WETHToken,
-      tokenOut,
-      amount,
-    )
-
-    return { token: WETHToken, quotes }
   }
 }

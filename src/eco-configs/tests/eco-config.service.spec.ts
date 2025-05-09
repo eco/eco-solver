@@ -212,5 +212,12 @@ describe('Eco Config Helper Tests', () => {
       expect(result).toEqual(mockWETH)
       expect(ecoConfigService.get).toHaveBeenCalledWith('WETH')
     })
+    
+    it('should handle missing WETH configuration', () => {
+      ecoConfigService.get = jest.fn().mockReturnValue(undefined)
+      const result = ecoConfigService.getWETH()
+      expect(result).toEqual(undefined)
+      expect(ecoConfigService.get).toHaveBeenCalledWith('WETH')
+    })
   })
 })

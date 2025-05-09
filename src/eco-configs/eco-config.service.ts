@@ -248,6 +248,10 @@ export class EcoConfigService {
     return this.get('rpcUrls')
   }
 
+  /**
+   * Returns the WETH configuration
+   * @returns WETH configuration
+   */
   getWETH(): EcoConfigType['WETH'] {
     return this.get('WETH')
   }
