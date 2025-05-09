@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
-import { Type } from 'class-transformer'
 import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
+import { Hex } from 'viem'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { Type } from 'class-transformer'
 
 export class GaslessIntentRequestDTO {
   @IsNotEmpty()
@@ -31,6 +32,11 @@ export class IntentDTO {
   @IsNotEmpty()
   @ApiProperty()
   quoteID: string
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
+  salt: Hex
 
   @IsNotEmpty()
   @ApiProperty()

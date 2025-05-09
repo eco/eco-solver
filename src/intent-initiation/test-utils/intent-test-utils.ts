@@ -53,6 +53,7 @@ export class IntentTestUtils {
       intents: [
         {
           quoteID: 'QuoteID',
+          salt: ('0x' + 'abcd'.padEnd(64, '0')) as Hex,
           route: this.quoteTestUtils.createQuoteRouteDataDTO(),
           reward: this.createRewardDTO({ token }),
         },

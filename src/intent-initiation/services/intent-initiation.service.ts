@@ -1,28 +1,28 @@
-import { Injectable } from '@nestjs/common'
-import { hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { encodeFunctionData, Hex, zeroAddress } from 'viem'
-import * as _ from 'lodash'
+import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
-import { getChainConfig } from '@/eco-configs/utils'
-import { InternalQuoteError } from '@/quote/errors'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import { QuoteRepository } from '@/quote/quote.repository'
-import { PermitDTO } from '@/quote/dto/permit/permit.dto'
-import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
-import { GaslessIntentRequestDTO, IntentDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { EcoError } from '@/common/errors/eco-error'
-import { PermitProcessor } from '@/common/permit/permit-processor'
-import { Permit2Processor } from '@/common/permit/permit2-processor'
-import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { encodeFunctionData, Hex, zeroAddress } from 'viem'
 import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
+import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { GaslessIntentRequestDTO, IntentDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { getChainConfig } from '@/eco-configs/utils'
+import { hashRoute, IntentSourceAbi, RouteType } from '@eco-foundation/routes-ts'
+import { Injectable } from '@nestjs/common'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { InternalQuoteError } from '@/quote/errors'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
 import { Permit3Processor } from '@/common/permit/permit3-processor'
+import { PermitDTO } from '@/quote/dto/permit/permit.dto'
+import { PermitProcessor } from '@/common/permit/permit-processor'
+import { QuoteRepository } from '@/quote/quote.repository'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import * as _ from 'lodash'
 
 type PermitResult = { funder: Hex; permitContract: Hex; transactions: ExecuteSmartWalletArg[] }
 
@@ -225,7 +225,7 @@ export class IntentInitiationService {
     funder: Hex,
     permitContract: Hex,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
-    const { quoteID, route } = intent
+    const { quoteID, salt, route: quoteRoute } = intent
 
     const { response: quote, error } = await this.quoteRepository.fetchQuoteIntentData({
       quoteID,
@@ -236,13 +236,24 @@ export class IntentInitiationService {
       return { error }
     }
 
-    const routeHash = hashRoute(route)
+    // Now we need to get the route hash with the real salt
+    const routeWithSalt: RouteType = {
+      ...quoteRoute,
+      salt,
+    }
+
+    const routeHash = hashRoute(routeWithSalt)
     const chainConfig = getChainConfig(Number(intent.route.source))
     const intentSourceContract = chainConfig.IntentSource
     const reward = quote.reward
 
     // Update intent db
-    await this.createIntentService.createIntentFromIntentInitiation(quoteID, funder, route, reward)
+    await this.createIntentService.createIntentFromIntentInitiation(
+      quoteID,
+      funder,
+      routeWithSalt,
+      reward,
+    )
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

@@ -9,7 +9,6 @@ import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import * as crypto from 'crypto'
-import { Types } from 'mongoose'
 
 const AddressLen = 40
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -138,7 +137,6 @@ export class QuoteTestUtils {
     return {
       source: 1n,
       destination: 137n,
-      salt: ZERO_SALT,
       inbox: '0x0000000000000000000000000000000000000005',
       tokens: [],
       calls: [],

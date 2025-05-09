@@ -178,10 +178,10 @@ describe.skip('IntentInitiationIntegrationTest', () => {
     mockRequest.intents = [
       {
         quoteID: 'test-quote-id',
+        salt: ('0x' + '0'.repeat(64)) as Hex,
         route: {
           source: BigInt(foundry.id),
           destination: BigInt(1),
-          salt: ('0x' + '0'.repeat(64)) as Hex,
           inbox: '0xInbox',
           calls: [],
           tokens: [],

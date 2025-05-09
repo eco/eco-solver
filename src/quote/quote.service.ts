@@ -31,6 +31,8 @@ import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 
+const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
 type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
 interface GenerateQuoteParams {
   quoteIntent: QuoteIntentDataInterface
@@ -166,6 +168,7 @@ export class QuoteService implements OnModuleInit {
     dto.intents = [
       {
         quoteID: quoteIntentDataDTO.quoteID,
+        salt: ZERO_SALT,
         route: quoteIntentDataDTO.route,
         reward: quoteIntentDataDTO.reward,
       },

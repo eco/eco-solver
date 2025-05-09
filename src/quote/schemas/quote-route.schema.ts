@@ -17,8 +17,6 @@ export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   @Prop({ required: true, type: BigInt })
   destination: bigint
   @Prop({ required: true, type: String })
-  salt: Hex
-  @Prop({ required: true, type: String })
   inbox: Hex
   @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
