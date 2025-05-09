@@ -173,9 +173,8 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     await publicClient.waitForTransactionReceipt({ hash: txHash })
 
     // update hats distribution amount
-    const feeAccuired = _.reduce(
-      intents.map((intent) => intent.fee),
-      (sum, amount) => sum + amount,
+    const feeAccuired = intents.reduce(
+      (acc, { fee }) => acc + fee,
       BigInt(0),
     )
 
