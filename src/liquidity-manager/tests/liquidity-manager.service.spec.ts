@@ -362,6 +362,26 @@ describe('LiquidityManagerService', () => {
   })
 
   describe('getWETHRebalance', () => {
+    it('should return undefined when no WETH address is configured for the chain', async () => {
+      const walletAddress = '0xWalletAddress'
+      const chainId = 999 // Chain ID not present in addresses
+      const token = { chainId: 999, address: '0xToken1' }
+      
+      // Mock config with no address for chainId 999
+      const mockWETHConfig = {
+        addresses: { 1: '0xWETHAddress' },
+        threshold: '100'
+      }
+      ecoConfigService.getWETH = jest.fn().mockReturnValue(mockWETHConfig)
+      
+      const result = await (liquidityManagerService as any).getWETHRebalance(
+        walletAddress, chainId, token
+      )
+      
+      expect(result).toBeUndefined()
+      expect(kernelAccountClientService.getClient).not.toHaveBeenCalled()
+    })
+    
     it('should return undefined when WETH balance is below threshold', async () => {
       const walletAddress = '0xWalletAddress'
       const chainId = 1

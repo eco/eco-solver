@@ -358,9 +358,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     chainId: number,
     token: TokenConfig,
   ): Promise<RebalanceRequest | undefined> {
-    const client = await this.kernelAccountClientService.getClient(chainId)
     const { addresses, threshold } = this.ecoConfigService.getWETH()
     const wethAddr = addresses[chainId]
+    
+    // Skip if no WETH address is configured for this chain
+    if (!wethAddr) {
+      return
+    }
+    
+    const client = await this.kernelAccountClientService.getClient(chainId)
     const maximumBalance = parseUnits(threshold, 18)
 
     const wethBalance = await client.readContract({
