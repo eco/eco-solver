@@ -117,6 +117,17 @@ export default {
     intervalDuration: 360_000,
   },
 
+  hats: {
+    supabase: {
+      'secure:url': 'From SecretsManager',
+      'secure:key': 'From SecretsManager',
+    },
+    slack: {
+      'secure:token': 'From SecretsManager',
+      conversationID: 'C08R8R88DPH',
+    },
+  },
+
   sendBatch: {
     chunkSize: 200,
     intervalDuration: 360_000,

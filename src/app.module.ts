@@ -20,6 +20,9 @@ import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
+import { HatsModule } from '@/hats/hats.module'
+import { TasksModule } from '@/tasks/tasks.module'
+import { ScheduleModule } from '@nestjs/schedule'
 
 @Module({
   imports: [
@@ -29,12 +32,13 @@ import { SolverModule } from '@/solver/solver.module'
     EcoConfigModule.withAWS(),
     FeeModule,
     FlagsModule,
+    HatsModule,
     HealthModule,
     IntentModule,
-    KmsModule,
-    SignModule,
+    IntentProcessorModule,
     IntervalModule,
-    ProcessorModule,
+    KmsModule,
+    LiquidityManagerModule,
     MongooseModule.forRootAsync({
       inject: [EcoConfigService],
       useFactory: async (configService: EcoConfigService) => {
@@ -44,12 +48,14 @@ import { SolverModule } from '@/solver/solver.module'
         }
       },
     }),
+    ProcessorModule,
     ProverModule,
     QuoteModule,
+    ScheduleModule.forRoot(),
+    SignModule,
     SolverModule,
-    LiquidityManagerModule,
+    TasksModule,
     WatchModule,
-    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],

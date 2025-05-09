@@ -7,6 +7,7 @@ import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 export function getWithdrawData(intent: IndexerIntent): {
   reward: RewardInterface
   routeHash: Hex
+  fee: bigint
 } {
   const reward = {
     creator: intent.creator as Hex,
@@ -37,5 +38,16 @@ export function getWithdrawData(intent: IndexerIntent): {
 
   const { routeHash } = hashIntent({ reward, route })
 
-  return { reward, routeHash }
+  // For hats:
+  const routeSum = route.tokens.reduce(
+    (sum, { amount }) => sum + amount,
+    BigInt(0),
+  )
+  const rewardSum = reward.tokens.reduce(
+    (sum, { amount }) => sum + amount,
+    BigInt(0),
+  )
+  const fee = rewardSum - routeSum
+
+  return { reward, routeHash, fee }
 }

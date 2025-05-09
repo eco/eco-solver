@@ -122,27 +122,40 @@ export class BalanceService implements OnApplicationBootstrap {
       }),
     )
 
+    const calls = [
+      {
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [walletAddress],
+      },
+      {
+        abi: erc20Abi,
+        functionName: 'decimals',
+      },
+      {
+        abi: erc20Abi,
+        functionName: 'symbol',
+      },
+    ]
+
     const results = (await client.multicall({
-      contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] => [
-        {
-          abi: erc20Abi,
+      contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] =>
+        calls.map((call) => ({
+          ...call,
           address: tokenAddress,
-          functionName: 'balanceOf',
-          args: [walletAddress],
-        },
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'decimals',
-        },
-      ]),
+        })),
+      ),
       allowFailure: false,
     })) as MulticallReturnType
 
     const tokenBalances: Record<Hex, TokenBalance> = {}
 
     tokenAddresses.forEach((tokenAddress, index) => {
-      const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
+      const [balance = 0n, decimals = 0, symbol = ''] = [
+        results[index * calls.length],
+        results[index * calls.length + 1],
+        results[index * calls.length + 2],
+      ]
       //throw if we suddenly start supporting tokens with not 6 decimals
       //audit conversion of validity to see its support
       if ((decimals as number) != 6) {
@@ -152,6 +165,7 @@ export class BalanceService implements OnApplicationBootstrap {
         address: tokenAddress,
         balance: balance as bigint,
         decimals: decimals as number,
+        symbol: symbol as string,
       }
     })
     return tokenBalances

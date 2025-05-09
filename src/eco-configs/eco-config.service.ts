@@ -229,6 +229,10 @@ export class EcoConfigService {
     return this.get('indexer')
   }
 
+  getHats(): EcoConfigType['hats'] {
+    return this.get('hats')
+  }
+  
   // Returns the liquidity manager config
   getCCTP(): EcoConfigType['CCTP'] {
     return this.get('CCTP')
