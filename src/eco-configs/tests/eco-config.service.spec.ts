@@ -197,4 +197,20 @@ describe('Eco Config Helper Tests', () => {
       expect(mockgetChainConfig).toHaveBeenCalledWith(mockSolver.chainID)
     })
   })
+
+  describe('on getWETH', () => {
+    it('should return the WETH configuration', () => {
+      const mockWETH = {
+        threshold: '0.1',
+        addresses: {
+          1: '0x1234567890123456789012345678901234567890',
+          10: '0x0987654321098765432109876543210987654321'
+        }
+      }
+      ecoConfigService.get = jest.fn().mockReturnValue(mockWETH)
+      const result = ecoConfigService.getWETH()
+      expect(result).toEqual(mockWETH)
+      expect(ecoConfigService.get).toHaveBeenCalledWith('WETH')
+    })
+  })
 })
