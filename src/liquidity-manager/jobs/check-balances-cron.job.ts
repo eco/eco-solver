@@ -114,7 +114,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       return
     }
 
-    const rebalances: RebalanceRequest[] = []
+    const tokenRebalances: RebalanceRequest[] = []
 
     for (const deficitToken of deficit.items) {
       const rebalancingQuotes = await processor.liquidityManagerService.getOptimizedRebalancing(
@@ -142,8 +142,12 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       // Store rebalance request on DB
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
 
-      rebalances.push(rebalanceRequest)
+      tokenRebalances.push(rebalanceRequest)
     }
+
+    const wethRebalances = await processor.liquidityManagerService.getWETHRebalances(walletAddress)
+
+    const rebalances = [...wethRebalances, ...tokenRebalances]
 
     if (!rebalances.length) {
       processor.logger.warn(

@@ -5,6 +5,8 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
+import * as _ from 'lodash'
+import { erc20Abi, formatUnits, Hex, parseUnits } from 'viem'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
@@ -328,5 +330,67 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     return quotes
+  }
+
+  async getWETHRebalances(walletAddress: string): Promise<RebalanceRequest[]> {
+    // Use OP as the default chain assuming the Kernel wallet is the same across all chains
+    const opChainId = 10
+    const client = await this.kernelAccountClientService.getClient(opChainId)
+    const kernelAddress = client.kernelAccount.address
+
+    if (kernelAddress !== walletAddress) {
+      return []
+    }
+
+    const tokensByChain = _.groupBy(this.tokensPerWallet[kernelAddress], 'chainId')
+    const chainIDs = Object.keys(tokensByChain)
+
+    const requests = Array.from(chainIDs).map((chainID) =>
+      this.getWETHRebalance(walletAddress, Number(chainID), tokensByChain[chainID][0]),
+    )
+
+    const quotes = await Promise.all(requests)
+    return quotes.filter(Boolean).flat() as RebalanceRequest[]
+  }
+
+  private async getWETHRebalance(
+    walletAddress: Hex,
+    chainId: number,
+    token: TokenConfig,
+  ): Promise<RebalanceRequest | undefined> {
+    const client = await this.kernelAccountClientService.getClient(chainId)
+    const { addresses, threshold } = this.ecoConfigService.getWETH()
+    const wethAddr = addresses[chainId]
+    const maximumBalance = parseUnits(threshold, 18)
+
+    const wethBalance = await client.readContract({
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      address: wethAddr,
+      args: [walletAddress],
+    })
+
+    if (wethBalance < maximumBalance) {
+      return
+    }
+
+    const amount = Number.parseFloat(formatUnits(wethBalance, 18))
+
+    const WETHToken: TokenData = {
+      chainId,
+      config: { address: wethAddr, chainId, type: 'erc20', targetBalance: 0, minBalance: 0 },
+      balance: { balance: wethBalance, address: wethAddr, decimals: 18 },
+    }
+
+    const [tokenOut] = await this.balanceService.getAllTokenDataForAddress(walletAddress, [token])
+
+    const quotes = await this.liquidityProviderManager.getQuote(
+      walletAddress,
+      WETHToken,
+      tokenOut,
+      amount,
+    )
+
+    return { token: WETHToken, quotes }
   }
 }

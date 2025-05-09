@@ -248,6 +248,10 @@ export class EcoConfigService {
     return this.get('rpcUrls')
   }
 
+  getWETH(): EcoConfigType['WETH'] {
+    return this.get('WETH')
+  }
+
   getChainRPCs() {
     const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain).url])
     return Object.fromEntries(entries) as Record<number, string>
