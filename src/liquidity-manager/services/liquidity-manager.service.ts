@@ -350,7 +350,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     )
 
     const quotes = await Promise.all(requests)
-    return quotes.filter(Boolean).flat() as RebalanceRequest[]
+    return quotes.flatMap((quote) => (quote ? [quote] : [])) as RebalanceRequest[]
   }
 
   private async getWETHRebalance(
