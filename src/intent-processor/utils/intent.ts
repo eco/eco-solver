@@ -3,7 +3,6 @@ import { hashIntent } from '@eco-foundation/routes-ts'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 import { RewardInterface } from '@/indexer/interfaces/reward.interface'
-import _ from 'lodash'
 
 export function getWithdrawData(intent: IndexerIntent): {
   reward: RewardInterface
@@ -40,14 +39,12 @@ export function getWithdrawData(intent: IndexerIntent): {
   const { routeHash } = hashIntent({ reward, route })
 
   // For hats:
-  const routeSum = _.reduce(
-    route.tokens.map((token) => token.amount),
-    (sum, amount) => sum + amount,
+  const routeSum = route.tokens.reduce(
+    (sum, { amount }) => sum + amount,
     BigInt(0),
   )
-  const rewardSum = _.reduce(
-    reward.tokens.map((token) => token.amount),
-    (sum, amount) => sum + amount,
+  const rewardSum = reward.tokens.reduce(
+    (sum, { amount }) => sum + amount,
     BigInt(0),
   )
   const fee = rewardSum - routeSum
