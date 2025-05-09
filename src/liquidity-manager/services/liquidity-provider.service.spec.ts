@@ -35,7 +35,7 @@ describe('LiquidityProviderService', () => {
     it('should call liFiProvider.getQuote', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
       const mockQuote = [
         {
           amountIn: 100n,
@@ -69,7 +69,7 @@ describe('LiquidityProviderService', () => {
     it('should call liFiProvider.fallback', async () => {
       const mockTokenIn = { chainId: 1 }
       const mockTokenOut = { chainId: 2 }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
       const mockQuote = { amountIn: 100n, amountOut: 200n }
 
       jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuote as any)

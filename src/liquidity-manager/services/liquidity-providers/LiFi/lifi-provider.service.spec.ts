@@ -91,7 +91,7 @@ describe('LiFiProviderService', () => {
       }
       jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [mockRoute] } as any)
 
-      const result = await lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1000000000000000000n)
 
       expect(result.amountIn).toEqual(BigInt(mockRoute.fromAmount))
       expect(result.amountOut).toEqual(BigInt(mockRoute.toAmount))
@@ -118,7 +118,7 @@ describe('LiFiProviderService', () => {
       jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [] } as any)
 
       await expect(
-        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1000000000000000000n),
       ).rejects.toThrow()
     })
   })
@@ -165,7 +165,7 @@ describe('LiFiProviderService', () => {
       } as any)
 
       // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1000000000000000000n)
 
       // Verify the result matches what getQuote returns
       expect(result.amountIn).toEqual(BigInt(mockRoute.fromAmount))
@@ -185,7 +185,7 @@ describe('LiFiProviderService', () => {
             chainId: mockCoreToken.chainID,
           }),
         }),
-        1,
+        1000000000000000000n,
       )
     })
 
@@ -216,7 +216,7 @@ describe('LiFiProviderService', () => {
 
       // Call should throw an error after trying all core tokens
       await expect(
-        lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1000000000000000000n),
       ).rejects.toThrow()
 
       // Verify getQuote was called for each core token
@@ -269,7 +269,7 @@ describe('LiFiProviderService', () => {
       })
 
       // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1000000000000000000n)
 
       // Verify the result matches what getQuote returns for the second core token
       expect(result.amountIn).toEqual(BigInt(mockRoute.fromAmount))
@@ -283,7 +283,7 @@ describe('LiFiProviderService', () => {
             address: mockCoreTokens[0].token,
           }),
         }),
-        1,
+        1000000000000000000n,
       )
     })
   })
