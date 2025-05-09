@@ -263,7 +263,7 @@ describe('PermitProcessor', () => {
 
       // Verify no error was returned
       expect(result.error).toBeUndefined()
-      
+
       // Verify the transaction was generated
       expect(result.response).toBeDefined()
       expect(result.response?.length).toBe(1)
