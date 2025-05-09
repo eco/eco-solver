@@ -9,6 +9,7 @@ import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/
 import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { GaslessIntentRequestDTO, IntentDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getChainConfig } from '@/eco-configs/utils'
 import { hashRoute, IntentSourceAbi, RouteType } from '@eco-foundation/routes-ts'
 import { Injectable } from '@nestjs/common'
@@ -22,7 +23,6 @@ import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import * as _ from 'lodash'
 
 type PermitResult = { funder: Hex; permitContract: Hex; transactions: ExecuteSmartWalletArg[] }
 
@@ -43,7 +43,7 @@ export class IntentInitiationService {
    */
   async initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<Record<number, string>>> {
+  ): Promise<EcoResponse<GaslessIntentResponseDTO[]>> {
     try {
       return await this._initiateGaslessIntent(gaslessIntentRequestDTO)
     } catch (ex) {
@@ -68,7 +68,7 @@ export class IntentInitiationService {
    */
   async _initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<EcoResponse<Record<number, Hex>>> {
+  ): Promise<EcoResponse<GaslessIntentResponseDTO[]>> {
     // Get all the txs
     const { response: allTxs, error } =
       await this.generateGaslessIntentTransactions(gaslessIntentRequestDTO)
@@ -79,22 +79,27 @@ export class IntentInitiationService {
 
     const chainIDs = Array.from(allTxs.keys())
 
-    const receiptPromises = chainIDs.map(async (chainID) => {
+    const txPromises = chainIDs.map(async (chainID) => {
       const walletClient = await this.walletClientService.getClient(chainID)
       const txs = allTxs.get(chainID)!
       return walletClient.sendTransaction(batchTransactionsWithMulticall(chainID, txs))
     })
 
-    const receipts: Record<number, Hex> = _.zipObject(chainIDs, await Promise.all(receiptPromises))
+    const txHashes = await Promise.all(txPromises)
+
+    const gaslessIntentResponses = chainIDs.map((chainID, index) => ({
+      chainID,
+      transactionHash: txHashes[index],
+    }))
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `_initiateGaslessIntent`,
-        properties: { receipts },
+        properties: { gaslessIntentResponses },
       }),
     )
 
-    return { response: receipts }
+    return { response: gaslessIntentResponses }
   }
 
   /*

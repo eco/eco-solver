@@ -21,10 +21,10 @@ export class IntentInitiationController {
     summary: 'Initiate Gasless Intent',
   })
   @Post('/initiateGaslessIntent')
-  @ApiResponse({ type: GaslessIntentResponseDTO })
+  @ApiResponse({ type: GaslessIntentResponseDTO, isArray: true })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<Record<number, string>> {
+  ): Promise<GaslessIntentResponseDTO[]> {
     // Using any to accommodate the actual returned transaction receipt structure
     this.logger.log(
       EcoLogMessage.fromDefault({
@@ -35,11 +35,11 @@ export class IntentInitiationController {
       }),
     )
 
-    const { response: txReceipt, error } =
+    const { response, error } =
       await this.intentInitiationService.initiateGaslessIntent(gaslessIntentRequestDTO)
 
     if (!error) {
-      return txReceipt!
+      return response!
     }
 
     const errorStatus = (error as QuoteErrorsInterface).statusCode

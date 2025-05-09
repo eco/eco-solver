@@ -139,8 +139,9 @@ describe('IntentInitiationService', () => {
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const result = await service.initiateGaslessIntent(dto)
-      expect(result.response?.[1]).toBe('0xtx')
+      const { response: gaslessIntentResponses, error } = await service.initiateGaslessIntent(dto)
+      expect(error).toBeUndefined()
+      expect(gaslessIntentResponses![0].transactionHash).toBe('0xtx')
     })
 
     it('executes intent with permit', async () => {
@@ -161,8 +162,9 @@ describe('IntentInitiationService', () => {
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const result = await service.initiateGaslessIntent(dto)
-      expect(result.response?.[1]).toBe('0xtx')
+      const { response: gaslessIntentResponses, error } = await service.initiateGaslessIntent(dto)
+      expect(error).toBeUndefined()
+      expect(gaslessIntentResponses![0].transactionHash).toBe('0xtx')
     })
   })
 
