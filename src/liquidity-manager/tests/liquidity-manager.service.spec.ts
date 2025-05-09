@@ -281,26 +281,28 @@ describe('LiquidityManagerService', () => {
     it('should delegate to the WrappedTokenService', async () => {
       const walletAddress = '0xWalletAddress'
       const mockRebalanceRequests = [{ token: { chainId: 1 }, quotes: [] }]
-      
+
       // Mock wrapped token service response
-      wrappedTokenService.getWrappedTokenRebalances = jest.fn().mockResolvedValue(mockRebalanceRequests)
-      
+      wrappedTokenService.getWrappedTokenRebalances = jest
+        .fn()
+        .mockResolvedValue(mockRebalanceRequests)
+
       const result = await liquidityManagerService.getWETHRebalances(walletAddress)
-      
+
       expect(result).toEqual(mockRebalanceRequests)
       expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
     })
-    
+
     it('should handle errors from WrappedTokenService', async () => {
       const walletAddress = '0xWalletAddress'
-      
+
       // Mock wrapped token service to throw an error
-      wrappedTokenService.getWrappedTokenRebalances = jest.fn().mockRejectedValue(
-        new Error('Test error')
-      )
-      
+      wrappedTokenService.getWrappedTokenRebalances = jest
+        .fn()
+        .mockRejectedValue(new Error('Test error'))
+
       const result = await liquidityManagerService.getWETHRebalances(walletAddress)
-      
+
       // Should return empty array on error
       expect(result).toEqual([])
       expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)

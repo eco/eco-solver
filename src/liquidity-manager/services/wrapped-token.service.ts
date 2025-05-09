@@ -51,14 +51,17 @@ export class WrappedTokenService {
 
       // Get tokens by chain for this wallet
       const tokensPerWallet = this.balanceService.getInboxTokens()
-      
+
       // Group tokens by chainId
-      const tokensByChain: Record<string, TokenConfig[]> = tokensPerWallet.reduce((result, token) => {
-        const key = String(token.chainId);
-        (result[key] = result[key] || []).push(token);
-        return result;
-      }, {} as Record<string, TokenConfig[]>);
-      
+      const tokensByChain: Record<string, TokenConfig[]> = tokensPerWallet.reduce(
+        (result, token) => {
+          const key = String(token.chainId)
+          ;(result[key] = result[key] || []).push(token)
+          return result
+        },
+        {} as Record<string, TokenConfig[]>,
+      )
+
       const chainIDs = Object.keys(tokensByChain)
 
       this.logger.debug(
@@ -85,7 +88,8 @@ export class WrappedTokenService {
                 properties: {
                   chainId: chainID,
                   walletAddress,
-                  error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+                  error:
+                    error instanceof Error ? { message: error.message, stack: error.stack } : error,
                 },
               }),
             )
@@ -102,7 +106,7 @@ export class WrappedTokenService {
           message: 'Wrapped token rebalance summary',
           properties: {
             totalRebalances: validRequests.length,
-            chains: validRequests.map(req => req.token.chainId),
+            chains: validRequests.map((req) => req.token.chainId),
           },
         }),
       )
@@ -137,7 +141,7 @@ export class WrappedTokenService {
     try {
       // Get WETH configuration
       const wethConfig = this.ecoConfigService.getWETH()
-      
+
       if (!wethConfig) {
         this.logger.warn(
           EcoLogMessage.fromDefault({
@@ -150,9 +154,9 @@ export class WrappedTokenService {
         )
         return
       }
-      
+
       const { addresses, threshold } = wethConfig
-      
+
       // Validate addresses is an object
       if (!addresses || typeof addresses !== 'object') {
         this.logger.warn(
@@ -166,9 +170,9 @@ export class WrappedTokenService {
         )
         return
       }
-      
+
       const wethAddr = addresses[chainId]
-      
+
       // Skip if no WETH address is configured for this chain
       if (!wethAddr) {
         this.logger.debug(
@@ -183,7 +187,7 @@ export class WrappedTokenService {
         )
         return
       }
-      
+
       // Try to checksum the address
       let checksummedAddr: Hex
       try {
@@ -201,7 +205,7 @@ export class WrappedTokenService {
         )
         return
       }
-      
+
       // Validate threshold
       if (!threshold || parseFloat(threshold) <= 0) {
         this.logger.warn(
@@ -215,7 +219,7 @@ export class WrappedTokenService {
         )
         return
       }
-      
+
       // Get client and set maximum balance
       const client = await this.kernelAccountClientService.getClient(chainId)
       const maximumBalance = parseUnits(threshold, 18)
@@ -223,7 +227,7 @@ export class WrappedTokenService {
       // Read WETH balance and decimals together using a multicall
       let wethBalance: bigint
       let wethDecimals: number = 18 // Default to 18, but we'll try to read it
-      
+
       try {
         // Use multicall to batch the contract calls
         const [balanceResult, decimalsResult] = await client.multicall({
@@ -238,17 +242,19 @@ export class WrappedTokenService {
               abi: erc20Abi,
               address: checksummedAddr,
               functionName: 'decimals',
-            }
+            },
           ],
         })
-        
+
         // Handle the results
         if (balanceResult.status !== 'success') {
-          throw new Error(`Failed to read WETH balance: ${balanceResult.error?.message || 'Unknown error'}`)
+          throw new Error(
+            `Failed to read WETH balance: ${balanceResult.error?.message || 'Unknown error'}`,
+          )
         }
-        
+
         wethBalance = balanceResult.result
-        
+
         // If decimals call succeeded, use that value
         if (decimalsResult.status === 'success') {
           wethDecimals = Number(decimalsResult.result)
@@ -272,7 +278,8 @@ export class WrappedTokenService {
               chainId,
               wethAddr: checksummedAddr,
               walletAddress,
-              error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+              error:
+                error instanceof Error ? { message: error.message, stack: error.stack } : error,
             },
           }),
         )
@@ -302,14 +309,20 @@ export class WrappedTokenService {
       // Create WETH token data
       const WETHToken: TokenData = {
         chainId,
-        config: { address: checksummedAddr, chainId, type: 'erc20', targetBalance: 0, minBalance: 0 },
+        config: {
+          address: checksummedAddr,
+          chainId,
+          type: 'erc20',
+          targetBalance: 0,
+          minBalance: 0,
+        },
         balance: { balance: wethBalance, address: checksummedAddr, decimals: wethDecimals },
       }
 
       // Get token out data
       let tokenOut: TokenData
       try {
-        [tokenOut] = await this.balanceService.getAllTokenDataForAddress(walletAddress, [token])
+        ;[tokenOut] = await this.balanceService.getAllTokenDataForAddress(walletAddress, [token])
         if (!tokenOut) {
           throw new Error('Target token data not found')
         }
@@ -321,7 +334,8 @@ export class WrappedTokenService {
               chainId,
               token,
               walletAddress,
-              error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+              error:
+                error instanceof Error ? { message: error.message, stack: error.stack } : error,
             },
           }),
         )
@@ -337,7 +351,7 @@ export class WrappedTokenService {
           tokenOut,
           amount,
         )
-        
+
         if (!quotes.length) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
@@ -361,7 +375,8 @@ export class WrappedTokenService {
               wethAddr,
               tokenOutAddr: tokenOut.config.address,
               amount,
-              error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+              error:
+                error instanceof Error ? { message: error.message, stack: error.stack } : error,
             },
           }),
         )

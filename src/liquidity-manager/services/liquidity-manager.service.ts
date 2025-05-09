@@ -5,8 +5,7 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import * as _ from 'lodash'
-import { formatUnits, Hex } from 'viem'
+import { Hex } from 'viem'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
@@ -180,6 +179,30 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   /**
+   * Gets all WETH rebalance requests for the given wallet address
+   * This method delegates to the WrappedTokenService for handling wrapped token operations
+   * @param walletAddress The wallet address to check for WETH rebalances
+   * @returns Array of rebalance requests
+   */
+  async getWETHRebalances(walletAddress: string): Promise<RebalanceRequest[]> {
+    try {
+      // Delegate to the specialized WrappedTokenService
+      return await this.wrappedTokenService.getWrappedTokenRebalances(walletAddress as Hex)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error getting WETH rebalances',
+          properties: {
+            walletAddress,
+            error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+          },
+        }),
+      )
+      return []
+    }
+  }
+
+  /**
    * Checks if a swap is possible between the deficit and surplus tokens.
    * @dev swaps are possible if the deficit is compensated by the surplus of tokens in the same chain.
    * @param walletAddress
@@ -332,29 +355,5 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     return quotes
-  }
-
-  /**
-   * Gets all WETH rebalance requests for the given wallet address
-   * This method delegates to the WrappedTokenService for handling wrapped token operations
-   * @param walletAddress The wallet address to check for WETH rebalances
-   * @returns Array of rebalance requests
-   */
-  async getWETHRebalances(walletAddress: string): Promise<RebalanceRequest[]> {
-    try {
-      // Delegate to the specialized WrappedTokenService
-      return await this.wrappedTokenService.getWrappedTokenRebalances(walletAddress as Hex)
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Error getting WETH rebalances',
-          properties: {
-            walletAddress,
-            error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
-          },
-        }),
-      )
-      return []
-    }
   }
 }
