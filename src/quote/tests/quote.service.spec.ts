@@ -1,4 +1,3 @@
-const mockGetTransactionTargetData = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
 import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
@@ -27,7 +26,7 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
-    getTransactionTargetData: mockGetTransactionTargetData,
+    getTransactionTargetData: jest.fn(),
   }
 })
 
@@ -49,7 +48,7 @@ describe('QuotesService', () => {
       providers: [
         QuoteService,
         QuoteRepository,
-        IntentInitiationService,
+        { provide: IntentInitiationService, useValue: createMock<IntentInitiationService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },

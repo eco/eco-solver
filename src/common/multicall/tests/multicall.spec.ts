@@ -1,5 +1,5 @@
-import { getMulticall } from '@/intent-processor/utils/multicall'
 import { extractChain } from 'viem'
+import { getMulticall } from '../multicall3'
 
 // Mock the viem extractChain function
 jest.mock('viem', () => ({

@@ -6,5 +6,10 @@ export class GaslessIntentResponseDTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
+  chainID: number
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
   transactionHash: Hex
 }

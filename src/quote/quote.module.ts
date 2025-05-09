@@ -13,6 +13,6 @@ import { QuoteRepository } from '@/quote/quote.repository'
     MongooseModule.forFeature([{ name: QuoteIntentModel.name, schema: QuoteIntentSchema }]),
   ],
   providers: [QuoteService, QuoteRepository],
-  exports: [QuoteService],
+  exports: [QuoteService, QuoteRepository],
 })
 export class QuoteModule {}

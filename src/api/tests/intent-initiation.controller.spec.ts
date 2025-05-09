@@ -2,18 +2,16 @@ import { BadRequestException, InternalServerErrorException } from '@nestjs/commo
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { Hex } from 'viem'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { PermitProcessor } from '@/common/permit/permit-processor'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
-import { TransactionReceipt } from 'viem'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 const intentTestUtils = new IntentTestUtils()
 
@@ -28,12 +26,15 @@ describe('IntentInitiationController', () => {
         PermitProcessor,
         Permit2Processor,
         QuoteService,
-        KernelAccountClientService,
-        PermitTxBuilder,
-        Permit2TxBuilder,
+        WalletClientDefaultSignerService,
         IntentInitiationService,
       ])
-      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])
+      .withMocks([
+        QuoteService,
+        QuoteRepository,
+        WalletClientDefaultSignerService,
+        CreateIntentService,
+      ])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)
@@ -41,7 +42,7 @@ describe('IntentInitiationController', () => {
 
   it('returns response when successful', async () => {
     const dto = intentTestUtils.createGaslessIntentRequestDTO()
-    const mockResponse = { transactionHash: '0x123' } as unknown as TransactionReceipt
+    const mockResponse = [{ chainID: 10, transactionHash: '0x123' as Hex }]
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({ response: mockResponse })
 
