@@ -29,7 +29,7 @@ class Reward {
   deadline!: bigint
 }
 
-class IntentRaw {
+export class IntentRaw {
   intent_hash!: Uint8Array
   status!: number
   route!: Route
@@ -113,7 +113,7 @@ export function decodeIntentAccount(pda: PublicKey, data: Buffer): IndexerIntent
     throw new Error('Account is not an Intent')
   }
 
-  const raw: IntentRaw = deserializeUnchecked(schema, IntentRaw, data.subarray(8))
+  const raw: IntentRaw = decodeIntentAccountRaw(data)
 
   const hex32 = (u8: Uint8Array) => '0x' + Buffer.from(u8).toString('hex')
 
@@ -141,4 +141,13 @@ export function decodeIntentAccount(pda: PublicKey, data: Buffer): IndexerIntent
       amount: t.amount.toString(),
     })),
   }
+}
+
+export function decodeIntentAccountRaw(data: Buffer): IntentRaw {
+  if (!data.subarray(0, 8).equals(INTENT_DISCRIMINATOR)) {
+    throw new Error('Account is not an Intent')
+  }
+
+  const raw: IntentRaw = deserializeUnchecked(schema, IntentRaw, data.subarray(8))
+  return raw
 }

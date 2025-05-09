@@ -72,25 +72,32 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    if (!(await this.assertValidations(model, solver))) {
+    if (await this.assertValidations(model, solver)) {
+      const jobId = getIntentJobId('validate', intentHash, model.intent.logIndex)
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `validateIntent ${intentHash}`,
+          properties: {
+            intentHash,
+            jobId,
+          },
+        }),
+      )
+
+      if (model.chain === 'SVM') {
+        await this.intentQueue.add(QUEUES.SOLANA_INTENT.jobs.feasable_intent, intentHash, {
+          jobId,
+          ...this.intentJobConfig,
+        })
+      } else {
+        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
+          jobId,
+          ...this.intentJobConfig,
+        })
+      }
+    } else {
       return false
     }
-
-    const jobId = getIntentJobId('validate', intentHash, model.intent.logIndex)
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `validateIntent ${intentHash}`,
-        properties: {
-          intentHash,
-          jobId,
-        },
-      }),
-    )
-    //add to processing queue
-    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
-      jobId,
-      ...this.intentJobConfig,
-    })
 
     return true
   }

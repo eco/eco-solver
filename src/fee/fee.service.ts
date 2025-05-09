@@ -18,6 +18,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
+import { SOLANA_HYPERLAND_DOMAIN_ID } from '@/intent/solana-feasable-intent.service'
+import { SolanaFeeService } from './solanaFee.service'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -32,6 +34,7 @@ export class FeeService implements OnModuleInit {
 
   constructor(
     private readonly balanceService: BalanceService,
+    private readonly solanaFeeService: SolanaFeeService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -113,20 +116,42 @@ export class FeeService implements OnModuleInit {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
     }
+
     const { totalFillNormalized, error } = await this.getTotalFill(quote)
     if (!!error) {
       return { error }
     }
-    const { totalRewardsNormalized, error: error1 } = await this.getTotalRewards(quote)
-    if (!!error1) {
-      return { error: error1 }
+
+    let rewardUsd: number
+    if (quote.route.source === SOLANA_HYPERLAND_DOMAIN_ID) {
+      const result = await this.solanaFeeService.calculateRewardUsdFromAny({
+        nativeValue: quote.reward.nativeValue,
+        tokens: quote.reward.tokens.map((token) => ({
+          token: token.token,
+          amount: token.amount.toString(),
+        })),
+      })
+
+      if ('error' in result) {
+        return { error: result.error }
+      }
+
+      rewardUsd = result.totalUsd
+    } else {
+      const { totalRewardsNormalized, error: rewardError } = await this.getTotalRewards(quote)
+      if (rewardError) {
+        return { error: rewardError }
+      }
+      rewardUsd = Number(totalRewardsNormalized) / 10 ** 6 // normalized to USD
     }
+
     const ask = this.getAsk(totalFillNormalized, quote)
+    const askUsd = Number(ask) / 10 ** 6
+    const totalRewardsNormalized = BigInt(Math.round(rewardUsd * 1e6))
+
     return {
       error:
-        totalRewardsNormalized >= ask
-          ? undefined
-          : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
+        rewardUsd >= askUsd ? undefined : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
     }
   }
 
@@ -147,7 +172,7 @@ export class FeeService implements OnModuleInit {
   }
 
   /**
-   * Calculates the total normalized and acceoted rewards for the quote intent
+   * Calculates the total normalized and accepted rewards for the quote intent
    * @param quote the quote intent
    * @returns
    */

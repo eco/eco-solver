@@ -229,8 +229,8 @@ export class EcoConfigService {
     return this.get('indexer')
   }
 
-  getSolanaIndexer(): EcoConfigType['solanaIndexer'] {
-    return this.get('solanaIndexer')
+  getSolanaConfig(): EcoConfigType['solana'] {
+    return this.get('solana')
   }
 
   // Returns the liquidity manager config

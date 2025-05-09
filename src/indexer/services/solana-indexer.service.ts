@@ -15,21 +15,21 @@ export class SolanaIndexerService implements OnModuleInit, OnModuleDestroy {
   private subId?: number
 
   constructor(
-    private readonly ecoCfg: EcoConfigService,
+    private readonly ecoConfig: EcoConfigService,
     private readonly intentUtils: UtilsIntentService,
     @InjectQueue(QUEUES.SOLANA_INTENT.queue)
     private readonly svmQueue: Queue,
   ) {}
 
   async onModuleInit() {
-    const cfg = this.ecoCfg.getSolanaIndexer()
-    this.connection = new Connection(cfg.rpc_url, {
+    const solConfig = this.ecoConfig.getSolanaConfig()
+    this.connection = new Connection(solConfig.rpc_url, {
       commitment: 'confirmed',
-      wsEndpoint: cfg.rpc_ws_url,
+      wsEndpoint: solConfig.rpc_ws_url,
     })
 
     this.subId = this.connection.onProgramAccountChange(
-      new PublicKey(cfg.router_program_id),
+      new PublicKey(solConfig.router_program_id),
       async ({ accountId, accountInfo }) => {
         try {
           const intent = decodeIntentAccount(accountId, accountInfo.data)

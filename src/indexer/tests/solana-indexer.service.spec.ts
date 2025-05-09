@@ -10,7 +10,7 @@ describe('SolanaIndexerService', () => {
   const mockQueue = { add: jest.fn() } as unknown as Queue
   const mockUtils = { updateIntentModel: jest.fn() } as unknown as UtilsIntentService
   const mockCfg = {
-    getSolanaIndexer: () => ({
+    getSolanaConfig: () => ({
       rpc_url: 'http://localhost:8899',
       rpc_ws_url: 'ws://localhost:8900',
       router_program_id: '11111111111111111111111111111111',
