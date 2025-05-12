@@ -256,16 +256,51 @@ describe('QuotesService', () => {
       async function generateHelper(
         calculated: any,
         expectedTokens: { token: string; amount: bigint }[],
+        mockOverrides: {
+          avgBlockTime?: number | null
+          paddingSeconds?: number | null
+          blockTimePercentile?: number | null
+          solverDefined?: boolean
+        } = {},
       ) {
+        const {
+          avgBlockTime = 12,
+          paddingSeconds = 0.5,
+          solverDefined = true,
+          blockTimePercentile = 0.5,
+        } = mockOverrides
+
         const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
         jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
-        expect(await quoteService.generateQuote({ route: {} } as any)).toEqual({
+
+        const mockIntentConfigs =
+          paddingSeconds === null || blockTimePercentile === null
+            ? undefined
+            : { executionPaddingSeconds: paddingSeconds, blockTimePercentile }
+        jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue(mockIntentConfigs as any)
+
+        const mockSolver = !solverDefined
+          ? undefined
+          : avgBlockTime === null
+            ? {}
+            : { averageBlockTime: avgBlockTime }
+        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(mockSolver as any)
+
+        const effectiveAvgTime = !solverDefined || avgBlockTime === null ? 15 : avgBlockTime
+        const effectivePadding = paddingSeconds === null ? 0.1 : paddingSeconds
+        const effectiveBlockTimePercentile =
+          blockTimePercentile === null ? 0.5 : blockTimePercentile
+        const expectedFulfillTime =
+          effectiveAvgTime * effectiveBlockTimePercentile + effectivePadding
+
+        expect(await quoteService.generateQuote({ route: { destination: 1 } } as any)).toEqual({
           tokens: expectedTokens,
           expiryTime: expect.any(String),
+          estimatedFulfillTimeSec: expectedFulfillTime,
         })
       }
 
@@ -402,6 +437,76 @@ describe('QuotesService', () => {
           { token: '0x2', amount: 100n },
         ])
       })
+
+      it('should calculate correct time for Ethereum-like chain (avgTime=12, padding=3) (Test Case 6)', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
+          avgBlockTime: 12,
+          paddingSeconds: 3,
+          blockTimePercentile: 0.5,
+        })
+      })
+
+      it('should calculate correct time for Arbitrum-like chain (avgTime=2, padding=3) (Test Case 7)', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
+          avgBlockTime: 2,
+          paddingSeconds: 3,
+          blockTimePercentile: 0.5,
+        })
+      })
+
+      it('should calculate correct time with default padding (padding=null -> 0.1, avgTime=12) (Test Case 8)', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
+          avgBlockTime: 12,
+          paddingSeconds: null,
+          blockTimePercentile: 0.5,
+        })
+      })
+
+      it('should calculate correct time with undefined solver (solver=undef -> avgTime=15, padding=3) (Test Case 9a)', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
+          solverDefined: false,
+          paddingSeconds: 3,
+          blockTimePercentile: 0.5,
+        })
+      })
+
+      it('should calculate correct time with solver missing avgTime (avgTime=null -> 15, padding=3) (Test Case 9b)', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
+          avgBlockTime: null,
+          paddingSeconds: 3,
+          blockTimePercentile: 0.5,
+        })
+      })
     })
   })
 
@@ -414,31 +519,64 @@ describe('QuotesService', () => {
 
   describe('on updateQuoteDb', () => {
     const _id = 'id9'
+    const mockQuoteIntentModelBase = { _id } as unknown as QuoteIntentModel // Base model for updates
+
     it('should return error if db save fails', async () => {
       const failedStore = new Error('error')
       jest.spyOn(quoteModel, 'updateOne').mockRejectedValue(failedStore)
-      const r = await quoteService.updateQuoteDb({ _id } as any)
+      const r = await quoteService.updateQuoteDb(mockQuoteIntentModelBase as any)
       expect(r).toEqual(failedStore)
       expect(mockLogError).toHaveBeenCalled()
     })
 
-    it('should save the DTO', async () => {
+    it('should save the DTO without a receipt if none provided', async () => {
       const data = { fee: 1n }
       jest.spyOn(quoteModel, 'updateOne').mockResolvedValue(data as any)
-      const r = await quoteService.updateQuoteDb({ _id } as any)
+      const r = await quoteService.updateQuoteDb(mockQuoteIntentModelBase as any)
       expect(r).toBeUndefined()
       expect(mockLogError).not.toHaveBeenCalled()
-      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith({ _id }, { _id })
+      // Check that it's called with the model that doesn't have .receipt explicitly set by this call
+      const expectedModel = { ...mockQuoteIntentModelBase }
+      delete expectedModel.receipt // Ensure receipt is not on the model passed to updateOne if not provided
+      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith(
+        { _id },
+        expect.objectContaining({ _id: _id }),
+      )
+      // More precise check: Ensure the model passed to updateOne doesn't have .receipt if not provided by the call
+      const callArgs = (jest.spyOn(quoteModel, 'updateOne').mock.calls[0] as any)[1]
+      expect(callArgs.receipt).toBeUndefined()
     })
 
-    it('should save the DTO with a reciept', async () => {
-      const data = { fee: 1n }
-      const receipt = 'receipt'
+    it('should save the DTO with a full quote response object as receipt', async () => {
+      const data = { fee: 1n } // Mock db response
+      const fullQuoteResponseAsReceipt = {
+        tokens: [{ token: '0xabc', amount: 123n }],
+        expiryTime: '1700000000',
+        estimatedFulfillTimeSec: 15,
+      }
+
       jest.spyOn(quoteModel, 'updateOne').mockResolvedValue(data as any)
-      const r = await quoteService.updateQuoteDb({ _id, receipt } as any)
+
+      const quoteIntentModelForTest = { _id: 'id9' }
+
+      // Call the function with the simplified model, casting to 'any' to bypass strict type checking
+      const r = await quoteService.updateQuoteDb(
+        quoteIntentModelForTest as any,
+        fullQuoteResponseAsReceipt,
+      )
       expect(r).toBeUndefined()
       expect(mockLogError).not.toHaveBeenCalled()
-      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith({ _id }, { _id, receipt })
+
+      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledTimes(1)
+
+      const updateCallArgs = jest.spyOn(quoteModel, 'updateOne').mock.calls[0] as any
+      const filterArg = updateCallArgs[0]
+      const modelPassedToUpdate = updateCallArgs[1]
+
+      expect(filterArg._id).toEqual('id9')
+      expect(modelPassedToUpdate._id).toEqual('id9')
+      expect(modelPassedToUpdate.receipt).toBeDefined()
+      expect(modelPassedToUpdate.receipt).toEqual(fullQuoteResponseAsReceipt)
     })
   })
 })

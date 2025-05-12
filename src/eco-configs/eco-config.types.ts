@@ -145,6 +145,8 @@ export type IntentConfig = {
     storage_duration_seconds: number
     hyperlane_duration_seconds: number
   }
+  executionPaddingSeconds: number
+  blockTimePercentile: number
 }
 
 /**
@@ -239,6 +241,7 @@ export type Solver = {
   network: Network
   fee: FeeConfigType
   chainID: number
+  averageBlockTime: number
 }
 
 /**

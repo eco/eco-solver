@@ -22,6 +22,7 @@ import * as dayjs from 'dayjs'
 import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
+import { getEstimatedFulfillTimeSec } from '@/quote/utils/expected-execution'
 
 /**
  * Service class for getting configs for the app
@@ -68,6 +69,7 @@ export class QuoteService {
       | {
           tokens: RewardTokensInterface[]
           expiryTime: string
+          estimatedFulfillTimeSec: number
         }
       | Error
     try {
@@ -257,11 +259,41 @@ export class QuoteService {
       }
     }
 
-    //todo save quote to record
+    const estimatedFulfillTimeSec = this.getEstimatedFulfillTimeSec(quoteIntentModel)
+
     return {
       tokens: Object.values(quoteRecord),
       expiryTime: this.getQuoteExpiryTime(),
+      estimatedFulfillTimeSec,
     }
+  }
+
+  /**
+   * Returns the estimated fulfillment time in seconds
+   * @param quoteIntentModel the quote intent model
+   * @returns the estimated fulfillment time in seconds
+   */
+  getEstimatedFulfillTimeSec(quoteIntentModel: QuoteIntentDataInterface): number {
+    // Default values if configs are not set
+    const DEFAULT_EXECUTION_PADDING_SECONDS = 0.1
+    const DEFAULT_BLOCK_TIME_PERCENTILE = 0.5
+
+    const paddingSeconds =
+      this.ecoConfigService.getIntentConfigs()?.executionPaddingSeconds ??
+      DEFAULT_EXECUTION_PADDING_SECONDS
+    const blockTimePercentile =
+      this.ecoConfigService.getIntentConfigs()?.blockTimePercentile ?? DEFAULT_BLOCK_TIME_PERCENTILE
+    const destinationChainID =
+      typeof quoteIntentModel.route.destination === 'bigint'
+        ? Number(quoteIntentModel.route.destination)
+        : quoteIntentModel.route.destination
+
+    const estimatedFulfillTimeSec = getEstimatedFulfillTimeSec(
+      this.ecoConfigService.getSolver(destinationChainID),
+      paddingSeconds,
+      blockTimePercentile,
+    )
+    return estimatedFulfillTimeSec
   }
 
   /**
