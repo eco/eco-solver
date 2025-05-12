@@ -402,7 +402,7 @@ export class HatsService implements OnModuleInit {
       }
 
       // Record the distribution
-      await this.recordDistribution(eligiblePeriod.id)
+      await this.recordDistribution(eligiblePeriod.id, txHashes)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -451,10 +451,11 @@ export class HatsService implements OnModuleInit {
     }
   }
 
-  private async recordDistribution(accumulationPeriodId: number): Promise<void> {
+  private async recordDistribution(accumulationPeriodId: number, txHashes: Hex[]): Promise<void> {
     const { error } = await this.supabaseClient.from('distributions').insert({
       accumulation_period_id: accumulationPeriodId,
       distributed_at: new Date().toISOString(),
+      tx_hashes: txHashes,
     })
 
     if (error) {
