@@ -45,7 +45,11 @@ export class SolanaFulfillService {
 
     const connection = new Connection(this.ecoConfigService.getSolanaConfig().rpc_url, 'confirmed')
 
-    const fulfillIxs = await this.buildFulfillIntentIxs(model.intent, this.solver.publicKey)
+    const fulfillIxs = await this.buildFulfillIntentIxs(
+      model.intent,
+      this.solver.publicKey,
+      connection,
+    )
     const blockhash = await connection.getLatestBlockhash()
 
     const fulfillTx = new VersionedTransaction(
@@ -98,6 +102,7 @@ export class SolanaFulfillService {
   async buildFulfillIntentIxs(
     intent: IntentDataModel,
     solverPubkey: PublicKey,
+    connection: Connection,
   ): Promise<TransactionInstruction[]> {
     const routerProgramId = this.program.programId
 
@@ -142,20 +147,30 @@ export class SolanaFulfillService {
       routerProgramId,
     )[0]
 
-    const ataInitIxs = intent.route.tokens.map(({ token }) =>
-      createAssociatedTokenAccountIdempotentInstruction(
-        solverPubkey,
-        getAssociatedTokenAddressSync(new PublicKey(token), executionAuthority, true),
-        executionAuthority,
-        new PublicKey(token),
-      ),
-    )
+    const ataInitIxs: TransactionInstruction[] = []
+    for (const token of intent.route.tokens) {
+      const mintPubkey = new PublicKey(this.hex32ToBuf(token.token))
+      const ata = getAssociatedTokenAddressSync(mintPubkey, solverPubkey)
+      const ataExists = await connection.getAccountInfo(ata)
+      if (!ataExists) {
+        ataInitIxs.push(
+          createAssociatedTokenAccountIdempotentInstruction(
+            solverPubkey,
+            getAssociatedTokenAddressSync(mintPubkey, executionAuthority, true),
+            executionAuthority,
+            mintPubkey,
+          ),
+        )
+      }
+    }
+
+    // TODO: get the simulation SOL and TOKEN costs and build the lighthouse assertions
 
     // convert Route and Reward to IDL format
 
     // Strip acc-metas in calls (route_without_metas)
     const callsIDL = intent.route.calls.map((call) => {
-      const callData = Buffer.from(call.data.replace(/^0x/, ''), 'hex')
+      const callData = this.hex32ToBuf(call.data)
       const stub = SvmCallData.deserialize(callData)
       const stripped = SvmCallData.fromCalldataWithoutAccountMeta(callData)
 
@@ -287,7 +302,7 @@ export class SolanaFulfillService {
   }
 
   // turn a `0x…` 32-byte string into Buffer(32)
-  hex32ToBuf = (hex: string) => Buffer.from(hex.replace(/^0x/, ''), 'hex')
+  public hex32ToBuf = (hex: string) => Buffer.from(hex.replace(/^0x/, ''), 'hex')
 
   // convert bigint|string u64 -> bigint for Anchor BN
   toU64 = (v: string | bigint) => BigInt(v)

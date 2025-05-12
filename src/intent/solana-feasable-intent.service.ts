@@ -54,8 +54,8 @@ export class SolanaFeasableIntentService implements OnModuleInit {
 
     const simulationResult = await this.solanaCostService.simulateIntent(intent, this.solverKey)
     const executionUsdCost = await this.calculateUsdCost(
-      simulationResult.lamports,
-      simulationResult.tokens,
+      simulationResult.lamportsOut,
+      simulationResult.tokenOut,
       connection,
     )
 
@@ -124,7 +124,7 @@ export class SolanaFeasableIntentService implements OnModuleInit {
   }
 
   private async calculateUsdCost(
-    lamports: number,
+    lamports: bigint,
     tokenSpend: Record<string, bigint>,
     connection: Connection,
   ) {
@@ -136,13 +136,13 @@ export class SolanaFeasableIntentService implements OnModuleInit {
     return cost
   }
 
-  private async lamportsToUsd(lamports: number): Promise<number> {
-    if (lamports === 0) {
+  private async lamportsToUsd(lamports: bigint): Promise<number> {
+    if (lamports === 0n) {
       return 0
     }
     const solPrice = (await this.price.getPriceUsd(SOL_TOKEN_ADDRESS)) ?? 0
 
-    return (lamports / LAMPORTS_PER_SOL) * solPrice
+    return (Number(lamports) / LAMPORTS_PER_SOL) * solPrice
   }
 
   private async tokensToUsd(

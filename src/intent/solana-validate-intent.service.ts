@@ -84,7 +84,7 @@ export class SolanaValidateIntentService implements OnModuleInit {
 
     const jobId = getIntentJobId('validate', intentHash, processData.model.intent.logIndex)
 
-    if (processData.model.chain !== 'SVM') {
+    if (processData.model.vmType !== 'SVM') {
       await this.svmQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
         jobId,
         ...this.intentJobConfig,
