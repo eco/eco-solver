@@ -2,7 +2,7 @@ import { Enumify } from 'enumify'
 
 export class ProofType extends Enumify {
   static HYPERLANE = new ProofType('Hyperlane')
-  static METALAYER = new ProofType('MetaLayer')
+  static METALAYER = new ProofType('Metalayer')
   static _ = ProofType.closeEnum()
 
   constructor(private providerValue: string) {
