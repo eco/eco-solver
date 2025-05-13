@@ -39,7 +39,7 @@ describe('WatchIntentFundedService', () => {
         'Inbox.1': '0x0000000000000000000000000000000000000004',
         intentSources: [
           {
-            chainID: 1,
+            chainID: 10,
             sourceAddress: '0x0000000000000000000000000000000000000001',
             provers: ['0x0000000000000000000000000000000000000002'],
             network: 'mainnet',
@@ -90,7 +90,7 @@ describe('WatchIntentFundedService', () => {
     jest.spyOn(publicClientService, 'getClient').mockResolvedValue(fakeClient)
 
     const sources = [
-      { chainID: 1, sourceAddress: '0xabc', provers: ['0x1'], network: Network.ETH_MAINNET },
+      { chainID: 10, sourceAddress: '0xabc', provers: ['0x1'], network: Network.ETH_MAINNET },
     ] as unknown[] as IntentSource[]
 
     jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue(sources)
@@ -119,7 +119,7 @@ describe('WatchIntentFundedService', () => {
     }
 
     const source = {
-      chainID: 1,
+      chainID: 10,
       sourceAddress: '0xabc',
       provers: ['0x1'],
       network: 'mainnet',
@@ -142,7 +142,7 @@ describe('WatchIntentFundedService', () => {
     jest.spyOn(publicClientService, 'getClient').mockResolvedValue(fakeClient)
 
     const sources = [
-      { chainID: 1, sourceAddress: '0xabc', provers: ['0x1'], network: 'mainnet' },
+      { chainID: 10, sourceAddress: '0xabc', provers: ['0x1'], network: 'mainnet' },
     ] as unknown[] as IntentSource[]
 
     jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue(sources)
@@ -185,7 +185,7 @@ describe('WatchIntentFundedService', () => {
     jest.spyOn(publicClientService, 'getClient').mockResolvedValue(fakeClient)
 
     const sources = [
-      { chainID: 1, sourceAddress: '0xabc', provers: ['0x1'], network: 'mainnet' },
+      { chainID: 10, sourceAddress: '0xabc', provers: ['0x1'], network: 'mainnet' },
     ] as unknown[] as IntentSource[]
 
     jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue(sources)
