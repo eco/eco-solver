@@ -1,7 +1,16 @@
 import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import * as _ from 'lodash'
-import { Chain, encodeFunctionData, Hex, PublicClient, TransactionRequest, Transport } from 'viem'
+import {
+  Chain,
+  encodeAbiParameters,
+  encodeFunctionData,
+  Hex,
+  pad,
+  PublicClient,
+  TransactionRequest,
+  Transport,
+} from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { DeepReadonly } from '@/common/types/deep-readonly'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -20,6 +29,7 @@ import {
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
+import { getChainConfig } from '@/eco-configs/utils'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -291,14 +301,14 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     intentHashes: Hex[],
   ): Promise<TransactionRequest> {
     const { claimant } = this.ecoConfigService.getEth()
-    const messageData = Hyperlane.getMessageData(claimant, intentHashes)
+    const message = Hyperlane.getMessageData(claimant, intentHashes)
 
     const messageGasLimit = await this.estimateMessageGas(
       inbox,
       prover,
       publicClient.chain.id,
       source,
-      messageData,
+      message,
       intentHashes.length,
     )
 
@@ -329,15 +339,22 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       mailbox as Hex,
       source,
       prover,
-      messageData,
+      message,
       metadata,
       aggregationHook,
     )
 
+    const { HyperProver: hyperProverAddr } = getChainConfig(Number(publicClient.chain.id))
+
+    const messageData = encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+      [pad(prover), metadata, aggregationHook],
+    )
+
     const data = encodeFunctionData({
       abi: InboxAbi,
-      functionName: 'sendBatchWithRelayer',
-      args: [BigInt(source), prover, intentHashes, metadata, aggregationHook],
+      functionName: 'initiateProving',
+      args: [BigInt(source), intentHashes, hyperProverAddr, messageData],
     })
 
     return {

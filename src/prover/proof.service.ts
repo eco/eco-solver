@@ -1,17 +1,12 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { addSeconds, compareAsc } from 'date-fns'
-import { MultichainPublicClientService } from '../transaction/multichain-public-client.service'
-import { Hex } from 'viem'
-import {
-  PROOF_HYPERLANE,
-  PROOF_STORAGE,
-  ProofCall,
-  ProofType,
-  ProverInterfaceAbi,
-} from '../contracts'
+import { getAddress, Hex } from 'viem'
 import { entries } from 'lodash'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { addSeconds, compareAsc } from 'date-fns'
+import { IProverAbi } from '@eco-foundation/routes-ts'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { PROOF_HYPERLANE, PROOF_STORAGE, ProofCall, ProofType } from '@/contracts'
 
 /**
  * Service class for getting information about the provers and their configurations.
@@ -71,7 +66,7 @@ export class ProofService implements OnModuleInit {
   getProvers(proofType: ProofType): Hex[] {
     return entries(this.proofContracts)
       .filter(([, type]) => type === proofType)
-      .map(([address]) => address as Hex)
+      .map(([address]) => getAddress(address))
   }
 
   /**
@@ -126,20 +121,19 @@ export class ProofService implements OnModuleInit {
     const proofCalls: ProofCall[] = provers.map((proverAddress) => {
       return {
         address: proverAddress,
-        abi: ProverInterfaceAbi,
+        abi: IProverAbi,
         functionName: 'getProofType',
       }
     })
 
-    const proofs = (await client.multicall({
-      contracts: proofCalls.flat(),
-    })) as any
-    let proof: ProofType = 0,
-      i = 0
+    const proofTypeResults = await client.multicall({ contracts: proofCalls })
+
     const proofObj: Record<Hex, ProofType> = {}
-    while (proofs.length > 0 && ([{ result: proof }] = [proofs.shift()])) {
-      proofObj[provers[i]] = proof
-      i++
+
+    for (const proverIndex in provers) {
+      const proverAddr = provers[proverIndex]
+      const { result: proofType } = proofTypeResults[proverIndex]
+      proofObj[proverAddr] = this.getProofTypeFromString(proofType!)
     }
 
     return proofObj
@@ -158,11 +152,26 @@ export class ProofService implements OnModuleInit {
 
   /**
    * Gets the minimum date that a proof can be generated for a given chain id.
-   * @param chainID  the chain id
+   * @param prover
    * @returns
    */
   getProofMinimumDate(prover: ProofType): Date {
     return addSeconds(new Date(), this.getProofMinimumDurationSeconds(prover))
+  }
+
+  /**
+   * Get ProofType from string
+   * @param proof
+   * @private
+   */
+  private getProofTypeFromString(proof: string): ProofType {
+    switch (proof) {
+      case 'Hyperlane':
+      case 'Metalayer':
+        return PROOF_HYPERLANE
+      default:
+        throw new Error(`Proof type ${proof} is not supported`)
+    }
   }
 
   /**
