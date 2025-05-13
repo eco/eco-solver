@@ -20,13 +20,11 @@ export class HatsService implements OnModuleInit {
   private supabaseClient: SupabaseClient<Database>
   private slackWebClient: WebClient
 
-  // private readonly ACCUMULATION_PERIOD_DURATION = 604800; // 7 days in seconds
-  private readonly ACCUMULATION_PERIOD_DURATION = 3600 // 1 hour in seconds
+  private readonly ACCUMULATION_PERIOD_DURATION = 604800; // 7 days in seconds
 
   private readonly REWARD_PERIOD_DURATION = 600 // 10 minutes in seconds
 
-  // private readonly REWARD_PERIOD_RANGE = [28800, 72000]; // 8-20 hours in seconds
-  private readonly REWARD_PERIOD_RANGE = [600, 1200] // 10-20 minutes in seconds
+  private readonly REWARD_PERIOD_RANGE = [18000, 85500]; // 5-23.75 hours in seconds
 
   private readonly DISTRIBUTION_BATCH_SIZE = 300 // Max number of transfers per batch
 
