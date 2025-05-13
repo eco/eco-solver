@@ -14,6 +14,8 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 export const TOKEN_ACCOUNT_CREATTION_LAMPORTS: number = 203_928 // lamports needed to create a new token account
 
 export interface SimulationResult {
+  solverLamports: bigint // solver balance
+  solverTokenAmounts: Record<string, bigint> // solver token balances
   lamportsOut: bigint // fees + CPI lamports
   tokenOut: Record<string, bigint> // mint -> ui outflows
 }
@@ -54,9 +56,12 @@ export class SolanaCostService {
     if (!solverAccountInfo) {
       throw new Error(`Simulation failed: couldn't get solver account info`)
     }
+
+    const solverTokenAmounts: Record<string, bigint> = {} // ATA, balance
     const preTokenAmounts = await Promise.all(
       solverAtas.map(async (ata) => {
         const balance = await this.connection.getTokenAccountBalance(ata)
+        solverTokenAmounts[ata.toString()] = BigInt(balance.value.amount)
         return BigInt(balance.value.amount)
       }),
     )
@@ -135,6 +140,8 @@ export class SolanaCostService {
     )
 
     return {
+      solverLamports: BigInt(solverAccountInfo.lamports),
+      solverTokenAmounts,
       lamportsOut: lamportsOutflow,
       tokenOut,
     }

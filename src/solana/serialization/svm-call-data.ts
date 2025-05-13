@@ -9,28 +9,9 @@ export class SerializableAccountMeta {
 export class SvmCallData {
   instruction_data!: Uint8Array
   num_account_metas!: number
-  account_metas!: SerializableAccountMeta[]
 
   static deserialize(data: Buffer): SvmCallData {
     return deserializeUnchecked(svmCallSchema, SvmCallData, data)
-  }
-
-  /**
-   * Return a clone with the same instruction data / counters,
-   * but account_metas = [] (mirroring the on-chain helper)
-   */
-  static fromCalldataWithoutAccountMeta(data: Buffer): SvmCallData {
-    const full = SvmCallData.deserialize(data)
-
-    if (full.num_account_metas === 0) {
-      throw new Error('Invalid fulfill-call (num_account_metas == 0)')
-    }
-
-    const stripped = new SvmCallData()
-    stripped.instruction_data = full.instruction_data
-    stripped.num_account_metas = full.num_account_metas
-    stripped.account_metas = []
-    return stripped
   }
 
   // equivalent of Rust's "to_bytes()", which returns Borsh-encoded Buffer
@@ -39,7 +20,16 @@ export class SvmCallData {
   }
 }
 
-export const svmCallSchema: Schema = new Map<any, any>([
+export class SvmCallDataWithMetas {
+  svm_call_data!: SvmCallData
+  account_metas!: SerializableAccountMeta[]
+
+  static deserialize(data: Buffer): SvmCallDataWithMetas {
+    return deserializeUnchecked(svmCallWithMetasSchema, SvmCallDataWithMetas, data)
+  }
+}
+
+export const svmCallSchema: Schema = new Map([
   [
     SvmCallData,
     {
@@ -47,10 +37,13 @@ export const svmCallSchema: Schema = new Map<any, any>([
       fields: [
         ['instruction_data', ['u8']],
         ['num_account_metas', 'u8'],
-        ['account_metas', [SerializableAccountMeta]],
       ],
     },
   ],
+])
+
+export const svmCallWithMetasSchema: Schema = new Map([
+  ...svmCallSchema,
   [
     SerializableAccountMeta,
     {
@@ -62,4 +55,25 @@ export const svmCallSchema: Schema = new Map<any, any>([
       ],
     },
   ],
+  [
+    SvmCallDataWithMetas,
+    {
+      kind: 'struct',
+      fields: [
+        ['svm_call_data', SvmCallData],
+        ['account_metas', [SerializableAccountMeta]],
+      ],
+    },
+  ],
 ])
+
+//  equivalent of the on-chain's 'from_calldata_without_account_metas' functino
+export function stripMetas(data: Buffer): SvmCallData {
+  const wrapper = SvmCallDataWithMetas.deserialize(data)
+
+  if (wrapper.svm_call_data.num_account_metas === 0) {
+    throw new Error('Invalid fulfill-call (num_account_metas == 0)')
+  }
+
+  return wrapper.svm_call_data
+}

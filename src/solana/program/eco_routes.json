@@ -34,7 +34,6 @@
         },
         {
           "name": "payer",
-          "writable": true,
           "signer": true
         },
         {
@@ -74,7 +73,7 @@
           }
         },
         {
-          "name": "source_token",
+          "name": "vault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -94,7 +93,7 @@
           }
         },
         {
-          "name": "destination_token",
+          "name": "claimer_token",
           "writable": true
         },
         {
@@ -102,7 +101,6 @@
         },
         {
           "name": "claimer",
-          "writable": true,
           "signer": true
         },
         {
@@ -300,7 +298,6 @@
         },
         {
           "name": "payer",
-          "writable": true,
           "signer": true
         },
         {
@@ -340,11 +337,11 @@
           }
         },
         {
-          "name": "source_token",
+          "name": "funder_token",
           "writable": true
         },
         {
-          "name": "destination_token",
+          "name": "vault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -368,7 +365,6 @@
         },
         {
           "name": "funder",
-          "writable": true,
           "signer": true
         },
         {
@@ -593,7 +589,6 @@
         },
         {
           "name": "payer",
-          "writable": true,
           "signer": true
         },
         {
@@ -633,7 +628,7 @@
           }
         },
         {
-          "name": "source_token",
+          "name": "vault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -653,14 +648,13 @@
           }
         },
         {
-          "name": "destination_token"
+          "name": "refundee_token"
         },
         {
           "name": "mint"
         },
         {
           "name": "refundee",
-          "writable": true,
           "signer": true
         },
         {
@@ -705,143 +699,155 @@
     },
     {
       "code": 6001,
-      "name": "TooManyTokens"
+      "name": "NotInRefundingPhase"
     },
     {
       "code": 6002,
-      "name": "DuplicateTokens"
+      "name": "TooManyTokens"
     },
     {
       "code": 6003,
-      "name": "TooManyCalls"
+      "name": "DuplicateTokens"
     },
     {
       "code": 6004,
-      "name": "CallDataTooLarge"
+      "name": "TooManyCalls"
     },
     {
       "code": 6005,
-      "name": "InvalidDeadline"
+      "name": "CallDataTooLarge"
     },
     {
       "code": 6006,
-      "name": "InvalidMint"
+      "name": "InvalidDeadline"
     },
     {
       "code": 6007,
-      "name": "AlreadyFunded"
+      "name": "InvalidMint"
     },
     {
       "code": 6008,
-      "name": "InvalidTokenIndex"
+      "name": "AlreadyFunded"
     },
     {
       "code": 6009,
-      "name": "InvalidRefundee"
+      "name": "InvalidTokenIndex"
     },
     {
       "code": 6010,
-      "name": "NotFunded"
+      "name": "InvalidRefundee"
     },
     {
       "code": 6011,
-      "name": "IntentNotExpired"
+      "name": "NotFunded"
     },
     {
       "code": 6012,
-      "name": "IntentStillFunded"
+      "name": "IntentNotExpired"
     },
     {
       "code": 6013,
-      "name": "InvalidHandlePayload"
+      "name": "IntentStillFunded"
     },
     {
       "code": 6014,
-      "name": "InvalidSender"
+      "name": "InvalidHandlePayload"
     },
     {
       "code": 6015,
-      "name": "InvalidOrigin"
+      "name": "InvalidSender"
     },
     {
       "code": 6016,
-      "name": "InvalidAuthority"
+      "name": "InvalidOrigin"
     },
     {
       "code": 6017,
-      "name": "TooManySenders"
+      "name": "InvalidAuthority"
     },
     {
       "code": 6018,
-      "name": "IntentNotFunded"
+      "name": "TooManySenders"
     },
     {
       "code": 6019,
-      "name": "NotMailbox"
+      "name": "IntentNotFunded"
     },
     {
       "code": 6020,
-      "name": "NotIgp"
+      "name": "NotMailbox"
     },
     {
       "code": 6021,
-      "name": "InvalidProcessAuthority"
+      "name": "NotIgp"
     },
     {
       "code": 6022,
-      "name": "InvalidExecutionAuthority"
+      "name": "InvalidProcessAuthority"
     },
     {
       "code": 6023,
-      "name": "InvalidDispatchAuthority"
+      "name": "InvalidExecutionAuthority"
     },
     {
       "code": 6024,
-      "name": "DeadlinePassed"
+      "name": "InvalidDispatchAuthority"
     },
     {
       "code": 6025,
-      "name": "InvalidClaimer"
+      "name": "DeadlinePassed"
     },
     {
       "code": 6026,
-      "name": "NotFulfilled"
+      "name": "InvalidClaimer"
     },
     {
       "code": 6027,
-      "name": "BadSignerFlag"
+      "name": "NotFulfilled"
     },
     {
       "code": 6028,
-      "name": "BadWritableFlag"
+      "name": "BadSignerFlag"
     },
     {
       "code": 6029,
-      "name": "AlreadyFulfilled"
+      "name": "BadWritableFlag"
     },
     {
       "code": 6030,
-      "name": "InvalidFulfillCalls"
+      "name": "AlreadyFulfilled"
     },
     {
       "code": 6031,
-      "name": "InvalidIntent"
+      "name": "InvalidFulfillCalls"
     },
     {
       "code": 6032,
-      "name": "InvalidIntentHash"
+      "name": "InvalidIntent"
     },
     {
       "code": 6033,
-      "name": "InvalidRouteMint"
+      "name": "InvalidIntentHash"
     },
     {
       "code": 6034,
-      "name": "InvalidRouteTokenAccount"
+      "name": "InvalidRouteMint"
     },
     {
       "code": 6035,
+      "name": "InvalidRouteTokenAccount"
+    },
+    {
+      "code": 6036,
       "name": "InvalidProver"
+    },
+    {
+      "code": 6037,
+      "name": "EmptyTokens"
+    },
+    {
+      "code": 6038,
+      "name": "EmptyCalls"
     }
   ],
   "types": [
@@ -993,17 +999,11 @@
             }
           },
           {
-            "name": "tokens_funded",
-            "type": "u8"
-          },
-          {
-            "name": "native_funded",
-            "type": "bool"
-          },
-          {
             "name": "solver",
             "type": {
-              "array": ["u8", 32]
+              "option": {
+                "array": ["u8", 32]
+              }
             }
           },
           {
@@ -1040,22 +1040,18 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Initialized"
+            "name": "Funding",
+            "fields": ["bool", "u8"]
           },
           {
             "name": "Funded"
           },
           {
-            "name": "Dispatched"
-          },
-          {
             "name": "Fulfilled"
           },
           {
-            "name": "Refunded"
-          },
-          {
-            "name": "Claimed"
+            "name": "Claimed",
+            "fields": ["bool", "u8"]
           }
         ]
       }

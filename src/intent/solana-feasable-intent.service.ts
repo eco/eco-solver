@@ -98,10 +98,14 @@ export class SolanaFeasableIntentService implements OnModuleInit {
     const jobId = getIntentJobId('feasable', intentHash, model.intent.logIndex)
 
     if (feasable) {
-      await this.svmQueue.add(QUEUES.SOLANA_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...this.intentJobConfig,
-      })
+      await this.svmQueue.add(
+        QUEUES.SOLANA_INTENT.jobs.fulfill_intent,
+        { hash: intentHash, simulationResult },
+        {
+          jobId,
+          ...this.intentJobConfig,
+        },
+      )
     } else {
       await this.utilsIntentService.updateInfeasableIntentModel(
         model,

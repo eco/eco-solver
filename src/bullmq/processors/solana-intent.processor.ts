@@ -6,7 +6,7 @@ import { Hex } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { SolanaValidateIntentService } from '@/intent/solana-validate-intent.service'
 import { SolanaFeasableIntentService } from '@/intent/solana-feasable-intent.service'
-import { SolanaFulfillService } from '@/intent/solana-fulfill-intent.service'
+import { FulfillArgs, SolanaFulfillService } from '@/intent/solana-fulfill-intent.service'
 
 @Injectable()
 @Processor(QUEUES.SOLANA_INTENT.queue, { concurrency: 150 })
@@ -37,7 +37,7 @@ export class SolanaIntentProcessor extends WorkerHost {
         return this.feasableIntentService.feasableIntent(job.data as Hex)
 
       case QUEUES.SOLANA_INTENT.jobs.fulfill_intent:
-        return this.fulfillIntentService.fulfill(job.data as Hex)
+        return this.fulfillIntentService.fulfill(job.data as FulfillArgs)
 
       default:
         this.logger.error(

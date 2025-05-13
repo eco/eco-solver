@@ -40,7 +40,6 @@ export type EcoRoutes = {
         },
         {
           name: 'payer'
-          writable: true
           signer: true
         },
         {
@@ -80,7 +79,7 @@ export type EcoRoutes = {
           }
         },
         {
-          name: 'sourceToken'
+          name: 'vault'
           writable: true
           pda: {
             seeds: [
@@ -100,7 +99,7 @@ export type EcoRoutes = {
           }
         },
         {
-          name: 'destinationToken'
+          name: 'claimerToken'
           writable: true
         },
         {
@@ -108,7 +107,6 @@ export type EcoRoutes = {
         },
         {
           name: 'claimer'
-          writable: true
           signer: true
         },
         {
@@ -362,7 +360,6 @@ export type EcoRoutes = {
         },
         {
           name: 'payer'
-          writable: true
           signer: true
         },
         {
@@ -402,11 +399,11 @@ export type EcoRoutes = {
           }
         },
         {
-          name: 'sourceToken'
+          name: 'funderToken'
           writable: true
         },
         {
-          name: 'destinationToken'
+          name: 'vault'
           writable: true
           pda: {
             seeds: [
@@ -430,7 +427,6 @@ export type EcoRoutes = {
         },
         {
           name: 'funder'
-          writable: true
           signer: true
         },
         {
@@ -729,7 +725,6 @@ export type EcoRoutes = {
         },
         {
           name: 'payer'
-          writable: true
           signer: true
         },
         {
@@ -769,7 +764,7 @@ export type EcoRoutes = {
           }
         },
         {
-          name: 'sourceToken'
+          name: 'vault'
           writable: true
           pda: {
             seeds: [
@@ -789,14 +784,13 @@ export type EcoRoutes = {
           }
         },
         {
-          name: 'destinationToken'
+          name: 'refundeeToken'
         },
         {
           name: 'mint'
         },
         {
           name: 'refundee'
-          writable: true
           signer: true
         },
         {
@@ -841,143 +835,155 @@ export type EcoRoutes = {
     },
     {
       code: 6001
-      name: 'tooManyTokens'
+      name: 'notInRefundingPhase'
     },
     {
       code: 6002
-      name: 'duplicateTokens'
+      name: 'tooManyTokens'
     },
     {
       code: 6003
-      name: 'tooManyCalls'
+      name: 'duplicateTokens'
     },
     {
       code: 6004
-      name: 'callDataTooLarge'
+      name: 'tooManyCalls'
     },
     {
       code: 6005
-      name: 'invalidDeadline'
+      name: 'callDataTooLarge'
     },
     {
       code: 6006
-      name: 'invalidMint'
+      name: 'invalidDeadline'
     },
     {
       code: 6007
-      name: 'alreadyFunded'
+      name: 'invalidMint'
     },
     {
       code: 6008
-      name: 'invalidTokenIndex'
+      name: 'alreadyFunded'
     },
     {
       code: 6009
-      name: 'invalidRefundee'
+      name: 'invalidTokenIndex'
     },
     {
       code: 6010
-      name: 'notFunded'
+      name: 'invalidRefundee'
     },
     {
       code: 6011
-      name: 'intentNotExpired'
+      name: 'notFunded'
     },
     {
       code: 6012
-      name: 'intentStillFunded'
+      name: 'intentNotExpired'
     },
     {
       code: 6013
-      name: 'invalidHandlePayload'
+      name: 'intentStillFunded'
     },
     {
       code: 6014
-      name: 'invalidSender'
+      name: 'invalidHandlePayload'
     },
     {
       code: 6015
-      name: 'invalidOrigin'
+      name: 'invalidSender'
     },
     {
       code: 6016
-      name: 'invalidAuthority'
+      name: 'invalidOrigin'
     },
     {
       code: 6017
-      name: 'tooManySenders'
+      name: 'invalidAuthority'
     },
     {
       code: 6018
-      name: 'intentNotFunded'
+      name: 'tooManySenders'
     },
     {
       code: 6019
-      name: 'notMailbox'
+      name: 'intentNotFunded'
     },
     {
       code: 6020
-      name: 'notIgp'
+      name: 'notMailbox'
     },
     {
       code: 6021
-      name: 'invalidProcessAuthority'
+      name: 'notIgp'
     },
     {
       code: 6022
-      name: 'invalidExecutionAuthority'
+      name: 'invalidProcessAuthority'
     },
     {
       code: 6023
-      name: 'invalidDispatchAuthority'
+      name: 'invalidExecutionAuthority'
     },
     {
       code: 6024
-      name: 'deadlinePassed'
+      name: 'invalidDispatchAuthority'
     },
     {
       code: 6025
-      name: 'invalidClaimer'
+      name: 'deadlinePassed'
     },
     {
       code: 6026
-      name: 'notFulfilled'
+      name: 'invalidClaimer'
     },
     {
       code: 6027
-      name: 'badSignerFlag'
+      name: 'notFulfilled'
     },
     {
       code: 6028
-      name: 'badWritableFlag'
+      name: 'badSignerFlag'
     },
     {
       code: 6029
-      name: 'alreadyFulfilled'
+      name: 'badWritableFlag'
     },
     {
       code: 6030
-      name: 'invalidFulfillCalls'
+      name: 'alreadyFulfilled'
     },
     {
       code: 6031
-      name: 'invalidIntent'
+      name: 'invalidFulfillCalls'
     },
     {
       code: 6032
-      name: 'invalidIntentHash'
+      name: 'invalidIntent'
     },
     {
       code: 6033
-      name: 'invalidRouteMint'
+      name: 'invalidIntentHash'
     },
     {
       code: 6034
-      name: 'invalidRouteTokenAccount'
+      name: 'invalidRouteMint'
     },
     {
       code: 6035
+      name: 'invalidRouteTokenAccount'
+    },
+    {
+      code: 6036
       name: 'invalidProver'
+    },
+    {
+      code: 6037
+      name: 'emptyTokens'
+    },
+    {
+      code: 6038
+      name: 'emptyCalls'
     },
   ]
   types: [
@@ -1129,17 +1135,11 @@ export type EcoRoutes = {
             }
           },
           {
-            name: 'tokensFunded'
-            type: 'u8'
-          },
-          {
-            name: 'nativeFunded'
-            type: 'bool'
-          },
-          {
             name: 'solver'
             type: {
-              array: ['u8', 32]
+              option: {
+                array: ['u8', 32]
+              }
             }
           },
           {
@@ -1176,22 +1176,18 @@ export type EcoRoutes = {
         kind: 'enum'
         variants: [
           {
-            name: 'initialized'
+            name: 'funding'
+            fields: ['bool', 'u8']
           },
           {
             name: 'funded'
           },
           {
-            name: 'dispatched'
-          },
-          {
             name: 'fulfilled'
           },
           {
-            name: 'refunded'
-          },
-          {
             name: 'claimed'
+            fields: ['bool', 'u8']
           },
         ]
       }
