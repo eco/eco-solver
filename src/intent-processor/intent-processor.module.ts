@@ -6,6 +6,7 @@ import { IndexerModule } from '@/indexer/indexer.module'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { HatsModule } from '@/hats/hats.module'
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
     TransactionModule,
     IndexerModule,
     SignModule,
+    HatsModule,
     IntentProcessorQueue.init(),
   ],
   providers: [IntentProcessorService, IntentProcessor],

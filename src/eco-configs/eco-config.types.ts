@@ -58,6 +58,7 @@ export type EcoConfigType = {
     dbName: string
     enableJournaling: boolean
   }
+  hats: HatsConfig
   intentSources: IntentSource[]
   //chainID to Solver type mapping
   solvers: Record<number, Solver>
@@ -112,6 +113,20 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+  }
+}
+
+/**
+ * The config type for the supabase
+ */
+export type HatsConfig = {
+  supabase: {
+    url: string
+    key: string
+  }
+  slack: {
+    token: string
+    conversationID: string
   }
 }
 
