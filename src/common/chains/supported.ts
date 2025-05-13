@@ -9,6 +9,7 @@ import { polygon } from './definitions/polygon'
 import { ethereum, sepolia } from './definitions/ethereum'
 import { unichain } from './definitions/unichain'
 import { celo, ink } from 'viem/chains'
+import { curtis, b3Testnet, mantaSepolia } from '@metalayer/chains'
 
 /**
  * List of supported chains for the solver that have modified RPC URLs or are defined in the project
@@ -28,4 +29,7 @@ export const ChainsSupported: Chain[] = [
   celo,
   ink,
   unichain,
+  curtis,
+  b3Testnet,
+  mantaSepolia,
 ]

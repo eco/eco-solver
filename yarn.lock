@@ -2904,6 +2904,11 @@
   resolved "https://registry.yarnpkg.com/@lukeed/csprng/-/csprng-1.1.0.tgz#1e3e4bd05c1cc7a0b2ddbd8a03f39f6e4b5e6cfe"
   integrity sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==
 
+"@metalayer/chains@^0.3.2":
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/@metalayer/chains/-/chains-0.3.2.tgz#190f94acb99a9541cfd164cacbc549ef6f34e9de"
+  integrity sha512-CCp6RwsiH++TzPdQimWgR1nz9JGSuM9aMTuy3MMswjQYe/JntFVYmPz4igxw0YTDvIvrwgPQPl/wZC3LEi2wmQ==
+
 "@microsoft/tsdoc@0.15.0":
   version "0.15.0"
   resolved "https://registry.yarnpkg.com/@microsoft/tsdoc/-/tsdoc-0.15.0.tgz#f29a55df17cb6e87cfbabce33ff6a14a9f85076d"

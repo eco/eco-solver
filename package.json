@@ -50,6 +50,7 @@
     "@lit-protocol/auth-helpers": "^7.0.4",
     "@lit-protocol/constants": "^7.0.4",
     "@lit-protocol/lit-node-client": "^7.0.4",
+    "@metalayer/chains": "^0.3.2",
     "@nestjs/bullmq": "^10.1.1",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^10.4.16",
