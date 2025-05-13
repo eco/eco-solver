@@ -4,6 +4,7 @@ import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
 import { AwsCredential } from '@/eco-configs/eco-config.types'
+import { ProofType } from '@/contracts'
 
 export class EcoError extends Error {
   // Alchemy Service
@@ -62,13 +63,16 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
+  static ProverNotSupported(pt: ProofType) {
+   return new Error(`The prover type ${pt} is not supported`)
+  }
+
   static RebalancingRouteNotFound() {
     return new EcoError(`A rebalancing route not found`)
   }
 
   static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
-  static FulfillIntentProverNotFound = new Error('Storage prover not found')
   static FulfillIntentBatchError = new Error('Could not fulfill batch transaction')
   static FulfillIntentRevertError(receipt: TransactionReceipt) {
     const msg = JSON.stringify(receipt, (_, v) => (typeof v === 'bigint' ? v.toString() : v))

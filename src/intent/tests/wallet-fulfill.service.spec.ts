@@ -140,7 +140,7 @@ describe('WalletFulfillService', () => {
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
         fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
-        fulfillIntentService['getFulfillTxForStorageProver'] = jest
+        fulfillIntentService['getFulfillTxForHyperproverSingle'] = jest
           .fn()
           .mockReturnValue(emptyTxs[0])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
@@ -189,7 +189,7 @@ describe('WalletFulfillService', () => {
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
         fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
-        fulfillIntentService['getFulfillTxForStorageProver'] = jest
+        fulfillIntentService['getFulfillTxForHyperproverSingle'] = jest
           .fn()
           .mockReturnValue(emptyTxs[0])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
@@ -216,7 +216,7 @@ describe('WalletFulfillService', () => {
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
         fulfillIntentService['getFulfillIntentData'] = jest.fn()
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
-        fulfillIntentService['getFulfillTxForStorageProver'] = jest
+        fulfillIntentService['getFulfillTxForHyperproverSingle'] = jest
           .fn()
           .mockReturnValue(emptyTxs[0])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
@@ -479,20 +479,17 @@ describe('WalletFulfillService', () => {
         model.intent.getHash().intentHash,
       ]
     })
-    describe('on PROOF_STORAGE', () => {
+    describe('on PROOF_HYPERLANE with simple config', () => {
       it('should use the correct function name and args', async () => {
-        const mockStorage = jest.fn().mockReturnValue(true)
-        const mockHyperlane = jest.fn().mockReturnValue(false)
-        proofService.isStorageProver = mockStorage
+        const mockHyperlane = jest.fn().mockReturnValue(true)
         proofService.isHyperlaneProver = mockHyperlane
-        fulfillIntentService['getFulfillTxForStorageProver'] = jest
+        fulfillIntentService['getFulfillTxForHyperproverSingle'] = jest
           .fn()
           .mockReturnValue(emptyTxs[0])
         await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
-        expect(proofService.isStorageProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isStorageProver).toHaveBeenCalledWith(model.intent.reward.prover)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(0)
-        expect(fulfillIntentService['getFulfillTxForStorageProver']).toHaveBeenCalledTimes(1)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(fulfillIntentService['getFulfillTxForHyperproverSingle']).toHaveBeenCalledTimes(1)
       })
     })
 

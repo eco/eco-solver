@@ -142,8 +142,8 @@ export type IntentConfig = {
   defaultFee: FeeConfigType
   skipBalanceCheck?: boolean
   proofs: {
-    storage_duration_seconds: number
     hyperlane_duration_seconds: number
+    metalayer_duration_seconds: number
   }
 }
 
