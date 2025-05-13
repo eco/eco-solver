@@ -312,30 +312,27 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const { Prover: storageProverAddr } = getChainConfig(Number(model.intent.route.destination))
+    throw new Error('Storage prover removed')
+    // const { Prover: storageProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
-    if (!storageProverAddr) {
-      throw EcoError.FulfillIntentProverNotFound
-    }
+    // if (!storageProverAddr) {
+    //   throw EcoError.FulfillIntentProverNotFound
+    // }
 
-    const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
-      functionName: 'fulfillAndProve',
-      args: [
-        model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
-        claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
-        storageProverAddr!,
-        '0x',
-      ],
-    })
+    // const fulfillIntentData = encodeFunctionData({
+    //   abi: InboxAbi,
+    //   functionName: 'fulfillAndProve',
+    //   args: [
+    //     model.intent.route,
+    //     RewardDataModel.getHash(model.intent.reward),
+    //     claimant,
+    //     IntentDataModel.getHash(model.intent).intentHash,
+    //     storageProverAddr!,
+    //     '0x',
+    //   ],
+    // })
 
-    return {
-      to: inboxAddress,
-      data: fulfillIntentData,
-      value: 0n,
-    }
+    return {} as any
   }
 
   /**
