@@ -60,10 +60,7 @@ export class SolanaIndexerService implements OnModuleInit, OnModuleDestroy {
           )
         }
       },
-      {
-        commitment: 'confirmed',
-        encoding: 'base64',
-      },
+      'confirmed',
     )
 
     this.logger.log('Solana indexer subscribed.')
