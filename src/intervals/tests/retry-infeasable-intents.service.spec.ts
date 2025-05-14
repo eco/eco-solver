@@ -139,7 +139,9 @@ describe('RetryInfeasableIntentsService', () => {
       const proverStorage: Hex[] = ['0x3b', '0x4b']
       const mockGetProofMinimumDate = jest
         .spyOn(proofService, 'getProofMinimumDate')
-        .mockImplementation((proof) => (proof == ProofType.HYPERLANE ? minDateHyper : minDateStorage))
+        .mockImplementation((proof) =>
+          proof == ProofType.HYPERLANE ? minDateHyper : minDateStorage,
+        )
       const mockGetProvers = jest
         .spyOn(proofService, 'getProvers')
         .mockImplementation((proof) => (proof == ProofType.HYPERLANE ? proverHyper : proverStorage))
