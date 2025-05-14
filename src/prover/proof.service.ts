@@ -1,13 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress, Hex } from 'viem'
-import { entries } from 'lodash'
 import { addSeconds, compareAsc } from 'date-fns'
-import { IProverAbi } from '@eco-foundation/routes-ts'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { PROOF_HYPERLANE, PROOF_METALAYER, ProofCall, ProofType } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { entries } from 'lodash'
+import { getAddress, Hex } from 'viem'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { IProverAbi } from '@eco-foundation/routes-ts'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { ProofCall, ProofType } from '@/contracts'
 
 /**
  * Service class for getting information about the provers and their configurations.
@@ -47,7 +47,7 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   isHyperlaneProver(proverAddress: Hex): boolean {
-    return this.getProofType(proverAddress) === PROOF_HYPERLANE
+    return this.getProofType(proverAddress).isHyperlane()
   }
 
   /**
@@ -56,7 +56,7 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   isMetalayerProver(proverAddress: Hex): boolean {
-    return this.getProofType(proverAddress) === PROOF_METALAYER
+    return this.getProofType(proverAddress).isMetalayer()
   }
 
   /**
@@ -166,14 +166,7 @@ export class ProofService implements OnModuleInit {
    * @private
    */
   private getProofTypeFromString(proof: string): ProofType {
-    switch (proof) {
-      case 'Hyperlane':
-        return PROOF_HYPERLANE
-      case 'Metalayer':
-        return PROOF_METALAYER
-      default:
-        throw new Error(`Proof type ${proof} is not supported`)
-    }
+    return ProofType.fromString(proof)
   }
 
   /**
@@ -184,10 +177,10 @@ export class ProofService implements OnModuleInit {
    */
   private getProofMinimumDurationSeconds(prover: ProofType): number {
     const proofs = this.ecoConfigService.getIntentConfigs().proofs
-    switch (prover) {
-      case PROOF_HYPERLANE:
+    switch (true) {
+      case prover.isHyperlane():
         return proofs.hyperlane_duration_seconds
-      case PROOF_METALAYER:
+      case prover.isMetalayer():
         return proofs.metalayer_duration_seconds
       default:
         throw EcoError.ProverNotSupported(prover)
