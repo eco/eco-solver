@@ -305,7 +305,6 @@ export class WalletFulfillService implements IFulfillService {
     }
   }
 
-
   /**
    * Generates a transaction to fulfill an intent for a metalayer prover.
    *
@@ -319,15 +318,17 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const { MetaProver: metalayerProverAddr } = getChainConfig(Number(model.intent.route.destination))
+    const { MetaProver: metalayerProverAddr } = getChainConfig(
+      Number(model.intent.route.destination),
+    )
 
     if (!metalayerProverAddr) {
       throw new Error('Metalayer prover address not found in chain config')
     }
 
     const messageData = encodeAbiParameters(
-      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-      [pad(model.intent.reward.prover), '0x', zeroAddress],
+      [{ type: 'bytes32' }],
+      [pad(model.intent.reward.prover)],
     )
 
     // Metalayer may use the same fee structure as Hyperlane

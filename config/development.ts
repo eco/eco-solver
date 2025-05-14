@@ -41,7 +41,6 @@ export default {
         '0xd3F4Bef596a04e2be4fbeB17Dd70f02F717c5a6c',
         '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a',
       ],
-      provers: ['0x9592E6bA1Cec5d85D0EeF477703814857acFa921'],
     },
     {
       network: 'base-sepolia',
@@ -51,7 +50,6 @@ export default {
         '0x8bDa9F5C33FBCB04Ea176ea5Bc1f5102e934257f',
         '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a',
       ],
-      provers: ['0x9592E6bA1Cec5d85D0EeF477703814857acFa921'],
     },
   ],
   solvers: {

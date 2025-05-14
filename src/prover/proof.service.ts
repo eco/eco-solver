@@ -59,7 +59,6 @@ export class ProofService implements OnModuleInit {
     return this.getProofType(proverAddress) === PROOF_METALAYER
   }
 
-
   /**
    * Returns all the prover addresses for a given proof type
    * @param proofType the proof type
