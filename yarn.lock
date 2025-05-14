@@ -1474,7 +1474,7 @@
 
 "@eco-foundation/routes-ts@^2.0.5":
   version "2.0.5"
-  resolved "https://registry.npmmirror.com/@eco-foundation/routes-ts/-/routes-ts-2.0.5.tgz#c3c619fbc9d12cbc201c213d536c42901e719b3d"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.0.5.tgz#c3c619fbc9d12cbc201c213d536c42901e719b3d"
   integrity sha512-ceJ5kapjDF4MiKqwfQpkEbzO0XKF4P3whJmAy0bnQyKHgQnCt0ES2LRWsk+JtmTkwtbRhsUsYeDOw4XJSUPMig==
   dependencies:
     viem "^2.22.21"

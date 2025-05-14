@@ -98,8 +98,8 @@ export default {
       },
     },
     proofs: {
-      storage_duration_seconds: 604800,
       hyperlane_duration_seconds: 3600,
+      metalayer_duration_seconds: 7200,
     },
   },
   whitelist: {},

@@ -6,7 +6,8 @@ import { IProverAbi } from '@eco-foundation/routes-ts'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { PROOF_HYPERLANE, PROOF_STORAGE, ProofCall, ProofType } from '@/contracts'
+import { PROOF_HYPERLANE, PROOF_METALAYER, ProofCall, ProofType } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting information about the provers and their configurations.
@@ -50,12 +51,12 @@ export class ProofService implements OnModuleInit {
   }
 
   /**
-   * Checks if the prover is a storage prover
+   * Checks if the prover is a metalayer prover
    * @param proverAddress the prover address
    * @returns
    */
-  isStorageProver(proverAddress: Hex): boolean {
-    return this.getProofType(proverAddress) === PROOF_STORAGE
+  isMetalayerProver(proverAddress: Hex): boolean {
+    return this.getProofType(proverAddress) === PROOF_METALAYER
   }
 
   /**
@@ -167,8 +168,9 @@ export class ProofService implements OnModuleInit {
   private getProofTypeFromString(proof: string): ProofType {
     switch (proof) {
       case 'Hyperlane':
-      case 'Metalayer':
         return PROOF_HYPERLANE
+      case 'Metalayer':
+        return PROOF_METALAYER
       default:
         throw new Error(`Proof type ${proof} is not supported`)
     }
@@ -185,9 +187,10 @@ export class ProofService implements OnModuleInit {
     switch (prover) {
       case PROOF_HYPERLANE:
         return proofs.hyperlane_duration_seconds
-      case PROOF_STORAGE:
+      case PROOF_METALAYER:
+        return proofs.metalayer_duration_seconds
       default:
-        return proofs.storage_duration_seconds
+        throw EcoError.ProverNotSupported(prover)
     }
   }
 }
