@@ -17,6 +17,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Model } from 'mongoose'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -31,6 +32,7 @@ describe('QuotesService', () => {
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let quoteModel: DeepMocked<Model<QuoteIntentModel>>
+  let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
@@ -47,15 +49,16 @@ describe('QuotesService', () => {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),
         },
+        { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
       ],
     }).compile()
 
     quoteService = chainMod.get(QuoteService)
     feeService = chainMod.get(FeeService)
     validationService = chainMod.get(ValidationService)
-
     ecoConfigService = chainMod.get(EcoConfigService)
     quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
+    fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     quoteService['logger'].debug = mockLogDebug
     quoteService['logger'].log = mockLogLog
@@ -256,6 +259,7 @@ describe('QuotesService', () => {
       async function generateHelper(
         calculated: any,
         expectedTokens: { token: string; amount: bigint }[],
+        expectedFulfillTimeSec?: number,
       ) {
         const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
         jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
@@ -263,9 +267,15 @@ describe('QuotesService', () => {
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
-        expect(await quoteService.generateQuote({ route: {} } as any)).toEqual({
+
+        jest
+          .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
+          .mockReturnValue(expectedFulfillTimeSec || 15)
+
+        expect(await quoteService.generateQuote({ route: { destination: 1 } } as any)).toEqual({
           tokens: expectedTokens,
           expiryTime: expect.any(String),
+          estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
         })
       }
 
@@ -402,6 +412,16 @@ describe('QuotesService', () => {
           { token: '0x2', amount: 100n },
         ])
       })
+
+      it('should calculate correct time for fulfillment', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], 9)
+      })
     })
   })
 
@@ -414,31 +434,64 @@ describe('QuotesService', () => {
 
   describe('on updateQuoteDb', () => {
     const _id = 'id9'
+    const mockQuoteIntentModelBase = { _id } as unknown as QuoteIntentModel // Base model for updates
+
     it('should return error if db save fails', async () => {
       const failedStore = new Error('error')
       jest.spyOn(quoteModel, 'updateOne').mockRejectedValue(failedStore)
-      const r = await quoteService.updateQuoteDb({ _id } as any)
+      const r = await quoteService.updateQuoteDb(mockQuoteIntentModelBase as any)
       expect(r).toEqual(failedStore)
       expect(mockLogError).toHaveBeenCalled()
     })
 
-    it('should save the DTO', async () => {
+    it('should save the DTO without a receipt if none provided', async () => {
       const data = { fee: 1n }
       jest.spyOn(quoteModel, 'updateOne').mockResolvedValue(data as any)
-      const r = await quoteService.updateQuoteDb({ _id } as any)
+      const r = await quoteService.updateQuoteDb(mockQuoteIntentModelBase as any)
       expect(r).toBeUndefined()
       expect(mockLogError).not.toHaveBeenCalled()
-      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith({ _id }, { _id })
+      // Check that it's called with the model that doesn't have .receipt explicitly set by this call
+      const expectedModel = { ...mockQuoteIntentModelBase }
+      delete expectedModel.receipt // Ensure receipt is not on the model passed to updateOne if not provided
+      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith(
+        { _id },
+        expect.objectContaining({ _id: _id }),
+      )
+      // More precise check: Ensure the model passed to updateOne doesn't have .receipt if not provided by the call
+      const callArgs = (jest.spyOn(quoteModel, 'updateOne').mock.calls[0] as any)[1]
+      expect(callArgs.receipt).toBeUndefined()
     })
 
-    it('should save the DTO with a reciept', async () => {
-      const data = { fee: 1n }
-      const receipt = 'receipt'
+    it('should save the DTO with a full quote response object as receipt', async () => {
+      const data = { fee: 1n } // Mock db response
+      const fullQuoteResponseAsReceipt = {
+        tokens: [{ token: '0xabc', amount: 123n }],
+        expiryTime: '1700000000',
+        estimatedFulfillTimeSec: 15,
+      }
+
       jest.spyOn(quoteModel, 'updateOne').mockResolvedValue(data as any)
-      const r = await quoteService.updateQuoteDb({ _id, receipt } as any)
+
+      const quoteIntentModelForTest = { _id: 'id9' }
+
+      // Call the function with the simplified model, casting to 'any' to bypass strict type checking
+      const r = await quoteService.updateQuoteDb(
+        quoteIntentModelForTest as any,
+        fullQuoteResponseAsReceipt,
+      )
       expect(r).toBeUndefined()
       expect(mockLogError).not.toHaveBeenCalled()
-      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledWith({ _id }, { _id, receipt })
+
+      expect(jest.spyOn(quoteModel, 'updateOne')).toHaveBeenCalledTimes(1)
+
+      const updateCallArgs = jest.spyOn(quoteModel, 'updateOne').mock.calls[0] as any
+      const filterArg = updateCallArgs[0]
+      const modelPassedToUpdate = updateCallArgs[1]
+
+      expect(filterArg._id).toEqual('id9')
+      expect(modelPassedToUpdate._id).toEqual('id9')
+      expect(modelPassedToUpdate.receipt).toBeDefined()
+      expect(modelPassedToUpdate.receipt).toEqual(fullQuoteResponseAsReceipt)
     })
   })
 })
