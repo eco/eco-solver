@@ -166,7 +166,7 @@ export class ProofService implements OnModuleInit {
    * @private
    */
   private getProofTypeFromString(proof: string): ProofType {
-    return ProofType.fromString(proof)
+    return ProofType.fromProviderValue(proof)
   }
 
   /**
