@@ -267,4 +267,12 @@ export class EcoConfigService {
   getSupportedChains(): bigint[] {
     return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
   }
+
+  /**
+   * Returns the fulfillment estimate config
+   * @returns the fulfillment estimate config
+   */
+  getFulfillmentEstimateConfig(): EcoConfigType['fulfillmentEstimate'] {
+    return this.get('fulfillmentEstimate')
+  }
 }

@@ -98,10 +98,6 @@ export default {
       storage_duration_seconds: 604800,
       hyperlane_duration_seconds: 3600,
     },
-    // Padding to add to the execution-time estimation
-    executionPaddingSeconds: 0.1,
-    // Percentile of block time to use for execution-time estimation
-    blockTimePercentile: 0.5,
   },
   whitelist: {},
   liquidityManager: {
@@ -111,6 +107,15 @@ export default {
       surplus: 0.1,
       deficit: 0.2,
     },
+  },
+
+  fulfillmentEstimate: {
+    // Padding to add to the execution-time estimation
+    executionPaddingSeconds: 0.1,
+    // Percentile of block time to use for execution-time estimation
+    blockTimePercentile: 0.5,
+    // Default block time to use for unknown chains
+    defaultBlockTime: 2,
   },
 
   indexer: {

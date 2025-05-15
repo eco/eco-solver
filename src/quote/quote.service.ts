@@ -1,6 +1,7 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
@@ -22,7 +23,6 @@ import * as dayjs from 'dayjs'
 import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
-import { getEstimatedFulfillTimeSec } from '@/quote/utils/expected-execution'
 
 /**
  * Service class for getting configs for the app
@@ -36,6 +36,7 @@ export class QuoteService {
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly fulfillmentEstimateService: FulfillmentEstimateService,
   ) {}
 
   /**
@@ -259,41 +260,14 @@ export class QuoteService {
       }
     }
 
-    const estimatedFulfillTimeSec = this.getEstimatedFulfillTimeSec(quoteIntentModel)
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
 
     return {
       tokens: Object.values(quoteRecord),
       expiryTime: this.getQuoteExpiryTime(),
       estimatedFulfillTimeSec,
     }
-  }
-
-  /**
-   * Returns the estimated fulfillment time in seconds
-   * @param quoteIntentModel the quote intent model
-   * @returns the estimated fulfillment time in seconds
-   */
-  getEstimatedFulfillTimeSec(quoteIntentModel: QuoteIntentDataInterface): number {
-    // Default values if configs are not set
-    const DEFAULT_EXECUTION_PADDING_SECONDS = 0.1
-    const DEFAULT_BLOCK_TIME_PERCENTILE = 0.5
-
-    const paddingSeconds =
-      this.ecoConfigService.getIntentConfigs()?.executionPaddingSeconds ??
-      DEFAULT_EXECUTION_PADDING_SECONDS
-    const blockTimePercentile =
-      this.ecoConfigService.getIntentConfigs()?.blockTimePercentile ?? DEFAULT_BLOCK_TIME_PERCENTILE
-    const destinationChainID =
-      typeof quoteIntentModel.route.destination === 'bigint'
-        ? Number(quoteIntentModel.route.destination)
-        : quoteIntentModel.route.destination
-
-    const estimatedFulfillTimeSec = getEstimatedFulfillTimeSec(
-      this.ecoConfigService.getSolver(destinationChainID),
-      paddingSeconds,
-      blockTimePercentile,
-    )
-    return estimatedFulfillTimeSec
   }
 
   /**

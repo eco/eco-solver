@@ -17,6 +17,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Model } from 'mongoose'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -31,6 +32,7 @@ describe('QuotesService', () => {
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let quoteModel: DeepMocked<Model<QuoteIntentModel>>
+  let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
@@ -47,15 +49,16 @@ describe('QuotesService', () => {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),
         },
+        { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
       ],
     }).compile()
 
     quoteService = chainMod.get(QuoteService)
     feeService = chainMod.get(FeeService)
     validationService = chainMod.get(ValidationService)
-
     ecoConfigService = chainMod.get(EcoConfigService)
     quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
+    fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     quoteService['logger'].debug = mockLogDebug
     quoteService['logger'].log = mockLogLog
@@ -256,20 +259,8 @@ describe('QuotesService', () => {
       async function generateHelper(
         calculated: any,
         expectedTokens: { token: string; amount: bigint }[],
-        mockOverrides: {
-          avgBlockTime?: number | null
-          paddingSeconds?: number | null
-          blockTimePercentile?: number | null
-          solverDefined?: boolean
-        } = {},
+        expectedFulfillTimeSec?: number,
       ) {
-        const {
-          avgBlockTime = 12,
-          paddingSeconds = 0.5,
-          solverDefined = true,
-          blockTimePercentile = 0.5,
-        } = mockOverrides
-
         const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
         jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
@@ -277,30 +268,14 @@ describe('QuotesService', () => {
           return { balance: amount }
         })
 
-        const mockIntentConfigs =
-          paddingSeconds === null || blockTimePercentile === null
-            ? undefined
-            : { executionPaddingSeconds: paddingSeconds, blockTimePercentile }
-        jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue(mockIntentConfigs as any)
-
-        const mockSolver = !solverDefined
-          ? undefined
-          : avgBlockTime === null
-            ? {}
-            : { averageBlockTime: avgBlockTime }
-        jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(mockSolver as any)
-
-        const effectiveAvgTime = !solverDefined || avgBlockTime === null ? 15 : avgBlockTime
-        const effectivePadding = paddingSeconds === null ? 0.1 : paddingSeconds
-        const effectiveBlockTimePercentile =
-          blockTimePercentile === null ? 0.5 : blockTimePercentile
-        const expectedFulfillTime =
-          effectiveAvgTime * effectiveBlockTimePercentile + effectivePadding
+        jest
+          .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
+          .mockReturnValue(expectedFulfillTimeSec || 15)
 
         expect(await quoteService.generateQuote({ route: { destination: 1 } } as any)).toEqual({
           tokens: expectedTokens,
           expiryTime: expect.any(String),
-          estimatedFulfillTimeSec: expectedFulfillTime,
+          estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
         })
       }
 
@@ -438,74 +413,14 @@ describe('QuotesService', () => {
         ])
       })
 
-      it('should calculate correct time for Ethereum-like chain (avgTime=12, padding=3) (Test Case 6)', async () => {
+      it('should calculate correct time for fulfillment', async () => {
         const calculated = {
           solver: {},
           rewards: [{ address: '0x1', balance: 100n }],
           calls: [{ balance: 50n }],
           deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
         } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
-          avgBlockTime: 12,
-          paddingSeconds: 3,
-          blockTimePercentile: 0.5,
-        })
-      })
-
-      it('should calculate correct time for Arbitrum-like chain (avgTime=2, padding=3) (Test Case 7)', async () => {
-        const calculated = {
-          solver: {},
-          rewards: [{ address: '0x1', balance: 100n }],
-          calls: [{ balance: 50n }],
-          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
-        } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
-          avgBlockTime: 2,
-          paddingSeconds: 3,
-          blockTimePercentile: 0.5,
-        })
-      })
-
-      it('should calculate correct time with default padding (padding=null -> 0.1, avgTime=12) (Test Case 8)', async () => {
-        const calculated = {
-          solver: {},
-          rewards: [{ address: '0x1', balance: 100n }],
-          calls: [{ balance: 50n }],
-          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
-        } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
-          avgBlockTime: 12,
-          paddingSeconds: null,
-          blockTimePercentile: 0.5,
-        })
-      })
-
-      it('should calculate correct time with undefined solver (solver=undef -> avgTime=15, padding=3) (Test Case 9a)', async () => {
-        const calculated = {
-          solver: {},
-          rewards: [{ address: '0x1', balance: 100n }],
-          calls: [{ balance: 50n }],
-          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
-        } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
-          solverDefined: false,
-          paddingSeconds: 3,
-          blockTimePercentile: 0.5,
-        })
-      })
-
-      it('should calculate correct time with solver missing avgTime (avgTime=null -> 15, padding=3) (Test Case 9b)', async () => {
-        const calculated = {
-          solver: {},
-          rewards: [{ address: '0x1', balance: 100n }],
-          calls: [{ balance: 50n }],
-          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
-        } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], {
-          avgBlockTime: null,
-          paddingSeconds: 3,
-          blockTimePercentile: 0.5,
-        })
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], 9)
       })
     })
   })
