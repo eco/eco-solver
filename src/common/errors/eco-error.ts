@@ -4,6 +4,7 @@ import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
 import { AwsCredential } from '@/eco-configs/eco-config.types'
+import { ProofType } from '@/contracts'
 
 export class EcoError extends Error {
   // Alchemy Service
@@ -60,6 +61,10 @@ export class EcoError extends Error {
 
   static InvalidKernelAccountConfig() {
     return new EcoError(`The kernel account config is invalid`)
+  }
+
+  static ProverNotSupported(pt: ProofType) {
+    return new Error(`The prover type ${pt} is not supported`)
   }
 
   static RebalancingRouteNotFound() {
