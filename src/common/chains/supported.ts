@@ -1,4 +1,4 @@
-import { EcoRoutesChainDefinitions } from '@eco-foundation/chains'
+import { EcoRoutesChains } from '@eco-foundation/chains'
 import { anvil } from './definitions/anvil'
 
 import { Chain } from 'viem'
@@ -9,5 +9,5 @@ import { Chain } from 'viem'
  */
 export const ChainsSupported: Chain[] = [
   anvil,
-  ...Object.values(EcoRoutesChainDefinitions as any) as any
+  ...EcoRoutesChains as Chain[],
 ]
