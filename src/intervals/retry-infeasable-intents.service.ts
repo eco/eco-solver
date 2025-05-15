@@ -1,7 +1,7 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QUEUES } from '@/common/redis/constants'
 import { getIntentJobId } from '@/common/utils/strings'
-import { Proofs } from '@/contracts'
+import { ProofType } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { ProofService } from '@/prover/proof.service'
@@ -76,12 +76,12 @@ export class RetryInfeasableIntentsService implements OnApplicationBootstrap {
       status: 'INFEASABLE',
       $or: [
         {
-          'intent.expiration': { $gt: this.proofService.getProofMinimumDate(Proofs.Hyperlane) },
-          'intent.prover': { $in: this.proofService.getProvers(Proofs.Hyperlane) },
+          'intent.expiration': { $gt: this.proofService.getProofMinimumDate(ProofType.HYPERLANE) },
+          'intent.prover': { $in: this.proofService.getProvers(ProofType.HYPERLANE) },
         },
         {
-          'intent.expiration': { $gt: this.proofService.getProofMinimumDate(Proofs.Storage) },
-          'intent.prover': { $in: this.proofService.getProvers(Proofs.Storage) },
+          'intent.expiration': { $gt: this.proofService.getProofMinimumDate(ProofType.METALAYER) },
+          'intent.prover': { $in: this.proofService.getProvers(ProofType.METALAYER) },
         },
       ],
     })

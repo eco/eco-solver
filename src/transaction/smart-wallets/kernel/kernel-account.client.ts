@@ -96,7 +96,13 @@ async function deployKernelAccount<
       chain: client.chain as Chain,
       account: client.account as Account,
     })
-    await client.waitForTransactionReceipt({ hash: args.deployReceipt, confirmations: 5 })
+
+    if (client.waitForTransactionReceipt) {
+      await client.waitForTransactionReceipt({ hash: args.deployReceipt, confirmations: 5 })
+    } else {
+      // Fallback to public client if the client does not have waitForTransactionReceipt
+      await publicClient.waitForTransactionReceipt({ hash: args.deployReceipt, confirmations: 5 })
+    }
   }
   return args
 }

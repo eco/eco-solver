@@ -53,3 +53,41 @@ export function decodeCreateIntentLog(data: Hex, topics: [signature: Hex, ...arg
     data,
   })
 }
+
+// Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
+export type IntentFundedEventViemType = Prettify<
+  GetEventArgs<
+    typeof IntentSourceAbi,
+    'IntentFunded',
+    {
+      EnableUnion: true
+      IndexedOnly: false
+      Required: false
+    }
+  > & {
+    hash: Hex
+    logIndex: number
+  }
+>
+
+/**
+ * Define the type for the IntentSource event log
+ */
+export type IntentFundedEventLog = DecodeEventLogReturnType<typeof IntentSourceAbi, 'IntentFunded'>
+
+// Define the type for the IntentCreated event log
+export type IntentFundedLog = Prettify<
+  Log<bigint, number, false, ExtractAbiEvent<typeof IntentSourceAbi, 'IntentFunded'>, true> & {
+    sourceNetwork: Network
+    sourceChainID: bigint
+  }
+>
+
+export function decodeIntentFundedLog(data: Hex, topics: [signature: Hex, ...args: Hex[]] | []) {
+  return decodeEventLog({
+    abi: IntentSourceAbi,
+    eventName: 'IntentFunded',
+    topics,
+    data,
+  })
+}

@@ -2,7 +2,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ProofService } from '../../prover/proof.service'
-import { PROOF_HYPERLANE, PROOF_STORAGE, ProofType } from '../../contracts'
+import { ProofType } from '../../contracts'
 import { Hex } from 'viem'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { addSeconds } from 'date-fns'
@@ -57,22 +57,18 @@ describe('ProofService', () => {
       { chainID: 2, provers: ['0x123', '0x777'] },
     ]
     const proofContracts = {
-      [intentSources[0].provers[0]]: PROOF_HYPERLANE,
-      [intentSources[0].provers[1]]: PROOF_HYPERLANE,
-      [intentSources[1].provers[1]]: PROOF_STORAGE,
+      [intentSources[0].provers[0]]: ProofType.HYPERLANE,
+      [intentSources[0].provers[1]]: ProofType.HYPERLANE,
+      [intentSources[1].provers[1]]: ProofType.HYPERLANE,
     }
     const proof1: Record<Hex, ProofType> = {}
     const proof2: Record<Hex, ProofType> = {}
     beforeEach(async () => {
       intentSources[0].provers.forEach((s) => {
-        proof1[s] = PROOF_HYPERLANE
+        proof1[s] = ProofType.HYPERLANE
       })
       intentSources[1].provers.forEach((s) => {
-        if (s === intentSources[0].provers[0]) {
-          proof2[s] = PROOF_HYPERLANE
-          return
-        }
-        proof2[s] = PROOF_STORAGE
+        proof2[s] = ProofType.HYPERLANE
       })
       proofService['getProofTypes'] = mockGetProofTypes.mockImplementation(
         async (chainID: number) => {
@@ -112,7 +108,6 @@ describe('ProofService', () => {
   describe('on utility methods', () => {
     const intentConfigs = {
       proofs: {
-        storage_duration_seconds: 10,
         hyperlane_duration_seconds: 20,
       },
     }
@@ -120,24 +115,13 @@ describe('ProofService', () => {
       ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue(intentConfigs)
     })
     it('should correctly check if its a hyperlane prover', async () => {
-      jest.spyOn(proofService, 'getProofType').mockReturnValue(PROOF_HYPERLANE)
+      jest.spyOn(proofService, 'getProofType').mockReturnValue(ProofType.HYPERLANE)
       expect(proofService.isHyperlaneProver('0x123')).toBe(true)
-      expect(proofService.isStorageProver('0x123')).toBe(false)
-    })
-
-    it('should correctly check if its a storage prover', async () => {
-      jest.spyOn(proofService, 'getProofType').mockReturnValue(PROOF_STORAGE)
-      expect(proofService.isHyperlaneProver('0x123')).toBe(false)
-      expect(proofService.isStorageProver('0x123')).toBe(true)
     })
 
     it('should return the correct minimum proof time', async () => {
-      expect(proofService['getProofMinimumDurationSeconds'](PROOF_HYPERLANE)).toBe(
+      expect(proofService['getProofMinimumDurationSeconds'](ProofType.HYPERLANE)).toBe(
         intentConfigs.proofs.hyperlane_duration_seconds,
-      )
-
-      expect(proofService['getProofMinimumDurationSeconds'](PROOF_STORAGE)).toBe(
-        intentConfigs.proofs.storage_duration_seconds,
       )
     })
 

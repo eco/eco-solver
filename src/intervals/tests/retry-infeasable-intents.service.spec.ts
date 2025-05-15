@@ -9,8 +9,8 @@ import { Model } from 'mongoose'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
-import { Proofs } from '@/contracts'
 import { Hex } from 'viem'
+import { ProofType } from '@/contracts'
 
 describe('RetryInfeasableIntentsService', () => {
   let infeasableService: RetryInfeasableIntentsService
@@ -139,10 +139,12 @@ describe('RetryInfeasableIntentsService', () => {
       const proverStorage: Hex[] = ['0x3b', '0x4b']
       const mockGetProofMinimumDate = jest
         .spyOn(proofService, 'getProofMinimumDate')
-        .mockImplementation((proof) => (proof == Proofs.Hyperlane ? minDateHyper : minDateStorage))
+        .mockImplementation((proof) =>
+          proof == ProofType.HYPERLANE ? minDateHyper : minDateStorage,
+        )
       const mockGetProvers = jest
         .spyOn(proofService, 'getProvers')
-        .mockImplementation((proof) => (proof == Proofs.Hyperlane ? proverHyper : proverStorage))
+        .mockImplementation((proof) => (proof == ProofType.HYPERLANE ? proverHyper : proverStorage))
 
       await infeasableService['getInfeasableIntents']()
 

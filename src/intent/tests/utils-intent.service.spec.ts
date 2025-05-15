@@ -225,7 +225,7 @@ describe('UtilsIntentService', () => {
   describe('on getIntentProcessData', () => {
     const intentHash = address1
     const model = {
-      intent: { route: { hash: intentHash, destination: '85432' } },
+      intent: { route: { hash: intentHash, source: 'opt-sepolia', destination: '85432' } },
       event: { sourceNetwork: 'opt-sepolia' },
     } as any
     it('should return undefined if it could not find the model in the db', async () => {
@@ -245,7 +245,7 @@ describe('UtilsIntentService', () => {
       expect(mockLogLog).toHaveBeenCalledWith({
         msg: `No solver found for chain ${model.intent.route.destination}`,
         intentHash: intentHash,
-        sourceNetwork: model.event.sourceNetwork,
+        sourceNetwork: IntentSourceModel.getSource(model),
       })
     })
 

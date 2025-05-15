@@ -82,6 +82,9 @@ export default {
       },
     },
   },
+  quotesConfig: {
+    intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
+  },
   intentConfigs: {
     defaultFee: {
       limitFillBase6: 1000n * 10n ** 6n,
@@ -95,8 +98,8 @@ export default {
       },
     },
     proofs: {
-      storage_duration_seconds: 604800,
       hyperlane_duration_seconds: 3600,
+      metalayer_duration_seconds: 7200,
     },
   },
   whitelist: {},

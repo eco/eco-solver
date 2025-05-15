@@ -66,3 +66,6 @@ config/*
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
+
+#AI
+CLAUDE.md
