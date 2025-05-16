@@ -122,7 +122,9 @@ export class HatsService implements OnModuleInit {
       if (rewardPeriodData) {
         const delay = Math.floor(rewardPeriodData.endTime.getTime() - Date.now()) + 10_000 // add 10 seconds to ensure it fires after the period ends
 
-        this.hatsQueue.add(
+        const existingJob = await this.hatsQueue.getJob(QUEUES.HATS.jobs.distribute)
+        if (existingJob) await existingJob.remove()
+        await this.hatsQueue.add(
           QUEUES.HATS.jobs.distribute,
           {
             accumulationPeriodId: rewardPeriodData.accumulationPeriodId,
