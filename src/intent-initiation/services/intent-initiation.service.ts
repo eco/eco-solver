@@ -19,6 +19,7 @@ import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
+import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
@@ -33,7 +34,10 @@ export class IntentInitiationService implements OnModuleInit {
   private kernelAccountClientService: KernelAccountClientService
   private createIntentService: CreateIntentService
 
-  constructor(private readonly moduleRef: ModuleRef) {}
+  constructor(
+    private readonly permitValidationService: PermitValidationService,
+    private readonly moduleRef: ModuleRef,
+  ) {}
 
   onModuleInit() {
     this.quoteRepository = this.moduleRef.get(QuoteRepository, { strict: false })
@@ -189,7 +193,7 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     // Get the permit tx(s)
-    const { response: permitTxs, error } = this.generatePermitTxs(gaslessIntentRequestDTO)
+    const { response: permitTxs, error } = await this.generatePermitTxs(gaslessIntentRequestDTO)
 
     if (error) {
       return { error: InternalQuoteError(error) }
@@ -285,9 +289,9 @@ export class IntentInitiationService implements OnModuleInit {
     return { response: fundTx }
   }
 
-  private generatePermitTxs(
+  private async generatePermitTxs(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): EcoResponse<ExecuteSmartWalletArg[]> {
+  ): Promise<EcoResponse<ExecuteSmartWalletArg[]>> {
     const {
       reward,
       gaslessIntentData: { funder, permitData, vaultAddress },
@@ -298,6 +302,19 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     const { permit, permit2 } = permitData!
+
+    const { error: permitValidationError } = await this.permitValidationService.validatePermits({
+      chainId: gaslessIntentRequestDTO.getSourceChainID!(),
+      permits: permit,
+      permit2,
+      reward,
+      spender: vaultAddress!,
+      owner: funder,
+    })
+
+    if (permitValidationError) {
+      return { error: permitValidationError }
+    }
 
     if (_.size(permit) > 0) {
       return this.getPermitTxs(

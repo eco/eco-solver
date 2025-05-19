@@ -1,6 +1,7 @@
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { Hex } from 'viem'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { PublicClient } from 'viem'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
@@ -12,6 +13,31 @@ import * as crypto from 'crypto'
 
 const AddressLen = 40
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+const readContractMock = jest.fn().mockResolvedValue([1000n, 9999999999n, 1n])
+const simulateContractMock = jest.fn().mockResolvedValue({})
+
+// Mock with .extend() returning itself
+const mockPublicClient = {
+  readContract: readContractMock,
+  simulateContract: simulateContractMock,
+  extend: function () {
+    return this
+  },
+}
+
+export class MockWalletClientDefaultSignerService {
+  async getClient() {
+    return {
+      writeContract: jest.fn(),
+      sendTransaction: jest.fn(),
+    }
+  }
+
+  async getPublicClient() {
+    return mockPublicClient as unknown as PublicClient
+  }
+}
 
 export class QuoteTestUtils {
   getRandomHexString(len: number): string {
@@ -97,12 +123,14 @@ export class QuoteTestUtils {
     const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
 
     const quoteIntentModel: QuoteIntentModel = {
+      _id: 'mock-id' as any,
       dAppID,
       intentExecutionType,
       // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
-    } as QuoteIntentModel
+      receipt: null,
+    } as unknown as QuoteIntentModel
 
     return quoteIntentModel
   }
@@ -154,6 +182,10 @@ export class QuoteTestUtils {
       nativeValue: 0n,
       tokens: [],
       ...overrides,
+
+      hasToken(token: Hex): boolean {
+        return this.tokens.some((t) => t.token.toLowerCase() === token.toLowerCase())
+      },
     }
 
     return quoteRewardDataDTO
