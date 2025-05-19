@@ -64,7 +64,7 @@ export class PermitTestUtils {
       opts.isBatch ? batchPermitData.typedData.sigDeadline : singlePermitData.typedData.sigDeadline
 
     return {
-      permitContract: '0x0000000000000000000000000000000000000002',
+      permitContract: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
       signature: ('0x' + '1'.repeat(130)) as Hex,
       permitData: {
         singlePermitData: opts.isBatch ? undefined : singlePermitData,
