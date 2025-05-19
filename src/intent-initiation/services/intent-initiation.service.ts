@@ -212,7 +212,7 @@ export class IntentInitiationService implements OnModuleInit {
   private async getIntentFundForTx(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
-    const { quoteID, salt, route: quoteRoute } = gaslessIntentRequestDTO
+    const { quoteID, salt } = gaslessIntentRequestDTO
 
     const { response: quote, error } = await this.quoteRepository.fetchQuoteIntentData({
       quoteID,
@@ -222,6 +222,8 @@ export class IntentInitiationService implements OnModuleInit {
     if (error) {
       return { error }
     }
+
+    const { route: quoteRoute } = quote!
 
     // Now we need to get the route hash with the real salt
     const routeWithSalt: RouteType = {
