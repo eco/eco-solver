@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { encodeAbiParameters, encodeFunctionData, erc20Abi, Hex, pad, zeroAddress } from 'viem'
+import { Call, encodeAbiParameters, encodeFunctionData, erc20Abi, Hex, pad, zeroAddress } from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
-import { getERC20Selector } from '@/contracts'
+import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -11,7 +11,7 @@ import { FeeService } from '@/fee/fee.service'
 import { ProofService } from '@/prover/proof.service'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
+import { getFunctionCalls, getFunctionTargets, getNativeCalls, getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
@@ -31,7 +31,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -135,7 +135,7 @@ export class WalletFulfillService implements IFulfillService {
    * @param target the target ERC20 address
    * @returns
    */
-  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex) {
+  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex): Call[] {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
@@ -147,7 +147,7 @@ export class WalletFulfillService implements IFulfillService {
           args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
-        return [{ to: target, data: transferFunctionData }]
+        return [{ to: target, value: 0n, data: transferFunctionData }]
       default:
         return []
     }
@@ -161,8 +161,10 @@ export class WalletFulfillService implements IFulfillService {
    * @return {Array} An array of generated transactions based on the intent targets. Returns an empty array if no valid transactions are created.
    */
   private getTransactionsForTargets(model: IntentSourceModel, solver: Solver) {
+    const functionCalls = getFunctionCalls(model.intent.route.calls)
+    const nativeCalls = getNativeCalls(model.intent.route.calls)
     // Create transactions for intent targets
-    return model.intent.route.calls.flatMap((call) => {
+    const functionFulfills = functionCalls.flatMap((call) => {
       const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.logger.error(
@@ -186,6 +188,39 @@ export class WalletFulfillService implements IFulfillService {
           return []
       }
     })
+    const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
+    // Don't add the native fulfill if there is no value
+    if (nativeFulfill.value && nativeFulfill.value > 0n) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Adding native fulfill`,
+          properties: {
+            nativeFulfill,
+            nativeCalls,
+          },
+        }),
+      )
+      functionFulfills.push(nativeFulfill)
+    }
+
+    return functionFulfills
+  }
+
+  /**
+   * Iterates over the calls and returns the sum of the native value transfers
+   * @param solver the solver for the intent
+   * @param nativeCalls The calls that have native value transfers
+   * @returns 
+   */
+  private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
+    const nativeFulfillTotal = nativeCalls.reduce((acc, call) => {
+      return acc + (call.value || 0n)
+    }, 0n)
+    return {
+      to: solver.inboxAddress,
+      value: nativeFulfillTotal,
+      data: '0x',
+    }
   }
 
   /**

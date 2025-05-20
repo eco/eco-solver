@@ -133,6 +133,15 @@ export function getFunctionCalls(calls: CallDataInterface[]) {
 }
 
 /**
+ * Iterates over the calls and returns those that have empty data and send native value
+ * @param calls the calls to check
+ * @returns 
+ */
+export function getNativeCalls(calls: CallDataInterface[]) {
+  return calls.filter((call) => call.value > 0 && isEmptyData(call.data))
+}
+
+/**
  * Iterates over the calls and returns the targets that do not have empty data
  * @param calls the calls to check
  * @returns
