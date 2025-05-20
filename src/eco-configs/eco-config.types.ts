@@ -187,9 +187,13 @@ export type KmsConfig = {
  * The config type for a ERC20 transfer
  */
 export type FeeConfigType = {
-  //the maximum amount of tokens that can be filled in a single transaction,
-  //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
-  limitFillBase6: bigint
+  limit: {
+    //the maximum amount of tokens that can be filled in a single transaction,
+    //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
+    tokenBase6: bigint
+    //the max native gas that can be filled in a single transaction
+    nativeBase18: bigint
+  }
   algorithm: FeeAlgorithm
   constants: FeeAlgorithmConfig<FeeAlgorithm>
 }
@@ -270,10 +274,19 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
  * The fee algorithm constant config types
  */
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
-  ? { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
+  ? {
+      token: FeeAlgoLinear
+      native: FeeAlgoLinear
+    }
   : T extends 'quadratic'
-    ? { baseFee: bigint; quadraticFactor: bigint }
+    ? {
+        token: FeeAlgoQuadratic
+        native: FeeAlgoQuadratic
+      }
     : never
+
+export type FeeAlgoLinear = { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
+export type FeeAlgoQuadratic = { baseFee: bigint; quadraticFactor: bigint }
 
 /**
  * The config type for a supported target contract

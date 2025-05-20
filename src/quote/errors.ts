@@ -2,6 +2,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { Hex } from 'viem'
+import { NormalizedTotal } from '../fee/types'
 
 /**
  * Errors that can be thrown by the quote service
@@ -69,7 +70,10 @@ export function InvalidQuoteIntent(validations: ValidationChecks): Quote400 {
  * @param totalRewardAmount the total amount of the reward
  * @returns
  */
-export function InsufficientBalance(totalAsk: bigint, totalFulfillmentAmount: bigint): Quote400 {
+export function InsufficientBalance(
+  totalAsk: NormalizedTotal,
+  totalFulfillment: NormalizedTotal,
+): Quote400 {
   return {
     statusCode: 400,
     message:
@@ -77,7 +81,7 @@ export function InsufficientBalance(totalAsk: bigint, totalFulfillmentAmount: bi
     code: 5,
     properties: {
       totalAsk,
-      totalFulfillmentAmount,
+      totalFulfillment,
     },
   }
 }
@@ -201,13 +205,13 @@ export class QuoteError extends Error {
     )
   }
 
-  static RouteIsInfeasable(ask: bigint, reward: bigint) {
+  static RouteIsInfeasable(ask: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
       `The route is not infeasable: the reward ${reward} is less than the ask ${ask}`,
     )
   }
 
-  static RewardIsInfeasable(fee: bigint, reward: bigint) {
+  static RewardIsInfeasable(fee: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
       `The reward is infeasable: the reward ${reward} is less than the fee ${fee}`,
     )

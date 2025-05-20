@@ -168,7 +168,7 @@ describe('QuotesService', () => {
     const failValidations: ValidationChecks = {
       supportedProver: true,
       supportedTargets: true,
-      supportedSelectors: true,
+      supportedTransaction: true,
       validTransferLimit: true,
       validExpirationTime: true,
       validDestination: false,
@@ -177,7 +177,7 @@ describe('QuotesService', () => {
     const validValidations: ValidationChecks = {
       supportedProver: true,
       supportedTargets: true,
-      supportedSelectors: true,
+      supportedTransaction: true,
       validTransferLimit: true,
       validExpirationTime: true,
       validDestination: true,

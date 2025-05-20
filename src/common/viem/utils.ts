@@ -95,3 +95,16 @@ export function convertBigIntsToStrings(obj: any): any {
 
   return obj
 }
+
+/**
+ *  Checks if the data is empty. It checks if the data is '0x' or if it has only 0 characters.
+ * @param data the data to check
+ * @returns
+ */
+export function isEmptyData(data: Hex) {
+  return (
+    data === '0x' ||
+    // has only 0 characters
+    /^0+$/.test(data.split('0x')[1])
+  )
+}

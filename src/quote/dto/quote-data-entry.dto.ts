@@ -3,7 +3,7 @@ import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { ArrayNotEmpty, IsArray, IsIn, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteCallDataDTO, QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 
 export class QuoteDataEntryDTO {
   @ApiProperty({ enum: IntentExecutionType.enumKeys })
@@ -35,6 +35,11 @@ export class QuoteDataEntryDTO {
   @ValidateNested()
   @Type(() => QuoteRewardTokensDTO)
   rewardTokens: QuoteRewardTokensDTO[]
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @Transform(({ value }) => BigInt(value))
+  rewardNative: bigint
 
   @IsNotEmpty()
   @IsString()

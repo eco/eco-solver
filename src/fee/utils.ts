@@ -1,3 +1,5 @@
+import { NormalizedTotal } from './types'
+
 type BalanceObject = {
   balance: bigint
   decimal: number
@@ -20,4 +22,17 @@ export function normalizeBalance(value: BalanceObject, targetDecimal: number): B
   }
 
   return { balance: newBalance, decimal: targetDecimal }
+}
+
+/**
+ *  Normalizes the sum of two normalized totals.
+ * @param a the first normalized total
+ * @param b the second normalized total
+ * @returns
+ */
+export function normalizeSum(a: NormalizedTotal, b: NormalizedTotal): NormalizedTotal {
+  return {
+    token: a.token + b.token,
+    native: a.native + b.native,
+  }
 }

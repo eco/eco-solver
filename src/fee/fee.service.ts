@@ -8,8 +8,8 @@ import {
   IntentConfig,
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
-import { CalculateTokensType, NormalizedCall, NormalizedToken } from '@/fee/types'
-import { normalizeBalance } from '@/fee/utils'
+import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
+import { normalizeBalance, normalizeSum } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
@@ -74,26 +74,36 @@ export class FeeService implements OnModuleInit {
   /**
    * Calculates the fee for the transaction based on an amount and the intent
    *
-   * @param amount the amount to use for the fee
+   * @param normalizedTotal the amount to use for the fee
    * @param intent the quote intent
    * @returns a bigint representing the fee
    */
-  getFee(amount: bigint, intent: QuoteIntentDataInterface) {
+  getFee(normalizedTotal: NormalizedTotal, intent: QuoteIntentDataInterface): NormalizedTotal {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const solver = this.getAskRouteDestinationSolver(route)
 
-    let fee = 0n
+    const fee: NormalizedTotal = {
+      token: 0n,
+      native: 0n,
+    }
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
     switch (feeConfig.algorithm) {
       // the default
       // 0.02 cents + $0.015 per 100$
       // 20_000n + (totalFulfill * 15_000n) / 100_000_000n
       case 'linear':
-        const { tranche } = feeConfig.constants as FeeAlgorithmConfig<'linear'>
-        fee =
-          BigInt(feeConfig.constants.baseFee) +
-          (amount / BigInt(tranche.unitSize) + 1n) * BigInt(tranche.unitFee)
+        const tokenConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
+        const nativeConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
+        fee.token =
+          BigInt(tokenConfig.baseFee) +
+          (normalizedTotal.token / BigInt(tokenConfig.tranche.unitSize) + 1n) *
+            BigInt(tokenConfig.tranche.unitFee)
+        //TODO add some fulfillment transaction simulation costs to the fee
+        fee.native =
+          BigInt(nativeConfig.baseFee) +
+          (normalizedTotal.token / BigInt(nativeConfig.tranche.unitSize) + 1n) *
+            BigInt(nativeConfig.tranche.unitFee)
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
@@ -108,9 +118,9 @@ export class FeeService implements OnModuleInit {
    * @param intent the quote intent
    * @returns a bigint representing the ask
    */
-  getAsk(totalFulfill: bigint, intent: QuoteIntentDataInterface) {
+  getAsk(totalFulfill: NormalizedTotal, intent: QuoteIntentDataInterface) {
     const fee = this.getFee(totalFulfill, intent)
-    return fee + totalFulfill
+    return normalizeSum(fee, totalFulfill)
   }
 
   /**
@@ -165,12 +175,21 @@ export class FeeService implements OnModuleInit {
    */
   async getTotalFill(
     quote: QuoteIntentDataInterface,
-  ): Promise<{ totalFillNormalized: bigint; error?: Error }> {
+  ): Promise<{ totalFillNormalized: NormalizedTotal; error?: Error }> {
     const { calls, error } = await this.getCallsNormalized(quote)
     if (error) {
-      return { totalFillNormalized: 0n, error }
+      return { totalFillNormalized: { token: 0n, native: 0n }, error }
     }
-    return { totalFillNormalized: calls.reduce((acc, call) => acc + call.balance, 0n) }
+    const totalFillNormalized: NormalizedTotal = calls.reduce(
+      (acc, call) => {
+        return {
+          token: acc.token + call.balance,
+          native: acc.native + call.native.amount,
+        }
+      },
+      { token: 0n, native: 0n },
+    )
+    return { totalFillNormalized }
   }
 
   /**
@@ -180,12 +199,15 @@ export class FeeService implements OnModuleInit {
    */
   async getTotalRewards(
     quote: QuoteIntentDataInterface,
-  ): Promise<{ totalRewardsNormalized: bigint; error?: Error }> {
+  ): Promise<{ totalRewardsNormalized: NormalizedTotal; error?: Error }> {
     const { rewards, error } = await this.getRewardsNormalized(quote)
     if (error) {
-      return { totalRewardsNormalized: 0n, error }
+      return { totalRewardsNormalized: { token: 0n, native: 0n }, error }
     }
-    return { totalRewardsNormalized: rewards.reduce((acc, reward) => acc + reward.balance, 0n) }
+    const rewardSum = rewards.reduce((acc, reward) => {
+      return acc + reward.balance
+    }, 0n)
+    return { totalRewardsNormalized: { token: rewardSum, native: quote.reward.nativeValue } }
   }
 
   /**
@@ -460,6 +482,9 @@ export class FeeService implements OnModuleInit {
             decimals: callTarget.token.decimals,
           }),
           recipient,
+          native: {
+            amount: call.value,
+          },
         }
       })
     } catch (e) {
