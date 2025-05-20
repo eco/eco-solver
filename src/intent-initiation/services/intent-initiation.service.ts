@@ -174,6 +174,25 @@ export class IntentInitiationService implements OnModuleInit {
     }
   }
 
+  async getGasPrice(chainID: number, defaultValue: bigint): Promise<bigint> {
+    try {
+      const client = await this.kernelAccountClientService.getClient(chainID)
+      const gasPrice = await client.getGasPrice()
+      return gasPrice
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `getGasPrice: error`,
+          properties: {
+            error: ex.message,
+          },
+        }),
+      )
+
+      return defaultValue
+    }
+  }
+
   /**
    * This function is used to generate the transactions for the gasless intent. It generates the permit transactions and fund transaction.
    * @param gaslessIntentRequestDTO
