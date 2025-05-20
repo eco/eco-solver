@@ -12,10 +12,6 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import {
-  MockWalletClientDefaultSignerService,
-  QuoteTestUtils,
-} from '@/intent-initiation/test-utils/quote-test-utils'
 import { Logger } from '@nestjs/common'
 import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
@@ -24,6 +20,7 @@ import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
+import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
@@ -102,7 +99,7 @@ describe('IntentInitiationService', () => {
         },
         {
           provide: WalletClientDefaultSignerService,
-          useClass: MockWalletClientDefaultSignerService,
+          useClass: quoteTestUtils.getMockWalletClientDefaultSignerService(),
         },
       ])
       .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])

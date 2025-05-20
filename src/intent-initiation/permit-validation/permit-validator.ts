@@ -6,7 +6,7 @@ import { EcoResponse } from '@/common/eco-response'
 import { getEip712DomainFromToken } from '@/intent-initiation/permit-validation/signing-utils'
 import { PermitAbi } from '@/contracts/Permit.abi'
 import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/permit-params.interface'
-import { PublicClient, verifyTypedData, Address, parseSignature } from 'viem'
+import { PublicClient, verifyTypedData, Address, parseSignature, Signature, Hex } from 'viem'
 
 export class PermitValidator {
   private static logger = new EcoLogger(PermitValidator.name)
@@ -82,7 +82,7 @@ export class PermitValidator {
 
   static getPermitCalls(permits: PermitParams[]): Call[] {
     const calls = permits.map((permit) => {
-      const { v, r, s } = parseSignature(permit.signature)
+      const { v, r, s } = this.parseSignature(permit.signature)
 
       return {
         address: permit.tokenAddress,
@@ -94,6 +94,10 @@ export class PermitValidator {
     })
 
     return calls
+  }
+
+  static parseSignature(signatureHex: Hex): Signature {
+    return parseSignature(signatureHex)
   }
 
   static async getPermitNonce(

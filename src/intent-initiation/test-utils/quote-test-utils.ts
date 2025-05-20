@@ -1,3 +1,4 @@
+import { ClassConstructor } from 'class-transformer'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { Hex } from 'viem'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
@@ -26,7 +27,7 @@ const mockPublicClient = {
   },
 }
 
-export class MockWalletClientDefaultSignerService {
+class MockWalletClientDefaultSignerService {
   async getClient() {
     return {
       writeContract: jest.fn(),
@@ -174,7 +175,7 @@ export class QuoteTestUtils {
     return quoteRouteDataDTO
   }
 
-  createQuoteRewardDataDTO(overrides: Partial<QuoteRewardDataModel> = {}): QuoteRewardDataModel {
+  createQuoteRewardDataDTO(overrides: Partial<QuoteRewardDataDTO> = {}): QuoteRewardDataDTO {
     const quoteRewardDataDTO: QuoteRewardDataDTO = {
       creator: '0x0000000000000000000000000000000000000006',
       prover: '0x0000000000000000000000000000000000000007',
@@ -189,5 +190,20 @@ export class QuoteTestUtils {
     }
 
     return quoteRewardDataDTO
+  }
+
+  getMockWalletClientDefaultSignerService(): ClassConstructor<MockWalletClientDefaultSignerService> {
+    return class {
+      async getClient() {
+        return {
+          writeContract: jest.fn(),
+          sendTransaction: jest.fn(),
+        }
+      }
+
+      async getPublicClient() {
+        return mockPublicClient as unknown as PublicClient
+      }
+    }
   }
 }

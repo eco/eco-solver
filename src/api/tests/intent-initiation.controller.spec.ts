@@ -7,7 +7,6 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { MockWalletClientDefaultSignerService } from '@/intent-initiation/test-utils/quote-test-utils'
 import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
@@ -15,6 +14,7 @@ import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
+import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { TransactionReceipt } from 'viem'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
@@ -23,6 +23,7 @@ const intentTestUtils = new IntentTestUtils()
 let $: EcoTester
 let controller: IntentInitiationController
 let service: IntentInitiationService
+const quoteTestUtils = new QuoteTestUtils()
 
 describe('IntentInitiationController', () => {
   beforeAll(async () => {
@@ -38,7 +39,7 @@ describe('IntentInitiationController', () => {
         QuoteService,
         {
           provide: WalletClientDefaultSignerService,
-          useClass: MockWalletClientDefaultSignerService,
+          useClass: quoteTestUtils.getMockWalletClientDefaultSignerService(),
         },
       ])
       .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])
