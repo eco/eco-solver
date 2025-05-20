@@ -89,7 +89,7 @@ describe('UtilsIntentService', () => {
         const invalidCause = {
           supportedProver: false,
           supportedTargets: true,
-          supportedSelectors: true,
+          supportedTransaction: true,
           validExpirationTime: true,
           validDestination: true,
           fulfillOnDifferentChain: true,

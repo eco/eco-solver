@@ -81,6 +81,7 @@ export class QuoteTestUtils {
       routeTokens: [],
       routeCalls: [],
       rewardTokens: [],
+      rewardNative: 0n,
       expiryTime: '9999999999',
       estimatedFulfillTimeSec: 1000,
       ...overrides,

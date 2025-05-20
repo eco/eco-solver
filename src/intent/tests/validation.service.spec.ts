@@ -58,7 +58,7 @@ describe('ValidationService', () => {
       const validations = {
         supportedProver: true,
         supportedTargets: true,
-        supportedSelectors: true,
+        supportedTransaction: true,
         validTransferLimit: true,
         validExpirationTime: false,
         validDestination: true,
@@ -71,7 +71,7 @@ describe('ValidationService', () => {
       const validations = {
         supportedProver: false,
         supportedTargets: false,
-        supportedSelectors: false,
+        supportedTransaction: false,
         validTransferLimit: false,
         validExpirationTime: false,
         validDestination: false,
@@ -84,7 +84,7 @@ describe('ValidationService', () => {
       const validations = {
         supportedProver: true,
         supportedTargets: true,
-        supportedSelectors: true,
+        supportedTransaction: true,
         validExpirationTime: true,
         validDestination: true,
         fulfillOnDifferentChain: true,
@@ -146,25 +146,25 @@ describe('ValidationService', () => {
       const solver = { targets: {} } as any
       it('should fail solver has no targets', async () => {
         intent.route.calls = []
-        expect(validationService.supportedTargets(intent, solver)).toBe(false)
+        expect(validationService.supportedFunctionTargets(intent, solver)).toBe(false)
       })
 
       it('should fail intent has no targets', async () => {
         intent.route.calls = [{ target: '0x1' }]
         solver.targets = {}
-        expect(validationService.supportedTargets(intent, solver)).toBe(false)
+        expect(validationService.supportedFunctionTargets(intent, solver)).toBe(false)
       })
 
       it('should fail not all targets are supported on solver', async () => {
         intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
         solver.targets = { [intent.route.calls[0].target]: {} }
-        expect(validationService.supportedTargets(intent, solver)).toBe(false)
+        expect(validationService.supportedFunctionTargets(intent, solver)).toBe(false)
       })
 
       it('should succeed if targets supported ', async () => {
         intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
         solver.targets = { [intent.route.calls[0].target]: {}, [intent.route.calls[1].target]: {} }
-        expect(validationService.supportedTargets(intent, solver)).toBe(true)
+        expect(validationService.supportedFunctionTargets(intent, solver)).toBe(true)
       })
     })
 
@@ -173,7 +173,7 @@ describe('ValidationService', () => {
       const solver = { targets: {} } as any
       it('should fail if there are no calls', async () => {
         intent.route.calls = []
-        expect(validationService.supportedSelectors(intent, solver)).toBe(false)
+        expect(validationService.supportedTransaction(intent, solver)).toBe(false)
         expect(mockLogLog).toHaveBeenCalledTimes(1)
         expect(mockLogLog).toHaveBeenCalledWith({ msg: 'supportedSelectors: Target/data invalid' })
       })
@@ -185,13 +185,13 @@ describe('ValidationService', () => {
             ? ({} as any as TransactionTargetData)
             : null
         })
-        expect(validationService.supportedSelectors(intent, solver)).toBe(false)
+        expect(validationService.supportedTransaction(intent, solver)).toBe(false)
       })
 
       it('should succeed if every call is supported', async () => {
         intent.route.calls = [{ target: '0x1' }, { target: '0x2' }]
         mockGetTransactionTargetData.mockReturnValue({} as any as TransactionTargetData)
-        expect(validationService.supportedSelectors(intent, solver)).toBe(true)
+        expect(validationService.supportedTransaction(intent, solver)).toBe(true)
       })
     })
 
