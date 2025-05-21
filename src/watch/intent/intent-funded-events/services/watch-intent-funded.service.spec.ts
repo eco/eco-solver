@@ -48,9 +48,10 @@ describe('WatchIntentFundedService', () => {
             tokens: ['0x000000000000000000000000000000000000dead'], // ← ✅ required to avoid map() crash
           },
         ],
-        alchemy: {
-          networks: [{ id: 1 }, { id: 137 }],
-          apiKey: 'fake-alchemy-api-key',
+        rpcs: {
+          keys: {
+            '0x1234': '0x1234',
+          },
         },
         eth: {
           pollingInterval: 1000,

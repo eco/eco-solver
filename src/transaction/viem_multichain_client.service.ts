@@ -29,9 +29,6 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
   }
 
   private setChainConfigs() {
-    const alchemyConfigs = this.ecoConfigService.getAlchemy()
-    this.supportedAlchemyChainIds = alchemyConfigs.networks.map((n) => n.id)
-    this.apiKey = alchemyConfigs.apiKey
     this.pollingInterval = this.ecoConfigService.getEth().pollingInterval
   }
 
@@ -68,8 +65,8 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
 
   protected async buildChainConfig(chain: Chain): Promise<V> {
     //only pass api key if chain is supported by alchemy, otherwise it'll be incorrectly added to other rpcs
-    const { url: rpcUrl, transportOptions } = this.ecoConfigService.getRpcUrl(chain)
-    const rpcTransport = getTransport(rpcUrl, transportOptions)
+    const rpcUrl = this.ecoConfigService.getRpcUrl(chain)
+    const rpcTransport = getTransport(rpcUrl)
     return {
       transport: rpcTransport,
       chain: chain,

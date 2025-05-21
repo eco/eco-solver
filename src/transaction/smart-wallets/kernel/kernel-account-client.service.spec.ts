@@ -21,9 +21,10 @@ describe('KernelAccountClientService', () => {
   beforeAll(async () => {
     const mockSource = {
       getConfig: () => ({
-        alchemy: {
-          networks: [{ id: 1 }, { id: 137 }],
-          apiKey: 'fake-alchemy-api-key',
+        rpcs: {
+          keys: {
+            '0x1234': '0x1234',
+          },
         },
         eth: {
           pollingInterval: 1000,

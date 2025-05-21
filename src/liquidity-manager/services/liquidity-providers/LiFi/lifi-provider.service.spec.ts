@@ -56,7 +56,7 @@ describe('LiFiProviderService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
 
       const rpcUrls = { '10': 'http://op.rpc.com' }
-      jest.spyOn(ecoConfigService, 'getChainRPCs').mockReturnValue(rpcUrls)
+      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue(rpcUrls)
 
       await lifiProviderService.onModuleInit()
 

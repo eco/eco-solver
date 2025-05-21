@@ -4,11 +4,12 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { ConfigRegex } from '@eco-foundation/chains'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -20,8 +21,7 @@ export type EcoConfigType = {
   quotesConfig: QuotesConfig
   solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
-  alchemy: AlchemyConfigType
-  rpcUrls: RpcUrlsConfigType
+  rpcs: RpcConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -242,12 +242,13 @@ export type AlchemyNetwork = {
 }
 
 /**
- * The whole config type for QuickNode.
+ * The config type for the RPC section
  */
-export type RpcUrlsConfigType = Record<
-  string,
-  { http: string[]; webSocket?: string[]; options?: WebSocketTransportConfig | HttpTransportConfig }
->
+export type RpcConfigType = {
+  keys: {
+    [key in keyof typeof ConfigRegex]?: string
+  }
+}
 
 /**
  * The config type for a single solver configuration
