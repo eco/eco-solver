@@ -1,5 +1,6 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
+import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -32,15 +33,18 @@ interface TokenDataAnalyzed extends TokenData {
 type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
+type RelayStrategyContext = RelayQuote
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute'
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'Relay'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
     ? CCTPStrategyContext
     : S extends 'WarpRoute'
       ? WarpRouteStrategyContext
-      : never
+      : S extends 'Relay'
+        ? RelayStrategyContext
+        : never
 
 // Quote
 
