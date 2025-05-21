@@ -22,9 +22,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     // Configure Relay SDK
     const chains = this.getRelayChains()
 
-    // Initialize Relay client with hardcoded values since config is not available
     createClient({
-      source: 'eco-solver', // Source identifier for Relay
+      source: 'eco-protocol',
       chains,
     })
   }
@@ -40,6 +39,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
       const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
+      const walletAddress = await this.kernelAccountClientService.getAddress()
 
       const relayQuote = await getClient()?.actions.getQuote({
         chainId: tokenIn.chainId,
@@ -49,6 +49,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         amount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
         wallet: client as unknown as WalletClient,
         tradeType: 'EXACT_INPUT',
+        user: walletAddress,
+        recipient: walletAddress,
       })
 
       // Calculate amount out and slippage
