@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { extractChain, parseUnits, WalletClient } from 'viem'
+import { Chain, Client, extractChain, parseUnits, Transport } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -8,6 +8,9 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { convertViemChainToRelayChain, createClient, getClient } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
+import { adaptKernelWallet } from './wallet-adapter'
+import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
+import { SmartAccount } from 'viem/account-abstraction'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -38,8 +41,14 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     swapAmount: number,
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
-      const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
+      const client: KernelAccountClient<Transport, Chain, SmartAccount, Client> =
+        await this.kernelAccountClientService.getClient(tokenIn.chainId)
       const walletAddress = await this.kernelAccountClientService.getAddress()
+
+      // Adapt the kernel wallet to a Relay-compatible wallet
+      const adaptedWallet = adaptKernelWallet(client, (chainId) =>
+        this.kernelAccountClientService.getClient(chainId),
+      )
 
       const relayQuote = await getClient()?.actions.getQuote({
         chainId: tokenIn.chainId,
@@ -47,7 +56,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         currency: tokenIn.config.address,
         toCurrency: tokenOut.config.address,
         amount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
-        wallet: client as unknown as WalletClient,
+        wallet: adaptedWallet,
         tradeType: 'EXACT_INPUT',
         user: walletAddress,
         recipient: walletAddress,
@@ -112,10 +121,15 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         }),
       )
 
+      // Adapt the kernel wallet to a Relay-compatible wallet
+      const adaptedWallet = adaptKernelWallet(client, (chainId) =>
+        this.kernelAccountClientService.getClient(chainId),
+      )
+
       // Execute the quote
       return await getClient()?.actions.execute({
         quote: quote.context,
-        wallet: client as unknown as WalletClient,
+        wallet: adaptedWallet,
         onProgress: (data) => {
           this.logger.debug(
             EcoLogMessage.fromDefault({
