@@ -16,11 +16,11 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as dayjs from 'dayjs'
-import { encodeFunctionData, erc20Abi, Hex } from 'viem'
+import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
 import { EcoResponse } from '@/common/eco-response'
-import { QuotesConfig } from '@/eco-configs/eco-config.types'
+import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
@@ -50,6 +50,7 @@ interface GenerateQuoteParams {
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
   private quotesConfig: QuotesConfig
+  private gasEstimationsConfig: GasEstimationsConfig
   private intentInitiationService: IntentInitiationService
 
   constructor(
@@ -62,6 +63,7 @@ export class QuoteService implements OnModuleInit {
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
+    this.gasEstimationsConfig = this.ecoConfigService.getGasEstimationsConfig()
     this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
       strict: false,
     })
@@ -353,8 +355,18 @@ export class QuoteService implements OnModuleInit {
   async generateQuoteForGasless(
     params: GenerateQuoteParams,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `generateQuoteForGasless`,
+        properties: {
+          params,
+        },
+      }),
+    )
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quoteIntent, isReverseQuote, gaslessIntentRequest } = params
+    const { quoteIntent, isReverseQuote } = params
+    const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -365,10 +377,46 @@ export class QuoteService implements OnModuleInit {
       return { error }
     }
 
+    quoteDataEntry!.intentExecutionType = IntentExecutionType.GASLESS.toString()
+
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
-    quoteDataEntry!.intentExecutionType = IntentExecutionType.GASLESS.toString()
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const flatFee = await this.estimateFlatFee(
+      gaslessIntentRequest.getSourceChainID!(),
+      quoteDataEntry!,
+    )
+
     return { response: quoteDataEntry }
+  }
+
+  async estimateFlatFee(chainID: number, quoteDataEntry: QuoteDataEntryDTO): Promise<bigint> {
+    const { rewardTokens } = quoteDataEntry
+    const { fundFor, permit2, defaultGasPriceGwei } = this.gasEstimationsConfig
+
+    // Let's assume each token requires a permit2 approval
+    const baseGas = fundFor
+    const gas = baseGas + BigInt(rewardTokens.length) * permit2
+
+    const defaultGasPrice = parseGwei(defaultGasPriceGwei)
+    const gasPrice = await this.intentInitiationService.getGasPrice(chainID, defaultGasPrice)
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `estimateFlatFee`,
+        properties: {
+          chainID,
+          baseGas,
+          gas,
+          gasPrice,
+          totalFee: gas * gasPrice,
+          'totalFee in ETH': formatEther(gas * gasPrice),
+        },
+      }),
+    )
+
+    return gas * gasPrice
   }
 
   /**

@@ -234,6 +234,10 @@ export class EcoConfigService {
     return this.get('server')
   }
 
+  getGasEstimationsConfig(): EcoConfigType['gasEstimations'] {
+    return this.get('gasEstimations')
+  }
+
   // Returns the liquidity manager config
   getLiquidityManager(): EcoConfigType['liquidityManager'] {
     return this.get('liquidityManager')

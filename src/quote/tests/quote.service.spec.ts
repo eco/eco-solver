@@ -23,12 +23,27 @@ import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { zeroAddress } from 'viem'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { Chain, PublicClient, Transport } from 'viem'
 
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
     getTransactionTargetData: mockGetTransactionTargetData,
   }
+})
+
+// Create mock wallet client
+const walletClient = {
+  writeContract: jest.fn().mockResolvedValue('0xTransactionHash'),
+  sendTransaction: jest.fn().mockResolvedValue('0xTransactionHash'),
+}
+
+// Create mock public client
+const publicClient = createMock<PublicClient<Transport, Chain>>({
+  chain: { id: 10 },
+  waitForTransactionReceipt: jest.fn().mockResolvedValue({}),
 })
 
 describe('QuotesService', () => {
@@ -50,10 +65,18 @@ describe('QuotesService', () => {
         QuoteService,
         QuoteRepository,
         IntentInitiationService,
+        PermitValidationService,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        {
+          provide: WalletClientDefaultSignerService,
+          useValue: {
+            getClient: jest.fn().mockResolvedValue(walletClient),
+            getPublicClient: jest.fn().mockResolvedValue(publicClient),
+          },
+        },
         {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),

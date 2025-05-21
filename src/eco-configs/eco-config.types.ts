@@ -14,6 +14,7 @@ import { ConfigRegex } from '@eco-foundation/chains'
 // The config type that we store in json
 export type EcoConfigType = {
   server: ServerConfig
+  gasEstimations: GasEstimationsConfig
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
@@ -150,6 +151,13 @@ export type IntentConfig = {
 
 export type ServerConfig = {
   url: string
+}
+
+export type GasEstimationsConfig = {
+  fundFor: bigint // 150_000n
+  permit: bigint // 60_000n
+  permit2: bigint // 80_000n
+  defaultGasPriceGwei: string // 30
 }
 
 /**

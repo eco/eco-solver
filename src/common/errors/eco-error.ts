@@ -138,6 +138,20 @@ export class EcoError extends Error {
   static SignatureExpired = new EcoError()
   static InvalidSignature = new EcoError()
 
+  // Permit Validations
+  static InvalidVaultAddress = new EcoError('Permit spender does not match expected vault address')
+  static InvalidPermit2Address = new EcoError('Permit2 contract is not whitelisted')
+  static InvalidPermitSignature = new EcoError('Invalid permit signature for owner')
+  static InvalidPermitNonce = new EcoError('Nonce mismatch for token')
+  static PermitExpired = new EcoError('Permit expired for token')
+  static PermitExpirationMismatch = new EcoError(
+    'On-chain expiration is earlier than signed expiration',
+  )
+  static PermitSimulationsFailed = new EcoError(`One or more permit simulations failed`)
+  static VaultAlreadyClaimed = new EcoError(`Vault for intent has already been claimed`)
+  static VaultAlreadyFunded = new EcoError(`Vault for intent is already fully funded`)
+  static VaultNotFullyFundedAfterPermit = new EcoError('Vault not fully funded after permit')
+
   // EcoConfig Service
 
   static isEcoError(error: any): boolean {

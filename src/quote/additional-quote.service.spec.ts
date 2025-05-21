@@ -4,6 +4,7 @@ import { FeeService } from '@/fee/fee.service'
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Logger } from '@nestjs/common'
+import { parseGwei } from 'viem'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
@@ -19,6 +20,7 @@ describe('QuoteService', () => {
   let quoteRepository: QuoteRepository
   let feeService: FeeService
   let validationService: ValidationService
+  let intentInitiationService: IntentInitiationService
 
   const quoteTestUtils = new QuoteTestUtils()
 
@@ -29,6 +31,12 @@ describe('QuoteService', () => {
           provide: EcoConfigService,
           useValue: {
             getQuotesConfig: () => ({ intentExecutionTypes: ['GASLESS', 'SELF_PUBLISH'] }),
+            getGasEstimationsConfig: () => ({
+              fundFor: 150_000n,
+              permit: 60_000n,
+              permit2: 80_000n,
+              defaultGasPriceGwei: '30',
+            }),
             getSolver: () => ({ targets: { '0xabc': {} } }),
             getSupportedChains: () => [31337],
             getIntentSources: () => [{ chainID: 31337, provers: ['0xprover'] }],
@@ -71,6 +79,7 @@ describe('QuoteService', () => {
 
     quoteService = await $.init()
     quoteRepository = await $.get(QuoteRepository)
+    intentInitiationService = await $.get(IntentInitiationService)
     feeService = await $.get(FeeService)
     validationService = await $.get(ValidationService)
     quoteService.onModuleInit()
@@ -85,6 +94,7 @@ describe('QuoteService', () => {
       })
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
+      jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('50'))
 
       const successfulValidations = {
         supportedProver: true,
@@ -167,6 +177,7 @@ describe('QuoteService', () => {
       })
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
+      jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('35'))
 
       const successfulValidations = {
         supportedProver: true,
@@ -265,6 +276,48 @@ describe('QuoteService', () => {
 
       const error = await quoteService.validateQuoteIntentData(quoteIntent)
       expect(error).toEqual(InfeasibleQuote(expect.any(Error)))
+    })
+  })
+
+  describe('estimateFlatFee', () => {
+    it('should estimate flat fee correctly with 2 reward tokens', async () => {
+      const chainID = 1
+      const quoteDataEntry = quoteTestUtils.createQuoteDataEntryDTO({
+        rewardTokens: [
+          { token: '0xToken1', amount: 100n },
+          { token: '0xToken2', amount: 200n },
+        ],
+      })
+
+      const mockGasPrice = parseGwei('35')
+      jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(mockGasPrice)
+
+      const result = await quoteService.estimateFlatFee(chainID, quoteDataEntry)
+      const expectedGas = 150_000n + 2n * 80_000n // 310_000
+      const expectedFee = expectedGas * mockGasPrice
+
+      expect(result).toBe(expectedFee)
+      expect(intentInitiationService.getGasPrice).toHaveBeenCalledWith(
+        chainID,
+        parseGwei('30'),
+      )
+    })
+
+    it('should default to 0 tokens and just use baseGas if no tokens', async () => {
+      const chainID = 1
+      const quoteDataEntry = quoteTestUtils.createQuoteDataEntryDTO({
+        rewardTokens: [],
+      })
+
+      const mockGasPrice = parseGwei('40')
+      jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(mockGasPrice)
+
+      const result = await quoteService.estimateFlatFee(chainID, quoteDataEntry)
+      const expectedGas = 150_000n
+      const expectedFee = expectedGas * mockGasPrice
+
+      expect(result).toBe(expectedFee)
+      expect(intentInitiationService.getGasPrice).toHaveBeenCalled()
     })
   })
 })

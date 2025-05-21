@@ -17,11 +17,16 @@ import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import * as viem from 'viem'
+
+jest.spyOn(viem, 'verifyTypedData').mockResolvedValue(true)
 
 const logger = new Logger('IntentInitiationServiceSpec')
 
@@ -76,6 +81,7 @@ describe('IntentInitiationService', () => {
         QuoteRepository,
         PermitTxBuilder,
         Permit2TxBuilder,
+        PermitValidationService,
         {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: {
@@ -91,6 +97,10 @@ describe('IntentInitiationService', () => {
         {
           provide: KernelAccountClientService,
           useValue: kernelMock,
+        },
+        {
+          provide: WalletClientDefaultSignerService,
+          useClass: quoteTestUtils.getMockWalletClientDefaultSignerService(),
         },
       ])
       .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])

@@ -112,6 +112,13 @@ export default {
     },
   },
 
+  gasEstimations: {
+    fundFor: 150_000n,
+    permit: 60_000n,
+    permit2: 80_000n,
+    defaultGasPriceGwei: '30',
+  },
+
   indexer: {
     url: 'https://indexer.eco.com',
   },
