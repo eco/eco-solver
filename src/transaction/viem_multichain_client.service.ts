@@ -29,9 +29,6 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
   }
 
   private setChainConfigs() {
-    const alchemyConfigs = this.ecoConfigService.getAlchemy()
-    this.supportedAlchemyChainIds = alchemyConfigs.networks.map((n) => n.id)
-    this.apiKey = alchemyConfigs.apiKey
     this.pollingInterval = this.ecoConfigService.getEth().pollingInterval
   }
 
