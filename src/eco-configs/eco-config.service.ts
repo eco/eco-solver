@@ -64,7 +64,7 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() {}
+  async onModuleInit() { }
 
   // Initialize the configs
   initConfigs() {
