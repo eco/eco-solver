@@ -1,6 +1,7 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
 import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
+import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -34,8 +35,9 @@ type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
 type RelayStrategyContext = RelayQuote
+type StargateStrategyContext = StargateQuote
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'Relay'
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'Relay' | 'Stargate'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -44,7 +46,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
       ? WarpRouteStrategyContext
       : S extends 'Relay'
         ? RelayStrategyContext
-        : never
+        : S extends 'Stargate'
+          ? StargateStrategyContext
+          : never
 
 // Quote
 

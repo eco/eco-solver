@@ -12,6 +12,7 @@ import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/reb
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
     CCTPProviderService,
     WarpRouteProviderService,
     RelayProviderService,
+    StargateProviderService,
   ],
   exports: [LiquidityManagerService],
 })
