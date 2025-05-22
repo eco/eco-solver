@@ -64,7 +64,7 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() {}
+  async onModuleInit() { }
 
   // Initialize the configs
   initConfigs() {
@@ -300,7 +300,7 @@ export class EcoConfigService {
     const rpcChain = this.ecoChains.getChain(chain.id)
     const custom = rpcChain.rpcUrls.custom
     const def = rpcChain.rpcUrls.default
-
+    websocketEnabled = true
     let rpc: string | undefined
     if (websocketEnabled) {
       rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
@@ -310,7 +310,12 @@ export class EcoConfigService {
     if (!rpc) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
-    return rpc
+    return {
+      rpcUrl: rpc,
+      options: {
+        isWebsocket: websocketEnabled,
+      },
+    }
   }
 
   /**
