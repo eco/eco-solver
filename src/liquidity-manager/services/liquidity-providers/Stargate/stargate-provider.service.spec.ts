@@ -310,7 +310,9 @@ describe('StargateProviderService', () => {
     it('should throw an error if transaction execution fails', async () => {
       mockClient.sendTransaction.mockRejectedValueOnce(new Error('Transaction failed'))
 
-      await expect(service.execute(mockWalletAddress, mockQuote)).rejects.toThrow('Transaction failed')
+      await expect(service.execute(mockWalletAddress, mockQuote)).rejects.toThrow(
+        'Transaction failed',
+      )
     })
   })
 
