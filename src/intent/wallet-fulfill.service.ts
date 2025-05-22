@@ -362,8 +362,8 @@ export class WalletFulfillService implements IFulfillService {
     }
 
     const messageData = encodeAbiParameters(
-      [{ type: 'bytes32' }],
-      [pad(model.intent.reward.prover)],
+      [{ type: 'uint32' }, { type: 'bytes32' }],
+      [Number(model.intent.route.source), pad(model.intent.reward.prover)],
     )
 
     // Metalayer may use the same fee structure as Hyperlane

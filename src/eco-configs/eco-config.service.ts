@@ -43,7 +43,7 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() {}
+  async onModuleInit() { }
 
   // Initialize the configs
   initConfigs() {
@@ -264,11 +264,33 @@ export class EcoConfigService {
     return Object.fromEntries(entries) as Record<number, string>
   }
 
-  getRpcUrl(chain: Chain, websocketEnabled?: boolean) {
-    const alchemy = this.getAlchemy()
-    const rpcUrls = this.getRpcUrls()[chain.id.toString()]
-    const options = { alchemyApiKey: alchemy.apiKey, rpcUrls, websocketEnabled }
-    return getRpcUrl(chain, options)
+  /**
+   * Returns the RPC URL for a given chain, prioritizing custom endpoints (like Caldera or Alchemy)
+   * over default ones when available. For WebSocket connections, returns WebSocket URLs when available.
+   * @param chain The chain object to get the RPC URL for
+   * @param websocketEnabled Whether to return a WebSocket URL if available
+   * @returns The RPC URL string for the specified chain
+   */
+  getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
+    const rpcChain = this.ecoChains.getChain(chain.id)
+    const custom = rpcChain.rpcUrls.custom
+    const def = rpcChain.rpcUrls.default
+    websocketEnabled = true
+    let rpc: string | undefined
+    if (websocketEnabled) {
+      rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
+    } else {
+      rpc = custom?.http?.[0] || def?.http?.[0]
+    }
+    if (!rpc) {
+      throw EcoError.ChainRPCNotFound(chain.id)
+    }
+    return {
+      rpcUrl: rpc,
+      options: {
+        isWebsocket: websocketEnabled,
+      },
+    }
   }
 
   /**
