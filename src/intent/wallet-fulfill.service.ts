@@ -31,7 +31,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -327,8 +327,8 @@ export class WalletFulfillService implements IFulfillService {
     }
 
     const messageData = encodeAbiParameters(
-      [{ type: 'bytes32' }],
-      [pad(model.intent.reward.prover)],
+      [{ type: 'uint32' }, { type: 'bytes32' }],
+      [Number(model.intent.route.source), pad(model.intent.reward.prover)],
     )
 
     // Metalayer may use the same fee structure as Hyperlane
