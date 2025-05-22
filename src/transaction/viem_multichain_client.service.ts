@@ -2,8 +2,8 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Chain, Client, ClientConfig, createClient, extractChain, Hex, zeroAddress } from 'viem'
 import { EcoError } from '../common/errors/eco-error'
-import { ChainsSupported } from '../common/chains/supported'
 import { getTransport } from '../common/chains/transport'
+import { ChainsSupported } from '@/common/chains/supported'
 
 @Injectable()
 export class ViemMultichainClientService<T extends Client, V extends ClientConfig>
@@ -29,9 +29,6 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
   }
 
   private setChainConfigs() {
-    const alchemyConfigs = this.ecoConfigService.getAlchemy()
-    this.supportedAlchemyChainIds = alchemyConfigs.networks.map((n) => n.id)
-    this.apiKey = alchemyConfigs.apiKey
     this.pollingInterval = this.ecoConfigService.getEth().pollingInterval
   }
 
@@ -68,8 +65,8 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
 
   protected async buildChainConfig(chain: Chain): Promise<V> {
     //only pass api key if chain is supported by alchemy, otherwise it'll be incorrectly added to other rpcs
-    const { url: rpcUrl, transportOptions } = this.ecoConfigService.getRpcUrl(chain)
-    const rpcTransport = getTransport(rpcUrl, transportOptions)
+    const {rpcUrl, options} = this.ecoConfigService.getRpcUrl(chain)
+    const rpcTransport = getTransport(rpcUrl, options)
     return {
       transport: rpcTransport,
       chain: chain,

@@ -15,7 +15,10 @@ describe('Eco Config Helper Tests', () => {
   let ecoConfigService: EcoConfigService
   let awsConfigService: DeepMocked<AwsConfigService>
   let mockLog: jest.Mock
-  const awsConfig = { aws: { faceAws: 'asdf', region: 'not-a-region' } }
+  const awsConfig = {
+    aws: { faceAws: 'asdf', region: 'not-a-region' },
+    rpcs: { keys: { '0x1234': '0x1234' } },
+  }
   beforeEach(async () => {
     awsConfigService = createMock<AwsConfigService>()
     awsConfigService.getConfig = jest.fn().mockReturnValue(awsConfig)

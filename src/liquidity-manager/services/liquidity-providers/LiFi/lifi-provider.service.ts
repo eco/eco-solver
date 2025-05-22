@@ -208,7 +208,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   private getLiFiRPCUrls() {
-    const rpcUrl = this.ecoConfigService.getChainRPCs()
+    const rpcUrl = this.ecoConfigService.getChainRpcs()
     const lifiRPCUrls: SDKConfig['rpcUrls'] = {}
 
     for (const chainId in rpcUrl) {
