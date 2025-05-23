@@ -55,8 +55,8 @@ export class EcoError extends Error {
     return new EcoError(`Chain config not found for chain ${chainID}`)
   }
 
-  static ChainRPCNotFound(chainID: number) {
-    return new EcoError(`Chain rpc not found for chain ${chainID}`)
+  static ChainExistsButRPCNotFound(chainID: number) {
+    return new EcoError(`Chain exists, but its rpc not found for chain ${chainID}`)
   }
 
   static InvalidSimpleAccountConfig() {
