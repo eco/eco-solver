@@ -8,7 +8,7 @@ import {
   Execute as RelayQuote,
   createClient,
   getClient,
-  convertViemChainToRelayChain
+  convertViemChainToRelayChain,
 } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
 
