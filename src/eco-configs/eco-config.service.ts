@@ -298,9 +298,9 @@ export class EcoConfigService {
    */
   getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
     const rpcChain = this.ecoChains.getChain(chain.id)
-    const custom = rpcChain.rpcUrls.custom
+    const custom = rpcChain.rpcUrls.caldera || rpcChain.rpcUrls.alchemy || rpcChain.rpcUrls.quicknode
     const def = rpcChain.rpcUrls.default
-    websocketEnabled = true
+
     let rpc: string | undefined
     if (websocketEnabled) {
       rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
@@ -308,7 +308,7 @@ export class EcoConfigService {
       rpc = custom?.http?.[0] || def?.http?.[0]
     }
     if (!rpc) {
-      throw EcoError.ChainRPCNotFound(chain.id)
+      throw EcoError.ChainExistsButRPCNotFound(chain.id)
     }
     return {
       rpcUrl: rpc,

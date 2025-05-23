@@ -80,15 +80,27 @@ export async function createKernelAccountClient<
     entryPoint: entryPoint!,
     kernelVersion,
   })
+  let kernelAccount: any
+  try {
+    kernelAccount = await createKernelAccount(walletClient, {
+      plugins: {
+        sudo: ecdsaValidator,
+      },
+      useMetaFactory: false,
+      entryPoint: entryPoint as any,
+      kernelVersion,
+    })
+  } catch (e) {
+    EcoLogMessage.fromDefault({
+      message: `createKernelAccountClient createKernelAccount: `,
+      properties: {
+        chainID: walletClient.chain?.id,
+        e,
+      },
+    })
+    throw e
+  }
 
-  const kernelAccount = await createKernelAccount(walletClient, {
-    plugins: {
-      sudo: ecdsaValidator,
-    },
-    useMetaFactory: false,
-    entryPoint: entryPoint as any,
-    kernelVersion,
-  })
 
   walletClient.kernelAccount = kernelAccount as any
   walletClient.kernelAccountAddress = kernelAccount.address
