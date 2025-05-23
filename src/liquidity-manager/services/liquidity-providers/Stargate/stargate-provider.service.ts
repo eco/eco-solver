@@ -148,11 +148,10 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       }),
     )
 
-    try {
-      // Loop through the steps and execute each one
-      for (const step of quote.context.steps) {
-        const { chainKey, transaction } = step
-
+    for (const step of quote.context.steps) {
+      const { chainKey, transaction } = step
+      try {
+        // Loop through the steps and execute each one
         const chainId = await this.getChainIdFromChainKey(chainKey)
 
         // Get the client for the current chain
@@ -162,6 +161,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         const hash = await client.sendTransaction({
           to: transaction.to as Hex,
           data: transaction.data as Hex,
+          value: BigInt(transaction.value ?? 0),
         })
 
         // Wait for transaction confirmation
@@ -178,18 +178,19 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
             },
           }),
         )
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: 'Failed to execute Stargate transfer',
+            error,
+            properties: {
+              quote,
+              step,
+            },
+          }),
+        )
+        throw error
       }
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: 'Failed to execute Stargate transfer',
-          error,
-          properties: {
-            quote,
-          },
-        }),
-      )
-      throw error
     }
   }
 
