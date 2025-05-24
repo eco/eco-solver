@@ -101,7 +101,6 @@ export async function createKernelAccountClient<
     throw e
   }
 
-
   walletClient.kernelAccount = kernelAccount as any
   walletClient.kernelAccountAddress = kernelAccount.address
   walletClient = walletClient.extend(KernelAccountActions).extend(publicActions) as any

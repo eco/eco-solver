@@ -25,6 +25,7 @@ import { QuoteRepository } from '@/quote/quote.repository'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { Chain, PublicClient, Transport } from 'viem'
 
 jest.mock('@/intent/utils', () => {
@@ -52,6 +53,7 @@ describe('QuotesService', () => {
   let feeService: DeepMocked<FeeService>
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   let quoteModel: DeepMocked<Model<QuoteIntentModel>>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -77,6 +79,7 @@ describe('QuotesService', () => {
             getPublicClient: jest.fn().mockResolvedValue(publicClient),
           },
         },
+        { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
         {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),
@@ -88,6 +91,7 @@ describe('QuotesService', () => {
     quoteRepository = chainMod.get(QuoteRepository)
     feeService = chainMod.get(FeeService)
     validationService = chainMod.get(ValidationService)
+    fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     ecoConfigService = chainMod.get(EcoConfigService)
     quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
@@ -310,6 +314,7 @@ describe('QuotesService', () => {
       async function generateHelper(
         calculated: any,
         expectedTokens: { token: string; amount: bigint }[],
+        expectedFulfillTimeSec?: number,
       ) {
         const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
         jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
@@ -317,6 +322,10 @@ describe('QuotesService', () => {
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
+        jest
+          .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
+          .mockReturnValue(expectedFulfillTimeSec || 15)
+
         const { response: quoteDataEntry } = await quoteService.generateQuote({
           route: {},
           reward: {},
@@ -324,6 +333,7 @@ describe('QuotesService', () => {
         expect(quoteDataEntry).toEqual({
           rewardTokens: expectedTokens,
           expiryTime: expect.any(String),
+          estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
         })
       }
 
@@ -354,6 +364,16 @@ describe('QuotesService', () => {
           ],
         } as any
         await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+      })
+
+      it('should calculate correct time for fulfillment', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          calls: [{ balance: 50n }],
+          srcDeficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], 9)
       })
 
       it('should fill surplus if no deficit', async () => {

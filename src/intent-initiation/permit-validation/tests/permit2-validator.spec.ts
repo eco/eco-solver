@@ -55,7 +55,10 @@ describe('Permit2Validator', () => {
   })
 
   it('should return error for unknown Permit2 address', async () => {
-    const invalid = { ...validPermit, permit2Address: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Address, }
+    const invalid = {
+      ...validPermit,
+      permit2Address: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Address,
+    }
     const result = await Permit2Validator.validatePermit(publicClient, 1, invalid)
     expect(result.error).toBe(EcoError.InvalidPermit2Address)
   })
@@ -73,7 +76,7 @@ describe('Permit2Validator', () => {
   })
 
   it('should return error on nonce mismatch', async () => {
-    (publicClient.readContract as jest.Mock).mockResolvedValue([
+    ;(publicClient.readContract as jest.Mock).mockResolvedValue([
       1000n,
       BigInt(now + 3600),
       99n, // wrong nonce
@@ -94,7 +97,7 @@ describe('Permit2Validator', () => {
   })
 
   it('should return error on expiration mismatch with onchain data', async () => {
-    (publicClient.readContract as jest.Mock).mockResolvedValue([
+    ;(publicClient.readContract as jest.Mock).mockResolvedValue([
       1000n,
       BigInt(now - 100), // on-chain expiration is earlier than signed
       5n,

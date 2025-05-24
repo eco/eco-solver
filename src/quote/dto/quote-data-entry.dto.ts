@@ -1,6 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import { ArrayNotEmpty, IsArray, IsIn, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  ValidateNested,
+} from 'class-validator'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteCallDataDTO, QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { Type } from 'class-transformer'
@@ -40,4 +48,9 @@ export class QuoteDataEntryDTO {
   @IsString()
   @ApiProperty()
   expiryTime: string
+
+  @IsNotEmpty()
+  @IsNumber()
+  @ApiProperty()
+  estimatedFulfillTimeSec: number
 }

@@ -14,10 +14,10 @@ import {
 } from './eco-config.types'
 import { Chain, getAddress, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
+import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '../common/errors/eco-error'
-import { ChainsSupported } from '../common/chains/supported'
 /**
  * Service class for managing application configuration from multiple sources.
  *
@@ -64,7 +64,7 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() { }
+  async onModuleInit() {}
 
   // Initialize the configs
   initConfigs() {
@@ -298,7 +298,8 @@ export class EcoConfigService {
    */
   getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
     const rpcChain = this.ecoChains.getChain(chain.id)
-    const custom = rpcChain.rpcUrls.caldera || rpcChain.rpcUrls.alchemy || rpcChain.rpcUrls.quicknode
+    const custom =
+      rpcChain.rpcUrls.caldera || rpcChain.rpcUrls.alchemy || rpcChain.rpcUrls.quicknode
     const def = rpcChain.rpcUrls.default
 
     let rpc: string | undefined
@@ -324,5 +325,13 @@ export class EcoConfigService {
    */
   getSupportedChains(): bigint[] {
     return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+  }
+
+  /**
+   * Returns the fulfillment estimate config
+   * @returns the fulfillment estimate config
+   */
+  getFulfillmentEstimateConfig(): EcoConfigType['fulfillmentEstimate'] {
+    return this.get('fulfillmentEstimate')
   }
 }

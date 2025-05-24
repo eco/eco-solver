@@ -9,6 +9,8 @@ import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { ValidationService } from '@/intent/validation.sevice'
+import { FulfillmentEstimateService } from '../fulfillment-estimate/fulfillment-estimate.service'
+import { createMock } from '@golevelup/ts-jest'
 
 const logger = new Logger('QuoteServiceSpec')
 
@@ -21,12 +23,13 @@ describe('QuoteService', () => {
   let feeService: FeeService
   let validationService: ValidationService
   let intentInitiationService: IntentInitiationService
-
+  let fulfillmentEstimateService: FulfillmentEstimateService
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
     const $ = EcoTester.setupTestFor(QuoteService)
       .withProviders([
+        { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
         {
           provide: EcoConfigService,
           useValue: {
@@ -297,10 +300,7 @@ describe('QuoteService', () => {
       const expectedFee = expectedGas * mockGasPrice
 
       expect(result).toBe(expectedFee)
-      expect(intentInitiationService.getGasPrice).toHaveBeenCalledWith(
-        chainID,
-        parseGwei('30'),
-      )
+      expect(intentInitiationService.getGasPrice).toHaveBeenCalledWith(chainID, parseGwei('30'))
     })
 
     it('should default to 0 tokens and just use baseGas if no tokens', async () => {

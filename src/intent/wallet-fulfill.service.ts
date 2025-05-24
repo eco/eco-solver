@@ -31,7 +31,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it

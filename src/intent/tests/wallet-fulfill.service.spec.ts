@@ -617,6 +617,7 @@ describe('WalletFulfillService', () => {
             prover: address3,
           },
           route: {
+            source: 10n,
             destination: 1n,
           },
         },
@@ -657,6 +658,7 @@ describe('WalletFulfillService', () => {
             prover: address3,
           },
           route: {
+            source: 10n,
             destination: 1n,
           },
         },
@@ -673,8 +675,8 @@ describe('WalletFulfillService', () => {
       expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(1)
       expect(mockProverFee).toHaveBeenCalledTimes(1)
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
-        [{ type: 'bytes32' }],
-        [pad(model.intent.reward.prover)],
+        [{ type: 'uint32' }, { type: 'bytes32' }],
+        [Number(model.intent.route.source), pad(model.intent.reward.prover)],
       )
       expect(mockProverFee).toHaveBeenCalledWith(model, address1, encodedData)
     })

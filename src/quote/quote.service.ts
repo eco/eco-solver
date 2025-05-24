@@ -32,6 +32,7 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
+import { FulfillmentEstimateService } from '../fulfillment-estimate/fulfillment-estimate.service'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -58,6 +59,7 @@ export class QuoteService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly fulfillmentEstimateService: FulfillmentEstimateService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -506,13 +508,15 @@ export class QuoteService implements OnModuleInit {
         }
       }
     }
-
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
         routeCalls: quoteIntentModel.route.calls,
         rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
         expiryTime: this.getQuoteExpiryTime(),
+        estimatedFulfillTimeSec,
       } as QuoteDataEntryDTO,
     }
   }

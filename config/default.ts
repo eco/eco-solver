@@ -118,6 +118,14 @@ export default {
     permit2: 80_000n,
     defaultGasPriceGwei: '30',
   },
+  fulfillmentEstimate: {
+    // Padding to add to the execution-time estimation
+    executionPaddingSeconds: 0.1,
+    // Percentile of block time to use for execution-time estimation
+    blockTimePercentile: 0.5,
+    // Default block time to use for unknown chains
+    defaultBlockTime: 2,
+  },
 
   indexer: {
     url: 'https://indexer.eco.com',

@@ -5,11 +5,13 @@ import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-inten
 import { IntentModule } from '@/intent/intent.module'
 import { FeeModule } from '@/fee/fee.module'
 import { QuoteRepository } from '@/quote/quote.repository'
+import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
 
 @Module({
   imports: [
     FeeModule,
     IntentModule,
+    FulfillmentEstimateModule,
     MongooseModule.forFeature([{ name: QuoteIntentModel.name, schema: QuoteIntentSchema }]),
   ],
   providers: [QuoteService, QuoteRepository],

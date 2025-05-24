@@ -63,6 +63,7 @@ describe('QuoteController Test', () => {
             },
           ],
           expiryTime: '0',
+          estimatedFulfillTimeSec: 9,
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
@@ -75,6 +76,7 @@ describe('QuoteController Test', () => {
             },
           ],
           expiryTime: '10',
+          estimatedFulfillTimeSec: 9,
         },
       ],
     }
@@ -129,6 +131,7 @@ describe('QuoteController Test', () => {
             },
           ],
           expiryTime: '0',
+          estimatedFulfillTimeSec: 9,
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
@@ -141,6 +144,7 @@ describe('QuoteController Test', () => {
             },
           ],
           expiryTime: '10',
+          estimatedFulfillTimeSec: 12,
         },
       ],
     }
