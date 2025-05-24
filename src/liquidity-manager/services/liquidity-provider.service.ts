@@ -6,6 +6,7 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -16,6 +17,7 @@ export class LiquidityProviderService {
     protected readonly cctpProviderService: CCTPProviderService,
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
+    protected readonly ecoConfigService: EcoConfigService,
   ) {}
 
   async getQuote(
@@ -25,13 +27,41 @@ export class LiquidityProviderService {
     swapAmount: number,
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
+    const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
 
     // Iterate over strategies and return the first quote
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         const service = this.getStrategyService(strategy)
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
-        return Array.isArray(quotes) ? quotes : [quotes]
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
+
+        // Helper function to check if a quote is valid
+        const isQuoteValid = (quote: RebalanceQuote): boolean => quote.slippage <= maxQuoteSlippage
+
+        // Filter out quotes that exceed maximum slippage
+        const validQuotes = quotesArray.filter(isQuoteValid)
+        const rejectedQuotes = quotesArray.filter((quote) => !isQuoteValid(quote))
+
+        // Log rejected quotes
+        rejectedQuotes.forEach((quote) => {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: 'Quote rejected due to excessive slippage',
+              properties: {
+                strategy,
+                slippage: quote.slippage,
+                maxQuoteSlippage,
+                tokenIn: this.formatToken(tokenIn),
+                tokenOut: this.formatToken(tokenOut),
+                amountIn: quote.amountIn.toString(),
+                amountOut: quote.amountOut.toString(),
+              },
+            }),
+          )
+        })
+
+        return validQuotes.length > 0 ? validQuotes : undefined
       } catch (error) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -45,8 +75,11 @@ export class LiquidityProviderService {
 
     const quoteBatchResults = await Promise.all(quoteBatchRequests)
 
+    // Filter out undefined results
+    const validQuoteBatches = quoteBatchResults.filter((batch) => batch !== undefined)
+
     // Use the quote from the strategy returning the biggest amount out
-    const bestQuote = quoteBatchResults.reduce((bestBatch, quoteBatch) => {
+    const bestQuote = validQuoteBatches.reduce((bestBatch, quoteBatch) => {
       if (!bestBatch) return quoteBatch
       if (!quoteBatch) return bestBatch
 
@@ -54,7 +87,7 @@ export class LiquidityProviderService {
       const quote = quoteBatch[quoteBatch.length - 1]
 
       return (bestQuote?.amountOut ?? 0n) >= (quote?.amountOut ?? 0n) ? bestBatch : quoteBatch
-    }, quoteBatchResults[0])
+    }, validQuoteBatches[0])
 
     if (!bestQuote) {
       throw new Error('Unable to get quote for route')
@@ -102,7 +135,29 @@ export class LiquidityProviderService {
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote> {
-    return this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+    const quote = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+    const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
+
+    if (quote.slippage > maxQuoteSlippage) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Fallback quote rejected due to excessive slippage',
+          properties: {
+            slippage: quote.slippage,
+            maxQuoteSlippage,
+            tokenIn: this.formatToken(tokenIn),
+            tokenOut: this.formatToken(tokenOut),
+            amountIn: quote.amountIn.toString(),
+            amountOut: quote.amountOut.toString(),
+          },
+        }),
+      )
+      throw new Error(
+        `Fallback quote slippage ${quote.slippage} exceeds maximum allowed ${maxQuoteSlippage}`,
+      )
+    }
+
+    return quote
   }
 
   private getStrategyService(strategy: Strategy): IRebalanceProvider<Strategy> {
