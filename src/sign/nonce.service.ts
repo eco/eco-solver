@@ -54,7 +54,7 @@ export class NonceService extends AtomicNonceService<Nonce> implements OnApplica
     const paramsAsync = entries(this.ecoConfigService.getSolvers()).map(async ([chainIdString]) => {
       const chainID = parseInt(chainIdString)
       const chain = extractChain({ chains: ChainsSupported, id: chainID })
-      const {rpcUrl, options} = this.ecoConfigService.getRpcUrl(chain)
+      const {rpcUrl, options} = this.ecoConfigService.getRpcUrl(chain, true)
       const transport = getTransport(rpcUrl, options)
       const client = createPublicClient({ chain, transport })
       return { address, client } as AtomicKeyClientParams

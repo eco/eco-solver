@@ -285,7 +285,7 @@ export class EcoConfigService {
 
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string> {
-    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain)])
+    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain, true)])
     return Object.fromEntries(entries) as Record<number, string>
   }
 
