@@ -36,27 +36,29 @@ export class LiquidityProviderService {
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
 
+        // Helper function to check if a quote is valid
+        const isQuoteValid = (quote: RebalanceQuote): boolean => quote.slippage <= maxQuoteSlippage
+
         // Filter out quotes that exceed maximum slippage
-        const validQuotes = quotesArray.filter((quote) => {
-          const exceedsSlippage = quote.slippage > maxQuoteSlippage
-          if (exceedsSlippage) {
-            this.logger.warn(
-              EcoLogMessage.fromDefault({
-                message: 'Quote rejected due to excessive slippage',
-                properties: {
-                  strategy,
-                  slippage: quote.slippage,
-                  maxQuoteSlippage,
-                  tokenIn: this.formatToken(tokenIn),
-                  tokenOut: this.formatToken(tokenOut),
-                  amountIn: quote.amountIn.toString(),
-                  amountOut: quote.amountOut.toString(),
-                },
-              }),
-            )
-            return false
-          }
-          return true
+        const validQuotes = quotesArray.filter(isQuoteValid)
+        const rejectedQuotes = quotesArray.filter((quote) => !isQuoteValid(quote))
+
+        // Log rejected quotes
+        rejectedQuotes.forEach((quote) => {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: 'Quote rejected due to excessive slippage',
+              properties: {
+                strategy,
+                slippage: quote.slippage,
+                maxQuoteSlippage,
+                tokenIn: this.formatToken(tokenIn),
+                tokenOut: this.formatToken(tokenOut),
+                amountIn: quote.amountIn.toString(),
+                amountOut: quote.amountOut.toString(),
+              },
+            }),
+          )
         })
 
         return validQuotes.length > 0 ? validQuotes : undefined
