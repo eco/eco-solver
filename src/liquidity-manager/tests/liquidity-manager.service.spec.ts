@@ -66,6 +66,7 @@ describe('LiquidityManagerService', () => {
 
   const mockConfig = {
     targetSlippage: 0.02,
+    maxQuoteSlippage: 0.01,
     intervalDuration: 1000,
     thresholds: { surplus: 0.1, deficit: 0.2 },
     coreTokens: [
