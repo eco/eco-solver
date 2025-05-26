@@ -298,6 +298,7 @@ export class IntentSource {
 }
 
 export interface LiquidityManagerConfig {
+  enabled?: boolean
   // The maximum slippage around target balance for a token
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
