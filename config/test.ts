@@ -1,6 +1,6 @@
 export default {
   aws: {
-    region: 'test-us-east-2',
+    region: 'test-us-west-2',
     secretID: 'test-eco-solver-secrets',
   },
   test: 'hi',

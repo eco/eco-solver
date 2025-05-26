@@ -5,20 +5,20 @@ export default {
 
   aws: [
     {
-      region: 'us-east-2',
-      secretID: 'eco-solver-secrets-prod',
+      region: 'us-west-2',
+      secretID: 'eco-solver-secrets-prod-test',
     },
     {
-      region: 'us-east-2',
-      secretID: 'eco-solver-configs-prod',
+      region: 'us-west-2',
+      secretID: 'eco-solver-configs-prod-test',
     },
     {
-      region: 'us-east-2',
-      secretID: 'eco-solver-configs-chains-prod',
+      region: 'us-west-2',
+      secretID: 'eco-solver-configs-chains-prod-test',
     },
     {
-      region: 'us-east-2',
-      secretID: 'eco-solver-whitelist-prod',
+      region: 'us-west-2',
+      secretID: 'eco-solver-whitelist-prod-test',
     },
   ],
   //don't add anything else here
