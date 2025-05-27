@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Call, encodeAbiParameters, encodeFunctionData, erc20Abi, Hex, pad, zeroAddress } from 'viem'
+import {
+  Call,
+  encodeAbiParameters,
+  encodeFunctionData,
+  erc20Abi,
+  Hex,
+  pad,
+  zeroAddress,
+} from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
@@ -11,7 +19,12 @@ import { FeeService } from '@/fee/fee.service'
 import { ProofService } from '@/prover/proof.service'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { getFunctionCalls, getFunctionTargets, getNativeCalls, getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
+import {
+  getFunctionCalls,
+  getNativeCalls,
+  getTransactionTargetData,
+  getWaitForTransactionTimeout,
+} from '@/intent/utils'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
@@ -31,7 +44,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -210,7 +223,7 @@ export class WalletFulfillService implements IFulfillService {
    * Iterates over the calls and returns the sum of the native value transfers
    * @param solver the solver for the intent
    * @param nativeCalls The calls that have native value transfers
-   * @returns 
+   * @returns
    */
   private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
     const nativeFulfillTotal = nativeCalls.reduce((acc, call) => {

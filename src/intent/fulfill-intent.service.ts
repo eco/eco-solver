@@ -21,7 +21,7 @@ export class FulfillIntentService {
     private readonly ecoConfigService: EcoConfigService,
     private readonly walletFulfillService: WalletFulfillService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
-  ) { }
+  ) {}
 
   /**
    * Processes and fulfills a specified intent based on its type.
@@ -38,8 +38,8 @@ export class FulfillIntentService {
     if (model.status === 'SOLVED') return
 
     const { type } = isNativeIntent(model.intent) // disable crowd liquidity for native intents
-    ? { type: 'smart-wallet-account' } 
-    : this.ecoConfigService.getFulfill()
+      ? { type: 'smart-wallet-account' }
+      : this.ecoConfigService.getFulfill()
 
     switch (type) {
       case 'crowd-liquidity':

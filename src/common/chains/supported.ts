@@ -1,6 +1,4 @@
 import { EcoRoutesChains } from '@eco-foundation/chains'
-import { anvil } from './definitions/anvil'
-
 import { Chain } from 'viem'
 
 /**
