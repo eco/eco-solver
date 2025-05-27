@@ -79,6 +79,7 @@ export default {
       },
       network: 'base-sepolia',
       chainID: 84532,
+      averageBlockTime: 2,
     },
     //op sepolia
     11155420: {
@@ -92,6 +93,7 @@ export default {
       },
       network: 'opt-sepolia',
       chainID: 11155420,
+      averageBlockTime: 2,
     },
   },
 

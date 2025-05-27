@@ -77,6 +77,7 @@ describe('QuoteController Test', () => {
           expiryTime: '10',
         },
       ],
+      estimatedFulfillTimeSec: 9,
     }
 
     it('should return a 400 on bad request', async () => {

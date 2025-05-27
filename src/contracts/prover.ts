@@ -63,4 +63,12 @@ export class ProofType extends Enumify {
   }
 }
 
+export const PROOF_HYPERLANE = 'Hyperlane'
+export const PROOF_METALAYER = 'Metalayer'
+
+export const Proofs: Record<string, ProofType> = {
+  Hyperlane: ProofType.HYPERLANE,
+  Metalayer: ProofType.METALAYER,
+}
+
 ProofType.initialize()

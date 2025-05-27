@@ -1,13 +1,13 @@
-import { addSeconds, compareAsc } from 'date-fns'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { entries } from 'lodash'
-import { getAddress, Hex } from 'viem'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { getAddress, Hex } from 'viem'
+import { entries } from 'lodash'
+import { addSeconds, compareAsc } from 'date-fns'
 import { IProverAbi } from '@eco-foundation/routes-ts'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { ProofCall, ProofType } from '@/contracts'
+import { PROOF_HYPERLANE, PROOF_METALAYER, ProofCall, ProofType } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting information about the provers and their configurations.

@@ -362,8 +362,8 @@ export class WalletFulfillService implements IFulfillService {
     }
 
     const messageData = encodeAbiParameters(
-      [{ type: 'uint32' }, { type: 'bytes32' }],
-      [Number(model.intent.route.source), pad(model.intent.reward.prover)],
+      [{ type: 'bytes32' }],
+      [pad(model.intent.reward.prover)],
     )
 
     // Metalayer may use the same fee structure as Hyperlane
@@ -410,7 +410,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        Number(IntentSourceModel.getSource(model)), //_sourceChainID
+        model.event.sourceChainID, //_sourceChainID
         [model.intent.hash],
         [this.ecoConfigService.getEth().claimant],
         messageData,

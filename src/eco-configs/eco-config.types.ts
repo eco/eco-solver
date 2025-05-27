@@ -21,6 +21,7 @@ export type EcoConfigType = {
   quotesConfig: QuotesConfig
   solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
+  fulfillmentEstimate: FulfillmentEstimateConfig
   rpcs: RpcConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
@@ -168,6 +169,15 @@ export type SolverRegistrationConfig = {
 }
 
 /**
+ * The config type for the fulfillment estimate section
+ */
+export type FulfillmentEstimateConfig = {
+  executionPaddingSeconds: number
+  blockTimePercentile: number
+  defaultBlockTime: number
+}
+
+/**
  * The config type for the aws credentials
  */
 export type AwsCredential = {
@@ -264,6 +274,8 @@ export type Solver = {
   network: Network
   fee: FeeConfigType
   chainID: number
+  // The average block time for the chain in seconds
+  averageBlockTime: number
 }
 
 /**

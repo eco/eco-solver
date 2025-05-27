@@ -1,6 +1,7 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
@@ -52,6 +53,7 @@ export class QuoteService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly fulfillmentEstimateService: FulfillmentEstimateService,
   ) {}
 
   onModuleInit() {}
@@ -115,10 +117,28 @@ export class QuoteService implements OnModuleInit {
       return { error: InternalSaveError(saveError) }
     }
 
+<<<<<<< HEAD
     const errors: any[] = []
 
     const quoteDataDTO: QuoteDataDTO = {
       quoteEntries: [],
+=======
+    let quoteRes:
+      | Quote400
+      | Quote500
+      | {
+          tokens: RewardTokensInterface[]
+          expiryTime: string
+          estimatedFulfillTimeSec: number
+        }
+      | Error
+    try {
+      quoteRes = await this.generateQuote(quoteIntent)
+    } catch (e) {
+      quoteRes = InternalQuoteError(e)
+    } finally {
+      await this.updateQuoteDb(quoteIntent, quoteRes!)
+>>>>>>> origin/main
     }
 
     for (const quoteIntent of quoteIntents!) {
@@ -460,6 +480,7 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
+<<<<<<< HEAD
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
@@ -574,6 +595,15 @@ export class QuoteService implements OnModuleInit {
         rewardNative: fee.native + totalRewardsNormalized.native,
         expiryTime: this.getQuoteExpiryTime(),
       } as QuoteDataEntryDTO,
+=======
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
+
+    return {
+      tokens: Object.values(quoteRecord),
+      expiryTime: this.getQuoteExpiryTime(),
+      estimatedFulfillTimeSec,
+>>>>>>> origin/main
     }
   }
 
