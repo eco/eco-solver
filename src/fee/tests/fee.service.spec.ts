@@ -11,7 +11,6 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
-import { error } from 'console'
 
 jest.mock('@/intent/utils', () => {
   return {
