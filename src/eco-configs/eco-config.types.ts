@@ -251,6 +251,8 @@ export type Solver = {
   chainID: number
   // The average block time for the chain in seconds
   averageBlockTime: number
+  // The gas overhead for the solver in gas units
+  gasOverhead?: number
 }
 
 /**
