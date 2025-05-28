@@ -9,7 +9,7 @@ import {
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
-import { normalizeBalance, normalizeSum } from '@/fee/utils'
+import { compareNormalizedTotals, normalizeBalance, normalizeSum } from '@/fee/utils'
 import { getTransactionTargetData } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
@@ -33,7 +33,7 @@ export class FeeService implements OnModuleInit {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -94,16 +94,22 @@ export class FeeService implements OnModuleInit {
       // 20_000n + (totalFulfill * 15_000n) / 100_000_000n
       case 'linear':
         const tokenConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
-        const nativeConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
-        fee.token =
-          BigInt(tokenConfig.baseFee) +
-          (normalizedTotal.token / BigInt(tokenConfig.tranche.unitSize) + 1n) *
+        const nativeConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).native
+        if (normalizedTotal.token !== 0n) {
+          fee.token =
+            BigInt(tokenConfig.baseFee) +
+            (normalizedTotal.token / BigInt(tokenConfig.tranche.unitSize) + 1n) *
             BigInt(tokenConfig.tranche.unitFee)
+        }
+
         //TODO add some fulfillment transaction simulation costs to the fee
-        fee.native =
-          BigInt(nativeConfig.baseFee) +
-          (normalizedTotal.token / BigInt(nativeConfig.tranche.unitSize) + 1n) *
+        if (normalizedTotal.native !== 0n) {
+          fee.native =
+            BigInt(nativeConfig.baseFee) +
+            (normalizedTotal.native / BigInt(nativeConfig.tranche.unitSize) + 1n) *
             BigInt(nativeConfig.tranche.unitFee)
+        }
+
         break
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
@@ -146,7 +152,7 @@ export class FeeService implements OnModuleInit {
     const ask = this.getAsk(totalFillNormalized, quote)
     return {
       error:
-        totalRewardsNormalized >= ask
+        compareNormalizedTotals(totalRewardsNormalized,ask)
           ? undefined
           : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
     }

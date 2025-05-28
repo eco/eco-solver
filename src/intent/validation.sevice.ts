@@ -16,6 +16,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 import { CallDataInterface } from '../contracts'
+import { compareNormalizedTotals } from '../fee/utils'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -27,7 +28,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-    IntentModelWithHashInterface {}
+  IntentModelWithHashInterface { }
 
 /**
  * Type that holds all the possible validations that can fail
@@ -65,7 +66,7 @@ export function validationsFailed(validations: ValidationType): boolean {
  * Type that holds all the possible validations that can fail
  */
 export type ValidationType = {
-  [key: string]: boolean
+  [key in keyof ValidationChecks]: boolean
 }
 
 export type TxValidationFn = (tx: TransactionTargetData) => boolean
@@ -79,10 +80,10 @@ export class ValidationService implements OnModuleInit {
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
-    this.isNativeEnabled = true
+    this.isNativeEnabled = this.ecoConfigService.getIntentConfigs().isNativeSupported
   }
   /**
    * Executes all the validations we have on the model and solver
@@ -101,7 +102,7 @@ export class ValidationService implements OnModuleInit {
       prover: intent.reward.prover,
     })
     const supportedNative = this.supportedNative(intent)
-    const supportedTargets = this.supportedFunctionTargets(intent, solver)
+    const supportedTargets = this.supportedTargets(intent, solver)
     const supportedTransaction = this.supportedTransaction(intent, solver, txValidationFn)
     const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
@@ -168,7 +169,7 @@ export class ValidationService implements OnModuleInit {
    * @param solver the solver for the intent
    * @returns
    */
-  supportedFunctionTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
+  supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
     const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
@@ -227,7 +228,8 @@ export class ValidationService implements OnModuleInit {
       return false
     }
     const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
-    return totalFillNormalized.token <= tokenBase6 && totalFillNormalized.native <= nativeBase18
+    // convert to a normalized total to use utils compare function
+    return compareNormalizedTotals({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
   }
 
   /**
