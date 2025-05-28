@@ -532,6 +532,8 @@ export class QuoteService implements OnModuleInit {
     const estimatedFulfillTimeSec =
       this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
 
+    const gasOverhead = this.getGasOverhead(quoteIntentModel)
+
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
@@ -540,6 +542,7 @@ export class QuoteService implements OnModuleInit {
         rewardNative: totalAsk.native,
         expiryTime: this.getQuoteExpiryTime(),
         estimatedFulfillTimeSec,
+        gasOverhead,
       } as QuoteDataEntryDTO,
     }
   }
@@ -657,6 +660,44 @@ export class QuoteService implements OnModuleInit {
   getQuoteExpiryTime(): string {
     //todo implement expiry time logic
     return dayjs().add(5, 'minutes').unix().toString()
+  }
+
+  /**
+   * @returns the gas overhead of the quote
+   */
+  getGasOverhead(quoteIntentModel: QuoteIntentDataInterface): number {
+    const defaultGasOverhead = this.getDefaultGasOverhead()
+    const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.source)
+    if (solver?.gasOverhead == null) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'solver.gasOverhead is undefined, using default gas overhead',
+        }),
+      )
+      return defaultGasOverhead
+    }
+
+    if (solver.gasOverhead < 0) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
+          properties: {
+            solver,
+            defaultGasOverhead,
+          },
+        }),
+      )
+      return defaultGasOverhead
+    }
+
+    return solver.gasOverhead
+  }
+
+  /**
+   * @returns the default gas overhead
+   */
+  private getDefaultGasOverhead(): number {
+    return 21000
   }
 
   /**

@@ -85,6 +85,7 @@ export class QuoteTestUtils {
       rewardNative: 0n,
       expiryTime: '9999999999',
       estimatedFulfillTimeSec: 1000,
+      gasOverhead: 21000,
       ...overrides,
     }
 

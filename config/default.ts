@@ -124,7 +124,7 @@ export default {
 
   fulfillmentEstimate: {
     // Padding to add to the execution-time estimation
-    executionPaddingSeconds: 0.1,
+    executionPaddingSeconds: 0.5,
     // Percentile of block time to use for execution-time estimation
     blockTimePercentile: 0.5,
     // Default block time to use for unknown chains
