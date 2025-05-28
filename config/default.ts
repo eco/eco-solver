@@ -98,6 +98,9 @@ export default {
       hyperlane_duration_seconds: 3600,
       metalayer_duration_seconds: 7200,
     },
+    // Gas overhead is the intent creation gas cost for the source chain, i.e. the cost of calling publishAndFund on IntentSource.
+    // This is the default gas overhead
+    defaultGasOverhead: 145_000,
   },
   whitelist: {},
   liquidityManager: {
@@ -111,7 +114,7 @@ export default {
 
   fulfillmentEstimate: {
     // Padding to add to the execution-time estimation
-    executionPaddingSeconds: 0.1,
+    executionPaddingSeconds: 0.5,
     // Percentile of block time to use for execution-time estimation
     blockTimePercentile: 0.5,
     // Default block time to use for unknown chains

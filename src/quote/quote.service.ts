@@ -23,6 +23,7 @@ import * as dayjs from 'dayjs'
 import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting configs for the app
@@ -71,6 +72,7 @@ export class QuoteService {
           tokens: RewardTokensInterface[]
           expiryTime: string
           estimatedFulfillTimeSec: number
+          gasOverhead: number
         }
       | Error
     try {
@@ -267,6 +269,7 @@ export class QuoteService {
       tokens: Object.values(quoteRecord),
       expiryTime: this.getQuoteExpiryTime(),
       estimatedFulfillTimeSec,
+      gasOverhead: this.getGasOverhead(quoteIntentModel),
     }
   }
 
@@ -276,6 +279,48 @@ export class QuoteService {
   getQuoteExpiryTime(): string {
     //todo implement expiry time logic
     return dayjs().add(5, 'minutes').unix().toString()
+  }
+
+  /**
+   * @returns the gas overhead of the quote
+   */
+  getGasOverhead(quoteIntentModel: QuoteIntentDataInterface): number {
+    const defaultGasOverhead = this.getDefaultGasOverhead()
+    const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.source)
+
+    if (solver?.gasOverhead == null) {
+      return defaultGasOverhead
+    }
+
+    if (solver.gasOverhead < 0) {
+      this.logger.warn(
+        EcoLogMessage.withError({
+          message: `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
+          error: EcoError.NegativeGasOverhead(solver.gasOverhead),
+        }),
+      )
+      return defaultGasOverhead
+    }
+
+    return solver.gasOverhead
+  }
+
+  /**
+   * @returns the default gas overhead
+   */
+  private getDefaultGasOverhead(): number {
+    const intentConfigs = this.ecoConfigService.getIntentConfigs()
+    if (intentConfigs.defaultGasOverhead == null) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: 'intentConfigs.defaultGasOverhead is undefined',
+          error: EcoError.DefaultGasOverheadUndefined(),
+        }),
+      )
+      throw EcoError.DefaultGasOverheadUndefined()
+    }
+
+    return intentConfigs.defaultGasOverhead
   }
 
   /**
