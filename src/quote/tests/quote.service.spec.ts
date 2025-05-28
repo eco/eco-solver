@@ -166,6 +166,7 @@ describe('QuotesService', () => {
       },
     }
     const failValidations: ValidationChecks = {
+      supportedNative: true,
       supportedProver: true,
       supportedTargets: true,
       supportedTransaction: true,
@@ -175,6 +176,7 @@ describe('QuotesService', () => {
       fulfillOnDifferentChain: true,
     }
     const validValidations: ValidationChecks = {
+      supportedNative: true,
       supportedProver: true,
       supportedTargets: true,
       supportedTransaction: true,
@@ -282,7 +284,7 @@ describe('QuotesService', () => {
     })
 
     describe('on building quote', () => {
-      beforeEach(() => {})
+      beforeEach(() => { })
 
       async function generateHelper(
         calculated: any,
@@ -473,7 +475,7 @@ describe('QuotesService', () => {
     })
 
     describe('on building reverse quote', () => {
-      beforeEach(() => {})
+      beforeEach(() => { })
 
       async function generateReverseHelper(
         calculated: any,

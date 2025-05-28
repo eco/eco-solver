@@ -62,6 +62,7 @@ describe('QuoteController Test', () => {
               amount: 100n,
             },
           ],
+          rewardNative: 10n,
           expiryTime: '0',
         },
         {
@@ -74,6 +75,7 @@ describe('QuoteController Test', () => {
               amount: 200n,
             },
           ],
+          rewardNative: 11n,
           expiryTime: '10',
         },
       ],
@@ -128,6 +130,7 @@ describe('QuoteController Test', () => {
               amount: 100n,
             },
           ],
+          rewardNative: 11n,
           expiryTime: '0',
         },
         {
@@ -140,6 +143,7 @@ describe('QuoteController Test', () => {
               amount: 200n,
             },
           ],
+          rewardNative: 12n,
           expiryTime: '10',
         },
       ],
