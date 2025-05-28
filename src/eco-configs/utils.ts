@@ -50,16 +50,16 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
     return {
       IntentSource: '0x478AA4042b267139055632cd5A1Eb9Eb13b3Eeaf',
       Inbox: '0xB5DB3d430565cb399E05562f5638f31d19AE70b3',
-      HyperProver: '0x8a3B3A803667092CECb3b269e71c5E5e16a9Db93',
-      MetaProver: '0x0000000000000000000000000000000000000000',
+      HyperProver: '0x0000000000000000000000000000000000000000',
+      MetaProver: '0x8a3B3A803667092CECb3b269e71c5E5e16a9Db93',
     }
   }
   if (id === '3441006') {
     return {
       IntentSource: '0x478AA4042b267139055632cd5A1Eb9Eb13b3Eeaf',
       Inbox: '0xB5DB3d430565cb399E05562f5638f31d19AE70b3',
-      HyperProver: '0x8a3B3A803667092CECb3b269e71c5E5e16a9Db93',
-      MetaProver: '0x0000000000000000000000000000000000000000',
+      HyperProver: '0x0000000000000000000000000000000000000000',
+      MetaProver: '0x8a3B3A803667092CECb3b269e71c5E5e16a9Db93',
     }
   }
   if (config === undefined) {
