@@ -14,6 +14,9 @@ describe('QuoteRepository', () => {
   const mockCreate = jest.fn()
   const mockFindOne = jest.fn()
   const mockFindOneAndUpdate = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogLog = jest.fn()
+  const mockLogError = jest.fn()
 
   const mockQuoteIntentModel = {
     create: mockCreate,
@@ -43,10 +46,19 @@ describe('QuoteRepository', () => {
 
     quoteRepository = await $.init()
     quoteRepository.onModuleInit()
+
+    quoteRepository['logger'].debug = mockLogDebug
+    quoteRepository['logger'].log = mockLogLog
+    quoteRepository['logger'].error = mockLogError
   })
 
   beforeEach(async () => {
     jest.clearAllMocks()
+  })
+
+   afterEach(async () => {
+    // restore the spy created with spyOn
+    jest.restoreAllMocks()
   })
 
   describe('Storing Quotes', () => {
@@ -155,8 +167,6 @@ describe('QuoteRepository', () => {
         calls: fullRouteCalls,
       }
 
-      const expectedHash = (quoteRepository as any).getRouteHash(fullRoute)
-
       const updatedDoc = {
         ...quoteIntentModel,
         route: fullRoute,
@@ -165,9 +175,9 @@ describe('QuoteRepository', () => {
             routeTokens: fullRouteTokens,
             routeCalls: fullRouteCalls,
             rewardTokens: fullRewardTokens,
+            rewardNative: 17n,
           },
         },
-        routeHash: expectedHash,
       }
 
       mockFindOneAndUpdate.mockResolvedValue(updatedDoc)
@@ -179,21 +189,21 @@ describe('QuoteRepository', () => {
           routeTokens: fullRouteTokens,
           routeCalls: fullRouteCalls,
           rewardTokens: fullRewardTokens,
+          rewardNative: 17n,
         },
       })
 
       expect(error).toBeUndefined()
       expect(response).toBeDefined()
-      // expect(response!.routeHash).toEqual(expectedHash)
       expect(response!.route.tokens).toEqual(fullRouteTokens)
       expect(response!.route.calls).toEqual(fullRouteCalls)
+      expect(response!.reward.nativeValue).toEqual(17n)
       expect(response!.receipt?.quoteDataEntry?.rewardTokens).toEqual(fullRewardTokens)
       expect(mockFindOneAndUpdate).toHaveBeenCalled()
     })
 
     it('should recompute routeHash when route.tokens change', async () => {
       const quoteIntentModel = quoteTestUtils.createQuoteIntentModel()
-      const originalRouteHash = (quoteRepository as any).getRouteHash(quoteIntentModel.route)
 
       const newToken = quoteTestUtils.getRandomAddress()
       const modifiedRouteTokens = [
@@ -204,12 +214,10 @@ describe('QuoteRepository', () => {
         ...quoteIntentModel.route,
         tokens: modifiedRouteTokens,
       }
-      const expectedNewHash = (quoteRepository as any).getRouteHash(modifiedRoute)
 
       mockFindOneAndUpdate.mockResolvedValue({
         ...quoteIntentModel,
         route: modifiedRoute,
-        routeHash: expectedNewHash,
       })
 
       const { response, error } = await quoteRepository.updateQuoteDb(quoteIntentModel, {
@@ -219,23 +227,21 @@ describe('QuoteRepository', () => {
           routeTokens: modifiedRouteTokens,
           routeCalls: quoteIntentModel.route.calls,
           rewardTokens: quoteIntentModel.reward.tokens,
+          rewardNative: 17n,
         },
       })
 
       expect(error).toBeUndefined()
-      // expect(response!.routeHash).toEqual(expectedNewHash)
     })
 
     it('should not recompute routeHash when only rewardTokens change', async () => {
       const quoteIntentModel = quoteTestUtils.createQuoteIntentModel()
-      const originalHash = (quoteRepository as any).getRouteHash(quoteIntentModel.route)
 
       const modifiedRewardTokens = [{ token: quoteTestUtils.getRandomAddress(), amount: 98765n }]
 
       mockFindOneAndUpdate.mockResolvedValue({
         ...quoteIntentModel,
         reward: { tokens: modifiedRewardTokens },
-        routeHash: originalHash,
       })
 
       const { response, error } = await quoteRepository.updateQuoteDb(quoteIntentModel, {
@@ -245,44 +251,12 @@ describe('QuoteRepository', () => {
           routeTokens: quoteIntentModel.route.tokens,
           routeCalls: quoteIntentModel.route.calls,
           rewardTokens: modifiedRewardTokens,
+          rewardNative: 17n,
         },
       })
 
       expect(error).toBeUndefined()
-      // expect(response!.routeHash).toEqual(originalHash)
       expect(response!.reward.tokens).toEqual(modifiedRewardTokens)
-    })
-
-    it('should change route hash if route calls change', () => {
-      const quoteIntentModel = quoteTestUtils.createQuoteIntentModel()
-      const route = quoteIntentModel.route
-
-      const hashBefore = (quoteRepository as any).getRouteHash(route)
-      const newRoute = {
-        ...route,
-        calls: [
-          ...route.calls,
-          {
-            target: quoteTestUtils.getRandomAddress(),
-            data: '0xdeadbeef',
-            value: 0n,
-          },
-        ],
-      }
-      const hashAfter = (quoteRepository as any).getRouteHash(newRoute)
-
-      expect(hashAfter).not.toEqual(hashBefore)
-    })
-  })
-
-  describe('Route Hash Generation', () => {
-    it('should generate consistent route hash from route data', () => {
-      const mockRoute = quoteTestUtils.createQuoteRouteDataDTO()
-      const hash = (quoteRepository as any).getRouteHash(mockRoute)
-
-      expect(typeof hash).toBe('string')
-      expect(hash.startsWith('0x')).toBe(true)
-      expect(hash.length).toBeGreaterThan(10) // Just to ensure it's not empty or malformed
     })
   })
 })

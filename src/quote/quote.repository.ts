@@ -26,7 +26,7 @@ export class QuoteRepository {
   constructor(
     @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
@@ -121,7 +121,6 @@ export class QuoteRepository {
       quoteID,
       dAppID,
       intentExecutionType,
-      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
     } as QuoteIntentModel
@@ -195,20 +194,12 @@ export class QuoteRepository {
         calls: routeCalls,
       }
 
-      // Update the quote intent model in the db
-      const updates = {
-        receipt: { quoteDataEntry },
-        routeHash: this.getRouteHash(updatedRoute),
-        'route.tokens': routeTokens,
-        'route.calls': routeCalls,
-        'reward.tokens': rewardTokens,
-      }
+      quoteIntentModel.receipt = { quoteDataEntry }
+      quoteIntentModel.route = updatedRoute
+      quoteIntentModel.reward.tokens = rewardTokens
+      quoteIntentModel.reward.nativeValue = quoteDataEntry?.rewardNative || BigInt(0)
 
-      const updatedModel = await this.quoteIntentModel.findOneAndUpdate(
-        { _id: quoteIntentModel._id },
-        { $set: updates },
-        { upsert: false, new: true },
-      )
+      const updatedModel = await this.quoteIntentModel.findOneAndUpdate(quoteIntentModel, { upsert: false, new: true })
 
       return { response: updatedModel! }
     } catch (ex) {
@@ -223,15 +214,5 @@ export class QuoteRepository {
       )
       return { error: EcoError.QuoteDBUpdateError }
     }
-  }
-
-  private getRouteHash(quoteRoute: QuoteRouteDataInterface): string {
-    // Hash the route using a bogus zero hash
-    const saltedRoute: RouteType = {
-      ...quoteRoute,
-      salt: ZERO_SALT,
-    }
-
-    return hashRoute(saltedRoute)
   }
 }
