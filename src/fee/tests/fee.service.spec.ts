@@ -5,12 +5,13 @@ import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
 import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
-import { NormalizedToken } from '@/fee/types'
+import { NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
+import { error } from 'console'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -60,15 +61,28 @@ describe('FeeService', () => {
     mockLogError.mockClear()
   })
 
-  const defaultFee: FeeConfigType = {
-    limitFillBase6: 1000n * 10n ** 6n,
+  const defaultFee: FeeConfigType<'linear'> = {
+    limit: {
+      tokenBase6: 1000n * 10n ** 6n,
+      nativeBase18: 1000n * 10n ** 18n,
+    },
     algorithm: 'linear',
     constants: {
-      baseFee: 20_000n,
-      tranche: {
-        unitFee: 15_000n,
-        unitSize: 100_000_000n,
+      token: {
+        baseFee: 20_000n,
+        tranche: {
+          unitFee: 15_000n,
+          unitSize: 100_000_000n,
+        },
       },
+      native: {
+        baseFee: 6_000n,
+        tranche: {
+          unitFee: 5_000n,
+          unitSize: 30_000_000n,
+        },
+      }
+
     },
   }
 
@@ -147,14 +161,27 @@ describe('FeeService', () => {
 
     it('should return the source chain creator default fee without merge if its complete', async () => {
       const creatorDefault = {
-        limitFillBase6: 1n,
+        limit: {
+          tokenBase6: 10n,
+          nativeBase18: 20n,
+        },
         algorithm: 'linear',
         constants: {
-          baseFee: 2n,
-          tranche: {
-            unitFee: 3n,
-            unitSize: 4n,
+          token: {
+            baseFee: 2n,
+            tranche: {
+              unitFee: 3n,
+              unitSize: 4n,
+            },
+
           },
+          native: {
+            baseFee: 5n,
+            tranche: {
+              unitFee: 6n,
+              unitSize: 7n,
+            },
+          }
         },
       } as any
       feeService['whitelist'] = { [creator]: { default: creatorDefault } }
@@ -185,11 +212,12 @@ describe('FeeService', () => {
       route,
       reward,
     } as any
-
+    const defaultAsk = { token: 1_000_000n, native: 0n }
     describe('on invalid solver', () => {
+
       it('should throw if no solver found', async () => {
         const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(undefined)
-        expect(() => feeService.getAsk(1_000_000n, intent)).toThrow(
+        expect(() => feeService.getAsk(defaultAsk, intent)).toThrow(
           QuoteError.NoSolverForDestination(route.destination),
         )
         expect(getSolver).toHaveBeenCalledTimes(1)
@@ -199,7 +227,7 @@ describe('FeeService', () => {
         const solver = { fee: { algorithm: 'unsupported' } } as any
         const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
         jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(solver.fee)
-        expect(() => feeService.getAsk(1_000_000n, intent)).toThrow(
+        expect(() => feeService.getAsk(defaultAsk, intent)).toThrow(
           QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm),
         )
         expect(getSolver).toHaveBeenCalledTimes(1)
@@ -214,67 +242,96 @@ describe('FeeService', () => {
         feeSpy = jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(linearSolver.fee)
       })
 
+      it('should return only tokens if no native', async () => {
+        const {
+          token,
+        } = linearSolver.fee.constants
+        const ask = feeService.getAsk({ token: 1_000_000n, native: 0n }, intent)
+        expect(ask).toEqual({ native: 0n, token: 1_000_000n + token.baseFee + 1n * token.tranche.unitFee })
+      })
+
+      it('should return only native if no tokens', async () => {
+        const {
+          native
+        } = linearSolver.fee.constants
+        const ask = feeService.getAsk({ token: 0n, native: 1_000_000n }, intent)
+        expect(ask).toEqual({ native: 1_000_000n + native.baseFee + 1n * native.tranche.unitFee, token: 0n })
+      })
+
+      it('should return both tokens and native for a mixed intent', async () => {
+        const {
+          native,
+          token,
+        } = linearSolver.fee.constants
+        const ask = feeService.getAsk({ token: 500_000n, native: 1_000_000n }, intent)
+        expect(ask).toEqual({ native: 1_000_000n + native.baseFee + 1n * native.tranche.unitFee, token: 500_000n + token.baseFee + 1n * token.tranche.unitFee })
+      })
+
       it('should return the correct ask for less than $100', async () => {
         const {
-          baseFee,
-          tranche: { unitFee },
+          token,
+          native
         } = linearSolver.fee.constants
-        const ask = feeService.getAsk(1_000_000n, intent)
-        expect(ask).toBe(1_000_000n + baseFee + 1n * unitFee)
+        const ask = feeService.getAsk(defaultAsk, intent)
+        expect(ask).toEqual({ native: 0n, token: 1_000_000n + token.baseFee + 1n * token.tranche.unitFee })
       })
 
       it('should return the correct ask for multiples of $100', async () => {
         const {
-          baseFee,
-          tranche: { unitFee },
+          token: { baseFee,
+            tranche: { unitFee }, }
+
         } = linearSolver.fee.constants
         //0-100 should have defaultFee
-        expect(feeService.getAsk(99_000_000n, intent)).toBe(99_000_000n + baseFee + 1n * unitFee)
-        expect(feeService.getAsk(100_000_000n, intent)).toBe(100_000_000n + baseFee + 2n * unitFee)
-        expect(feeService.getAsk(999_000_000n, intent)).toBe(999_000_000n + baseFee + 10n * unitFee)
-        expect(feeService.getAsk(1_000_000_000n, intent)).toBe(
-          1_000_000_000n + baseFee + 11n * unitFee,
+        expect(feeService.getAsk({ token: 99_000_000n, native: 0n }, intent)).toEqual({ token: 99_000_000n + baseFee + 1n * unitFee, native: 0n })
+        expect(feeService.getAsk({ token: 100_000_000n, native: 0n }, intent)).toEqual({ token: 100_000_000n + baseFee + 2n * unitFee, native: 0n })
+        expect(feeService.getAsk({ token: 999_000_000n, native: 0n }, intent)).toEqual({ token: 999_000_000n + baseFee + 10n * unitFee, native: 0n })
+        expect(feeService.getAsk({ token: 1_000_000_000n, native: 0n }, intent)).toEqual(
+          { token: 1_000_000_000n + baseFee + 11n * unitFee, native: 0n }
         )
       })
 
       it('should correctly handle division precision with small numbers', async () => {
         const {
-          baseFee,
-          tranche: { unitFee },
+          token: { baseFee,
+            tranche: { unitFee }, }
+
         } = linearSolver.fee.constants
 
-        expect(feeService.getAsk(1n, intent)).toBe(1n + baseFee + 1n * unitFee)
-        expect(feeService.getAsk(10n, intent)).toBe(10n + baseFee + 1n * unitFee)
-        expect(feeService.getAsk(100n, intent)).toBe(100n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk({ token: 1n, native: 0n }, intent)).toEqual({ token: 1n + baseFee + 1n * unitFee, native: 0n })
+        expect(feeService.getAsk({ token: 10n, native: 0n }, intent)).toEqual({ token: 10n + baseFee + 1n * unitFee, native: 0n })
+        expect(feeService.getAsk({ token: 100n, native: 0n }, intent)).toEqual({ token: 100n + baseFee + 1n * unitFee, native: 0n })
       })
 
       it('should handle division with non-divisible amounts correctly', async () => {
         const {
-          baseFee,
-          tranche: { unitFee },
+          token: { baseFee,
+            tranche: { unitFee }, }
+
         } = linearSolver.fee.constants
 
-        expect(feeService.getAsk(50_000_000n, intent)).toBe(50_000_000n + baseFee + 1n * unitFee)
-        expect(feeService.getAsk(33_333_333n, intent)).toBe(33_333_333n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk({ token: 50_000_000n, native: 0n }, intent)).toEqual({ token: 50_000_000n + baseFee + 1n * unitFee, native: 0n })
+        expect(feeService.getAsk({ token: 33_333_333n, native: 0n }, intent)).toEqual({ token: 33_333_333n + baseFee + 1n * unitFee, native: 0n })
       })
 
       it('should correctly calculate fee for very small amounts', async () => {
         const {
-          baseFee,
-          tranche: { unitFee },
+          token: { baseFee,
+            tranche: { unitFee }, }
+
         } = linearSolver.fee.constants
 
         // Testing with small amounts that would be affected by division-before-multiplication
-        expect(feeService.getAsk(7n, intent)).toBe(7n + baseFee + 1n * unitFee)
+        expect(feeService.getAsk({ token: 7n, native: 0n }, intent)).toEqual({ token: 7n + baseFee + 1n * unitFee, native: 0n })
       })
     })
   })
 
   describe('on isRouteFeasible', () => {
     let quote: any
-    const ask = 11n
-    const totalRewardsNormalized = 10n
-    const totalFillNormalized = 10n
+
+    const totalRewardsNormalized: NormalizedTotal = { token: 3n, native: 4n }
+    const totalFillNormalized: NormalizedTotal = { token: 10n, native: 7n }
     const error = { error: 'error' } as any
     beforeEach(() => {
       quote = {
@@ -283,6 +340,7 @@ describe('FeeService', () => {
         },
       }
     })
+
     it('should return an error if route has more than 1 call', async () => {
       quote.route.calls.push({})
       expect(await feeService.isRouteFeasible(quote)).toEqual({
@@ -299,47 +357,80 @@ describe('FeeService', () => {
     it('should return an error if getTotalRewards fails', async () => {
       jest
         .spyOn(feeService, 'getTotalFill')
-        .mockResolvedValue({ totalFillNormalized: 10n, error: undefined })
+        .mockResolvedValue({ totalFillNormalized, error: undefined })
       const getTotalRewards = jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue(error)
       expect(await feeService.isRouteFeasible(quote)).toEqual(error)
       expect(getTotalRewards).toHaveBeenCalledTimes(1)
     })
 
-    it('should return an error if the ask is less than the total reward', async () => {
+    it('should return an error if the reward native is less than the ask native', async () => {
       jest
         .spyOn(feeService, 'getTotalFill')
         .mockResolvedValue({ totalFillNormalized, error: undefined })
       jest
         .spyOn(feeService, 'getTotalRewards')
         .mockResolvedValue({ totalRewardsNormalized, error: undefined })
-      const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(11n)
+      const ask: NormalizedTotal = { token: totalRewardsNormalized.token, native: totalRewardsNormalized.native + 1n }
+      const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
       expect(await feeService.isRouteFeasible(quote)).toEqual({
         error: QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
       })
       expect(getAsk).toHaveBeenCalledTimes(1)
     })
 
-    it('should return an undefined error if the route is feasible', async () => {
+    it('should return an error if the reward token is less than the ask token', async () => {
       jest
         .spyOn(feeService, 'getTotalFill')
         .mockResolvedValue({ totalFillNormalized, error: undefined })
-      jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
-        totalRewardsNormalized: totalRewardsNormalized + 2n,
-        error: undefined,
+      jest
+        .spyOn(feeService, 'getTotalRewards')
+        .mockResolvedValue({ totalRewardsNormalized, error: undefined })
+      const ask: NormalizedTotal = { token: totalRewardsNormalized.token + 1n, native: totalRewardsNormalized.native }
+      const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+      expect(await feeService.isRouteFeasible(quote)).toEqual({
+        error: QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
       })
-      jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+      expect(getAsk).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return an error if the ask token and native is less than the reward token and native', async () => {
+      jest
+        .spyOn(feeService, 'getTotalFill')
+        .mockResolvedValue({ totalFillNormalized, error: undefined })
+      jest
+        .spyOn(feeService, 'getTotalRewards')
+        .mockResolvedValue({ totalRewardsNormalized, error: undefined })
+      const ask: NormalizedTotal = { token: totalRewardsNormalized.token + 1n, native: totalRewardsNormalized.native + 1n}
+      const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+      expect(await feeService.isRouteFeasible(quote)).toEqual({
+        error: QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
+      })
+      expect(getAsk).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return an undefined error if the routes reward is equal to the ask', async () => {
+      jest
+        .spyOn(feeService, 'getTotalFill')
+        .mockResolvedValue({ totalFillNormalized, error: undefined })
+      jest
+        .spyOn(feeService, 'getTotalRewards')
+        .mockResolvedValue({ totalRewardsNormalized, error: undefined })
+      const ask: NormalizedTotal = { token: totalRewardsNormalized.token , native: totalRewardsNormalized.native }
+      const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
       expect(await feeService.isRouteFeasible(quote)).toEqual({ error: undefined })
+       expect(getAsk).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('on getTotalFill', () => {
+    const emptyFill: NormalizedTotal = { native: 0n, token: 0n }
     it('should return an error upstream from getCallsNormalized', async () => {
       const error = { error: 'error' }
       const getCallsNormalized = jest
         .spyOn(feeService, 'getCallsNormalized')
         .mockResolvedValue(error as any)
       expect(await feeService.getTotalFill([] as any)).toEqual({
-        totalFillNormalized: 0n,
+        totalFillNormalized: emptyFill,
         ...error,
       })
       expect(getCallsNormalized).toHaveBeenCalledTimes(1)
@@ -347,10 +438,10 @@ describe('FeeService', () => {
 
     it('should reduce and return the total rewards', async () => {
       const getCallsNormalized = jest.spyOn(feeService, 'getCallsNormalized').mockResolvedValue({
-        calls: [{ balance: 10n }, { balance: 20n }] as any,
+        calls: [{ balance: 10n, native: { amount: 3n } }, { balance: 20n, native: { amount: 2n } }] as any,
         error: undefined,
       }) as any
-      expect(await feeService.getTotalFill([] as any)).toEqual({ totalFillNormalized: 30n })
+      expect(await feeService.getTotalFill([] as any)).toEqual({ totalFillNormalized: { native: 5n, token: 30n } })
       expect(getCallsNormalized).toHaveBeenCalledTimes(1)
     })
   })
@@ -362,7 +453,10 @@ describe('FeeService', () => {
         .spyOn(feeService, 'getRewardsNormalized')
         .mockResolvedValue(error as any)
       expect(await feeService.getTotalRewards([] as any)).toEqual({
-        totalRewardsNormalized: 0n,
+        totalRewardsNormalized: {
+          token: 0n,
+          native: 0n,
+        },
         ...error,
       })
       expect(getRewardsNormalized).toHaveBeenCalledTimes(1)
@@ -374,7 +468,12 @@ describe('FeeService', () => {
         .mockResolvedValue({
           rewards: [{ balance: 10n }, { balance: 20n }] as any,
         })
-      expect(await feeService.getTotalRewards([] as any)).toEqual({ totalRewardsNormalized: 30n })
+      const quote = {
+        reward: {
+          nativeValue: 777n
+        }
+      }
+      expect(await feeService.getTotalRewards(quote as any)).toEqual({ totalRewardsNormalized: { token: 30n, native: quote.reward.nativeValue } })
       expect(getRewardsNormalized).toHaveBeenCalledTimes(1)
     })
   })
@@ -651,8 +750,8 @@ describe('FeeService', () => {
       route: {
         destination: 1n,
         calls: [
-          { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex },
-          { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex },
+          { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 100n },
+          { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 200n },
         ],
       },
     }
@@ -683,7 +782,7 @@ describe('FeeService', () => {
 
     describe('on route calls mapping', () => {
       let callBalances: any
-      const transferAmount = 1000_000_000n
+      const transferAmount = 1_000_000_000n
       const txTargetData = {
         targetConfig: {
           contractType: 'erc20',
@@ -810,7 +909,7 @@ describe('FeeService', () => {
         })
       })
 
-      it('should convert an normalize the erc20 calls', async () => {
+      it('should convert and normalize the erc20 calls', async () => {
         const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
         const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
@@ -820,6 +919,7 @@ describe('FeeService', () => {
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         const convert = jest.spyOn(feeService, 'convertNormalize')
+
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [
             {
@@ -828,6 +928,9 @@ describe('FeeService', () => {
               address: '0x1',
               decimals: BASE_DECIMALS,
               recipient: 0,
+              native: {
+                amount: 100n
+              }
             },
             {
               balance: transferAmount * 10n ** 2n,
@@ -835,8 +938,12 @@ describe('FeeService', () => {
               address: '0x4',
               decimals: BASE_DECIMALS,
               recipient: 0,
+              native: {
+                amount: 200n
+              }
             },
           ],
+          error: undefined,
         })
         expect(convert).toHaveBeenCalledTimes(2)
       })

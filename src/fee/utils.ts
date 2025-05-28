@@ -36,3 +36,13 @@ export function normalizeSum(a: NormalizedTotal, b: NormalizedTotal): Normalized
     native: a.native + b.native,
   }
 }
+
+/**
+ * Compares two normalized totals to see if the first is greater than or equal to the second for both token and native values.
+ * @param a the first normalized total
+ * @param b the second normalized total
+ * @returns 
+ */
+export function compareNormalizedTotals(a: NormalizedTotal, b: NormalizedTotal): boolean {
+  return a.token >= b.token && a.native >= b.native 
+}
