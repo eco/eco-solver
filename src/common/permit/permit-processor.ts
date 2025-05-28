@@ -1,10 +1,10 @@
-import * as _ from 'lodash'
-import { encodeFunctionData, parseSignature } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoResponse } from '@/common/eco-response'
+import { encodeFunctionData, Hex, parseSignature, Signature } from 'viem'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitAbi } from '@/contracts/Permit.abi'
+import { PermitDTO } from '@/quote/dto/permit/permit.dto'
+import * as _ from 'lodash'
 
 /**
  * This class processes the permit transactions. It generates the transactions for the permits and executes them.
@@ -64,17 +64,27 @@ export class PermitProcessor {
   private static getPermitTx(params: PermitDTO): ExecuteSmartWalletArg {
     const { funder, signature, spender, token, deadline, value } = params
     const { r, s, v = 0 } = parseSignature(signature)
-
-    const data = encodeFunctionData({
-      abi: PermitAbi,
-      functionName: 'permit',
-      args: [funder, spender, value, deadline, Number(v), r, s],
-    })
+    const data = this.encodeFunctionData(funder, spender, value, deadline, { v, r, s } as Signature)
 
     return {
       to: token,
       data,
       value: 0n,
     }
+  }
+
+  static encodeFunctionData(
+    funder: Hex,
+    spender: Hex,
+    value: bigint,
+    deadline: bigint,
+    signature: Signature,
+  ): Hex {
+    const { v, r, s } = signature
+    return encodeFunctionData({
+      abi: PermitAbi,
+      functionName: 'permit',
+      args: [funder, spender, value, deadline, Number(v), r, s],
+    })
   }
 }

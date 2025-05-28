@@ -2,8 +2,8 @@ import { API_ROOT, INTENT_INITIATION_ROUTE } from '@/common/routes/constants'
 import { ApiOperation, ApiResponse } from '@nestjs/swagger'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { QuoteErrorsInterface } from '@/quote/errors'
@@ -21,10 +21,10 @@ export class IntentInitiationController {
     summary: 'Initiate Gasless Intent',
   })
   @Post('/initiateGaslessIntent')
-  @ApiResponse({ type: GaslessIntentResponseDTO, isArray: true })
+  @ApiResponse({ type: GaslessIntentExecutionResponseDTO })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
-  ): Promise<GaslessIntentResponseDTO[]> {
+  ): Promise<GaslessIntentExecutionResponseDTO> {
     // Using any to accommodate the actual returned transaction receipt structure
     this.logger.log(
       EcoLogMessage.fromDefault({

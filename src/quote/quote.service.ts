@@ -1,8 +1,8 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
+import { RewardTokensInterface } from '@/contracts'
+import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -12,24 +12,23 @@ import {
   Quote400,
   SolverUnsupported,
 } from '@/quote/errors'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import * as dayjs from 'dayjs'
-import { encodeFunctionData, erc20Abi, Hex } from 'viem'
-import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
 import { EcoResponse } from '@/common/eco-response'
-import { QuotesConfig } from '@/eco-configs/eco-config.types'
-import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
-import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { encodeFunctionData, erc20Abi, Hex } from 'viem'
+import { FeeService } from '@/fee/fee.service'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { Injectable, Logger } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { Mathb } from '@/utils/bigint'
+import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
+import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
+import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
+import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import * as dayjs from 'dayjs'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -45,9 +44,8 @@ interface GenerateQuoteParams {
  * Service class for getting configs for the app
  */
 @Injectable()
-export class QuoteService implements OnModuleInit {
+export class QuoteService {
   private logger = new Logger(QuoteService.name)
-  private quotesConfig: QuotesConfig
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
@@ -55,10 +53,6 @@ export class QuoteService implements OnModuleInit {
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
-
-  onModuleInit() {
-    this.quotesConfig = this.ecoConfigService.getQuotesConfig()
-  }
 
   /**
    * Generates a quote for the quote intent data.

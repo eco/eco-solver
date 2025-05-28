@@ -8,7 +8,11 @@ import { FeeService } from '@/fee/fee.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getModelToken } from '@nestjs/mongoose'
 import { Hex, TransactionReceipt } from 'viem'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import {
+  FundForTransactionData,
+  IntentInitiationService,
+  PermitResult,
+} from '@/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
@@ -36,6 +40,22 @@ jest.mock('@/eco-configs/utils', () => {
       .mockReturnValue({ IntentSource: '0x0000000000000000000000000000000000000001' }),
   }
 })
+
+const getFundForTxsPerChain = (
+  mockChainID: number,
+  txs: ExecuteSmartWalletArg[],
+): Map<number, FundForTransactionData[]> => {
+  const fundForTxsPerChain = new Map<number, FundForTransactionData[]>()
+
+  const fundForTxData = txs.map((tx) => ({
+    quoteID: `quoteID`,
+    tx,
+  }))
+
+  fundForTxsPerChain.set(mockChainID, fundForTxData)
+
+  return fundForTxsPerChain
+}
 
 describe('IntentInitiationService', () => {
   const mockTx: ExecuteSmartWalletArg = {
@@ -130,7 +150,7 @@ describe('IntentInitiationService', () => {
 
       const permit2Tx = { ...mockTx, data: '0xpermit2' as Hex }
 
-      jest.spyOn(Permit2Processor, 'generateTxs').mockReturnValue(permit2Tx)
+      jest.spyOn(Permit2Processor, 'generateTxs').mockReturnValue([permit2Tx])
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
@@ -162,9 +182,11 @@ describe('IntentInitiationService', () => {
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const { response: gaslessIntentResponses, error } = await service.initiateGaslessIntent(dto)
+      const { response: gaslessIntentResponse, error } = await service.initiateGaslessIntent(dto)
       expect(error).toBeUndefined()
-      expect(gaslessIntentResponses![0].transactionHash).toBe('0xtx')
+      const { successes, failures } = gaslessIntentResponse!
+      expect(failures.length).toBe(0)
+      expect(successes[0].transactionHash).toBe('0xtx')
     })
   })
 
@@ -180,10 +202,14 @@ describe('IntentInitiationService', () => {
       const mockGasEstimate = 100_000n
       const mockGasPrice = 50_000_000_000n // 50 gwei
       const mockChainID = 5
+      const fundForTxsPerChain = getFundForTxsPerChain(mockChainID, txs)
 
-      jest
-        .spyOn(service, 'generateGaslessIntentTransactions')
-        .mockResolvedValue({ response: new Map<number, ExecuteSmartWalletArg[]>([[1, txs]]) })
+      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({
+        response: {
+          permitDataPerChain: new Map<number, PermitResult>(),
+          fundForTxsPerChain,
+        },
+      })
 
       kernelMock.estimateGas.mockResolvedValue({
         response: {
@@ -211,9 +237,15 @@ describe('IntentInitiationService', () => {
         { to: '0xdef456...', data: '0x01', value: 0n },
       ]
 
-      jest
-        .spyOn(service, 'generateGaslessIntentTransactions')
-        .mockResolvedValue({ response: new Map<number, ExecuteSmartWalletArg[]>([[1, txs]]) })
+      const mockChainID = 1
+      const fundForTxsPerChain = getFundForTxsPerChain(mockChainID, txs)
+
+      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({
+        response: {
+          permitDataPerChain: new Map<number, PermitResult>(),
+          fundForTxsPerChain,
+        },
+      })
 
       kernelMock.estimateGas.mockRejectedValue(new Error('boom'))
 

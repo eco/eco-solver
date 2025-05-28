@@ -3,6 +3,8 @@ import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.
 import { Permit2Abi } from '@/contracts/Permit2.abi'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
+import { PermitBatchArg } from '@/common/permit/interfaces/permit-batch-arg.interface'
+import { PermitSingleArg } from '@/common/permit/interfaces/permit-single-arg.interface'
 
 /**
  * This class processes the permit2 transaction. It generates the transaction for the permits and executes it.
@@ -15,7 +17,7 @@ export class Permit2Processor {
    * @param permit2 - The parameters for the permit processing.
    * @returns The transaction object for the permit.
    */
-  static generateTxs(permit2: Permit2DTO): ExecuteSmartWalletArg {
+  static generateTxs(permit2: Permit2DTO): ExecuteSmartWalletArg[] {
     const data = this.encodeFunctionData(
       permit2.funder,
       permit2.spender,
@@ -24,26 +26,28 @@ export class Permit2Processor {
       permit2.details,
     )
 
-    return {
-      to: permit2.permitContract,
-      data,
-      value: 0n,
-    }
+    return [
+      {
+        to: permit2.permitContract,
+        data,
+        value: 0n,
+      },
+    ]
   }
 
   /**
    * This function encodes the function data for the permit2 function. It uses the ABI and function name to encode
    * the arguments and returns the encoded data.
    *
-   * @param owner - The address of the owner.
+   * @param funder - The address of the funder.
    * @param spender - The address of the spender.
    * @param sigDeadline - The signature deadline.
    * @param signature - The signature.
    * @param details - The details for the permit processing.
    * @returns The encoded function data.
    */
-  private static encodeFunctionData(
-    owner: Hex,
+  static encodeFunctionData(
+    funder: Hex,
     spender: Hex,
     sigDeadline: bigint,
     signature: Hex,
@@ -53,14 +57,14 @@ export class Permit2Processor {
       return encodeFunctionData({
         abi: Permit2Abi,
         functionName: 'permit',
-        args: [owner, this.buildPermitSingleArg(spender, sigDeadline, details[0]), signature],
+        args: [funder, this.buildPermitSingleArg(spender, sigDeadline, details[0]), signature],
       })
     }
 
     return encodeFunctionData({
       abi: Permit2Abi,
       functionName: 'permit',
-      args: [owner, this.buildPermitBatchArg(spender, sigDeadline, details), signature],
+      args: [funder, this.buildPermitBatchArg(spender, sigDeadline, details), signature],
     })
   }
 
@@ -77,7 +81,7 @@ export class Permit2Processor {
     spender: Hex,
     sigDeadline: bigint,
     details: Permit2TypedDataDetailsDTO,
-  ) {
+  ): PermitSingleArg {
     return {
       details: {
         token: details.token,
@@ -103,7 +107,7 @@ export class Permit2Processor {
     spender: Hex,
     sigDeadline: bigint,
     details: Permit2TypedDataDetailsDTO[],
-  ) {
+  ): PermitBatchArg {
     return {
       details: details.map((detail) => ({
         token: detail.token,

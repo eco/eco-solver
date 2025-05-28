@@ -193,7 +193,7 @@ describe('QuoteRepository', () => {
 
     it('should recompute routeHash when route.tokens change', async () => {
       const quoteIntentModel = quoteTestUtils.createQuoteIntentModel()
-      const originalRouteHash = (quoteRepository as any).getRouteHash(quoteIntentModel.route)
+      // const originalRouteHash = (quoteRepository as any).getRouteHash(quoteIntentModel.route)
 
       const newToken = quoteTestUtils.getRandomAddress()
       const modifiedRouteTokens = [
@@ -212,7 +212,7 @@ describe('QuoteRepository', () => {
         routeHash: expectedNewHash,
       })
 
-      const { response, error } = await quoteRepository.updateQuoteDb(quoteIntentModel, {
+      const { error } = await quoteRepository.updateQuoteDb(quoteIntentModel, {
         quoteDataEntry: {
           intentExecutionType: 'GASLESS',
           expiryTime: '9999999999',
