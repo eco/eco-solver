@@ -23,6 +23,7 @@ import * as dayjs from 'dayjs'
 import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting configs for the app
@@ -286,23 +287,16 @@ export class QuoteService {
   getGasOverhead(quoteIntentModel: QuoteIntentDataInterface): number {
     const defaultGasOverhead = this.getDefaultGasOverhead()
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.source)
+
     if (solver?.gasOverhead == null) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'solver.gasOverhead is undefined, using default gas overhead',
-        }),
-      )
       return defaultGasOverhead
     }
 
     if (solver.gasOverhead < 0) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
-          properties: {
-            solver,
-            defaultGasOverhead,
-          },
+          error: EcoError.NegativeGasOverhead(solver.gasOverhead),
         }),
       )
       return defaultGasOverhead
@@ -315,7 +309,18 @@ export class QuoteService {
    * @returns the default gas overhead
    */
   private getDefaultGasOverhead(): number {
-    return 21000
+    const intentConfigs = this.ecoConfigService.getIntentConfigs()
+    if (intentConfigs.defaultGasOverhead == null) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: 'intentConfigs.defaultGasOverhead is undefined',
+          error: EcoError.DefaultGasOverheadUndefined(),
+        }),
+      )
+      throw EcoError.DefaultGasOverheadUndefined()
+    }
+
+    return intentConfigs.defaultGasOverhead
   }
 
   /**

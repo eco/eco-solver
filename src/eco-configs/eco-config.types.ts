@@ -146,6 +146,9 @@ export type IntentConfig = {
     hyperlane_duration_seconds: number
     metalayer_duration_seconds: number
   }
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -251,7 +254,7 @@ export type Solver = {
   chainID: number
   // The average block time for the chain in seconds
   averageBlockTime: number
-  // The gas overhead for the solver in gas units
+  // Gas overhead is the intent creation gas cost for the source chain
   gasOverhead?: number
 }
 
