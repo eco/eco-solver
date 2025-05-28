@@ -42,7 +42,16 @@ describe('IntentInitiationController', () => {
 
   it('returns response when successful', async () => {
     const dto = intentTestUtils.createGaslessIntentRequestDTO()
-    const mockResponse = [{ chainID: 10, transactionHash: '0x123' as Hex }]
+    const mockResponse = {
+      successes: [
+        {
+          chainID: 10,
+          quoteIDs: ['quote1', 'quote2'],
+          transactionHash: '0x123' as Hex,
+        },
+      ],
+      failures: [],
+    }
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({ response: mockResponse })
 

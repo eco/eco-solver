@@ -48,7 +48,7 @@ describe('Permit2Processor', () => {
       const result = Permit2Processor.generateTxs(permit2DTO)
 
       // Verify the transaction object is correctly formed
-      expect(result).toEqual({
+      expect(result[0]).toEqual({
         to: permit2DTO.permitContract,
         data: '0xEncoded_Permit_Data',
         value: 0n,
@@ -104,7 +104,7 @@ describe('Permit2Processor', () => {
       const result = Permit2Processor.generateTxs(permit2DTO)
 
       // Verify the transaction object is correctly formed
-      expect(result).toEqual({
+      expect(result[0]).toEqual({
         to: permit2DTO.permitContract,
         data: '0xEncoded_Permit_Data',
         value: 0n,

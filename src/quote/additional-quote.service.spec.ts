@@ -3,13 +3,10 @@ import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@/fee/fee.service'
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
-import { Logger } from '@nestjs/common'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { ValidationService } from '@/intent/validation.sevice'
-
-const logger = new Logger('QuoteServiceSpec')
 
 const mockIsRewardFeasible = jest.fn()
 const mockAssertValidations = jest.fn()
@@ -73,7 +70,6 @@ describe('QuoteService', () => {
     quoteRepository = await $.get(QuoteRepository)
     feeService = await $.get(FeeService)
     validationService = await $.get(ValidationService)
-    quoteService.onModuleInit()
   })
 
   describe('QuoteService - regular quotes & error handling', () => {

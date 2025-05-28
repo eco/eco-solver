@@ -137,8 +137,8 @@ describe('IntentInitiationService', () => {
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ error: EcoError.QuoteNotFound }) // simulate quote not found
 
-      const result = await service.initiateGaslessIntent(dto)
-      expect(result.error.message).toContain('Quote not found')
+      const { error } = await service.initiateGaslessIntent(dto)
+      expect(error.message).toContain('Quote not found')
     })
 
     it('executes intent with permit2', async () => {
@@ -151,17 +151,21 @@ describe('IntentInitiationService', () => {
       const permit2Tx = { ...mockTx, data: '0xpermit2' as Hex }
 
       jest.spyOn(Permit2Processor, 'generateTxs').mockReturnValue([permit2Tx])
+
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
+
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const { response: gaslessIntentResponses, error } = await service.initiateGaslessIntent(dto)
+      const { response: gaslessIntentResponse, error } = await service.initiateGaslessIntent(dto)
       expect(error).toBeUndefined()
-      expect(gaslessIntentResponses![0].transactionHash).toBe('0xtx')
+      const { successes, failures } = gaslessIntentResponse!
+      expect(failures.length).toBe(0)
+      expect(successes[0].transactionHash).toBe('0xtx')
     })
 
     it('executes intent with permit', async () => {
