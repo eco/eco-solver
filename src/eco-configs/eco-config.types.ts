@@ -154,6 +154,9 @@ export type IntentConfig = {
   isNativeETHSupported: boolean
   intentFundedRetries: number
   intentFundedRetryDelayMs: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -304,7 +307,7 @@ export type Solver = {
 
   // The average block time for the chain in seconds
   averageBlockTime: number
-  // The gas overhead for the solver in gas units
+  // Gas overhead is the intent creation gas cost for the source chain
   gasOverhead?: number
 }
 

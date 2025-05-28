@@ -119,6 +119,9 @@ export default {
     },
     intentFundedRetries: 3,
     intentFundedRetryDelayMs: 500,
+    // Gas overhead is the intent creation gas cost for the source chain, i.e. the cost of calling publishAndFund on IntentSource.
+    // This is the default gas overhead
+    defaultGasOverhead: 145_000,
   },
   whitelist: {},
 

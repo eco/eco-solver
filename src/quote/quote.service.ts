@@ -35,6 +35,7 @@ import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
+import { EcoError } from '@/common/errors/eco-error'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -668,23 +669,16 @@ export class QuoteService implements OnModuleInit {
   getGasOverhead(quoteIntentModel: QuoteIntentDataInterface): number {
     const defaultGasOverhead = this.getDefaultGasOverhead()
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.source)
+
     if (solver?.gasOverhead == null) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'solver.gasOverhead is undefined, using default gas overhead',
-        }),
-      )
       return defaultGasOverhead
     }
 
     if (solver.gasOverhead < 0) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
-          properties: {
-            solver,
-            defaultGasOverhead,
-          },
+          error: EcoError.NegativeGasOverhead(solver.gasOverhead),
         }),
       )
       return defaultGasOverhead
@@ -697,7 +691,18 @@ export class QuoteService implements OnModuleInit {
    * @returns the default gas overhead
    */
   private getDefaultGasOverhead(): number {
-    return 21000
+    const intentConfigs = this.ecoConfigService.getIntentConfigs()
+    if (intentConfigs.defaultGasOverhead == null) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: 'intentConfigs.defaultGasOverhead is undefined',
+          error: EcoError.DefaultGasOverheadUndefined(),
+        }),
+      )
+      throw EcoError.DefaultGasOverheadUndefined()
+    }
+
+    return intentConfigs.defaultGasOverhead
   }
 
   /**
