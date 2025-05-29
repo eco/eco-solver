@@ -2,6 +2,13 @@ import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 
+const CALDERA_CHAIN_CONFIG: EcoChainConfig = {
+  IntentSource: '0x50673016E0720d6B7FA5Af3290709Fc8bAF65A70',
+  Inbox: '0xCc71EA5C67795EF12be2328C14F7E96A39D71067',
+  HyperProver: '0x0000000000000000000000000000000000000000',
+  MetaProver: '0xcF415cFD2f287Ea5e394BAA1f12035fC57d6EED8',
+}
+
 /**
  * The prefix for non-production deploys on a chain
  */
@@ -48,6 +55,7 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)
+  } else {
+    return CALDERA_CHAIN_CONFIG
   }
-  return config
 }
