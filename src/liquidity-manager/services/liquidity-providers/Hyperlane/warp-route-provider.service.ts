@@ -7,7 +7,6 @@ import {
   isAddressEqual,
   pad,
   parseEventLogs,
-  parseUnits,
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'

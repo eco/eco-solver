@@ -7,7 +7,6 @@ import {
   keccak256,
   pad,
   parseEventLogs,
-  parseUnits,
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'
@@ -39,7 +38,6 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
-
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -104,6 +102,37 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       messageHash,
       messageBody,
     })
+  }
+
+  async fetchAttestation(messageHash: Hex) {
+    const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
+    const response = await fetch(url)
+    const data:
+      | { status: 'pending' }
+      | { error: string }
+      | { status: 'complete'; attestation: Hex } = await response.json()
+
+    if ('error' in data) {
+      throw new Error(data.error)
+    }
+
+    return data
+  }
+
+  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex) {
+    const cctpChainConfig = this.getChainConfig(chainId)
+    const walletClient = await this.walletClientService.getClient(chainId)
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+
+    const txHash = await walletClient.writeContract({
+      abi: CCTPMessageTransmitterABI,
+      address: cctpChainConfig.messageTransmitter,
+      functionName: 'receiveMessage',
+      args: [messageBytes, attestation],
+    })
+
+    await publicClient.waitForTransactionReceipt({ hash: txHash })
+    return txHash
   }
 
   private _execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
@@ -178,21 +207,6 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return config
   }
 
-  async fetchAttestation(messageHash: Hex) {
-    const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
-    const response = await fetch(url)
-    const data:
-      | { status: 'pending' }
-      | { error: string }
-      | { status: 'complete'; attestation: Hex } = await response.json()
-
-    if ('error' in data) {
-      throw new Error(data.error)
-    }
-
-    return data
-  }
-
   private getMessageHash(messageBytes: Hex) {
     return keccak256(messageBytes)
   }
@@ -204,22 +218,6 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       logs: receipt.logs,
     })
     return messageSentEvent.args.message
-  }
-
-  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex) {
-    const cctpChainConfig = this.getChainConfig(chainId)
-    const walletClient = await this.walletClientService.getClient(chainId)
-    const publicClient = await this.walletClientService.getPublicClient(chainId)
-
-    const txHash = await walletClient.writeContract({
-      abi: CCTPMessageTransmitterABI,
-      address: cctpChainConfig.messageTransmitter,
-      functionName: 'receiveMessage',
-      args: [messageBytes, attestation],
-    })
-
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
-    return txHash
   }
 
   private isSupportedToken(chainId: number, token: Hex) {
