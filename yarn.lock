@@ -2912,11 +2912,6 @@
   resolved "https://registry.yarnpkg.com/@lukeed/csprng/-/csprng-1.1.0.tgz#1e3e4bd05c1cc7a0b2ddbd8a03f39f6e4b5e6cfe"
   integrity sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==
 
-"@metalayer/viem-chains@^0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@metalayer/viem-chains/-/viem-chains-0.2.0.tgz#f85e05df480c20dac54787a3a6fce0cc3aeb2285"
-  integrity sha512-v/8Lc66GF7FxrDqG3d2JaA6lT7imKCGRqordCw3OUNwo+7kYfowOm1QDX8aVqY1G6g0Vy2yjx+Z0mige57B6lA==
-
 "@microsoft/tsdoc@0.15.0":
   version "0.15.0"
   resolved "https://registry.yarnpkg.com/@microsoft/tsdoc/-/tsdoc-0.15.0.tgz#f29a55df17cb6e87cfbabce33ff6a14a9f85076d"
