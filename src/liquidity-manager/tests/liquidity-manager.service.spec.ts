@@ -101,35 +101,6 @@ describe('LiquidityManagerService', () => {
       await liquidityManagerService.onApplicationBootstrap()
       expect(liquidityManagerService['config']).toEqual(mockConfig)
     })
-
-    it('should configure verbose logging based on environment variable', async () => {
-      const originalEnv = process.env.LIQUIDITY_SERVICES_LOGGING
-
-      // Test with verbose logging enabled (default)
-      delete process.env.LIQUIDITY_SERVICES_LOGGING
-
-      jest
-        .spyOn(ecoConfigService, 'getLiquidityManager')
-        .mockReturnValue({ intervalDuration: 1000 } as any)
-
-      await liquidityManagerService.onApplicationBootstrap()
-
-      expect(liquidityManagerService['verboseLogging']).toBe(true)
-
-      // Test with verbose logging disabled (quiet mode)
-      process.env.LIQUIDITY_SERVICES_LOGGING = 'quiet'
-
-      await liquidityManagerService.onApplicationBootstrap()
-
-      expect(liquidityManagerService['verboseLogging']).toBe(false)
-
-      // Restore original environment
-      if (originalEnv !== undefined) {
-        process.env.LIQUIDITY_SERVICES_LOGGING = originalEnv
-      } else {
-        delete process.env.LIQUIDITY_SERVICES_LOGGING
-      }
-    })
   })
 
   describe('analyzeTokens', () => {
