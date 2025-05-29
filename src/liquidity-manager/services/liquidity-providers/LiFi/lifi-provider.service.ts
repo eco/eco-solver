@@ -1,4 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+
+/**
+ * LiFi Provider Service for cross-chain liquidity management.
+ *
+ * Logging Configuration:
+ * - By default, verbose logs are enabled for detailed debugging
+ * - To silence verbose LiFi operation logs, set environment variable: LIQUIDITY_SERVICES_LOGGING=quiet
+ * - This will disable debug logs for fallback routing attempts, execution details, and process steps
+ */
 import { parseUnits } from 'viem'
 import {
   createConfig,
@@ -21,6 +30,7 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
   private walletAddress: string
+  private verboseLogging: boolean = true // Verbose by default, set LIQUIDITY_SERVICES_LOGGING=quiet to silence
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -33,6 +43,13 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address
+
+    // Check if logging should be quieted (defaults to verbose for detailed debugging)
+    this.verboseLogging = process.env.LIQUIDITY_SERVICES_LOGGING !== 'quiet'
+
+    if (!this.verboseLogging) {
+      this.logger.log('LiFi verbose logging is disabled (quiet mode)')
+    }
 
     // Configure LiFi providers
     createConfig({
@@ -115,18 +132,20 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote> {
-    // Log that we're using the fallback method with core tokens
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'LiFi: Using fallback method with core tokens',
-        properties: {
-          fromToken: tokenIn.config.address,
-          fromChain: tokenIn.chainId,
-          toToken: tokenOut.config.address,
-          toChain: tokenOut.chainId,
-        },
-      }),
-    )
+    // Log that we're using the fallback method with core tokens (only if verbose logging is enabled)
+    if (this.verboseLogging) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Using fallback method with core tokens',
+          properties: {
+            fromToken: tokenIn.config.address,
+            fromChain: tokenIn.chainId,
+            toToken: tokenOut.config.address,
+            toChain: tokenOut.chainId,
+          },
+        }),
+      )
+    }
 
     // Try each core token as an intermediary
     const { coreTokens } = this.ecoConfigService.getLiquidityManager()
@@ -142,29 +161,34 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           },
         } as TokenData
 
-        // Try routing through core token
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Trying core token as intermediary',
-            properties: {
-              coreToken: coreToken.token,
-              coreChain: coreToken.chainID,
-            },
-          }),
-        )
+        // Try routing through core token (only log if verbose logging is enabled)
+        if (this.verboseLogging) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'Trying core token as intermediary',
+              properties: {
+                coreToken: coreToken.token,
+                coreChain: coreToken.chainID,
+              },
+            }),
+          )
+        }
 
         return await this.getQuote(tokenIn, coreTokenData, swapAmount)
       } catch (coreError) {
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Failed to route through core token',
-            properties: {
-              coreToken: coreToken.token,
-              coreChain: coreToken.chainID,
-              error: coreError instanceof Error ? coreError.message : String(coreError),
-            },
-          }),
-        )
+        // Only log core token failures if verbose logging is enabled
+        if (this.verboseLogging) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'Failed to route through core token',
+              properties: {
+                coreToken: coreToken.token,
+                coreChain: coreToken.chainID,
+                error: coreError instanceof Error ? coreError.message : String(coreError),
+              },
+            }),
+          )
+        }
       }
     }
 
@@ -173,30 +197,35 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   async _execute(quote: RebalanceQuote<'LiFi'>) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'LiFiProviderService: executing quote',
-        properties: {
-          tokenIn: quote.tokenIn.config.address,
-          chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenIn.config.address,
-          chainOut: quote.tokenIn.config.chainId,
-          amountIn: quote.amountIn,
-          amountOut: quote.amountOut,
-          slippage: quote.slippage,
-          gasCostUSD: quote.context.gasCostUSD,
-          steps: quote.context.steps.map((step) => ({
-            type: step.type,
-            tool: step.tool,
-          })),
-        },
-      }),
-    )
+    // Log execution details only if verbose logging is enabled
+    if (this.verboseLogging) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFiProviderService: executing quote',
+          properties: {
+            tokenIn: quote.tokenIn.config.address,
+            chainIn: quote.tokenIn.config.chainId,
+            tokenOut: quote.tokenOut.config.address,
+            chainOut: quote.tokenOut.config.chainId,
+            amountIn: quote.amountIn,
+            amountOut: quote.amountOut,
+            slippage: quote.slippage,
+            gasCostUSD: quote.context.gasCostUSD,
+            steps: quote.context.steps.map((step) => ({
+              type: step.type,
+              tool: step.tool,
+            })),
+          },
+        }),
+      )
+    }
 
     // Execute the quote
     return executeRoute(quote.context, {
       disableMessageSigning: true,
-      updateRouteHook: (route) => logLiFiProcess(this.logger, route),
+      updateRouteHook: this.verboseLogging
+        ? (route) => logLiFiProcess(this.logger, route)
+        : undefined,
       acceptExchangeRateUpdateHook: () => Promise.resolve(true),
     })
   }
