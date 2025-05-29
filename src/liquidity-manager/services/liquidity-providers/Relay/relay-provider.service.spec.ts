@@ -36,6 +36,9 @@ jest.mock('@reservoir0x/relay-sdk', () => {
     convertViemChainToRelayChain: jest.fn().mockReturnValue({}),
   }
 })
+jest.mock('@/liquidity-manager/services/liquidity-providers/Relay/wallet-adapter.ts', () => ({
+  adaptKernelWallet: jest.fn().mockImplementation((param) => param),
+}))
 
 describe('RelayProviderService', () => {
   let service: RelayProviderService
@@ -92,6 +95,7 @@ describe('RelayProviderService', () => {
           provide: KernelAccountClientV2Service,
           useValue: {
             getClient: jest.fn().mockResolvedValue(mockWalletClient),
+            getAddress: () => Promise.resolve('0x123abc'),
           },
         },
       ],
@@ -123,6 +127,8 @@ describe('RelayProviderService', () => {
     expect(getClient().actions.getQuote).toHaveBeenCalledWith({
       chainId: mockTokenData.chainId,
       toChainId: mockTokenDataOut.chainId,
+      user: '0x123abc',
+      recipient: '0x123abc',
       currency: mockTokenData.config.address,
       toCurrency: mockTokenDataOut.config.address,
       amount: expect.any(String),
