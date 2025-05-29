@@ -19,6 +19,7 @@ export type EcoConfigType = {
   redis: RedisConfig
   intervals: IntervalConfig
   intentConfigs: IntentConfig
+  fulfillmentEstimate: FulfillmentEstimateConfig
   alchemy: AlchemyConfigType
   rpcUrls: RpcUrlsConfigType
   cache: CacheModuleOptions
@@ -146,9 +147,18 @@ export type IntentConfig = {
   defaultFee: FeeConfigType
   skipBalanceCheck?: boolean
   proofs: {
-    storage_duration_seconds: number
     hyperlane_duration_seconds: number
+    metalayer_duration_seconds: number
   }
+}
+
+/**
+ * The config type for the fulfillment estimate section
+ */
+export type FulfillmentEstimateConfig = {
+  executionPaddingSeconds: number
+  blockTimePercentile: number
+  defaultBlockTime: number
 }
 
 /**
@@ -243,6 +253,8 @@ export type Solver = {
   network: Network
   fee: FeeConfigType
   chainID: number
+  // The average block time for the chain in seconds
+  averageBlockTime: number
 }
 
 /**

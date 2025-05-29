@@ -12,7 +12,7 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress } from 'viem'
+import { Chain, getAddress, zeroAddress } from 'viem'
 import { addressKeys, getRpcUrl } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -89,15 +89,16 @@ export class EcoConfigService {
       intent.sourceAddress = config.IntentSource
       intent.inbox = config.Inbox
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
-      // todo add metaprover when package supports it
-      const ecoNpmProvers = [config.HyperProver]
+      const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
+        (prover) => getAddress(prover) !== zeroAddress,
+      )
       switch (ecoNpm) {
         case 'replace':
           intent.provers = ecoNpmProvers
           break
         case 'append':
         default:
-          intent.provers = [...intent.provers, ...ecoNpmProvers]
+          intent.provers = [...(intent.provers || []), ...ecoNpmProvers]
           break
       }
       //remove duplicates
@@ -274,5 +275,13 @@ export class EcoConfigService {
    */
   getSupportedChains(): bigint[] {
     return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+  }
+
+  /**
+   * Returns the fulfillment estimate config
+   * @returns the fulfillment estimate config
+   */
+  getFulfillmentEstimateConfig(): EcoConfigType['fulfillmentEstimate'] {
+    return this.get('fulfillmentEstimate')
   }
 }

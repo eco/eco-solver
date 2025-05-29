@@ -47,15 +47,17 @@ describe('QuoteController Test', () => {
   })
 
   describe('getQuote', () => {
-    const quote = {
+    const mockQuoteResponse = {
       tokens: [
         {
-          address: '0x123',
+          token: '0x123',
           amount: 100n,
         },
       ],
-      expiryTime: 0,
+      expiryTime: '1234567890',
+      estimatedFulfillTimeSec: 9,
     }
+
     it('should return a 400 on bad request', async () => {
       jest.spyOn(quoteService, 'getQuote').mockResolvedValue(SolverUnsupported)
       await expect(quoteController.getQuote({} as any)).rejects.toThrow(
@@ -64,18 +66,19 @@ describe('QuoteController Test', () => {
     })
 
     it('should return a 500 on server error', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(InternalSaveError(quote as any))
-      jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
+      jest
+        .spyOn(quoteService, 'getQuote')
+        .mockResolvedValue(InternalSaveError(mockQuoteResponse as any))
       await expect(quoteController.getQuote({} as any)).rejects.toThrow(
-        new InternalServerErrorException(InternalSaveError(quote as any)),
+        new InternalServerErrorException(serialize(InternalSaveError(mockQuoteResponse as any))),
       )
     })
 
-    it('should log and return a quote', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(quote as any)
+    it('should log and return a quote including estimatedFulfillTimeSec', async () => {
+      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(mockQuoteResponse as any)
 
       const result = await quoteController.getQuote({} as any)
-      expect(result).toEqual(quote)
+      expect(result).toEqual(mockQuoteResponse)
       expect(quoteService.getQuote).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledTimes(2)
     })

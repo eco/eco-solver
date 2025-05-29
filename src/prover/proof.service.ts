@@ -1,17 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { addSeconds, compareAsc } from 'date-fns'
-import { MultichainPublicClientService } from '../transaction/multichain-public-client.service'
-import { Hex } from 'viem'
-import {
-  PROOF_HYPERLANE,
-  PROOF_STORAGE,
-  ProofCall,
-  ProofType,
-  ProverInterfaceAbi,
-} from '../contracts'
+import { getAddress, Hex } from 'viem'
 import { entries } from 'lodash'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { addSeconds, compareAsc } from 'date-fns'
+import { IProverAbi } from '@eco-foundation/routes-ts'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { PROOF_HYPERLANE, PROOF_METALAYER, ProofCall, ProofType } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * Service class for getting information about the provers and their configurations.
@@ -55,12 +51,12 @@ export class ProofService implements OnModuleInit {
   }
 
   /**
-   * Checks if the prover is a storage prover
+   * Checks if the prover is a metalayer prover
    * @param proverAddress the prover address
    * @returns
    */
-  isStorageProver(proverAddress: Hex): boolean {
-    return this.getProofType(proverAddress) === PROOF_STORAGE
+  isMetalayerProver(proverAddress: Hex): boolean {
+    return this.getProofType(proverAddress) === PROOF_METALAYER
   }
 
   /**
@@ -71,7 +67,7 @@ export class ProofService implements OnModuleInit {
   getProvers(proofType: ProofType): Hex[] {
     return entries(this.proofContracts)
       .filter(([, type]) => type === proofType)
-      .map(([address]) => address as Hex)
+      .map(([address]) => getAddress(address))
   }
 
   /**
@@ -126,20 +122,19 @@ export class ProofService implements OnModuleInit {
     const proofCalls: ProofCall[] = provers.map((proverAddress) => {
       return {
         address: proverAddress,
-        abi: ProverInterfaceAbi,
+        abi: IProverAbi,
         functionName: 'getProofType',
       }
     })
 
-    const proofs = (await client.multicall({
-      contracts: proofCalls.flat(),
-    })) as any
-    let proof: ProofType = 0,
-      i = 0
+    const proofTypeResults = await client.multicall({ contracts: proofCalls })
+
     const proofObj: Record<Hex, ProofType> = {}
-    while (proofs.length > 0 && ([{ result: proof }] = [proofs.shift()])) {
-      proofObj[provers[i]] = proof
-      i++
+
+    for (const proverIndex in provers) {
+      const proverAddr = provers[proverIndex]
+      const { result: proofType } = proofTypeResults[proverIndex]
+      proofObj[proverAddr] = this.getProofTypeFromString(proofType!)
     }
 
     return proofObj
@@ -158,11 +153,27 @@ export class ProofService implements OnModuleInit {
 
   /**
    * Gets the minimum date that a proof can be generated for a given chain id.
-   * @param chainID  the chain id
+   * @param prover
    * @returns
    */
   getProofMinimumDate(prover: ProofType): Date {
     return addSeconds(new Date(), this.getProofMinimumDurationSeconds(prover))
+  }
+
+  /**
+   * Get ProofType from string
+   * @param proof
+   * @private
+   */
+  private getProofTypeFromString(proof: string): ProofType {
+    switch (proof) {
+      case 'Hyperlane':
+        return PROOF_HYPERLANE
+      case 'Metalayer':
+        return PROOF_METALAYER
+      default:
+        throw new Error(`Proof type ${proof} is not supported`)
+    }
   }
 
   /**
@@ -176,9 +187,10 @@ export class ProofService implements OnModuleInit {
     switch (prover) {
       case PROOF_HYPERLANE:
         return proofs.hyperlane_duration_seconds
-      case PROOF_STORAGE:
+      case PROOF_METALAYER:
+        return proofs.metalayer_duration_seconds
       default:
-        return proofs.storage_duration_seconds
+        throw EcoError.ProverNotSupported(prover)
     }
   }
 }

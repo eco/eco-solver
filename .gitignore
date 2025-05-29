@@ -67,4 +67,6 @@ config/*
 !config/production.ts
 !config/test.ts
 
+#AI
+CLAUDE.md
 **/.claude/settings.local.json

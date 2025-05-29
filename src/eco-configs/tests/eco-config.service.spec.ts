@@ -48,13 +48,13 @@ describe('Eco Config Helper Tests', () => {
   describe('on getIntentSources', () => {
     const mockIS = {
       chainID: 1,
-      tokens: ['0x12346817e7F6210A5b320F1A0bC96FfCf713A9b9'],
-      provers: ['0x123CustomProver'],
+      tokens: ['0x12346817E7F6210A5B320f1a0bc96ffcF713A9B9'],
+      provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4'],
     }
     const mockChainConfig = {
       IntentSource: 'source',
-      Prover: 'prover',
-      HyperProver: 'hyperprover',
+      HyperProver: '0x0000000000000000000000000000000000000000',
+      MetaProver: '0x1111111111111111111111111111111111111111',
       Inbox: 'inbox',
     }
 
@@ -87,7 +87,7 @@ describe('Eco Config Helper Tests', () => {
           ...mockIS,
           sourceAddress: mockChainConfig.IntentSource,
           inbox: mockChainConfig.Inbox,
-          provers: ['0x123CustomProver', mockChainConfig.HyperProver],
+          provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4', mockChainConfig.MetaProver],
         },
       ])
       expect(mockgetChainConfig).toHaveBeenCalled()
@@ -108,7 +108,7 @@ describe('Eco Config Helper Tests', () => {
           ...mockIS,
           sourceAddress: mockChainConfig.IntentSource,
           inbox: mockChainConfig.Inbox,
-          provers: ['0x123CustomProver', mockChainConfig.HyperProver],
+          provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4', mockChainConfig.MetaProver],
           config: { ecoRoutes: 'append' },
         },
       ])
@@ -129,7 +129,7 @@ describe('Eco Config Helper Tests', () => {
           ...mockIS,
           sourceAddress: mockChainConfig.IntentSource,
           inbox: mockChainConfig.Inbox,
-          provers: [mockChainConfig.HyperProver],
+          provers: [mockChainConfig.MetaProver],
           config: { ecoRoutes: 'replace' },
         },
       ])
@@ -137,10 +137,10 @@ describe('Eco Config Helper Tests', () => {
     })
 
     it('should remove duplicate provers', () => {
-      const customProver = '0x123CustomProver'
+      const customProver = mockChainConfig.MetaProver
       mockgetChainConfig.mockReturnValue({
         ...mockChainConfig,
-        HyperProver: customProver, // Same as the one in mockIS.provers
+        MetaProver: customProver, // Same as the one in mockIS.provers
       })
       const mockISWithCustomProver = {
         ...mockIS,

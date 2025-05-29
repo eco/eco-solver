@@ -1,6 +1,7 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
@@ -35,6 +36,7 @@ export class QuoteService {
     private readonly feeService: FeeService,
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly fulfillmentEstimateService: FulfillmentEstimateService,
   ) {}
 
   /**
@@ -68,6 +70,7 @@ export class QuoteService {
       | {
           tokens: RewardTokensInterface[]
           expiryTime: string
+          estimatedFulfillTimeSec: number
         }
       | Error
     try {
@@ -257,10 +260,13 @@ export class QuoteService {
       }
     }
 
-    //todo save quote to record
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
+
     return {
       tokens: Object.values(quoteRecord),
       expiryTime: this.getQuoteExpiryTime(),
+      estimatedFulfillTimeSec,
     }
   }
 
