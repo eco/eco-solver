@@ -11,6 +11,14 @@ export class EcoLogger extends Logger {
     this.logErrorAlways = true
   }
 
+  log(message: any, ...optionalParams: [...any, string?]): void {
+    if (EcoLogger.logErrorAlways) {
+      super.error(message, ...optionalParams)
+    } else {
+      super.log(message, ...optionalParams)
+    }
+  }
+
   info(message: any, ...optionalParams: [...any, string?]): void {
     if (EcoLogger.logErrorAlways) {
       super.error(message, ...optionalParams)

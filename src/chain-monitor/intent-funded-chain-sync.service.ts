@@ -76,7 +76,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
       toBlock,
     })
 
-    // Make sure it's one of ours
+    // fixme: Make sure it's one of ours. Describe how we could end up not having the intent in the database.
     const intentFundedLogs = allIntentFundedLogs.filter(async (log) => {
       const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
       return !error
