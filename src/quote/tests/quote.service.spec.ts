@@ -23,6 +23,7 @@ import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { zeroAddress } from 'viem'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import c from 'config'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -89,7 +90,6 @@ describe('QuotesService', () => {
   })
 
   describe('on getQuote', () => {
-    const quoteIntent = { reward: { tokens: [] }, route: {} } as any
     it('should throw an error if it cant store the quote in the db ', async () => {
       const failedStore = new Error('error')
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ error: failedStore })
@@ -134,11 +134,10 @@ describe('QuotesService', () => {
   describe('on storeQuoteIntentData', () => {
     it('should log error if storing fails', async () => {
       const failedStore = new Error('error')
-      jest.spyOn(quoteModel, 'create').mockRejectedValue(failedStore)
+      jest.spyOn(quoteRepository, 'storeQuoteIntentData').mockResolvedValue({ error: failedStore })
       const quoteIntent = quoteTestUtils.createQuoteIntentDataDTO()
       const { error } = await quoteService.storeQuoteIntentData(quoteIntent)
       expect(error).toBeDefined()
-      expect(mockLogError).toHaveBeenCalled()
     })
 
     it('should save the DTO and return a record', async () => {
@@ -149,12 +148,12 @@ describe('QuotesService', () => {
         quoteIntentData.intentExecutionTypes[0],
         quoteIntentData,
       )
-      jest.spyOn(quoteModel, 'create').mockResolvedValue(quoteIntentModel as any)
+      jest
+        .spyOn(quoteRepository, 'storeQuoteIntentData')
+        .mockResolvedValue({ response: [quoteIntentModel] })
       const { response: quoteIntentModels } =
         await quoteService.storeQuoteIntentData(quoteIntentData)
       expect(quoteIntentModels).toEqual([quoteIntentModel])
-      expect(mockLogError).not.toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalled()
     })
   })
 
@@ -276,32 +275,57 @@ describe('QuotesService', () => {
         srcDeficitDescending: [],
       } as any
       jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-      const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
-      const askMock = jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+      const ask = { token: calculated.calls.reduce((a, b) => a + b.balance, 0n), native: 10n }
+      const totalRewards = { token: 112n, native: 9n }
+      jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+      jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({
+        totalFillNormalized: ask,
+      })
+      jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
+        totalRewardsNormalized: totalRewards,
+      })
       const { error } = await quoteService.generateQuote({ route: {} } as any)
-      expect(error).toEqual(InsufficientBalance(ask, 112n))
-      expect(askMock).toHaveBeenCalled()
+      expect(error).toEqual(InsufficientBalance(ask, totalRewards))
     })
 
     describe('on building quote', () => {
-      beforeEach(() => { })
+      beforeEach(() => {})
 
       async function generateHelper(
         calculated: any,
         expectedTokens: { token: string; amount: bigint }[],
+        expectedNativeReward?: bigint,
       ) {
-        const ask = calculated.calls.reduce((a, b) => a + b.balance, 0n)
+        const ask = calculated.calls.reduce(
+          (a, b) => {
+            return { token: a.token + b.balance, native: a.native + b.native.amount }
+          },
+          { token: 0n, native: 0n },
+        )
+
         jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+        jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({
+          totalFillNormalized: ask,
+        })
+        jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
+          totalRewardsNormalized: {
+            token: calculated.rewards.reduce((a, b) => a + b.balance, 0n),
+            native: expectedNativeReward || 0n,
+          },
+        })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
         })
         const { response: quoteDataEntry } = await quoteService.generateQuote({
-          route: {},
+          route: { tokens: [], calls: [] },
           reward: {},
         } as any)
         expect(quoteDataEntry).toEqual({
+          routeTokens: [],
+          routeCalls: [],
           rewardTokens: expectedTokens,
+          rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),
         })
       }
@@ -313,7 +337,7 @@ describe('QuotesService', () => {
             { address: '0x1', balance: 100n },
             { address: '0x2', balance: 200n },
           ],
-          calls: [{ address: '0x3', balance: 50n }],
+          calls: [{ address: '0x3', balance: 50n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n }, address: '0x2' },
@@ -326,7 +350,7 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
-          calls: [{ balance: 150n }],
+          calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
@@ -339,7 +363,7 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
-          calls: [{ balance: 40n }],
+          calls: [{ balance: 40n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: 100n, address: '0x1' } },
             { delta: { balance: 200n, address: '0x2' } },
@@ -355,7 +379,7 @@ describe('QuotesService', () => {
             { address: '0x1', balance: 200n },
             { address: '0x2', balance: 200n },
           ],
-          calls: [{ balance: 150n }],
+          calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
@@ -371,7 +395,7 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
-          calls: [{ balance: 150n }],
+          calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: 100n, address: '0x2' } },
@@ -388,7 +412,7 @@ describe('QuotesService', () => {
             { address: '0x2', balance: 20n },
             { address: '0x3', balance: 200n },
           ],
-          calls: [{ balance: 150n }],
+          calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
@@ -409,7 +433,7 @@ describe('QuotesService', () => {
             { address: '0x1', balance: 50n },
             { address: '0x2', balance: 200n },
           ],
-          calls: [{ balance: 250n }],
+          calls: [{ balance: 250n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
@@ -428,7 +452,7 @@ describe('QuotesService', () => {
             { address: '0x1', balance: 150n },
             { address: '0x2', balance: 150n },
           ],
-          calls: [{ balance: 250n }],
+          calls: [{ balance: 250n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: 10n, address: '0x1' } },
             { delta: { balance: 20n, address: '0x2' } },
@@ -438,6 +462,41 @@ describe('QuotesService', () => {
           { token: '0x1', amount: 150n },
           { token: '0x2', amount: 100n },
         ])
+      })
+
+      it('should handle native gas token rewards correctly', async () => {
+        const nativeGas = 135n
+        const calculated = {
+          solver: {},
+          rewards: [
+            { address: '0x1', balance: 100n },
+            { address: '0x2', balance: 200n },
+          ],
+          calls: [{ balance: 150n, native: { amount: nativeGas } }],
+          srcDeficitDescending: [
+            { delta: { balance: -50n, address: '0x1' } },
+            { delta: { balance: 100n, address: '0x2' } },
+          ],
+        } as any
+        await generateHelper(
+          calculated,
+          [
+            { token: '0x1', amount: 100n },
+            { token: '0x2', amount: 50n },
+          ],
+          nativeGas,
+        )
+      })
+
+      it('should handle mixed token and native rewards', async () => {
+        const nativeGas = 75n
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 50n }],
+          calls: [{ balance: 50n, native: { amount: nativeGas } }],
+          srcDeficitDescending: [{ delta: { balance: -50n, address: '0x1' } }],
+        } as any
+        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], nativeGas)
       })
     })
   })
@@ -464,24 +523,37 @@ describe('QuotesService', () => {
       } as any
 
       jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-      const totalReward = calculated.rewards.reduce((acc, reward) => acc + reward.balance, 0n)
-      const fee = totalReward + 1n
-      const feeMock = jest.spyOn(feeService, 'getFee').mockReturnValue(fee)
+      const totalReward = {
+        token: calculated.rewards.reduce((acc, reward) => acc + reward.balance, 0n),
+        native: 0n,
+      }
+      const fee = { token: totalReward.token + 1n, native: 0n }
+      jest.spyOn(feeService, 'getFee').mockReturnValue(fee)
+      jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
+        totalRewardsNormalized: totalReward,
+      })
 
-      const intent = { route: { tokens: [], calls: [] } } as any
+      const intent = { route: { tokens: [], calls: [] }, reward: {} } as any
       const { error } = await quoteService.generateReverseQuote(intent)
       expect(error).toEqual(InsufficientBalance(fee, totalReward))
-      expect(feeMock).toHaveBeenCalled()
     })
 
     describe('on building reverse quote', () => {
-      beforeEach(() => { })
+      beforeEach(() => {})
 
       async function generateReverseHelper(
         calculated: any,
         expectedRouteTokens: { token: string; amount: bigint }[] = [],
+        expectedRewardNative?: bigint,
       ) {
-        jest.spyOn(feeService, 'getFee').mockReturnValue(0n)
+        const fee = { token: 0n, native: 10000000n } // Small native fee
+        jest.spyOn(feeService, 'getFee').mockReturnValue(fee)
+        jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
+          totalRewardsNormalized: {
+            token: calculated.rewards?.reduce((a, b) => a + b.balance, 0n) || 0n,
+            native: expectedRewardNative || 100000000n,
+          },
+        })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
         feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }
@@ -497,6 +569,9 @@ describe('QuotesService', () => {
         expect(quoteDataEntry).toBeDefined()
         expect(quoteDataEntry).toHaveProperty('routeTokens')
         expect(quoteDataEntry!.routeTokens).toEqual(expectedRouteTokens)
+        if (expectedRewardNative !== undefined) {
+          expect(quoteDataEntry!.rewardNative).toEqual(expectedRewardNative - fee.native)
+        }
       }
 
       it('should subtract fees from tokens that solver needs least', async () => {
@@ -544,6 +619,38 @@ describe('QuotesService', () => {
         } as any
 
         await generateReverseHelper(calculated, [{ token: '0x2', amount: 200n }])
+      })
+
+      it('should handle native gas token in reverse quotes correctly', async () => {
+        const nativeGas = 135n
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 100n }],
+          tokens: [{ address: '0x2', balance: 150n }],
+          calls: [
+            {
+              address: '0x2',
+              balance: 150n,
+              recipient: zeroAddress,
+              native: { amount: nativeGas },
+            },
+          ],
+          destDeficitDescending: [{ delta: { balance: -50n, address: '0x2' }, token: {} }],
+        } as any
+
+        await generateReverseHelper(calculated, [{ token: '0x2', amount: 100n }], 200000000n)
+      })
+
+      it('should properly calculate rewardNative after fee deduction', async () => {
+        const calculated = {
+          solver: {},
+          rewards: [{ address: '0x1', balance: 50n }],
+          tokens: [{ address: '0x2', balance: 100n }],
+          calls: [{ address: '0x2', balance: 100n, recipient: zeroAddress }],
+          destDeficitDescending: [{ delta: { balance: -25n, address: '0x2' }, token: {} }],
+        } as any
+
+        await generateReverseHelper(calculated, [{ token: '0x2', amount: 50n }], 500000000n)
       })
     })
   })

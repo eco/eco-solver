@@ -29,6 +29,7 @@ import { QuoteRepository } from '@/quote/quote.repository'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { isInsufficient } from '../fee/utils'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -392,10 +393,7 @@ export class QuoteService implements OnModuleInit {
     if (Boolean(totalRewardsError)) {
       return { error: totalRewardsError }
     }
-    if (
-      totalAsk.token > totalRewardsNormalized.token ||
-      totalAsk.native > totalRewardsNormalized.native
-    ) {
+    if (isInsufficient(totalAsk, totalRewardsNormalized)) {
       return { error: InsufficientBalance(totalAsk, totalRewardsNormalized) }
     }
     let filled = 0n
@@ -494,12 +492,13 @@ export class QuoteService implements OnModuleInit {
     }
     const fee = this.feeService.getFee(totalRewardsNormalized, intent)
 
-    if (fee.token >= totalRewardsNormalized.token || fee.native >= totalRewardsNormalized.native) {
+    if (isInsufficient(fee, totalRewardsNormalized)) {
       return { error: InsufficientBalance(fee, totalRewardsNormalized) }
     }
 
     // Calculate total amount available after fee subtraction
     const totalAvailableAfterFee = totalRewardsNormalized.token - fee.token
+    const totalAvailableAfterFeeNative = totalRewardsNormalized.native - fee.native
     let remainingToFill = totalAvailableAfterFee
 
     const routeCalls = [] as QuoteCallDataDTO[]
@@ -571,7 +570,7 @@ export class QuoteService implements OnModuleInit {
         routeTokens,
         routeCalls,
         rewardTokens: intent.reward.tokens,
-        rewardNative: fee.native + totalRewardsNormalized.native,
+        rewardNative: totalAvailableAfterFeeNative,
         expiryTime: this.getQuoteExpiryTime(),
       } as QuoteDataEntryDTO,
     }

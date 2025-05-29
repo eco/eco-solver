@@ -16,7 +16,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 import { CallDataInterface } from '../contracts'
-import { compareNormalizedTotals } from '../fee/utils'
+import { isGreaterEqual } from '../fee/utils'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -28,7 +28,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-  IntentModelWithHashInterface { }
+    IntentModelWithHashInterface {}
 
 /**
  * Type that holds all the possible validations that can fail
@@ -80,7 +80,7 @@ export class ValidationService implements OnModuleInit {
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.isNativeEnabled = this.ecoConfigService.getIntentConfigs().isNativeSupported
@@ -229,7 +229,7 @@ export class ValidationService implements OnModuleInit {
     }
     const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
     // convert to a normalized total to use utils compare function
-    return compareNormalizedTotals({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
   }
 
   /**

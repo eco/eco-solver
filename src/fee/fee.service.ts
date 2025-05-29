@@ -1,6 +1,6 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getERC20Selector, isERC20Target } from '@/contracts'
+import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
   FeeAlgorithmConfig,
@@ -9,13 +9,18 @@ import {
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
-import { compareNormalizedTotals, normalizeBalance, normalizeSum } from '@/fee/utils'
-import { getTransactionTargetData } from '@/intent/utils'
+import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
+import {
+  getFunctionCalls,
+  getFunctionTargets,
+  getNativeCalls,
+  getTransactionTargetData,
+} from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress, Hex } from 'viem'
+import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 
@@ -33,7 +38,7 @@ export class FeeService implements OnModuleInit {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -99,7 +104,7 @@ export class FeeService implements OnModuleInit {
           fee.token =
             BigInt(tokenConfig.baseFee) +
             (normalizedTotal.token / BigInt(tokenConfig.tranche.unitSize) + 1n) *
-            BigInt(tokenConfig.tranche.unitFee)
+              BigInt(tokenConfig.tranche.unitFee)
         }
 
         //TODO add some fulfillment transaction simulation costs to the fee
@@ -107,7 +112,7 @@ export class FeeService implements OnModuleInit {
           fee.native =
             BigInt(nativeConfig.baseFee) +
             (normalizedTotal.native / BigInt(nativeConfig.tranche.unitSize) + 1n) *
-            BigInt(nativeConfig.tranche.unitFee)
+              BigInt(nativeConfig.tranche.unitFee)
         }
 
         break
@@ -151,10 +156,9 @@ export class FeeService implements OnModuleInit {
     }
     const ask = this.getAsk(totalFillNormalized, quote)
     return {
-      error:
-        compareNormalizedTotals(totalRewardsNormalized,ask)
-          ? undefined
-          : QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized),
+      error: isInsufficient(ask, totalRewardsNormalized)
+        ? QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized)
+        : undefined,
     }
   }
 
@@ -404,9 +408,10 @@ export class FeeService implements OnModuleInit {
     if (!solver) {
       return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
     }
+
     const callERC20Balances = await this.balanceService.fetchTokenBalances(
       solver.chainID,
-      quote.route.calls.map((call) => call.target),
+      getFunctionTargets(quote.route.calls as CallDataInterface[]),
     )
 
     if (Object.keys(callERC20Balances).length === 0) {
@@ -434,7 +439,8 @@ export class FeeService implements OnModuleInit {
 
     let calls: NormalizedCall[] = []
     try {
-      calls = quote.route.calls.map((call) => {
+      const functionalCalls = getFunctionCalls(quote.route.calls as CallDataInterface[])
+      calls = functionalCalls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
         if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
           const err = QuoteError.NonERC20TargetInCalls()
@@ -493,6 +499,18 @@ export class FeeService implements OnModuleInit {
           },
         }
       })
+      const nativeCalls = getNativeCalls(quote.route.calls as CallDataInterface[]).map((call) => ({
+        recipient: call.target,
+        native: {
+          amount: call.value,
+        },
+        // we don't have a token for native calls, so we use a dummy token
+        balance: 0n,
+        chainID: BigInt(solver.chainID),
+        address: zeroAddress,
+        decimals: 0,
+      }))
+      calls.push(...nativeCalls)
     } catch (e) {
       error = e
     }

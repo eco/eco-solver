@@ -7,7 +7,7 @@ import { Logger } from '@nestjs/common'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { ValidationService } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
 
 const logger = new Logger('QuoteServiceSpec')
 
@@ -19,7 +19,27 @@ describe('QuoteService', () => {
   let quoteRepository: QuoteRepository
   let feeService: FeeService
   let validationService: ValidationService
+  const validValidations: ValidationChecks = {
+    supportedNative: true,
+    supportedProver: true,
+    supportedTargets: true,
+    supportedTransaction: true,
+    validTransferLimit: true,
+    validExpirationTime: true,
+    validDestination: true,
+    fulfillOnDifferentChain: true,
+  }
 
+  const failValidations: ValidationChecks = {
+    supportedNative: true,
+    supportedProver: true,
+    supportedTargets: true,
+    supportedTransaction: true,
+    validTransferLimit: true,
+    validExpirationTime: true,
+    validDestination: false,
+    fulfillOnDifferentChain: true,
+  }
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
@@ -86,17 +106,7 @@ describe('QuoteService', () => {
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
 
-      const successfulValidations = {
-        supportedProver: true,
-        supportedTargets: true,
-        supportedSelectors: true,
-        validTransferLimit: true,
-        validExpirationTime: true,
-        validDestination: true,
-        fulfillOnDifferentChain: true,
-      }
-
-      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(validValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
       const mockUpdate = jest
@@ -132,28 +142,18 @@ describe('QuoteService', () => {
         response: [model],
       })
 
-      const failedValidations = {
-        supportedProver: false,
-        supportedTargets: true,
-        supportedSelectors: true,
-        validTransferLimit: true,
-        validExpirationTime: true,
-        validDestination: true,
-        fulfillOnDifferentChain: true,
-      }
-
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
-      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failValidations)
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
 
       expect(result.error).toBeDefined()
-      expect(result.error![0].name).toBe(InvalidQuoteIntent(failedValidations).name)
+      expect(result.error![0].name).toBe(InvalidQuoteIntent(failValidations).name)
       expect(mockUpdate).toHaveBeenCalled()
       expect(mockUpdate).toHaveBeenCalledWith(model, {
-        error: InvalidQuoteIntent(failedValidations),
+        error: InvalidQuoteIntent(failValidations),
       })
     })
   })
@@ -167,18 +167,7 @@ describe('QuoteService', () => {
       })
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
-
-      const successfulValidations = {
-        supportedProver: true,
-        supportedTargets: true,
-        supportedSelectors: true,
-        validTransferLimit: true,
-        validExpirationTime: true,
-        validDestination: true,
-        fulfillOnDifferentChain: true,
-      }
-
-      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(validValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
       const mockUpdate = jest
@@ -206,21 +195,10 @@ describe('QuoteService', () => {
       const error = new Error('not enough tokens')
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({ error })
-
-      const failedValidations = {
-        supportedProver: true,
-        supportedTargets: true,
-        supportedSelectors: true,
-        validTransferLimit: true,
-        validExpirationTime: true,
-        validDestination: true,
-        fulfillOnDifferentChain: true,
-      }
-
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
-      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(validValidations)
 
       const result = await quoteService.getReverseQuote({
         ...model,

@@ -4,7 +4,15 @@ const mockIsEmptyData = jest.fn()
 import { EcoError } from '@/common/errors/eco-error'
 import { getFunctionBytes } from '@/common/viem/contracts'
 import { CallDataInterface } from '@/contracts'
-import { getTransactionTargetData, getWaitForTransactionTimeout, isNativeIntent, equivalentNativeGas, getFunctionCalls, getNativeCalls, getFunctionTargets } from '@/intent/utils'
+import {
+  getTransactionTargetData,
+  getWaitForTransactionTimeout,
+  isNativeIntent,
+  equivalentNativeGas,
+  getFunctionCalls,
+  getNativeCalls,
+  getFunctionTargets,
+} from '@/intent/utils'
 import { Logger } from '@nestjs/common'
 
 jest.mock('viem', () => {
@@ -88,10 +96,10 @@ describe('utils tests', () => {
         route: {
           calls: [
             { value: 0n, target: '0x1', data: '0x' },
-            { value: 100n, target: '0x2', data: '0x' }
-          ]
+            { value: 100n, target: '0x2', data: '0x' },
+          ],
         },
-        reward: { nativeValue: 0n }
+        reward: { nativeValue: 0n },
       } as any
 
       expect(isNativeIntent(intent)).toBe(true)
@@ -100,11 +108,9 @@ describe('utils tests', () => {
     it('should return true when reward has nativeValue > 0', () => {
       const intent = {
         route: {
-          calls: [
-            { value: 0n, target: '0x1', data: '0x' }
-          ]
+          calls: [{ value: 0n, target: '0x1', data: '0x' }],
         },
-        reward: { nativeValue: 500n }
+        reward: { nativeValue: 500n },
       } as any
 
       expect(isNativeIntent(intent)).toBe(true)
@@ -113,11 +119,9 @@ describe('utils tests', () => {
     it('should return true when both route calls and reward have native values', () => {
       const intent = {
         route: {
-          calls: [
-            { value: 100n, target: '0x1', data: '0x' }
-          ]
+          calls: [{ value: 100n, target: '0x1', data: '0x' }],
         },
-        reward: { nativeValue: 500n }
+        reward: { nativeValue: 500n },
       } as any
 
       expect(isNativeIntent(intent)).toBe(true)
@@ -128,10 +132,10 @@ describe('utils tests', () => {
         route: {
           calls: [
             { value: 0n, target: '0x1', data: '0x' },
-            { value: 0n, target: '0x2', data: '0x' }
-          ]
+            { value: 0n, target: '0x2', data: '0x' },
+          ],
         },
-        reward: { nativeValue: 0n }
+        reward: { nativeValue: 0n },
       } as any
 
       expect(isNativeIntent(intent)).toBe(false)
@@ -140,7 +144,7 @@ describe('utils tests', () => {
     it('should return false when route has no calls and reward nativeValue is 0', () => {
       const intent = {
         route: { calls: [] },
-        reward: { nativeValue: 0n }
+        reward: { nativeValue: 0n },
       } as any
 
       expect(isNativeIntent(intent)).toBe(false)
@@ -163,79 +167,89 @@ describe('utils tests', () => {
 
     it('should return false when source chain is not found', () => {
       const intent = {
-        route: { source: 1n, destination: 2n }
+        route: { source: 1n, destination: 2n },
       } as any
 
       mockExtractChain.mockReturnValueOnce(null) // source chain not found
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 18, symbol: 'ETH' } }) // destination chain
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
-        msg: 'equivalentNativeGas: Chain not found'
-      }))
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'equivalentNativeGas: Chain not found',
+        }),
+      )
     })
 
     it('should return false when destination chain is not found', () => {
       const intent = {
-        route: { source: 1n, destination: 2n }
+        route: { source: 1n, destination: 2n },
       } as any
 
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 18, symbol: 'ETH' } }) // source chain
       mockExtractChain.mockReturnValueOnce(null) // destination chain not found
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
-        msg: 'equivalentNativeGas: Chain not found'
-      }))
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'equivalentNativeGas: Chain not found',
+        }),
+      )
     })
 
     it('should return false when chains have different decimals', () => {
       const intent = {
-        route: { source: 1n, destination: 2n }
+        route: { source: 1n, destination: 2n },
       } as any
 
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 18, symbol: 'ETH' } }) // source
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 6, symbol: 'ETH' } }) // destination
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
-        msg: 'equivalentNativeGas: Different native currency',
-        sameDecimals: false,
-      }))
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'equivalentNativeGas: Different native currency',
+          sameDecimals: false,
+        }),
+      )
     })
 
     it('should return false when chains have different symbols', () => {
       const intent = {
-        route: { source: 1n, destination: 2n }
+        route: { source: 1n, destination: 2n },
       } as any
 
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 18, symbol: 'ETH' } }) // source
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 18, symbol: 'MATIC' } }) // destination
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
-        msg: 'equivalentNativeGas: Different native currency',
-        sameSymbol: false,
-      }))
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'equivalentNativeGas: Different native currency',
+          sameSymbol: false,
+        }),
+      )
     })
 
     it('should return false when source chain decimals are not 18', () => {
       const intent = {
-        route: { source: 1n, destination: 2n }
+        route: { source: 1n, destination: 2n },
       } as any
 
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 6, symbol: 'ETH' } }) // source
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 6, symbol: 'ETH' } }) // destination
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
-        msg: 'equivalentNativeGas: Different native currency'
-      }))
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'equivalentNativeGas: Different native currency',
+        }),
+      )
     })
 
     it('should return true when chains have same currency with 18 decimals', () => {
       const intent = {
-        route: { source: 1n, destination: 2n }
+        route: { source: 1n, destination: 2n },
       } as any
 
       mockExtractChain.mockReturnValueOnce({ nativeCurrency: { decimals: 18, symbol: 'ETH' } }) // source
@@ -247,7 +261,7 @@ describe('utils tests', () => {
 
     it('should call extractChain with correct parameters', () => {
       const intent = {
-        route: { source: 1n, destination: 137n }
+        route: { source: 1n, destination: 137n },
       } as any
 
       mockExtractChain.mockReturnValue({ nativeCurrency: { decimals: 18, symbol: 'ETH' } })
@@ -257,11 +271,11 @@ describe('utils tests', () => {
       expect(mockExtractChain).toHaveBeenCalledTimes(2)
       expect(mockExtractChain).toHaveBeenNthCalledWith(1, {
         chains: expect.anything(),
-        id: 1
+        id: 1,
       })
       expect(mockExtractChain).toHaveBeenNthCalledWith(2, {
         chains: expect.anything(),
-        id: 137
+        id: 137,
       })
     })
   })
@@ -274,12 +288,12 @@ describe('utils tests', () => {
     it('should return calls that do not have empty data', () => {
       const calls: CallDataInterface[] = [
         { target: '0x1', data: '0xa9059cbb', value: 0n }, // function call
-        { target: '0x2', data: '0x', value: 100n },       // native transfer
-        { target: '0x3', data: '0x1234', value: 0n },     // function call
+        { target: '0x2', data: '0x', value: 100n }, // native transfer
+        { target: '0x3', data: '0x1234', value: 0n }, // function call
       ]
 
       mockIsEmptyData.mockReturnValueOnce(false) // first call has data
-      mockIsEmptyData.mockReturnValueOnce(true)  // second call is empty
+      mockIsEmptyData.mockReturnValueOnce(true) // second call is empty
       mockIsEmptyData.mockReturnValueOnce(false) // third call has data
 
       const result = getFunctionCalls(calls)
@@ -333,17 +347,17 @@ describe('utils tests', () => {
 
     it('should return calls that have value > 0 and empty data', () => {
       const calls: CallDataInterface[] = [
-        { target: '0x1', data: '0xa9059cbb', value: 0n },   // function call, no value
-        { target: '0x2', data: '0x', value: 100n },         // native transfer
-        { target: '0x3', data: '0x1234', value: 200n },     // function call with value
-        { target: '0x4', data: '0x', value: 300n },         // native transfer
+        { target: '0x1', data: '0xa9059cbb', value: 0n }, // function call, no value
+        { target: '0x2', data: '0x', value: 100n }, // native transfer
+        { target: '0x3', data: '0x1234', value: 200n }, // function call with value
+        { target: '0x4', data: '0x', value: 300n }, // native transfer
       ]
 
       // getNativeCalls filters by call.value > 0 AND isEmptyData(call.data)
       // So it will check all calls for value > 0 first, then check isEmptyData for those that qualify
-      mockIsEmptyData.mockReturnValueOnce(true)  // second call (value=100n) is empty
-      mockIsEmptyData.mockReturnValueOnce(false) // third call (value=200n) has data  
-      mockIsEmptyData.mockReturnValueOnce(true)  // fourth call (value=300n) is empty
+      mockIsEmptyData.mockReturnValueOnce(true) // second call (value=100n) is empty
+      mockIsEmptyData.mockReturnValueOnce(false) // third call (value=200n) has data
+      mockIsEmptyData.mockReturnValueOnce(true) // fourth call (value=300n) is empty
 
       const result = getNativeCalls(calls)
 
@@ -354,7 +368,7 @@ describe('utils tests', () => {
     it('should return empty array when no calls have both value and empty data', () => {
       const calls: CallDataInterface[] = [
         { target: '0x1', data: '0xa9059cbb', value: 100n }, // has value but not empty data
-        { target: '0x2', data: '0x', value: 0n },           // empty data but no value
+        { target: '0x2', data: '0x', value: 0n }, // empty data but no value
       ]
 
       mockIsEmptyData.mockReturnValueOnce(false) // first call has data (value > 0 so isEmptyData is checked)
@@ -397,7 +411,7 @@ describe('utils tests', () => {
       ]
 
       mockIsEmptyData.mockReturnValueOnce(false) // first call has data
-      mockIsEmptyData.mockReturnValueOnce(true)  // second call is empty
+      mockIsEmptyData.mockReturnValueOnce(true) // second call is empty
       mockIsEmptyData.mockReturnValueOnce(false) // third call has data
 
       const result = getFunctionTargets(calls)

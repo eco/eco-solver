@@ -105,7 +105,10 @@ describe('UtilsIntentService', () => {
 
     describe('on updateInfeasableIntentModel', () => {
       it('should updateOne the model as infeasable', async () => {
-        const error = QuoteError.RouteIsInfeasable(10n, 9n)
+        const error = QuoteError.RouteIsInfeasable(
+          { token: 11n, native: 22n },
+          { token: 1n, native: 2n },
+        )
         await utilsIntentService.updateInfeasableIntentModel(model, error)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(

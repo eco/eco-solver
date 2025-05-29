@@ -25,6 +25,7 @@ export class QuoteTestUtils {
   createQuoteIntentModel(overrides?: Partial<QuoteIntentModel>): QuoteIntentModel {
     const quoteIntentModel: QuoteIntentModel = {
       _id: 'quote-id',
+      quoteID: 'test-quote-id',
       dAppID: 'app-id',
       intentExecutionType: IntentExecutionType.GASLESS.toString(),
       route: {
@@ -64,6 +65,7 @@ export class QuoteTestUtils {
 
   createQuoteIntentDataDTO(overrides?: Partial<QuoteIntentDataDTO>): QuoteIntentDataDTO {
     const quoteIntentDataDTO: QuoteIntentDataDTO = {
+      quoteID: 'test-quote-id',
       intentExecutionTypes: [
         IntentExecutionType.GASLESS.toString(),
         IntentExecutionType.SELF_PUBLISH.toString(),
