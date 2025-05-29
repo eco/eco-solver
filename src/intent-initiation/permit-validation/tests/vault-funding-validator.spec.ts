@@ -2,7 +2,10 @@ import { createMock } from '@golevelup/ts-jest'
 import { EcoError } from '@/common/errors/eco-error'
 import { PublicClient } from 'viem'
 import { ValidateVaultFundingArgs } from '@/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
-import { VaultFundingValidator, VaultStatus } from '@/intent-initiation/permit-validation/vault-funding-validator'
+import {
+  VaultFundingValidator,
+  VaultStatus,
+} from '@/intent-initiation/permit-validation/vault-funding-validator'
 
 describe('VaultFundingValidator', () => {
   const intentHash = '0xabc123'
@@ -12,7 +15,10 @@ describe('VaultFundingValidator', () => {
     readContract: jest.fn(),
   })
 
-  const buildArgs = (status: VaultStatus, preventRedundantFunding = true): ValidateVaultFundingArgs => {
+  const buildArgs = (
+    status: VaultStatus,
+    preventRedundantFunding = true,
+  ): ValidateVaultFundingArgs => {
     ;(mockClient.readContract as jest.Mock).mockResolvedValueOnce({
       status,
     })
@@ -32,12 +38,16 @@ describe('VaultFundingValidator', () => {
     })
 
     it('should return error if vault is fully funded and preventRedundantFunding = true', async () => {
-      const res = await VaultFundingValidator.validateVaultFunding(buildArgs(VaultStatus.FULLY_FUNDED, true))
+      const res = await VaultFundingValidator.validateVaultFunding(
+        buildArgs(VaultStatus.FULLY_FUNDED, true),
+      )
       expect(res).toEqual({ error: EcoError.VaultAlreadyFunded })
     })
 
     it('should pass with warning if vault is fully funded but preventRedundantFunding = false', async () => {
-      const res = await VaultFundingValidator.validateVaultFunding(buildArgs(VaultStatus.FULLY_FUNDED, false))
+      const res = await VaultFundingValidator.validateVaultFunding(
+        buildArgs(VaultStatus.FULLY_FUNDED, false),
+      )
       expect(res).toEqual({})
     })
 
@@ -47,12 +57,16 @@ describe('VaultFundingValidator', () => {
     })
 
     it('should return error if vault is not yet fully funded (PARTIALLY_FUNDED)', async () => {
-      const res = await VaultFundingValidator.validateVaultFunding(buildArgs(VaultStatus.PARTIALLY_FUNDED))
+      const res = await VaultFundingValidator.validateVaultFunding(
+        buildArgs(VaultStatus.PARTIALLY_FUNDED),
+      )
       expect(res).toEqual({ error: EcoError.VaultNotFullyFundedAfterPermit })
     })
 
     it('should pass if vault is fully funded and preventRedundantFunding = false', async () => {
-      const res = await VaultFundingValidator.validateVaultFunding(buildArgs(VaultStatus.FULLY_FUNDED, false))
+      const res = await VaultFundingValidator.validateVaultFunding(
+        buildArgs(VaultStatus.FULLY_FUNDED, false),
+      )
       expect(res).toEqual({})
     })
   })

@@ -299,10 +299,7 @@ describe('QuoteService', () => {
       const expectedFee = expectedGas * mockGasPrice
 
       expect(result).toBe(expectedFee)
-      expect(intentInitiationService.getGasPrice).toHaveBeenCalledWith(
-        chainID,
-        parseGwei('30'),
-      )
+      expect(intentInitiationService.getGasPrice).toHaveBeenCalledWith(chainID, parseGwei('30'))
     })
 
     it('should default to 0 tokens and just use baseGas if no tokens', async () => {

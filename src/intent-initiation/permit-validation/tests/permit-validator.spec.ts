@@ -37,7 +37,6 @@ describe('PermitValidator', () => {
     client = createMock<PublicClient>({
       readContract: jest.fn().mockResolvedValue(nonce),
     })
-
     ;(viem.verifyTypedData as jest.Mock).mockResolvedValue(true)
   })
 
@@ -54,7 +53,10 @@ describe('PermitValidator', () => {
   })
 
   it('should return error if permit is expired', async () => {
-    const expiredPermit = { ...validPermit(), deadline: BigInt(Math.floor(Date.now() / 1000) - 100) }
+    const expiredPermit = {
+      ...validPermit(),
+      deadline: BigInt(Math.floor(Date.now() / 1000) - 100),
+    }
     const result = await PermitValidator.validatePermit(client, expiredPermit)
     expect(result).toEqual({ error: EcoError.PermitExpired })
   })
