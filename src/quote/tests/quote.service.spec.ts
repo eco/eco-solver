@@ -292,7 +292,7 @@ describe('QuotesService', () => {
     })
 
     describe('on building quote', () => {
-      beforeEach(() => { })
+      beforeEach(() => {})
 
       async function generateHelper(
         calculated: any,
@@ -562,7 +562,7 @@ describe('QuotesService', () => {
     })
 
     describe('on building reverse quote', () => {
-      beforeEach(() => { })
+      beforeEach(() => {})
 
       async function generateReverseHelper(
         calculated: any,

@@ -15,7 +15,7 @@ import { Logger } from '@nestjs/common'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { ValidationService } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
 
 const logger = new Logger('QuoteServiceSpec')
 
@@ -28,10 +28,33 @@ describe('QuoteService', () => {
   let feeService: FeeService
   let validationService: ValidationService
 <<<<<<< HEAD
+<<<<<<< HEAD
   let intentInitiationService: IntentInitiationService
 =======
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
+=======
+  const validValidations: ValidationChecks = {
+    supportedNative: true,
+    supportedProver: true,
+    supportedTargets: true,
+    supportedTransaction: true,
+    validTransferLimit: true,
+    validExpirationTime: true,
+    validDestination: true,
+    fulfillOnDifferentChain: true,
+  }
+>>>>>>> beebbc1 (updating more fee logic and quotes tests)
 
+  const failValidations: ValidationChecks = {
+    supportedNative: true,
+    supportedProver: true,
+    supportedTargets: true,
+    supportedTransaction: true,
+    validTransferLimit: true,
+    validExpirationTime: true,
+    validDestination: false,
+    fulfillOnDifferentChain: true,
+  }
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
@@ -139,17 +162,7 @@ describe('QuoteService', () => {
 =======
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
 
-      const successfulValidations = {
-        supportedProver: true,
-        supportedTargets: true,
-        supportedSelectors: true,
-        validTransferLimit: true,
-        validExpirationTime: true,
-        validDestination: true,
-        fulfillOnDifferentChain: true,
-      }
-
-      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(validValidations)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
 <<<<<<< HEAD
@@ -222,6 +235,7 @@ describe('QuoteService', () => {
         response: [model],
       })
 
+<<<<<<< HEAD
       const failedValidations = {
         supportedProver: false,
         supportedTargets: true,
@@ -246,16 +260,22 @@ describe('QuoteService', () => {
         .mockResolvedValue({ response: model })
 >>>>>>> e5064b0 ( - Passed thru uglifier)
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
+=======
+      const mockUpdate = jest
+        .spyOn(quoteRepository, 'updateQuoteDb')
+        .mockResolvedValue({ response: model })
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failValidations)
+>>>>>>> beebbc1 (updating more fee logic and quotes tests)
 
       const result = await quoteService.getQuote({ ...model, intentExecutionTypes: ['GASLESS'] })
 
       expect(result.error).toBeDefined()
-      expect(result.error![0].name).toBe(InvalidQuoteIntent(failedValidations).name)
+      expect(result.error![0].name).toBe(InvalidQuoteIntent(failValidations).name)
       expect(mockUpdate).toHaveBeenCalled()
 <<<<<<< HEAD
 <<<<<<< HEAD
       expect(mockUpdate).toHaveBeenCalledWith(model, {
-        error: InvalidQuoteIntent(failedValidations),
+        error: InvalidQuoteIntent(failValidations),
       })
 =======
       expect(mockUpdate).toHaveBeenCalledWith(model, { error: InvalidQuoteIntent(failedValidations) })
@@ -285,6 +305,7 @@ describe('QuoteService', () => {
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
 <<<<<<< HEAD
+<<<<<<< HEAD
       jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('35'))
 =======
 >>>>>>> 5df2cf0 ( - Added a QuoteRepository class)
@@ -300,6 +321,9 @@ describe('QuoteService', () => {
       }
 
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
+=======
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(validValidations)
+>>>>>>> beebbc1 (updating more fee logic and quotes tests)
 
       const mockEntry = quoteTestUtils.createQuoteDataEntryDTO()
 <<<<<<< HEAD
@@ -346,6 +370,7 @@ describe('QuoteService', () => {
       const error = new Error('not enough tokens')
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({ error })
+<<<<<<< HEAD
 
       const failedValidations = {
         supportedProver: true,
@@ -359,10 +384,12 @@ describe('QuoteService', () => {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+=======
+>>>>>>> beebbc1 (updating more fee logic and quotes tests)
       const mockUpdate = jest
         .spyOn(quoteRepository, 'updateQuoteDb')
         .mockResolvedValue({ response: model })
-      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(failedValidations)
+      jest.spyOn(validationService, 'assertValidations').mockResolvedValue(validValidations)
 
       const result = await quoteService.getReverseQuote({
         ...model,

@@ -38,11 +38,21 @@ export function normalizeSum(a: NormalizedTotal, b: NormalizedTotal): Normalized
 }
 
 /**
- * Compares two normalized totals to see if the first is greater than or equal to the second for both token and native values.
+ * Compares two normalized totals to see if the provided amount is insufficient to cover the needed amount.
+ * @param ask the required normalized total
+ * @param reward the available normalized total
+ * @returns true if provided is insufficient (less than needed) for either token or native, false otherwise
+ */
+export function isInsufficient(ask: NormalizedTotal, reward: NormalizedTotal): boolean {
+  return reward.token < ask.token || reward.native < ask.native
+}
+
+/**
+ * Compares two normalized totals to see if the first is greater or equal to the second for both token and native values.
  * @param a the first normalized total
  * @param b the second normalized total
- * @returns 
+ * @returns true if a is greater than or equal to b for both token and native values, false otherwise
  */
-export function compareNormalizedTotals(a: NormalizedTotal, b: NormalizedTotal): boolean {
-  return a.token >= b.token && a.native >= b.native 
+export function isGreaterEqual(a: NormalizedTotal, b: NormalizedTotal): boolean {
+  return a.token >= b.token && a.native >= b.native
 }

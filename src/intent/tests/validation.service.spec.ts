@@ -67,7 +67,7 @@ describe('ValidationService', () => {
     })
   })
 
-  describe.skip('on validationsSucceeded', () => {
+  describe('on validationsSucceeded', () => {
     it('should return false if any validations are false', async () => {
       const validations: ValidationChecks = {
         supportedProver: true,
@@ -111,7 +111,7 @@ describe('ValidationService', () => {
     })
   })
 
-  describe.skip('on individual validation cases', () => {
+  describe('on individual validation cases', () => {
     describe('on supportedProver', () => {
       const sourceChainID = 1n
       const chainID = sourceChainID
@@ -218,7 +218,10 @@ describe('ValidationService', () => {
         })
 
         it('should return true when intent is not native', () => {
-          const intent = { route: { calls: [{ target: '0x1', data: '0x2', value: 0n }] }, reward: { nativeValue: 0n } } as any
+          const intent = {
+            route: { calls: [{ target: '0x1', data: '0x2', value: 0n }] },
+            reward: { nativeValue: 0n },
+          } as any
           mockIsNativeIntent.mockReturnValue(false)
 
           expect(validationService.supportedNative(intent)).toBe(true)
@@ -247,7 +250,10 @@ describe('ValidationService', () => {
       })
 
       it('should fail if not all targets are supported on solver', async () => {
-        intent.route.calls = [{ target: '0x1', data: '0x12' }, { target: '0x2', data: '0x3' }]
+        intent.route.calls = [
+          { target: '0x1', data: '0x12' },
+          { target: '0x2', data: '0x3' },
+        ]
         solver.targets = { [intent.route.calls[0].target]: {} }
         expect(validationService.supportedTargets(intent, solver)).toBe(false)
       })
@@ -259,11 +265,13 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if targets supported ', async () => {
-        intent.route.calls = [{ target: '0x1' , data: '0x12'}, { target: '0x2', data: '0x34'}]
+        intent.route.calls = [
+          { target: '0x1', data: '0x12' },
+          { target: '0x2', data: '0x34' },
+        ]
         solver.targets = { [intent.route.calls[0].target]: {}, [intent.route.calls[1].target]: {} }
         expect(validationService.supportedTargets(intent, solver)).toBe(true)
       })
-
     })
 
     describe('on supportedTransaction', () => {
@@ -277,7 +285,10 @@ describe('ValidationService', () => {
       })
 
       it('should fail if not every function call is supported', async () => {
-        intent.route.calls = [{ target: '0x1' , data: '0x12'}, { target: '0x2', data: '0x34' }]
+        intent.route.calls = [
+          { target: '0x1', data: '0x12' },
+          { target: '0x2', data: '0x34' },
+        ]
         mockGetTransactionTargetData.mockImplementation((solver, call) => {
           return call.target == intent.route.calls[0].target
             ? ({} as any as TransactionTargetData)
@@ -287,7 +298,10 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if every call is supported', async () => {
-        intent.route.calls = [{ target: '0x1' , data: '0x12'}, { target: '0x2', data: '0x34' }]
+        intent.route.calls = [
+          { target: '0x1', data: '0x12' },
+          { target: '0x2', data: '0x34' },
+        ]
         mockGetTransactionTargetData.mockReturnValue({} as any as TransactionTargetData)
         expect(validationService.supportedTransaction(intent, solver)).toBe(true)
       })
@@ -314,8 +328,7 @@ describe('ValidationService', () => {
               unitFee: 5_000n,
               unitSize: 30_000_000n,
             },
-          }
-
+          },
         },
       }
       it('should return false if feeService does', async () => {
@@ -342,7 +355,10 @@ describe('ValidationService', () => {
         expect(mockFeeConfig).toHaveBeenCalledTimes(2)
 
         jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
-          totalFillNormalized: { token: defaultFee.limit.tokenBase6 + 1n, native: defaultFee.limit.nativeBase18 + 1n },
+          totalFillNormalized: {
+            token: defaultFee.limit.tokenBase6 + 1n,
+            native: defaultFee.limit.nativeBase18 + 1n,
+          },
         })
         expect(await validationService.validTransferLimit({} as any)).toBe(false)
         expect(mockFeeConfig).toHaveBeenCalledTimes(3)
@@ -352,9 +368,12 @@ describe('ValidationService', () => {
         const mockFeeConfig = jest.fn().mockReturnValue(defaultFee)
         feeService.getFeeConfig = mockFeeConfig
 
-        jest
-          .spyOn(feeService, 'getTotalFill')
-          .mockResolvedValueOnce({ totalFillNormalized: { token: defaultFee.limit.tokenBase6, native: defaultFee.limit.nativeBase18 } })
+        jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
+          totalFillNormalized: {
+            token: defaultFee.limit.tokenBase6,
+            native: defaultFee.limit.nativeBase18,
+          },
+        })
         expect(await validationService.validTransferLimit({} as any)).toBe(true)
         expect(mockFeeConfig).toHaveBeenCalledTimes(1)
       })
@@ -408,11 +427,11 @@ describe('ValidationService', () => {
       supportedProver: 'supportedProver',
       supportedNative: 'supportedNative',
       supportedTargets: 'supportedTargets',
-      supportedTransaction: "supportedTransaction",
-      validTransferLimit: "validTransferLimit",
-      validExpirationTime: "validExpirationTime",
-      validDestination: "validDestination",
-      fulfillOnDifferentChain: "fulfillOnDifferentChain",
+      supportedTransaction: 'supportedTransaction',
+      validTransferLimit: 'validTransferLimit',
+      validExpirationTime: 'validExpirationTime',
+      validDestination: 'validDestination',
+      fulfillOnDifferentChain: 'fulfillOnDifferentChain',
     }
     beforeEach(() => {
       utilsIntentService.updateInvalidIntentModel = updateInvalidIntentModel
