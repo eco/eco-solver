@@ -37,9 +37,18 @@ import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
+/**
+ * Liquidity Manager Service for automatic token rebalancing across chains.
+ *
+ * Logging Configuration:
+ * - By default, verbose logs are enabled for detailed debugging
+ * - To silence verbose rebalancing operation logs, set environment variable: LIQUIDITY_SERVICES_LOGGING=quiet
+ * - This will disable debug logs for quote strategies, routing failures, and fallback attempts
+ */
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
   private logger = new Logger(LiquidityManagerService.name)
+  private verboseLogging: boolean = true // Verbose by default, set LIQUIDITY_SERVICES_LOGGING=quiet to silence
 
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
@@ -63,6 +72,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    // Check if logging should be quieted (defaults to verbose for detailed debugging)
+    this.verboseLogging = process.env.LIQUIDITY_SERVICES_LOGGING !== 'quiet'
+
+    if (!this.verboseLogging) {
+      this.logger.log('Liquidity Manager verbose logging is disabled (quiet mode)')
+    }
+
     // Remove existing job schedulers for CHECK_BALANCES
     await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
 
@@ -236,18 +252,21 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           swapAmount,
         )
 
-        this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: 'Quotes from strategies',
-            properties: {
-              strategyQuotes,
-              surplusToken,
-              deficitToken,
-              swapAmount,
-              walletAddress,
-            },
-          }),
-        )
+        // Log strategy quotes only if verbose logging is enabled
+        if (this.verboseLogging) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'Quotes from strategies',
+              properties: {
+                strategyQuotes,
+                surplusToken,
+                deficitToken,
+                swapAmount,
+                walletAddress,
+              },
+            }),
+          )
+        }
 
         for (const quote of strategyQuotes) {
           quotes.push(quote)
@@ -259,19 +278,22 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         // Track failed surplus tokens
         failedSurplusTokens.push(surplusToken)
 
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Direct route not found, will try with fallback',
-            properties: {
-              surplusToken: surplusToken.config,
-              deficitToken: deficitToken.config,
-              error: {
-                message: error.message,
-                stack: error.stack,
+        // Log direct route failures only if verbose logging is enabled
+        if (this.verboseLogging) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'Direct route not found, will try with fallback',
+              properties: {
+                surplusToken: surplusToken.config,
+                deficitToken: deficitToken.config,
+                error: {
+                  message: error.message,
+                  stack: error.stack,
+                },
               },
-            },
-          }),
-        )
+            }),
+          )
+        }
       }
     }
 
@@ -281,16 +303,18 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     // Try the failed surplus tokens with the fallback (core token) strategies
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'Still below target balance, trying fallback routes with core tokens',
-        properties: {
-          currentBalance: currentBalance.toString(),
-          targetMin: deficitToken.analysis.targetSlippage.min.toString(),
-          failedTokensCount: failedSurplusTokens.length,
-        },
-      }),
-    )
+    if (this.verboseLogging) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Still below target balance, trying fallback routes with core tokens',
+          properties: {
+            currentBalance: currentBalance.toString(),
+            targetMin: deficitToken.analysis.targetSlippage.min.toString(),
+            failedTokensCount: failedSurplusTokens.length,
+          },
+        }),
+      )
+    }
 
     // Try each failed token with the fallback method
     for (const surplusToken of failedSurplusTokens) {
@@ -311,19 +335,35 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         quotes.push(quote)
         currentBalance += quote.amountOut
       } catch (fallbackError) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: 'Unable to find fallback route',
-            properties: {
-              surplusToken: surplusToken.config,
-              deficitToken: deficitToken.config,
-              error: {
-                message: fallbackError.message,
-                stack: fallbackError.stack,
+        // Log fallback failures - always log errors but include full details only if verbose
+        if (this.verboseLogging) {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: 'Unable to find fallback route',
+              properties: {
+                surplusToken: surplusToken.config,
+                deficitToken: deficitToken.config,
+                error: {
+                  message: fallbackError.message,
+                  stack: fallbackError.stack,
+                },
               },
-            },
-          }),
-        )
+            }),
+          )
+        } else {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: 'Unable to find fallback route',
+              properties: {
+                surplusTokenAddress: surplusToken.config.address,
+                surplusTokenChain: surplusToken.config.chainId,
+                deficitTokenAddress: deficitToken.config.address,
+                deficitTokenChain: deficitToken.config.chainId,
+                error: fallbackError.message,
+              },
+            }),
+          )
+        }
       }
     }
 

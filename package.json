@@ -43,8 +43,8 @@
   "dependencies": {
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
-    "@eco-foundation/chains": "^1.0.27",
-    "@eco-foundation/routes-ts": "^2.1.14",
+    "@eco-foundation/chains": "^1.0.32",
+    "@eco-foundation/routes-ts": "^2.1.20",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
     "@lifi/sdk": "^3.6.6",

@@ -8,6 +8,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { FeeService } from '@/fee/fee.service'
 import { Hex, zeroAddress, pad } from 'viem'
+import { getERC20Selector } from '@/contracts'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -456,6 +457,193 @@ describe('WalletFulfillService', () => {
       expect(fulfillIntentService['getTransactionsForTargets'](model, solver)).toEqual(
         mockHandleErc20Data,
       )
+    })
+
+    describe('native gas token functionality', () => {
+      it('should handle pure native gas calls', async () => {
+        const nativeValue = 1000000000000000000n // 1 ETH
+        const modelWithNativeCall = {
+          intent: {
+            route: {
+              calls: [{ target: address1, data: '0x', value: nativeValue, selector: '0x' }],
+            },
+          },
+        } as any
+
+        const result = fulfillIntentService['getTransactionsForTargets'](
+          modelWithNativeCall,
+          solver,
+        )
+
+        expect(result).toEqual([
+          {
+            to: solver.inboxAddress,
+            value: nativeValue,
+            data: '0x',
+          },
+        ])
+      })
+
+      it('should handle mixed ERC20 and native gas calls', async () => {
+        const nativeValue = 500000000000000000n // 0.5 ETH
+        const erc20TxData = { to: address1, data: address2, value: 0n }
+        const modelWithMixedCalls = {
+          intent: {
+            route: {
+              calls: [
+                {
+                  target: address1,
+                  data: address2,
+                  value: 0n,
+                  selector: getERC20Selector('transfer'),
+                },
+                { target: address3, data: '0x', value: nativeValue, selector: '0x' },
+              ],
+            },
+          },
+        } as any
+
+        mockGetTransactionTargetData.mockReturnValue({ targetConfig: { contractType: 'erc20' } })
+        fulfillIntentService.handleErc20 = jest.fn().mockReturnValue([erc20TxData])
+
+        const result = fulfillIntentService['getTransactionsForTargets'](
+          modelWithMixedCalls,
+          solver,
+        )
+
+        expect(result).toEqual([
+          erc20TxData,
+          {
+            to: solver.inboxAddress,
+            value: nativeValue,
+            data: '0x',
+          },
+        ])
+      })
+
+      it('should sum multiple native gas calls into single fulfill transaction', async () => {
+        const nativeValue1 = 300000000000000000n // 0.3 ETH
+        const nativeValue2 = 700000000000000000n // 0.7 ETH
+        const totalNativeValue = nativeValue1 + nativeValue2 // 1.0 ETH
+
+        const modelWithMultipleNativeCalls = {
+          intent: {
+            route: {
+              calls: [
+                { target: address1, data: '0x', value: nativeValue1, selector: '0x' },
+                { target: address2, data: '0x', value: nativeValue2, selector: '0x' },
+              ],
+            },
+          },
+        } as any
+
+        const result = fulfillIntentService['getTransactionsForTargets'](
+          modelWithMultipleNativeCalls,
+          solver,
+        )
+
+        expect(result).toEqual([
+          {
+            to: solver.inboxAddress,
+            value: totalNativeValue,
+            data: '0x',
+          },
+        ])
+      })
+
+      it('should not add native fulfill when total native value is 0', async () => {
+        const modelWithZeroNative = {
+          intent: {
+            route: {
+              calls: [
+                {
+                  target: address1,
+                  data: address2,
+                  value: 0n,
+                  selector: getERC20Selector('transfer'),
+                },
+              ],
+            },
+          },
+        } as any
+
+        const erc20TxData = { to: address1, data: address2, value: 0n }
+        mockGetTransactionTargetData.mockReturnValue({ targetConfig: { contractType: 'erc20' } })
+        fulfillIntentService.handleErc20 = jest.fn().mockReturnValue([erc20TxData])
+
+        const result = fulfillIntentService['getTransactionsForTargets'](
+          modelWithZeroNative,
+          solver,
+        )
+
+        expect(result).toEqual([erc20TxData])
+      })
+
+      it('should log when adding native fulfill', async () => {
+        const nativeValue = 1000000000000000000n // 1 ETH
+        const modelWithNativeCall = {
+          intent: {
+            route: {
+              calls: [{ target: address1, data: '0x', value: nativeValue, selector: '0x' }],
+            },
+          },
+        } as any
+
+        fulfillIntentService['getTransactionsForTargets'](modelWithNativeCall, solver)
+
+        expect(mockLogDebug).toHaveBeenCalledWith({
+          msg: 'Adding native fulfill',
+          nativeFulfill: {
+            to: solver.inboxAddress,
+            value: nativeValue,
+            data: '0x',
+          },
+          nativeCalls: [{ target: address1, data: '0x', value: nativeValue, selector: '0x' }],
+        })
+      })
+    })
+
+    describe('on getNativeFulfill', () => {
+      it('should sum native values correctly', () => {
+        const nativeCalls = [
+          { target: address1, data: '0x', value: 300000000000000000n }, // 0.3 ETH
+          { target: address2, data: '0x', value: 700000000000000000n }, // 0.7 ETH
+          { target: address3, data: '0x', value: 0n }, // 0 ETH
+        ] as any[]
+
+        const result = fulfillIntentService['getNativeFulfill'](solver, nativeCalls)
+
+        expect(result).toEqual({
+          to: solver.inboxAddress,
+          value: 1000000000000000000n, // 1.0 ETH total
+          data: '0x',
+        })
+      })
+
+      it('should handle calls with undefined value', () => {
+        const nativeCalls = [
+          { target: address1, data: '0x', value: 500000000000000000n }, // 0.5 ETH
+          { target: address2, data: '0x' }, // undefined value
+        ] as any[]
+
+        const result = fulfillIntentService['getNativeFulfill'](solver, nativeCalls)
+
+        expect(result).toEqual({
+          to: solver.inboxAddress,
+          value: 500000000000000000n, // Only the defined value
+          data: '0x',
+        })
+      })
+
+      it('should return zero value for empty calls array', () => {
+        const result = fulfillIntentService['getNativeFulfill'](solver, [])
+
+        expect(result).toEqual({
+          to: solver.inboxAddress,
+          value: 0n,
+          data: '0x',
+        })
+      })
     })
   })
 

@@ -69,6 +69,36 @@ describe('LiFiProviderService', () => {
         }),
       )
     })
+
+    it('should configure verbose logging based on environment variable', async () => {
+      const originalEnv = process.env.LIQUIDITY_SERVICES_LOGGING
+
+      // Test with verbose logging enabled (default)
+      delete process.env.LIQUIDITY_SERVICES_LOGGING
+
+      const mockGetClient = jest.spyOn(kernelAccountClientService, 'getClient')
+      mockGetClient.mockReturnValue({ account: { address: '0x123' } } as any)
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
+      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue({ '10': 'http://rpc.com' })
+
+      await lifiProviderService.onModuleInit()
+
+      expect(lifiProviderService['verboseLogging']).toBe(true)
+
+      // Test with verbose logging disabled (quiet mode)
+      process.env.LIQUIDITY_SERVICES_LOGGING = 'quiet'
+
+      await lifiProviderService.onModuleInit()
+
+      expect(lifiProviderService['verboseLogging']).toBe(false)
+
+      // Restore original environment
+      if (originalEnv !== undefined) {
+        process.env.LIQUIDITY_SERVICES_LOGGING = originalEnv
+      } else {
+        delete process.env.LIQUIDITY_SERVICES_LOGGING
+      }
+    })
   })
 
   describe('getQuote', () => {
