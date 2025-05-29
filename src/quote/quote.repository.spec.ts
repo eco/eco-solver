@@ -179,6 +179,7 @@ describe('QuoteRepository', () => {
           routeTokens: fullRouteTokens,
           routeCalls: fullRouteCalls,
           rewardTokens: fullRewardTokens,
+          estimatedFulfillTimeSec: 1000,
         },
       })
 
@@ -219,6 +220,7 @@ describe('QuoteRepository', () => {
           routeTokens: modifiedRouteTokens,
           routeCalls: quoteIntentModel.route.calls,
           rewardTokens: quoteIntentModel.reward.tokens,
+          estimatedFulfillTimeSec: 1000,
         },
       })
 
@@ -245,6 +247,7 @@ describe('QuoteRepository', () => {
           routeTokens: quoteIntentModel.route.tokens,
           routeCalls: quoteIntentModel.route.calls,
           rewardTokens: modifiedRewardTokens,
+          estimatedFulfillTimeSec: 1000,
         },
       })
 
