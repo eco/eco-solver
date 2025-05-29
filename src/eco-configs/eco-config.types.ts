@@ -66,6 +66,10 @@ export type EcoConfigType = {
     usePino: boolean
     pinoConfig: PinoParams
   }
+  WETH: {
+    threshold: string
+    addresses: Record<number, Hex>
+  }
   liquidityManager: LiquidityManagerConfig
   indexer: IndexerConfig
   withdraws: WithdrawsConfig

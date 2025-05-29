@@ -24,7 +24,7 @@ export class LiquidityProviderService {
     walletAddress: string,
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
@@ -133,7 +133,7 @@ export class LiquidityProviderService {
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote> {
     const quote = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage

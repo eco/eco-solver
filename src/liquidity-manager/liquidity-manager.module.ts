@@ -11,6 +11,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/rebalance.schema'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 @Module({
   imports: [
@@ -29,7 +30,8 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     LiFiProviderService,
     CCTPProviderService,
     WarpRouteProviderService,
+    WrappedTokenService,
   ],
-  exports: [LiquidityManagerService],
+  exports: [LiquidityManagerService, WrappedTokenService],
 })
 export class LiquidityManagerModule {}

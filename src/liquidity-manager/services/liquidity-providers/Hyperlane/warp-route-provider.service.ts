@@ -52,7 +52,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote[]> {
     const actionPath = this.getActionPath(tokenIn.config, tokenOut.config)
 
@@ -62,7 +62,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       return this.getPartialQuote(tokenIn, tokenOut, swapAmount)
     }
 
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    const amount = swapAmount
     return [this.getRemoteTransferQuote(tokenIn, tokenOut, amount)]
   }
 
@@ -244,12 +244,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   private async getPartialQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote[]> {
     const warpTokenIn = this.getWarpRoute(tokenIn.chainId, tokenIn.config.address)
     const warpTokenOut = this.getWarpRoute(tokenOut.chainId, tokenOut.config.address)
 
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    const amount = swapAmount
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
 
     if (warpTokenIn.warpRoute) {

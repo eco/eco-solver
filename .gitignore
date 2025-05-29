@@ -66,3 +66,5 @@ config/*
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
+
+**/.claude/settings.local.json

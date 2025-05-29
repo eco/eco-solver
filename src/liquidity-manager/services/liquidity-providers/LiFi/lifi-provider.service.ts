@@ -54,7 +54,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
 
@@ -63,7 +63,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
       fromTokenAddress: tokenIn.config.address,
-      fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
+      fromAmount: swapAmount.toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
@@ -119,7 +119,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(
@@ -185,8 +185,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenIn.config.address,
-          chainOut: quote.tokenIn.config.chainId,
+          tokenOut: quote.tokenOut.config.address,
+          chainOut: quote.tokenOut.config.chainId,
           amountIn: quote.amountIn,
           amountOut: quote.amountOut,
           slippage: quote.slippage,

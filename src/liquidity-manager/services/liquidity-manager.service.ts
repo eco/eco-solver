@@ -5,6 +5,7 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
+import { Hex, parseUnits } from 'viem'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
@@ -36,6 +37,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -58,6 +60,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly liquidityProviderManager: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly wrappedTokenService: WrappedTokenService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
@@ -182,6 +185,30 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   /**
+   * Gets all WETH rebalance requests for the given wallet address
+   * This method delegates to the WrappedTokenService for handling wrapped token operations
+   * @param walletAddress The wallet address to check for WETH rebalances
+   * @returns Array of rebalance requests
+   */
+  async getWETHRebalances(walletAddress: string): Promise<RebalanceRequest[]> {
+    try {
+      // Delegate to the specialized WrappedTokenService
+      return await this.wrappedTokenService.getWrappedTokenRebalances(walletAddress as Hex)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error getting WETH rebalances',
+          properties: {
+            walletAddress,
+            error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+          },
+        }),
+      )
+      return []
+    }
+  }
+
+  /**
    * Checks if a swap is possible between the deficit and surplus tokens.
    * @dev swaps are possible if the deficit is compensated by the surplus of tokens in the same chain.
    * @param walletAddress
@@ -234,12 +261,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        const swapAmountBig = parseUnits(swapAmount.toString(), surplusToken.balance.decimals)
 
         const strategyQuotes = await this.liquidityProviderManager.getQuote(
           walletAddress,
           surplusToken,
           deficitToken,
-          swapAmount,
+          swapAmountBig,
         )
 
         this.logger.log(
@@ -306,12 +334,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        const swapAmountBig = parseUnits(swapAmount.toString(), surplusToken.balance.decimals)
 
         // Use the fallback method that routes through core tokens
         const quote = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
-          swapAmount,
+          swapAmountBig,
         )
 
         quotes.push(quote)

@@ -15,6 +15,7 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -23,6 +24,7 @@ describe('LiquidityManagerService', () => {
   let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let wrappedTokenService: DeepMocked<WrappedTokenService>
   let queue: DeepMocked<Queue>
 
   beforeEach(async () => {
@@ -34,6 +36,7 @@ describe('LiquidityManagerService', () => {
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: WrappedTokenService, useValue: createMock<WrappedTokenService>() },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
@@ -56,6 +59,7 @@ describe('LiquidityManagerService', () => {
     liquidityManagerService = chainMod.get(LiquidityManagerService)
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
+    wrappedTokenService = chainMod.get(WrappedTokenService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
 
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
@@ -130,7 +134,9 @@ describe('LiquidityManagerService', () => {
         config: { chainId: 1 },
         analysis: { diff: 100, balance: { current: 50 }, targetSlippage: { min: 150 } },
       }
-      const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200 } }]
+      const mockSurplusTokens = [
+        { config: { chainId: 1 }, analysis: { diff: 200 }, balance: { decimals: 6 } },
+      ]
 
       jest
         .spyOn(liquidityProviderService, 'getQuote')
@@ -161,10 +167,12 @@ describe('LiquidityManagerService', () => {
         {
           config: { chainId: 1, address: '0xSurplus1' },
           analysis: { diff: 50 },
+          balance: { decimals: 0 },
         },
         {
           config: { chainId: 3, address: '0xSurplus2' },
           analysis: { diff: 150 },
+          balance: { decimals: 0 },
         },
       ]
 
@@ -208,7 +216,7 @@ describe('LiquidityManagerService', () => {
       expect(liquidityProviderService.fallback).toHaveBeenCalledWith(
         mockSurplusTokens[0],
         mockDeficitToken,
-        50, // min of deficit diff and surplus diff
+        50n, // min of deficit diff and surplus diff
       )
 
       // Verify the result includes both quotes
@@ -228,8 +236,16 @@ describe('LiquidityManagerService', () => {
         },
       }
       const mockSurplusTokens = [
-        { config: { chainId: 1, address: '0xSurplus1' }, analysis: { diff: 50 } },
-        { config: { chainId: 3, address: '0xSurplus2' }, analysis: { diff: 150 } },
+        {
+          config: { chainId: 1, address: '0xSurplus1' },
+          analysis: { diff: 50 },
+          balance: { decimals: 6 },
+        },
+        {
+          config: { chainId: 3, address: '0xSurplus2' },
+          analysis: { diff: 150 },
+          balance: { decimals: 6 },
+        },
       ]
 
       // Make sure the config is set with the mock core tokens
@@ -271,6 +287,38 @@ describe('LiquidityManagerService', () => {
       await liquidityManagerService.executeRebalancing(mockRebalanceData as any)
 
       expect(liquidityProviderService.execute).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('getWETHRebalances', () => {
+    it('should delegate to the WrappedTokenService', async () => {
+      const walletAddress = '0xWalletAddress'
+      const mockRebalanceRequests = [{ token: { chainId: 1 }, quotes: [] }]
+
+      // Mock wrapped token service response
+      wrappedTokenService.getWrappedTokenRebalances = jest
+        .fn()
+        .mockResolvedValue(mockRebalanceRequests)
+
+      const result = await liquidityManagerService.getWETHRebalances(walletAddress)
+
+      expect(result).toEqual(mockRebalanceRequests)
+      expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
+    })
+
+    it('should handle errors from WrappedTokenService', async () => {
+      const walletAddress = '0xWalletAddress'
+
+      // Mock wrapped token service to throw an error
+      wrappedTokenService.getWrappedTokenRebalances = jest
+        .fn()
+        .mockRejectedValue(new Error('Test error'))
+
+      const result = await liquidityManagerService.getWETHRebalances(walletAddress)
+
+      // Should return empty array on error
+      expect(result).toEqual([])
+      expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
     })
   })
 })

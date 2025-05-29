@@ -4,7 +4,7 @@ export interface IRebalanceProvider<S extends Strategy> {
   getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmount: bigint,
   ): Promise<RebalanceQuote | RebalanceQuote[]>
   execute(walletAddress: string, quote: RebalanceQuote<S>): Promise<unknown>
   getStrategy(): S
