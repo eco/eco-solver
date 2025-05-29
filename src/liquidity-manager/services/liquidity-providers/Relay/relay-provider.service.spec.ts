@@ -4,12 +4,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { WalletClient } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import {
-  Execute as RelayQuote,
-  createClient,
-  getClient,
-  convertViemChainToRelayChain
-} from '@reservoir0x/relay-sdk'
+import { createClient, Execute as RelayQuote, getClient } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
 
 // Mock the relay-sdk
