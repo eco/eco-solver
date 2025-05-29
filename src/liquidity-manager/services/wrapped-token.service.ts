@@ -5,8 +5,8 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
-import { TokenData, RebalanceQuote, RebalanceRequest } from '@/liquidity-manager/types/types'
+import { RebalanceQuote, RebalanceRequest, TokenData } from '@/liquidity-manager/types/types'
+import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 
 /**
  * Service responsible for managing wrapped token operations like WETH
@@ -21,7 +21,7 @@ export class WrappedTokenService {
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly liquidityProviderManager: LiquidityProviderService,
+    private readonly liFiProviderService: LiFiProviderService,
   ) {}
 
   /**
@@ -341,29 +341,9 @@ export class WrappedTokenService {
       }
 
       // Get quotes for the rebalance
-      let quotes: RebalanceQuote[]
+      let quote: RebalanceQuote
       try {
-        quotes = await this.liquidityProviderManager.getQuote(
-          walletAddress,
-          WETHToken,
-          tokenOut,
-          wethBalance,
-        )
-
-        if (!quotes.length) {
-          this.logger.warn(
-            EcoLogMessage.fromDefault({
-              message: 'No quotes available for WETH rebalance',
-              properties: {
-                chainId,
-                wethAddr,
-                tokenOutAddr: tokenOut.config.address,
-                amount: wethBalance.toString(),
-              },
-            }),
-          )
-          return
-        }
+        quote = await this.liFiProviderService.getQuote(WETHToken, tokenOut, wethBalance)
       } catch (error) {
         this.logger.error(
           EcoLogMessage.fromDefault({
@@ -390,12 +370,11 @@ export class WrappedTokenService {
             balance: formatUnits(wethBalance, wethDecimals),
             threshold,
             decimals: wethDecimals,
-            quotesCount: quotes.length,
           },
         }),
       )
 
-      return { token: WETHToken, quotes }
+      return { token: WETHToken, quotes: [quote] }
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({

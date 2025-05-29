@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
