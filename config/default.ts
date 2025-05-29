@@ -103,7 +103,6 @@ export default {
   liquidityManager: {
     intervalDuration: 300000,
     targetSlippage: 0.02,
-    maxQuoteSlippage: 0.0005, // 0.05% maximum slippage allowed for quotes
     thresholds: {
       surplus: 0.1,
       deficit: 0.2,
