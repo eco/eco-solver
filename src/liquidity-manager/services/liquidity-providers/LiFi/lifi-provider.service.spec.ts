@@ -85,8 +85,8 @@ describe('LiFiProviderService', () => {
       }
       const mockRoute = {
         fromAmount: '1000000000000000000',
-        toAmount: '2000000000000000000',
-        toAmountMin: '1900000000000000000',
+        toAmount: '1000000000000000000',
+        toAmountMin: '900000000000000000',
         steps: [],
       }
       jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [mockRoute] } as any)
@@ -95,7 +95,7 @@ describe('LiFiProviderService', () => {
 
       expect(result.amountIn).toEqual(BigInt(mockRoute.fromAmount))
       expect(result.amountOut).toEqual(BigInt(mockRoute.toAmount))
-      expect(result.slippage).toBeCloseTo(0.05)
+      expect(result.slippage).toBeCloseTo(0.1)
       expect(result.tokenIn).toEqual(mockTokenIn)
       expect(result.tokenOut).toEqual(mockTokenOut)
       expect(result.strategy).toEqual('LiFi')
