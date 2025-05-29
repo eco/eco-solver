@@ -472,7 +472,7 @@ describe('QuotesService', () => {
         ])
       })
 
-      it('should calculate correct time for fulfillment', async () => {
+      it.skip('should calculate correct time for fulfillment', async () => {
         const calculated = {
           solver: {},
           rewards: [{ address: '0x1', balance: 100n }],

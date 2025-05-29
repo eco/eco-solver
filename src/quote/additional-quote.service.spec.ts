@@ -1,6 +1,7 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@/fee/fee.service'
+import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Logger } from '@nestjs/common'
@@ -65,6 +66,7 @@ describe('QuoteService', () => {
       ])
       .withMocks([
         IntentInitiationService,
+        FulfillmentEstimateService,
         QuoteRepository,
         {
           provide: EcoConfigService,

@@ -40,4 +40,6 @@ export class QuoteDataEntryDTO {
   @IsString()
   @ApiProperty()
   expiryTime: string
+
+  estimatedFulfillTimeSec?: number
 }
