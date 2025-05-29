@@ -78,7 +78,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const result = await getRoutes(routesRequest)
     const route = this.selectRoute(result.routes)
 
-    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.toAmount)
+    // This assumes tokens are 1:1
+    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.fromAmount)
 
     return {
       amountIn: BigInt(route.fromAmount),
