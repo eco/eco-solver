@@ -472,14 +472,17 @@ describe('QuotesService', () => {
         ])
       })
 
-      it.skip('should calculate correct time for fulfillment', async () => {
+      it('should calculate correct time for fulfillment', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x1', balance: 100n }],
-          calls: [{ balance: 50n }],
-          deficitDescending: [{ delta: { balance: 10n, address: '0x1' } }],
+          rewards: [{ address: '0x2', balance: 200n }],
+          calls: [{ balance: 150n }],
+          srcDeficitDescending: [
+            { delta: { balance: -100n, address: '0x1' } },
+            { delta: { balance: -50n, address: '0x2' } },
+          ],
         } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], 9)
+        await generateHelper(calculated, [{ token: '0x2', amount: 150n }], 9)
       })
     })
   })
