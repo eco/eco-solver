@@ -26,19 +26,25 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
 
 @Module({
   imports: [
+    // Core modules - always loaded
+    EcoConfigModule.withAWS(),
+    HealthModule,
     ApiModule,
     BalanceModule,
-    ChainMonitorModule,
-    EcoConfigModule.withAWS(),
     FeeModule,
     FlagsModule,
-    HealthModule,
     IntentModule,
     PermitProcessingModule,
     IntentInitiationModule,
     SolverRegistrationModule,
     KmsModule,
     SignModule,
+    ProverModule,
+    QuoteModule,
+    SolverModule,
+    KmsModule,
+    WatchModule,
+    IntentProcessorModule,
     IntervalModule,
     ProcessorModule,
     MongooseModule.forRootAsync({
@@ -50,13 +56,9 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
         }
       },
     }),
-    ProverModule,
-    QuoteModule,
-    SolverModule,
-    LiquidityManagerModule,
-    WatchModule,
-    IntentProcessorModule,
     ...getPino(),
+    // Heavy modules - conditionally loaded
+    ...getHeavyModules(),
   ],
   controllers: [],
 })
@@ -79,4 +81,19 @@ function getPino() {
         }),
       ]
     : []
+}
+
+/**
+ * Returns heavy modules conditionally based on SKIP_HEAVY_INIT environment variable
+ * Set SKIP_HEAVY_INIT=true to skip loading heavy modules for faster development startup
+ */
+function getHeavyModules() {
+  const skipHeavyInit = process.env.SKIP_HEAVY_INIT === 'true'
+
+  if (skipHeavyInit) {
+    // Fast startup mode - skip heavy modules
+    return []
+  }
+
+  return [ChainMonitorModule, LiquidityManagerModule]
 }

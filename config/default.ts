@@ -10,6 +10,10 @@ export default {
     },
     {
       region: 'us-east-2',
+      secretID: 'eco-solver-configs-chains-dev',
+    },
+    {
+      region: 'us-east-2',
       secretID: 'eco-solver-whitelist-dev',
     },
   ],

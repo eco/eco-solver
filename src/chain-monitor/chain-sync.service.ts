@@ -26,10 +26,37 @@ export abstract class ChainSyncService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `ChainSyncService:OnApplicationBootstrap`,
+        message: `ChainSyncService:OnApplicationBootstrap - deferring chain sync to background`,
       }),
     )
-    await this.syncTxs()
+
+    // Defer chain sync to background to avoid blocking startup
+    setImmediate(() => this.initializeChainSyncInBackground())
+  }
+
+  private async initializeChainSyncInBackground() {
+    try {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `ChainSyncService: Starting background chain sync`,
+        }),
+      )
+
+      await this.syncTxs()
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `ChainSyncService: Background chain sync completed`,
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          error: error as Error,
+          message: `ChainSyncService: Background chain sync failed`,
+        }),
+      )
+    }
   }
 
   /**

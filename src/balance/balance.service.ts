@@ -37,8 +37,40 @@ export class BalanceService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    // iterate over all tokens
-    await Promise.all(this.getInboxTokens().map((token) => this.loadTokenBalance(token)))
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `BalanceService: Deferring token balance loading to background`,
+      }),
+    )
+
+    // Defer balance loading to background to avoid blocking startup
+    setImmediate(() => this.initializeBalancesInBackground())
+  }
+
+  private async initializeBalancesInBackground() {
+    try {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `BalanceService: Starting background balance loading`,
+        }),
+      )
+
+      // iterate over all tokens
+      await Promise.all(this.getInboxTokens().map((token) => this.loadTokenBalance(token)))
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `BalanceService: Background balance loading completed`,
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          error: error as Error,
+          message: `BalanceService: Background balance loading failed`,
+        }),
+      )
+    }
   }
 
   /**

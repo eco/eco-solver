@@ -9,6 +9,8 @@ import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
+
+  // Basic app configuration - synchronous
   if (EcoConfigService.getStaticConfig().logger.usePino) {
     app.useLogger(app.get(Logger))
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
@@ -29,6 +31,9 @@ async function bootstrap() {
 
   // Starts listening for shutdown hooks
   app.enableShutdownHooks()
+
+  // Heavy services are initialized in background via OnApplicationBootstrap hooks
+
   await app.listen(3000)
 }
 

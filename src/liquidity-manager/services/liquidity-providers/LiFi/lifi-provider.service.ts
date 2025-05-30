@@ -34,17 +34,43 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address
 
-    // Configure LiFi providers
-    createConfig({
-      integrator: 'Eco',
-      rpcUrls: this.getLiFiRPCUrls(),
-      providers: [
-        EVM({
-          getWalletClient: () => Promise.resolve(client),
-          switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId),
+    // Defer LiFi SDK initialization to background to avoid blocking startup
+    setImmediate(() => this.initializeLiFiInBackground(client))
+  }
+
+  private async initializeLiFiInBackground(client: any) {
+    try {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `LiFiProviderService: Starting background LiFi SDK initialization`,
         }),
-      ],
-    })
+      )
+
+      // Configure LiFi providers
+      createConfig({
+        integrator: 'Eco',
+        rpcUrls: this.getLiFiRPCUrls(),
+        providers: [
+          EVM({
+            getWalletClient: () => Promise.resolve(client),
+            switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId),
+          }),
+        ],
+      })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `LiFiProviderService: Background LiFi SDK initialization completed`,
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          error: error as Error,
+          message: `LiFiProviderService: Background LiFi SDK initialization failed`,
+        }),
+      )
+    }
   }
 
   getStrategy() {
