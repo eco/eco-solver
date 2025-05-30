@@ -9,7 +9,7 @@ export default {
     },
     {
       region: 'us-west-2',
-      secretID: 'eco-solver-configs-prod-test',
+      secretID: 'eco-solver-configs-dev-test',
     },
     {
       region: 'us-west-2',

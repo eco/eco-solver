@@ -37,11 +37,12 @@ export function getNodeEnv(): NodeEnv {
  * @returns true if the node env is preproduction or development
  */
 export function isPreEnv(): boolean {
-  return (
-    getNodeEnv() === NodeEnv.preproduction ||
-    getNodeEnv() === NodeEnv.development ||
-    getNodeEnv() === NodeEnv.staging
-  )
+  return false
+  // return (
+  //   getNodeEnv() === NodeEnv.preproduction ||
+  //   getNodeEnv() === NodeEnv.development ||
+  //   getNodeEnv() === NodeEnv.staging
+  // )
 }
 
 /**
@@ -52,10 +53,11 @@ export function isPreEnv(): boolean {
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
-  const config = EcoProtocolAddresses[id]
-  if (config === undefined) {
-    throw EcoError.ChainConfigNotFound(id)
-  } else {
-    return CALDERA_CHAIN_CONFIG
-  }
+  return CALDERA_CHAIN_CONFIG
+  // const config = EcoProtocolAddresses[id]
+  // if (config === undefined) {
+  //   throw EcoError.ChainConfigNotFound(id)
+  // } else {
+  //   return CALDERA_CHAIN_CONFIG
+  // }
 }

@@ -53,6 +53,7 @@ export async function createKernelAccountClient<
 >(
   parameters: KernelAccountClientConfig<entryPointVersion, KernelVersion<entryPointVersion>, owner>,
 ): Promise<{ client: KernelAccountClient<entryPointVersion>; args: DeployFactoryArgs }> {
+  const logger = getLogger()
   const { key = 'kernelAccountClient', name = 'Kernel Account Client', transport } = parameters
   const { account } = parameters
 

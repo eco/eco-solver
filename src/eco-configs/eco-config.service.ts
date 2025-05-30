@@ -12,7 +12,7 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress, zeroAddress } from 'viem'
+import { Chain, getAddress, zeroAddress, extractChain } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
