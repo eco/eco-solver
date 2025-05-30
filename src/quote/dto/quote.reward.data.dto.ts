@@ -3,7 +3,7 @@ import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RewardType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
-import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
+import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { getAddress, Hex } from 'viem'
 
 /**
@@ -38,7 +38,6 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
   nativeValue: bigint
 
   @IsArray()
-  @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteRewardTokensDTO)
