@@ -13,7 +13,6 @@ export class QuoteDataEntryDTO {
   intentExecutionType: string
 
   @IsNotEmpty()
-  @ArrayNotEmpty()
   @IsArray()
   @ApiProperty()
   @ValidateNested()
@@ -29,7 +28,6 @@ export class QuoteDataEntryDTO {
   routeCalls: QuoteCallDataDTO[]
 
   @IsNotEmpty()
-  @ArrayNotEmpty()
   @IsArray()
   @ApiProperty()
   @ValidateNested()
