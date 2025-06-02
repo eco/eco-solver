@@ -150,7 +150,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         properties: {
           chainId: data.chainId,
           intentSourceAddr: data.intentSourceAddr,
-          routeHash: data.intents.map((intent) => intent.routeHash),
+          routeHash: data.intents,
         },
       }),
     )
@@ -158,13 +158,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
 
-    const routeHashes = _.map(intents, 'routeHash')
-    const rewards: DeepReadonly<RewardInterface[]> = _.map(intents, 'reward')
-
     const txHash = await walletClient.writeContract({
       abi: IntentSourceAbi,
       address: intentSourceAddr,
-      args: [routeHashes, rewards],
+      args: [intents],
       functionName: 'batchWithdraw',
     })
 
