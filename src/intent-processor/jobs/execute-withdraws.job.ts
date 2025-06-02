@@ -10,14 +10,12 @@ import {
   IntentProcessorJob,
   IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
+import { IntentType } from '@eco-foundation/routes-ts'
 
 export type ExecuteWithdrawsJobData = {
   chainId: number
   intentSourceAddr: Hex
-  intents: {
-    routeHash: Hex
-    reward: RewardInterface
-  }[]
+  intents: IntentType[]
 }
 
 export type ExecuteWithdrawsJob = Job<
