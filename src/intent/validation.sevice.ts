@@ -225,6 +225,16 @@ export class ValidationService implements OnModuleInit {
   async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
     const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
     if (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `validTransferLimit: Error getting total fill`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            source: intent.route.source,
+          },
+        }),
+      )
       return false
     }
 
