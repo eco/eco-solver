@@ -12,6 +12,16 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
 
+function getFeeConfig(): FeeConfigType {
+  return {
+    limit: {
+      tokenBase6: 1000n * 10n ** 6n,
+      nativeBase18: 1n * 10n ** 18n,
+    },
+    algorithm: 'linear',
+  } as FeeConfigType
+}
+
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -90,7 +100,7 @@ describe('FeeService', () => {
 
   describe('on onModuleInit', () => {
     it('should set the config defaults', async () => {
-      const whitelist = { '0x1': { '10': { limitFillBase6: 123n } } }
+      const whitelist = { '0x1': { '10': getFeeConfig() } }
       expect(feeService['intentConfigs']).toBeUndefined()
       expect(feeService['whitelist']).toBeUndefined()
       const mockGetIntentConfig = jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue({
@@ -129,7 +139,7 @@ describe('FeeService', () => {
     })
 
     it('should set the default fee if its passed in as argument', async () => {
-      const argFee = { limitFillBase6: 123n } as any
+      const argFee = getFeeConfig()
       expect(feeService.getFeeConfig({ defaultFeeArg: argFee })).toEqual(argFee)
     })
 
@@ -152,7 +162,7 @@ describe('FeeService', () => {
     })
 
     it('should return the source chain creator default fee, merged, if no chain specific one and its not complete', async () => {
-      const creatorDefault = { limitFillBase6: 123n } as any
+      const creatorDefault = getFeeConfig() as any
       feeService['whitelist'] = { [creator]: { default: creatorDefault } }
       expect(feeService.getFeeConfig({ intent })).toEqual(_.merge({}, defaultFee, creatorDefault))
     })
@@ -187,7 +197,7 @@ describe('FeeService', () => {
 
     it('should return the source chain specific fee for a creator', async () => {
       const chainConfig = { constants: { tranche: { unitFee: 9911n } } } as any
-      const creatorDefault = { limitFillBase6: 123n } as any
+      const creatorDefault = getFeeConfig() as any
       feeService['whitelist'] = { [creator]: { [source]: chainConfig, default: creatorDefault } }
       expect(feeService.getFeeConfig({ intent })).toEqual(
         _.merge({}, defaultFee, creatorDefault, chainConfig),
