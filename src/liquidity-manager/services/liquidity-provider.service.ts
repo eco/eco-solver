@@ -9,6 +9,7 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
+import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -20,6 +21,7 @@ export class LiquidityProviderService {
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
     protected readonly ecoConfigService: EcoConfigService,
+    protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
   ) {}
 
   async getQuote(
@@ -174,6 +176,8 @@ export class LiquidityProviderService {
         return this.cctpProviderService
       case 'WarpRoute':
         return this.warpRouteProviderService
+      case 'CCTPLiFi':
+        return this.cctpLiFiProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
@@ -183,9 +187,10 @@ export class LiquidityProviderService {
 
     switch (walletAddress) {
       case crowdLiquidityPoolAddress:
-        return ['CCTP']
+        // TODO: should add CCTPLiFi here?
+        return ['CCTP', 'CCTPLiFi']
       default:
-        return ['LiFi', 'WarpRoute']
+        return ['LiFi', 'WarpRoute', 'CCTPLiFi']
     }
   }
 

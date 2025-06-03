@@ -5,12 +5,17 @@ import {
   CheckCCTPAttestationJob,
   CheckCCTPAttestationJobManager,
 } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
+import {
+  CCTPLiFiDestinationSwapJobData,
+  CCTPLiFiDestinationSwapJobManager,
+} from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
   CHECK_BALANCES = 'CHECK_BALANCES',
   CHECK_CCTP_ATTESTATION = 'CHECK_CCTP_ATTESTATION',
   EXECUTE_CCTP_MINT = 'EXECUTE_CCTP_MINT',
+  CCTP_LIFI_DESTINATION_SWAP = 'CCTP_LIFI_DESTINATION_SWAP',
 }
 
 export type LiquidityManagerQueueDataType = { [k: string]: unknown }
@@ -54,5 +59,9 @@ export class LiquidityManagerQueue {
 
   startCCTPAttestationCheck(data: CheckCCTPAttestationJob['data']): Promise<void> {
     return CheckCCTPAttestationJobManager.start(this.queue, data)
+  }
+
+  startCCTPLiFiDestinationSwap(data: CCTPLiFiDestinationSwapJobData): Promise<void> {
+    return CCTPLiFiDestinationSwapJobManager.start(this.queue, data)
   }
 }

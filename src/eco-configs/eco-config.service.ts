@@ -357,4 +357,8 @@ export class EcoConfigService {
   getFulfillmentEstimateConfig(): EcoConfigType['fulfillmentEstimate'] {
     return this.get('fulfillmentEstimate')
   }
+
+  getCCTPLiFiConfig(): EcoConfigType['cctpLiFi'] {
+    return this.get('cctpLiFi')
+  }
 }

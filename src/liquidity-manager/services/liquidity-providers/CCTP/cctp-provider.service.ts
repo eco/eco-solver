@@ -106,6 +106,51 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     })
   }
 
+  /**
+   * Execute method that returns transaction metadata for CCTPLiFi integration
+   * This does not start the CCTP attestation check job
+   * @param walletAddress Wallet address
+   * @param quote CCTP quote
+   * @returns Transaction metadata including hash, messageHash, and messageBody
+   */
+  async executeWithMetadata(
+    walletAddress: string,
+    quote: RebalanceQuote<'CCTP'>,
+  ): Promise<{ txHash: Hex; messageHash: Hex; messageBody: Hex }> {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'CCTPProviderService: executing quote with metadata',
+        properties: {
+          tokenIn: quote.tokenIn.config.address,
+          chainIn: quote.tokenIn.config.chainId,
+          tokenOut: quote.tokenOut.config.address,
+          chainOut: quote.tokenOut.config.chainId,
+          amountIn: quote.amountIn,
+          amountOut: quote.amountOut,
+          slippage: quote.slippage,
+        },
+      }),
+    )
+
+    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
+    const txHash = await this._execute(walletAddress, quote)
+    const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
+    const messageBody = this.getMessageBytes(txReceipt)
+    const messageHash = this.getMessageHash(messageBody)
+
+    this.logger.debug('CCTPProviderService: Transaction metadata extracted', {
+      txHash,
+      messageHash,
+      messageBodyLength: messageBody.length,
+    })
+
+    return {
+      txHash,
+      messageHash,
+      messageBody,
+    }
+  }
+
   private _execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
     const crowdLiquidityPoolWallet = this.crowdLiquidityService.getPoolAddress()
     if (isAddressEqual(crowdLiquidityPoolWallet, walletAddress as Hex)) {

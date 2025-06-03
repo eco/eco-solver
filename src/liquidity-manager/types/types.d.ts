@@ -1,5 +1,6 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
+import { Hex } from 'viem'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -33,14 +34,37 @@ type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute'
+// CCTPLiFi strategy context for tracking multi-step operations
+interface CCTPLiFiStrategyContext {
+  sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → USDC
+  cctpTransfer: {
+    sourceChain: number
+    destinationChain: number
+    amount: bigint
+    messageHash?: Hex
+    messageBody?: Hex
+  }
+  destinationSwapQuote?: LiFiStrategyContext // LiFi route for USDC → token
+  steps: ('sourceSwap' | 'cctpBridge' | 'destinationSwap')[]
+  totalSlippage: number
+  gasEstimation?: {
+    sourceChainGas: bigint
+    destinationChainGas: bigint
+    totalGasUSD: number
+    gasWarnings: string[]
+  }
+}
+
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
     ? CCTPStrategyContext
     : S extends 'WarpRoute'
       ? WarpRouteStrategyContext
-      : never
+      : S extends 'CCTPLiFi'
+        ? CCTPLiFiStrategyContext
+        : never
 
 // Quote
 

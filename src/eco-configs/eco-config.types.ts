@@ -77,6 +77,7 @@ export type EcoConfigType = {
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
+  cctpLiFi: CCTPLiFiConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -461,4 +462,31 @@ export interface WarpRoutesConfig {
       synthetic: Hex
     }[]
   }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
+}
+
+export interface CCTPLiFiConfig {
+  maxSlippage: number
+  minLiquidityUSD: number
+  skipBalanceCheck: boolean
+  skipGasEstimation: boolean
+  usdcAddresses: Record<number, Hex>
 }
