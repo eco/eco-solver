@@ -190,6 +190,21 @@ export class FeeService implements OnModuleInit {
     if (error) {
       return { totalFillNormalized: { token: 0n, native: 0n }, error }
     }
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getTotalFill: Total calls`,
+        properties: {
+          calls: calls.map((call) => ({
+            address: call.address,
+            balance: call.balance.toString(),
+            recipient: call.recipient,
+            native: call.native.amount.toString(),
+          })),
+        },
+      }),
+    )
+
     const totalFillNormalized: NormalizedTotal = calls.reduce(
       (acc, call) => {
         return {

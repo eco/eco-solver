@@ -227,7 +227,21 @@ export class ValidationService implements OnModuleInit {
     if (error) {
       return false
     }
+
     const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `validTransferLimit: Total fill normalized`,
+        properties: {
+          tokenTotalFillNormalized: totalFillNormalized.token.toString(),
+          nativeTotalFillNormalized: totalFillNormalized.native.toString(),
+          tokenBase6: tokenBase6.toString(),
+          nativeBase18: nativeBase18.toString(),
+        },
+      }),
+    )
+
     // convert to a normalized total to use utils compare function
     return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
   }
