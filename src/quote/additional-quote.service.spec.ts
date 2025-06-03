@@ -63,7 +63,7 @@ describe('QuoteService', () => {
             getAsk: jest.fn(() => 1n),
             getFee: jest.fn(() => 1n),
             getTotalFill: jest.fn(() => ({ totalFillNormalized: 1n })),
-            getFeeConfig: jest.fn(() => ({ limitFillBase6: 1000000n })),
+            getFeeConfig: jest.fn(() => ({ limit: { tokenBase6: 1000n * 10n ** 6n, nativeBase18: 1n * 10n ** 18n } })),
             deconvertNormalize: jest.fn((val) => ({ balance: val })),
             convertNormalize: jest.fn((val) => ({ balance: val })),
           },

@@ -187,14 +187,17 @@ export type KmsConfig = {
 /**
  * The config type for a ERC20 transfer
  */
+export type V2Limits = {
+  // The maximum amount of tokens that can be filled in a single transaction,
+  // defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
+  tokenBase6: bigint
+  // The max native gas that can be filled in a single transaction
+  nativeBase18: bigint
+}
+
 export type FeeConfigType<T extends FeeAlgorithm = 'linear'> = {
-  limit: {
-    //the maximum amount of tokens that can be filled in a single transaction,
-    //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
-    tokenBase6: bigint
-    //the max native gas that can be filled in a single transaction
-    nativeBase18: bigint
-  }
+  limitFillBase6: bigint
+  limit: V2Limits
   algorithm: T
   constants: FeeAlgorithmConfig<T>
 }

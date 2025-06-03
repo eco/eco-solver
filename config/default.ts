@@ -88,6 +88,10 @@ export default {
   intentConfigs: {
     defaultFee: {
       limitFillBase6: 1000n * 10n ** 6n,
+      limit: {
+        tokenBase6: 1000n * 10n ** 6n,
+        nativeBase18: 1n * 10n ** 18n,
+      },
       algorithm: 'linear',
       constants: {
         baseFee: 20_000n,
