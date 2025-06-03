@@ -196,7 +196,6 @@ export type V2Limits = {
 }
 
 export type FeeConfigType<T extends FeeAlgorithm = 'linear'> = {
-  limitFillBase6: bigint
   limit: V2Limits
   algorithm: T
   constants: FeeAlgorithmConfig<T>

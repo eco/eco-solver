@@ -86,18 +86,27 @@ export default {
     intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
   },
   intentConfigs: {
+    isNativeSupported: true,
     defaultFee: {
-      limitFillBase6: 1000n * 10n ** 6n,
       limit: {
         tokenBase6: 1000n * 10n ** 6n,
-        nativeBase18: 1n * 10n ** 18n,
+        nativeBase18: 1000n * 10n ** 18n,
       },
       algorithm: 'linear',
       constants: {
-        baseFee: 20_000n,
-        tranche: {
-          unitFee: 15_000n,
-          unitSize: 100_000_000n,
+        token: {
+          baseFee: 20_000n,
+          tranche: {
+            unitFee: 15_000n,
+            unitSize: 100_000_000n,
+          },
+        },
+        native: {
+          baseFee: 1_000n,
+          tranche: {
+            unitFee: 1_000_000_000_000_000n, // 0.001 ETH
+            unitSize: 1n * 10n ** 18n, // 1 ETH
+          },
         },
       },
     },
