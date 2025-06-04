@@ -73,9 +73,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
       }),
       getCCTPLiFiConfig: jest.fn().mockReturnValue({
         maxSlippage: 0.05,
-        minLiquidityUSD: 50,
-        skipBalanceCheck: false,
-        skipGasEstimation: false,
+        maxGasEstimateUSD: 5,
         usdcAddresses: {
           1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
           10: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
@@ -434,8 +432,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
 
   describe('Job Flow Integration Tests', () => {
     it('should verify complete attestation to destination swap job flow', () => {
-      // This test verifies that the enhanced CheckCCTPAttestationJob
-      // properly triggers CCTPLiFiDestinationSwapJob when context is provided
+      // This test verifies that CheckCCTPAttestationJob properly triggers CCTPLiFiDestinationSwapJob when context is provided
 
       const mockJobData = {
         destinationChainId: 10,

@@ -66,12 +66,12 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     )
 
     // 1. Enhanced pre-checks: CCTP compatibility and validation
-    const validation = CCTPLiFiValidator.validateAdvanced(tokenIn, tokenOut, swapAmount, {
-      maxSlippage: this.config.maxSlippage,
-      minLiquidityUSD: this.config.minLiquidityUSD,
-      skipBalanceCheck: this.config.skipBalanceCheck,
-      skipGasEstimation: this.config.skipGasEstimation,
-    })
+    const validation = CCTPLiFiValidator.validateRoute(
+      tokenIn,
+      tokenOut,
+      swapAmount,
+      this.config.maxSlippage,
+    )
 
     if (!validation.isValid) {
       const errorMessage = `Invalid CCTPLiFi route: ${validation.errors.join(', ')}`
@@ -100,10 +100,10 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     const { totalAmountOut, totalSlippage } = this.calculateTotals(context, swapAmount)
 
     // 5. Final validation of calculated slippage
-    if (totalSlippage > 0.05) {
+    if (totalSlippage > this.config.maxSlippage) {
       this.logger.warn('CCTPLiFi: High total slippage detected', {
         totalSlippage,
-        threshold: 0.05,
+        threshold: this.config.maxSlippage,
         route: steps.map((s) => s.type),
       })
     }
@@ -235,7 +235,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         const usdcTokenData = this.createUSDCTokenData(tokenIn.chainId)
         const sourceQuote = await this.liFiService.getQuote(tokenIn, usdcTokenData, swapAmount)
         sourceSwapQuote = sourceQuote.context
-        cctpAmount = parseFloat(sourceQuote.context.toAmount)
+        cctpAmount = parseFloat(sourceQuote.context.toAmountMin)
 
         this.logger.debug('CCTPLiFi: Source swap quote obtained', {
           originalAmount: swapAmount,
@@ -269,6 +269,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       tokenOut.chainId,
       hasSourceSwap,
       hasDestinationSwap,
+      this.config.maxGasEstimateUSD,
     )
 
     this.logger.debug('CCTPLiFi: Gas estimation completed', {
@@ -302,19 +303,18 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     initialAmount: number,
   ): { totalAmountOut: bigint; totalSlippage: number } {
     const totalSlippage = SlippageCalculator.calculateTotalSlippage(context)
-    context.totalSlippage = totalSlippage
 
     // Calculate final amount out
     let amountOut = parseUnits(initialAmount.toString(), 6) // Start with initial amount in USDC decimals
 
     if (context.sourceSwapQuote) {
-      amountOut = BigInt(context.sourceSwapQuote.toAmount)
+      amountOut = BigInt(context.sourceSwapQuote.toAmountMin)
     }
 
     // CCTP is 1:1, so no change to amount
 
     if (context.destinationSwapQuote) {
-      amountOut = BigInt(context.destinationSwapQuote.toAmount)
+      amountOut = BigInt(context.destinationSwapQuote.toAmountMin)
     }
 
     return { totalAmountOut: amountOut, totalSlippage }
@@ -420,62 +420,46 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
    * Extracts the transaction hash from LiFi RouteExtended execution result
    */
   private extractTransactionHashFromLiFiResult(lifiResult: any): Hex {
-    try {
-      // LiFi returns a RouteExtended object with execution details
-      // First, try to extract from the first step's execution process
-      if (lifiResult?.steps?.[0]?.execution?.process?.[0]?.txHash) {
-        return lifiResult.steps[0].execution.process[0].txHash as Hex
-      }
+    // LiFi returns a RouteExtended object with execution details
+    // First, try to extract from the first step's execution process
+    if (lifiResult?.steps?.[0]?.execution?.process?.[0]?.txHash) {
+      return lifiResult.steps[0].execution.process[0].txHash as Hex
+    }
 
-      // Check if there are multiple processes and get the last one (most recent)
-      if (lifiResult?.steps?.[0]?.execution?.process?.length > 0) {
-        const processes = lifiResult.steps[0].execution.process
-        const lastProcess = processes[processes.length - 1]
-        if (lastProcess?.txHash) {
-          return lastProcess.txHash as Hex
-        }
+    // Check if there are multiple processes and get the last one (most recent)
+    if (lifiResult?.steps?.[0]?.execution?.process?.length > 0) {
+      const processes = lifiResult.steps[0].execution.process
+      const lastProcess = processes[processes.length - 1]
+      if (lastProcess?.txHash) {
+        return lastProcess.txHash as Hex
       }
+    }
 
-      // Check for multiple steps and get the last completed one
-      if (lifiResult?.steps?.length > 0) {
-        for (let i = lifiResult.steps.length - 1; i >= 0; i--) {
-          const step = lifiResult.steps[i]
-          if (step?.execution?.process?.length > 0) {
-            const processes = step.execution.process
-            const lastProcess = processes[processes.length - 1]
-            if (lastProcess?.txHash) {
-              return lastProcess.txHash as Hex
-            }
+    // Check for multiple steps and get the last completed one
+    if (lifiResult?.steps?.length > 0) {
+      for (let i = lifiResult.steps.length - 1; i >= 0; i--) {
+        const step = lifiResult.steps[i]
+        if (step?.execution?.process?.length > 0) {
+          const processes = step.execution.process
+          const lastProcess = processes[processes.length - 1]
+          if (lastProcess?.txHash) {
+            return lastProcess.txHash as Hex
           }
         }
       }
-
-      // Fallback: check for transaction hash in different locations
-      if (lifiResult?.transactionHash) {
-        return lifiResult.transactionHash as Hex
-      }
-
-      if (lifiResult?.txHash) {
-        return lifiResult.txHash as Hex
-      }
-
-      // Log the structure we received for debugging
-      this.logger.warn('CCTPLiFi: Could not extract transaction hash from LiFi result', {
-        resultStructure: Object.keys(lifiResult || {}),
-        stepsCount: lifiResult?.steps?.length || 0,
-        firstStepStructure: lifiResult?.steps?.[0] ? Object.keys(lifiResult.steps[0]) : [],
-        executionStructure: lifiResult?.steps?.[0]?.execution
-          ? Object.keys(lifiResult.steps[0].execution)
-          : [],
-      })
-
-      throw new Error('Could not extract transaction hash from LiFi execution result')
-    } catch (error) {
-      this.logger.error('CCTPLiFi: Error extracting transaction hash from LiFi result', {
-        error: error.message,
-      })
-      throw new Error(`Failed to extract LiFi transaction hash: ${error.message}`)
     }
+
+    // Log the structure we received for debugging
+    this.logger.debug('CCTPLiFi: Could not extract transaction hash from LiFi result', {
+      resultStructure: Object.keys(lifiResult || {}),
+      stepsCount: lifiResult?.steps?.length || 0,
+      firstStepStructure: lifiResult?.steps?.[0] ? Object.keys(lifiResult.steps[0]) : [],
+      executionStructure: lifiResult?.steps?.[0]?.execution
+        ? Object.keys(lifiResult.steps[0].execution)
+        : [],
+    })
+
+    return '0x0' as Hex
   }
 
   /**

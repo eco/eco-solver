@@ -187,8 +187,7 @@ export class LiquidityProviderService {
 
     switch (walletAddress) {
       case crowdLiquidityPoolAddress:
-        // TODO: should add CCTPLiFi here?
-        return ['CCTP', 'CCTPLiFi']
+        return ['CCTP']
       default:
         return ['LiFi', 'WarpRoute', 'CCTPLiFi']
     }

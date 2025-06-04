@@ -107,9 +107,7 @@ describe('CCTPLiFiProviderService', () => {
       }),
       getCCTPLiFiConfig: jest.fn().mockReturnValue({
         maxSlippage: 0.05,
-        minLiquidityUSD: 50,
-        skipBalanceCheck: false,
-        skipGasEstimation: false,
+        maxGasEstimateUSD: 5,
         usdcAddresses: {
           1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
           10: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
@@ -237,7 +235,7 @@ describe('CCTPLiFiProviderService', () => {
 
       expect(quote).toEqual({
         amountIn: parseUnits('100', 6),
-        amountOut: parseUnits('45', 18),
+        amountOut: parseUnits('44.1', 18),
         slippage: expect.any(Number),
         tokenIn: mockTokenIn,
         tokenOut: mockTokenOut,
@@ -369,45 +367,6 @@ describe('CCTPLiFiProviderService', () => {
 
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('High total slippage detected'),
-        expect.any(Object),
-      )
-    })
-
-    it('should handle small amount warnings', async () => {
-      const warnSpy = jest.spyOn(Logger.prototype, 'warn')
-
-      liFiService.getQuote
-        .mockResolvedValueOnce({
-          amountOut: parseUnits('9.9', 6),
-          slippage: 0.01,
-          context: {
-            fromAmount: '10000000',
-            toAmount: '9900000',
-            toAmountMin: '9801000',
-            fromAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-            toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-            fromChainId: 1,
-            toChainId: 1,
-          },
-        } as any)
-        .mockResolvedValueOnce({
-          amountOut: parseUnits('9', 18),
-          slippage: 0.01,
-          context: {
-            fromAmount: '9900000',
-            toAmount: '9000000000000000000',
-            toAmountMin: '8910000000000000000',
-            fromAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-            toAddress: '0x4200000000000000000000000000000000000042',
-            fromChainId: 10,
-            toChainId: 10,
-          },
-        } as any)
-
-      await service.getQuote(mockTokenIn, mockTokenOut, 10) // Small amount
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('CCTPLiFi route validation warnings'),
         expect.any(Object),
       )
     })
@@ -577,12 +536,6 @@ describe('CCTPLiFiProviderService', () => {
   })
 
   describe('Edge Cases and Error Handling', () => {
-    it('should handle insufficient balance errors', async () => {
-      await expect(service.getQuote(mockTokenIn, mockTokenOut, 2000)).rejects.toThrow(
-        'Invalid CCTPLiFi route',
-      )
-    })
-
     it('should handle LiFi quote failures during route building', async () => {
       liFiService.getQuote.mockRejectedValueOnce(new Error('LiFi service unavailable'))
 

@@ -31,36 +31,15 @@ export class SlippageCalculator {
    * @returns Slippage percentage (0-1)
    */
   private static getLiFiSlippage(route: LiFiStrategyContext): number {
-    // Calculate slippage as (expected - minimum) / expected
-    const expected = parseFloat(route.toAmount)
-    const minimum = parseFloat(route.toAmountMin)
+    const toAmount = parseFloat(route.toAmount)
+    const toAmountMin = parseFloat(route.toAmountMin)
 
-    if (expected === 0) {
+    if (toAmount === 0) {
       return 0
     }
 
-    return (expected - minimum) / expected
-  }
-
-  /**
-   * Calculates the final amount out after applying slippage
-   * @param initialAmount The initial amount before slippage
-   * @param slippagePercentage The slippage percentage (0-1)
-   * @returns Final amount after slippage
-   */
-  static applySlippage(initialAmount: bigint, slippagePercentage: number): bigint {
-    const slippageBigInt = BigInt(Math.floor(slippagePercentage * 10000)) // Convert to basis points
-    const remaining = 10000n - slippageBigInt
-    return (initialAmount * remaining) / 10000n
-  }
-
-  /**
-   * Validates that total slippage is within acceptable limits
-   * @param totalSlippage Total slippage percentage (0-1)
-   * @param maxSlippage Maximum acceptable slippage (0-1)
-   * @returns True if slippage is acceptable
-   */
-  static validateSlippage(totalSlippage: number, maxSlippage: number): boolean {
-    return totalSlippage <= maxSlippage
+    // Calculate slippage as: 1 - (minimum output / expected output)
+    // This represents the percentage difference between expected and minimum guaranteed output
+    return 1 - toAmountMin / toAmount
   }
 }

@@ -385,6 +385,7 @@ export interface LiquidityManagerConfig {
     token: Hex
     chainID: number
   }[]
+  maxGasEstimateUSD: number
 }
 
 export interface LiFiConfigType {
@@ -485,8 +486,6 @@ export interface HyperlaneConfig {
 
 export interface CCTPLiFiConfig {
   maxSlippage: number
-  minLiquidityUSD: number
-  skipBalanceCheck: boolean
-  skipGasEstimation: boolean
+  maxGasEstimateUSD: number
   usdcAddresses: Record<number, Hex>
 }

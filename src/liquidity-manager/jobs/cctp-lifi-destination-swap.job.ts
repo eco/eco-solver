@@ -214,7 +214,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       tempQuote,
     )
 
-    // TODO: Extract actual transaction hash from LiFi result (Priority 2 enhancement)
+    // TODO: Extract actual transaction hash from LiFi result
     // Current limitation: liquidityProviderManager.execute() doesn't return the execution result
     // This placeholder is acceptable because:
     // 1. The swap still executes successfully without the hash
