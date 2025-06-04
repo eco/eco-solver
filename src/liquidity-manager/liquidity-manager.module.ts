@@ -12,6 +12,7 @@ import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/reb
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-
     CCTPProviderService,
     WarpRouteProviderService,
     CCTPLiFiProviderService,
+    EcoConfigService,
   ],
   exports: [LiquidityManagerService],
 })

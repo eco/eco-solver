@@ -10,10 +10,12 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 
 @Injectable()
 export class LiquidityProviderService {
   private logger = new Logger(LiquidityProviderService.name)
+  private config: LiquidityManagerConfig
 
   constructor(
     protected readonly liFiProviderService: LiFiProviderService,
@@ -22,7 +24,9 @@ export class LiquidityProviderService {
     protected readonly warpRouteProviderService: WarpRouteProviderService,
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
-  ) {}
+  ) {
+    this.config = this.ecoConfigService.getLiquidityManager()
+  }
 
   async getQuote(
     walletAddress: string,
@@ -185,12 +189,16 @@ export class LiquidityProviderService {
   private getWalletSupportedStrategies(walletAddress: string): Strategy[] {
     const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
 
-    switch (walletAddress) {
-      case crowdLiquidityPoolAddress:
-        return ['CCTP']
-      default:
-        return ['LiFi', 'WarpRoute', 'CCTPLiFi']
+    const walletType =
+      walletAddress === crowdLiquidityPoolAddress ? 'crowd-liquidity-pool' : 'eco-wallet'
+
+    const strategies = this.config.walletStrategies[walletType]
+
+    if (!strategies || strategies.length === 0) {
+      throw new Error(`No strategies configured for wallet type: ${walletType}`)
     }
+
+    return strategies
   }
 
   private formatToken(token: TokenData) {

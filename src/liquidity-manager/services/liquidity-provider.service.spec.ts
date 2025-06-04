@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { createMock } from '@golevelup/ts-jest'
+import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
@@ -7,6 +7,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -17,6 +18,7 @@ describe('LiquidityProviderService', () => {
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
+  let ecoConfigService: EcoConfigService
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -33,6 +35,7 @@ describe('LiquidityProviderService', () => {
           },
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
+        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
       ],
     }).compile()
 
@@ -42,6 +45,26 @@ describe('LiquidityProviderService', () => {
     warpRouteProviderService = module.get<WarpRouteProviderService>(WarpRouteProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     cctpLiFiProviderService = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
+    ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
+
+    // Set up the mock for getLiquidityManager after getting the service
+    const liquidityManagerConfigMock = {
+      walletStrategies: {
+        'crowd-liquidity-pool': ['CCTP'],
+        'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+      },
+    }
+    jest
+      .spyOn(ecoConfigService, 'getLiquidityManager')
+      .mockReturnValue(liquidityManagerConfigMock as any)
+
+    // Reinitialize the config in the service
+    liquidityProviderService['config'] = ecoConfigService.getLiquidityManager()
+  })
+
+  afterEach(async () => {
+    // restore the spy created with spyOn
+    jest.restoreAllMocks()
   })
 
   describe('getQuote', () => {

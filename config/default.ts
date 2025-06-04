@@ -128,6 +128,10 @@ export default {
       deficit: 0.2,
     },
     maxGasEstimateUSD: 5, // 5 USD
+    walletStrategies: {
+      'crowd-liquidity-pool': ['CCTP'],
+      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+    },
   },
 
   fulfillmentEstimate: {

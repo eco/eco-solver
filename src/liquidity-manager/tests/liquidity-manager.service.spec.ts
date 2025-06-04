@@ -74,6 +74,10 @@ describe('LiquidityManagerService', () => {
       { token: '0xCoreToken2', chainID: 10 },
     ],
     maxGasEstimateUSD: 5,
+    walletStrategies: {
+      'crowd-liquidity-pool': ['CCTP'],
+      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+    },
   } as LiquidityManagerConfig
 
   afterEach(() => {
