@@ -104,7 +104,7 @@ export default {
         native: {
           baseFee: 1_000n,
           tranche: {
-            unitFee: 1_000_000_000_000_000n, // 0.001 ETH
+            unitFee: 500n, // 500 wei
             unitSize: 1n * 10n ** 18n, // 1 ETH
           },
         },

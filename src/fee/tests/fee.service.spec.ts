@@ -144,9 +144,9 @@ describe('FeeService', () => {
     })
 
     it('should return the default fee for the solver if intent is set', async () => {
-      const solverFee = { asd: 123n } as any
+      const solverFee = { limit: 123n } as any
       feeService['whitelist'] = {}
-      feeService['intentConfigs'] = { defaultFee: { asd: 333n } } as any
+      feeService['intentConfigs'] = { defaultFee: { limit: 333n } } as any
       feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: solverFee })
       expect(feeService.getFeeConfig({ intent })).toEqual(solverFee)
     })
@@ -230,7 +230,13 @@ describe('FeeService', () => {
       })
 
       it('should throw when solver doesnt have a supported algorithm', async () => {
-        const solver = { fee: { algorithm: 'unsupported' } } as any
+        const solver = {
+          fee: {
+            ...defaultFee,
+            algorithm: 'unsupported',
+          },
+        } as any
+
         const getSolver = jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
         jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(solver.fee)
         expect(() => feeService.getAsk(defaultAsk, intent)).toThrow(

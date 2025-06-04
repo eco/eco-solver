@@ -64,7 +64,14 @@ export class IntentDataModel implements IntentType {
       funder,
     } = params
 
-    if (calls.length == 0 || rewardTokens.length == 0 || routeTokens.length == 0) {
+    if (calls.length == 0) {
+      throw EcoError.IntentSourceDataInvalidParams
+    }
+
+    if (
+      (rewardTokens.length == 0 || routeTokens.length == 0) &&
+      !IntentDataModel.isNativeIntent(params)
+    ) {
       throw EcoError.IntentSourceDataInvalidParams
     }
 
@@ -99,6 +106,14 @@ export class IntentDataModel implements IntentType {
 
     this.logIndex = logIndex
     this.funder = funder
+  }
+
+  static isNativeIntent(params: CreateIntentDataModelParams): boolean {
+    return (
+      params.calls.some((call) => {
+        return call.value > 0
+      }) || params.nativeValue > 0
+    )
   }
 
   static getHash(intentDataModel: IntentDataModel) {

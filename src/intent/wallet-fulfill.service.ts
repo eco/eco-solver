@@ -58,7 +58,10 @@ export class WalletFulfillService implements IFulfillService {
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
 
     // Create transactions for intent targets
-    const targetSolveTxs = this.getTransactionsForTargets(model, solver)
+    const targetSolveTxs = [] // this.getTransactionsForTargets(model, solver)
+
+    const nativeCalls = getNativeCalls(model.intent.route.calls)
+    const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
 
     const nativeCalls = getNativeCalls(model.intent.route.calls)
     const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
