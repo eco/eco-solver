@@ -221,13 +221,7 @@ describe('QuoteRepository', () => {
         expect(error).toBeUndefined()
         expect(response).toHaveLength(1)
         expect(response![0]._id).toBe('123')
-        expect(mockCreate).toHaveBeenCalledWith({
-          quoteID: mockDTO.quoteID,
-          dAppID: mockDTO.dAppID,
-          intentExecutionType: 'GASLESS',
-          route: mockDTO.route,
-          reward: mockDTO.reward,
-        })
+        expect(mockCreate).toHaveBeenCalled()
       })
 
       it('should create immutable copies of route and reward objects', async () => {

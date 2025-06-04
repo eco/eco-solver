@@ -2,9 +2,9 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
+import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { FilterQuery, Model, UpdateQuery } from 'mongoose'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
@@ -13,19 +13,6 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 
 type QuoteQuery = FilterQuery<QuoteIntentModel>
 type QuoteUpdate = UpdateQuery<QuoteIntentModel>
-
-interface CreateQuoteResult {
-  success: QuoteIntentModel[]
-  errors: Error[]
-}
-
-interface QuoteModelData {
-  quoteID: string
-  dAppID: string
-  intentExecutionType: string
-  route: QuoteRouteDataModel
-  reward: any
-}
 
 /**
  * QuoteRepository is responsible for interacting with the database to store and fetch quote intent data.
@@ -53,18 +40,51 @@ export class QuoteRepository {
     quoteIntentDataDTO: QuoteIntentDataDTO,
   ): Promise<EcoResponse<QuoteIntentModel[]>> {
     const validationResult = this.validateQuoteIntentData(quoteIntentDataDTO)
+
     if (!validationResult.isValid) {
       return { error: new Error(`Validation failed: ${validationResult.errors.join(', ')}`) }
     }
 
-    const supportedTypes = this.getSupportedIntentExecutionTypes()
-    const result = await this.createQuoteModelsForSupportedTypes(quoteIntentDataDTO, supportedTypes)
+    const supportedIntentExecutionTypes = this.getSupportedIntentExecutionTypes()
+    const errors: any[] = []
+    const quoteIntentModels: QuoteIntentModel[] = []
 
-    if (result.success.length === 0) {
-      return { error: result.errors }
+    for (const intentExecutionType of quoteIntentDataDTO.intentExecutionTypes) {
+      // Check if the intent execution type is valid
+      if (!supportedIntentExecutionTypes.includes(intentExecutionType)) {
+        continue
+      }
+
+      const quoteIntentModel = this.createQuoteModelData(intentExecutionType, quoteIntentDataDTO)
+      const { response: dbQuoteIntentModel, error } =
+        await this.storeQuoteIntentDataForExecutionType(quoteIntentModel)
+
+      if (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `storeQuoteIntentData: error storing quote for: ${intentExecutionType}`,
+            properties: {
+              quoteID: quoteIntentDataDTO.quoteID,
+              dAppID: quoteIntentDataDTO.dAppID,
+              intentExecutionType,
+              error,
+            },
+          }),
+        )
+
+        errors.push(error)
+        continue
+      }
+
+      quoteIntentModel._id = dbQuoteIntentModel!._id
+      quoteIntentModels.push(quoteIntentModel)
     }
 
-    return { response: result.success }
+    if (quoteIntentModels.length === 0) {
+      return { error: errors }
+    }
+
+    return { response: quoteIntentModels }
   }
 
   /**
@@ -73,13 +93,23 @@ export class QuoteRepository {
    * @returns the stored record or an error
    */
   private async storeQuoteIntentDataForExecutionType(
-    quoteModelData: QuoteModelData,
+    quoteModelData: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteIntentModel>> {
     try {
+      quoteModelData = {
+        ...quoteModelData,
+        route: {
+          ...quoteModelData.route,
+        },
+        reward: {
+          ...quoteModelData.reward,
+        },
+      }
+
       const record = await this.quoteIntentModel.create(quoteModelData)
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Recorded quote intent`,
+          message: `storeQuoteIntentDataForExecutionType: Recorded quote intent`,
           properties: {
             quoteID: quoteModelData.quoteID,
             dAppID: quoteModelData.dAppID,
@@ -92,7 +122,7 @@ export class QuoteRepository {
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `Error storing quote intent data`,
+          message: `storeQuoteIntentDataForExecutionType: error storing quote intent`,
           properties: {
             quoteID: quoteModelData.quoteID,
             dAppID: quoteModelData.dAppID,
@@ -111,16 +141,21 @@ export class QuoteRepository {
    * @param quoteIntentDataDTO the quote intent data DTO
    * @returns the quote model data
    */
+
   private createQuoteModelData(
     intentExecutionType: string,
     quoteIntentDataDTO: QuoteIntentDataDTO,
-  ): QuoteModelData {
+  ): QuoteIntentModel {
+    const { quoteID, dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
+
     return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
+      _id: new Types.ObjectId(),
+      quoteID,
+      dAppID,
       intentExecutionType,
-      route: { ...quoteIntentDataDTO.route },
-      reward: { ...quoteIntentDataDTO.reward },
+      route: quoteRoute,
+      reward,
+      receipt: null,
     }
   }
 
@@ -141,7 +176,7 @@ export class QuoteRepository {
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `Error fetching quote intent data`,
+          message: `fetchQuoteIntentData: Error fetching quote intent data`,
           properties: {
             query,
             error: ex.message,
@@ -216,7 +251,7 @@ export class QuoteRepository {
         EcoLogMessage.fromDefault({
           message: `Error updating quote in database`,
           properties: {
-            quoteId: quoteIntentModel._id,
+            quoteID: quoteIntentModel.quoteID,
             error: ex.message,
           },
         }),
@@ -271,50 +306,6 @@ export class QuoteRepository {
    */
   private getSupportedIntentExecutionTypes(): string[] {
     return (this.quotesConfig?.intentExecutionTypes as string[]) || []
-  }
-
-  /**
-   * Creates quote models for supported types
-   * @param quoteIntentDataDTO the quote intent data
-   * @param supportedTypes the supported execution types
-   * @returns creation result with success and error arrays
-   */
-  private async createQuoteModelsForSupportedTypes(
-    quoteIntentDataDTO: QuoteIntentDataDTO,
-    supportedTypes: string[],
-  ): Promise<CreateQuoteResult> {
-    const success: QuoteIntentModel[] = []
-    const errors: Error[] = []
-
-    for (const intentExecutionType of quoteIntentDataDTO.intentExecutionTypes) {
-      if (!supportedTypes.includes(intentExecutionType)) {
-        continue
-      }
-
-      const quoteModelData = this.createQuoteModelData(intentExecutionType, quoteIntentDataDTO)
-      const { response: dbQuoteIntentModel, error } =
-        await this.storeQuoteIntentDataForExecutionType(quoteModelData)
-
-      if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `Failed to store quote for execution type: ${intentExecutionType}`,
-            properties: {
-              quoteID: quoteIntentDataDTO.quoteID,
-              dAppID: quoteIntentDataDTO.dAppID,
-              intentExecutionType,
-              error: error.message,
-            },
-          }),
-        )
-        errors.push(error)
-        continue
-      }
-
-      success.push(dbQuoteIntentModel!)
-    }
-
-    return { success, errors }
   }
 
   /**

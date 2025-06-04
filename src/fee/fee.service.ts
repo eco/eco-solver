@@ -15,6 +15,7 @@ import {
   getFunctionTargets,
   getNativeCalls,
   getTransactionTargetData,
+  isNativeIntent,
 } from '@/intent/utils'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
@@ -55,16 +56,18 @@ export class FeeService implements OnModuleInit {
    *                      usually from the solvers own config
    * @returns
    */
+
   getFeeConfig(args?: {
     intent?: QuoteIntentDataInterface
     defaultFeeArg?: FeeConfigType
   }): FeeConfigType {
     const { intent, defaultFeeArg } = args || {}
     let feeConfig = defaultFeeArg || this.intentConfigs.defaultFee
+
     if (intent) {
-      const destDefaultFee = this.getAskRouteDestinationSolver(intent.route).fee
-      feeConfig = defaultFeeArg || destDefaultFee
+      feeConfig = defaultFeeArg || this.getRouteDestinationSolverFee(intent.route)
       const specialFee = this.whitelist[intent.reward.creator]
+
       if (specialFee) {
         const chainFee = specialFee[Number(intent.route.source)]
         // return a fee that is a merge of the default fee, the special fee and the chain fee
@@ -73,6 +76,7 @@ export class FeeService implements OnModuleInit {
         feeConfig = _.merge({}, feeConfig, specialFee.default, chainFee)
       }
     }
+
     return feeConfig
   }
 
@@ -86,13 +90,15 @@ export class FeeService implements OnModuleInit {
   getFee(normalizedTotal: NormalizedTotal, intent: QuoteIntentDataInterface): NormalizedTotal {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
-    const solver = this.getAskRouteDestinationSolver(route)
+    const solverFee = this.getRouteDestinationSolverFee(route)
 
     const fee: NormalizedTotal = {
       token: 0n,
       native: 0n,
     }
-    const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solver.fee })
+
+    const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solverFee })
+
     switch (feeConfig.algorithm) {
       // the default
       // 0.02 cents + $0.015 per 100$
@@ -117,7 +123,7 @@ export class FeeService implements OnModuleInit {
 
         break
       default:
-        throw QuoteError.InvalidSolverAlgorithm(route.destination, solver.fee.algorithm)
+        throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
     }
     return fee
   }
@@ -146,15 +152,21 @@ export class FeeService implements OnModuleInit {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
     }
+
     const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
+
     if (Boolean(totalFillError)) {
       return { error: totalFillError }
     }
+
     const { totalRewardsNormalized, error: totalRewardsError } = await this.getTotalRewards(quote)
+
     if (Boolean(totalRewardsError)) {
       return { error: totalRewardsError }
     }
+
     const ask = this.getAsk(totalFillNormalized, quote)
+
     return {
       error: isInsufficient(ask, totalRewardsNormalized)
         ? QuoteError.RouteIsInfeasable(ask, totalRewardsNormalized)
@@ -191,20 +203,6 @@ export class FeeService implements OnModuleInit {
       return { totalFillNormalized: { token: 0n, native: 0n }, error }
     }
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `getTotalFill: Total calls`,
-        properties: {
-          calls: calls.map((call) => ({
-            address: call.address,
-            balance: call.balance.toString(),
-            recipient: call.recipient,
-            native: call.native.amount.toString(),
-          })),
-        },
-      }),
-    )
-
     const totalFillNormalized: NormalizedTotal = calls.reduce(
       (acc, call) => {
         return {
@@ -226,6 +224,7 @@ export class FeeService implements OnModuleInit {
     quote: QuoteIntentDataInterface,
   ): Promise<{ totalRewardsNormalized: NormalizedTotal; error?: Error }> {
     const { rewards, error } = await this.getRewardsNormalized(quote)
+
     if (error) {
       return { totalRewardsNormalized: { token: 0n, native: 0n }, error }
     }
@@ -346,16 +345,25 @@ export class FeeService implements OnModuleInit {
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == srcChainID)
+
     if (!source) {
       return { rewards: [], error: QuoteError.NoIntentSourceForSource(srcChainID) }
     }
+
     const acceptedTokens = quote.reward.tokens
       .filter((reward) => source.tokens.includes(reward.token))
       .map((reward) => reward.token)
+
+    // If there are no accepted tokens, but the quote is native intent, we return an empty rewards array
+    if (acceptedTokens.length === 0 && isNativeIntent(quote)) {
+      return { rewards: [] }
+    }
+
     const erc20Rewards = await this.balanceService.fetchTokenBalances(
       Number(srcChainID),
       acceptedTokens,
     )
+
     if (Object.keys(erc20Rewards).length === 0) {
       return { rewards: [], error: QuoteError.FetchingRewardTokensFailed(BigInt(srcChainID)) }
     }
@@ -379,12 +387,20 @@ export class FeeService implements OnModuleInit {
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == destChainID)
+
     if (!source) {
       return { tokens: [], error: QuoteError.NoIntentSourceForDestination(destChainID) }
     }
+
     const acceptedTokens = quote.route.tokens
       .filter((route) => source.tokens.includes(route.token))
       .map((route) => route.token)
+
+    // If there are no accepted tokens, but the quote is native intent, we return an empty tokens array
+    if (acceptedTokens.length === 0 && isNativeIntent(quote)) {
+      return { tokens: [] }
+    }
+
     const erc20Rewards = await this.balanceService.fetchTokenBalances(
       Number(destChainID),
       acceptedTokens,
@@ -409,7 +425,7 @@ export class FeeService implements OnModuleInit {
    * Fetches the call tokens for the quote intent, grabs their info from the erc20 contracts and then converts
    * to a standard reserve value for comparisons
    *
-   * Throws if there is not enought liquidity for the call
+   * Throws if there is not enough liquidity for the call
    *
    * @param quote the quote intent
    * @param solver the solver for the quote intent
@@ -424,14 +440,23 @@ export class FeeService implements OnModuleInit {
       return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
     }
 
+    const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])
+
+    // Function targets can be an empty array for a quote that only has native calls.
+    if (functionTargets.length === 0 && isNativeIntent(quote)) {
+      const nativeCalls = this.getNormalizedNativeCalls(quote, solver.chainID)
+      return { calls: nativeCalls, error: undefined }
+    }
+
     const callERC20Balances = await this.balanceService.fetchTokenBalances(
       solver.chainID,
-      getFunctionTargets(quote.route.calls as CallDataInterface[]),
+      functionTargets,
     )
 
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
     }
+
     const erc20Balances = Object.values(callERC20Balances).reduce(
       (acc, tokenBalance) => {
         const config = solver.targets[tokenBalance.address]
@@ -451,10 +476,11 @@ export class FeeService implements OnModuleInit {
     )
 
     let error: Error | undefined
-
     let calls: NormalizedCall[] = []
+
     try {
       const functionalCalls = getFunctionCalls(quote.route.calls as CallDataInterface[])
+
       calls = functionalCalls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
         if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
@@ -471,6 +497,7 @@ export class FeeService implements OnModuleInit {
           )
           throw err
         }
+
         const callTarget = erc20Balances[call.target]
         if (!callTarget) {
           throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
@@ -479,6 +506,7 @@ export class FeeService implements OnModuleInit {
         const recipient = ttd!.decodedFunctionData.args![0] as Hex
         const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
         const normMinBalance = this.getNormalizedMinBalance(callTarget)
+
         if (
           !this.intentConfigs.skipBalanceCheck &&
           transferAmount > callTarget.token.balance - normMinBalance
@@ -490,6 +518,7 @@ export class FeeService implements OnModuleInit {
             callTarget.token.balance,
             normMinBalance,
           )
+
           this.logger.error(
             EcoLogMessage.fromDefault({
               message: QuoteError.SolverLacksLiquidity.name,
@@ -502,6 +531,7 @@ export class FeeService implements OnModuleInit {
           )
           throw err
         }
+
         return {
           ...this.convertNormalize(transferAmount, {
             chainID: BigInt(solver.chainID),
@@ -514,23 +544,33 @@ export class FeeService implements OnModuleInit {
           },
         }
       })
-      const nativeCalls = getNativeCalls(quote.route.calls as CallDataInterface[]).map((call) => ({
-        recipient: call.target,
-        native: {
-          amount: call.value,
-        },
-        // we don't have a token for native calls, so we use a dummy token
-        balance: 0n,
-        chainID: BigInt(solver.chainID),
-        address: zeroAddress,
-        decimals: 0,
-      }))
+
+      const nativeCalls = this.getNormalizedNativeCalls(quote, solver.chainID)
       calls.push(...nativeCalls)
     } catch (e) {
       error = e
     }
 
     return { calls, error }
+  }
+
+  private getNormalizedNativeCalls(
+    quote: QuoteIntentDataInterface,
+    chainID: number,
+  ): NormalizedCall[] {
+    const calls = getNativeCalls(quote.route.calls as CallDataInterface[]).map((call) => ({
+      recipient: call.target,
+      native: {
+        amount: call.value,
+      },
+      // we don't have a token for native calls, so we use a dummy token
+      balance: 0n,
+      chainID: BigInt(chainID),
+      address: zeroAddress,
+      decimals: 0,
+    }))
+
+    return calls
   }
 
   /**
@@ -596,6 +636,13 @@ export class FeeService implements OnModuleInit {
       balance: normalizeBalance({ balance: original, decimal: BASE_DECIMALS }, token.decimals)
         .balance,
     }
+  }
+
+  private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
+    const solverFee = this.getAskRouteDestinationSolver(route).fee
+
+    // This next line is temporary, to ensure that the solver config has the correct fee structure
+    return solverFee['limit'] ? solverFee : this.intentConfigs.defaultFee
   }
 
   /**
