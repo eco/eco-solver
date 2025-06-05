@@ -279,6 +279,10 @@ export class EcoConfigService {
     return this.get('warpRoutes')
   }
 
+  getLiFi(): EcoConfigType['liFi'] {
+    return this.get('liFi')
+  }
+
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string> {
     const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain)])
