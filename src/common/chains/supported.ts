@@ -6,8 +6,6 @@ import { bscTestnet, arbitrumSepolia } from 'viem/chains'
 /**
  * List of supported chains for the solver that have modified RPC URLs or are defined in the project
  */
-// export const ChainsSupported: Chain[] = [anvil, ...(EcoRoutesChains as Chain[])]
-
 // Configure custom RPC URLs for specific chains
 const configureChainRpc = (chain: Chain): Chain => {
   // Create a deep copy of the chain to avoid modifying the original
