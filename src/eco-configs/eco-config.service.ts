@@ -248,6 +248,10 @@ export class EcoConfigService {
     return this.get('rpcUrls')
   }
 
+  getLiFi(): EcoConfigType['liFi'] {
+    return this.get('liFi')
+  }
+
   getChainRPCs() {
     const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain).url])
     return Object.fromEntries(entries) as Record<number, string>
