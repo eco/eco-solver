@@ -501,8 +501,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           slippage: 0.15,
           context: {
             fromAmount: '85000000',
-            toAmount: '35000000000000000000',
-            toAmountMin: '29750000000000000000',
+            toAmount: '85000000',
+            toAmountMin: '80000000',
             fromAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
@@ -512,7 +512,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
 
       const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
 
-      expect(quote.context.totalSlippage).toBeGreaterThan(0.05)
+      expect(quote.slippage).toBeGreaterThan(0.05)
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('High total slippage detected'),
         expect.any(Object),

@@ -108,8 +108,6 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       })
     }
 
-    context.totalSlippage = totalSlippage
-
     // 6. Log gas estimation warnings if present
     if (context.gasEstimation && context.gasEstimation.gasWarnings.length > 0) {
       this.logger.warn('CCTPLiFi: Gas estimation warnings', {
@@ -152,7 +150,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
           steps,
           sourceChain: quote.tokenIn.chainId,
           destinationChain: quote.tokenOut.chainId,
-          totalSlippage: quote.context.totalSlippage,
+          totalSlippage: quote.slippage,
         },
       }),
     )
@@ -288,7 +286,6 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       },
       destinationSwapQuote,
       steps: steps.map((step) => step.type),
-      totalSlippage: 0, // Will be calculated in calculateTotals
       gasEstimation,
     }
 

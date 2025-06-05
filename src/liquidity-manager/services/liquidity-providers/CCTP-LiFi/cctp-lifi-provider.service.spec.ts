@@ -248,7 +248,6 @@ describe('CCTPLiFiProviderService', () => {
             sourceChain: 1,
             destinationChain: 10,
           }),
-          totalSlippage: expect.any(Number),
           gasEstimation: expect.objectContaining({
             sourceChainGas: expect.any(BigInt),
             destinationChainGas: expect.any(BigInt),
@@ -354,8 +353,8 @@ describe('CCTPLiFiProviderService', () => {
           slippage: 0.15,
           context: {
             fromAmount: '85000000',
-            toAmount: '35000000000000000000',
-            toAmountMin: '29750000000000000000',
+            toAmount: '85000000',
+            toAmountMin: '80000000',
             fromAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
@@ -408,7 +407,6 @@ describe('CCTPLiFiProviderService', () => {
             toChainId: 10,
           },
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
-          totalSlippage: 0.03,
         },
       } as any
     })

@@ -1,4 +1,4 @@
-import { CCTPLiFiStrategyContext, LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { CCTPLiFiStrategyContext } from '@/liquidity-manager/types/types'
 
 export class SlippageCalculator {
   /**
@@ -11,7 +11,10 @@ export class SlippageCalculator {
 
     // Add slippage from source swap (if exists)
     if (context.sourceSwapQuote) {
-      totalSlippage += this.getLiFiSlippage(context.sourceSwapQuote)
+      totalSlippage +=
+        1 -
+        parseFloat(context.sourceSwapQuote.toAmount) /
+          parseFloat(context.sourceSwapQuote.fromAmount)
     }
 
     // CCTP has essentially 0 slippage (1:1 USDC transfer)
@@ -19,27 +22,12 @@ export class SlippageCalculator {
 
     // Add slippage from destination swap (if exists)
     if (context.destinationSwapQuote) {
-      totalSlippage += this.getLiFiSlippage(context.destinationSwapQuote)
+      totalSlippage +=
+        1 -
+        parseFloat(context.destinationSwapQuote.toAmount) /
+          parseFloat(context.destinationSwapQuote.fromAmount)
     }
 
     return totalSlippage
-  }
-
-  /**
-   * Extracts slippage from a LiFi route
-   * @param route LiFi route object
-   * @returns Slippage percentage (0-1)
-   */
-  private static getLiFiSlippage(route: LiFiStrategyContext): number {
-    const toAmount = parseFloat(route.toAmount)
-    const toAmountMin = parseFloat(route.toAmountMin)
-
-    if (toAmount === 0) {
-      return 0
-    }
-
-    // Calculate slippage as: 1 - (minimum output / expected output)
-    // This represents the percentage difference between expected and minimum guaranteed output
-    return 1 - toAmountMin / toAmount
   }
 }

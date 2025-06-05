@@ -46,7 +46,6 @@ interface CCTPLiFiStrategyContext {
   }
   destinationSwapQuote?: LiFiStrategyContext // LiFi route for USDC → token
   steps: ('sourceSwap' | 'cctpBridge' | 'destinationSwap')[]
-  totalSlippage: number
   gasEstimation?: {
     sourceChainGas: bigint
     destinationChainGas: bigint

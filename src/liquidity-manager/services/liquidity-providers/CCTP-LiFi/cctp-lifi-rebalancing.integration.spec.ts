@@ -401,7 +401,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           },
           destinationSwapQuote,
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
-          totalSlippage: 0.009,
         },
       })
 
@@ -424,7 +423,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             },
             destinationSwapQuote,
             steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
-            totalSlippage: 0.009,
           },
         },
       ])
@@ -566,7 +564,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             },
             destinationSwapQuote,
             steps: ['cctpBridge', 'destinationSwap'],
-            totalSlippage: 0.0067,
           },
         },
       ])
@@ -659,7 +656,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
               amount: parseUnits('292.04', 6), // toAmountMin from source swap
             },
             steps: ['sourceSwap', 'cctpBridge'],
-            totalSlippage: 0.0067,
           },
         },
       ])
@@ -876,7 +872,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           },
           destinationSwapQuote,
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
-          totalSlippage: 0.1,
         },
       })
 
@@ -898,7 +893,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
               amount: parseUnits('185', 6),
             },
             steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
-            totalSlippage: 0.1,
           },
         },
       ])
@@ -995,7 +989,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
                 amount: parseUnits(swapAmount.toString(), 6),
               },
               steps: ['cctpBridge'],
-              totalSlippage: 0.01,
             },
           }
         })
@@ -1025,7 +1018,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
                   amount: parseUnits(swapAmount.toString(), 6),
                 },
                 steps: ['cctpBridge'],
-                totalSlippage: 0.01,
               },
             },
           ]
@@ -1182,7 +1174,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         strategy: 'CCTPLiFi',
         context: {
           steps: ['cctpBridge'],
-          totalSlippage: 0.01,
           cctpTransfer: {
             sourceChain: 1,
             destinationChain: 10,
@@ -1202,7 +1193,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           strategy: 'CCTPLiFi' as const,
           context: {
             steps: ['cctpBridge'],
-            totalSlippage: 0.01,
             cctpTransfer: {
               sourceChain: 1,
               destinationChain: 10,

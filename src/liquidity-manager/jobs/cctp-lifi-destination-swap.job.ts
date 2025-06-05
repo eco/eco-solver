@@ -203,7 +203,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       amountOut: BigInt(destinationSwapQuote.toAmount),
       slippage:
         1 -
-        parseFloat(destinationSwapQuote.toAmountMin) / parseFloat(destinationSwapQuote.toAmount),
+        parseFloat(destinationSwapQuote.toAmountMin) / parseFloat(destinationSwapQuote.fromAmount),
       strategy: 'LiFi' as const,
       context: destinationSwapQuote,
     }
