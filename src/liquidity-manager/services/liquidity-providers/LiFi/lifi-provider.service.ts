@@ -28,6 +28,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   ) {}
 
   async onModuleInit() {
+    const liFiConfig = this.ecoConfigService.getLiFi()
+
     // Use first intent source's network as the default network
     const [intentSource] = this.ecoConfigService.getIntentSources()
 
@@ -36,7 +38,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
     // Configure LiFi providers
     createConfig({
-      integrator: 'Eco',
+      integrator: liFiConfig.integrator,
+      apiKey: liFiConfig.apiKey,
       rpcUrls: this.getLiFiRPCUrls(),
       providers: [
         EVM({
