@@ -2,7 +2,6 @@ import * as _ from 'lodash'
 import { BulkJobOptions, Job } from 'bullmq'
 import { encodePacked, Hex, keccak256 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
@@ -30,14 +29,10 @@ export class ExecuteWithdrawsJobManager extends IntentProcessorJobManager<Execut
     data: ExecuteWithdrawsJob['data']
     opts?: BulkJobOptions
   } {
-    const intentHashes = _.map(jobData.intents, 'routeHash')
-    const jobId = keccak256(encodePacked(['bytes32[]'], [intentHashes]))
-
     return {
       name: IntentProcessorJobName.EXECUTE_WITHDRAWS,
       data: serialize(jobData),
       opts: {
-        jobId,
         attempts: 3,
         backoff: {
           type: 'exponential',
