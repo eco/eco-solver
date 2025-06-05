@@ -58,7 +58,7 @@ export class WalletFulfillService implements IFulfillService {
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
 
     // Create transactions for intent targets
-    const targetSolveTxs = [] // this.getTransactionsForTargets(model, solver)
+    const targetSolveTxs = this.getTransactionsForTargets(model, solver)
 
     const nativeCalls = getNativeCalls(model.intent.route.calls)
     const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
@@ -179,7 +179,7 @@ export class WalletFulfillService implements IFulfillService {
    */
   private getTransactionsForTargets(model: IntentSourceModel, solver: Solver) {
     const functionCalls = getFunctionCalls(model.intent.route.calls)
-    const nativeCalls = getNativeCalls(model.intent.route.calls)
+
     // Create transactions for intent targets
     const functionFulfills = functionCalls.flatMap((call) => {
       const tt = getTransactionTargetData(solver, call)
@@ -205,20 +205,6 @@ export class WalletFulfillService implements IFulfillService {
           return []
       }
     })
-    const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
-    // Don't add the native fulfill if there is no value
-    if (nativeFulfill.value && nativeFulfill.value > 0n) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Adding native fulfill`,
-          properties: {
-            nativeFulfill,
-            nativeCalls,
-          },
-        }),
-      )
-      functionFulfills.push(nativeFulfill)
-    }
 
     return functionFulfills
   }
