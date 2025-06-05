@@ -67,6 +67,7 @@ export type EcoConfigType = {
     pinoConfig: PinoParams
   }
   liquidityManager: LiquidityManagerConfig
+  liFi: LiFiConfigType
   indexer: IndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
@@ -322,6 +323,11 @@ export interface LiquidityManagerConfig {
     token: Hex
     chainID: number
   }[]
+}
+
+export interface LiFiConfigType {
+  integrator: string
+  apiKey?: string
 }
 
 export interface IndexerConfig {
