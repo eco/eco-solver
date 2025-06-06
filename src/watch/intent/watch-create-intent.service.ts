@@ -75,7 +75,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
-      fromBlock: this.lastIndexedBlocks[source.chainID.toString()] ? this.lastIndexedBlocks[source.chainID.toString()]! + BigInt(1) : undefined,
+      fromBlock: this.lastIndexedBlocks[source.chainID.toString()]
+        ? this.lastIndexedBlocks[source.chainID.toString()]! + BigInt(1)
+        : undefined,
       onLogs: this.addJob(source),
     })
   }
