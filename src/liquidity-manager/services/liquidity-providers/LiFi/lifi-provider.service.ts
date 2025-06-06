@@ -36,11 +36,22 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address
 
+    const rpcUrls = this.getLiFiRPCUrls()
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'LiFi provider service initialized',
+        properties: {
+          rpcUrls,
+        },
+      }),
+    )
+
     // Configure LiFi providers
     createConfig({
       integrator: liFiConfig.integrator,
       apiKey: liFiConfig.apiKey,
-      rpcUrls: this.getLiFiRPCUrls(),
+      rpcUrls: rpcUrls,
       providers: [
         EVM({
           getWalletClient: () => Promise.resolve(client),
