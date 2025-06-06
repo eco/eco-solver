@@ -56,3 +56,7 @@ export function isInsufficient(ask: NormalizedTotal, reward: NormalizedTotal): b
 export function isGreaterEqual(a: NormalizedTotal, b: NormalizedTotal): boolean {
   return a.token >= b.token && a.native >= b.native
 }
+
+export function formatNormalizedTotal(total: NormalizedTotal): string {
+  return `Token: ${total.token.toString()} - Native: ${total.native}`
+}

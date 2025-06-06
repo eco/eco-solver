@@ -2,7 +2,8 @@ import { EcoError } from '@/common/errors/eco-error'
 import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { Hex } from 'viem'
-import { NormalizedTotal } from '../fee/types'
+import { NormalizedTotal } from '@/fee/types'
+import { formatNormalizedTotal } from '@/fee/utils'
 
 /**
  * Errors that can be thrown by the quote service
@@ -11,6 +12,7 @@ export interface QuoteErrorsInterface {
   statusCode: number
   message: string
   code: number
+
   [key: string]: any
 }
 
@@ -67,7 +69,7 @@ export function InvalidQuoteIntent(validations: ValidationChecks): Quote400 {
  * reward hight enough to cover the ask
  *
  * @param totalAsk the total amount of the ask
- * @param totalRewardAmount the total amount of the reward
+ * @param totalFulfillment
  * @returns
  */
 export function InsufficientBalance(
@@ -101,9 +103,9 @@ export function InvalidQuote(
   results: (
     | false
     | {
-      solvent: boolean
-      profitable: boolean
-    }
+        solvent: boolean
+        profitable: boolean
+      }
     | undefined
   )[],
 ): Quote400 {
@@ -114,14 +116,15 @@ export function InvalidQuote(
     results,
   }
 }
+
 // The quote is deemed to be insolvent or unprofitable by the feasibility service
 export function InsolventUnprofitableQuote(
   results: (
     | false
     | {
-      solvent: boolean
-      profitable: boolean
-    }
+        solvent: boolean
+        profitable: boolean
+      }
     | undefined
   )[],
 ): Quote400 {
@@ -207,13 +210,13 @@ export class QuoteError extends Error {
 
   static RouteIsInfeasable(ask: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
-      `The route is not infeasable: the reward ${JSON.stringify(reward)} is less than the ask ${JSON.stringify(ask)}`,
+      `The route is not infeasable: the reward ${formatNormalizedTotal(reward)} is less than the ask ${formatNormalizedTotal(ask)}`,
     )
   }
 
   static RewardIsInfeasable(fee: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
-      `The reward is infeasable: the reward ${JSON.stringify(reward)} is less than the fee ${JSON.stringify(fee)}`,
+      `The reward is infeasable: the reward ${formatNormalizedTotal(reward)} is less than the fee ${formatNormalizedTotal(fee)}`,
     )
   }
 
