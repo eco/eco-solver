@@ -1,10 +1,10 @@
-import { RewardTokensInterface } from '@/contracts'
-import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
-import { RewardType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
-import { plainToInstance, Transform, Type } from 'class-transformer'
-import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { getAddress, Hex } from 'viem'
+import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
+import { plainToInstance, Transform, Type } from 'class-transformer'
+import { RewardTokensInterface } from '@/contracts'
+import { RewardType } from '@eco-foundation/routes-ts'
+import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except
@@ -38,7 +38,6 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
   nativeValue: bigint
 
   @IsArray()
-  @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteRewardTokensDTO)
