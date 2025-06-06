@@ -17,7 +17,9 @@ import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
-import { EcoError } from '../common/errors/eco-error'
+import { EcoError } from '@/common/errors/eco-error'
+import { TransportOptions } from '@/common/chains/transport'
+
 /**
  * Service class for managing application configuration from multiple sources.
  *
@@ -295,6 +297,10 @@ export class EcoConfigService {
     return Object.fromEntries(entries)
   }
 
+  getCustomRPCUrl(chainID: string) {
+    return this.getRpcConfig().custom?.[chainID]
+  }
+
   /**
    * Returns the RPC URL for a given chain, prioritizing custom endpoints (like Caldera or Alchemy)
    * over default ones when available. For WebSocket connections, returns WebSocket URLs when available.
@@ -302,10 +308,16 @@ export class EcoConfigService {
    * @param websocketEnabled Whether to return a WebSocket URL if available
    * @returns The RPC URL string for the specified chain
    */
-  getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
+  getRpcUrl(
+    chain: Chain,
+    websocketEnabled: boolean = false,
+  ): { rpcUrl: string; options: TransportOptions } {
     const rpcChain = this.ecoChains.getChain(chain.id)
     const custom = rpcChain.rpcUrls.custom
     const def = rpcChain.rpcUrls.default
+
+    const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
+
     websocketEnabled = true
     let rpc: string | undefined
     if (websocketEnabled) {
@@ -313,15 +325,21 @@ export class EcoConfigService {
     } else {
       rpc = custom?.http?.[0] || def?.http?.[0]
     }
+
+    let options: TransportOptions['options']
+
+    if (customRpcUrls) {
+      const { http, webSocket } = customRpcUrls
+      options = customRpcUrls.options
+      websocketEnabled = Boolean(webSocket)
+      rpc = websocketEnabled ? webSocket![0] : http[0]
+    }
+
     if (!rpc) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
-    return {
-      rpcUrl: rpc,
-      options: {
-        isWebsocket: websocketEnabled,
-      },
-    }
+
+    return { rpcUrl: rpc, options: { isWebsocket: websocketEnabled, options } }
   }
 
   /**

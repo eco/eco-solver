@@ -4,7 +4,7 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex } from 'viem'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
@@ -274,6 +274,14 @@ export type RpcConfigType = {
   keys: {
     [key in keyof typeof ConfigRegex]?: string
   }
+  custom?: Record<
+    string, // Chain ID
+    {
+      http: string[]
+      webSocket?: string[]
+      options?: WebSocketTransportConfig | HttpTransportConfig
+    }
+  >
 }
 
 /**
