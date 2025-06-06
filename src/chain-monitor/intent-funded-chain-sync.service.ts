@@ -76,11 +76,21 @@ export class IntentFundedChainSyncService extends ChainSyncService {
       toBlock,
     })
 
-    // fixme: Make sure it's one of ours. Describe how we could end up not having the intent in the database.
-    const intentFundedLogs = allIntentFundedLogs.filter(async (log) => {
-      const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
-      return !error
-    })
+    /* Make sure it's one of ours. It might not be ours because:
+     * .The intent was created by another solver, so won't be in our database.
+     * .The intent was not even a gasless one! Remember, publishAndFund() *also* emits IntentFunded events,
+     *  and those ones are not gasless intents.
+     */
+    const resolvedLogs = await Promise.all(
+      allIntentFundedLogs.map(async (log) => {
+        const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
+        return { log, keep: !error }
+      }),
+    )
+
+    const intentFundedLogs = resolvedLogs
+      .filter((result) => result.keep)
+      .map((result) => result.log)
 
     if (intentFundedLogs.length === 0) {
       this.logger.log(
