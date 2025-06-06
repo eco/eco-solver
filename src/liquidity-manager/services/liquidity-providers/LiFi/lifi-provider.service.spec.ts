@@ -42,6 +42,8 @@ describe('LiFiProviderService', () => {
     kernelAccountClientService = chainMod.get(KernelAccountClientV2Service)
 
     kernelAccountClientService['getAddress'] = jest.fn().mockResolvedValue(zeroAddress)
+
+    jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco' })
   })
 
   afterEach(() => {
