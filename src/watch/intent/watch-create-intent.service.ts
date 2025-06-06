@@ -22,8 +22,6 @@ import * as BigIntSerializer from '@/common/utils/serialize'
 export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   protected logger = new Logger(WatchCreateIntentService.name)
 
-  private lastIndexedBlocks: Record<string, bigint | undefined> = {}
-
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
@@ -75,8 +73,8 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
-      fromBlock: this.lastIndexedBlocks[source.chainID.toString()]
-        ? this.lastIndexedBlocks[source.chainID.toString()]! + BigInt(1)
+      fromBlock: this.lastIndexedBlock[source.chainID.toString()]
+        ? this.lastIndexedBlock[source.chainID.toString()]! + BigInt(1)
         : undefined,
       onLogs: this.addJob(source),
     })
@@ -88,7 +86,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
 
-        this.lastIndexedBlocks[log.sourceChainID.toString()] = log.blockNumber
+        this.lastIndexedBlock[log.sourceChainID.toString()] = log.blockNumber
 
         // bigint as it can't serialize to JSON
         const createIntent = BigIntSerializer.serialize(log)

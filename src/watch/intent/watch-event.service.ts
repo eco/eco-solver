@@ -16,6 +16,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   protected logger: Logger
   protected intentJobConfig: JobsOptions
   protected unwatch: Record<string, WatchContractEventReturnType> = {}
+  protected lastIndexedBlock: Record<string, bigint | undefined> = {}
 
   constructor(
     protected readonly queue: Queue,
