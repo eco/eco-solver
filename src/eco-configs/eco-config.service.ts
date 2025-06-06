@@ -108,6 +108,11 @@ export class EcoConfigService {
     return this.get('fulfillment')
   }
 
+  getGaslessIntentdAppIDs(): string[] {
+    const gaslessIntentdAppIDs = this.get<string[]>('gaslessIntentdAppIDs') || []
+    return gaslessIntentdAppIDs
+  }
+
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {

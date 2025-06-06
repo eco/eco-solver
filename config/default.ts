@@ -82,9 +82,13 @@ export default {
       },
     },
   },
+
   quotesConfig: {
     intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
   },
+
+  gaslessIntentdAppIDs: ['token-pair-validation', 'matrix-test', 'test', 'sdk-demo'],
+
   intentConfigs: {
     isNativeSupported: true,
     defaultFee: {

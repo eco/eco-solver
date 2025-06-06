@@ -1,5 +1,5 @@
 import { BalanceController } from '@/api/balance.controller'
-// import { IntentInitiationController } from '@/api/intent-initiation.controller'
+import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { QuoteController } from '@/api/quote.controller'
 import { BalanceModule } from '@/balance/balance.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -17,7 +17,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
     }),
     QuoteModule,
   ],
-  controllers: [BalanceController, QuoteController /*IntentInitiationController*/],
+  controllers: [BalanceController, QuoteController, IntentInitiationController],
   providers: [
     {
       provide: APP_INTERCEPTOR,

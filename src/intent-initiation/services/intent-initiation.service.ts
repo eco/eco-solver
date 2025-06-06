@@ -1,4 +1,5 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -33,13 +34,16 @@ export class IntentInitiationService implements OnModuleInit {
   private permit2Processor: Permit2Processor
   private kernelAccountClientService: KernelAccountClientService
   private createIntentService: CreateIntentService
+  private gaslessIntentdAppIDs: string[]
 
   constructor(
     private readonly permitValidationService: PermitValidationService,
+    private readonly ecoConfigService: EcoConfigService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
+    this.gaslessIntentdAppIDs = this.ecoConfigService.getGaslessIntentdAppIDs()
     this.quoteRepository = this.moduleRef.get(QuoteRepository, { strict: false })
     this.permitProcessor = this.moduleRef.get(PermitProcessor, { strict: false })
     this.permit2Processor = this.moduleRef.get(Permit2Processor, { strict: false })
@@ -58,6 +62,12 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<GaslessIntentResponseDTO>> {
     try {
+      const { error } = this.checkGaslessIntentSupported(gaslessIntentRequestDTO)
+
+      if (error) {
+        return { error }
+      }
+
       return await this._initiateGaslessIntent(gaslessIntentRequestDTO)
     } catch (ex) {
       this.logger.error(
@@ -72,6 +82,24 @@ export class IntentInitiationService implements OnModuleInit {
 
       return { error: InternalQuoteError(ex) }
     }
+  }
+
+  private checkGaslessIntentSupported(
+    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+  ): EcoResponse<void> {
+    const { dAppID } = gaslessIntentRequestDTO
+
+    if (!this.gaslessIntentdAppIDs.includes(dAppID)) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `checkGaslessIntentSupported: dAppID: ${dAppID} not supported for gasless intents`,
+        }),
+      )
+
+      return { error: EcoError.GaslessIntentsNotSupported }
+    }
+
+    return {}
   }
 
   /**

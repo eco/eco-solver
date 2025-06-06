@@ -78,6 +78,7 @@ export class EcoError extends Error {
   static IntentNotFound = new Error('Intent not found')
   static QuoteNotFound = new Error('Quote not found')
   static QuoteDBUpdateError = new Error('Quote not found')
+  static GaslessIntentsNotSupported = new Error('Gasless intents are not supported')
   static NoPermitsProvided = new Error('At least one permit must be provided')
   static AllPermitsMustBeOnSameChain = new Error(
     `All Permits must be on the same chain for batching`,
