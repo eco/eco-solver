@@ -4,7 +4,15 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { InfeasibleQuote, InsufficientBalance, InternalQuoteError, InternalSaveError, InvalidQuoteIntent, Quote400, SolverUnsupported } from '@/quote/errors'
+import {
+  InfeasibleQuote,
+  InsufficientBalance,
+  InternalQuoteError,
+  InternalSaveError,
+  InvalidQuoteIntent,
+  Quote400,
+  SolverUnsupported,
+} from '@/quote/errors'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'

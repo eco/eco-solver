@@ -1,6 +1,5 @@
-import * as _ from 'lodash'
 import { BulkJobOptions, Job } from 'bullmq'
-import { encodePacked, Hex, keccak256 } from 'viem'
+import { Hex } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
