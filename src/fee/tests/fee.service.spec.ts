@@ -1202,6 +1202,9 @@ describe('FeeService', () => {
             destination: 1n,
             calls: [],
           },
+          reward: {
+            nativeValue: 0n,
+          },
         }
 
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)

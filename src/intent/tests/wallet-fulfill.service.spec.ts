@@ -86,7 +86,7 @@ describe('WalletFulfillService', () => {
   const solver = { inboxAddress: address1, chainID: 8453n } as any
   const model = {
     intent: {
-      route: { hash, destination: 1n, getHash: () => '0x6543' },
+      route: { hash, destination: 1n, calls: [], getHash: () => '0x6543' },
       reward: { getHash: () => '0x123abc' },
       getHash: () => {
         return { intentHash: '0xaaaa999' }
@@ -124,7 +124,7 @@ describe('WalletFulfillService', () => {
         )
 
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentTx = jest.fn()
+        const mockGetFulfillIntentTx = jest.fn().mockResolvedValue({ value: 0n })
         fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
@@ -135,7 +135,7 @@ describe('WalletFulfillService', () => {
       it('should throw if the finalFeasibilityCheck throws', async () => {
         const error = new Error('stuff went bad')
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentTx = jest.fn()
+        const mockGetFulfillIntentTx = jest.fn().mockResolvedValue({ value: 0n })
         fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)

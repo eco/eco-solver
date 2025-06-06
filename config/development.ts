@@ -102,10 +102,4 @@ export default {
       baseUrl: 'http://localhost:4000',
     },
   },
-
-  solverRegistrationConfig: {
-    apiOptions: {
-      baseUrl: 'http://localhost:4000',
-    },
-  },
 }

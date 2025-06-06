@@ -35,6 +35,18 @@ jest.mock('@/intent/utils', () => {
   }
 })
 
+// Create mock wallet client
+const walletClient = {
+  writeContract: jest.fn().mockResolvedValue('0xTransactionHash'),
+  sendTransaction: jest.fn().mockResolvedValue('0xTransactionHash'),
+}
+
+// Create mock public client
+const publicClient = createMock<PublicClient<Transport, Chain>>({
+  chain: { id: 10 },
+  waitForTransactionReceipt: jest.fn().mockResolvedValue({}),
+})
+
 describe('QuotesService', () => {
   let quoteService: QuoteService
   let quoteRepository: QuoteRepository
@@ -42,6 +54,7 @@ describe('QuotesService', () => {
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let quoteModel: DeepMocked<Model<QuoteIntentModel>>
+  let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
@@ -54,14 +67,23 @@ describe('QuotesService', () => {
         QuoteService,
         QuoteRepository,
         IntentInitiationService,
+        PermitValidationService,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
+          provide: WalletClientDefaultSignerService,
+          useValue: {
+            getClient: jest.fn().mockResolvedValue(walletClient),
+            getPublicClient: jest.fn().mockResolvedValue(publicClient),
+          },
+        },
+        {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),
         },
+        { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
       ],
     }).compile()
 
@@ -72,6 +94,7 @@ describe('QuotesService', () => {
 
     ecoConfigService = chainMod.get(EcoConfigService)
     quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
+    fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     quoteService['logger'].debug = mockLogDebug
     quoteService['logger'].log = mockLogLog
@@ -478,13 +501,13 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [{ address: '0x2', balance: 200n }],
-          calls: [{ balance: 150n }],
+          calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
             { delta: { balance: -100n, address: '0x1' } },
             { delta: { balance: -50n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }], 9)
+        await generateHelper(calculated, [{ token: '0x2', amount: 150n }], 0n, 0)
       })
 
       it('should handle native gas token rewards correctly', async () => {

@@ -63,12 +63,10 @@ export class WalletFulfillService implements IFulfillService {
     const nativeCalls = getNativeCalls(model.intent.route.calls)
     const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
 
-    const nativeCalls = getNativeCalls(model.intent.route.calls)
-    const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
-
     // Create fulfill tx
     const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
-    fulfillTx.value! += nativeFulfill?.value || 0n // Add the native fulfill value to the fulfill tx
+    fulfillTx.value = fulfillTx.value ?? 0n
+    fulfillTx.value += nativeFulfill?.value || 0n // Add the native fulfill value to the fulfill tx
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]

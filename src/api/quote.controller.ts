@@ -88,40 +88,4 @@ export class QuoteController {
       error: { message: error.message || JSON.stringify(error) },
     })
   }
-
-  @Post('/reverse')
-  async getReverseQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Received reverse quote request:`,
-        properties: {
-          quoteIntentDataDTO,
-        },
-      }),
-    )
-    const { response: quote, error } = await this.quoteService.getReverseQuote(quoteIntentDataDTO)
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Responding to reverse quote request:`,
-        properties: {
-          quote,
-        },
-      }),
-    )
-
-    if (error) {
-      const errorStatus = (error as QuoteErrorsInterface).statusCode
-      if (errorStatus) {
-        switch (errorStatus) {
-          case 400:
-            throw new BadRequestException(serialize(error))
-          case 500:
-          default:
-            throw new InternalServerErrorException(serialize(error))
-        }
-      }
-    }
-
-    return quote!
-  }
 }

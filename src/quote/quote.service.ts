@@ -512,6 +512,9 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
+
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
