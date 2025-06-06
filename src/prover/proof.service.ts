@@ -133,8 +133,25 @@ export class ProofService implements OnModuleInit {
 
     for (const proverIndex in provers) {
       const proverAddr = provers[proverIndex]
-      const { result: proofType } = proofTypeResults[proverIndex]
-      proofObj[proverAddr] = this.getProofTypeFromString(proofType!)
+      const { result: proofType, error } = proofTypeResults[proverIndex]
+
+      if (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `getProofTypes: error fetching proof type`,
+            properties: {
+              chainID,
+              proverAddr,
+              error: error.message,
+            },
+          }),
+        )
+        continue
+      }
+
+      if (proofType) {
+        proofObj[proverAddr] = this.getProofTypeFromString(proofType!)
+      }
     }
 
     return proofObj

@@ -60,7 +60,8 @@ export class CreateIntentService implements OnModuleInit {
       EcoLogMessage.fromDefault({
         message: `createIntent ${intentWs.transactionHash}`,
         properties: {
-          intentHash: intentWs.transactionHash,
+          transactionHash: intentWs.transactionHash,
+          intentHash: intentWs.args?.hash,
         },
       }),
     )

@@ -49,7 +49,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
    */
   abstract subscribeTo(client: PublicClient, contract: T): Promise<void>
 
-  abstract addJob(source: T): (logs: Log[]) => Promise<void>
+  abstract addJob(source: T, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void>
 
   /**
    * Unsubscribes from all events. It closes all clients in {@link onModuleDestroy}

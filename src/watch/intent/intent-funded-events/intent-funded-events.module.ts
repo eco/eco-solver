@@ -9,6 +9,7 @@ import {
 } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
 import { TransactionModule } from '@/transaction/transaction.module'
+import { IntentModule } from '@/intent/intent.module'
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TransactionModule } from '@/transaction/transaction.module'
     MongooseModule.forFeature([
       { name: IntentFundedEventModel.name, schema: IntentFundedEventSchema },
     ]),
+    IntentModule,
   ],
   providers: [WatchIntentFundedService, IntentFundedEventRepository],
   exports: [WatchIntentFundedService, IntentFundedEventRepository, MongooseModule],

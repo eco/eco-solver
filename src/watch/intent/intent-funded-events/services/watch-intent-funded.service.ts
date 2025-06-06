@@ -1,3 +1,4 @@
+import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getIntentJobId } from '@/common/utils/strings'
@@ -27,6 +28,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     private readonly intentFundedEventRepository: IntentFundedEventRepository,
     protected readonly publicClientService: MultichainPublicClientService,
+    private createIntentService: CreateIntentService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {
     super(intentQueue, publicClientService, ecoConfigService)
@@ -74,13 +76,45 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
-      onLogs: this.addJob(source),
+      onLogs: async (logs: Log[]): Promise<void> => {
+        await this.addJob(source, { doValidation: true })(logs)
+      },
     })
   }
 
-  addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
+  private async isOurIntent(log: IntentFundedLog): Promise<boolean> {
+    /* Make sure it's one of ours. It might not be ours because:
+     * .The intent was created by another solver, so won't be in our database.
+     * .The intent was not even a gasless one! Remember, publishAndFund() *also* emits IntentFunded events,
+     *  and those ones are not gasless intents.
+     */
+    const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
+
+    if (error) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `IntentFunded event is not ours, skipping`,
+          properties: {
+            intentHash: log.args.intentHash,
+          },
+        }),
+      )
+    }
+
+    return !error
+  }
+
+  addJob(source: IntentSource, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void> {
     return async (logs: IntentFundedLog[]) => {
       for (const log of logs) {
+        // Validate the log to ensure it is an IntentFunded event we care about
+        if (opts?.doValidation) {
+          const isValidLog = await this.isOurIntent(log)
+          if (!isValidLog) {
+            continue
+          }
+        }
+
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
 
@@ -92,7 +126,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
-            message: `watch intent funded`,
+            message: `addJob: watch intent funded`,
             properties: { intentFunded, jobId },
           }),
         )
