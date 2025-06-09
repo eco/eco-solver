@@ -79,6 +79,9 @@ describe('CreateIntentService', () => {
       transactionHash: '0x123',
       topics: ['0x456'],
       sourceChainID: 85432,
+      args: {
+        hash: '0x9494',
+      },
     }
     const mockIntent = {
       reward: { creator: '0xaaa' },
@@ -96,7 +99,8 @@ describe('CreateIntentService', () => {
       createIntentService.createIntent(mockEvent as any)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `createIntent ${mockEvent.transactionHash}`,
-        intentHash: mockEvent.transactionHash,
+        transactionHash: mockEvent.transactionHash,
+        intentHash: mockEvent.args.hash,
       })
       expect(mockDecodeCreateIntentLog).toHaveBeenCalledWith(mockEvent.data, mockEvent.topics)
     })

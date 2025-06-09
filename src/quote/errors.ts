@@ -2,6 +2,8 @@ import { EcoError } from '@/common/errors/eco-error'
 import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { Hex } from 'viem'
+import { NormalizedTotal } from '@/fee/types'
+import { formatNormalizedTotal } from '@/fee/utils'
 
 /**
  * Errors that can be thrown by the quote service
@@ -10,6 +12,7 @@ export interface QuoteErrorsInterface {
   statusCode: number
   message: string
   code: number
+
   [key: string]: any
 }
 
@@ -66,10 +69,13 @@ export function InvalidQuoteIntent(validations: ValidationChecks): Quote400 {
  * reward hight enough to cover the ask
  *
  * @param totalAsk the total amount of the ask
- * @param totalRewardAmount the total amount of the reward
+ * @param totalFulfillment
  * @returns
  */
-export function InsufficientBalance(totalAsk: bigint, totalFulfillmentAmount: bigint): Quote400 {
+export function InsufficientBalance(
+  totalAsk: NormalizedTotal,
+  totalFulfillment: NormalizedTotal,
+): Quote400 {
   return {
     statusCode: 400,
     message:
@@ -77,7 +83,7 @@ export function InsufficientBalance(totalAsk: bigint, totalFulfillmentAmount: bi
     code: 5,
     properties: {
       totalAsk,
-      totalFulfillmentAmount,
+      totalFulfillment,
     },
   }
 }
@@ -110,6 +116,7 @@ export function InvalidQuote(
     results,
   }
 }
+
 // The quote is deemed to be insolvent or unprofitable by the feasibility service
 export function InsolventUnprofitableQuote(
   results: (
@@ -152,7 +159,7 @@ export function InternalSaveError(error: Error): Quote500 {
 export function InternalQuoteError(error?: Error): Quote500 {
   return {
     statusCode: 500,
-    message: 'Internal Server Error: Failed generate quote.',
+    message: `Internal Server Error: Failed generate quote. ${error?.toString()}`,
     code: 2,
     error,
   }
@@ -171,6 +178,10 @@ export class QuoteError extends Error {
 
   static NoIntentSourceForSource(source: bigint) {
     return new EcoError(`No intent source found for source chain ${source}`)
+  }
+
+  static NoIntentSourceForDestination(destination: bigint) {
+    return new EcoError(`No intent source found for destination chain ${destination}`)
   }
 
   static FetchingRewardTokensFailed(chainID: bigint) {
@@ -197,9 +208,15 @@ export class QuoteError extends Error {
     )
   }
 
-  static RouteIsInfeasable(ask: bigint, reward: bigint) {
+  static RouteIsInfeasable(ask: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
-      `The route is not infeasable: the reward ${reward} is less than the ask ${ask}`,
+      `The route is not infeasable: the reward ${formatNormalizedTotal(reward)} is less than the ask ${formatNormalizedTotal(ask)}`,
+    )
+  }
+
+  static RewardIsInfeasable(fee: NormalizedTotal, reward: NormalizedTotal) {
+    return new EcoError(
+      `The reward is infeasable: the reward ${formatNormalizedTotal(reward)} is less than the fee ${formatNormalizedTotal(fee)}`,
     )
   }
 

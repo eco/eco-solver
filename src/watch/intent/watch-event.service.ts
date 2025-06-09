@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@ne
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
-import { PublicClient, WatchContractEventReturnType } from 'viem'
+import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
 
@@ -48,6 +48,8 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * @param contract the contract to subscribe to
    */
   abstract subscribeTo(client: PublicClient, contract: T): Promise<void>
+
+  abstract addJob(source: T, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void>
 
   /**
    * Unsubscribes from all events. It closes all clients in {@link onModuleDestroy}
