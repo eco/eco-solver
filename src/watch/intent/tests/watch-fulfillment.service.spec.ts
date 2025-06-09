@@ -112,11 +112,13 @@ describe('WatchFulfillmentService', () => {
 
     describe('on fulfillment', () => {
       const log = { args: { _hash: BigInt(1), logIndex: BigInt(2) } } as any
+      const solver = { chainID: 1 } as any
       let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
+
 
       beforeEach(async () => {
         mockQueueAdd = jest.spyOn(queue, 'add')
-        await watchFulfillmentService.addJob()([log])
+        await watchFulfillmentService.addJob(solver)([log])
         expect(mockLogDebug).toHaveBeenCalledTimes(1)
       })
 
