@@ -115,7 +115,6 @@ describe('WatchFulfillmentService', () => {
       const solver = { chainID: 1 } as any
       let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
 
-
       beforeEach(async () => {
         mockQueueAdd = jest.spyOn(queue, 'add')
         await watchFulfillmentService.addJob(solver)([log])
