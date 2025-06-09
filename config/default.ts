@@ -145,9 +145,6 @@ export default {
     defaultGasPriceGwei: '30',
   },
 
-  indexer: {
-    url: 'https://indexer.eco.com',
-  },
   withdraws: {
     chunkSize: 20,
     intervalDuration: 360_000,
