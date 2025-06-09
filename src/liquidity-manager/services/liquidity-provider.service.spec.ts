@@ -6,9 +6,7 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
-import {
-  StargateProviderService
-} from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
