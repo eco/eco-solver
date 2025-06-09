@@ -10,7 +10,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 export class ViemMultichainClientService<T extends Client, V extends ClientConfig>
   implements OnModuleInit
 {
-  private logger = new Logger(ViemMultichainClientService.name)
+  protected logger2 = new Logger(ViemMultichainClientService.name)
   readonly instances: Map<number, T> = new Map()
 
   protected supportedAlchemyChainIds: number[] = []
@@ -69,7 +69,7 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
     //only pass api key if chain is supported by alchemy, otherwise it'll be incorrectly added to other rpcs
     const { rpcUrl, options } = this.ecoConfigService.getRpcUrl(chain)
 
-    this.logger.debug(
+    this.logger2.debug(
       EcoLogMessage.fromDefault({
         message: `Chain config: ${chain.id}`,
         properties: { rpcUrl, options },
