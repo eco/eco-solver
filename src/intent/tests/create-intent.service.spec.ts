@@ -81,7 +81,7 @@ describe('CreateIntentService', () => {
       sourceChainID: 85432,
       args: {
         hash: '0x9494',
-      }
+      },
     }
     const mockIntent = {
       reward: { creator: '0xaaa' },

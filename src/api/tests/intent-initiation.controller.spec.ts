@@ -17,6 +17,8 @@ import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { TransactionReceipt } from 'viem'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { createMock } from '@golevelup/ts-jest'
 
 const intentTestUtils = new IntentTestUtils()
 
@@ -40,6 +42,10 @@ describe('IntentInitiationController', () => {
         {
           provide: WalletClientDefaultSignerService,
           useClass: quoteTestUtils.getMockWalletClientDefaultSignerService(),
+        },
+        {
+          provide: EcoConfigService,
+          useValue: createMock<EcoConfigService>(),
         },
       ])
       .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])

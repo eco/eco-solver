@@ -117,6 +117,11 @@ describe('IntentInitiationService', () => {
   })
 
   describe('Intent Execution', () => {
+    beforeEach(() => {
+      // Mock checkGaslessIntentSupported implementation
+      service['checkGaslessIntentSupported'] = () => ({})
+    })
+
     it('fails if quote not found', async () => {
       const dto = intentTestUtils.createGaslessIntentRequestDTO({
         usePermit: false,
