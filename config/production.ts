@@ -1,4 +1,8 @@
 export default {
+  server: {
+    url: 'https://solver.prod.bend.eco',
+  },
+
   aws: [
     {
       region: 'us-east-2',
@@ -10,8 +14,18 @@ export default {
     },
     {
       region: 'us-east-2',
+      secretID: 'eco-solver-configs-chains-prod',
+    },
+    {
+      region: 'us-east-2',
       secretID: 'eco-solver-whitelist-prod',
     },
   ],
   //don't add anything else here
+
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: 'https://quotes.eco.com',
+    },
+  },
 }

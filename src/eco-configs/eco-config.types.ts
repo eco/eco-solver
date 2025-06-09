@@ -8,20 +8,22 @@ import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { ConfigRegex } from '@eco-foundation/chains'
 
 // The config type that we store in json
 export type EcoConfigType = {
-  server: {
-    url: string
-  }
+  server: ServerConfig
+  gasEstimations: GasEstimationsConfig
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
   intervals: IntervalConfig
+  quotesConfig: QuotesConfig
+  solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
   fulfillmentEstimate: FulfillmentEstimateConfig
-  alchemy: AlchemyConfigType
-  rpcUrls: RpcUrlsConfigType
+  rpcs: RpcConfigType
   cache: CacheModuleOptions
   launchDarkly: LaunchDarklyConfig
   eth: {
@@ -71,6 +73,7 @@ export type EcoConfigType = {
     addresses: Record<number, Hex>
   }
   liquidityManager: LiquidityManagerConfig
+  liFi: LiFiConfigType
   indexer: IndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
@@ -150,6 +153,7 @@ export type IntentConfig = {
     hyperlane_duration_seconds: number
     metalayer_duration_seconds: number
   }
+  isNativeSupported: boolean
 }
 
 /**
@@ -159,6 +163,32 @@ export type FulfillmentEstimateConfig = {
   executionPaddingSeconds: number
   blockTimePercentile: number
   defaultBlockTime: number
+}
+
+export type ServerConfig = {
+  url: string
+}
+
+export type GasEstimationsConfig = {
+  fundFor: bigint // 150_000n
+  permit: bigint // 60_000n
+  permit2: bigint // 80_000n
+  defaultGasPriceGwei: string // 30
+}
+
+/**
+ * The config type for the quotes section
+ */
+export type QuoteExecutionType = (typeof IntentExecutionTypeKeys)[number]
+
+export type QuotesConfig = {
+  intentExecutionTypes: QuoteExecutionType[]
+}
+
+export type SolverRegistrationConfig = {
+  apiOptions: {
+    baseUrl: string
+  }
 }
 
 /**
@@ -180,12 +210,18 @@ export type KmsConfig = {
 /**
  * The config type for a ERC20 transfer
  */
-export type FeeConfigType = {
-  //the maximum amount of tokens that can be filled in a single transaction,
-  //defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
-  limitFillBase6: bigint
-  algorithm: FeeAlgorithm
-  constants: FeeAlgorithmConfig<FeeAlgorithm>
+export type V2Limits = {
+  // The maximum amount of tokens that can be filled in a single transaction,
+  // defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
+  tokenBase6: bigint
+  // The max native gas that can be filled in a single transaction
+  nativeBase18: bigint
+}
+
+export type FeeConfigType<T extends FeeAlgorithm = 'linear'> = {
+  limit: V2Limits
+  algorithm: T
+  constants: FeeAlgorithmConfig<T>
 }
 
 /**
@@ -236,12 +272,21 @@ export type AlchemyNetwork = {
 }
 
 /**
- * The whole config type for QuickNode.
+ * The config type for the RPC section
  */
-export type RpcUrlsConfigType = Record<
-  string,
-  { http: string[]; webSocket?: string[]; options?: WebSocketTransportConfig | HttpTransportConfig }
->
+export type RpcConfigType = {
+  keys: {
+    [key in keyof typeof ConfigRegex]?: string
+  }
+  custom?: Record<
+    string, // Chain ID
+    {
+      http: string[]
+      webSocket?: string[]
+      options?: WebSocketTransportConfig | HttpTransportConfig
+    }
+  >
+}
 
 /**
  * The config type for a single solver configuration
@@ -253,6 +298,7 @@ export type Solver = {
   network: Network
   fee: FeeConfigType
   chainID: number
+
   // The average block time for the chain in seconds
   averageBlockTime: number
 }
@@ -266,10 +312,19 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
  * The fee algorithm constant config types
  */
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
-  ? { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
+  ? {
+      token: FeeAlgoLinear
+      native: FeeAlgoLinear
+    }
   : T extends 'quadratic'
-    ? { baseFee: bigint; quadraticFactor: bigint }
+    ? {
+        token: FeeAlgoQuadratic
+        native: FeeAlgoQuadratic
+      }
     : never
+
+export type FeeAlgoLinear = { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
+export type FeeAlgoQuadratic = { baseFee: bigint; quadraticFactor: bigint }
 
 /**
  * The config type for a supported target contract
@@ -326,6 +381,11 @@ export interface LiquidityManagerConfig {
     token: Hex
     chainID: number
   }[]
+}
+
+export interface LiFiConfigType {
+  integrator: string
+  apiKey?: string
 }
 
 export interface IndexerConfig {
@@ -398,23 +458,4 @@ export interface WarpRoutesConfig {
       synthetic: Hex
     }[]
   }[]
-}
-
-export interface IndexerConfig {
-  url: string
-}
-
-export interface WithdrawsConfig {
-  chunkSize: number
-  intervalDuration: number
-}
-
-export interface SendBatchConfig {
-  chunkSize: number
-  intervalDuration: number
-  defaultGasPerIntent: number
-}
-
-export interface HyperlaneConfig {
-  useHyperlaneDefaultHook?: boolean
 }

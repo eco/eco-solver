@@ -1,12 +1,6 @@
 import { Hex } from 'viem'
-import * as RoutesTs from '@eco-foundation/routes-ts'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
-
-// Mock the routes-ts module
-jest.mock('@eco-foundation/routes-ts', () => ({
-  hashIntent: jest.fn().mockReturnValue({ routeHash: '0xRoutehash' }),
-}))
 
 describe('Intent Utils', () => {
   describe('getWithdrawData', () => {
@@ -48,6 +42,36 @@ describe('Intent Utils', () => {
       const result = getWithdrawData(mockIntent)
 
       // Expected reward
+      const expectedRoute = {
+        calls: [
+          {
+            data: '0xData1',
+            target: '0xTarget1',
+            value: 100000000000000000n,
+          },
+          {
+            data: '0xData2',
+            target: '0xTarget2',
+            value: 200000000000000000n,
+          },
+        ],
+        destination: 2n,
+        inbox: '0xInbox',
+        salt: '0xSalt',
+        source: 1n,
+        tokens: [
+          {
+            amount: 4000000000000000000n,
+            token: '0xToken3',
+          },
+          {
+            amount: 5000000000000000000n,
+            token: '0xToken4',
+          },
+        ],
+      }
+
+      // Expected reward
       const expectedReward = {
         creator: '0xCreator' as Hex,
         prover: '0xProver' as Hex,
@@ -59,40 +83,10 @@ describe('Intent Utils', () => {
         ],
       }
 
-      // Expected route
-      const expectedRoute = {
-        salt: '0xSalt' as Hex,
-        source: 1n,
-        destination: 2n,
-        inbox: '0xInbox' as Hex,
-        tokens: [
-          { token: '0xToken3' as Hex, amount: 4000000000000000000n },
-          { token: '0xToken4' as Hex, amount: 5000000000000000000n },
-        ],
-        calls: [
-          {
-            target: '0xTarget1' as Hex,
-            data: '0xData1' as Hex,
-            value: 100000000000000000n,
-          },
-          {
-            target: '0xTarget2' as Hex,
-            data: '0xData2' as Hex,
-            value: 200000000000000000n,
-          },
-        ],
-      }
-
-      // Verify hashIntent was called with correct parameters
-      expect(RoutesTs.hashIntent).toHaveBeenCalledWith({
-        reward: expectedReward,
-        route: expectedRoute,
-      })
-
       // Verify result
       expect(result).toEqual({
+        route: expectedRoute,
         reward: expectedReward,
-        routeHash: '0xRoutehash',
       })
     })
   })
