@@ -294,6 +294,14 @@ export class EcoConfigService {
     return this.get('liFi')
   }
 
+  /**
+   * Returns the WETH configuration
+   * @returns WETH configuration
+   */
+  getWETH(): EcoConfigType['WETH'] {
+    return this.get('WETH')
+  }
+
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string> {
     const entries = ChainsSupported.map(
