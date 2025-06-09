@@ -130,7 +130,7 @@ export class UtilsIntentService {
 
       const solver = await this.getSolver(model.intent.route.destination, {
         intentHash: intentHash,
-        sourceNetwork: model.event.sourceNetwork,
+        sourceNetwork: IntentSourceModel.getSource(model),
       })
       if (!solver) {
         return

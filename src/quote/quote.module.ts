@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose'
 import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-intent.schema'
 import { IntentModule } from '@/intent/intent.module'
 import { FeeModule } from '@/fee/fee.module'
+import { QuoteRepository } from '@/quote/quote.repository'
 import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
 
 @Module({
@@ -13,7 +14,7 @@ import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-es
     FulfillmentEstimateModule,
     MongooseModule.forFeature([{ name: QuoteIntentModel.name, schema: QuoteIntentSchema }]),
   ],
-  providers: [QuoteService],
+  providers: [QuoteService, QuoteRepository],
   exports: [QuoteService],
 })
 export class QuoteModule {}

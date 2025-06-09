@@ -10,10 +10,19 @@ import { Model } from 'mongoose'
 import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
-import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
+import {
+  CallDataInterface,
+  decodeCreateIntentLog,
+  IntentCreatedLog,
+  RewardTokensInterface,
+} from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
+import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
+import { EcoResponse } from '@/common/eco-response'
+import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -51,7 +60,8 @@ export class CreateIntentService implements OnModuleInit {
       EcoLogMessage.fromDefault({
         message: `createIntent ${intentWs.transactionHash}`,
         properties: {
-          intentHash: intentWs.transactionHash,
+          transactionHash: intentWs.transactionHash,
+          intentHash: intentWs.args?.hash,
         },
       }),
     )
@@ -125,5 +135,86 @@ export class CreateIntentService implements OnModuleInit {
         }),
       )
     }
+  }
+
+  async createIntentFromIntentInitiation(
+    quoteID: string,
+    funder: Hex,
+    route: RouteType,
+    reward: QuoteRewardDataModel,
+  ) {
+    try {
+      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
+      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
+      const intentHash = hashIntent({ route, reward }).intentHash
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `createIntentFromIntentInitiation`,
+          properties: {
+            intentHash,
+          },
+        }),
+      )
+
+      const intent = new IntentDataModel({
+        quoteID,
+        hash: intentHash,
+        salt,
+        source,
+        destination,
+        inbox,
+        routeTokens: routeTokens as RewardTokensInterface[],
+        calls: calls as CallDataInterface[],
+        creator,
+        prover,
+        deadline,
+        nativeValue,
+        rewardTokens,
+        logIndex: 0,
+        funder,
+      })
+
+      await this.intentModel.create({
+        // event: null,
+        intent,
+        receipt: null,
+        status: 'PENDING',
+      })
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Error in createIntentFromIntentInitiation`,
+          properties: {
+            quoteID,
+            error: ex.message,
+          },
+        }),
+      )
+    }
+  }
+
+  /**
+   * Fetch an intent from the db
+   * @param query for fetching the intent
+   * @returns the intent or an error
+   */
+  async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
+    return this.fetchIntent({ 'intent.hash': hash })
+  }
+
+  /**
+   * Fetch an intent from the db
+   * @param query for fetching the intent
+   * @returns the intent or an error
+   */
+  async fetchIntent(query: object): Promise<EcoResponse<IntentSourceModel>> {
+    const intent = await this.intentModel.findOne(query)
+
+    if (!intent) {
+      return { error: EcoError.IntentNotFound }
+    }
+
+    return { response: intent }
   }
 }

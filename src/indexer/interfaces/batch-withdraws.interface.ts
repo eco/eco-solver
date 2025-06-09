@@ -7,3 +7,14 @@ export interface BatchWithdraws {
     _claimant: string
   }
 }
+
+export interface BatchWithdrawGasless {
+  intent: {
+    intentHash: string
+    fundingSource: string
+  }
+  claimant: {
+    _hash: string
+    _claimant: string
+  }
+}

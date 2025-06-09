@@ -2,19 +2,20 @@ const mockEncodeFunctionData = jest.fn()
 const mockGetTransactionTargetData = jest.fn()
 const mockEncodeAbiParameters = jest.fn()
 const mockGetChainConfig = jest.fn()
-import { Test, TestingModule } from '@nestjs/testing'
-import { Hex, zeroAddress, pad } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
+import { CrowdLiquidityService } from '../crowd-liquidity.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
+import { FeeService } from '@/fee/fee.service'
+import { Hex, zeroAddress, pad } from 'viem'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ProofService } from '@/prover/proof.service'
+import { RewardDataModel } from '../schemas/reward-data.schema'
+import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
-import { CrowdLiquidityService } from '../crowd-liquidity.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { FeeService } from '@/fee/fee.service'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { RewardDataModel } from '../schemas/reward-data.schema'
 
 jest.mock('viem', () => {
   return {
@@ -85,7 +86,7 @@ describe('WalletFulfillService', () => {
   const solver = { inboxAddress: address1, chainID: 8453n } as any
   const model = {
     intent: {
-      route: { hash, destination: 1n, getHash: () => '0x6543' },
+      route: { hash, destination: 1n, calls: [], getHash: () => '0x6543' },
       reward: { getHash: () => '0x123abc' },
       getHash: () => {
         return { intentHash: '0xaaaa999' }
@@ -123,7 +124,7 @@ describe('WalletFulfillService', () => {
         )
 
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentTx = jest.fn()
+        const mockGetFulfillIntentTx = jest.fn().mockResolvedValue({ value: 0n })
         fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
@@ -134,7 +135,7 @@ describe('WalletFulfillService', () => {
       it('should throw if the finalFeasibilityCheck throws', async () => {
         const error = new Error('stuff went bad')
         utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ model, solver })
-        const mockGetFulfillIntentTx = jest.fn()
+        const mockGetFulfillIntentTx = jest.fn().mockResolvedValue({ value: 0n })
         fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
@@ -320,7 +321,7 @@ describe('WalletFulfillService', () => {
           msg: `Fulfilled transactionHash ${transactionHash}`,
           userOPHash: { transactionHash },
           destinationChainID: model.intent.route.destination,
-          sourceChainID: model.event.sourceChainID,
+          sourceChainID: IntentSourceModel.getSource(model),
         })
       })
 
@@ -375,7 +376,7 @@ describe('WalletFulfillService', () => {
           { inboxAddress } as any,
           target,
         ),
-      ).toEqual([{ to: target, data: transferFunctionData }])
+      ).toEqual([{ to: target, data: transferFunctionData, value: 0n }])
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),
         functionName: 'approve',
@@ -656,6 +657,7 @@ describe('WalletFulfillService', () => {
             prover: address3,
           },
           route: {
+            source: 10n,
             destination: 1n,
           },
         },
@@ -672,8 +674,8 @@ describe('WalletFulfillService', () => {
       expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(1)
       expect(mockProverFee).toHaveBeenCalledTimes(1)
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
-        [{ type: 'bytes32' }],
-        [pad(model.intent.reward.prover)],
+        [{ type: 'uint32' }, { type: 'bytes32' }],
+        [Number(model.intent.route.source), pad(model.intent.reward.prover)],
       )
       expect(mockProverFee).toHaveBeenCalledWith(model, address1, encodedData)
     })
