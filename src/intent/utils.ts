@@ -4,8 +4,16 @@ import { CallDataInterface, getERCAbi } from '@/contracts'
 import { Solver, TargetContract } from '@/eco-configs/eco-config.types'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
-import { decodeFunctionData, toFunctionSelector } from 'viem'
+import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
 import { mainnet } from 'viem/chains'
+import { ValidationIntentInterface } from './validation.sevice'
+import { Logger } from '@nestjs/common'
+import { ChainsSupported } from '../common/chains/supported'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { isEmptyData } from '../common/viem/utils'
+
+// The default number of decimals for native tokens that we enfores for now
+const DEFAULT_NATIVE_DECIMALS = 18
 
 /**
  * Decodes the function data for a target contract
@@ -50,4 +58,94 @@ export function getWaitForTransactionTimeout(chainID: bigint) {
     default:
       return undefined
   }
+}
+/**
+ * Checks if the intent has any input or output native value components. Indicating
+ * that a native token is being used in the intent.
+ * @param intent the intent to check
+ * @returns
+ */
+export function isNativeIntent(intent: ValidationIntentInterface): boolean {
+  return (
+    intent.route.calls.some((call) => {
+      return call.value > 0
+    }) || intent.reward.nativeValue > 0
+  )
+}
+
+/**
+ * Verifies that the intent has a route that is using the same native token on both chains
+ *
+ * @param intent the intent model
+ * @returns
+ */
+export function equivalentNativeGas(intent: ValidationIntentInterface, logger: Logger) {
+  const sourceChain = extractChain({
+    chains: ChainsSupported,
+    id: Number(intent.route.source),
+  })
+
+  const dstChain = extractChain({
+    chains: ChainsSupported,
+    id: Number(intent.route.destination),
+  })
+  if (!sourceChain || !dstChain) {
+    logger.error(
+      EcoLogMessage.fromDefault({
+        message: `equivalentNativeGas: Chain not found`,
+        properties: {
+          intent,
+        },
+      }),
+    )
+    return false
+  }
+  //Forge decimals to be 18 for now, even though it might change in future when we need to support native gas normalization
+  const sameDecimals =
+    sourceChain.nativeCurrency.decimals == dstChain.nativeCurrency.decimals &&
+    sourceChain.nativeCurrency.decimals == DEFAULT_NATIVE_DECIMALS
+  const sameSymbol = sourceChain.nativeCurrency.symbol == dstChain.nativeCurrency.symbol
+  if (!sameDecimals || !sameSymbol) {
+    logger.error(
+      EcoLogMessage.fromDefault({
+        message: `equivalentNativeGas: Different native currency`,
+        properties: {
+          intent,
+          sameDecimals,
+          sameSymbol,
+          source: sourceChain.nativeCurrency,
+          dst: dstChain.nativeCurrency,
+        },
+      }),
+    )
+    return false
+  }
+  return true
+}
+
+/**
+ * Iterates over the calls and returns those that do not have empty data
+ * @param calls the calls to check
+ * @returns
+ */
+export function getFunctionCalls(calls: CallDataInterface[]) {
+  return calls.filter((call) => !isEmptyData(call.data))
+}
+
+/**
+ * Iterates over the calls and returns those that have empty data and send native value
+ * @param calls the calls to check
+ * @returns
+ */
+export function getNativeCalls(calls: CallDataInterface[]) {
+  return calls.filter((call) => call.value > 0 && isEmptyData(call.data))
+}
+
+/**
+ * Iterates over the calls and returns the targets that do not have empty data
+ * @param calls the calls to check
+ * @returns
+ */
+export function getFunctionTargets(calls: CallDataInterface[]) {
+  return getFunctionCalls(calls).map((call) => call.target)
 }

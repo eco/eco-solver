@@ -14,6 +14,7 @@ import * as MulticallUtils from '@/intent-processor/utils/multicall'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
+import { RouteType } from '@eco-foundation/routes-ts'
 
 jest.mock('@/intent-processor/utils/hyperlane')
 jest.mock('@/intent-processor/utils/multicall')
@@ -578,13 +579,25 @@ describe('IntentProcessorService', () => {
 
   describe('executeWithdrawals', () => {
     it('should send batch withdraw transaction', async () => {
+      const route: RouteType = {
+        destination: 1n,
+        salt: '0xSalt',
+        source: 10n,
+        inbox: '0xInbox',
+        tokens: [],
+        calls: [
+          { target: '0x1' as Hex, data: '0x3' as Hex, value: 100n },
+          { target: '0x4' as Hex, data: '0x6' as Hex, value: 200n },
+        ],
+      }
+
       // Mock data
       const data = {
         chainId: 1,
         intentSourceAddr: mockIntentSource,
         intents: [
           {
-            routeHash: '0xRouteHash1' as Hex,
+            route: route,
             reward: {
               creator: '0xCreator1' as Hex,
               prover: '0xProver1' as Hex,
@@ -594,7 +607,7 @@ describe('IntentProcessorService', () => {
             },
           },
           {
-            routeHash: '0xRouteHash2' as Hex,
+            route: route,
             reward: {
               creator: '0xCreator2' as Hex,
               prover: '0xProver2' as Hex,
@@ -618,21 +631,26 @@ describe('IntentProcessorService', () => {
         abi: expect.any(Array),
         address: mockIntentSource,
         args: [
-          ['0xRouteHash1', '0xRouteHash2'],
           [
             {
-              creator: '0xCreator1',
-              prover: '0xProver1',
-              deadline: 1000n,
-              nativeValue: 100n,
-              tokens: [{ token: '0xToken1', amount: 200n }],
+              route: route,
+              reward: {
+                creator: '0xCreator1',
+                prover: '0xProver1',
+                deadline: 1000n,
+                nativeValue: 100n,
+                tokens: [{ token: '0xToken1', amount: 200n }],
+              },
             },
             {
-              creator: '0xCreator2',
-              prover: '0xProver2',
-              deadline: 2000n,
-              nativeValue: 200n,
-              tokens: [{ token: '0xToken2', amount: 300n }],
+              route: route,
+              reward: {
+                creator: '0xCreator2',
+                prover: '0xProver2',
+                deadline: 2000n,
+                nativeValue: 200n,
+                tokens: [{ token: '0xToken2', amount: 300n }],
+              },
             },
           ],
         ],

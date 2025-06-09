@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import {
-  Account,
-  Address,
   Chain,
   createPublicClient,
   createWalletClient,
   extractChain,
   ParseAccount,
+  PrivateKeyAccount,
   Transport,
   WalletClient,
   WalletClientConfig,
@@ -19,7 +18,7 @@ import { ChainsSupported } from '@/common/chains/supported'
 export abstract class WalletClientService<
   transport extends Transport = Transport,
   chain extends Chain | undefined = Chain,
-  accountOrAddress extends Account | Address | undefined = Account,
+  accountOrAddress extends PrivateKeyAccount = PrivateKeyAccount,
   instance extends WalletClient<
     transport,
     chain,
@@ -68,7 +67,7 @@ export class WalletClientDefaultSignerService extends WalletClientService {
     super(ecoConfigService)
   }
 
-  getAccount(): Promise<Account> {
+  getAccount(): Promise<PrivateKeyAccount> {
     return Promise.resolve(this.signerService.getAccount())
   }
 }

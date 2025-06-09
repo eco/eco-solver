@@ -19,12 +19,16 @@ export class BigIntToStringInterceptor implements NestInterceptor {
       return data.map((item) => this.transformBigInt(item))
     }
 
-    if (typeof data === 'object') {
+    if (this.isPlainObject(data)) {
       return Object.fromEntries(
         Object.entries(data).map(([key, value]) => [key, this.transformBigInt(value)]),
       )
     }
 
     return data
+  }
+
+  private isPlainObject(obj: any): obj is Record<string, any> {
+    return Object.prototype.toString.call(obj) === '[object Object]'
   }
 }
