@@ -71,6 +71,7 @@ describe('StargateProviderService', () => {
     sender: mockWalletAddress,
     chainKey: 'ethereum',
     transaction: {
+      value: '0',
       data: '0x095ea7b3000000000000000000000000c026395860db2d07ee33e05fe50ed7bd583189c70000000000000000000000000000000000000000000000000000000000989680',
       to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       from: mockWalletAddress,
@@ -82,9 +83,10 @@ describe('StargateProviderService', () => {
     sender: mockWalletAddress,
     chainKey: 'ethereum',
     transaction: {
-      data: '0x095ea7b3000000000000000000000000c026395860db2d07ee33e05fe50ed7bd583189c70000000000000000000000000000000000000000000000000000000000989680',
+      data: '0x095ea7b3000000000000000000000000c026395860db2d07ee33e05fe50ed7bd583189c70000000000000000000000000000000000000000000000000000000000989681',
       to: '0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56',
       from: mockWalletAddress,
+      value: '0',
     },
   }
 
@@ -291,10 +293,12 @@ describe('StargateProviderService', () => {
       expect(mockClient.sendTransaction).toHaveBeenCalledWith({
         to: mockStepApprove.transaction.to as Hex,
         data: mockStepApprove.transaction.data as Hex,
+        value: 0n,
       })
       expect(mockClient.sendTransaction).toHaveBeenCalledWith({
         to: mockStepSwap.transaction.to as Hex,
         data: mockStepSwap.transaction.data as Hex,
+        value: 0n,
       })
 
       // Should have waited for transaction receipts
