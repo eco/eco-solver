@@ -36,6 +36,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { getNodeEnv, NodeEnv } from '@/eco-configs/utils'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -76,8 +77,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async initializeRebalances() {
     // Use OP as the default chain assuming the Kernel wallet is the same across all chains
-    const opChainId = 33111
-    const client = await this.kernelAccountClientService.getClient(opChainId)
+    const env = getNodeEnv()
+    let chainId
+    if (env === NodeEnv.production) {
+      chainId = 33139 // apechain
+    } else {
+      chainId = 33111 // curtis
+    }
+    const client = await this.kernelAccountClientService.getClient(chainId)
     const kernelAddress = client.kernelAccount.address
 
     // Track rebalances for Solver

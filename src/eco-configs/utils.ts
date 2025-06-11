@@ -2,13 +2,6 @@ import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 
-const CALDERA_CHAIN_CONFIG: EcoChainConfig = {
-  IntentSource: '0x50673016E0720d6B7FA5Af3290709Fc8bAF65A70',
-  Inbox: '0xCc71EA5C67795EF12be2328C14F7E96A39D71067',
-  HyperProver: '0x0000000000000000000000000000000000000000',
-  MetaProver: '0xcF415cFD2f287Ea5e394BAA1f12035fC57d6EED8',
-}
-
 /**
  * The prefix for non-production deploys on a chain
  */
@@ -53,11 +46,30 @@ export function isPreEnv(): boolean {
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
-  return CALDERA_CHAIN_CONFIG
+  return getCalderaChainConfig()
   // const config = EcoProtocolAddresses[id]
   // if (config === undefined) {
   //   throw EcoError.ChainConfigNotFound(id)
   // } else {
   //   return CALDERA_CHAIN_CONFIG
   // }
+}
+
+function getCalderaChainConfig(): EcoChainConfig {
+  const env = getNodeEnv()
+  if (env === NodeEnv.production) {
+    return {
+      IntentSource: '0x192b12FAB612AB8c54f4B416500Ea71CF61a9473',
+      Inbox: '0xCB96D5Db5071b3335F8DB5a97BC90E274AAe24bF',
+      HyperProver: '0x0000000000000000000000000000000000000000',
+      MetaProver: '0x83C09c0C0579C23A6acEFD6a2b6285Bcec904207',
+    }
+  } else {
+    return {
+      IntentSource: '0x50673016E0720d6B7FA5Af3290709Fc8bAF65A70',
+      Inbox: '0xCc71EA5C67795EF12be2328C14F7E96A39D71067',
+      HyperProver: '0x0000000000000000000000000000000000000000',
+      MetaProver: '0xcF415cFD2f287Ea5e394BAA1f12035fC57d6EED8',
+    }
+  }
 }

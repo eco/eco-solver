@@ -1,27 +1,17 @@
 export default {
-  server: {
-    url: 'https://solver.staging.bend.eco',
-  },
-
   aws: [
     {
       region: 'us-west-2',
-      secretID: 'eco-solver-secrets-staging',
+      secretID: 'eco-solver-secrets-prod',
     },
     {
       region: 'us-west-2',
-      secretID: 'eco-solver-configs-staging',
+      secretID: 'eco-solver-configs-prod',
     },
     {
       region: 'us-west-2',
-      secretID: 'eco-solver-whitelist-staging',
+      secretID: 'eco-solver-whitelist-prod',
     },
   ],
   //don't add anything else here
-
-  solverRegistrationConfig: {
-    apiOptions: {
-      baseUrl: 'https://quotes-preprod.eco.com',
-    },
-  },
 }
