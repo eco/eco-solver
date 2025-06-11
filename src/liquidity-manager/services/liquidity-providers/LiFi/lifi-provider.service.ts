@@ -59,6 +59,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote<'LiFi'>> {
+    const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
+
     const routesRequest: RoutesRequest = {
       // Origin chain
       fromAddress: this.walletAddress,
@@ -70,6 +72,10 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toAddress: this.walletAddress,
       toChainId: tokenOut.chainId,
       toTokenAddress: tokenOut.config.address,
+    }
+
+    if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
+      routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
     }
 
     const result = await getRoutes(routesRequest)
