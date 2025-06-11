@@ -195,6 +195,7 @@ export class LiquidityProviderService {
         tokenOut: this.formatToken(quote.tokenOut),
         amountIn: quote.amountIn.toString(),
         amountOut: quote.amountOut.toString(),
+        slippage: quote.slippage,
       }
     })
   }
