@@ -316,6 +316,7 @@ export interface LiquidityManagerConfig {
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
+  swapSlippage?: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
