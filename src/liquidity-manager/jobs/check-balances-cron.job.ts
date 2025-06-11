@@ -14,6 +14,7 @@ import {
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import * as BigIntSerializer from '@/common/utils/serialize'
 
 type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
@@ -138,6 +139,13 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       this.updateGroupBalances(processor, surplus.items, rebalancingQuotes)
 
       const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
+
+      processor.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'CheckBalancesCronJob: Rebalancing route found',
+          properties: { request: BigIntSerializer.serialize(rebalanceRequest) },
+        }),
+      )
 
       // Store rebalance request on DB
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)

@@ -56,6 +56,13 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   ): Promise<RebalanceQuote[]> {
     const actionPath = this.getActionPath(tokenIn.config, tokenOut.config)
 
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'WarpRoute: Getting quote',
+        properties: { actionPath },
+      }),
+    )
+
     if (actionPath === ActionPath.UNSUPPORTED) throw new Error('Unsupported action path')
 
     if (actionPath === ActionPath.PARTIAL) {
@@ -251,6 +258,18 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'WarpRoute: get partial quote',
+        properties: {
+          warpTokenIn,
+          warpTokenOut,
+          tokenIn: tokenIn.config,
+          tokenOut: tokenOut.config,
+        },
+      }),
+    )
 
     if (warpTokenIn.warpRoute) {
       // Case 1: Synthetic -> Collateral -> Token:
