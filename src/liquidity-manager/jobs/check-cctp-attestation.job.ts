@@ -88,53 +88,22 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     if (job.returnvalue.status === 'complete') {
-      const { cctpLiFiContext } = job.data
+      processor.logger.debug(
+        EcoLogMessage.fromDefault({
+          message:
+            'CCTP: CheckCCTPAttestationJob: Attestation complete. Adding CCTP mint transaction to execution queue',
+          properties: job.returnvalue,
+        }),
+      )
 
-      // Check if this is a CCTPLiFi operation that needs destination swap
-      if (cctpLiFiContext) {
-        processor.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'CCTP attestation complete - queuing CCTPLiFi destination swap',
-            properties: {
-              messageHash: job.data.messageHash,
-              destinationChainId: job.data.destinationChainId,
-              walletAddress: cctpLiFiContext.walletAddress,
-            },
-          }),
-        )
-
-        // Import dynamically to avoid circular dependency
-        const { CCTPLiFiDestinationSwapJobManager } = await import(
-          './cctp-lifi-destination-swap.job'
-        )
-
-        await CCTPLiFiDestinationSwapJobManager.start(processor.queue, {
-          messageHash: job.data.messageHash,
-          messageBody: job.data.messageBody,
-          attestation: job.returnvalue.attestation,
-          destinationChainId: job.data.destinationChainId,
-          destinationSwapQuote: cctpLiFiContext.destinationSwapQuote,
-          walletAddress: cctpLiFiContext.walletAddress,
-          originalTokenOut: cctpLiFiContext.originalTokenOut,
-        })
-      } else {
-        // Regular CCTP operation - queue mint job as before
-        processor.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Adding CCTP mint transaction to execution queue',
-            properties: job.returnvalue,
-          }),
-        )
-
-        await ExecuteCCTPMintJobManager.start(processor.queue, {
-          ...job.data,
-          attestation: job.returnvalue.attestation,
-        })
-      }
+      await ExecuteCCTPMintJobManager.start(processor.queue, {
+        ...job.data,
+        attestation: job.returnvalue.attestation,
+      })
     } else {
       processor.logger.debug(
         EcoLogMessage.fromDefault({
-          message: 'Check CCTP attestation pending...',
+          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
           properties: {
             ...job.returnvalue,
             messageHash: job.data.messageHash,
@@ -157,7 +126,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   onFailed(job: CheckCCTPAttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
-        message: `CheckCCTPAttestationJob: Failed`,
+        message: `CCTP: CheckCCTPAttestationJob: Failed`,
         properties: {
           error: (error as any)?.message ?? error,
           data: job.data,

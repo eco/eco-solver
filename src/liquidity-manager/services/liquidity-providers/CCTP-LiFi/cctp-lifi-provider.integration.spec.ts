@@ -73,7 +73,6 @@ describe('CCTPLiFi Provider Integration Tests', () => {
       }),
       getCCTPLiFiConfig: jest.fn().mockReturnValue({
         maxSlippage: 0.05,
-        maxGasEstimateUSD: 5,
         usdcAddresses: {
           1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
           10: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
@@ -92,6 +91,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           useValue: {
             getQuote: jest.fn(),
             execute: jest.fn(),
+            getStrategy: jest.fn().mockReturnValue('LiFi'),
           },
         },
         {
@@ -175,6 +175,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             fromChainId: 1,
             toChainId: 1,
+            fromToken: {
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
           },
         } as any)
         .mockResolvedValueOnce({
@@ -189,6 +197,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
             toChainId: 10,
+            fromToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0x4200000000000000000000000000000000000042',
+              decimals: 18,
+            },
           },
         } as any)
 
@@ -312,6 +328,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
           fromChainId: 1,
           toChainId: 1,
+          fromToken: {
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            decimals: 6,
+          },
+          toToken: {
+            address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            decimals: 6,
+          },
         },
       } as any)
 
@@ -355,6 +379,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             fromChainId: 1,
             toChainId: 1,
+            fromToken: {
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
           },
         } as any)
         .mockResolvedValueOnce({
@@ -368,6 +400,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
             toChainId: 10,
+            fromToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0x4200000000000000000000000000000000000042',
+              decimals: 18,
+            },
           },
         } as any)
 
@@ -397,6 +437,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             fromChainId: 1,
             toChainId: 1,
+            fromToken: {
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
           },
         } as any)
         .mockResolvedValueOnce({
@@ -410,6 +458,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
             toChainId: 10,
+            fromToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0x4200000000000000000000000000000000000042',
+              decimals: 18,
+            },
           },
         } as any)
 
@@ -494,6 +550,14 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             fromChainId: 1,
             toChainId: 1,
+            fromToken: {
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
           },
         } as any)
         .mockResolvedValueOnce({
@@ -507,15 +571,30 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
             toChainId: 10,
+            fromToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0x4200000000000000000000000000000000000042',
+              decimals: 18,
+            },
           },
         } as any)
 
       const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
 
       expect(quote.slippage).toBeGreaterThan(0.05)
+
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('High total slippage detected'),
-        expect.any(Object),
+        expect.objectContaining({
+          msg: expect.stringContaining('High total slippage detected'),
+          route: expect.arrayContaining([
+            expect.objectContaining({ type: 'sourceSwap' }),
+            expect.objectContaining({ type: 'cctpBridge' }),
+            expect.objectContaining({ type: 'destinationSwap' }),
+          ]),
+        }),
       )
     })
 

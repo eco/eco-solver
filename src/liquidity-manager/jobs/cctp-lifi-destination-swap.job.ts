@@ -63,45 +63,22 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CCTPLiFiDestinationSwapJob['returnvalue']> {
-    const {
-      messageBody,
-      attestation,
-      destinationChainId,
-      destinationSwapQuote,
-      walletAddress,
-      originalTokenOut,
-    } = job.data
+    const { destinationChainId, destinationSwapQuote, walletAddress, originalTokenOut } = job.data
 
     processor.logger.debug(
       EcoLogMessage.fromDefault({
-        message: 'CCTPLiFi: Starting destination swap execution',
+        message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Starting destination swap execution',
         properties: {
           destinationChainId,
           walletAddress,
           messageHash: job.data.messageHash,
+          originalTokenOut,
+          destinationSwapQuote,
         },
       }),
     )
 
     try {
-      // Step 1: Execute CCTP receiveMessage to mint USDC on destination chain
-      const cctpTxHash = await processor.cctpProviderService.receiveMessage(
-        destinationChainId,
-        messageBody,
-        attestation,
-      )
-
-      processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'CCTPLiFi: CCTP receiveMessage completed',
-          properties: {
-            cctpTxHash,
-            destinationChainId,
-          },
-        }),
-      )
-
-      // Step 2: Execute LiFi swap from USDC to target token
       const swapResult = await this.executeDestinationSwap(
         processor,
         destinationSwapQuote,
@@ -111,7 +88,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
 
       processor.logger.debug(
         EcoLogMessage.fromDefault({
-          message: 'CCTPLiFi: Destination swap completed successfully',
+          message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
           properties: {
             swapTxHash: swapResult.txHash,
             finalAmount: swapResult.finalAmount,
@@ -167,35 +144,42 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     walletAddress: string,
     destinationChainId: number,
   ): Promise<{ txHash: Hex; finalAmount: string }> {
+    processor.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Executing destination swap',
+        properties: { destinationSwapQuote, walletAddress, destinationChainId },
+      }),
+    )
+
     // Create a temporary quote object for LiFi execution
     const tempQuote = {
       tokenIn: {
         chainId: destinationChainId,
         config: {
-          address: destinationSwapQuote.fromAddress as Hex,
+          address: destinationSwapQuote.fromToken.address as Hex,
           chainId: destinationChainId,
           minBalance: 0,
           targetBalance: 0,
           type: 'erc20' as const,
         },
         balance: {
-          address: destinationSwapQuote.fromAddress as Hex,
-          decimals: 6, // USDC decimals
-          balance: BigInt(destinationSwapQuote.fromAmount),
+          address: destinationSwapQuote.fromToken.address as Hex,
+          decimals: destinationSwapQuote.fromToken.decimals,
+          balance: 1000000000000000000n, // TODO: get balance from balance service
         },
       },
       tokenOut: {
         chainId: destinationChainId,
         config: {
-          address: destinationSwapQuote.toAddress as Hex,
+          address: destinationSwapQuote.toToken.address as Hex,
           chainId: destinationChainId,
           minBalance: 0,
           targetBalance: 0,
           type: 'erc20' as const,
         },
         balance: {
-          address: destinationSwapQuote.toAddress as Hex,
-          decimals: 18, // Most tokens use 18 decimals
+          address: destinationSwapQuote.toToken.address as Hex,
+          decimals: destinationSwapQuote.toToken.decimals,
           balance: 0n,
         },
       },
@@ -209,9 +193,16 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     }
 
     // Execute the swap through the liquidity provider service
-    await processor.liquidityManagerService.liquidityProviderManager.execute(
+    const result = await processor.liquidityManagerService.liquidityProviderManager.execute(
       walletAddress,
       tempQuote,
+    )
+
+    processor.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed',
+        properties: { walletAddress, tempQuote, result },
+      }),
     )
 
     // TODO: Extract actual transaction hash from LiFi result
@@ -238,7 +229,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   ): Promise<void> {
     processor.logger.log(
       EcoLogMessage.fromDefault({
-        message: 'CCTPLiFi: Destination swap completed successfully',
+        message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
         properties: {
           jobId: job.id,
           txHash: job.returnvalue?.txHash,
@@ -256,7 +247,8 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   onFailed(job: CCTPLiFiDestinationSwapJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
-        message: 'CCTPLiFi: FINAL FAILURE - Manual intervention required for stranded USDC',
+        message:
+          'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE - Manual intervention required for stranded USDC',
         properties: {
           jobId: job.id,
           error: (error as any)?.message ?? error,

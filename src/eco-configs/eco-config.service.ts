@@ -362,8 +362,7 @@ export class EcoConfigService {
     const liquidityManager = this.getLiquidityManager()
     const cctp = this.getCCTP()
     return {
-      maxSlippage: liquidityManager.targetSlippage,
-      maxGasEstimateUSD: liquidityManager.maxGasEstimateUSD,
+      maxSlippage: liquidityManager.maxQuoteSlippage,
       usdcAddresses: cctp.chains.reduce(
         (acc, chain) => {
           acc[chain.chainId] = getAddress(chain.token)

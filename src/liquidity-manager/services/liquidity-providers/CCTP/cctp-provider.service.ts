@@ -167,13 +167,13 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       quote.amountOut,
     )
 
-    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
-
+    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
     // Make sure the Kernel wallet is used
-    if (walletAddress !== client.account?.address) {
+    if (walletAddress !== kernelWalletAddress) {
       throw new Error('Unexpected wallet during CCTP execution')
     }
 
+    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
     return client.execute(
       transactions.map((tx) => ({ to: tx.to!, data: tx.data ?? '0x', value: tx.value })),
     )

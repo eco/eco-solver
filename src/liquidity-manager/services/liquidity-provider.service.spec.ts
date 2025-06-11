@@ -7,7 +7,6 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -18,7 +17,6 @@ describe('LiquidityProviderService', () => {
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
-  let ecoConfigService: EcoConfigService
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -49,6 +47,7 @@ describe('LiquidityProviderService', () => {
 
     // Set up the mock for getLiquidityManager after getting the service
     const liquidityManagerConfigMock = {
+      maxQuoteSlippage: 0.005,
       walletStrategies: {
         'crowd-liquidity-pool': ['CCTP'],
         'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
@@ -76,7 +75,7 @@ describe('LiquidityProviderService', () => {
         {
           amountIn: '100',
           amountOut: '200',
-          slippage: 0.01,
+          slippage: 0.003, // within 0.5% slippage limit
           tokenIn: mockTokenIn,
           tokenOut: mockTokenOut,
           strategy: 'LiFi',

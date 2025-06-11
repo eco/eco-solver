@@ -93,10 +93,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       { token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', chainID: 1 }, // USDC on Ethereum
       { token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', chainID: 10 }, // USDC on Optimism
     ],
-    maxGasEstimateUSD: 10,
     walletStrategies: {
       'eco-wallet': ['CCTPLiFi'], // Only test CCTPLiFi strategy
     },
+    maxQuoteSlippage: 0.005,
   }
 
   // Mock token configurations

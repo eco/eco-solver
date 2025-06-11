@@ -8,26 +8,19 @@ export class SlippageCalculator {
    */
   static calculateTotalSlippage(context: CCTPLiFiStrategyContext): number {
     let totalSlippage = 0
-
-    // Add slippage from source swap (if exists)
-    if (context.sourceSwapQuote) {
-      totalSlippage +=
-        1 -
-        parseFloat(context.sourceSwapQuote.toAmount) /
-          parseFloat(context.sourceSwapQuote.fromAmount)
-    }
-
     // CCTP has essentially 0 slippage (1:1 USDC transfer)
     // No slippage added for CCTP step
-
-    // Add slippage from destination swap (if exists)
-    if (context.destinationSwapQuote) {
-      totalSlippage +=
+    if (context.sourceSwapQuote && !context.destinationSwapQuote) {
+      totalSlippage =
         1 -
-        parseFloat(context.destinationSwapQuote.toAmount) /
-          parseFloat(context.destinationSwapQuote.fromAmount)
+        parseFloat(context.sourceSwapQuote.toAmountMin) /
+          parseFloat(context.sourceSwapQuote.fromAmount)
+    } else if (context.sourceSwapQuote && context.destinationSwapQuote) {
+      totalSlippage =
+        1 -
+        parseFloat(context.destinationSwapQuote.toAmountMin) /
+          parseFloat(context.sourceSwapQuote.fromAmount)
     }
-
     return totalSlippage
   }
 }

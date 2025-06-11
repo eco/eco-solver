@@ -7,11 +7,6 @@ export interface ValidationResult {
   warnings?: string[]
 }
 
-export interface AdvancedValidationOptions {
-  maxSlippage: number
-  maxGasEstimateUSD?: number
-}
-
 export interface GasEstimation {
   sourceChainGas: bigint
   destinationChainGas: bigint
@@ -82,7 +77,6 @@ export class CCTPLiFiValidator {
     destinationChainId: number,
     hasSourceSwap: boolean,
     hasDestinationSwap: boolean,
-    maxGasEstimateUSD: number,
   ): GasEstimation {
     const gasWarnings: string[] = []
 
@@ -109,11 +103,6 @@ export class CCTPLiFiValidator {
     const totalGasUSD =
       this.estimateGasUSD(sourceChainId, sourceChainGas) +
       this.estimateGasUSD(destinationChainId, destinationChainGas)
-
-    // Add warnings for high gas scenarios
-    if (totalGasUSD > maxGasEstimateUSD) {
-      gasWarnings.push(`High estimated gas cost: $${totalGasUSD.toFixed(2)}`)
-    }
 
     if (sourceChainId === 1 && sourceChainGas > 200000n) {
       gasWarnings.push('High gas usage on Ethereum mainnet - consider gas price timing')

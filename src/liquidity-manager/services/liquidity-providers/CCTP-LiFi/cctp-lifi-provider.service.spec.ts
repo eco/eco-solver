@@ -89,6 +89,7 @@ describe('CCTPLiFiProviderService', () => {
     const mockLiFiService = {
       getQuote: jest.fn(),
       execute: jest.fn(),
+      getStrategy: jest.fn().mockReturnValue('LiFi'),
     }
 
     const mockCCTPService = {
@@ -107,7 +108,6 @@ describe('CCTPLiFiProviderService', () => {
       }),
       getCCTPLiFiConfig: jest.fn().mockReturnValue({
         maxSlippage: 0.05,
-        maxGasEstimateUSD: 5,
         usdcAddresses: {
           1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
           10: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
@@ -235,7 +235,7 @@ describe('CCTPLiFiProviderService', () => {
 
       expect(quote).toEqual({
         amountIn: parseUnits('100', 6),
-        amountOut: parseUnits('44.1', 18),
+        amountOut: parseUnits('45', 18),
         slippage: expect.any(Number),
         tokenIn: mockTokenIn,
         tokenOut: mockTokenOut,
@@ -365,8 +365,14 @@ describe('CCTPLiFiProviderService', () => {
       await service.getQuote(mockTokenIn, mockTokenOut, 100)
 
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('High total slippage detected'),
-        expect.any(Object),
+        expect.objectContaining({
+          msg: expect.stringContaining('High total slippage detected'),
+          route: expect.arrayContaining([
+            expect.objectContaining({ type: 'sourceSwap' }),
+            expect.objectContaining({ type: 'cctpBridge' }),
+            expect.objectContaining({ type: 'destinationSwap' }),
+          ]),
+        }),
       )
     })
   })
@@ -391,6 +397,14 @@ describe('CCTPLiFiProviderService', () => {
             toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             fromChainId: 1,
             toChainId: 1,
+            fromToken: {
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
           },
           cctpTransfer: {
             sourceChain: 1,
@@ -405,6 +419,14 @@ describe('CCTPLiFiProviderService', () => {
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
             toChainId: 10,
+            fromToken: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 6,
+            },
+            toToken: {
+              address: '0x4200000000000000000000000000000000000042',
+              decimals: 18,
+            },
           },
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
         },

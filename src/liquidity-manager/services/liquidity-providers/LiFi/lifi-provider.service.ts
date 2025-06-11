@@ -46,8 +46,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       rpcUrls: this.getLiFiRPCUrls(),
       providers: [
         EVM({
-          getWalletClient: () => Promise.resolve(client),
-          switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId),
+          getWalletClient: () => Promise.resolve(client) as any,
+          switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId) as any,
         }),
       ],
     })
