@@ -310,41 +310,36 @@ export class EcoConfigService {
    * Returns the RPC URL for a given chain, prioritizing custom endpoints (like Caldera or Alchemy)
    * over default ones when available. For WebSocket connections, returns WebSocket URLs when available.
    * @param chain The chain object to get the RPC URL for
-   * @param websocketEnabled Whether to return a WebSocket URL if available
    * @returns The RPC URL string for the specified chain
    */
-  getRpcUrl(
-    chain: Chain,
-    websocketEnabled: boolean = false,
-  ): { rpcUrl: string; options: TransportOptions } {
+  getRpcUrl(chain: Chain): { rpcUrl: string; options: TransportOptions } {
+    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
+
     const rpcChain = this.ecoChains.getChain(chain.id)
     const custom = rpcChain.rpcUrls.custom
     const def = rpcChain.rpcUrls.default
 
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    websocketEnabled = true
     let rpc: string | undefined
-    if (websocketEnabled) {
+    if (isWebSocketEnabled) {
       rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
     } else {
       rpc = custom?.http?.[0] || def?.http?.[0]
     }
 
-    let options: TransportOptions['options']
+    const options: TransportOptions['options'] = customRpcUrls?.options
 
-    if (customRpcUrls) {
-      const { http, webSocket } = customRpcUrls
-      options = customRpcUrls.options
-      websocketEnabled = Boolean(webSocket)
-      rpc = websocketEnabled ? webSocket![0] : http[0]
+    if (customRpcUrls?.http) {
+      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
+      rpc = isWebSocketEnabled ? customRpcUrls.webSocket![0] : customRpcUrls.http[0]
     }
 
     if (!rpc) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrl: rpc, options: { isWebsocket: websocketEnabled, options } }
+    return { rpcUrl: rpc, options: { isWebsocket: isWebSocketEnabled, options } }
   }
 
   /**
