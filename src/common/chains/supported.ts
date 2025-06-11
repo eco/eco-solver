@@ -1,6 +1,6 @@
 import { EcoRoutesChains } from '@eco-foundation/chains'
 import { Chain } from 'viem'
-import { b3Testnet, studioChain, toyChainTestnet } from '@metalayer/viem-chains'
+import { TESTNET_ROLLUPS } from '@metalayer/viem-chains'
 import { bscTestnet, arbitrumSepolia } from 'viem/chains'
 
 /**
@@ -22,8 +22,6 @@ const configureChainRpc = (chain: Chain): Chain => {
 }
 
 // Apply the configuration to all Caldera chains
-const calderaChains = [bscTestnet, arbitrumSepolia, b3Testnet, studioChain, toyChainTestnet].map(
-  configureChainRpc,
-)
+const calderaChains = [bscTestnet, arbitrumSepolia, ...TESTNET_ROLLUPS].map(configureChainRpc)
 
 export const ChainsSupported: Chain[] = [...(EcoRoutesChains as Chain[]), ...calderaChains]
