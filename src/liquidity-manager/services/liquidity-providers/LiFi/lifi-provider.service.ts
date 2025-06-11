@@ -78,6 +78,13 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
     }
 
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'LiFi route request',
+        properties: { route: routesRequest },
+      }),
+    )
+
     const result = await getRoutes(routesRequest)
     const route = this.selectRoute(result.routes)
 
