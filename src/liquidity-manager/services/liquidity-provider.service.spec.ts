@@ -146,15 +146,17 @@ describe('LiquidityProviderService', () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
       const mockSwapAmount = 100
-      const mockQuote = {
-        amountIn: 100n,
-        amountOut: 200n,
-        slippage: 0.003, // 0.3% slippage - within limit
-        tokenIn: mockTokenIn,
-        tokenOut: mockTokenOut,
-      }
+      const mockQuotes = [
+        {
+          amountIn: 100n,
+          amountOut: 200n,
+          slippage: 0.003, // 0.3% slippage - within limit
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+        },
+      ]
 
-      jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuote as any)
+      jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuotes as any)
 
       const result = await liquidityProviderService.fallback(
         mockTokenIn as any,
@@ -167,26 +169,57 @@ describe('LiquidityProviderService', () => {
         mockTokenOut,
         mockSwapAmount,
       )
-      expect(result).toEqual(mockQuote)
+      expect(result).toEqual(mockQuotes)
     })
 
     it('should throw error if fallback quote exceeds maximum slippage', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
       const mockSwapAmount = 100
-      const mockQuote = {
-        amountIn: 100n,
-        amountOut: 200n,
-        slippage: 0.006, // 0.6% slippage - exceeds 0.5% limit
-        tokenIn: mockTokenIn,
-        tokenOut: mockTokenOut,
-      }
+      const mockQuotes = [
+        {
+          amountIn: 100n,
+          amountOut: 200n,
+          slippage: 0.006, // 0.6% slippage - exceeds 0.5% limit
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+        },
+      ]
 
-      jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuote as any)
+      jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuotes as any)
 
       await expect(
         liquidityProviderService.fallback(mockTokenIn as any, mockTokenOut as any, mockSwapAmount),
-      ).rejects.toThrow('Fallback quote slippage 0.006 exceeds maximum allowed 0.005')
+      ).rejects.toThrow(/Fallback quote slippage .* exceeds maximum allowed 0.005/)
+    })
+
+    it('should throw error if compound slippage from multiple quotes exceeds maximum', async () => {
+      const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
+      const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
+      const mockSwapAmount = 100
+      const mockQuotes = [
+        {
+          amountIn: 100n,
+          amountOut: 200n,
+          slippage: 0.003, // 0.3% slippage
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+        },
+        {
+          amountIn: 200n,
+          amountOut: 400n,
+          slippage: 0.003, // 0.3% slippage
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+        },
+      ]
+      // Compound slippage: 1 - (0.997 * 0.997) = 0.005991 > 0.005
+
+      jest.spyOn(liFiProviderService, 'fallback').mockResolvedValue(mockQuotes as any)
+
+      await expect(
+        liquidityProviderService.fallback(mockTokenIn as any, mockTokenOut as any, mockSwapAmount),
+      ).rejects.toThrow(/Fallback quote slippage .* exceeds maximum allowed 0.005/)
     })
   })
 

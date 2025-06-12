@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { parseUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -16,6 +16,8 @@ import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenConfig } from '@/balance/types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -24,6 +26,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
+    private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
   ) {}
 
@@ -59,7 +62,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote<'LiFi'>> {
-    const { maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
+    const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
 
     const routesRequest: RoutesRequest = {
       // Origin chain
@@ -72,11 +75,18 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toAddress: this.walletAddress,
       toChainId: tokenOut.chainId,
       toTokenAddress: tokenOut.config.address,
-
-      options: {
-        slippage: maxQuoteSlippage,
-      },
     }
+
+    if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
+      routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
+    }
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'LiFi route request',
+        properties: { route: routesRequest },
+      }),
+    )
 
     const result = await getRoutes(routesRequest)
     const route = this.selectRoute(result.routes)
@@ -124,7 +134,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<RebalanceQuote> {
+  ): Promise<RebalanceQuote[]> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -144,13 +154,17 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     for (const coreToken of coreTokens) {
       try {
         // Create core token data structure
-        const coreTokenData = {
+        const coreTokenConfig: TokenConfig = {
+          address: coreToken.token,
           chainId: coreToken.chainID,
-          config: {
-            address: coreToken.token,
-            chainId: coreToken.chainID,
-          },
-        } as TokenData
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        }
+        const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
+          this.walletAddress,
+          [coreTokenConfig],
+        )
 
         // Try routing through core token
         this.logger.debug(
@@ -163,7 +177,15 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           }),
         )
 
-        return await this.getQuote(tokenIn, coreTokenData, swapAmount)
+        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
+
+        const toAmountMin = parseFloat(
+          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
+        )
+
+        const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
+
+        return [coreTokenQuote, rebalanceQuote]
       } catch (coreError) {
         this.logger.debug(
           EcoLogMessage.fromDefault({

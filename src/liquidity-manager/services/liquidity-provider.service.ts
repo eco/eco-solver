@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import * as _ from 'lodash'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
@@ -7,6 +8,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { getTotalSlippage } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -134,30 +136,34 @@ export class LiquidityProviderService {
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<RebalanceQuote> {
-    const quote = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+  ): Promise<RebalanceQuote[]> {
+    const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
 
-    if (quote.slippage > maxQuoteSlippage) {
+    const slippage = getTotalSlippage(_.map(quotes, 'slippage'))
+
+    if (slippage > maxQuoteSlippage) {
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: 'Fallback quote rejected due to excessive slippage',
           properties: {
-            slippage: quote.slippage,
+            slippage: slippage,
             maxQuoteSlippage,
-            tokenIn: this.formatToken(tokenIn),
-            tokenOut: this.formatToken(tokenOut),
-            amountIn: quote.amountIn.toString(),
-            amountOut: quote.amountOut.toString(),
+            quotes: quotes.map((quote) => ({
+              tokenIn: this.formatToken(tokenIn),
+              tokenOut: this.formatToken(tokenOut),
+              amountIn: quote.amountIn.toString(),
+              amountOut: quote.amountOut.toString(),
+            })),
           },
         }),
       )
       throw new Error(
-        `Fallback quote slippage ${quote.slippage} exceeds maximum allowed ${maxQuoteSlippage}`,
+        `Fallback quote slippage ${slippage} exceeds maximum allowed ${maxQuoteSlippage}`,
       )
     }
 
-    return quote
+    return quotes
   }
 
   private getStrategyService(strategy: Strategy): IRebalanceProvider<Strategy> {
@@ -195,6 +201,7 @@ export class LiquidityProviderService {
         tokenOut: this.formatToken(quote.tokenOut),
         amountIn: quote.amountIn.toString(),
         amountOut: quote.amountOut.toString(),
+        slippage: quote.slippage,
       }
     })
   }
