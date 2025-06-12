@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { parseUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -134,7 +134,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<RebalanceQuote> {
+  ): Promise<RebalanceQuote[]> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -177,7 +177,15 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           }),
         )
 
-        return await this.getQuote(tokenIn, coreTokenData, swapAmount)
+        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
+
+        const toAmountMin = parseFloat(
+          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
+        )
+
+        const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
+
+        return [coreTokenQuote, rebalanceQuote]
       } catch (coreError) {
         this.logger.debug(
           EcoLogMessage.fromDefault({
