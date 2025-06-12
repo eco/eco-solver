@@ -1,11 +1,11 @@
+import { FeeModule } from '@/fee/fee.module'
+import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
+import { IntentModule } from '@/intent/intent.module'
 import { Module } from '@nestjs/common'
-import { QuoteService } from './quote.service'
 import { MongooseModule } from '@nestjs/mongoose'
 import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-intent.schema'
-import { IntentModule } from '@/intent/intent.module'
-import { FeeModule } from '@/fee/fee.module'
 import { QuoteRepository } from '@/quote/quote.repository'
-import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
+import { QuoteService } from './quote.service'
 
 @Module({
   imports: [
@@ -15,6 +15,6 @@ import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-es
     MongooseModule.forFeature([{ name: QuoteIntentModel.name, schema: QuoteIntentSchema }]),
   ],
   providers: [QuoteService, QuoteRepository],
-  exports: [QuoteService],
+  exports: [QuoteService, QuoteRepository],
 })
 export class QuoteModule {}
