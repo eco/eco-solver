@@ -8,37 +8,56 @@ import { FeeService } from '@/fee/fee.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getModelToken } from '@nestjs/mongoose'
 import { Hex, TransactionReceipt } from 'viem'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import {
+  FundForTransactionData,
+  IntentInitiationService,
+  PermitResult,
+} from '@/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Logger } from '@nestjs/common'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
-import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { PermitProcessor } from '@/common/permit/permit-processor'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import * as viem from 'viem'
-
-jest.spyOn(viem, 'verifyTypedData').mockResolvedValue(true)
-
-const logger = new Logger('IntentInitiationServiceSpec')
+import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 
 let $: EcoTester
 let service: IntentInitiationService
-let permitProcessor: PermitProcessor
-let permit2Processor: Permit2Processor
 let quoteRepository: QuoteRepository
-let kernelAccountClientService: KernelAccountClientService
+let walletClientService: WalletClientDefaultSignerService
+let permitValidationService: PermitValidationService
 
 const intentTestUtils = new IntentTestUtils()
 const quoteTestUtils = new QuoteTestUtils()
+
+jest.mock('@/eco-configs/utils', () => {
+  return {
+    ...jest.requireActual('@/eco-configs/utils'),
+    getChainConfig: jest
+      .fn()
+      .mockReturnValue({ IntentSource: '0x0000000000000000000000000000000000000001' }),
+  }
+})
+
+const getFundForTxsPerChain = (
+  mockChainID: number,
+  txs: ExecuteSmartWalletArg[],
+): Map<number, FundForTransactionData[]> => {
+  const fundForTxsPerChain = new Map<number, FundForTransactionData[]>()
+
+  const fundForTxData = txs.map((tx) => ({
+    quoteID: `quoteID`,
+    tx,
+  }))
+
+  fundForTxsPerChain.set(mockChainID, fundForTxData)
+
+  return fundForTxsPerChain
+}
 
 describe('IntentInitiationService', () => {
   const mockTx: ExecuteSmartWalletArg = {
@@ -47,14 +66,23 @@ describe('IntentInitiationService', () => {
     value: 0n,
   }
 
-  let kernelMock: jest.Mocked<KernelAccountClientService>
+  let kernelMock: jest.Mocked<WalletClientDefaultSignerService>
 
   const mockReceipt: TransactionReceipt = {
     transactionHash: '0xtx',
   } as unknown as TransactionReceipt
 
   beforeAll(async () => {
-    kernelMock = createMock<KernelAccountClientService>()
+    kernelMock = createMock<WalletClientDefaultSignerService>({
+      estimateGas: jest.fn().mockResolvedValue({
+        response: {
+          chainID: 1,
+          gasEstimate: 100000n,
+          gasPrice: 50000000000n,
+          gasCost: 5000000000000n,
+        },
+      }),
+    })
 
     const mockSource = {
       getConfig: () => ({
@@ -79,13 +107,8 @@ describe('IntentInitiationService', () => {
 
     $ = EcoTester.setupTestFor(IntentInitiationService)
       .withProviders([
-        PermitProcessor,
-        Permit2Processor,
-        // QuoteService,
-        QuoteRepository,
-        PermitTxBuilder,
-        Permit2TxBuilder,
         PermitValidationService,
+        QuoteRepository,
         {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: {
@@ -99,33 +122,43 @@ describe('IntentInitiationService', () => {
           useValue: new EcoConfigService([mockSource as any]),
         },
         {
-          provide: KernelAccountClientService,
-          useValue: kernelMock,
-        },
-        {
           provide: WalletClientDefaultSignerService,
-          useClass: quoteTestUtils.getMockWalletClientDefaultSignerService(),
+          useValue: kernelMock,
         },
       ])
       .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])
 
     service = await $.init()
-    permitProcessor = $.get(PermitProcessor)
-    permit2Processor = $.get(Permit2Processor)
     quoteRepository = $.get(QuoteRepository)
-    kernelAccountClientService = $.get(KernelAccountClientService)
+    walletClientService = $.get(WalletClientDefaultSignerService)
+    permitValidationService = $.get(PermitValidationService)
+  })
+
+  beforeEach(() => {
+    jest
+      .spyOn(permitValidationService, 'validatePermits')
+      .mockResolvedValue({})
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
   })
 
   describe('Intent Execution', () => {
-    beforeEach(() => {
-      // Mock checkGaslessIntentSupported implementation
-      service['checkGaslessIntentSupported'] = () => ({})
-    })
-
     it('fails if quote not found', async () => {
-      const dto = intentTestUtils.createGaslessIntentRequestDTO({
-        usePermit: false,
-        isBatchPermit2: false,
+      const gaslessIntentData = intentTestUtils.createGaslessIntentDataDTO(
+        {
+          usePermit: false,
+          isBatchPermit2: false,
+          token: '0x0000000000000000000000000000000000000001',
+        },
+        {
+          chainID: 10,
+        }
+      )
+
+      const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
+        gaslessIntentData,
         token: '0x0000000000000000000000000000000000000001',
       })
 
@@ -133,59 +166,86 @@ describe('IntentInitiationService', () => {
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
         .mockResolvedValue({ error: EcoError.QuoteNotFound }) // simulate quote not found
 
-      const result = await service.initiateGaslessIntent(dto)
-      expect(result.error.message).toContain('Quote not found')
+      const { error } = await service.initiateGaslessIntent(gaslessIntentRequest)
+      expect(error.message).toContain('Quote not found')
     })
 
     it('executes intent with permit2', async () => {
-      const dto = intentTestUtils.createGaslessIntentRequestDTO({
-        usePermit: false,
-        isBatchPermit2: false,
+      const gaslessIntentData = intentTestUtils.createGaslessIntentDataDTO(
+        {
+          usePermit: false,
+          isBatchPermit2: false,
+          token: '0x0000000000000000000000000000000000000001',
+        },
+        {
+          chainID: 10,
+        }
+      )
+
+      const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
+        gaslessIntentData,
         token: '0x0000000000000000000000000000000000000001',
       })
 
       const permit2Tx = { ...mockTx, data: '0xpermit2' as Hex }
 
-      jest.spyOn(permit2Processor, 'generateTxs').mockReturnValue({ response: [permit2Tx] })
+      jest.spyOn(Permit2Processor, 'generateTxs').mockReturnValue([permit2Tx])
+
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
-      jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
-        execute: jest.fn().mockResolvedValue('0xtx'),
+        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequest) })
+
+      jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
+        sendTransaction: jest.fn().mockResolvedValue('0xtx'),
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const result = await service.initiateGaslessIntent(dto)
-      expect(result.response?.transactionHash).toBe('0xtx')
+      const { response: gaslessIntentResponse, error } = await service.initiateGaslessIntent(gaslessIntentRequest)
+      expect(error).toBeUndefined()
+      const { successes, failures } = gaslessIntentResponse!
+      expect(failures.length).toBe(0)
+      expect(successes[0].transactionHash).toBe('0xtx')
     })
 
     it('executes intent with permit', async () => {
-      const dto = intentTestUtils.createGaslessIntentRequestDTO({
-        usePermit: false,
-        isBatchPermit2: false,
+      const gaslessIntentData = intentTestUtils.createGaslessIntentDataDTO(
+        {
+          usePermit: false,
+          isBatchPermit2: false,
+          token: '0x0000000000000000000000000000000000000001',
+        },
+        {
+          chainID: 10,
+        }
+      )
+
+      const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
+        gaslessIntentData,
         token: '0x0000000000000000000000000000000000000001',
       })
 
       const permitTx = { ...mockTx, data: '0xpermit' as Hex }
 
-      jest.spyOn(permitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
+      jest.spyOn(PermitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(dto) })
-      jest.spyOn(kernelAccountClientService, 'getClient').mockResolvedValue({
-        execute: jest.fn().mockResolvedValue('0xtx'),
+        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequest) })
+      jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
+        sendTransaction: jest.fn().mockResolvedValue('0xtx'),
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const result = await service.initiateGaslessIntent(dto)
-      expect(result.response?.transactionHash).toBe('0xtx')
+      const { response: gaslessIntentResponse, error } = await service.initiateGaslessIntent(gaslessIntentRequest)
+      expect(error).toBeUndefined()
+      const { successes, failures } = gaslessIntentResponse!
+      expect(failures.length).toBe(0)
+      expect(successes[0].transactionHash).toBe('0xtx')
     })
   })
 
   describe('Intent Gas Estimation', () => {
     it('should calculate gas quote correctly', async () => {
       const dto = new GaslessIntentRequestDTO()
-      dto.getSourceChainID = () => 5 // example Goerli chainId
 
       const txs: ExecuteSmartWalletArg[] = [
         { to: '0xabc123...', data: '0x00', value: 0n },
@@ -194,13 +254,22 @@ describe('IntentInitiationService', () => {
 
       const mockGasEstimate = 100_000n
       const mockGasPrice = 50_000_000_000n // 50 gwei
+      const mockChainID = 5
+      const fundForTxsPerChain = getFundForTxsPerChain(mockChainID, txs)
 
-      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({ response: txs })
-
-      kernelMock.estimateGasForKernelExecution.mockResolvedValue({
+      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({
         response: {
+          permitDataPerChain: new Map<number, PermitResult>(),
+          fundForTxsPerChain,
+        },
+      })
+
+      kernelMock.estimateGas.mockResolvedValue({
+        response: {
+          chainID: mockChainID,
           gasEstimate: mockGasEstimate,
           gasPrice: mockGasPrice,
+          gasCost: mockGasEstimate * mockGasPrice,
         },
       })
 
@@ -208,19 +277,30 @@ describe('IntentInitiationService', () => {
 
       expect(result.error).toBeUndefined()
       expect(result.response).toEqual({
-        gasEstimate: mockGasEstimate,
-        gasPrice: mockGasPrice,
-        gasCost: expect.any(BigInt),
+        estimations: expect.any(Object),
+        gasCost: (mockGasEstimate * mockGasPrice * 110n) / 100n, // Plus 10% buffer
       })
     })
 
     it('should handle errors gracefully', async () => {
       const dto = new GaslessIntentRequestDTO()
-      dto.getSourceChainID = () => 5
 
-      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({ response: [] })
+      const txs: ExecuteSmartWalletArg[] = [
+        { to: '0xabc123...', data: '0x00', value: 0n },
+        { to: '0xdef456...', data: '0x01', value: 0n },
+      ]
 
-      kernelMock.estimateGasForKernelExecution.mockRejectedValue(new Error('boom'))
+      const mockChainID = 1
+      const fundForTxsPerChain = getFundForTxsPerChain(mockChainID, txs)
+
+      jest.spyOn(service, 'generateGaslessIntentTransactions').mockResolvedValue({
+        response: {
+          permitDataPerChain: new Map<number, PermitResult>(),
+          fundForTxsPerChain,
+        },
+      })
+
+      kernelMock.estimateGas.mockRejectedValue(new Error('boom'))
 
       const result = await service.calculateGasQuoteForIntent(dto)
 
