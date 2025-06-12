@@ -1,9 +1,8 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { Chain, Client, ClientConfig, createClient, extractChain, Hex, zeroAddress } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { getTransport } from '@/common/chains/transport'
 import { ChainsSupported } from '@/common/chains/supported'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 @Injectable()
@@ -11,7 +10,6 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
   implements OnModuleInit
 {
   readonly instances: Map<number, T> = new Map()
-  protected logger2 = new Logger(ViemMultichainClientService.name)
   protected supportedAlchemyChainIds: number[] = []
   protected pollingInterval: number
 
@@ -54,13 +52,6 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
   protected async buildChainConfig(chain: Chain): Promise<V> {
     //only pass api key if chain is supported by alchemy, otherwise it'll be incorrectly added to other rpcs
     const { rpcUrl, config } = this.ecoConfigService.getRpcUrl(chain)
-
-    this.logger2.debug(
-      EcoLogMessage.fromDefault({
-        message: `Chain config: ${chain.id}`,
-        properties: { rpcUrl, config },
-      }),
-    )
 
     const rpcTransport = getTransport(rpcUrl, config)
     return {
