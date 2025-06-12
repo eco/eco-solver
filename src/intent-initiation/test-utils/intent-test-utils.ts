@@ -46,7 +46,12 @@ export class IntentTestUtils {
         permit: usePermit ? [this.permitTestUtils.createPermitDTO({ token })] : [],
         permit2: usePermit
           ? undefined
-          : [this.permitTestUtils.createPermit2DTO(permit2Overrides, { isBatch: isBatchPermit2, token })],
+          : [
+              this.permitTestUtils.createPermit2DTO(permit2Overrides, {
+                isBatch: isBatchPermit2,
+                token,
+              }),
+            ],
         permit3: undefined,
       },
 

@@ -25,7 +25,6 @@ const quoteTestUtils = new QuoteTestUtils()
 
 describe('IntentInitiationController', () => {
   beforeAll(async () => {
-
     const mockSource = {
       getConfig: () => ({
         rpcs: {
