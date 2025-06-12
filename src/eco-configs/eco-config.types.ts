@@ -271,15 +271,18 @@ export type AlchemyNetwork = {
  * The config type for the RPC section
  */
 export type RpcConfigType = {
+  config: {
+    webSockets?: boolean
+  }
   keys: {
     [key in keyof typeof ConfigRegex]?: string
   }
   custom?: Record<
     string, // Chain ID
     {
-      http: string[]
+      http?: string[]
       webSocket?: string[]
-      options?: WebSocketTransportConfig | HttpTransportConfig
+      config?: WebSocketTransportConfig | HttpTransportConfig
     }
   >
 }
