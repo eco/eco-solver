@@ -16,6 +16,8 @@ import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenConfig } from '@/balance/types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -24,6 +26,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
+    private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
   ) {}
 
@@ -151,13 +154,17 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     for (const coreToken of coreTokens) {
       try {
         // Create core token data structure
-        const coreTokenData = {
+        const coreTokenConfig: TokenConfig = {
+          address: coreToken.token,
           chainId: coreToken.chainID,
-          config: {
-            address: coreToken.token,
-            chainId: coreToken.chainID,
-          },
-        } as TokenData
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        }
+        const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
+          this.walletAddress,
+          [coreTokenConfig],
+        )
 
         // Try routing through core token
         this.logger.debug(
