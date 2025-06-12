@@ -18,7 +18,7 @@ import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
-import { TransportOptions } from '@/common/chains/transport'
+import { TransportConfig } from '@/common/chains/transport'
 
 /**
  * Service class for managing application configuration from multiple sources.
@@ -312,7 +312,7 @@ export class EcoConfigService {
    * @param chain The chain object to get the RPC URL for
    * @returns The RPC URL string for the specified chain
    */
-  getRpcUrl(chain: Chain): { rpcUrl: string; options: TransportOptions } {
+  getRpcUrl(chain: Chain): { rpcUrl: string; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
     const rpcChain = this.ecoChains.getChain(chain.id)
@@ -328,7 +328,7 @@ export class EcoConfigService {
       rpc = custom?.http?.[0] || def?.http?.[0]
     }
 
-    const options: TransportOptions['options'] = customRpcUrls?.options
+    const config: TransportConfig['config'] = customRpcUrls?.config
 
     if (customRpcUrls?.http) {
       isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
@@ -339,7 +339,7 @@ export class EcoConfigService {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrl: rpc, options: { isWebsocket: isWebSocketEnabled, options } }
+    return { rpcUrl: rpc, config: { isWebsocket: isWebSocketEnabled, config } }
   }
 
   /**

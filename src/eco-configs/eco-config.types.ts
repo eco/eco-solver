@@ -282,7 +282,7 @@ export type RpcConfigType = {
     {
       http?: string[]
       webSocket?: string[]
-      options?: WebSocketTransportConfig | HttpTransportConfig
+      config?: WebSocketTransportConfig | HttpTransportConfig
     }
   >
 }
