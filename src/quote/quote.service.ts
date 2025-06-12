@@ -2,8 +2,12 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
-import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
+import { CalculateTokensType } from '@/fee/types'
+import { EcoResponse } from '@/common/eco-response'
+import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
+import { FeeService } from '@/fee/fee.service'
+import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -13,27 +17,23 @@ import {
   Quote400,
   SolverUnsupported,
 } from '@/quote/errors'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import * as dayjs from 'dayjs'
-import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
-import { FeeService } from '@/fee/fee.service'
-import { CalculateTokensType } from '@/fee/types'
-import { EcoResponse } from '@/common/eco-response'
-import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
-import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
-import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { isInsufficient } from '../fee/utils'
+import { Mathb } from '@/utils/bigint'
+import { ModuleRef } from '@nestjs/core'
+import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
+import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
+import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
+import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
+import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { ModuleRef } from '@nestjs/core'
-import { isInsufficient } from '../fee/utils'
+import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
+import * as dayjs from 'dayjs'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -176,14 +176,18 @@ export class QuoteService implements OnModuleInit {
   }
 
   private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
-    return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
-      salt: ZERO_SALT,
-      route: quoteIntentDataDTO.route,
-      reward: quoteIntentDataDTO.reward,
-      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
-    }
+    const gaslessIntentRequest = new GaslessIntentRequestDTO()
+    gaslessIntentRequest.dAppID = quoteIntentDataDTO.dAppID
+    gaslessIntentRequest.intents = [
+      {
+        quoteID: quoteIntentDataDTO.quoteID,
+        salt: ZERO_SALT,
+        route: quoteIntentDataDTO.route,
+        reward: quoteIntentDataDTO.reward,
+      },
+    ]
+    gaslessIntentRequest.gaslessIntentData = quoteIntentDataDTO.gaslessIntentData!
+    return gaslessIntentRequest
   }
 
   /**
@@ -369,8 +373,7 @@ export class QuoteService implements OnModuleInit {
     )
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quoteIntent, isReverseQuote } = params
-    const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
+    const { quoteIntent, isReverseQuote, gaslessIntentRequest } = params
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -386,11 +389,9 @@ export class QuoteService implements OnModuleInit {
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
 
+    const sourceChainID = Number(gaslessIntentRequest.intents[0].route.source)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const flatFee = await this.estimateFlatFee(
-      gaslessIntentRequest.getSourceChainID!(),
-      quoteDataEntry!,
-    )
+    const flatFee = await this.estimateFlatFee(sourceChainID, quoteDataEntry!)
 
     return { response: quoteDataEntry }
   }

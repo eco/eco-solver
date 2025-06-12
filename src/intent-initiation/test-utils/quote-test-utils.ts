@@ -125,13 +125,13 @@ export class QuoteTestUtils {
     intentExecutionType: string,
     quoteIntentDataDTO: QuoteIntentDataDTO,
   ): QuoteIntentModel {
-    const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
+    const { dAppID, quoteID, route: quoteRoute, reward } = quoteIntentDataDTO
 
     const quoteIntentModel: QuoteIntentModel = {
       _id: 'mock-id' as any,
       dAppID,
+      quoteID,
       intentExecutionType,
-      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
       receipt: null,
@@ -151,18 +151,14 @@ export class QuoteTestUtils {
   }
 
   asQuoteIntentModel(dto: GaslessIntentRequestDTO): QuoteIntentModel {
+    // Use the first intent from the array
+    const intent = dto.intents[0]
+
     return this.createQuoteIntentModel({
-      route: dto.route,
-      reward: {
-        creator: dto.reward.creator as `0x${string}`,
-        prover: dto.reward.prover as `0x${string}`,
-        deadline: BigInt(dto.reward.deadline),
-        nativeValue: BigInt(dto.reward.nativeValue),
-        tokens: dto.reward.tokens.map((t) => ({
-          token: t.token as `0x${string}`,
-          amount: BigInt(t.amount),
-        })),
-      },
+      dAppID: dto.dAppID,
+      quoteID: intent.quoteID,
+      route: intent.route,
+      reward: intent.reward,
     })
   }
 

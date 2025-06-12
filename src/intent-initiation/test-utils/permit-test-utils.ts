@@ -1,9 +1,7 @@
-import { BatchPermitDataDTO } from '@/quote/dto/permit2/batch-permit-data.dto'
 import { Hex } from 'viem'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/permit-params.interface'
-import { SinglePermitDataDTO } from '@/quote/dto/permit2/single-permit-data.dto'
 import * as crypto from 'crypto'
 
 const AddressLen = 40
@@ -33,16 +31,16 @@ export class PermitTestUtils {
   }
 
   createPermitDTO(overrides?: Partial<PermitDTO>): PermitDTO {
-    const permitDTO: PermitDTO = {
+    return {
       token: '0x0000000000000000000000000000000000000001',
-      data: {
-        signature: ('0x' + '1'.repeat(130)) as Hex,
-        deadline: 9999999999n,
-      },
+      funder: '0x0000000000000000000000000000000000000003',
+      spender: '0x0000000000000000000000000000000000000002',
+      chainID: 1,
+      value: 100n,
+      signature: ('0x' + '1'.repeat(130)) as Hex,
+      deadline: 9999999999n,
       ...overrides,
     }
-
-    return permitDTO
   }
 
   createPermit2DTO(
@@ -50,55 +48,25 @@ export class PermitTestUtils {
     opts: { token?: Hex; isBatch?: boolean } = {},
   ): Permit2DTO {
     const token = opts.token ?? '0x0000000000000000000000000000000000000001'
+    const spender = ('0x' + '0'.repeat(40)) as Hex
+    const funder = '0x0000000000000000000000000000000000000003' as Hex
 
-    const singlePermitData: SinglePermitDataDTO = {
-      typedData: {
-        details: {
-          token,
-          amount: '1000',
-          nonce: '1',
-          expiration: '9999999999',
-        },
-        spender: ('0x' + '0'.repeat(40)) as Hex,
-        sigDeadline: 9999999999n,
-      },
-    }
-
-    const batchPermitData: BatchPermitDataDTO = {
-      // permitDataType: 'batch',
-      typedData: {
-        details: [
-          {
-            token,
-            amount: '1000',
-            nonce: '1',
-            expiration: '9999999999',
-          },
-        ],
-        spender: ('0x' + '0'.repeat(40)) as Hex,
-        sigDeadline: 9999999999n,
-      },
-    }
-
-    const getDetails = () =>
-      opts.isBatch ? batchPermitData.typedData.details : [singlePermitData.typedData.details]
-
-    const getSpender = () =>
-      opts.isBatch ? batchPermitData.typedData.spender : singlePermitData.typedData.spender
-
-    const getSigDeadline = () =>
-      opts.isBatch ? batchPermitData.typedData.sigDeadline : singlePermitData.typedData.sigDeadline
-
+    // New Permit2DTO structure based on the updated model
     return {
+      chainID: 1,
       permitContract: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+      details: [
+        {
+          token,
+          amount: 1000n,
+          expiration: '9999999999',
+          nonce: '1',
+        },
+      ],
+      funder,
+      spender,
+      sigDeadline: 9999999999n,
       signature: ('0x' + '1'.repeat(130)) as Hex,
-      permitData: {
-        singlePermitData: opts.isBatch ? undefined : singlePermitData,
-        batchPermitData: opts.isBatch ? batchPermitData : undefined,
-        getDetails: getDetails,
-        getSpender: getSpender,
-        getSigDeadline: getSigDeadline,
-      },
       ...overrides,
     }
   }
