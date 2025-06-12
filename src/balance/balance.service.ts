@@ -92,9 +92,23 @@ export class BalanceService implements OnApplicationBootstrap {
     chainID: number,
     tokenAddresses: Hex[],
   ): Promise<Record<Hex, TokenBalance>> {
-    const client = await this.kernelAccountClientService.getClient(chainID)
-    const walletAddress = client.kernelAccount.address
-    return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+    try {
+      const client = await this.kernelAccountClientService.getClient(chainID)
+      const walletAddress = client.kernelAccount.address
+      return await this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `fetchTokenBalances: error fetching balances for chain ${chainID}: ${ex.message}`,
+          properties: {
+            chainID,
+            tokenAddresses,
+          },
+        }),
+      )
+
+      return {}
+    }
   }
 
   /**
@@ -248,6 +262,16 @@ export class BalanceService implements OnApplicationBootstrap {
     const key = getDestinationNetworkAddressKey(chainID, tokenAddress)
     if (!this.tokenBalances.has(key)) {
       const tokenBalance = await this.fetchTokenBalance(chainID, tokenAddress)
+
+      if (!tokenBalance) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `loadERC20TokenBalance: token balance not found for ${key}`,
+          }),
+        )
+        return undefined
+      }
+
       this.tokenBalances.set(key, tokenBalance)
     }
     return this.tokenBalances.get(key)

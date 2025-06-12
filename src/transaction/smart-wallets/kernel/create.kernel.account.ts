@@ -10,6 +10,7 @@ import {
   LocalAccount,
   OneOf,
   publicActions,
+  PublicClient,
   Transport,
   WalletClient,
 } from 'viem'
@@ -26,11 +27,14 @@ import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { createKernelAccount } from '@zerodev/sdk'
 import {
+  Account as RhinestoneAccount,
+  Execution,
   getAccount,
   getOwnableExecutor,
   GLOBAL_CONSTANTS,
   installModule,
   isModuleInstalled,
+  Module,
 } from '@rhinestone/module-sdk'
 import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -150,7 +154,7 @@ export async function addExecutorToKernelAccount<
         },
       }),
     )
-    const installExecutes = await installModule({
+    const installExecutes = await installModuleWithErrorHandling({
       client: client as any,
       account: account,
       module: executor,
@@ -270,6 +274,38 @@ export async function executorTransferERC20Token<
       },
     }),
   )
+}
+
+async function installModuleWithErrorHandling({
+  client,
+  account,
+  module,
+}: {
+  client: PublicClient
+  account: RhinestoneAccount
+  module: Module
+}): Promise<Execution[]> {
+  const logger = getLogger()
+
+  try {
+    return await installModule({
+      client,
+      account,
+      module,
+    })
+  } catch (ex) {
+    logger.error(
+      EcoLogMessage.fromDefault({
+        message: `installModuleWithErrorHandling: Failed to install module`,
+        properties: {
+          account: account.address,
+          error: ex.message,
+        },
+      }),
+    )
+
+    return []
+  }
 }
 
 function getLogger() {
