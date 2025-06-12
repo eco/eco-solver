@@ -177,14 +177,18 @@ export class QuoteService implements OnModuleInit {
   }
 
   private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
-    return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
-      salt: ZERO_SALT,
-      route: quoteIntentDataDTO.route,
-      reward: quoteIntentDataDTO.reward,
-      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
-    }
+    const gaslessIntentRequest = new GaslessIntentRequestDTO()
+    gaslessIntentRequest.dAppID = quoteIntentDataDTO.dAppID
+    gaslessIntentRequest.intents = [
+      {
+        quoteID: quoteIntentDataDTO.quoteID,
+        salt: ZERO_SALT,
+        route: quoteIntentDataDTO.route,
+        reward: quoteIntentDataDTO.reward,
+      },
+    ]
+    gaslessIntentRequest.gaslessIntentData = quoteIntentDataDTO.gaslessIntentData!
+    return gaslessIntentRequest
   }
 
   /**
@@ -370,8 +374,7 @@ export class QuoteService implements OnModuleInit {
     )
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quoteIntent, isReverseQuote } = params
-    const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
+    const { quoteIntent, isReverseQuote, gaslessIntentRequest } = params
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -387,11 +390,9 @@ export class QuoteService implements OnModuleInit {
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
 
+    const sourceChainID = Number(gaslessIntentRequest.intents[0].route.source)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const flatFee = await this.estimateFlatFee(
-      gaslessIntentRequest.getSourceChainID!(),
-      quoteDataEntry!,
-    )
+    const flatFee = await this.estimateFlatFee(sourceChainID, quoteDataEntry!)
 
     return { response: quoteDataEntry }
   }
