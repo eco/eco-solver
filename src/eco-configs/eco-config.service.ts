@@ -16,7 +16,7 @@ import { Chain, getAddress, zeroAddress, extractChain } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
-import { EcoChains } from '@eco-foundation/chains'
+import { EcoChain, EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
 
@@ -315,7 +315,12 @@ export class EcoConfigService {
   getRpcUrl(chain: Chain): { rpcUrl: string; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    const rpcChain = this.ecoChains.getChain(chain.id)
+    let rpcChain: EcoChain | Chain
+    try {
+      rpcChain = this.ecoChains.getChain(chain.id)
+    } catch (e) {
+      rpcChain = extractChain({ chains: ChainsSupported, id: chain.id })
+    }
     const custom = rpcChain.rpcUrls.custom
     const def = rpcChain.rpcUrls.default
 
@@ -336,7 +341,11 @@ export class EcoConfigService {
     }
 
     if (!rpc) {
-      throw EcoError.ChainRPCNotFound(chain.id)
+      rpc = custom?.http?.[0] || def?.http?.[0]
+      isWebSocketEnabled = false
+      if (!rpc) {
+        throw EcoError.ChainRPCNotFound(chain.id)
+      }
     }
 
     return { rpcUrl: rpc, config: { isWebsocket: isWebSocketEnabled, config } }
