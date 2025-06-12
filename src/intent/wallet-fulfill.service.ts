@@ -322,7 +322,7 @@ export class WalletFulfillService implements IFulfillService {
       [pad(model.intent.reward.prover), '0x', zeroAddress],
     )
 
-    const fee = await this.getProverFee(model, hyperProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -366,12 +366,12 @@ export class WalletFulfillService implements IFulfillService {
     }
 
     const messageData = encodeAbiParameters(
-      [{ type: 'uint32' }, { type: 'bytes32' }],
-      [Number(model.intent.route.source), pad(model.intent.reward.prover)],
+      [{ type: 'bytes32' }],
+      [pad(model.intent.reward.prover)],
     )
 
     // Metalayer may use the same fee structure as Hyperlane
-    const fee = await this.getProverFee(model, metalayerProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -397,12 +397,14 @@ export class WalletFulfillService implements IFulfillService {
    * Calculates the fee required for a transaction by calling the prover contract.
    *
    * @param {IntentSourceModel} model - The model containing intent details, including route, hash, and reward information.
+   * @param claimant - The claimant address
    * @param proverAddr - The address of the prover contract
    * @param messageData - The message data to send
    * @return {Promise<bigint>} A promise that resolves to the fee amount
    */
   private async getProverFee(
     model: IntentSourceModel,
+    claimant: Hex,
     proverAddr: Hex,
     messageData: Hex,
   ): Promise<bigint> {
@@ -416,7 +418,7 @@ export class WalletFulfillService implements IFulfillService {
       args: [
         IntentSourceModel.getSource(model), //_sourceChainID
         [model.intent.hash],
-        [this.ecoConfigService.getEth().claimant],
+        [claimant],
         messageData,
       ],
     })
