@@ -135,9 +135,7 @@ describe('IntentInitiationService', () => {
   })
 
   beforeEach(() => {
-    jest
-      .spyOn(permitValidationService, 'validatePermits')
-      .mockResolvedValue({})
+    jest.spyOn(permitValidationService, 'validatePermits').mockResolvedValue({})
   })
 
   afterEach(() => {
@@ -154,7 +152,7 @@ describe('IntentInitiationService', () => {
         },
         {
           chainID: 10,
-        }
+        },
       )
 
       const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
@@ -179,7 +177,7 @@ describe('IntentInitiationService', () => {
         },
         {
           chainID: 10,
-        }
+        },
       )
 
       const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
@@ -200,7 +198,8 @@ describe('IntentInitiationService', () => {
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const { response: gaslessIntentResponse, error } = await service.initiateGaslessIntent(gaslessIntentRequest)
+      const { response: gaslessIntentResponse, error } =
+        await service.initiateGaslessIntent(gaslessIntentRequest)
       expect(error).toBeUndefined()
       const { successes, failures } = gaslessIntentResponse!
       expect(failures.length).toBe(0)
@@ -216,7 +215,7 @@ describe('IntentInitiationService', () => {
         },
         {
           chainID: 10,
-        }
+        },
       )
 
       const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
@@ -235,7 +234,8 @@ describe('IntentInitiationService', () => {
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),
       } as any)
 
-      const { response: gaslessIntentResponse, error } = await service.initiateGaslessIntent(gaslessIntentRequest)
+      const { response: gaslessIntentResponse, error } =
+        await service.initiateGaslessIntent(gaslessIntentRequest)
       expect(error).toBeUndefined()
       const { successes, failures } = gaslessIntentResponse!
       expect(failures.length).toBe(0)
