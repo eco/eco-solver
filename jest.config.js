@@ -32,4 +32,5 @@ module.exports = {
     mongodbMemoryServerOptions, // 👈 Inject manually here!
   },
   setupFiles: ['<rootDir>/../jest.setup.js'],
+  watchman: false,
 }
