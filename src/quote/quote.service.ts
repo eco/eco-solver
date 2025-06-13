@@ -183,8 +183,6 @@ export class QuoteService implements OnModuleInit {
       {
         quoteID: quoteIntentDataDTO.quoteID,
         salt: ZERO_SALT,
-        route: quoteIntentDataDTO.route,
-        reward: quoteIntentDataDTO.reward,
       },
     ]
     gaslessIntentRequest.gaslessIntentData = quoteIntentDataDTO.gaslessIntentData!
@@ -390,7 +388,7 @@ export class QuoteService implements OnModuleInit {
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
 
-    const sourceChainID = Number(gaslessIntentRequest.intents[0].route.source)
+    const sourceChainID = Number(quoteIntent.route.source)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const flatFee = await this.estimateFlatFee(sourceChainID, quoteDataEntry!)
 
