@@ -271,15 +271,18 @@ export type AlchemyNetwork = {
  * The config type for the RPC section
  */
 export type RpcConfigType = {
+  config: {
+    webSockets?: boolean
+  }
   keys: {
     [key in keyof typeof ConfigRegex]?: string
   }
   custom?: Record<
     string, // Chain ID
     {
-      http: string[]
+      http?: string[]
       webSocket?: string[]
-      options?: WebSocketTransportConfig | HttpTransportConfig
+      config?: WebSocketTransportConfig | HttpTransportConfig
     }
   >
 }
@@ -365,8 +368,12 @@ export class IntentSource {
 }
 
 export interface LiquidityManagerConfig {
+  enabled?: boolean
   // The maximum slippage around target balance for a token
   targetSlippage: number
+  // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
+  maxQuoteSlippage: number
+  swapSlippage?: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
