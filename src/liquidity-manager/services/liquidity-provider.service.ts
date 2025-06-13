@@ -9,17 +9,19 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
+import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
   private logger = new Logger(LiquidityProviderService.name)
 
   constructor(
+    protected readonly ecoConfigService: EcoConfigService,
     protected readonly liFiProviderService: LiFiProviderService,
     protected readonly cctpProviderService: CCTPProviderService,
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
-    protected readonly ecoConfigService: EcoConfigService,
+    protected readonly relayProviderService: RelayProviderService,
   ) {}
 
   async getQuote(
@@ -174,6 +176,8 @@ export class LiquidityProviderService {
         return this.cctpProviderService
       case 'WarpRoute':
         return this.warpRouteProviderService
+      case 'Relay':
+        return this.relayProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
@@ -185,7 +189,7 @@ export class LiquidityProviderService {
       case crowdLiquidityPoolAddress:
         return ['CCTP']
       default:
-        return ['LiFi', 'WarpRoute']
+        return ['LiFi', 'WarpRoute', 'Relay']
     }
   }
 

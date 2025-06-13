@@ -6,6 +6,7 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -13,6 +14,7 @@ describe('LiquidityProviderService', () => {
   let liquidityProviderService: LiquidityProviderService
   let liFiProviderService: LiFiProviderService
   let cctpProviderService: CCTPProviderService
+  let relayProviderService: RelayProviderService
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
 
@@ -23,6 +25,7 @@ describe('LiquidityProviderService', () => {
         { provide: LiFiProviderService, useValue: createMock<LiFiProviderService>() },
         { provide: CCTPProviderService, useValue: createMock<CCTPProviderService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: RelayProviderService, useValue: createMock<RelayProviderService>() },
         { provide: WarpRouteProviderService, useValue: createMock<WarpRouteProviderService>() },
         {
           provide: EcoConfigService,
@@ -36,6 +39,7 @@ describe('LiquidityProviderService', () => {
     liquidityProviderService = module.get<LiquidityProviderService>(LiquidityProviderService)
     liFiProviderService = module.get<LiFiProviderService>(LiFiProviderService)
     cctpProviderService = module.get<CCTPProviderService>(CCTPProviderService)
+    relayProviderService = module.get<RelayProviderService>(RelayProviderService)
     warpRouteProviderService = module.get<WarpRouteProviderService>(WarpRouteProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
   })
@@ -58,6 +62,7 @@ describe('LiquidityProviderService', () => {
 
       jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(relayProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
