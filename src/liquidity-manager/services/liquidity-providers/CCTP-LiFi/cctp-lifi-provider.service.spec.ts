@@ -236,6 +236,7 @@ describe('CCTPLiFiProviderService', () => {
       expect(quote).toEqual({
         amountIn: parseUnits('100', 6),
         amountOut: parseUnits('45', 18),
+        id: expect.any(String),
         slippage: expect.any(Number),
         tokenIn: mockTokenIn,
         tokenOut: mockTokenOut,
