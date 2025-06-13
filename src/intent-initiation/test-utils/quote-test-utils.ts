@@ -1,5 +1,5 @@
 import { ClassConstructor } from 'class-transformer'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentRequestData } from '@/intent-initiation/test-utils/intent-test-utils'
 import { Hex } from 'viem'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { PublicClient } from 'viem'
@@ -150,15 +150,16 @@ export class QuoteTestUtils {
     return hashRoute(saltedRoute)
   }
 
-  asQuoteIntentModel(dto: GaslessIntentRequestDTO): QuoteIntentModel {
+  asQuoteIntentModel(gaslessIntentRequestData: GaslessIntentRequestData): QuoteIntentModel {
     // Use the first intent from the array
-    const intent = dto.intents[0]
+    const { gaslessIntentRequest, route, reward } = gaslessIntentRequestData
+    const intent = gaslessIntentRequest.intents[0]
 
     return this.createQuoteIntentModel({
-      dAppID: dto.dAppID,
+      dAppID: gaslessIntentRequest.dAppID,
       quoteID: intent.quoteID,
-      route: intent.route,
-      reward: intent.reward,
+      route,
+      reward,
     })
   }
 

@@ -37,16 +37,4 @@ export class IntentDTO {
   @IsString()
   @ApiProperty()
   salt: Hex
-
-  @IsNotEmpty()
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => QuoteRouteDataDTO)
-  route: QuoteRouteDataDTO
-
-  @IsNotEmpty()
-  @ValidateNested()
-  @ApiProperty()
-  @Type(() => QuoteRewardDataDTO)
-  reward: QuoteRewardDataDTO
 }

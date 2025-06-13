@@ -5,6 +5,7 @@ import { Hex } from 'viem'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { PermitTestUtils } from '@/intent-initiation/test-utils/permit-test-utils'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {
@@ -12,6 +13,12 @@ export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentReques
   isBatchPermit2?: boolean
   token?: `0x${string}`
   gaslessIntentData?: Partial<GaslessIntentDataDTO>
+}
+
+export interface GaslessIntentRequestData {
+  gaslessIntentRequest: GaslessIntentRequestDTO
+  route: QuoteRouteDataDTO
+  reward: QuoteRewardDataDTO
 }
 
 export class IntentTestUtils {
@@ -63,7 +70,7 @@ export class IntentTestUtils {
 
   createGaslessIntentRequestDTO(
     overrides: GaslessIntentFactoryOptions = {},
-  ): GaslessIntentRequestDTO {
+  ): GaslessIntentRequestData {
     const { usePermit = true, isBatchPermit2 = false, token, ...dtoOverrides } = overrides
 
     const gaslessIntentData: GaslessIntentDataDTO = overrides.gaslessIntentData ?? {
@@ -84,14 +91,16 @@ export class IntentTestUtils {
         {
           quoteID: 'QuoteID',
           salt: ('0x' + 'abcd'.padEnd(64, '0')) as Hex,
-          route: this.quoteTestUtils.createQuoteRouteDataDTO(),
-          reward: this.createRewardDTO({ token }),
         },
       ],
       gaslessIntentData,
       ...dtoOverrides,
     }
 
-    return gaslessIntentRequestDTO
+    return {
+      gaslessIntentRequest: gaslessIntentRequestDTO,
+      route: this.quoteTestUtils.createQuoteRouteDataDTO(),
+      reward: this.createRewardDTO({ token }),
+    }
   }
 }
