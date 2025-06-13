@@ -12,6 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
+import { ProverValidationService } from '@/prover/prover-validation.service'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -34,6 +35,7 @@ describe('ValidationService', () => {
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
+        { provide: ProverValidationService, useValue: createMock<ProverValidationService>() },
       ],
     }).compile()
 
