@@ -129,7 +129,7 @@ export default {
     },
     walletStrategies: {
       'crowd-liquidity-pool': ['CCTP'],
-      'eco-wallet': ['LiFi', 'WarpRoute','CCTPLiFi'],
+      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
     maxQuoteSlippage: 0.5,
   },
