@@ -36,7 +36,10 @@ describe('ProverValidationService', () => {
       providers: [
         ProverValidationService,
         { provide: EcoConfigService, useValue: mockEcoConfigService },
-        { provide: WalletClientDefaultSignerService, useValue: mockWalletClientDefaultSignerService },
+        {
+          provide: WalletClientDefaultSignerService,
+          useValue: mockWalletClientDefaultSignerService,
+        },
       ],
     }).compile()
 
@@ -49,9 +52,7 @@ describe('ProverValidationService', () => {
     mockEcoConfigService.getIntentSources.mockReturnValue([
       {
         chainID: 1,
-        provers: [
-          { toLowerCase: () => '0xabc' },
-        ],
+        provers: ['0xabc'],
       },
     ])
 
