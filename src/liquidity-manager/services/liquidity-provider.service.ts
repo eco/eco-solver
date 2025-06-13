@@ -11,6 +11,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -41,7 +42,8 @@ export class LiquidityProviderService {
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         const service = this.getStrategyService(strategy)
-        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
+        const id = uuidv4()
+        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, id)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
 
         // Helper function to check if a quote is valid

@@ -26,6 +26,7 @@ export type ExecuteCCTPMintJob = LiquidityManagerJob<
         decimals: number
       }
     }
+    id?: string
   },
   Hex
 >
@@ -55,8 +56,9 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
 
   async process(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
     processor.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Processing`,
+        id: job.data.id,
         properties: { job },
       }),
     )
@@ -70,9 +72,12 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
   }
 
   async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
+    const { cctpLiFiContext } = job.data
+
     processor.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Completed!`,
+        id: job.data.id,
         properties: {
           chainId: job.data.destinationChainId,
           txHash: job.returnvalue,
@@ -81,12 +86,11 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
       }),
     )
 
-    const { cctpLiFiContext } = job.data
-
     if (cctpLiFiContext && cctpLiFiContext.destinationSwapQuote) {
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
+          id: job.data.id,
           properties: {
             messageHash: job.data.messageHash,
             destinationChainId: job.data.destinationChainId,
@@ -118,12 +122,10 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    */
   onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Failed`,
-        properties: {
-          error: (error as any)?.message ?? error,
-          data: job.data,
-        },
+        id: job.data.id,
+        properties: { error: (error as any)?.message ?? error, data: job.data },
       }),
     )
   }

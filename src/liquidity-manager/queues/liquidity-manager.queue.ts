@@ -9,6 +9,7 @@ import {
   CCTPLiFiDestinationSwapJobData,
   CCTPLiFiDestinationSwapJobManager,
 } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+import { ExecuteCCTPMintJob, ExecuteCCTPMintJobManager } from '../jobs/execute-cctp-mint.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -18,7 +19,15 @@ export enum LiquidityManagerJobName {
   CCTP_LIFI_DESTINATION_SWAP = 'CCTP_LIFI_DESTINATION_SWAP',
 }
 
-export type LiquidityManagerQueueDataType = { [k: string]: unknown }
+export type LiquidityManagerQueueDataType = {
+  /**
+   * Correlation / tracking identifier that will propagate through every job handled by the
+   * Liquidity Manager queue. Having this always present allows us to group logs that belong
+   * to the same high-level operation or request.
+   */
+  id?: string
+  [k: string]: unknown
+}
 
 export type LiquidityManagerQueueType = Queue<
   LiquidityManagerQueueDataType,
@@ -63,5 +72,9 @@ export class LiquidityManagerQueue {
 
   startCCTPLiFiDestinationSwap(data: CCTPLiFiDestinationSwapJobData): Promise<void> {
     return CCTPLiFiDestinationSwapJobManager.start(this.queue, data)
+  }
+
+  startExecuteCCTPMint(data: ExecuteCCTPMintJob['data']): Promise<void> {
+    return ExecuteCCTPMintJobManager.start(this.queue, data)
   }
 }

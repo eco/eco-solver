@@ -7,6 +7,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 
 const walletAddr = '0xWalletAddress'
 
@@ -17,6 +18,10 @@ describe('LiquidityProviderService', () => {
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
+
+  beforeAll(() => {
+    jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
+  })
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -61,9 +66,8 @@ describe('LiquidityProviderService', () => {
     liquidityProviderService['config'] = ecoConfigService.getLiquidityManager()
   })
 
-  afterEach(async () => {
-    // restore the spy created with spyOn
-    jest.restoreAllMocks()
+  afterAll(() => {
+    jest.restoreAllMocks() // optional clean-up
   })
 
   describe('getQuote', () => {
@@ -80,6 +84,7 @@ describe('LiquidityProviderService', () => {
           tokenOut: mockTokenOut,
           strategy: 'LiFi',
           context: {},
+          id: '1',
         },
       ]
 
@@ -99,6 +104,7 @@ describe('LiquidityProviderService', () => {
         mockTokenIn,
         mockTokenOut,
         mockSwapAmount,
+        '1',
       )
       expect(result).toEqual(mockQuote)
     })
@@ -115,6 +121,7 @@ describe('LiquidityProviderService', () => {
           tokenOut: mockTokenOut,
           slippage: 0.006, // 0.6% slippage - exceeds 0.5% limit
           strategy: 'LiFi',
+          id: '1',
         },
         {
           amountIn: 100n,
@@ -123,6 +130,7 @@ describe('LiquidityProviderService', () => {
           tokenOut: mockTokenOut,
           slippage: 0.003, // 0.3% slippage - within limit
           strategy: 'LiFi',
+          id: '1',
         },
       ]
 

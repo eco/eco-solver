@@ -61,6 +61,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
 
@@ -102,6 +103,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       tokenOut: tokenOut,
       strategy: this.getStrategy(),
       context: route,
+      id,
     }
   }
 
@@ -111,8 +113,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     if (kernelWalletAddress !== walletAddress) {
       const error = new Error('LiFi is not configured with the provided wallet')
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
+          id: quote.id,
           message: error.message,
           properties: { walletAddress, kernelWalletAddress },
         }),
@@ -206,8 +209,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   async _execute(quote: RebalanceQuote<'LiFi'>) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'LiFiProviderService: executing quote',
+        id: quote.id,
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,

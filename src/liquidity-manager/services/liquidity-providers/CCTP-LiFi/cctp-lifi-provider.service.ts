@@ -21,6 +21,7 @@ import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import { SlippageCalculator } from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
+import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -51,10 +52,16 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'CCTPLiFi'>> {
+    if (!id) {
+      id = uuidv4()
+    }
+
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Getting quote',
+        id,
         properties: {
           tokenIn,
           tokenOut,
@@ -74,10 +81,10 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     if (!validation.isValid) {
       const errorMessage = `Invalid CCTPLiFi route: ${validation.errors.join(', ')}`
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error: new Error(errorMessage),
           message: 'CCTPLiFi route validation warnings',
-          properties: { validation },
+          properties: { id, validation },
         }),
       )
       throw new Error(errorMessage)
@@ -86,8 +93,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     // Log any warnings
     if (validation.warnings && validation.warnings.length > 0) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTPLiFi route validation warnings',
+          id,
           properties: {
             warnings: validation.warnings,
             tokenIn,
@@ -101,14 +109,15 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     // 2. Plan route steps
     const steps = CCTPLiFiRoutePlanner.planRoute(tokenIn, tokenOut)
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Route steps planned',
+        id,
         properties: { steps },
       }),
     )
 
     // 3. Get quotes for each step and build context
-    const context = await this.buildRouteContext(tokenIn, tokenOut, swapAmount, steps)
+    const context = await this.buildRouteContext(tokenIn, tokenOut, swapAmount, steps, id)
 
     // 4. Calculate total amounts and slippage
     const { totalAmountOut, totalSlippage } = this.calculateTotals(context, swapAmount)
@@ -117,8 +126,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     if (totalSlippage > this.config.maxSlippage) {
       // TODO: what to do here?
       this.logger.warn(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTPLiFi: High total slippage detected',
+          id,
           properties: {
             totalSlippage,
             threshold: this.config.maxSlippage,
@@ -136,11 +146,13 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       tokenOut,
       strategy: this.getStrategy(),
       context,
+      id,
     }
 
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Quote generated successfully',
+        id,
         properties: { quote },
       }),
     )
@@ -152,8 +164,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     const { steps, sourceSwapQuote, destinationSwapQuote } = quote.context
 
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Starting execution',
+        id: quote.id,
         properties: {
           walletAddress,
           steps,
@@ -169,8 +182,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       if (steps.includes('sourceSwap') && sourceSwapQuote) {
         currentTxHash = await this.executeSourceSwap(walletAddress, sourceSwapQuote)
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withId({
             message: 'CCTPLiFi: Source swap completed',
+            id: quote.id,
             properties: { txHash: currentTxHash },
           }),
         )
@@ -179,8 +193,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       // Step 2: CCTP bridge
       const cctpResult = await this.executeCCTPBridge(walletAddress, quote)
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTPLiFi: CCTP bridge initiated',
+          id: quote.id,
           properties: {
             txHash: cctpResult.txHash,
             messageHash: cctpResult.messageHash,
@@ -206,32 +221,32 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
                 },
               }
             : undefined,
+        id: quote.id,
       })
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTPLiFi: CCTP attestation check queued',
+          id: quote.id,
         }),
       )
 
       // Step 4: Log destination swap status
       if (steps.includes('destinationSwap') && destinationSwapQuote) {
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withId({
             message:
               'CCTPLiFi: Destination swap will be automatically executed after CCTP attestation completes',
-            properties: {
-              destinationSwapQuote,
-            },
+            id: quote.id,
+            properties: { destinationSwapQuote },
           }),
         )
       } else {
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withId({
             message:
               'CCTPLiFi: No destination swap needed. Execution will finish after CCTP operation completes',
-            properties: {
-              quote,
-            },
+            id: quote.id,
+            properties: { quote },
           }),
         )
       }
@@ -239,10 +254,11 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       return cctpResult.txHash
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
+          id: quote.id,
           message: 'CCTPLiFi execution failed',
-          properties: { quote, walletAddress },
+          properties: { id: quote.id, quote, walletAddress },
         }),
       )
       throw error
@@ -257,6 +273,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     tokenOut: TokenData,
     swapAmount: number,
     steps: RouteStep[],
+    id: string,
   ): Promise<CCTPLiFiStrategyContext> {
     let sourceSwapQuote: LiFiStrategyContext | undefined
     let destinationSwapQuote: LiFiStrategyContext | undefined
@@ -266,13 +283,14 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       // Get source swap quote if needed
       if (steps.some((step) => step.type === 'sourceSwap')) {
         const usdcTokenData = this.createUSDCTokenData(tokenIn.chainId)
-        const sourceQuote = await this.liFiService.getQuote(tokenIn, usdcTokenData, swapAmount)
+        const sourceQuote = await this.liFiService.getQuote(tokenIn, usdcTokenData, swapAmount, id)
         sourceSwapQuote = sourceQuote.context
         cctpAmount = Number(formatUnits(BigInt(sourceSwapQuote.toAmount), 6))
 
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withId({
             message: 'CCTPLiFi: Source swap quote obtained',
+            id,
             properties: {
               tokenIn,
               tokenOut: usdcTokenData,
@@ -286,12 +304,13 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       // Get destination swap quote if needed
       if (steps.some((step) => step.type === 'destinationSwap')) {
         const usdcTokenData = this.createUSDCTokenData(tokenOut.chainId)
-        const destQuote = await this.liFiService.getQuote(usdcTokenData, tokenOut, cctpAmount)
+        const destQuote = await this.liFiService.getQuote(usdcTokenData, tokenOut, cctpAmount, id)
         destinationSwapQuote = destQuote.context
 
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withId({
             message: 'CCTPLiFi: Destination swap quote obtained',
+            id,
             properties: {
               tokenIn: usdcTokenData,
               tokenOut,
@@ -303,9 +322,11 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
+          id,
           message: 'CCTPLiFi: Failed to get quotes for route steps',
+          properties: { id },
         }),
       )
       throw new Error(`Failed to build route context: ${error.message}`)
@@ -331,6 +352,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       destinationSwapQuote,
       steps: steps.map((step) => step.type),
       gasEstimation,
+      id,
     }
 
     return context
@@ -394,8 +416,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     sourceSwapQuote: LiFiStrategyContext,
   ): Promise<Hex> {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Executing source swap',
+        id: sourceSwapQuote.id,
         properties: {
           sourceSwapQuote,
           walletAddress,
@@ -446,17 +469,19 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
           1 - parseFloat(sourceSwapQuote.toAmountMin) / parseFloat(sourceSwapQuote.fromAmount),
         strategy: this.liFiService.getStrategy(),
         context: sourceSwapQuote,
+        id: sourceSwapQuote.id,
       }
 
       // Execute the LiFi swap with proper quote structure
       const lifiResult = await this.liFiService.execute(walletAddress, quote)
 
       // Extract transaction hash from LiFi RouteExtended result
-      const txHash = this.extractTransactionHashFromLiFiResult(lifiResult)
+      const txHash = this.extractTransactionHashFromLiFiResult(lifiResult, sourceSwapQuote.id)
 
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTPLiFi: Source swap executed successfully',
+          id: sourceSwapQuote.id,
           properties: {
             txHash,
             fromAmount: sourceSwapQuote.fromAmount,
@@ -468,9 +493,11 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       return txHash
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
+          id: sourceSwapQuote.id,
           message: 'CCTPLiFi: Source swap failed',
+          properties: { id: sourceSwapQuote.id },
         }),
       )
       throw new Error(`Source swap failed: ${error.message}`)
@@ -480,7 +507,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
   /**
    * Extracts the transaction hash from LiFi RouteExtended execution result
    */
-  private extractTransactionHashFromLiFiResult(lifiResult: any): Hex {
+  private extractTransactionHashFromLiFiResult(lifiResult: any, id: string): Hex {
     // LiFi returns a RouteExtended object with execution details
     // First, try to extract from the first step's execution process
     if (lifiResult?.steps?.[0]?.execution?.process?.[0]?.txHash) {
@@ -512,8 +539,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
     // Log the structure we received for debugging
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Could not extract transaction hash from LiFi result',
+        id,
         properties: {
           resultStructure: Object.keys(lifiResult || {}),
           stepsCount: lifiResult?.steps?.length || 0,
@@ -536,8 +564,9 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     quote: RebalanceQuote<'CCTPLiFi'>,
   ): Promise<{ txHash: Hex; messageHash: Hex; messageBody: Hex }> {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: Executing CCTP bridge',
+        id: quote.id,
         properties: { quote, walletAddress },
       }),
     )
@@ -548,7 +577,12 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       const usdcTokenOut = this.createUSDCTokenData(quote.tokenOut.chainId)
       const cctpAmount = Number(quote.context.cctpTransfer.amount) / 1e6 // Convert from wei to decimal
 
-      const cctpQuote = await this.cctpService.getQuote(usdcTokenIn, usdcTokenOut, cctpAmount)
+      const cctpQuote = await this.cctpService.getQuote(
+        usdcTokenIn,
+        usdcTokenOut,
+        cctpAmount,
+        quote.id,
+      )
 
       // Use the enhanced CCTP service method that returns transaction metadata
       const result = await this.cctpService.executeWithMetadata(walletAddress, cctpQuote)
@@ -556,12 +590,14 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       return result
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
+          id: quote.id,
           message: 'CCTPLiFi: CCTP bridge failed',
+          properties: { id: quote.id, quote, walletAddress },
         }),
       )
-      throw new Error(`CCTP bridge failed: ${error.message}`)
+      throw new Error(`CCTP bridge failed: ${error.message}, id: ${quote.id}`)
     }
   }
 }

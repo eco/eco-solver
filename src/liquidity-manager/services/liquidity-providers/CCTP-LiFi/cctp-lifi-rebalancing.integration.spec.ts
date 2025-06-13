@@ -401,6 +401,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           },
           destinationSwapQuote,
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
+          id: '1',
         },
       })
 
@@ -423,6 +424,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             },
             destinationSwapQuote,
             steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
+            id: '1',
           },
         },
       ])
@@ -564,6 +566,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             },
             destinationSwapQuote,
             steps: ['cctpBridge', 'destinationSwap'],
+            id: '1',
           },
         },
       ])
@@ -656,6 +659,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
               amount: parseUnits('292.04', 6), // toAmountMin from source swap
             },
             steps: ['sourceSwap', 'cctpBridge'],
+            id: '1',
           },
         },
       ])
@@ -872,6 +876,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           },
           destinationSwapQuote,
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
+          id: '1',
         },
       })
 
@@ -893,6 +898,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
               amount: parseUnits('185', 6),
             },
             steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],
+            id: '1',
           },
         },
       ])
@@ -989,6 +995,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
                 amount: parseUnits(swapAmount.toString(), 6),
               },
               steps: ['cctpBridge'],
+              id: '1',
             },
           }
         })
@@ -1018,6 +1025,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
                   amount: parseUnits(swapAmount.toString(), 6),
                 },
                 steps: ['cctpBridge'],
+                id: '1',
               },
             },
           ]
@@ -1179,6 +1187,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             destinationChain: 10,
             amount: parseUnits('200', 6),
           },
+          id: '1',
         },
       })
 
@@ -1198,6 +1207,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
               destinationChain: 10,
               amount: parseUnits('200', 6),
             },
+            id: '1',
           },
         },
       ])

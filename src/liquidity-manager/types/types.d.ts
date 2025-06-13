@@ -52,6 +52,7 @@ interface CCTPLiFiStrategyContext {
     totalGasUSD: number
     gasWarnings: string[]
   }
+  id: string
 }
 
 type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi'
@@ -75,6 +76,7 @@ interface RebalanceQuote<S extends Strategy = Strategy> {
   tokenOut: TokenData
   strategy: S
   context: StrategyContext<S>
+  id?: string
 }
 
 interface RebalanceRequest {

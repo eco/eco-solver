@@ -23,6 +23,7 @@ export interface CCTPLiFiDestinationSwapJobData {
   }
   cctpTransactionHash?: Hex
   retryCount?: number
+  id?: string
   [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
@@ -63,11 +64,13 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CCTPLiFiDestinationSwapJob['returnvalue']> {
-    const { destinationChainId, destinationSwapQuote, walletAddress, originalTokenOut } = job.data
+    const { destinationChainId, destinationSwapQuote, walletAddress, originalTokenOut, id } =
+      job.data
 
     processor.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Starting destination swap execution',
+        id,
         properties: {
           destinationChainId,
           walletAddress,
@@ -87,8 +90,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       )
 
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
+          id,
           properties: {
             swapTxHash: swapResult.txHash,
             finalAmount: swapResult.finalAmount,
@@ -145,8 +149,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     destinationChainId: number,
   ): Promise<{ txHash: Hex; finalAmount: string }> {
     processor.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Executing destination swap',
+        id: destinationSwapQuote.id,
         properties: { destinationSwapQuote, walletAddress, destinationChainId },
       }),
     )
@@ -228,10 +233,11 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     processor.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
+        id: job.data.id,
         properties: {
-          jobId: job.id,
+          jobId: job.data.id,
           txHash: job.returnvalue?.txHash,
           finalAmount: job.returnvalue?.finalAmount,
           destinationChainId: job.data.destinationChainId,
@@ -246,11 +252,12 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
    */
   onFailed(job: CCTPLiFiDestinationSwapJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message:
           'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE - Manual intervention required for stranded USDC',
+        id: job.data.id,
         properties: {
-          jobId: job.id,
+          jobId: job.data.id,
           error: (error as any)?.message ?? error,
           walletAddress: job.data.walletAddress,
           chainId: job.data.destinationChainId,

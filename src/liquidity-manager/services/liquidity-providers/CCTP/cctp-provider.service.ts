@@ -55,6 +55,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'CCTP'>> {
     if (
       !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
@@ -74,13 +75,15 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       tokenOut: tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
+      id,
     }
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPProviderService: executing quote',
+        id: quote.id,
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
@@ -103,6 +106,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       destinationChainId: quote.tokenOut.chainId,
       messageHash,
       messageBody,
+      id: quote.id,
     })
   }
 
@@ -118,8 +122,9 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     quote: RebalanceQuote<'CCTP'>,
   ): Promise<{ txHash: Hex; messageHash: Hex; messageBody: Hex }> {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPProviderService: executing quote with metadata',
+        id: quote.id,
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
@@ -138,11 +143,17 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const messageBody = this.getMessageBytes(txReceipt)
     const messageHash = this.getMessageHash(messageBody)
 
-    this.logger.debug('CCTPProviderService: Transaction metadata extracted', {
-      txHash,
-      messageHash,
-      messageBodyLength: messageBody.length,
-    })
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'CCTPProviderService: Transaction metadata extracted',
+        id: quote.id,
+        properties: {
+          txHash,
+          messageHash,
+          messageBodyLength: messageBody.length,
+        },
+      }),
+    )
 
     return {
       txHash,

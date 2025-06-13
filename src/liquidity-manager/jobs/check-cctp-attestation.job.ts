@@ -25,6 +25,7 @@ export interface CheckCCTPAttestationJobData {
       decimals: number
     }
   }
+  id?: string
   [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
@@ -89,9 +90,10 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   ): Promise<void> {
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message:
             'CCTP: CheckCCTPAttestationJob: Attestation complete. Adding CCTP mint transaction to execution queue',
+          id: job.data.id,
           properties: job.returnvalue,
         }),
       )
@@ -99,11 +101,13 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
       await ExecuteCCTPMintJobManager.start(processor.queue, {
         ...job.data,
         attestation: job.returnvalue.attestation,
+        id: job.data.id,
       })
     } else {
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
           message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
+          id: job.data.id,
           properties: {
             ...job.returnvalue,
             messageHash: job.data.messageHash,
@@ -125,8 +129,9 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    */
   onFailed(job: CheckCCTPAttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: `CCTP: CheckCCTPAttestationJob: Failed`,
+        id: job.data.id,
         properties: {
           error: (error as any)?.message ?? error,
           data: job.data,
