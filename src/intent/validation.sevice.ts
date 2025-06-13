@@ -17,6 +17,7 @@ import { difference } from 'lodash'
 import { Hex } from 'viem'
 import { CallDataInterface } from '../contracts'
 import { isGreaterEqual } from '../fee/utils'
+import { ProverValidationService } from '@/prover/prover-validation.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -78,6 +79,7 @@ export class ValidationService implements OnModuleInit {
 
   constructor(
     private readonly proofService: ProofService,
+    private readonly proverValidationService: ProverValidationService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
@@ -97,8 +99,9 @@ export class ValidationService implements OnModuleInit {
     solver: Solver,
     txValidationFn: TxValidationFn = () => true,
   ): Promise<ValidationChecks> {
-    const supportedProver = this.supportedProver({
+    const supportedProver = await this.supportedProverWithDeploymentCheck({
       sourceChainID: intent.route.source,
+      destinationChainID: intent.route.destination,
       prover: intent.reward.prover,
     })
     const supportedNative = this.supportedNative(intent)
@@ -138,6 +141,29 @@ export class ValidationService implements OnModuleInit {
     return srcSolvers.some((intent) => {
       return intent.provers.some((prover) => prover == ops.prover)
     })
+  }
+
+  async supportedProverWithDeploymentCheck(ops: {
+    sourceChainID: bigint
+    destinationChainID: bigint
+    prover: Hex
+  }): Promise<boolean> {
+    const proverIsSupported = this.supportedProver({
+      sourceChainID: ops.sourceChainID,
+      prover: ops.prover,
+    })
+
+    if (!proverIsSupported) {
+      return false
+    }
+
+    // Now check if the prover is deployed on the destination chain
+    const { error } = await this.proverValidationService.validateProver(
+      Number(ops.destinationChainID),
+      ops.prover,
+    )
+
+    return Boolean(!error)
   }
 
   /**

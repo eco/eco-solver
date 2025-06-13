@@ -2,7 +2,7 @@ import { Network } from '@/common/alchemy/network'
 import { Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
-import { Chain, TransactionReceipt } from 'viem'
+import { Address, Chain, TransactionReceipt } from 'viem'
 import { AwsCredential } from '@/eco-configs/eco-config.types'
 import { ProofType } from '@/contracts'
 
@@ -57,6 +57,22 @@ export class EcoError extends Error {
 
   static ChainRPCNotFound(chainID: number) {
     return new EcoError(`Chain rpc not found for chain ${chainID}`)
+  }
+
+  static CreatePublicClientError(chainID: number) {
+    return new EcoError(`Error creating public client for chain ${chainID}`)
+  }
+
+  static ProverNotRegistered(chainID: number, address: Address) {
+    return new EcoError(`No known prover registered on chain ${chainID} for ${address}`)
+  }
+
+  static NoContractDeployed(chainID: number, address: Address) {
+    return new EcoError(`No contract deployed on chain ${chainID} at ${address}`)
+  }
+
+  static ProverBytecodeMismatch(chainID: number, address: Address) {
+    return new EcoError(`Bytecode hash mismatch for prover on chain ${chainID} at ${address}`)
   }
 
   static InvalidSimpleAccountConfig() {
