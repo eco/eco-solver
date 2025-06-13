@@ -179,20 +179,6 @@ describe.skip('IntentInitiationIntegrationTest', () => {
       {
         quoteID: 'test-quote-id',
         salt: ('0x' + '0'.repeat(64)) as Hex,
-        route: {
-          source: BigInt(foundry.id),
-          destination: BigInt(1),
-          inbox: '0xInbox',
-          calls: [],
-          tokens: [],
-        },
-        reward: {
-          tokens: [],
-          creator: '0xCreator',
-          prover: ('0x' + '2'.repeat(40)) as Hex,
-          deadline: BigInt(9999999999),
-          nativeValue: BigInt(0),
-        },
       },
     ]
     mockRequest.gaslessIntentData = {

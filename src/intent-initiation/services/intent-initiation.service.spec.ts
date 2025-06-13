@@ -155,7 +155,7 @@ describe('IntentInitiationService', () => {
         },
       )
 
-      const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
+      const { gaslessIntentRequest } = intentTestUtils.createGaslessIntentRequestDTO({
         gaslessIntentData,
         token: '0x0000000000000000000000000000000000000001',
       })
@@ -180,10 +180,12 @@ describe('IntentInitiationService', () => {
         },
       )
 
-      const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
+      const gaslessIntentRequestData = intentTestUtils.createGaslessIntentRequestDTO({
         gaslessIntentData,
         token: '0x0000000000000000000000000000000000000001',
       })
+
+      const { gaslessIntentRequest } = gaslessIntentRequestData
 
       const permit2Tx = { ...mockTx, data: '0xpermit2' as Hex }
 
@@ -191,7 +193,7 @@ describe('IntentInitiationService', () => {
 
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequest) })
+        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData) })
 
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),
@@ -218,17 +220,20 @@ describe('IntentInitiationService', () => {
         },
       )
 
-      const gaslessIntentRequest = intentTestUtils.createGaslessIntentRequestDTO({
+      const gaslessIntentRequestData = intentTestUtils.createGaslessIntentRequestDTO({
         gaslessIntentData,
         token: '0x0000000000000000000000000000000000000001',
       })
 
+      const { gaslessIntentRequest } = gaslessIntentRequestData
       const permitTx = { ...mockTx, data: '0xpermit' as Hex }
 
       jest.spyOn(PermitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
+
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequest) })
+        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData) })
+
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),
         waitForTransactionReceipt: jest.fn().mockResolvedValue(mockReceipt),

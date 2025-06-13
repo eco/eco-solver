@@ -58,7 +58,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('returns response when successful', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
     const mockResponse = {
       successes: [
         {
@@ -77,7 +77,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('throws BadRequestException for 400 error', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
       error: { ...InternalQuoteError(), statusCode: 400 },
@@ -87,7 +87,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('throws InternalServerErrorException for unexpected error', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
       error: { ...InternalQuoteError(EcoError.QuoteNotFound) },
@@ -99,7 +99,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('throws InternalServerErrorException for error without statusCode', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
       error: { ...InternalQuoteError(new Error('Something went wrong')) }, // ← no `statusCode`!
