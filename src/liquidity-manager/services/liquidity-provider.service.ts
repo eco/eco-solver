@@ -10,6 +10,7 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -22,6 +23,7 @@ export class LiquidityProviderService {
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
     protected readonly relayProviderService: RelayProviderService,
+    protected readonly stargateProviderService: StargateProviderService,
   ) {}
 
   async getQuote(
@@ -178,6 +180,8 @@ export class LiquidityProviderService {
         return this.warpRouteProviderService
       case 'Relay':
         return this.relayProviderService
+      case 'Stargate':
+        return this.stargateProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
@@ -189,7 +193,7 @@ export class LiquidityProviderService {
       case crowdLiquidityPoolAddress:
         return ['CCTP']
       default:
-        return ['LiFi', 'WarpRoute', 'Relay']
+        return ['LiFi', 'WarpRoute', 'Relay', 'Stargate']
     }
   }
 
