@@ -555,9 +555,8 @@ describe('WalletFulfillService', () => {
         fulfillIntentService['getFulfillment'] = jest
           .fn()
           .mockReturnValue('fulfillHyperInstantWithRelayer')
-        defaultArgs.push(model.intent.reward.prover)
-        defaultArgs.push('0x0')
-        defaultArgs.push(zeroAddress)
+        defaultArgs.push(address1) // hyperProverAddr
+        defaultArgs.push('0x9911') // messageData
         const hyperproverTx = { to: solver.inboxAddress, data, value: mockFee }
         fulfillIntentService['getFulfillTxForHyperproverSingle'] = jest
           .fn()
@@ -636,7 +635,7 @@ describe('WalletFulfillService', () => {
         [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
         [pad(model.intent.reward.prover), '0x', zeroAddress],
       )
-      expect(mockProverFee).toHaveBeenCalledWith(model, address1, encodedData)
+      expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
     })
   })
 
@@ -674,10 +673,10 @@ describe('WalletFulfillService', () => {
       expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(1)
       expect(mockProverFee).toHaveBeenCalledTimes(1)
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
-        [{ type: 'uint32' }, { type: 'bytes32' }],
-        [Number(model.intent.route.source), pad(model.intent.reward.prover)],
+        [{ type: 'bytes32' }],
+        [pad(model.intent.reward.prover)],
       )
-      expect(mockProverFee).toHaveBeenCalledWith(model, address1, encodedData)
+      expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
     })
   })
 })
