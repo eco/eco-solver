@@ -13,6 +13,10 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
+import {
+  LiFiAssetCacheManager,
+  CacheStatus,
+} from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -23,12 +27,16 @@ import { TokenConfig } from '@/balance/types'
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
   private walletAddress: string
+  private assetCacheManager: LiFiAssetCacheManager
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
-  ) {}
+  ) {
+    // Initialize the asset cache manager
+    this.assetCacheManager = new LiFiAssetCacheManager(this.ecoConfigService, this.logger)
+  }
 
   async onModuleInit() {
     const liFiConfig = this.ecoConfigService.getLiFi()
@@ -51,6 +59,23 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         }),
       ],
     })
+
+    // Initialize the asset cache
+    try {
+      await this.assetCacheManager.initialize()
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Asset cache initialized successfully',
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          error,
+          message: 'LiFi: Failed to initialize asset cache, continuing with fallback behavior',
+        }),
+      )
+    }
   }
 
   getStrategy() {
@@ -64,6 +89,23 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
+
+    // Validate tokens and chains before making API call
+    const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
+    if (!isValidRoute) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Skipping quote request for unsupported token/chain combination',
+          properties: {
+            fromToken: tokenIn.config.address,
+            fromChain: tokenIn.chainId,
+            toToken: tokenOut.config.address,
+            toChain: tokenOut.chainId,
+          },
+        }),
+      )
+      throw EcoError.RebalancingRouteNotFound()
+    }
 
     const routesRequest: RoutesRequest = {
       // Origin chain
@@ -169,6 +211,20 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           [coreTokenConfig],
         )
 
+        // Validate core token route before attempting
+        if (!this.validateTokenSupport(tokenIn, coreTokenData)) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'LiFi: Skipping core token route due to unsupported token/chain',
+              properties: {
+                coreToken: coreToken.token,
+                coreChain: coreToken.chainID,
+              },
+            }),
+          )
+          continue
+        }
+
         // Try routing through core token
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -205,6 +261,113 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
     // If we get here, no core token route worked
     throw EcoError.RebalancingRouteNotFound()
+  }
+
+  /**
+   * Validates if both tokens and chains are supported by LiFi
+   * @param tokenIn Source token data
+   * @param tokenOut Destination token data
+   * @returns true if the route is supported, false otherwise
+   */
+  private validateTokenSupport(tokenIn: TokenData, tokenOut: TokenData): boolean {
+    // Check if chains are supported
+    const isFromChainSupported = this.assetCacheManager.isChainSupported(tokenIn.chainId)
+    const isToChainSupported = this.assetCacheManager.isChainSupported(tokenOut.chainId)
+
+    if (!isFromChainSupported) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Source chain not supported',
+          properties: {
+            chainId: tokenIn.chainId,
+            token: tokenIn.config.address,
+          },
+        }),
+      )
+      return false
+    }
+
+    if (!isToChainSupported) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Destination chain not supported',
+          properties: {
+            chainId: tokenOut.chainId,
+            token: tokenOut.config.address,
+          },
+        }),
+      )
+      return false
+    }
+
+    // Check if tokens are supported on their respective chains
+    const isFromTokenSupported = this.assetCacheManager.isTokenSupported(
+      tokenIn.chainId,
+      tokenIn.config.address,
+    )
+    const isToTokenSupported = this.assetCacheManager.isTokenSupported(
+      tokenOut.chainId,
+      tokenOut.config.address,
+    )
+
+    if (!isFromTokenSupported) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Source token not supported',
+          properties: {
+            chainId: tokenIn.chainId,
+            token: tokenIn.config.address,
+          },
+        }),
+      )
+      return false
+    }
+
+    if (!isToTokenSupported) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Destination token not supported',
+          properties: {
+            chainId: tokenOut.chainId,
+            token: tokenOut.config.address,
+          },
+        }),
+      )
+      return false
+    }
+
+    // Check if tokens are connected (can be swapped/bridged)
+    const areConnected = this.assetCacheManager.areTokensConnected(
+      tokenIn.chainId,
+      tokenIn.config.address,
+      tokenOut.chainId,
+      tokenOut.config.address,
+    )
+
+    if (!areConnected) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'LiFi: Tokens are not connected for swapping/bridging',
+          properties: {
+            fromChain: tokenIn.chainId,
+            fromToken: tokenIn.config.address,
+            toChain: tokenOut.chainId,
+            toToken: tokenOut.config.address,
+          },
+        }),
+      )
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Get cache status for monitoring and debugging
+   * @returns Current cache status
+   */
+  getCacheStatus(): CacheStatus {
+    return this.assetCacheManager.getCacheStatus()
   }
 
   async _execute(quote: RebalanceQuote<'LiFi'>) {
@@ -252,5 +415,12 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     }
 
     return lifiRPCUrls
+  }
+
+  /**
+   * Cleanup resources when service is destroyed
+   */
+  onModuleDestroy() {
+    this.assetCacheManager.destroy()
   }
 }
