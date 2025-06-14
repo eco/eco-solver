@@ -127,6 +127,11 @@ export default {
       surplus: 0.1,
       deficit: 0.2,
     },
+    walletStrategies: {
+      'crowd-liquidity-pool': ['CCTP'],
+      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+    },
+    maxQuoteSlippage: 0.5,
   },
 
   fulfillmentEstimate: {

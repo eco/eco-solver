@@ -9,10 +9,14 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
+import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
 export class LiquidityProviderService {
   private logger = new Logger(LiquidityProviderService.name)
+  private config: LiquidityManagerConfig
 
   constructor(
     protected readonly liFiProviderService: LiFiProviderService,
@@ -20,7 +24,10 @@ export class LiquidityProviderService {
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
     protected readonly ecoConfigService: EcoConfigService,
-  ) {}
+    protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
+  ) {
+    this.config = this.ecoConfigService.getLiquidityManager()
+  }
 
   async getQuote(
     walletAddress: string,
@@ -35,7 +42,8 @@ export class LiquidityProviderService {
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         const service = this.getStrategyService(strategy)
-        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
+        const id = uuidv4()
+        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, id)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
 
         // Helper function to check if a quote is valid
@@ -174,6 +182,8 @@ export class LiquidityProviderService {
         return this.cctpProviderService
       case 'WarpRoute':
         return this.warpRouteProviderService
+      case 'CCTPLiFi':
+        return this.cctpLiFiProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
@@ -181,12 +191,16 @@ export class LiquidityProviderService {
   private getWalletSupportedStrategies(walletAddress: string): Strategy[] {
     const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
 
-    switch (walletAddress) {
-      case crowdLiquidityPoolAddress:
-        return ['CCTP']
-      default:
-        return ['LiFi', 'WarpRoute']
+    const walletType =
+      walletAddress === crowdLiquidityPoolAddress ? 'crowd-liquidity-pool' : 'eco-wallet'
+
+    const strategies = this.config.walletStrategies[walletType]
+
+    if (!strategies || strategies.length === 0) {
+      throw new Error(`No strategies configured for wallet type: ${walletType}`)
     }
+
+    return strategies
   }
 
   private formatToken(token: TokenData) {

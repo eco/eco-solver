@@ -12,7 +12,7 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress, zeroAddress } from 'viem'
+import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -356,5 +356,20 @@ export class EcoConfigService {
    */
   getFulfillmentEstimateConfig(): EcoConfigType['fulfillmentEstimate'] {
     return this.get('fulfillmentEstimate')
+  }
+
+  getCCTPLiFiConfig(): EcoConfigType['cctpLiFi'] {
+    const liquidityManager = this.getLiquidityManager()
+    const cctp = this.getCCTP()
+    return {
+      maxSlippage: liquidityManager.maxQuoteSlippage,
+      usdcAddresses: cctp.chains.reduce(
+        (acc, chain) => {
+          acc[chain.chainId] = getAddress(chain.token)
+          return acc
+        },
+        {} as Record<number, Hex>,
+      ),
+    }
   }
 }
