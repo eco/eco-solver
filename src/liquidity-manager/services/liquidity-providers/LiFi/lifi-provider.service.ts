@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { parseUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -20,6 +20,8 @@ import {
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenConfig } from '@/balance/types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -29,6 +31,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
+    private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
   ) {
     // Initialize the asset cache manager
@@ -36,6 +39,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   async onModuleInit() {
+    const liFiConfig = this.ecoConfigService.getLiFi()
+
     // Use first intent source's network as the default network
     const [intentSource] = this.ecoConfigService.getIntentSources()
 
@@ -44,12 +49,13 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
     // Configure LiFi providers
     createConfig({
-      integrator: 'Eco',
+      integrator: liFiConfig.integrator,
+      apiKey: liFiConfig.apiKey,
       rpcUrls: this.getLiFiRPCUrls(),
       providers: [
         EVM({
-          getWalletClient: () => Promise.resolve(client),
-          switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId),
+          getWalletClient: () => Promise.resolve(client) as any,
+          switchChain: (chainId) => this.kernelAccountClientService.getClient(chainId) as any,
         }),
       ],
     })
@@ -80,7 +86,10 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
+    const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
+
     // Validate tokens and chains before making API call
     const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
     if (!isValidRoute) {
@@ -111,10 +120,22 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toTokenAddress: tokenOut.config.address,
     }
 
+    if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
+      routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
+    }
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'LiFi route request',
+        properties: { route: routesRequest },
+      }),
+    )
+
     const result = await getRoutes(routesRequest)
     const route = this.selectRoute(result.routes)
 
-    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.toAmount)
+    // This assumes tokens are 1:1
+    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.fromAmount)
 
     return {
       amountIn: BigInt(route.fromAmount),
@@ -124,6 +145,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       tokenOut: tokenOut,
       strategy: this.getStrategy(),
       context: route,
+      id,
     }
   }
 
@@ -133,8 +155,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     if (kernelWalletAddress !== walletAddress) {
       const error = new Error('LiFi is not configured with the provided wallet')
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
+          id: quote.id,
           message: error.message,
           properties: { walletAddress, kernelWalletAddress },
         }),
@@ -156,7 +179,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<RebalanceQuote> {
+  ): Promise<RebalanceQuote[]> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -176,13 +199,17 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     for (const coreToken of coreTokens) {
       try {
         // Create core token data structure
-        const coreTokenData = {
+        const coreTokenConfig: TokenConfig = {
+          address: coreToken.token,
           chainId: coreToken.chainID,
-          config: {
-            address: coreToken.token,
-            chainId: coreToken.chainID,
-          },
-        } as TokenData
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        }
+        const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
+          this.walletAddress,
+          [coreTokenConfig],
+        )
 
         // Validate core token route before attempting
         if (!this.validateTokenSupport(tokenIn, coreTokenData)) {
@@ -209,7 +236,15 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           }),
         )
 
-        return await this.getQuote(tokenIn, coreTokenData, swapAmount)
+        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
+
+        const toAmountMin = parseFloat(
+          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
+        )
+
+        const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
+
+        return [coreTokenQuote, rebalanceQuote]
       } catch (coreError) {
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -337,8 +372,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   async _execute(quote: RebalanceQuote<'LiFi'>) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'LiFiProviderService: executing quote',
+        id: quote.id,
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
@@ -371,7 +407,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   private getLiFiRPCUrls() {
-    const rpcUrl = this.ecoConfigService.getChainRPCs()
+    const rpcUrl = this.ecoConfigService.getChainRpcs()
     const lifiRPCUrls: SDKConfig['rpcUrls'] = {}
 
     for (const chainId in rpcUrl) {

@@ -1,31 +1,8 @@
+import { EcoRoutesChains } from '@eco-foundation/chains'
 import { Chain } from 'viem'
-import { ecoSepolia } from './definitions/eco'
-import { helix } from './definitions/helix'
-import { optimism, optimismSepolia } from './definitions/optimism'
-import { base, baseSepolia } from './definitions/base'
-import { arbitrum } from './definitions/arbitrum'
-import { mantle } from './definitions/mantle'
-import { polygon } from './definitions/polygon'
-import { ethereum, sepolia } from './definitions/ethereum'
-import { unichain } from './definitions/unichain'
-import { celo, ink } from 'viem/chains'
 
 /**
  * List of supported chains for the solver that have modified RPC URLs or are defined in the project
  */
-export const ChainsSupported: Chain[] = [
-  optimism,
-  optimismSepolia,
-  base,
-  baseSepolia,
-  ecoSepolia,
-  helix,
-  arbitrum,
-  mantle,
-  polygon,
-  ethereum,
-  sepolia,
-  celo,
-  ink,
-  unichain,
-]
+// export const ChainsSupported: Chain[] = [anvil, ...(EcoRoutesChains as Chain[])]
+export const ChainsSupported: Chain[] = [...(EcoRoutesChains as Chain[])]

@@ -51,7 +51,10 @@ export class CheckWithdrawalsCronJobManager extends IntentProcessorJobManager {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `${CheckWithdrawalsCronJobManager.name}: Failed`,
-        properties: { error: (error as any)?.message ?? error },
+        properties: {
+          error: (error as any)?.message ?? error,
+          stack: (error as any)?.stack,
+        },
       }),
     )
   }

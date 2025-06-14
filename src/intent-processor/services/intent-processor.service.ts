@@ -12,12 +12,10 @@ import {
   Transport,
 } from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { DeepReadonly } from '@/common/types/deep-readonly'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IndexerService } from '@/indexer/services/indexer.service'
-import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
@@ -150,7 +148,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         properties: {
           chainId: data.chainId,
           intentSourceAddr: data.intentSourceAddr,
-          routeHash: data.intents.map((intent) => intent.routeHash),
+          routeHash: data.intents,
         },
       }),
     )
@@ -158,13 +156,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
 
-    const routeHashes = _.map(intents, 'routeHash')
-    const rewards: DeepReadonly<RewardInterface[]> = _.map(intents, 'reward')
-
     const txHash = await walletClient.writeContract({
       abi: IntentSourceAbi,
       address: intentSourceAddr,
-      args: [routeHashes, rewards],
+      args: [intents],
       functionName: 'batchWithdraw',
     })
 

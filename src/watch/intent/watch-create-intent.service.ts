@@ -8,7 +8,7 @@ import { IntentSource } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentCreatedLog } from '@/contracts'
-import { PublicClient } from 'viem'
+import { Log, PublicClient } from 'viem'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
@@ -60,6 +60,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         },
       }),
     )
+
     this.unwatch[source.chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
@@ -76,7 +77,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     })
   }
 
-  addJob(source: IntentSource) {
+  addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
     return async (logs: IntentCreatedLog[]) => {
       for (const log of logs) {
         log.sourceChainID = BigInt(source.chainID)

@@ -19,6 +19,17 @@ export interface NormalizedTokens {
 }
 
 /**
+ * The normalized call type
+ */
+
+export type NormalizedCall = NormalizedToken & {
+  recipient: Hex
+  native: {
+    amount: bigint
+  }
+}
+
+/**
  * The normalized token type
  */
 export type NormalizedToken = {
@@ -26,6 +37,14 @@ export type NormalizedToken = {
   chainID: bigint
   address: Hex
   decimals: number
+}
+
+/**
+ * The type fo rthe normalized sum of tokens an native gas for a call
+ */
+export type NormalizedTotal = {
+  token: bigint
+  native: bigint
 }
 
 /**
@@ -39,6 +58,8 @@ export type DeficitDescending = Prettify<TokenFetchAnalysis & { delta: Normalize
 export type CalculateTokensType = {
   solver: Solver
   rewards: NormalizedToken[]
-  calls: NormalizedToken[]
-  deficitDescending: DeficitDescending[]
+  tokens: NormalizedToken[]
+  calls: NormalizedCall[]
+  srcDeficitDescending: DeficitDescending[]
+  destDeficitDescending: DeficitDescending[]
 }

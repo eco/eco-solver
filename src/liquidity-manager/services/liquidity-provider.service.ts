@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import * as _ from 'lodash'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
@@ -6,17 +7,27 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { getTotalSlippage } from '@/liquidity-manager/utils/math'
+import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
 export class LiquidityProviderService {
   private logger = new Logger(LiquidityProviderService.name)
+  private config: LiquidityManagerConfig
 
   constructor(
     protected readonly liFiProviderService: LiFiProviderService,
     protected readonly cctpProviderService: CCTPProviderService,
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
-  ) {}
+    protected readonly ecoConfigService: EcoConfigService,
+    protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
+  ) {
+    this.config = this.ecoConfigService.getLiquidityManager()
+  }
 
   async getQuote(
     walletAddress: string,
@@ -25,13 +36,42 @@ export class LiquidityProviderService {
     swapAmount: number,
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
+    const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
 
     // Iterate over strategies and return the first quote
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         const service = this.getStrategyService(strategy)
-        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
-        return Array.isArray(quotes) ? quotes : [quotes]
+        const id = uuidv4()
+        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, id)
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
+
+        // Helper function to check if a quote is valid
+        const isQuoteValid = (quote: RebalanceQuote): boolean => quote.slippage <= maxQuoteSlippage
+
+        // Filter out quotes that exceed maximum slippage
+        const validQuotes = quotesArray.filter(isQuoteValid)
+        const rejectedQuotes = quotesArray.filter((quote) => !isQuoteValid(quote))
+
+        // Log rejected quotes
+        rejectedQuotes.forEach((quote) => {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: 'Quote rejected due to excessive slippage',
+              properties: {
+                strategy,
+                slippage: quote.slippage,
+                maxQuoteSlippage,
+                tokenIn: this.formatToken(tokenIn),
+                tokenOut: this.formatToken(tokenOut),
+                amountIn: quote.amountIn.toString(),
+                amountOut: quote.amountOut.toString(),
+              },
+            }),
+          )
+        })
+
+        return validQuotes.length > 0 ? validQuotes : undefined
       } catch (error) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -45,8 +85,11 @@ export class LiquidityProviderService {
 
     const quoteBatchResults = await Promise.all(quoteBatchRequests)
 
+    // Filter out undefined results
+    const validQuoteBatches = quoteBatchResults.filter((batch) => batch !== undefined)
+
     // Use the quote from the strategy returning the biggest amount out
-    const bestQuote = quoteBatchResults.reduce((bestBatch, quoteBatch) => {
+    const bestQuote = validQuoteBatches.reduce((bestBatch, quoteBatch) => {
       if (!bestBatch) return quoteBatch
       if (!quoteBatch) return bestBatch
 
@@ -54,7 +97,7 @@ export class LiquidityProviderService {
       const quote = quoteBatch[quoteBatch.length - 1]
 
       return (bestQuote?.amountOut ?? 0n) >= (quote?.amountOut ?? 0n) ? bestBatch : quoteBatch
-    }, quoteBatchResults[0])
+    }, validQuoteBatches[0])
 
     if (!bestQuote) {
       throw new Error('Unable to get quote for route')
@@ -101,8 +144,34 @@ export class LiquidityProviderService {
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-  ): Promise<RebalanceQuote> {
-    return this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+  ): Promise<RebalanceQuote[]> {
+    const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+    const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
+
+    const slippage = getTotalSlippage(_.map(quotes, 'slippage'))
+
+    if (slippage > maxQuoteSlippage) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Fallback quote rejected due to excessive slippage',
+          properties: {
+            slippage: slippage,
+            maxQuoteSlippage,
+            quotes: quotes.map((quote) => ({
+              tokenIn: this.formatToken(tokenIn),
+              tokenOut: this.formatToken(tokenOut),
+              amountIn: quote.amountIn.toString(),
+              amountOut: quote.amountOut.toString(),
+            })),
+          },
+        }),
+      )
+      throw new Error(
+        `Fallback quote slippage ${slippage} exceeds maximum allowed ${maxQuoteSlippage}`,
+      )
+    }
+
+    return quotes
   }
 
   private getStrategyService(strategy: Strategy): IRebalanceProvider<Strategy> {
@@ -113,6 +182,8 @@ export class LiquidityProviderService {
         return this.cctpProviderService
       case 'WarpRoute':
         return this.warpRouteProviderService
+      case 'CCTPLiFi':
+        return this.cctpLiFiProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
@@ -120,12 +191,16 @@ export class LiquidityProviderService {
   private getWalletSupportedStrategies(walletAddress: string): Strategy[] {
     const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
 
-    switch (walletAddress) {
-      case crowdLiquidityPoolAddress:
-        return ['CCTP']
-      default:
-        return ['LiFi', 'WarpRoute']
+    const walletType =
+      walletAddress === crowdLiquidityPoolAddress ? 'crowd-liquidity-pool' : 'eco-wallet'
+
+    const strategies = this.config.walletStrategies[walletType]
+
+    if (!strategies || strategies.length === 0) {
+      throw new Error(`No strategies configured for wallet type: ${walletType}`)
     }
+
+    return strategies
   }
 
   private formatToken(token: TokenData) {
@@ -140,6 +215,7 @@ export class LiquidityProviderService {
         tokenOut: this.formatToken(quote.tokenOut),
         amountIn: quote.amountIn.toString(),
         amountOut: quote.amountOut.toString(),
+        slippage: quote.slippage,
       }
     })
   }

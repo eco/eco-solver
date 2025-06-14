@@ -1,8 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { encodeAbiParameters, encodeFunctionData, erc20Abi, Hex, pad, zeroAddress } from 'viem'
+import {
+  Call,
+  encodeAbiParameters,
+  encodeFunctionData,
+  erc20Abi,
+  Hex,
+  pad,
+  zeroAddress,
+} from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
-import { getERC20Selector } from '@/contracts'
+import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -11,7 +19,12 @@ import { FeeService } from '@/fee/fee.service'
 import { ProofService } from '@/prover/proof.service'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { getTransactionTargetData, getWaitForTransactionTimeout } from '@/intent/utils'
+import {
+  getFunctionCalls,
+  getNativeCalls,
+  getTransactionTargetData,
+  getWaitForTransactionTimeout,
+} from '@/intent/utils'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
@@ -47,8 +60,13 @@ export class WalletFulfillService implements IFulfillService {
     // Create transactions for intent targets
     const targetSolveTxs = this.getTransactionsForTargets(model, solver)
 
+    const nativeCalls = getNativeCalls(model.intent.route.calls)
+    const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
+
     // Create fulfill tx
     const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
+    fulfillTx.value = fulfillTx.value ?? 0n
+    fulfillTx.value += nativeFulfill?.value || 0n // Add the native fulfill value to the fulfill tx
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]
@@ -83,7 +101,7 @@ export class WalletFulfillService implements IFulfillService {
           properties: {
             userOPHash: receipt,
             destinationChainID: model.intent.route.destination,
-            sourceChainID: model.event.sourceChainID,
+            sourceChainID: IntentSourceModel.getSource(model),
           },
         }),
       )
@@ -135,7 +153,7 @@ export class WalletFulfillService implements IFulfillService {
    * @param target the target ERC20 address
    * @returns
    */
-  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex) {
+  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex): Call[] {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
@@ -147,7 +165,7 @@ export class WalletFulfillService implements IFulfillService {
           args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
-        return [{ to: target, data: transferFunctionData }]
+        return [{ to: target, value: 0n, data: transferFunctionData }]
       default:
         return []
     }
@@ -161,8 +179,10 @@ export class WalletFulfillService implements IFulfillService {
    * @return {Array} An array of generated transactions based on the intent targets. Returns an empty array if no valid transactions are created.
    */
   private getTransactionsForTargets(model: IntentSourceModel, solver: Solver) {
+    const functionCalls = getFunctionCalls(model.intent.route.calls)
+
     // Create transactions for intent targets
-    return model.intent.route.calls.flatMap((call) => {
+    const functionFulfills = functionCalls.flatMap((call) => {
       const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.logger.error(
@@ -186,6 +206,25 @@ export class WalletFulfillService implements IFulfillService {
           return []
       }
     })
+
+    return functionFulfills
+  }
+
+  /**
+   * Iterates over the calls and returns the sum of the native value transfers
+   * @param solver the solver for the intent
+   * @param nativeCalls The calls that have native value transfers
+   * @returns
+   */
+  private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
+    const nativeFulfillTotal = nativeCalls.reduce((acc, call) => {
+      return acc + (call.value || 0n)
+    }, 0n)
+    return {
+      to: solver.inboxAddress,
+      value: nativeFulfillTotal,
+      data: '0x',
+    }
   }
 
   /**
@@ -283,7 +322,7 @@ export class WalletFulfillService implements IFulfillService {
       [pad(model.intent.reward.prover), '0x', zeroAddress],
     )
 
-    const fee = await this.getProverFee(model, hyperProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -332,7 +371,7 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     // Metalayer may use the same fee structure as Hyperlane
-    const fee = await this.getProverFee(model, metalayerProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -358,12 +397,14 @@ export class WalletFulfillService implements IFulfillService {
    * Calculates the fee required for a transaction by calling the prover contract.
    *
    * @param {IntentSourceModel} model - The model containing intent details, including route, hash, and reward information.
+   * @param claimant - The claimant address
    * @param proverAddr - The address of the prover contract
    * @param messageData - The message data to send
    * @return {Promise<bigint>} A promise that resolves to the fee amount
    */
   private async getProverFee(
     model: IntentSourceModel,
+    claimant: Hex,
     proverAddr: Hex,
     messageData: Hex,
   ): Promise<bigint> {
@@ -375,9 +416,9 @@ export class WalletFulfillService implements IFulfillService {
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        model.event.sourceChainID, //_sourceChainID
+        IntentSourceModel.getSource(model), //_sourceChainID
         [model.intent.hash],
-        [this.ecoConfigService.getEth().claimant],
+        [claimant],
         messageData,
       ],
     })

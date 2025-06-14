@@ -1,13 +1,9 @@
 import { Hex } from 'viem'
-import { hashIntent } from '@eco-foundation/routes-ts'
+import { IntentType } from '@eco-foundation/routes-ts'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
-import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 
-export function getWithdrawData(intent: IndexerIntent): {
-  reward: RewardInterface
-  routeHash: Hex
-} {
+export function getWithdrawData(intent: IndexerIntent): IntentType {
   const reward = {
     creator: intent.creator as Hex,
     prover: intent.prover as Hex,
@@ -35,7 +31,5 @@ export function getWithdrawData(intent: IndexerIntent): {
     })),
   }
 
-  const { routeHash } = hashIntent({ reward, route })
-
-  return { reward, routeHash }
+  return { reward, route }
 }

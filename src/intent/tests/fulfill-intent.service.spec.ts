@@ -18,8 +18,16 @@ describe('FulfillIntentService', () => {
   const solver = { inboxAddress: address1, chainID: 1 } as any
   const model = {
     intent: {
-      route: { hash, destination: 1, getHash: () => '0x6543' },
-      reward: { getHash: () => '0x123abc' },
+      route: {
+        hash,
+        destination: 1,
+        calls: [{ value: 0n, target: '0x1', data: '0x' }],
+        getHash: () => '0x6543',
+      },
+      reward: {
+        nativeValue: 0n,
+        getHash: () => '0x123abc',
+      },
       getHash: () => {
         return { intentHash: '0xaaaa999' }
       },
@@ -34,7 +42,7 @@ describe('FulfillIntentService', () => {
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: WalletFulfillService, useValue: createMock<WalletFulfillService>() },
-        { provide: CrowdLiquidityService, useValue: createMock<EcoConfigService>() },
+        { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
       ],
     }).compile()
 

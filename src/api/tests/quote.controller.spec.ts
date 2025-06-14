@@ -1,16 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
-import { QuoteController } from '@/api/quote.controller'
-import { QuoteService } from '@/quote/quote.service'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
-import { serialize } from '@/common/utils/serialize'
+import { QuoteController } from '@/api/quote.controller'
+import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
+import { QuoteService } from '@/quote/quote.service'
+import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
+import { Test, TestingModule } from '@nestjs/testing'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController
   let quoteService: QuoteService
   const mockLogLog = jest.fn()
+  const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,39 +49,141 @@ describe('QuoteController Test', () => {
   })
 
   describe('getQuote', () => {
-    const mockQuoteResponse = {
-      tokens: [
+    const route = quoteTestUtils.createQuoteRouteDataDTO()
+    const quote: QuoteDataDTO = {
+      quoteEntries: [
         {
-          token: '0x123',
-          amount: 100n,
+          intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
+            {
+              token: '0x123',
+              amount: 100n,
+            },
+          ],
+          rewardNative: 10n,
+          expiryTime: '0',
+          estimatedFulfillTimeSec: 9,
+        },
+        {
+          intentExecutionType: IntentExecutionType.GASLESS.toString(),
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
+            {
+              token: '0x456',
+              amount: 200n,
+            },
+          ],
+          rewardNative: 11n,
+          expiryTime: '10',
+          estimatedFulfillTimeSec: 9,
         },
       ],
-      expiryTime: '1234567890',
-      estimatedFulfillTimeSec: 9,
     }
 
     it('should return a 400 on bad request', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(SolverUnsupported)
-      await expect(quoteController.getQuote({} as any)).rejects.toThrow(
-        new BadRequestException(serialize(SolverUnsupported)),
-      )
+      jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ error: SolverUnsupported })
+
+      try {
+        const response = await quoteController.getQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(400)
+        expect(ex.response.errorDesc).toContain("The solver doesn't support that chain.")
+      }
     })
 
     it('should return a 500 on server error', async () => {
       jest
         .spyOn(quoteService, 'getQuote')
-        .mockResolvedValue(InternalSaveError(mockQuoteResponse as any))
-      await expect(quoteController.getQuote({} as any)).rejects.toThrow(
-        new InternalServerErrorException(serialize(InternalSaveError(mockQuoteResponse as any))),
-      )
+        .mockResolvedValue({ error: InternalSaveError(quote as any) })
+      jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
+
+      try {
+        const response = await quoteController.getQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(500)
+        expect(ex.response.errorDesc).toContain('Internal Server Error')
+      }
     })
 
-    it('should log and return a quote including estimatedFulfillTimeSec', async () => {
-      jest.spyOn(quoteService, 'getQuote').mockResolvedValue(mockQuoteResponse as any)
+    it('should log and return a quote', async () => {
+      jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ response: quote as any })
 
       const result = await quoteController.getQuote({} as any)
-      expect(result).toEqual(mockQuoteResponse)
+      expect(result).toEqual(quote)
       expect(quoteService.getQuote).toHaveBeenCalled()
+      expect(mockLogLog).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('getReverseQuote', () => {
+    const route = quoteTestUtils.createQuoteRouteDataDTO()
+    const quote: QuoteDataDTO = {
+      quoteEntries: [
+        {
+          intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
+            {
+              token: '0x123',
+              amount: 100n,
+            },
+          ],
+          rewardNative: 11n,
+          expiryTime: '0',
+          estimatedFulfillTimeSec: 9,
+        },
+        {
+          intentExecutionType: IntentExecutionType.GASLESS.toString(),
+          routeTokens: route.tokens,
+          routeCalls: route.calls,
+          rewardTokens: [
+            {
+              token: '0x456',
+              amount: 200n,
+            },
+          ],
+          rewardNative: 12n,
+          expiryTime: '10',
+          estimatedFulfillTimeSec: 9,
+        },
+      ],
+    }
+
+    it('should return a 400 on bad request', async () => {
+      jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
+
+      try {
+        const response = await quoteController.getReverseQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(400)
+        expect(ex.response.errorDesc).toContain("The solver doesn't support that chain.")
+      }
+    })
+
+    it('should return a 500 on server error', async () => {
+      jest
+        .spyOn(quoteService, 'getReverseQuote')
+        .mockResolvedValue({ error: InternalSaveError(quote as any) })
+      jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
+
+      try {
+        const response = await quoteController.getReverseQuote({} as any)
+      } catch (ex) {
+        expect(ex.status).toEqual(500)
+        expect(ex.response.errorDesc).toContain('Internal Server Error')
+      }
+    })
+
+    it('should log and return a reverse quote', async () => {
+      jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: quote as any })
+
+      const result = await quoteController.getReverseQuote({} as any)
+      expect(result).toEqual(quote)
+      expect(quoteService.getReverseQuote).toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenCalledTimes(2)
     })
   })

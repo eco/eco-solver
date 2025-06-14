@@ -89,7 +89,7 @@ describe('UtilsIntentService', () => {
         const invalidCause = {
           supportedProver: false,
           supportedTargets: true,
-          supportedSelectors: true,
+          supportedTransaction: true,
           validExpirationTime: true,
           validDestination: true,
           fulfillOnDifferentChain: true,
@@ -105,7 +105,10 @@ describe('UtilsIntentService', () => {
 
     describe('on updateInfeasableIntentModel', () => {
       it('should updateOne the model as infeasable', async () => {
-        const error = QuoteError.RouteIsInfeasable(10n, 9n)
+        const error = QuoteError.RouteIsInfeasable(
+          { token: 11n, native: 22n },
+          { token: 1n, native: 2n },
+        )
         await utilsIntentService.updateInfeasableIntentModel(model, error)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
@@ -225,7 +228,7 @@ describe('UtilsIntentService', () => {
   describe('on getIntentProcessData', () => {
     const intentHash = address1
     const model = {
-      intent: { route: { hash: intentHash, destination: '85432' } },
+      intent: { route: { hash: intentHash, source: 'opt-sepolia', destination: '85432' } },
       event: { sourceNetwork: 'opt-sepolia' },
     } as any
     it('should return undefined if it could not find the model in the db', async () => {
@@ -245,7 +248,7 @@ describe('UtilsIntentService', () => {
       expect(mockLogLog).toHaveBeenCalledWith({
         msg: `No solver found for chain ${model.intent.route.destination}`,
         intentHash: intentHash,
-        sourceNetwork: model.event.sourceNetwork,
+        sourceNetwork: IntentSourceModel.getSource(model),
       })
     })
 
