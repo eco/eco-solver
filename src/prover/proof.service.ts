@@ -44,7 +44,7 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   isHyperlaneProver(chainID: number, proverAddress: Hex): boolean {
-    return this.getProverType(chainID, proverAddress).isHyperlane()
+    return Boolean(this.getProverType(chainID, proverAddress)?.isHyperlane())
   }
 
   /**
@@ -54,7 +54,7 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   isMetalayerProver(chainID: number, proverAddress: Hex): boolean {
-    return this.getProverType(chainID, proverAddress).isMetalayer()
+    return Boolean(this.getProverType(chainID, proverAddress)?.isMetalayer())
   }
 
   /**
@@ -76,10 +76,10 @@ export class ProofService implements OnModuleInit {
    * @param proverAddr the prover address
    * @returns
    */
-  getProverType(chainID: number, proverAddr: Hex): ProofType {
+  getProverType(chainID: number, proverAddr: Hex): ProofType | undefined {
     return this.provers.find(
       (prover) => prover.chainID === chainID && prover.address === proverAddr,
-    )?.[0]
+    )?.type
   }
 
   /**
@@ -96,6 +96,9 @@ export class ProofService implements OnModuleInit {
     expirationDate: Date,
   ): boolean {
     const proofType = this.getProverType(chainID, prover)
+    if (!proofType) {
+      return false
+    }
     return compareAsc(expirationDate, this.getProofMinimumDate(proofType)) === 1
   }
 

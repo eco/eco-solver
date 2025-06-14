@@ -140,6 +140,10 @@ export class ValidationService implements OnModuleInit {
 
     const type = this.proofService.getProverType(Number(opts.source), opts.prover)
 
+    if (!type) {
+      return false
+    }
+
     switch (true) {
       case type.isHyperlane():
       case type.isMetalayer():
@@ -283,7 +287,7 @@ export class ValidationService implements OnModuleInit {
    */
   validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
-    const time = Number(intent.reward.deadline * 1000n)
+    const time = Number(intent.reward.deadline) * 1000
     const expires = new Date(time)
     return this.proofService.isIntentExpirationWithinProofMinimumDate(
       Number(intent.route.source),
