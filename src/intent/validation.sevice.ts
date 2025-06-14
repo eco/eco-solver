@@ -7,6 +7,7 @@ import {
   getFunctionCalls,
   getFunctionTargets,
   getTransactionTargetData,
+  isNativeETH,
   isNativeIntent,
 } from '@/intent/utils'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
@@ -73,7 +74,7 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 
 @Injectable()
 export class ValidationService implements OnModuleInit {
-  private isNativeEnabled = false
+  private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
 
   constructor(
@@ -83,7 +84,7 @@ export class ValidationService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.isNativeEnabled = this.ecoConfigService.getIntentConfigs().isNativeSupported
+    this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
   }
   /**
    * Executes all the validations we have on the model and solver
@@ -150,9 +151,9 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   supportedNative(intent: ValidationIntentInterface): boolean {
-    if (this.isNativeEnabled) {
+    if (this.isNativeETHSupported) {
       if (isNativeIntent(intent)) {
-        return equivalentNativeGas(intent, this.logger)
+        return equivalentNativeGas(intent, this.logger) && isNativeETH(intent)
       }
       return true
     } else {

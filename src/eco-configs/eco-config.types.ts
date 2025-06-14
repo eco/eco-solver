@@ -151,7 +151,7 @@ export type IntentConfig = {
     hyperlane_duration_seconds: number
     metalayer_duration_seconds: number
   }
-  isNativeSupported: boolean
+  isNativeETHSupported: boolean
 }
 
 /**

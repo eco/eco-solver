@@ -12,6 +12,7 @@ import {
   getFunctionCalls,
   getNativeCalls,
   getFunctionTargets,
+  isNativeETH,
 } from '@/intent/utils'
 import { Logger } from '@nestjs/common'
 
@@ -449,6 +450,98 @@ describe('utils tests', () => {
       const result = getFunctionTargets([])
 
       expect(result).toEqual([])
+    })
+  })
+
+  describe('on isNativeETH', () => {
+    beforeEach(() => {
+      mockExtractChain.mockClear()
+    })
+
+    it('should return true when both chains are ETH', () => {
+      const intent = {
+        route: { source: 1n, destination: 2n },
+      } as any
+
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'ETH' } }) // source chain
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'ETH' } }) // destination chain
+
+      expect(isNativeETH(intent)).toBe(true)
+    })
+
+    it('should return false when source chain is not found', () => {
+      const intent = {
+        route: { source: 1n, destination: 2n },
+      } as any
+
+      mockExtractChain.mockReturnValueOnce(null) // source chain not found
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'ETH' } }) // destination chain
+
+      expect(isNativeETH(intent)).toBe(false)
+    })
+
+    it('should return false when destination chain is not found', () => {
+      const intent = {
+        route: { source: 1n, destination: 2n },
+      } as any
+
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'ETH' } }) // source chain
+      mockExtractChain.mockReturnValueOnce(null) // destination chain not found
+
+      expect(isNativeETH(intent)).toBe(false)
+    })
+
+    it('should return false when source chain is not ETH', () => {
+      const intent = {
+        route: { source: 1n, destination: 2n },
+      } as any
+
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'MATIC' } }) // source chain
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'ETH' } }) // destination chain
+
+      expect(isNativeETH(intent)).toBe(false)
+    })
+
+    it('should return false when destination chain is not ETH', () => {
+      const intent = {
+        route: { source: 1n, destination: 2n },
+      } as any
+
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'ETH' } }) // source chain
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'MATIC' } }) // destination chain
+
+      expect(isNativeETH(intent)).toBe(false)
+    })
+
+    it('should return false when both chains are not ETH', () => {
+      const intent = {
+        route: { source: 1n, destination: 2n },
+      } as any
+
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'MATIC' } }) // source chain
+      mockExtractChain.mockReturnValueOnce({ nativeCurrency: { symbol: 'MATIC' } }) // destination chain
+
+      expect(isNativeETH(intent)).toBe(false)
+    })
+
+    it('should call extractChain with correct parameters', () => {
+      const intent = {
+        route: { source: 1n, destination: 137n },
+      } as any
+
+      mockExtractChain.mockReturnValue({ nativeCurrency: { symbol: 'ETH' } })
+
+      isNativeETH(intent)
+
+      expect(mockExtractChain).toHaveBeenCalledTimes(2)
+      expect(mockExtractChain).toHaveBeenNthCalledWith(1, {
+        chains: expect.anything(),
+        id: 1,
+      })
+      expect(mockExtractChain).toHaveBeenNthCalledWith(2, {
+        chains: expect.anything(),
+        id: 137,
+      })
     })
   })
 })
