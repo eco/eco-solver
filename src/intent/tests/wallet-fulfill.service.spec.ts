@@ -467,6 +467,8 @@ describe('WalletFulfillService', () => {
           calls: [{ target: address1, data: address2 }],
           deadline: '0x2233',
           salt: '0x3344',
+          source: 10,
+          destination: 11,
           getHash: () => '0xccc',
         },
         reward: {
@@ -500,9 +502,15 @@ describe('WalletFulfillService', () => {
         fulfillIntentService['getFulfillTxForMetalayer'] = jest.fn().mockReturnValue(emptyTxs[0])
         await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForMetalayer']).toHaveBeenCalledTimes(1)
       })
 
@@ -526,9 +534,15 @@ describe('WalletFulfillService', () => {
         )
         expect(tx).toEqual(metaproverTx)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForMetalayer']).toHaveBeenCalledTimes(1)
       })
     })
@@ -542,7 +556,10 @@ describe('WalletFulfillService', () => {
           .mockReturnValue(emptyTxs[0])
         await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForHyperproverSingle']).toHaveBeenCalledTimes(1)
       })
 
@@ -569,7 +586,10 @@ describe('WalletFulfillService', () => {
         expect(tx).toEqual(hyperproverTx)
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(0)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForHyperproverSingle']).toHaveBeenCalledTimes(1)
       })
 
@@ -593,7 +613,10 @@ describe('WalletFulfillService', () => {
         expect(tx).toEqual(hyperproverTx)
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(0)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForHyperproverBatch']).toHaveBeenCalledTimes(1)
       })
     })

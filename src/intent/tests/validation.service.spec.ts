@@ -12,6 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
+import { ProofType } from '@/contracts'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -46,6 +47,10 @@ describe('ValidationService', () => {
     validationService['logger'].log = mockLogLog
 
     jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValueOnce({} as any)
+
+    // Mock proofService methods to return a valid ProofType by default
+    proofService.getProverType.mockReturnValue(ProofType.HYPERLANE)
+    proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
   })
 
   afterEach(async () => {
@@ -470,6 +475,10 @@ describe('ValidationService', () => {
         }
         const now = new Date()
         proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)
+
+        // Mock getIntentSources to return empty array to make checkProverWhitelisted return false
+        ecoConfigService.getIntentSources.mockReturnValue([])
+
         validationService[fun] = jest.fn().mockReturnValueOnce(false)
         const validations = await validationService['assertValidations'](intent, solver)
         expect(validations[boolVarName]).toBe(false)

@@ -71,6 +71,10 @@ export class EcoError extends Error {
     return new Error(`The prover type ${pt} is not supported`)
   }
 
+  static ProverNotAllowed(source: number, destination: number, prover: string) {
+    return new Error(`The prover ${prover} is not supported on route ${source} to ${destination}`)
+  }
+
   static RebalancingRouteNotFound() {
     return new EcoError(`A rebalancing route not found`)
   }
