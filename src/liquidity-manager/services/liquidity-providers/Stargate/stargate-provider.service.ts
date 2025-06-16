@@ -46,7 +46,10 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       throw EcoError.RebalancingRouteNotFound()
     }
 
-    const amountInFormatted = parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString()
+    const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+
+    // Calculate the minimum amount out using the max slippage without losing precision
+    const amountMin = this.calculateAmountMin(amountIn)
 
     try {
       // Build URL with query parameters
@@ -57,9 +60,16 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         dstChainKey: dstChainKey,
         srcAddress: this.walletAddress,
         dstAddress: this.walletAddress,
-        srcAmount: amountInFormatted,
-        dstAmountMin: '0', // We'll calculate our own slippage
+        srcAmount: amountIn.toString(),
+        dstAmountMin: amountMin.toString(),
       })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Stargate params',
+          properties: { params: params.toString() },
+        }),
+      )
 
       // Call Stargate API to get routes
       const response = await fetch(`https://stargate.finance/api/v1/routes?${params.toString()}`)
@@ -69,6 +79,13 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       }
 
       const routesData: { routes: StargateQuote[] } = await response.json()
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Stargate routes',
+          properties: { routesData },
+        }),
+      )
 
       if (!routesData || !routesData.routes || routesData.routes.length === 0) {
         throw EcoError.RebalancingRouteNotFound()
@@ -98,7 +115,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
             toToken: tokenOut.config.address,
             fromChain: tokenIn.chainId,
             toChain: tokenOut.chainId,
-            amount: amountInFormatted,
+            amount: amountIn.toString(),
           },
         }),
       )
@@ -274,5 +291,27 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
 
       throw error
     }
+  }
+
+  /**
+   * Calculates the minimum acceptable destination amount based on the configured
+   * maximum slippage. All math is performed with BigInt to avoid precision loss.
+   *
+   * amountIn * (1 - maxSlippage) is implemented in integer arithmetic by
+   * converting the percentage to basis points (bps) and performing a ceil-div.
+   */
+  private calculateAmountMin(amountIn: bigint): bigint {
+    const maxSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
+
+    // Use 10_000 bps = 100%
+    const BPS_DIVISOR = 10000n
+
+    // Convert percentage (e.g. 0.5 => 50%) to basis points (5000).
+    // We floor so we never underestimate required slippage protection.
+    const slippageBps = BigInt(Math.floor(maxSlippage * Number(BPS_DIVISOR)))
+    const slippageFactor = BPS_DIVISOR - slippageBps
+
+    // Ceil-divide to avoid rounding down which could breach max slippage.
+    return (amountIn * slippageFactor + BPS_DIVISOR - 1n) / BPS_DIVISOR
   }
 }

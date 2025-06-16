@@ -159,6 +159,9 @@ describe('StargateProviderService', () => {
 
     service = module.get<StargateProviderService>(StargateProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
+    ecoConfigService.getLiquidityManager = jest.fn().mockReturnValue({
+      maxQuoteSlippage: 0.5,
+    })
     kernelAccountClientV2Service = module.get<KernelAccountClientV2Service>(
       KernelAccountClientV2Service,
     )
@@ -371,6 +374,29 @@ describe('StargateProviderService', () => {
 
     it('should throw an error if no routes are available', () => {
       expect(() => service['selectRoute']([])).toThrow(EcoError.RebalancingRouteNotFound().message)
+    })
+  })
+
+  describe('calculateAmountMin', () => {
+    it('calculates correct minimum for 50% max slippage', () => {
+      const amountIn = 1000n
+      const expected = 500n // 50% slippage
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('calculates correct minimum for small slippage with ceiling rounding', () => {
+      // Override the mock to use 0.5% slippage for this test (0.005)
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.005,
+      })
+
+      const amountIn = 123456789n
+      const expected = 122839506n
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
     })
   })
 })
