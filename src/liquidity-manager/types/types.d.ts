@@ -1,5 +1,6 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
+import { Hex } from 'viem'
 import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
 
@@ -37,7 +38,28 @@ type WarpRouteStrategyContext = undefined
 type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'Relay' | 'Stargate'
+// CCTPLiFi strategy context for tracking multi-step operations
+interface CCTPLiFiStrategyContext {
+  sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → USDC
+  cctpTransfer: {
+    sourceChain: number
+    destinationChain: number
+    amount: bigint
+    messageHash?: Hex
+    messageBody?: Hex
+  }
+  destinationSwapQuote?: LiFiStrategyContext // LiFi route for USDC → token
+  steps: ('sourceSwap' | 'cctpBridge' | 'destinationSwap')[]
+  gasEstimation?: {
+    sourceChainGas: bigint
+    destinationChainGas: bigint
+    totalGasUSD: number
+    gasWarnings: string[]
+  }
+  id: string
+}
+
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi' | 'Relay' | 'Stargate'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -48,7 +70,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
         ? RelayStrategyContext
         : S extends 'Stargate'
           ? StargateStrategyContext
-          : never
+          : S extends 'CCTPLiFi'
+            ? CCTPLiFiStrategyContext
+            : never
 
 // Quote
 
@@ -60,6 +84,7 @@ interface RebalanceQuote<S extends Strategy = Strategy> {
   tokenOut: TokenData
   strategy: S
   context: StrategyContext<S>
+  id?: string
 }
 
 interface RebalanceRequest {

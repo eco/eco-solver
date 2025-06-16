@@ -10,6 +10,7 @@ import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
+import { Strategy } from '@/liquidity-manager/types/types'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -77,6 +78,7 @@ export type EcoConfigType = {
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
+  cctpLiFi: CCTPLiFiConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -384,6 +386,9 @@ export interface LiquidityManagerConfig {
     token: Hex
     chainID: number
   }[]
+  walletStrategies: {
+    [walletName: string]: Strategy[]
+  }
 }
 
 export interface LiFiConfigType {
@@ -461,4 +466,28 @@ export interface WarpRoutesConfig {
       synthetic: Hex
     }[]
   }[]
+}
+
+export interface IndexerConfig {
+  url: string
+}
+
+export interface WithdrawsConfig {
+  chunkSize: number
+  intervalDuration: number
+}
+
+export interface SendBatchConfig {
+  chunkSize: number
+  intervalDuration: number
+  defaultGasPerIntent: number
+}
+
+export interface HyperlaneConfig {
+  useHyperlaneDefaultHook?: boolean
+}
+
+export interface CCTPLiFiConfig {
+  maxSlippage: number
+  usdcAddresses: Record<number, Hex>
 }
