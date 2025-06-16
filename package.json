@@ -41,6 +41,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@0xsquid/sdk": "^2.10.0",
+    "@0xsquid/squid-types": "^0.1.163",
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
     "@eco-foundation/chains": "1.0.40",
