@@ -221,4 +221,9 @@ export default {
       },
     },
   },
+
+  squid: {
+    integratorId: 'eco-solver',
+    baseUrl: 'https://api.squidrouter.com',
+  },
 }

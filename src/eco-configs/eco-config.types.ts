@@ -79,6 +79,7 @@ export type EcoConfigType = {
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
+  squid: SquidConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -492,4 +493,9 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface SquidConfig {
+  integratorId: string
+  baseUrl: string
 }
