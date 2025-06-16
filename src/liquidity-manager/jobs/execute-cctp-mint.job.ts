@@ -110,6 +110,7 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
         destinationSwapQuote: cctpLiFiContext.destinationSwapQuote,
         walletAddress: cctpLiFiContext.walletAddress,
         originalTokenOut: cctpLiFiContext.originalTokenOut,
+        id: job.data.id,
       })
     }
   }

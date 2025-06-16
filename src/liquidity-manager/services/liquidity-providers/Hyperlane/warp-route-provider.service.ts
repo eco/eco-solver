@@ -53,23 +53,25 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote[]> {
     const actionPath = this.getActionPath(tokenIn.config, tokenOut.config)
 
     if (actionPath === ActionPath.UNSUPPORTED) throw new Error('Unsupported action path')
 
     if (actionPath === ActionPath.PARTIAL) {
-      return this.getPartialQuote(tokenIn, tokenOut, swapAmount)
+      return this.getPartialQuote(tokenIn, tokenOut, swapAmount, id)
     }
 
     const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
-    return [this.getRemoteTransferQuote(tokenIn, tokenOut, amount)]
+    return [this.getRemoteTransferQuote(tokenIn, tokenOut, amount, id)]
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'WarpRouteProviderService: executing quote',
+        id: quote.id,
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
@@ -89,9 +91,10 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const { messageId } = this.getMessageFromReceipt(receipt)
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
+        id: quote.id,
         message:
-          'WarpRouteProviderService: remove transfer executed, waiting for message to get relayed',
+          'WarpRouteProviderService: remove transfer executed, waiting for message to be relayed',
         properties: {
           chainId: quote.tokenIn.config.chainId,
           transactionHash: txHash,
@@ -104,6 +107,18 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     // Used to complete the job only after the message is relayed
     await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
 
+    this.logger.log(
+      EcoLogMessage.withId({
+        id: quote.id,
+        message: 'WarpRouteProviderService: message relayed',
+        properties: {
+          chainId: quote.tokenOut.config.chainId,
+          transactionHash: txHash,
+          messageId,
+        },
+      }),
+    )
+
     return txHash
   }
 
@@ -111,6 +126,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     amount: bigint,
+    id?: string,
   ): RebalanceQuote<'WarpRoute'> {
     return {
       amountIn: amount,
@@ -120,6 +136,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       tokenOut: tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
+      id,
     }
   }
 
@@ -245,6 +262,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote[]> {
     const warpTokenIn = this.getWarpRoute(tokenIn.chainId, tokenIn.config.address)
     const warpTokenOut = this.getWarpRoute(tokenOut.chainId, tokenOut.config.address)
@@ -272,6 +290,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         collateralTokenData,
         tokenOut,
         swapAmount,
+        id,
       )
 
       return [remoteTransferQuote, liFiQuote]
@@ -290,6 +309,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         tokenIn,
         collateralTokenData,
         swapAmount,
+        id,
       )
 
       const remoteTransferQuote = this.getRemoteTransferQuote(

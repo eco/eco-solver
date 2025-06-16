@@ -1,6 +1,7 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'
+import { Route as SquidRoute } from '@0xsquid/sdk'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -33,6 +34,7 @@ interface TokenDataAnalyzed extends TokenData {
 type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
+type SquidStrategyContext = SquidRoute
 
 // CCTPLiFi strategy context for tracking multi-step operations
 interface CCTPLiFiStrategyContext {
@@ -52,10 +54,10 @@ interface CCTPLiFiStrategyContext {
     totalGasUSD: number
     gasWarnings: string[]
   }
-  id: string
+  id?: string
 }
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi'
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi' | 'Squid'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -64,7 +66,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
       ? WarpRouteStrategyContext
       : S extends 'CCTPLiFi'
         ? CCTPLiFiStrategyContext
-        : never
+        : S extends 'Squid'
+          ? SquidStrategyContext
+          : never
 
 // Quote
 

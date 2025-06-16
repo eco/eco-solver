@@ -12,6 +12,7 @@ import { getTotalSlippage } from '@/liquidity-manager/utils/math'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { v4 as uuidv4 } from 'uuid'
+import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -25,6 +26,7 @@ export class LiquidityProviderService {
     protected readonly warpRouteProviderService: WarpRouteProviderService,
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
+    protected readonly squidProviderService: SquidProviderService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
@@ -184,6 +186,8 @@ export class LiquidityProviderService {
         return this.warpRouteProviderService
       case 'CCTPLiFi':
         return this.cctpLiFiProviderService
+      case 'Squid':
+        return this.squidProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
