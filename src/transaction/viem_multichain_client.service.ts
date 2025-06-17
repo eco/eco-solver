@@ -1,18 +1,16 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Chain, Client, ClientConfig, createClient, extractChain, Hex, zeroAddress } from 'viem'
-import { EcoError } from '../common/errors/eco-error'
-import { getTransport } from '../common/chains/transport'
+import { EcoError } from '@/common/errors/eco-error'
+import { getTransport } from '@/common/chains/transport'
 import { ChainsSupported } from '@/common/chains/supported'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 @Injectable()
 export class ViemMultichainClientService<T extends Client, V extends ClientConfig>
   implements OnModuleInit
 {
   readonly instances: Map<number, T> = new Map()
-
   protected supportedAlchemyChainIds: number[] = []
-  protected apiKey: string
   protected pollingInterval: number
 
   constructor(readonly ecoConfigService: EcoConfigService) {}
@@ -26,23 +24,6 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
       throw EcoError.AlchemyUnsupportedNetworkIDError(id)
     }
     return this.loadInstance(id)
-  }
-
-  private setChainConfigs() {
-    this.pollingInterval = this.ecoConfigService.getEth().pollingInterval
-  }
-
-  private async loadInstance(chainID: number): Promise<T> {
-    if (!this.instances.has(chainID)) {
-      const client = await this.createInstanceClient(await this.getChainConfig(chainID))
-      this.instances.set(chainID, client)
-    }
-    return this.instances.get(chainID)!
-  }
-
-  protected async createInstanceClient(configs: V): Promise<T> {
-    //@ts-expect-error client mismatch on property definition
-    return createClient(configs)
   }
 
   /**
@@ -63,10 +44,16 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
     }
   }
 
+  protected async createInstanceClient(configs: V): Promise<T> {
+    //@ts-expect-error client mismatch on property definition
+    return createClient(configs)
+  }
+
   protected async buildChainConfig(chain: Chain): Promise<V> {
     //only pass api key if chain is supported by alchemy, otherwise it'll be incorrectly added to other rpcs
-    const { rpcUrl, options } = this.ecoConfigService.getRpcUrl(chain, true)
-    const rpcTransport = getTransport(rpcUrl, options)
+    const { rpcUrl, config } = this.ecoConfigService.getRpcUrl(chain)
+
+    const rpcTransport = getTransport(rpcUrl, config)
     return {
       transport: rpcTransport,
       chain: chain,
@@ -86,6 +73,18 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
 
     const wallet = await this.getClient(Object.values(solvers)[0].chainID)
     return wallet.account?.address || zeroAddress
+  }
+
+  private setChainConfigs() {
+    this.pollingInterval = this.ecoConfigService.getEth().pollingInterval
+  }
+
+  private async loadInstance(chainID: number): Promise<T> {
+    if (!this.instances.has(chainID)) {
+      const client = await this.createInstanceClient(await this.getChainConfig(chainID))
+      this.instances.set(chainID, client)
+    }
+    return this.instances.get(chainID)!
   }
 
   private isSupportedNetwork(chainID: number): boolean {

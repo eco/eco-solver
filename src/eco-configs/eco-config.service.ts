@@ -17,7 +17,9 @@ import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
-import { EcoError } from '../common/errors/eco-error'
+import { EcoError } from '@/common/errors/eco-error'
+import { TransportConfig } from '@/common/chains/transport'
+
 /**
  * Service class for managing application configuration from multiple sources.
  *
@@ -285,38 +287,51 @@ export class EcoConfigService {
 
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string> {
-    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain, true)])
-    return Object.fromEntries(entries) as Record<number, string>
+    const entries = ChainsSupported.map(
+      (chain) => [chain.id, this.getRpcUrl(chain).rpcUrl] as const,
+    )
+    return Object.fromEntries(entries)
+  }
+
+  getCustomRPCUrl(chainID: string) {
+    return this.getRpcConfig().custom?.[chainID]
   }
 
   /**
    * Returns the RPC URL for a given chain, prioritizing custom endpoints (like Caldera or Alchemy)
    * over default ones when available. For WebSocket connections, returns WebSocket URLs when available.
    * @param chain The chain object to get the RPC URL for
-   * @param websocketEnabled Whether to return a WebSocket URL if available
    * @returns The RPC URL string for the specified chain
    */
-  getRpcUrl(chain: Chain, websocketEnabled: boolean = false) {
+  getRpcUrl(chain: Chain): { rpcUrl: string; config: TransportConfig } {
+    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config || {}
+
     const rpcChain = this.ecoChains.getChain(chain.id)
     const custom =
       rpcChain.rpcUrls.caldera || rpcChain.rpcUrls.alchemy || rpcChain.rpcUrls.quicknode
     const def = rpcChain.rpcUrls.default
 
+    const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
+
     let rpc: string | undefined
-    if (websocketEnabled) {
+    if (isWebSocketEnabled) {
       rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
     } else {
       rpc = custom?.http?.[0] || def?.http?.[0]
     }
+
+    const config: TransportConfig['config'] = customRpcUrls?.config
+
+    if (customRpcUrls?.http) {
+      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
+      rpc = isWebSocketEnabled ? customRpcUrls.webSocket![0] : customRpcUrls.http[0]
+    }
+
     if (!rpc) {
       throw EcoError.ChainExistsButRPCNotFound(chain.id)
     }
-    return {
-      rpcUrl: rpc,
-      options: {
-        isWebsocket: websocketEnabled,
-      },
-    }
+
+    return { rpcUrl: rpc, config: { isWebsocket: isWebSocketEnabled, config } }
   }
 
   /**
