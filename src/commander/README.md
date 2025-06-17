@@ -5,17 +5,20 @@ The Eco-Solver CLI provides command-line access to various services and operatio
 ## Quick Start
 
 Run any CLI command using:
+
 ```bash
 yarn cli <command> [options]
 ```
 
 To see all available commands:
+
 ```bash
 yarn cli --help
 ```
 
 You can interact with the preprod environments by connecting your VPN and aws-sso on your terminal, then:
-```bash 
+
+```bash
 NODE_ENV=preproduction yarn cli <command> [options]
 ```
 
@@ -26,11 +29,13 @@ NODE_ENV=preproduction yarn cli <command> [options]
 Query token balances across different chains for the Kernel wallet.
 
 #### Usage
+
 ```bash
 yarn cli balance [options]
 ```
 
 #### Options
+
 - `-c, --chainID <chainID>`: Specify chain ID to query
 - `-t, --token <token>`: Specify token address to query
 - `-h, --help`: Display help for balance command
@@ -38,22 +43,26 @@ yarn cli balance [options]
 #### Examples
 
 **Query all tokens on all chains:**
+
 ```bash
 yarn cli balance
 ```
 
 **Query all tokens on a specific chain:**
+
 ```bash
 yarn cli balance -c 84532  # Base Sepolia
 yarn cli balance -c 1      # Ethereum Mainnet
 ```
 
 **Query specific token on specific chain:**
+
 ```bash
 yarn cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
 ```
 
 #### Output Format
+
 ```json
 {
   "address": "0x123...",
@@ -74,11 +83,13 @@ yarn cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
 Transfer ERC20 tokens or native tokens from the Kernel wallet to other addresses.
 
 #### Usage
+
 ```bash
 yarn cli transfer <recipient> [options]
 ```
 
 #### Options
+
 - `-t, --token <token>`: ERC20 token address to transfer
 - `-a, --amount <amount>`: Amount in token decimals (for ERC20)
 - `-c, --chainID <chainID>`: Chain ID for the transfer
@@ -89,6 +100,7 @@ yarn cli transfer <recipient> [options]
 #### Examples
 
 **Transfer ERC20 tokens:**
+
 ```bash
 yarn cli transfer 0xRecipientAddress \
   -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
@@ -97,6 +109,7 @@ yarn cli transfer 0xRecipientAddress \
 ```
 
 **Transfer native tokens (ETH):**
+
 ```bash
 yarn cli transfer 0xRecipientAddress \
   -n 0.1 \
@@ -104,6 +117,7 @@ yarn cli transfer 0xRecipientAddress \
 ```
 
 **Transfer all tokens from a chain:**
+
 ```bash
 yarn cli transfer 0xRecipientAddress \
   -e \
@@ -111,6 +125,7 @@ yarn cli transfer 0xRecipientAddress \
 ```
 
 #### Output Format
+
 ```json
 {
   "success": true,
@@ -127,11 +142,13 @@ yarn cli transfer 0xRecipientAddress \
 Generate transaction calldata for Safe transactions via OwnableExecutor module integration.
 
 #### Usage
+
 ```bash
 yarn cli safe [options]
 ```
 
 #### Options
+
 - `-k, --kernel <kernel>`: Kernel wallet address
 - `-t, --to <to>`: Recipient address
 - `-a, --amount <amount>`: Transfer amount in token decimals
@@ -139,6 +156,7 @@ yarn cli safe [options]
 - `-h, --help`: Display help for safe command
 
 #### Example
+
 ```bash
 yarn cli safe \
   -k 0xKernelAddress \
@@ -148,6 +166,7 @@ yarn cli safe \
 ```
 
 #### Output Format
+
 ```json
 {
   "calldata": "0x...",
@@ -161,6 +180,7 @@ yarn cli safe \
 Display configuration information and supported chains.
 
 #### Usage
+
 ```bash
 yarn cli configs [task]
 ```
@@ -168,16 +188,19 @@ yarn cli configs [task]
 #### Examples
 
 **Display all configurations:**
+
 ```bash
 yarn cli configs
 ```
 
 **Display supported chains:**
+
 ```bash
 yarn cli configs chains
 ```
 
 #### Output Format
+
 ```json
 {
   "supportedChains": [1, 8453, 84532, 42161],
@@ -194,20 +217,25 @@ yarn cli configs chains
 ## Common Patterns
 
 ### Address Validation
+
 All commands automatically validate and checksum addresses using viem's `getAddress` function.
 
 ### Chain ID Support
+
 Supported chain IDs include:
+
 - `1` - Ethereum Mainnet
-- `8453` - Base Mainnet  
+- `8453` - Base Mainnet
 - `84532` - Base Sepolia
 - `42161` - Arbitrum One
 - Additional chains as configured
 
 ### Transaction Confirmation
+
 Transfer operations automatically wait for transaction confirmation and provide transaction hashes.
 
 ### Error Handling
+
 Commands provide structured error messages with relevant details:
 
 ```json
@@ -224,6 +252,7 @@ Commands provide structured error messages with relevant details:
 ## Environment Setup
 
 ### Required Environment Variables
+
 Ensure your environment has the necessary configuration:
 
 ```bash
@@ -237,7 +266,9 @@ NODE_ENV=development
 ```
 
 ### Configuration Files
+
 The CLI uses the same configuration as the main application:
+
 - Configuration loaded from `eco-configs/`
 - AWS Secrets Manager integration
 - Redis for caching (if available)
@@ -245,6 +276,7 @@ The CLI uses the same configuration as the main application:
 ## Architecture
 
 ### Service Integration
+
 The CLI commands integrate directly with the main NestJS services:
 
 - **`EcoConfigService`**: Configuration and supported chains
@@ -253,6 +285,7 @@ The CLI commands integrate directly with the main NestJS services:
 - **`KmsService`**: AWS KMS integration for secure signing
 
 ### Security
+
 - All transaction signing uses AWS KMS
 - Private keys are never exposed in CLI output
 - Secure wallet address derivation from KMS keys
@@ -262,6 +295,7 @@ The CLI commands integrate directly with the main NestJS services:
 ### Adding New Commands
 
 1. Create a new command class extending `CommandRunner`:
+
 ```typescript
 @Command({ name: 'mycommand', description: 'My custom command' })
 export class MyCommand extends CommandRunner {
@@ -272,15 +306,19 @@ export class MyCommand extends CommandRunner {
 ```
 
 2. Create a module:
+
 ```typescript
 @Module({
-  imports: [/* dependencies */],
+  imports: [
+    /* dependencies */
+  ],
   providers: [MyCommand],
 })
 export class MyCommandModule {}
 ```
 
 3. Import in `CommanderAppModule`:
+
 ```typescript
 @Module({
   imports: [
@@ -292,6 +330,7 @@ export class CommanderAppModule {}
 ```
 
 ### Testing Commands
+
 Commands can be tested using the NestJS testing framework with proper service mocking.
 
 ## Troubleshooting
@@ -307,6 +346,7 @@ Commands can be tested using the NestJS testing framework with proper service mo
 **"Transaction failed"**: Check gas limits and network conditions.
 
 ### Debug Mode
+
 Enable debug logging by setting the log level in your configuration:
 
 ```bash
@@ -314,6 +354,7 @@ yarn cli balance --verbose  # If supported by command
 ```
 
 ### Getting Help
+
 Each command supports the `--help` flag for detailed usage information:
 
 ```bash
@@ -326,6 +367,7 @@ yarn cli configs --help
 ## Examples by Use Case
 
 ### Monitoring Wallet Balances
+
 ```bash
 # Check all balances
 yarn cli balance
@@ -338,6 +380,7 @@ yarn cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
 ```
 
 ### Emergency Token Recovery
+
 ```bash
 # Transfer all tokens from a chain
 yarn cli transfer 0xSafeAddress -e -c 84532
@@ -347,6 +390,7 @@ yarn cli transfer 0xSafeAddress -t 0xTokenAddress -a 1000000 -c 84532
 ```
 
 ### Configuration Debugging
+
 ```bash
 # Check supported chains
 yarn cli configs
@@ -356,6 +400,7 @@ yarn cli configs chains
 ```
 
 ### Safe Integration
+
 ```bash
 # Generate Safe transaction calldata
 yarn cli safe -k 0xKernel -t 0xRecipient -a 1000000 -tk 0xToken
