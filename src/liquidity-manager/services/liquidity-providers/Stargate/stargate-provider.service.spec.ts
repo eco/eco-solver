@@ -398,5 +398,162 @@ describe('StargateProviderService', () => {
       const result = (service as any).calculateAmountMin(amountIn)
       expect(result).toEqual(expected)
     })
+
+    it('calculates correct minimum for 1% slippage', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.01,
+      })
+
+      const amountIn = 1000000n
+      const expected = 990000n // 99% of input
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('calculates correct minimum for 0.1% slippage', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.001,
+      })
+
+      const amountIn = 1000000n
+      const expected = 999000n // 99.9% of input
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('handles zero slippage', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0,
+      })
+
+      const amountIn = 1000000n
+      const expected = 1000000n // 100% of input
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('handles very large amounts correctly', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.02, // 2% slippage
+      })
+
+      const amountIn = 10000000000000000000n // 10^19
+      const expected = 9800000000000000000n // 98% of input
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('handles small amounts with rounding', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.005, // 0.5% slippage
+      })
+
+      const amountIn = 100n
+      const expected = 100n // Ceil-div ensures we round up
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('properly rounds up to avoid underestimating protection', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.0001, // 0.01% slippage (1 basis point)
+      })
+
+      const amountIn = 99999n
+      const expected = 99990n // Should round up due to ceil-div
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('handles edge case with 1 unit input', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.5, // 50% slippage
+      })
+
+      const amountIn = 1n
+      const expected = 1n // Ceil-div ensures minimum of 1
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('calculates correct minimum for 5% slippage', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.05, // 5% slippage
+      })
+
+      const amountIn = 2000000n
+      const expected = 1900000n // 95% of input
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('handles fractional basis points correctly', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.0123, // 1.23% slippage
+      })
+
+      const amountIn = 1000000n
+      // slippageBps = floor(0.0123 * 10000) = 123
+      // slippageFactor = 10000 - 123 = 9877
+      // result = ceil(1000000 * 9877 / 10000) = ceil(987700) = 987700
+      const expected = 987700n
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('verifies ceil-div implementation with remainder', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.003, // 0.3% slippage
+      })
+
+      const amountIn = 333333n
+      // slippageBps = 30
+      // slippageFactor = 9970
+      // result = ceil(333333 * 9970 / 10000) = ceil(3323331.01) = 332334
+      const expected = 332334n
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('handles maximum theoretical slippage', () => {
+      ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+        maxQuoteSlippage: 0.9999, // 99.99% slippage
+      })
+
+      const amountIn = 1000000n
+      // slippageBps = floor(0.9999 * 10000) = 9999
+      // slippageFactor = 10000 - 9999 = 1
+      // result = ceil(1000000 * 1 / 10000) = ceil(100) = 100
+      const expected = 100n
+
+      const result = (service as any).calculateAmountMin(amountIn)
+      expect(result).toEqual(expected)
+    })
+
+    it('ensures result never exceeds input amount', () => {
+      // Test various slippage values to ensure amountMin <= amountIn
+      const testCases = [0, 0.001, 0.01, 0.1, 0.5, 0.99]
+      const amountIn = 1234567890n
+
+      testCases.forEach((slippage) => {
+        ;(ecoConfigService.getLiquidityManager as jest.Mock).mockReturnValue({
+          maxQuoteSlippage: slippage,
+        })
+
+        const result = (service as any).calculateAmountMin(amountIn)
+        expect(result).toBeLessThanOrEqual(amountIn)
+        expect(result).toBeGreaterThan(0n)
+      })
+    })
   })
 })
