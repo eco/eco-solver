@@ -9,8 +9,6 @@ import { Cache } from 'cache-manager'
 describe('BalanceService', () => {
   let balanceService: BalanceService
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
-  let ecoConfigService: DeepMocked<EcoConfigService>
-  let cacheManager: DeepMocked<Cache>
 
   const mockKernelClient = {
     kernelAccount: {
@@ -20,6 +18,7 @@ describe('BalanceService', () => {
       address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const,
     },
     getBalance: jest.fn(),
+    getBlockNumber: jest.fn(),
   }
 
   beforeEach(async () => {
@@ -34,8 +33,6 @@ describe('BalanceService', () => {
 
     balanceService = module.get<BalanceService>(BalanceService)
     kernelAccountClientService = module.get(KernelAccountClientService)
-    ecoConfigService = module.get(EcoConfigService)
-    cacheManager = module.get(CACHE_MANAGER)
 
     // Reset all mocks
     jest.clearAllMocks()
@@ -44,23 +41,29 @@ describe('BalanceService', () => {
   describe('fetchNativeBalance', () => {
     const chainID = 1 // Ethereum mainnet
     const expectedBalance = 1000000000000000000n // 1 ETH in wei
+    const expectedBlockNumber = 18500000n // Example block number
 
     beforeEach(() => {
       kernelAccountClientService.getClient.mockResolvedValue(mockKernelClient as any)
       mockKernelClient.getBalance.mockResolvedValue(expectedBalance)
+      mockKernelClient.getBlockNumber.mockResolvedValue(expectedBlockNumber)
     })
 
     it('should successfully fetch native balance when both kernel and EOA addresses are available', async () => {
       const result = await balanceService.fetchNativeBalance(chainID)
 
-      expect(result).toBe(expectedBalance)
+      expect(result).toEqual({
+        balance: expectedBalance,
+        blockNumber: expectedBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
         address: mockKernelClient.account.address,
       })
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
-    it('should return 0n when kernel address is not available', async () => {
+    it('should return 0n balance when kernel address is not available', async () => {
       const clientWithoutKernel = {
         ...mockKernelClient,
         kernelAccount: null,
@@ -69,12 +72,16 @@ describe('BalanceService', () => {
 
       const result = await balanceService.fetchNativeBalance(chainID)
 
-      expect(result).toBe(0n)
+      expect(result).toEqual({
+        balance: 0n,
+        blockNumber: expectedBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
-    it('should return 0n when EOA address is not available', async () => {
+    it('should return 0n balance when EOA address is not available', async () => {
       const clientWithoutEOA = {
         ...mockKernelClient,
         account: null,
@@ -83,12 +90,16 @@ describe('BalanceService', () => {
 
       const result = await balanceService.fetchNativeBalance(chainID)
 
-      expect(result).toBe(0n)
+      expect(result).toEqual({
+        balance: 0n,
+        blockNumber: expectedBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
-    it('should return 0n when both addresses are not available', async () => {
+    it('should return 0n balance when both addresses are not available', async () => {
       const clientWithoutAddresses = {
         ...mockKernelClient,
         kernelAccount: null,
@@ -98,24 +109,34 @@ describe('BalanceService', () => {
 
       const result = await balanceService.fetchNativeBalance(chainID)
 
-      expect(result).toBe(0n)
+      expect(result).toEqual({
+        balance: 0n,
+        blockNumber: expectedBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
     it('should handle different chain IDs correctly', async () => {
       const polygonChainId = 137
       const polygonBalance = 2000000000000000000n // 2 MATIC in wei
+      const polygonBlockNumber = 48500000n
 
       mockKernelClient.getBalance.mockResolvedValue(polygonBalance)
+      mockKernelClient.getBlockNumber.mockResolvedValue(polygonBlockNumber)
 
       const result = await balanceService.fetchNativeBalance(polygonChainId)
 
-      expect(result).toBe(polygonBalance)
+      expect(result).toEqual({
+        balance: polygonBalance,
+        blockNumber: polygonBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(polygonChainId)
       expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
         address: mockKernelClient.account.address,
       })
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
     it('should handle zero balance correctly', async () => {
@@ -123,11 +144,15 @@ describe('BalanceService', () => {
 
       const result = await balanceService.fetchNativeBalance(chainID)
 
-      expect(result).toBe(0n)
+      expect(result).toEqual({
+        balance: 0n,
+        blockNumber: expectedBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
         address: mockKernelClient.account.address,
       })
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
     it('should propagate errors from kernel account client service', async () => {
@@ -149,14 +174,27 @@ describe('BalanceService', () => {
       })
     })
 
+    it('should propagate errors from getBlockNumber call', async () => {
+      const error = new Error('Failed to fetch block number')
+      mockKernelClient.getBlockNumber.mockRejectedValue(error)
+
+      await expect(balanceService.fetchNativeBalance(chainID)).rejects.toThrow(error)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
+    })
+
     it('should handle very large balance values', async () => {
       const largeBalance = BigInt('999999999999999999999999999999') // Very large balance
       mockKernelClient.getBalance.mockResolvedValue(largeBalance)
 
       const result = await balanceService.fetchNativeBalance(chainID)
 
-      expect(result).toBe(largeBalance)
+      expect(result).toEqual({
+        balance: largeBalance,
+        blockNumber: expectedBlockNumber,
+      })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
     })
 
     it('should be cacheable (verify @Cacheable decorator is applied)', () => {
@@ -183,9 +221,13 @@ describe('BalanceService', () => {
 
         const result = await balanceService.fetchNativeBalance(chainID)
 
-        expect(result).toBe(0n)
+        expect(result).toEqual({
+          balance: 0n,
+          blockNumber: expectedBlockNumber,
+        })
         expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
         expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+        expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
       })
 
       it('should handle undefined EOA address', async () => {
@@ -199,9 +241,13 @@ describe('BalanceService', () => {
 
         const result = await balanceService.fetchNativeBalance(chainID)
 
-        expect(result).toBe(0n)
+        expect(result).toEqual({
+          balance: 0n,
+          blockNumber: expectedBlockNumber,
+        })
         expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
         expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+        expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
       })
 
       it('should handle negative chain IDs', async () => {
@@ -211,8 +257,98 @@ describe('BalanceService', () => {
 
         expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(negativeChainId)
         // The behavior depends on the kernel account client service implementation
-        // but our method should handle it gracefully
+        // but our method should handle it gracefully and still return the expected structure
+        expect(result).toEqual({
+          balance: expectedBalance,
+          blockNumber: expectedBlockNumber,
+        })
       })
+    })
+  })
+
+  describe('fetchAllNativeBalances', () => {
+    const mockSolvers = {
+      1: { chainID: 1 }, // Ethereum
+      137: { chainID: 137 }, // Polygon
+      42161: { chainID: 42161 }, // Arbitrum
+    }
+
+    beforeEach(() => {
+      // Mock the config service to return test solvers
+      const mockConfigService = balanceService['configService'] as any
+      mockConfigService.getSolvers = jest.fn().mockReturnValue(mockSolvers)
+
+      // Setup default mocks for fetchNativeBalance
+      jest.spyOn(balanceService, 'fetchNativeBalance')
+    })
+
+    it('should fetch native balances for all solver chains', async () => {
+      const mockBalances = [
+        { balance: 1000000000000000000n, blockNumber: 18500000n },
+        { balance: 2000000000000000000n, blockNumber: 48500000n },
+        { balance: 500000000000000000n, blockNumber: 145000000n },
+      ]
+
+      // Mock fetchNativeBalance for each chain
+      ;(balanceService.fetchNativeBalance as jest.Mock)
+        .mockResolvedValueOnce(mockBalances[0])
+        .mockResolvedValueOnce(mockBalances[1])
+        .mockResolvedValueOnce(mockBalances[2])
+
+      const result = await balanceService.fetchAllNativeBalances()
+
+      expect(result).toEqual([
+        { chainId: 1, balance: 1000000000000000000n, blockNumber: 18500000n },
+        { chainId: 137, balance: 2000000000000000000n, blockNumber: 48500000n },
+        { chainId: 42161, balance: 500000000000000000n, blockNumber: 145000000n },
+      ])
+
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledTimes(3)
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledWith(1, false)
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledWith(137, false)
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledWith(42161, false)
+    })
+
+    it('should handle individual chain failures gracefully', async () => {
+      const mockBalance1 = { balance: 1000000000000000000n, blockNumber: 18500000n }
+      const mockBalance3 = { balance: 500000000000000000n, blockNumber: 145000000n }
+
+      // Mock fetchNativeBalance with one failure
+      ;(balanceService.fetchNativeBalance as jest.Mock)
+        .mockResolvedValueOnce(mockBalance1)
+        .mockRejectedValueOnce(new Error('Chain 137 failed'))
+        .mockResolvedValueOnce(mockBalance3)
+
+      const result = await balanceService.fetchAllNativeBalances()
+
+      expect(result).toEqual([
+        { chainId: 1, balance: 1000000000000000000n, blockNumber: 18500000n },
+        null, // Failed chain should return null
+        { chainId: 42161, balance: 500000000000000000n, blockNumber: 145000000n },
+      ])
+
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledTimes(3)
+    })
+
+    it('should pass forceRefresh parameter correctly', async () => {
+      const mockBalance = { balance: 1000000000000000000n, blockNumber: 18500000n }
+      ;(balanceService.fetchNativeBalance as jest.Mock).mockResolvedValue(mockBalance)
+
+      await balanceService.fetchAllNativeBalances(true)
+
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledWith(1, true)
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledWith(137, true)
+      expect(balanceService.fetchNativeBalance).toHaveBeenCalledWith(42161, true)
+    })
+
+    it('should handle empty solver configuration', async () => {
+      const mockConfigService = balanceService['configService'] as any
+      mockConfigService.getSolvers = jest.fn().mockReturnValue({})
+
+      const result = await balanceService.fetchAllNativeBalances()
+
+      expect(result).toEqual([])
+      expect(balanceService.fetchNativeBalance).not.toHaveBeenCalled()
     })
   })
 })
