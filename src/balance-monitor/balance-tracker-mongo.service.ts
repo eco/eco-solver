@@ -1,22 +1,25 @@
 import { BalanceService } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QUEUES } from '@/common/redis/constants'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
 import { Hex } from 'viem'
-import { BalanceChange, TrackedBalance } from './interfaces/balance-tracker.interface'
-import {
-  BALANCE_MONITOR_JOBS,
-  BALANCE_TRACKER_JOB_OPTIONS,
-  StoreBalanceJobData,
-  UpdateBalanceJobData,
-} from './jobs/balance-monitor.job'
+import { TrackedBalanceRepository } from './repositories/tracked-balance.repository'
+import { TrackedBalance } from './schemas/tracked-balance.schema'
+import { BALANCE_MONITOR_JOBS, BALANCE_TRACKER_JOB_OPTIONS } from './jobs/balance-monitor.job'
+
+export interface BalanceChange {
+  chainId: number
+  tokenAddress: string
+  changeAmount: bigint
+  transactionHash?: Hex
+  timestamp?: Date
+}
 
 /**
- * Balance tracker service using BullMQ for both job management and balance storage.
- * Balances are stored as completed job data, eliminating the need for separate Redis operations.
+ * Balance tracker service using MongoDB for storage and BullMQ only for initialization.
+ * Balances are stored in MongoDB for reliable persistence and easy querying.
  */
 @Injectable()
 export class BalanceTrackerService implements OnModuleInit {
@@ -26,6 +29,7 @@ export class BalanceTrackerService implements OnModuleInit {
   constructor(
     @InjectQueue(QUEUES.BALANCE_MONITOR.queue) private readonly balanceQueue: Queue,
     private readonly balanceService: BalanceService,
+    private readonly trackedBalanceRepository: TrackedBalanceRepository,
   ) {}
 
   async onModuleInit() {
@@ -35,28 +39,40 @@ export class BalanceTrackerService implements OnModuleInit {
       }),
     )
 
-    // Schedule initialization job with BullMQ's built-in deduplication
+    // Schedule initialization job with time-based deduplication (every 5 minutes)
     await this.scheduleInitialization()
   }
 
   /**
-   * Schedules the initialization job using BullMQ's jobId for deduplication
+   * Schedules the initialization job using time-based deduplication
+   * Only allows initialization once per time period (5 minutes)
    */
   private async scheduleInitialization(): Promise<void> {
     try {
       const config = BALANCE_TRACKER_JOB_OPTIONS[BALANCE_MONITOR_JOBS.initialize_monitoring]
+      // Create time-based jobId that changes every 5 minutes
+      // This allows initialization to run periodically while preventing race conditions
+      const timeWindow = 5 * 60 * 1000 // 5 minutes in milliseconds
+      const timeSlot = Math.floor(Date.now() / timeWindow)
+      const timeBasedJobId = `initialize_monitoring_${timeSlot}`
+
       await this.balanceQueue.add(
         BALANCE_MONITOR_JOBS.initialize_monitoring,
         {},
         {
           ...config,
+          jobId: timeBasedJobId, // Time-based jobId ensures periodic updates
         },
       )
 
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'BalanceTrackerService: Initialization job scheduled',
-          properties: { jobId: config.jobId },
+          properties: {
+            jobId: timeBasedJobId,
+            timeSlot,
+            windowMinutes: 5,
+          },
         }),
       )
     } catch (error) {
@@ -72,17 +88,18 @@ export class BalanceTrackerService implements OnModuleInit {
   }
 
   /**
-   * Initializes balance tracking by fetching current balances and storing them as jobs
+   * Initializes balance tracking by fetching current balances and storing them in MongoDB
    */
   async initializeBalanceTracking(): Promise<void> {
     try {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: 'BalanceTrackerService: Starting balance tracking initialization',
+          message:
+            'BalanceTrackerService: Starting balance tracking initialization (periodic refresh)',
         }),
       )
 
-      const balanceJobs: Array<{ jobId: string; data: StoreBalanceJobData }> = []
+      const startTime = Date.now()
 
       // Get all token data at once (batched by chain) with fresh data
       const allTokenData = await this.balanceService.getAllTokenData(true)
@@ -90,7 +107,7 @@ export class BalanceTrackerService implements OnModuleInit {
       // Get native balances for all chains using the dedicated method
       const nativeBalanceResults = await this.balanceService.fetchAllNativeBalances(true)
 
-      // Log warnings for failed fetches and filter out nulls
+      // Filter out null results and log warnings
       const nativeBalances = nativeBalanceResults.filter((result) => {
         if (result === null) {
           this.logger.warn(
@@ -107,45 +124,92 @@ export class BalanceTrackerService implements OnModuleInit {
         return true
       })
 
-      // Create balance jobs for native tokens
+      // Store native balances in MongoDB
+      let storedNativeCount = 0
       for (const nativeBalance of nativeBalances) {
         if (nativeBalance) {
-          balanceJobs.push({
-            jobId: this.getBalanceJobId(nativeBalance.chainId, this.NATIVE_TOKEN_KEY),
-            data: {
+          try {
+            await this.trackedBalanceRepository.upsertBalance({
               chainId: nativeBalance.chainId,
               tokenAddress: this.NATIVE_TOKEN_KEY,
               balance: nativeBalance.balance.toString(),
-              lastUpdated: new Date().toISOString(),
-            },
-          })
+              blockNumber: nativeBalance.blockNumber.toString(),
+            })
+            storedNativeCount++
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: 'BalanceTrackerService: Native balance stored',
+                properties: {
+                  chainId: nativeBalance.chainId,
+                  balance: nativeBalance.balance.toString(),
+                  blockNumber: nativeBalance.blockNumber.toString(),
+                },
+              }),
+            )
+          } catch (error) {
+            this.logger.error(
+              EcoLogMessage.fromDefault({
+                message: 'BalanceTrackerService: Error storing native balance',
+                properties: {
+                  chainId: nativeBalance.chainId,
+                  error: error.message,
+                },
+              }),
+            )
+          }
         }
       }
 
-      // Create balance jobs for ERC20 tokens from the batched data
+      // Store ERC20 token balances in MongoDB
+      let storedTokenCount = 0
       for (const tokenData of allTokenData) {
-        balanceJobs.push({
-          jobId: this.getBalanceJobId(tokenData.chainId, tokenData.balance.address),
-          data: {
+        try {
+          await this.trackedBalanceRepository.upsertBalance({
             chainId: tokenData.chainId,
             tokenAddress: tokenData.balance.address,
             balance: tokenData.balance.balance.toString(),
-            lastUpdated: new Date().toISOString(),
             decimals: tokenData.balance.decimals,
-          },
-        })
+          })
+          storedTokenCount++
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'BalanceTrackerService: Token balance stored',
+              properties: {
+                chainId: tokenData.chainId,
+                tokenAddress: tokenData.balance.address,
+                balance: tokenData.balance.balance.toString(),
+                decimals: tokenData.balance.decimals,
+              },
+            }),
+          )
+        } catch (error) {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: 'BalanceTrackerService: Error storing token balance',
+              properties: {
+                chainId: tokenData.chainId,
+                tokenAddress: tokenData.balance.address,
+                error: error.message,
+              },
+            }),
+          )
+        }
       }
 
-      // Store all balances as completed jobs in BullMQ
-      await this.storeBalanceJobs(balanceJobs)
+      const duration = Date.now() - startTime
+      const stats = await this.trackedBalanceRepository.getBalanceStats()
 
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'BalanceTrackerService: Initialization completed',
           properties: {
-            balancesInitialized: balanceJobs.length,
-            nativeBalances: nativeBalances.length,
-            tokenBalances: allTokenData.length,
+            duration,
+            totalBalances: stats.totalBalances,
+            nativeBalancesFetched: nativeBalances.length,
+            nativeBalancesStored: storedNativeCount,
+            tokenBalancesFetched: allTokenData.length,
+            tokenBalancesStored: storedTokenCount,
+            chainCounts: stats.chainCounts,
           },
         }),
       )
@@ -163,42 +227,12 @@ export class BalanceTrackerService implements OnModuleInit {
   }
 
   /**
-   * Stores balance jobs in BullMQ as completed jobs
-   */
-  private async storeBalanceJobs(
-    balanceJobs: Array<{ jobId: string; data: StoreBalanceJobData }>,
-  ): Promise<void> {
-    for (const { jobId, data } of balanceJobs) {
-      // Create a job that will be processed and then serve as balance storage
-      await this.balanceQueue.add(BALANCE_MONITOR_JOBS.store_balance, data, {
-        jobId,
-        removeOnComplete: false, // Keep completed jobs to serve as balance storage
-        removeOnFail: 1,
-      })
-    }
-  }
-
-  /**
-   * Generates a unique job ID for balance storage
-   */
-  private getBalanceJobId(chainId: number, tokenAddress: string): string {
-    return `balance-${chainId}-${tokenAddress}`
-  }
-
-  /**
    * Gets the current tracked balance for a specific chain/token
    */
   async getBalance(chainId: number, tokenAddress: string): Promise<bigint | null> {
     try {
-      const jobId = this.getBalanceJobId(chainId, tokenAddress)
-      const job = await this.balanceQueue.getJob(jobId)
-
-      if (!job || (await job.getState()) !== 'completed') {
-        return null
-      }
-
-      const data = job.data as StoreBalanceJobData
-      return BigInt(data.balance)
+      const trackedBalance = await this.trackedBalanceRepository.getBalance(chainId, tokenAddress)
+      return trackedBalance ? BigInt(trackedBalance.balance) : null
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -219,20 +253,7 @@ export class BalanceTrackerService implements OnModuleInit {
    */
   async getTrackedBalance(chainId: number, tokenAddress: string): Promise<TrackedBalance | null> {
     try {
-      const jobId = this.getBalanceJobId(chainId, tokenAddress)
-      const job = await this.balanceQueue.getJob(jobId)
-
-      if (!job || (await job.getState()) !== 'completed') {
-        return null
-      }
-
-      const data = job.data as StoreBalanceJobData
-      return {
-        chainId: data.chainId,
-        tokenAddress: data.tokenAddress,
-        balance: BigInt(data.balance),
-        lastUpdated: new Date(data.lastUpdated),
-      }
+      return await this.trackedBalanceRepository.getBalance(chainId, tokenAddress)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -269,37 +290,47 @@ export class BalanceTrackerService implements OnModuleInit {
   }
 
   /**
-   * Updates the balance by scheduling an update job
+   * Updates the balance directly in MongoDB (no job scheduling needed)
    */
   async updateBalance(change: BalanceChange): Promise<bigint | null> {
     try {
-      const updateData: UpdateBalanceJobData = {
-        chainId: change.chainId,
-        tokenAddress: change.tokenAddress,
-        changeAmount: change.changeAmount.toString(),
-        transactionHash: change.transactionHash,
-        timestamp: (change.timestamp || new Date()).toISOString(),
+      // For native tokens, fetch block number if available
+      let blockNumber: string | undefined
+      if (change.tokenAddress === this.NATIVE_TOKEN_KEY) {
+        try {
+          const nativeBalanceData = await this.balanceService.fetchNativeBalance(
+            change.chainId,
+            true,
+          )
+          blockNumber = nativeBalanceData.blockNumber.toString()
+        } catch (error) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message:
+                'BalanceTrackerService: Failed to fetch block number for native token update',
+              properties: {
+                chainId: change.chainId,
+                tokenAddress: change.tokenAddress,
+                error: error.message,
+              },
+            }),
+          )
+        }
       }
 
-      // Schedule update job with unique ID to prevent duplicate processing
-      const updateJobId = `update-${change.chainId}-${change.tokenAddress}-${Date.now()}`
-      await this.balanceQueue.add(BALANCE_MONITOR_JOBS.update_balance, updateData, {
-        ...BALANCE_TRACKER_JOB_OPTIONS[BALANCE_MONITOR_JOBS.update_balance],
-        jobId: updateJobId,
-      })
+      const result = await this.trackedBalanceRepository.updateBalanceByAmount(
+        change.chainId,
+        change.tokenAddress,
+        change.changeAmount,
+        change.transactionHash,
+        blockNumber,
+      )
 
-      // Return the updated balance (the job processor will handle the actual update)
-      const currentBalance = await this.getBalance(change.chainId, change.tokenAddress)
-      if (currentBalance === null) {
-        return null
-      }
-
-      const newBalance = currentBalance + change.changeAmount
-      return newBalance >= 0n ? newBalance : currentBalance
+      return result ? BigInt(result.balance) : null
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'BalanceTrackerService: Error scheduling balance update',
+          message: 'BalanceTrackerService: Error updating balance',
           properties: {
             chainId: change.chainId,
             tokenAddress: change.tokenAddress,
@@ -313,125 +344,11 @@ export class BalanceTrackerService implements OnModuleInit {
   }
 
   /**
-   * Processes a balance update job (called by the processor)
-   */
-  async processBalanceUpdate(updateData: UpdateBalanceJobData): Promise<void> {
-    try {
-      const { chainId, tokenAddress, changeAmount } = updateData
-      const changeAmountBigInt = BigInt(changeAmount)
-
-      // Get current balance
-      const currentBalance = await this.getBalance(chainId, tokenAddress)
-      if (currentBalance === null) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'BalanceTrackerService: Attempted to update non-existent balance',
-            properties: {
-              chainId,
-              tokenAddress,
-              changeAmount,
-            },
-          }),
-        )
-        return
-      }
-
-      const newBalance = currentBalance + changeAmountBigInt
-
-      // Prevent negative balances
-      if (newBalance < 0n) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'BalanceTrackerService: Attempted to create negative balance',
-            properties: {
-              chainId,
-              tokenAddress,
-              currentBalance: currentBalance.toString(),
-              changeAmount,
-              wouldBeBalance: newBalance.toString(),
-            },
-          }),
-        )
-        return
-      }
-
-      // Update the balance job
-      const jobId = this.getBalanceJobId(chainId, tokenAddress)
-      const job = await this.balanceQueue.getJob(jobId)
-
-      if (job) {
-        // Update the job data with new balance
-        const currentData = job.data as StoreBalanceJobData
-        const updatedData: StoreBalanceJobData = {
-          ...currentData,
-          balance: newBalance.toString(),
-          lastUpdated: updateData.timestamp || new Date().toISOString(),
-        }
-
-        // Remove old job and create new one with updated balance
-        await job.remove()
-        const newJob = await this.balanceQueue.add(
-          BALANCE_MONITOR_JOBS.store_balance,
-          updatedData,
-          {
-            jobId,
-            removeOnComplete: false,
-            removeOnFail: 1,
-          },
-        )
-        await newJob.moveToCompleted('updated', newJob.token!)
-      }
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'BalanceTrackerService: Balance updated',
-          properties: {
-            chainId,
-            tokenAddress,
-            previousBalance: currentBalance.toString(),
-            changeAmount,
-            newBalance: newBalance.toString(),
-            transactionHash: updateData.transactionHash,
-          },
-        }),
-      )
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'BalanceTrackerService: Error processing balance update',
-          properties: {
-            updateData,
-            error: error.message,
-          },
-        }),
-      )
-      throw error
-    }
-  }
-
-  /**
    * Gets all tracked balances for a specific chain
    */
   async getBalancesForChain(chainId: number): Promise<TrackedBalance[]> {
     try {
-      const jobs = await this.balanceQueue.getCompleted(0, 1000)
-      const balances: TrackedBalance[] = []
-
-      for (const job of jobs) {
-        if (job.name === BALANCE_MONITOR_JOBS.store_balance) {
-          const data = job.data as StoreBalanceJobData
-          if (data.chainId === chainId) {
-            balances.push({
-              chainId: data.chainId,
-              tokenAddress: data.tokenAddress,
-              balance: BigInt(data.balance),
-              lastUpdated: new Date(data.lastUpdated),
-            })
-          }
-        }
-      }
-
-      return balances
+      return await this.trackedBalanceRepository.getBalancesForChain(chainId)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -451,22 +368,7 @@ export class BalanceTrackerService implements OnModuleInit {
    */
   async getAllBalances(): Promise<TrackedBalance[]> {
     try {
-      const jobs = await this.balanceQueue.getCompleted(0, 1000)
-      const balances: TrackedBalance[] = []
-
-      for (const job of jobs) {
-        if (job.name === BALANCE_MONITOR_JOBS.store_balance) {
-          const data = job.data as StoreBalanceJobData
-          balances.push({
-            chainId: data.chainId,
-            tokenAddress: data.tokenAddress,
-            balance: BigInt(data.balance),
-            lastUpdated: new Date(data.lastUpdated),
-          })
-        }
-      }
-
-      return balances
+      return await this.trackedBalanceRepository.getAllBalances()
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -491,13 +393,8 @@ export class BalanceTrackerService implements OnModuleInit {
         }),
       )
 
-      // Remove all existing balance jobs
-      const jobs = await this.balanceQueue.getCompleted(0, 1000)
-      for (const job of jobs) {
-        if (job.name === BALANCE_MONITOR_JOBS.store_balance) {
-          await job.remove()
-        }
-      }
+      // Remove all existing balances from MongoDB
+      await this.trackedBalanceRepository.removeAllBalances()
 
       // Reinitialize
       await this.initializeBalanceTracking()
@@ -582,5 +479,12 @@ export class BalanceTrackerService implements OnModuleInit {
       changeAmount: amount,
       transactionHash,
     })
+  }
+
+  /**
+   * Gets balance statistics
+   */
+  async getBalanceStats(): Promise<{ totalBalances: number; chainCounts: Record<number, number> }> {
+    return this.trackedBalanceRepository.getBalanceStats()
   }
 }

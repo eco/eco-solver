@@ -2,16 +2,23 @@ import { Hex } from 'viem'
 
 /**
  * Represents a tracked balance for a specific token/native on a chain
+ * This interface matches the MongoDB schema
  */
 export interface TrackedBalance {
   /** The chain ID */
   chainId: number
   /** The token address (or 'native' for native gas tokens) */
   tokenAddress: string
-  /** Current balance in smallest unit (wei for native, token units for ERC20) */
-  balance: bigint
+  /** Current balance as string (to handle BigInt storage) */
+  balance: string
+  /** Token decimals (for ERC20 tokens) */
+  decimals?: number
+  /** Block number (for native tokens) */
+  blockNumber?: string
   /** Last updated timestamp */
   lastUpdated: Date
+  /** Transaction hash that last updated this balance */
+  transactionHash?: string
 }
 
 /**
@@ -31,18 +38,6 @@ export interface BalanceChange {
 }
 
 /**
- * Redis keys for balance tracking data
- */
-export interface BalanceTrackerRedisKeys {
-  /** Key for storing tracked balance data */
-  balance: (chainId: number, tokenAddress: string) => string
-  /** Key for initialization lock */
-  initLock: () => string
-  /** Key for last initialization timestamp */
-  lastInit: () => string
-}
-
-/**
  * Balance initialization data from the balance service
  */
 export interface BalanceInitData {
@@ -54,4 +49,6 @@ export interface BalanceInitData {
   balance: bigint
   /** Token decimals (for ERC20 tokens) */
   decimals?: number
+  /** Block number (for native tokens) */
+  blockNumber?: bigint
 }

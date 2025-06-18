@@ -68,11 +68,11 @@ export class BalanceHealthIndicator extends HealthIndicator {
       minEthBalanceWei: number
     }[] = []
     const solvers = this.configService.getSolvers()
-    
+
     // Get all native balances using the balance service
     const nativeBalances = await this.balanceService.fetchAllNativeBalances()
     const nativeBalancesByChain = keyBy(nativeBalances.filter(Boolean), 'chainId')
-    
+
     const balanceTasks = entries(solvers).map(async ([, solver]) => {
       const clientKernel = await this.kernelAccountClientService.getClient(solver.chainID)
       const kernelAddress = clientKernel.kernelAccount?.address
@@ -82,7 +82,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
         // Use balance from the balance service instead of direct client call
         const nativeBalance = nativeBalancesByChain[solver.chainID]
         const bal = nativeBalance ? nativeBalance.balance : 0n
-        
+
         accountBalance.push({
           kernelAddress,
           eocAddress,

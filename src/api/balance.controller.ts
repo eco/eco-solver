@@ -18,7 +18,9 @@ export class BalanceController {
       this.balanceService.fetchAllNativeBalances(),
     ])
 
-    const filteredNativeData = nativeData.filter((item): item is NonNullable<typeof item> => item !== null) // Remove null entries
+    const filteredNativeData = nativeData.filter(
+      (item): item is NonNullable<typeof item> => item !== null,
+    ) // Remove null entries
 
     if (flat) {
       return convertBigIntsToStrings({
