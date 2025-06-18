@@ -6,6 +6,7 @@ import { entries, keyBy } from 'lodash'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { BalanceService } from '@/balance/balance.service'
 
 type TokenType = {
   token: Hex
@@ -23,6 +24,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly configService: EcoConfigService,
+    private readonly balanceService: BalanceService,
   ) {
     super()
   }
@@ -66,13 +68,21 @@ export class BalanceHealthIndicator extends HealthIndicator {
       minEthBalanceWei: number
     }[] = []
     const solvers = this.configService.getSolvers()
+    
+    // Get all native balances using the balance service
+    const nativeBalances = await this.balanceService.fetchAllNativeBalances()
+    const nativeBalancesByChain = keyBy(nativeBalances.filter(Boolean), 'chainId')
+    
     const balanceTasks = entries(solvers).map(async ([, solver]) => {
       const clientKernel = await this.kernelAccountClientService.getClient(solver.chainID)
       const kernelAddress = clientKernel.kernelAccount?.address
       const eocAddress = clientKernel.account?.address
 
       if (eocAddress && kernelAddress) {
-        const bal = await clientKernel.getBalance({ address: eocAddress })
+        // Use balance from the balance service instead of direct client call
+        const nativeBalance = nativeBalancesByChain[solver.chainID]
+        const bal = nativeBalance ? nativeBalance.balance : 0n
+        
         accountBalance.push({
           kernelAddress,
           eocAddress,
@@ -84,7 +94,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     })
     await Promise.all(balanceTasks)
 
-    return accountBalance.reverse()
+    return accountBalance.sort((a, b) => a.chainID - b.chainID)
   }
 
   private async getSources(): Promise<any[]> {

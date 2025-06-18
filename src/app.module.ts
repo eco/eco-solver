@@ -23,11 +23,13 @@ import { SolverModule } from '@/solver/solver.module'
 import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
+import { BalanceMonitorModule } from './balance-monitor/balance-monitor.module'
 
 @Module({
   imports: [
     ApiModule,
     BalanceModule,
+    BalanceMonitorModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),
     FeeModule,

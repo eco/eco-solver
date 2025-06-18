@@ -12,6 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
+import { BalanceService } from '@/balance/balance.service'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -23,6 +24,7 @@ describe('ValidationService', () => {
   let proofService: DeepMocked<ProofService>
   let feeService: DeepMocked<FeeService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let balanceService: DeepMocked<BalanceService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   const mockLogLog = jest.fn()
 
@@ -33,6 +35,7 @@ describe('ValidationService', () => {
         { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
       ],
     }).compile()
@@ -41,11 +44,12 @@ describe('ValidationService', () => {
     proofService = mod.get(ProofService)
     feeService = mod.get(FeeService)
     ecoConfigService = mod.get(EcoConfigService)
+    balanceService = mod.get(BalanceService)
     utilsIntentService = mod.get(UtilsIntentService)
 
     validationService['logger'].log = mockLogLog
 
-    jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValueOnce({} as any)
+    // Remove this line since we need to mock it in individual tests
   })
 
   afterEach(async () => {
@@ -74,6 +78,7 @@ describe('ValidationService', () => {
         supportedNative: true,
         supportedTargets: true,
         supportedTransaction: true,
+        validSourceMax: true,
         validTransferLimit: true,
         validExpirationTime: false,
         validDestination: true,
@@ -88,6 +93,7 @@ describe('ValidationService', () => {
         supportedNative: false,
         supportedTargets: false,
         supportedTransaction: false,
+        validSourceMax: false,
         validTransferLimit: false,
         validExpirationTime: false,
         validDestination: false,
@@ -102,6 +108,7 @@ describe('ValidationService', () => {
         supportedNative: true,
         supportedTargets: true,
         supportedTransaction: true,
+        validSourceMax: true,
         validTransferLimit: true,
         validExpirationTime: true,
         validDestination: true,
@@ -379,6 +386,238 @@ describe('ValidationService', () => {
       })
     })
 
+    describe('on validSourceMax', () => {
+      const mockSolver = {
+        chainID: 1,
+        targets: {
+          '0xToken1': {
+            contractType: 'erc20',
+            selectors: ['transfer(address,uint256)'],
+            minBalance: 100,
+            targetBalance: 1000,
+            maxBalance: 5000,
+          },
+          '0xToken2': {
+            contractType: 'erc20',
+            selectors: ['transfer(address,uint256)'],
+            minBalance: 50,
+            targetBalance: 500,
+            maxBalance: 2500,
+          },
+          '0xTokenNoMax': {
+            contractType: 'erc20',
+            selectors: ['transfer(address,uint256)'],
+            minBalance: 100,
+            targetBalance: 1000,
+            // No maxBalance property
+          },
+        },
+      } as any
+
+      const mockIntent = {
+        route: { source: 1n },
+        reward: {
+          tokens: [
+            { token: '0xToken1', amount: 1000000n }, // 1 token with 6 decimals
+            { token: '0xToken2', amount: 500000n }, // 0.5 token with 6 decimals
+          ],
+        },
+        hash: '0xIntentHash',
+      } as any
+
+      beforeEach(() => {
+        jest.clearAllMocks()
+      })
+
+      it('should return false when no solver found for source chain', async () => {
+        ecoConfigService.getSolver.mockReturnValue(undefined)
+
+        const result = await validationService.validSourceMax(mockIntent)
+
+        expect(result).toBe(false)
+        expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockIntent.route.source)
+      })
+
+      it('should return true when no maxBalance is configured for any reward tokens', async () => {
+        const intentWithNoMaxTokens = {
+          ...mockIntent,
+          reward: {
+            tokens: [{ token: '0xTokenNoMax', amount: 1000000n }],
+          },
+        }
+
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const result = await validationService.validSourceMax(intentWithNoMaxTokens)
+
+        expect(result).toBe(true)
+        expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockIntent.route.source)
+      })
+
+      it('should return true when projected balance does not exceed maxBalance', async () => {
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        // Mock current balances - well under maxBalance
+        balanceService.fetchTokenBalance
+          .mockResolvedValueOnce({
+            address: '0xToken1',
+            balance: 1000000n, // 1 token current balance
+            decimals: 6,
+          })
+          .mockResolvedValueOnce({
+            address: '0xToken2',
+            balance: 500000n, // 0.5 token current balance
+            decimals: 6,
+          })
+
+        const result = await validationService.validSourceMax(mockIntent)
+
+        expect(result).toBe(true)
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledTimes(2)
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(1, '0xToken1')
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(1, '0xToken2')
+      })
+
+      it('should return false when projected balance exceeds maxBalance', async () => {
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        // Mock current balance that would exceed maxBalance when added to reward
+        balanceService.fetchTokenBalance.mockResolvedValueOnce({
+          address: '0xToken1',
+          balance: 4500000000n, // 4500 tokens current balance (maxBalance is 5000)
+          decimals: 6,
+        })
+
+        const result = await validationService.validSourceMax(mockIntent)
+
+        expect(result).toBe(false)
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(1, '0xToken1')
+        // Should stop at first violation
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledTimes(1)
+      })
+
+      it('should handle different token decimals correctly', async () => {
+        const intentWith18Decimals = {
+          ...mockIntent,
+          reward: {
+            tokens: [{ token: '0xToken1', amount: 1000000000000000000n }], // 1 token with 18 decimals
+          },
+        }
+
+        const solverWith18Decimals = {
+          ...mockSolver,
+          targets: {
+            '0xToken1': {
+              ...mockSolver.targets['0xToken1'],
+              maxBalance: 5000, // Still 5000 in dollar units
+            },
+          },
+        }
+
+        ecoConfigService.getSolver.mockReturnValue(solverWith18Decimals)
+        balanceService.fetchTokenBalance.mockResolvedValueOnce({
+          address: '0xToken1',
+          balance: 1000000000000000000n, // 1 token current balance
+          decimals: 18,
+        })
+
+        const result = await validationService.validSourceMax(intentWith18Decimals)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false on balance service error', async () => {
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+        balanceService.fetchTokenBalance.mockRejectedValueOnce(new Error('Balance fetch failed'))
+
+        const result = await validationService.validSourceMax(mockIntent)
+
+        expect(result).toBe(false)
+      })
+
+      it('should skip validation for tokens not in solver targets', async () => {
+        const intentWithUnknownToken = {
+          ...mockIntent,
+          reward: {
+            tokens: [
+              { token: '0xToken1', amount: 1000000n },
+              { token: '0xUnknownToken', amount: 1000000n }, // Not in solver targets
+            ],
+          },
+        }
+
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+        balanceService.fetchTokenBalance.mockResolvedValueOnce({
+          address: '0xToken1',
+          balance: 1000000n,
+          decimals: 6,
+        })
+
+        const result = await validationService.validSourceMax(intentWithUnknownToken)
+
+        expect(result).toBe(true)
+        // Should only call balance service for known token
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledTimes(1)
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(1, '0xToken1')
+      })
+
+      it('should validate multiple reward tokens correctly', async () => {
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        // Mock balances for both tokens - both within limits
+        balanceService.fetchTokenBalance
+          .mockResolvedValueOnce({
+            address: '0xToken1',
+            balance: 2000000000n, // 2000 tokens
+            decimals: 6,
+          })
+          .mockResolvedValueOnce({
+            address: '0xToken2',
+            balance: 1000000000n, // 1000 tokens
+            decimals: 6,
+          })
+
+        const result = await validationService.validSourceMax(mockIntent)
+
+        expect(result).toBe(true)
+        expect(balanceService.fetchTokenBalance).toHaveBeenCalledTimes(2)
+      })
+
+      it('should use correct normalization for maxBalance', async () => {
+        const solverWithCustomBalance = {
+          ...mockSolver,
+          targets: {
+            '0xToken1': {
+              ...mockSolver.targets['0xToken1'],
+              maxBalance: 1000, // 1000 dollar units
+            },
+          },
+        }
+
+        ecoConfigService.getSolver.mockReturnValue(solverWithCustomBalance)
+        balanceService.fetchTokenBalance.mockResolvedValueOnce({
+          address: '0xToken1',
+          balance: 999000000n, // 999 tokens (just under 1000)
+          decimals: 6,
+        })
+
+        const result = await validationService.validSourceMax(mockIntent)
+
+        expect(result).toBe(true)
+
+        // Test case where it would exceed
+        balanceService.fetchTokenBalance.mockResolvedValueOnce({
+          address: '0xToken1',
+          balance: 999500000n, // 999.5 tokens, would become 1000.5 after reward
+          decimals: 6,
+        })
+
+        const result2 = await validationService.validSourceMax(mockIntent)
+
+        expect(result2).toBe(false)
+      })
+    })
+
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {
@@ -421,13 +660,14 @@ describe('ValidationService', () => {
     })
   })
 
-  describe.only('on assertValidations', () => {
+  describe('on assertValidations', () => {
     const updateInvalidIntentModel = jest.fn()
     const assetCases: Record<keyof ValidationChecks, string> = {
       supportedProver: 'supportedProver',
       supportedNative: 'supportedNative',
       supportedTargets: 'supportedTargets',
       supportedTransaction: 'supportedTransaction',
+      validSourceMax: 'validSourceMax',
       validTransferLimit: 'validTransferLimit',
       validExpirationTime: 'validExpirationTime',
       validDestination: 'validDestination',

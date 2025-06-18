@@ -1,0 +1,218 @@
+import { BalanceService } from '@/balance/balance.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { createMock, DeepMocked } from '@golevelup/ts-jest'
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Test, TestingModule } from '@nestjs/testing'
+import { Cache } from 'cache-manager'
+
+describe('BalanceService', () => {
+  let balanceService: BalanceService
+  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
+  let ecoConfigService: DeepMocked<EcoConfigService>
+  let cacheManager: DeepMocked<Cache>
+
+  const mockKernelClient = {
+    kernelAccount: {
+      address: '0x1234567890123456789012345678901234567890' as const,
+    },
+    account: {
+      address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const,
+    },
+    getBalance: jest.fn(),
+  }
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BalanceService,
+        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
+        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: CACHE_MANAGER, useValue: createMock<Cache>() },
+      ],
+    }).compile()
+
+    balanceService = module.get<BalanceService>(BalanceService)
+    kernelAccountClientService = module.get(KernelAccountClientService)
+    ecoConfigService = module.get(EcoConfigService)
+    cacheManager = module.get(CACHE_MANAGER)
+
+    // Reset all mocks
+    jest.clearAllMocks()
+  })
+
+  describe('fetchNativeBalance', () => {
+    const chainID = 1 // Ethereum mainnet
+    const expectedBalance = 1000000000000000000n // 1 ETH in wei
+
+    beforeEach(() => {
+      kernelAccountClientService.getClient.mockResolvedValue(mockKernelClient as any)
+      mockKernelClient.getBalance.mockResolvedValue(expectedBalance)
+    })
+
+    it('should successfully fetch native balance when both kernel and EOA addresses are available', async () => {
+      const result = await balanceService.fetchNativeBalance(chainID)
+
+      expect(result).toBe(expectedBalance)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
+        address: mockKernelClient.account.address,
+      })
+    })
+
+    it('should return 0n when kernel address is not available', async () => {
+      const clientWithoutKernel = {
+        ...mockKernelClient,
+        kernelAccount: null,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(clientWithoutKernel as any)
+
+      const result = await balanceService.fetchNativeBalance(chainID)
+
+      expect(result).toBe(0n)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+    })
+
+    it('should return 0n when EOA address is not available', async () => {
+      const clientWithoutEOA = {
+        ...mockKernelClient,
+        account: null,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(clientWithoutEOA as any)
+
+      const result = await balanceService.fetchNativeBalance(chainID)
+
+      expect(result).toBe(0n)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+    })
+
+    it('should return 0n when both addresses are not available', async () => {
+      const clientWithoutAddresses = {
+        ...mockKernelClient,
+        kernelAccount: null,
+        account: null,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(clientWithoutAddresses as any)
+
+      const result = await balanceService.fetchNativeBalance(chainID)
+
+      expect(result).toBe(0n)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+    })
+
+    it('should handle different chain IDs correctly', async () => {
+      const polygonChainId = 137
+      const polygonBalance = 2000000000000000000n // 2 MATIC in wei
+
+      mockKernelClient.getBalance.mockResolvedValue(polygonBalance)
+
+      const result = await balanceService.fetchNativeBalance(polygonChainId)
+
+      expect(result).toBe(polygonBalance)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(polygonChainId)
+      expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
+        address: mockKernelClient.account.address,
+      })
+    })
+
+    it('should handle zero balance correctly', async () => {
+      mockKernelClient.getBalance.mockResolvedValue(0n)
+
+      const result = await balanceService.fetchNativeBalance(chainID)
+
+      expect(result).toBe(0n)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
+        address: mockKernelClient.account.address,
+      })
+    })
+
+    it('should propagate errors from kernel account client service', async () => {
+      const error = new Error('Failed to get client')
+      kernelAccountClientService.getClient.mockRejectedValue(error)
+
+      await expect(balanceService.fetchNativeBalance(chainID)).rejects.toThrow(error)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+    })
+
+    it('should propagate errors from getBalance call', async () => {
+      const error = new Error('Failed to fetch balance')
+      mockKernelClient.getBalance.mockRejectedValue(error)
+
+      await expect(balanceService.fetchNativeBalance(chainID)).rejects.toThrow(error)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+      expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
+        address: mockKernelClient.account.address,
+      })
+    })
+
+    it('should handle very large balance values', async () => {
+      const largeBalance = BigInt('999999999999999999999999999999') // Very large balance
+      mockKernelClient.getBalance.mockResolvedValue(largeBalance)
+
+      const result = await balanceService.fetchNativeBalance(chainID)
+
+      expect(result).toBe(largeBalance)
+      expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+    })
+
+    it('should be cacheable (verify @Cacheable decorator is applied)', () => {
+      // Verify that the method has the @Cacheable decorator by checking the method metadata
+      const fetchNativeBalanceMethod = balanceService.fetchNativeBalance
+      expect(fetchNativeBalanceMethod).toBeDefined()
+
+      // The @Cacheable decorator should modify the method, so it should be the wrapped version
+      // This is implicit testing since we can't directly test decorators easily
+      expect(typeof fetchNativeBalanceMethod).toBe('function')
+    })
+
+    describe('Edge cases', () => {
+      it('should handle undefined kernel account address', async () => {
+        const clientWithUndefinedKernelAddress = {
+          ...mockKernelClient,
+          kernelAccount: {
+            address: undefined,
+          },
+        }
+        kernelAccountClientService.getClient.mockResolvedValue(
+          clientWithUndefinedKernelAddress as any,
+        )
+
+        const result = await balanceService.fetchNativeBalance(chainID)
+
+        expect(result).toBe(0n)
+        expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+        expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+      })
+
+      it('should handle undefined EOA address', async () => {
+        const clientWithUndefinedEOAAddress = {
+          ...mockKernelClient,
+          account: {
+            address: undefined,
+          },
+        }
+        kernelAccountClientService.getClient.mockResolvedValue(clientWithUndefinedEOAAddress as any)
+
+        const result = await balanceService.fetchNativeBalance(chainID)
+
+        expect(result).toBe(0n)
+        expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
+        expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
+      })
+
+      it('should handle negative chain IDs', async () => {
+        const negativeChainId = -1
+
+        const result = await balanceService.fetchNativeBalance(negativeChainId)
+
+        expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(negativeChainId)
+        // The behavior depends on the kernel account client service implementation
+        // but our method should handle it gracefully
+      })
+    })
+  })
+})

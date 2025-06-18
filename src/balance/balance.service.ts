@@ -87,14 +87,86 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param tokenAddresses the tokens to fetch balances for
    * @returns
    */
-  @Cacheable()
+  @Cacheable({ bypassArgIndex: 2 })
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: Hex[],
+    //used by cacheable decorator
+    forceRefresh = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<Record<Hex, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const walletAddress = client.kernelAccount.address
     return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+  }
+
+  /**
+   * Fetches the native token balance (ETH, MATIC, etc.) for the solver's EOA account on the specified chain.
+   *
+   * This method retrieves the native gas token balance for the externally owned account (EOA)
+   * associated with the kernel account client. The balance is cached to improve performance.
+   *
+   * @param chainID - The chain ID to fetch the native balance from
+   * @returns Promise<bigint> - The native token balance in wei (smallest unit), or 0n if accounts are not available
+   *
+   * @example
+   * ```typescript
+   * // Get ETH balance on Ethereum mainnet (chain ID 1)
+   * const ethBalance = await balanceService.fetchNativeBalance(1);
+   * console.log(`ETH Balance: ${ethBalance.toString()} wei`);
+   *
+   * // Get MATIC balance on Polygon (chain ID 137)
+   * const maticBalance = await balanceService.fetchNativeBalance(137);
+   * ```
+   *
+   * @throws Will throw an error if the kernel account client cannot be retrieved for the given chain
+   */
+  @Cacheable({ bypassArgIndex: 1 })
+  async fetchNativeBalance(
+    chainID: number,
+    //used by cacheable decorator
+    forceRefresh = false, // eslint-disable-line @typescript-eslint/no-unused-vars
+  ): Promise<{ balance: bigint; blockNumber: bigint }> {
+    const clientKernel = await this.kernelAccountClientService.getClient(chainID)
+    const kernelAddress = clientKernel.kernelAccount?.address
+    const eocAddress = clientKernel.account?.address
+    const results = await Promise.all([
+      (async () => {
+        if (eocAddress && kernelAddress) {
+          const balance = await clientKernel.getBalance({ address: eocAddress })
+          return balance
+        }
+        return 0n
+      })(),
+      clientKernel.getBlockNumber(),
+    ])
+
+    return { balance: results[0], blockNumber: results[1] }
+  }
+
+  /**
+   * Fetches native balances for all solver chains in parallel
+   * Used by balance tracker service for initialization
+   */
+  @Cacheable({ bypassArgIndex: 0 })
+  async fetchAllNativeBalances(
+    forceRefresh = false,
+  ): Promise<Array<{ chainId: number; balance: bigint; blockNumber: bigint } | null>> {
+    // Get native balances for all chains
+    const chainIds = Object.keys(this.configService.getSolvers()).map(Number)
+    const nativeBalancePromises = chainIds.map(async (chainId) => {
+      try {
+        const nativeBalanceData = await this.fetchNativeBalance(chainId, forceRefresh)
+        return {
+          chainId,
+          balance: nativeBalanceData.balance,
+          blockNumber: nativeBalanceData.blockNumber,
+        }
+      } catch (error) {
+        return null
+      }
+    })
+
+    return Promise.all(nativeBalancePromises)
   }
 
   /**
@@ -186,8 +258,8 @@ export class BalanceService implements OnApplicationBootstrap {
     }))
   }
 
-  @Cacheable()
-  async getAllTokenData() {
+  @Cacheable({ bypassArgIndex: 0 })
+  async getAllTokenData(forceRefresh = false) {
     const tokens = this.getInboxTokens()
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
@@ -195,7 +267,11 @@ export class BalanceService implements OnApplicationBootstrap {
     const balancesPerChainIdPromise = chainIds.map(async (chainId) => {
       const configs = tokensByChainId[chainId]
       const tokenAddresses = configs.map((token) => token.address)
-      const balances = await this.fetchTokenBalances(parseInt(chainId), tokenAddresses)
+      const balances = await this.fetchTokenBalances(
+        parseInt(chainId),
+        tokenAddresses,
+        forceRefresh,
+      )
       return zipWith(configs, Object.values(balances), (config, balance) => ({
         config,
         balance,

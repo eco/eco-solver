@@ -43,6 +43,15 @@ export const QUEUES: Record<any, QueueInterface> = {
     prefix: '{solver}',
     jobs: {},
   },
+  BALANCE_MONITOR: {
+    queue: 'balance_monitor',
+    prefix: '{balance-monitor}',
+    jobs: {
+      initialize_monitoring: 'initialize_monitoring',
+      update_balance: 'update_balance',
+      store_balance: 'store_balance',
+    },
+  },
 }
 
 export interface QueueMetadata {

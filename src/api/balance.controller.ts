@@ -13,11 +13,24 @@ export class BalanceController {
 
   @Get()
   async getBalances(@Query('flat') flat?: boolean) {
-    const data = await this.balanceService.getAllTokenData()
+    const [tokenData, nativeData] = await Promise.all([
+      this.balanceService.getAllTokenData(),
+      this.balanceService.fetchAllNativeBalances(),
+    ])
+
+    const filteredNativeData = nativeData.filter((item): item is NonNullable<typeof item> => item !== null) // Remove null entries
+
     if (flat) {
-      return convertBigIntsToStrings(this.groupTokensByChain(data))
+      return convertBigIntsToStrings({
+        tokens: this.groupTokensByChain(tokenData),
+        native: this.groupNativeByChain(filteredNativeData),
+      })
     }
-    return convertBigIntsToStrings(data)
+
+    return convertBigIntsToStrings({
+      tokens: tokenData,
+      native: filteredNativeData,
+    })
   }
 
   groupTokensByChain(
@@ -36,6 +49,27 @@ export class BalanceController {
         address: token.balance.address,
         balance: token.balance.balance,
       })),
+    )
+  }
+
+  groupNativeByChain(
+    data: {
+      chainId: number
+      balance: bigint
+      blockNumber: bigint
+    }[],
+  ) {
+    // Group native balances by chainId
+    const grouped = _.groupBy(data, 'chainId')
+
+    // For each chainId, return the native balance data
+    return _.mapValues(
+      grouped,
+      (nativeBalances) =>
+        nativeBalances.map((native) => ({
+          balance: native.balance,
+          blockNumber: native.blockNumber,
+        }))[0], // Should only be one native balance per chain
     )
   }
 }

@@ -44,7 +44,7 @@
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
     "@eco-foundation/chains": "1.0.36",
-    "@eco-foundation/routes-ts": "^2.6.3",
+    "@eco-foundation/routes-ts": "^2.7.0",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
     "@lifi/sdk": "^3.6.6",

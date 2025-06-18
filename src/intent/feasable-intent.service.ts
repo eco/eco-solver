@@ -11,7 +11,8 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
 
 /**
- * Service class for getting configs for the app
+ * Service responsible for validating intent feasibility and managing the intent processing pipeline.
+ * Determines if an intent can be profitably executed by the solver and queues feasible intents for fulfillment.
  */
 @Injectable()
 export class FeasableIntentService implements OnModuleInit {
