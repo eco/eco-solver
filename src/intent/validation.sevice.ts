@@ -16,8 +16,9 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { CallDataInterface } from '../contracts'
-import { isGreaterEqual } from '../fee/utils'
+import { isGreaterEqual } from '@/fee/utils'
+import { CallDataInterface } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -86,11 +87,13 @@ export class ValidationService implements OnModuleInit {
   onModuleInit() {
     this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
   }
+
   /**
    * Executes all the validations we have on the model and solver
    *
    * @param intent the source intent model
    * @param solver the solver for the source chain
+   * @param txValidationFn
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(
@@ -99,8 +102,9 @@ export class ValidationService implements OnModuleInit {
     txValidationFn: TxValidationFn = () => true,
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
-      sourceChainID: intent.route.source,
       prover: intent.reward.prover,
+      source: Number(intent.route.source),
+      destination: Number(intent.route.destination),
     })
     const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
@@ -123,22 +127,40 @@ export class ValidationService implements OnModuleInit {
   }
 
   /**
-   * Checks if the IntentCreated event is using a supported prover. It first finds the source intent contract that is on the
-   * source chain of the event. Then it checks if the prover is supported by the source intent. In the
-   * case that there are multiple matching source intent contracts on the same chain, as long as any of
-   * them support the prover, the function will return true.
+   * Checks if a given source chain ID and prover are supported within the available intent sources.
    *
-   * @param ops the intent info
-   * @returns
+   * @param {Object} opts - The operation parameters.
+   * @param {bigint} opts.chainID - The ID of the chain to check for support.
+   * @param {Hex} opts.prover - The prover to validate against the intent sources.
+   * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
-  supportedProver(ops: { sourceChainID: bigint; prover: Hex }): boolean {
-    const srcSolvers = this.ecoConfigService.getIntentSources().filter((intent) => {
-      return BigInt(intent.chainID) == ops.sourceChainID
-    })
+  supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
+    const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
-    return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == ops.prover)
-    })
+    if (!isWhitelisted) return false
+
+    const type = this.proofService.getProverType(Number(opts.source), opts.prover)
+
+    if (!type) {
+      return false
+    }
+
+    switch (true) {
+      case type.isHyperlane():
+      case type.isMetalayer():
+        return this.checkProverWhitelisted(opts.destination, opts.prover)
+      default:
+        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover)
+    }
+  }
+
+  checkProverWhitelisted(chainID: number, prover: Hex): boolean {
+    return this.ecoConfigService
+      .getIntentSources()
+      .some(
+        (intent) =>
+          intent.chainID === chainID && intent.provers.some((_prover) => _prover == prover),
+      )
   }
 
   /**
@@ -197,6 +219,7 @@ export class ValidationService implements OnModuleInit {
    *
    * @param intent the intent model
    * @param solver the solver for the intent
+   * @param txValidationFn
    * @returns
    */
   supportedTransaction(
@@ -218,6 +241,7 @@ export class ValidationService implements OnModuleInit {
       return tx && txValidationFn(tx)
     })
   }
+
   /**
    * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
    * @param intent the source intent model
@@ -260,14 +284,17 @@ export class ValidationService implements OnModuleInit {
   /**
    *
    * @param intent the source intent model
-   * @param solver the solver for the source chain
    * @returns
    */
   validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
-    const time = Number.parseInt(`${intent.reward.deadline as bigint}`) * 1000
+    const time = Number(intent.reward.deadline) * 1000
     const expires = new Date(time)
-    return this.proofService.isIntentExpirationWithinProofMinimumDate(intent.reward.prover, expires)
+    return this.proofService.isIntentExpirationWithinProofMinimumDate(
+      Number(intent.route.source),
+      intent.reward.prover,
+      expires,
+    )
   }
 
   /**
@@ -283,7 +310,6 @@ export class ValidationService implements OnModuleInit {
    * Checks that the intent fulfillment is on a different chain than its source
    * Needed since some proving methods(Hyperlane) cant prove same chain
    * @param intent the source intent
-   * @param solver the solver used to fulfill
    * @returns
    */
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
