@@ -8,6 +8,7 @@ export type IntentSourceStatus =
   | 'CL_PROCESSING'
   | 'SOLVED'
   | 'CL_SOLVED'
+  | 'WITHDRAWN'
   | 'EXPIRED'
   | 'FAILED'
   | 'CL_FAILED'

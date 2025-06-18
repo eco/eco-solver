@@ -7,8 +7,9 @@ import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
+import { WithdrawalService } from '@/intent/withdrawal.service'
 import { Hex } from 'viem'
-import { IntentCreatedLog } from '@/contracts'
+import { IntentCreatedLog, WithdrawalLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 
 @Injectable()
@@ -21,6 +22,7 @@ export class SolveIntentProcessor extends WorkerHost {
     private readonly validateIntentService: ValidateIntentService,
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
+    private readonly withdrawalService: WithdrawalService,
   ) {
     super()
   }
@@ -48,6 +50,8 @@ export class SolveIntentProcessor extends WorkerHost {
         return await this.feasableIntentService.feasableIntent(job.data as Hex)
       case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
         return await this.fulfillIntentService.fulfill(job.data as Hex)
+      case QUEUES.SOURCE_INTENT.jobs.withdrawal:
+        return await this.withdrawalService.processWithdrawal(job.data as Serialize<WithdrawalLog>)
       default:
         this.logger.error(
           EcoLogMessage.fromDefault({

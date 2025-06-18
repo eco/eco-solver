@@ -8,6 +8,7 @@ export const QUEUES: Record<any, QueueInterface> = {
       feasable_intent: 'feasable_intent',
       fulfill_intent: 'fulfill_intent',
       retry_intent: 'retry_intent',
+      withdrawal: 'withdrawal_intent',
     },
   },
   INTERVAL: {

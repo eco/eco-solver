@@ -16,6 +16,21 @@ import { isEmptyData } from '../common/viem/utils'
 const DEFAULT_NATIVE_DECIMALS = 18
 
 /**
+ * The types of intent job id prefixes
+ */
+export type IntentJobServiceName =
+  | 'create'
+  | 'feasable'
+  | 'validate'
+  | 'fulfill'
+  | 'withdrawal'
+  | 'retry'
+  | 'watch-intent-funded'
+  | 'watch-create-intent'
+  | 'watch-fulfillement'
+  | 'watch-withdrawal'
+
+/**
  * Decodes the function data for a target contract
  *
  * @param solver the solver for the intent

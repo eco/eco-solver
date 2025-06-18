@@ -1,4 +1,5 @@
 import { Hex } from 'viem'
+import { IntentJobServiceName } from '../../intent/utils'
 
 export function getRandomString() {
   return Math.random().toString(36).slice(2)
@@ -20,7 +21,7 @@ export function getDestinationNetworkAddressKey(
  * @returns
  */
 export function getIntentJobId(
-  serviceName: string,
+  serviceName: IntentJobServiceName,
   intentHash: Hex | undefined,
   logIndex: number = 0,
 ): string {
