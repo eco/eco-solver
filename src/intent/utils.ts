@@ -14,6 +14,7 @@ import { isEmptyData } from '../common/viem/utils'
 
 // The default number of decimals for native tokens that we enfores for now
 const DEFAULT_NATIVE_DECIMALS = 18
+const ETH_SYMBOL = 'ETH'
 
 /**
  * Decodes the function data for a target contract
@@ -148,4 +149,21 @@ export function getNativeCalls(calls: CallDataInterface[]) {
  */
 export function getFunctionTargets(calls: CallDataInterface[]) {
   return getFunctionCalls(calls).map((call) => call.target)
+}
+
+export function isNativeETH(intent: ValidationIntentInterface): boolean {
+  const sourceChain = extractChain({
+    chains: ChainsSupported,
+    id: Number(intent.route.source),
+  })
+  const dstChain = extractChain({
+    chains: ChainsSupported,
+    id: Number(intent.route.destination),
+  })
+  if (!sourceChain || !dstChain) {
+    return false
+  }
+  return (
+    sourceChain.nativeCurrency.symbol == ETH_SYMBOL && dstChain.nativeCurrency.symbol == ETH_SYMBOL
+  )
 }
