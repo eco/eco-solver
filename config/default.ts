@@ -129,7 +129,7 @@ export default {
     },
     walletStrategies: {
       'crowd-liquidity-pool': ['CCTP'],
-      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi', 'Squid'],
     },
     maxQuoteSlippage: 0.5,
   },
@@ -232,5 +232,10 @@ export default {
         },
       },
     },
+  },
+
+  squid: {
+    integratorId: 'eco-solver',
+    baseUrl: 'https://api.squidrouter.com',
   },
 }
