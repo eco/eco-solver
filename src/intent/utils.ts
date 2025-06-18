@@ -29,6 +29,7 @@ export type IntentJobServiceName =
   | 'watch-create-intent'
   | 'watch-fulfillement'
   | 'watch-withdrawal'
+  | 'websocket'
 
 /**
  * Decodes the function data for a target contract
