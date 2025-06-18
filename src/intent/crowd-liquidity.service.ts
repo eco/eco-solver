@@ -53,10 +53,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve the intent.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
-    // Unused variable
-    solver
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
     if (!this.isRewardEnough(model)) {
       throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
     }
