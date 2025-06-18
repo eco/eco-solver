@@ -30,6 +30,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { UtilsIntentService } from '@/intent/utils-intent.service'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -40,6 +41,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     private readonly ecoConfigService: EcoConfigService,
     private readonly publicClient: MultichainPublicClientService,
     private readonly balanceService: BalanceService,
+    private readonly utilsIntentService: UtilsIntentService,
   ) {}
 
   onModuleInit() {
@@ -59,11 +61,31 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
     }
 
-    if (!this.isPoolSolvent(model)) {
+    if (!(await this.isPoolSolvent(model))) {
       throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
     }
 
-    return this._fulfill(model.intent)
+    // Set status to CL_PROCESSING before attempting fulfillment
+    model.status = 'CL_PROCESSING'
+    await this.utilsIntentService.updateIntentModel(model)
+
+    try {
+      const transactionHash = await this._fulfill(model.intent)
+
+      // Set status to SOLVED and store transaction hash as receipt
+      model.status = 'CL_SOLVED'
+      model.receipt = { transactionHash } as any
+      await this.utilsIntentService.updateIntentModel(model)
+
+      return transactionHash
+    } catch (error) {
+      // Set status to FAILED and store error as receipt
+      model.status = 'CL_FAILED'
+      model.receipt = { error: error.message || error } as any
+      await this.utilsIntentService.updateIntentModel(model)
+
+      throw error
+    }
   }
 
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {

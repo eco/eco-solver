@@ -5,9 +5,12 @@ import { GetTransactionReceiptReturnType } from 'viem'
 
 export type IntentSourceStatus =
   | 'PENDING'
+  | 'CL_PROCESSING'
   | 'SOLVED'
+  | 'CL_SOLVED'
   | 'EXPIRED'
   | 'FAILED'
+  | 'CL_FAILED'
   | 'INVALID'
   | 'INFEASABLE'
   | 'NON-BEND-WALLET'
