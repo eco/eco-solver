@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { initBullMQ } from '../bullmq/bullmq.helper'
 import { QUEUES } from '../common/redis/constants'
 import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
+import { WithdrawalModel, WithdrawalSchema } from './schemas/withdrawal.schema'
 import { ValidateIntentService } from './validate-intent.service'
 import { FeasableIntentService } from './feasable-intent.service'
 import { CreateIntentService } from './create-intent.service'
@@ -18,13 +19,17 @@ import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WithdrawalService } from '@/intent/withdrawal.service'
+import { WithdrawalRepository } from '@/intent/withdrawal.repository'
 
 @Module({
   imports: [
     BalanceModule,
     FeeModule,
     FlagsModule,
-    MongooseModule.forFeature([{ name: IntentSourceModel.name, schema: IntentSourceSchema }]),
+    MongooseModule.forFeature([
+      { name: IntentSourceModel.name, schema: IntentSourceSchema },
+      { name: WithdrawalModel.name, schema: WithdrawalSchema },
+    ]),
     ProverModule,
     SolverModule,
     TransactionModule,
@@ -40,6 +45,7 @@ import { WithdrawalService } from '@/intent/withdrawal.service'
     ValidationService,
     WalletFulfillService,
     WithdrawalService,
+    WithdrawalRepository,
   ],
   // controllers: [IntentSourceController],
   exports: [
@@ -51,6 +57,7 @@ import { WithdrawalService } from '@/intent/withdrawal.service'
     UtilsIntentService,
     ValidationService,
     WithdrawalService,
+    WithdrawalRepository,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })

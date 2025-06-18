@@ -40,4 +40,4 @@ export class WatchEventModel implements ViemEventLog {
 }
 export const WatchEventSchema = SchemaFactory.createForClass(WatchEventModel)
 WatchEventSchema.index({ sourceChainID: 1 }, { unique: false })
-WatchEventSchema.index({ transactionHash: 1 }, { unique: true })
+WatchEventSchema.index({ transactionHash: 1 }, { unique: false })
