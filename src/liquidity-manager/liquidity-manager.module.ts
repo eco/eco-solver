@@ -12,11 +12,14 @@ import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/reb
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import { RebalancingProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/rebalancing-provider.service'
+import { LitActionsModule } from '@/lit-actions/lit-actions.module'
 
 @Module({
   imports: [
     BalanceModule,
     IntentModule,
+    LitActionsModule,
     TransactionModule,
     LiquidityManagerQueue.init(),
     LiquidityManagerQueue.initFlow(),
@@ -31,6 +34,7 @@ import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-
     CCTPProviderService,
     WarpRouteProviderService,
     CCTPLiFiProviderService,
+    RebalancingProviderService,
   ],
   exports: [LiquidityManagerService],
 })
