@@ -10,7 +10,7 @@ import { UtilsIntentService } from '../utils-intent.service'
 import { WithdrawalLog } from '@/contracts/intent-source'
 import { Serialize } from '@/common/utils/serialize'
 import { Network } from '@/common/alchemy/network'
-import { WithdrawalRepository } from '../withdrawal.repository'
+import { WithdrawalRepository } from '../repositories/withdrawal.repository'
 import { Types } from 'mongoose'
 
 describe('WithdrawalService', () => {
@@ -114,10 +114,7 @@ describe('WithdrawalService', () => {
       it('should process withdrawal event and update intent status to WITHDRAWN', async () => {
         await service.processWithdrawal(mockWithdrawalEvent)
 
-        expect(withdrawalRepository.exists).toHaveBeenCalledWith(
-          mockWithdrawalEvent.transactionHash,
-          mockWithdrawalEvent.logIndex,
-        )
+        expect(withdrawalRepository.exists).toHaveBeenCalledWith(mockWithdrawalEvent.args.hash)
 
         expect(intentModel.findOne).toHaveBeenCalledWith({
           'intent.hash': mockWithdrawalEvent.args.hash,
@@ -145,43 +142,17 @@ describe('WithdrawalService', () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...mockIntentModel,
           status: 'WITHDRAWN',
-          receipt: {
-            transactionHash: '0xoriginal123',
-            withdrawalHash: mockWithdrawalEvent.transactionHash,
-            withdrawalRecipient: mockWithdrawalEvent.args.recipient,
-            withdrawalLogIndex: mockWithdrawalEvent.logIndex,
-          },
+          withdrawalId: mockWithdrawalRecord._id,
         })
       })
 
-      it('should preserve existing receipt data when adding withdrawal info', async () => {
-        const modelWithComplexReceipt = {
-          ...mockIntentModel,
-          receipt: {
-            transactionHash: '0xoriginal123',
-            otherData: 'should be preserved',
-            nested: {
-              field: 'also preserved',
-            },
-          },
-        }
-        intentModel.findOne.mockResolvedValue(modelWithComplexReceipt as any)
-
+      it('should set withdrawalId on the intent', async () => {
         await service.processWithdrawal(mockWithdrawalEvent)
 
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
-          ...modelWithComplexReceipt,
+          ...mockIntentModel,
           status: 'WITHDRAWN',
-          receipt: {
-            transactionHash: '0xoriginal123',
-            otherData: 'should be preserved',
-            nested: {
-              field: 'also preserved',
-            },
-            withdrawalHash: mockWithdrawalEvent.transactionHash,
-            withdrawalRecipient: mockWithdrawalEvent.args.recipient,
-            withdrawalLogIndex: mockWithdrawalEvent.logIndex,
-          },
+          withdrawalId: mockWithdrawalRecord._id,
         })
       })
 
@@ -198,11 +169,7 @@ describe('WithdrawalService', () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...modelWithNoReceipt,
           status: 'WITHDRAWN',
-          receipt: {
-            withdrawalHash: mockWithdrawalEvent.transactionHash,
-            withdrawalRecipient: mockWithdrawalEvent.args.recipient,
-            withdrawalLogIndex: mockWithdrawalEvent.logIndex,
-          },
+          withdrawalId: mockWithdrawalRecord._id,
         })
       })
 
@@ -211,10 +178,7 @@ describe('WithdrawalService', () => {
 
         await service.processWithdrawal(mockWithdrawalEvent)
 
-        expect(withdrawalRepository.exists).toHaveBeenCalledWith(
-          mockWithdrawalEvent.transactionHash,
-          mockWithdrawalEvent.logIndex,
-        )
+        expect(withdrawalRepository.exists).toHaveBeenCalledWith(mockWithdrawalEvent.args.hash)
         expect(intentModel.findOne).not.toHaveBeenCalled()
         expect(withdrawalRepository.create).not.toHaveBeenCalled()
         expect(utilsIntentService.updateIntentModel).not.toHaveBeenCalled()
@@ -293,20 +257,16 @@ describe('WithdrawalService', () => {
         utilsIntentService.updateIntentModel.mockResolvedValue({} as any)
       })
 
-      it('should correctly map all withdrawal event fields to receipt', async () => {
+      it('should correctly set withdrawalId and status on intent', async () => {
         await service.processWithdrawal(mockWithdrawalEvent)
 
         const updateCall = utilsIntentService.updateIntentModel.mock.calls[0][0]
 
         expect(updateCall.status).toBe('WITHDRAWN')
-        expect((updateCall.receipt as any).withdrawalHash).toBe(mockWithdrawalEvent.transactionHash)
-        expect((updateCall.receipt as any).withdrawalRecipient).toBe(
-          mockWithdrawalEvent.args.recipient,
-        )
-        expect((updateCall.receipt as any).withdrawalLogIndex).toBe(mockWithdrawalEvent.logIndex)
+        expect(updateCall.withdrawalId).toBe(mockWithdrawalRecord._id)
       })
 
-      it('should handle different recipient addresses correctly', async () => {
+      it('should create withdrawal record with correct recipient', async () => {
         const customRecipient = '0x9999999999999999999999999999999999999999' as Hex
         const eventWithCustomRecipient = {
           ...mockWithdrawalEvent,
@@ -318,11 +278,14 @@ describe('WithdrawalService', () => {
 
         await service.processWithdrawal(eventWithCustomRecipient)
 
-        const updateCall = utilsIntentService.updateIntentModel.mock.calls[0][0]
-        expect((updateCall.receipt as any).withdrawalRecipient).toBe(customRecipient)
+        expect(withdrawalRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recipient: customRecipient,
+          }),
+        )
       })
 
-      it('should handle different transaction hashes correctly', async () => {
+      it('should create withdrawal record with correct transaction hash', async () => {
         const customTxHash =
           '0x8888888888888888888888888888888888888888888888888888888888888888' as Hex
         const eventWithCustomTxHash = {
@@ -332,8 +295,13 @@ describe('WithdrawalService', () => {
 
         await service.processWithdrawal(eventWithCustomTxHash)
 
-        const updateCall = utilsIntentService.updateIntentModel.mock.calls[0][0]
-        expect((updateCall.receipt as any).withdrawalHash).toBe(customTxHash)
+        expect(withdrawalRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: expect.objectContaining({
+              transactionHash: customTxHash,
+            }),
+          }),
+        )
       })
     })
 

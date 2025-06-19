@@ -19,7 +19,8 @@ import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WithdrawalService } from '@/intent/withdrawal.service'
-import { WithdrawalRepository } from '@/intent/withdrawal.repository'
+import { WithdrawalRepository } from '@/intent/repositories/withdrawal.repository'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { WithdrawalRepository } from '@/intent/withdrawal.repository'
     WalletFulfillService,
     WithdrawalService,
     WithdrawalRepository,
+    IntentSourceRepository,
   ],
   // controllers: [IntentSourceController],
   exports: [
@@ -58,6 +60,7 @@ import { WithdrawalRepository } from '@/intent/withdrawal.repository'
     ValidationService,
     WithdrawalService,
     WithdrawalRepository,
+    IntentSourceRepository,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })

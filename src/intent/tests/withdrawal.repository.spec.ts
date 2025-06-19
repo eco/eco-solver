@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Hex } from 'viem'
 
-import { WithdrawalRepository } from '../withdrawal.repository'
+import { WithdrawalRepository } from '../repositories/withdrawal.repository'
 import { WithdrawalModel } from '../schemas/withdrawal.schema'
 import { Network } from '@/common/alchemy/network'
 
@@ -105,13 +105,13 @@ describe('WithdrawalRepository', () => {
     it('should find withdrawals by multiple filters', async () => {
       const filters = {
         recipient: mockWithdrawalData.recipient,
-        sourceChainId: '1',
+        intentHash: mockWithdrawalData.intentHash,
       }
       const result = await repository.findByFilters(filters)
 
       expect(withdrawalModel.find).toHaveBeenCalledWith({
         recipient: mockWithdrawalData.recipient,
-        'event.sourceChainID': BigInt(1),
+        intentHash: mockWithdrawalData.intentHash,
       })
       expect(result).toEqual([mockWithdrawalRecord])
     })
@@ -127,11 +127,11 @@ describe('WithdrawalRepository', () => {
     })
 
     it('should find a single withdrawal by filters', async () => {
-      const filters = { transactionHash: mockEventData.transactionHash }
+      const filters = { intentHash: mockWithdrawalData.intentHash }
       const result = await repository.findOneByFilters(filters)
 
       expect(withdrawalModel.findOne).toHaveBeenCalledWith({
-        'event.transactionHash': mockEventData.transactionHash,
+        intentHash: mockWithdrawalData.intentHash,
       })
       expect(result).toEqual(mockWithdrawalRecord)
     })
@@ -165,27 +165,6 @@ describe('WithdrawalRepository', () => {
     })
   })
 
-  describe('findByTransactionAndLogIndex', () => {
-    it('should query by event transaction hash and log index', async () => {
-      const mockQuery = {
-        populate: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(mockWithdrawalRecord),
-      }
-      withdrawalModel.findOne.mockReturnValue(mockQuery as any)
-
-      const result = await repository.findByTransactionAndLogIndex(
-        mockEventData.transactionHash,
-        mockEventData.logIndex,
-      )
-
-      expect(withdrawalModel.findOne).toHaveBeenCalledWith({
-        'event.transactionHash': mockEventData.transactionHash,
-        'event.logIndex': mockEventData.logIndex,
-      })
-      expect(result).toEqual(mockWithdrawalRecord)
-    })
-  })
-
   describe('exists', () => {
     it('should return true when withdrawal exists', async () => {
       const mockQuery = {
@@ -193,11 +172,10 @@ describe('WithdrawalRepository', () => {
       }
       withdrawalModel.countDocuments.mockReturnValue(mockQuery as any)
 
-      const result = await repository.exists(mockEventData.transactionHash, mockEventData.logIndex)
+      const result = await repository.exists(mockWithdrawalData.intentHash)
 
       expect(withdrawalModel.countDocuments).toHaveBeenCalledWith({
-        'event.transactionHash': mockEventData.transactionHash,
-        'event.logIndex': mockEventData.logIndex,
+        intentHash: mockWithdrawalData.intentHash,
       })
       expect(result).toBe(true)
     })
@@ -208,7 +186,7 @@ describe('WithdrawalRepository', () => {
       }
       withdrawalModel.countDocuments.mockReturnValue(mockQuery as any)
 
-      const result = await repository.exists(mockEventData.transactionHash, mockEventData.logIndex)
+      const result = await repository.exists(mockWithdrawalData.intentHash)
 
       expect(result).toBe(false)
     })
