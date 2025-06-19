@@ -12,6 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
+import { ProofType } from '@/contracts'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -46,6 +47,10 @@ describe('ValidationService', () => {
     validationService['logger'].log = mockLogLog
 
     jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValueOnce({} as any)
+
+    // Mock proofService methods to return a valid ProofType by default
+    proofService.getProverType.mockReturnValue(ProofType.HYPERLANE)
+    proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
   })
 
   afterEach(async () => {
@@ -54,16 +59,16 @@ describe('ValidationService', () => {
   })
 
   describe('on initialization', () => {
-    it('should set isNativeEnabled based on config on module init', () => {
+    it('should set isNativeETHSupported based on config on module init', () => {
       // Test when native is supported
-      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeSupported: true } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
       validationService.onModuleInit()
-      expect(validationService['isNativeEnabled']).toBe(true)
+      expect(validationService['isNativeETHSupported']).toBe(true)
 
       // Test when native is not supported
-      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeSupported: false } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: false } as any)
       validationService.onModuleInit()
-      expect(validationService['isNativeEnabled']).toBe(false)
+      expect(validationService['isNativeETHSupported']).toBe(false)
     })
   })
 
@@ -162,20 +167,23 @@ describe('ValidationService', () => {
     describe('on supportedNative', () => {
       let mockIsNativeIntent: jest.SpyInstance
       let mockEquivalentNativeGas: jest.SpyInstance
+      let mockIsNativeETH: jest.SpyInstance
 
       beforeEach(() => {
         mockIsNativeIntent = jest.spyOn(require('@/intent/utils'), 'isNativeIntent')
         mockEquivalentNativeGas = jest.spyOn(require('@/intent/utils'), 'equivalentNativeGas')
+        mockIsNativeETH = jest.spyOn(require('@/intent/utils'), 'isNativeETH')
       })
 
       afterEach(() => {
         mockIsNativeIntent.mockRestore()
         mockEquivalentNativeGas.mockRestore()
+        mockIsNativeETH.mockRestore()
       })
 
       describe('when native is enabled', () => {
         beforeEach(() => {
-          validationService['isNativeEnabled'] = true
+          validationService['isNativeETHSupported'] = true
         })
 
         it('should return true when intent is not native', () => {
@@ -186,19 +194,33 @@ describe('ValidationService', () => {
           expect(mockIsNativeIntent).toHaveBeenCalledWith(intent)
         })
 
-        it('should return result of equivalentNativeGas when intent is native', () => {
+        it('should return true if equivalentNativeGas and isNativeETH are true', () => {
           const intent = { route: { calls: [{ value: 100n }] }, reward: { nativeValue: 0n } } as any
           mockIsNativeIntent.mockReturnValue(true)
           mockEquivalentNativeGas.mockReturnValue(true)
-
+          mockIsNativeETH.mockReturnValue(true)
           expect(validationService.supportedNative(intent)).toBe(true)
           expect(mockEquivalentNativeGas).toHaveBeenCalledWith(intent, validationService['logger'])
+          expect(mockIsNativeETH).toHaveBeenCalledWith(intent)
         })
 
-        it('should return false when intent is native but equivalentNativeGas fails', () => {
+        it('should return false if equivalentNativeGas is true and isNativeETH is false', () => {
           const intent = { route: { calls: [{ value: 100n }] }, reward: { nativeValue: 0n } } as any
           mockIsNativeIntent.mockReturnValue(true)
-          mockEquivalentNativeGas.mockReturnValue(false)
+          mockEquivalentNativeGas.mockReturnValue(true)
+          mockIsNativeETH.mockReturnValue(false)
+
+          expect(validationService.supportedNative(intent)).toBe(false)
+          expect(mockEquivalentNativeGas).toHaveBeenCalledWith(intent, validationService['logger'])
+          expect(mockIsNativeETH).toHaveBeenCalledWith(intent)
+        })
+
+        it('should return false when intent is native ETH but native ETH is not supported', () => {
+          const intent = { route: { calls: [{ value: 100n }] }, reward: { nativeValue: 0n } } as any
+          mockIsNativeIntent.mockReturnValue(true)
+          mockEquivalentNativeGas.mockReturnValue(true)
+          mockIsNativeETH.mockReturnValue(true)
+          validationService['isNativeETHSupported'] = false
 
           expect(validationService.supportedNative(intent)).toBe(false)
         })
@@ -206,7 +228,7 @@ describe('ValidationService', () => {
 
       describe('when native is disabled', () => {
         beforeEach(() => {
-          validationService['isNativeEnabled'] = false
+          validationService['isNativeETHSupported'] = false
         })
 
         it('should return false when intent is native', () => {
@@ -470,6 +492,10 @@ describe('ValidationService', () => {
         }
         const now = new Date()
         proofService.getProofMinimumDate = jest.fn().mockReturnValueOnce(now)
+
+        // Mock getIntentSources to return empty array to make checkProverWhitelisted return false
+        ecoConfigService.getIntentSources.mockReturnValue([])
+
         validationService[fun] = jest.fn().mockReturnValueOnce(false)
         const validations = await validationService['assertValidations'](intent, solver)
         expect(validations[boolVarName]).toBe(false)

@@ -1480,10 +1480,10 @@
     typia "^8.0.4"
     viem "^2.24.1"
 
-"@eco-foundation/routes-ts@^2.6.3":
-  version "2.6.3"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.6.3.tgz#29a15a68a6ab28a61100e64bf392df566ce43ec4"
-  integrity sha512-D/oo4KMcL+NndebwyWhC71x9afDkFeGtBekXFYeoaOft35p2Z3eexVHNl6QenoSCut6kQi7c5Lb7UEpJ4J7J5w==
+"@eco-foundation/routes-ts@^2.8.2":
+  version "2.8.2"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.8.2.tgz#a4d8f6694cb4fdceb8d7c5452ab4defeb936f8e9"
+  integrity sha512-sCqfsAU+Az2Eb/GjQ4MP7qO5aU3nMhr8wnmRhKKmMqZDfW35nNlb9pGw1/UJPz2HGy20d6LWcm61OHUArbcpgg==
   dependencies:
     viem "^2.22.21"
 

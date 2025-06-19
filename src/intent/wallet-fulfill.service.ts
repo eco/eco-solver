@@ -240,13 +240,19 @@ export class WalletFulfillService implements IFulfillService {
     const claimant = this.ecoConfigService.getEth().claimant
 
     // Hyper Prover
-    const isHyperlane = this.proofService.isHyperlaneProver(model.intent.reward.prover)
+    const isHyperlane = this.proofService.isHyperlaneProver(
+      Number(model.intent.route.source),
+      model.intent.reward.prover,
+    )
     if (isHyperlane) {
       return this.getFulfillTxForHyperprover(inboxAddress, claimant, model)
     }
 
     // Metalayer Prover
-    const isMetalayer = this.proofService.isMetalayerProver(model.intent.reward.prover)
+    const isMetalayer = this.proofService.isMetalayerProver(
+      Number(model.intent.route.source),
+      model.intent.reward.prover,
+    )
     if (isMetalayer) {
       return this.getFulfillTxForMetalayer(inboxAddress, claimant, model)
     }
