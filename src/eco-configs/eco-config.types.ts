@@ -402,6 +402,8 @@ export interface LiquidityManagerConfig {
   walletStrategies: {
     [walletName: string]: Strategy[]
   }
+  // Percentage loss that fulfillers accept when rebalancing (e.g., 0.05 for 5%)
+  rebalancingPercentage?: number
 }
 
 export interface LiFiConfigType {
@@ -445,6 +447,7 @@ export interface CrowdLiquidityConfig {
   actions: {
     fulfill: string
     rebalance: string
+    negativeIntentRebalance?: string
   }
   kernel: {
     address: string

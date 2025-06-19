@@ -18,12 +18,15 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
+import { RebalancingProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/rebalancing-provider.service'
+import { LitActionsModule } from '@/lit-actions/lit-actions.module'
 
 @Module({
   imports: [
     CacheModule.register(),
     BalanceModule,
     IntentModule,
+    LitActionsModule,
     TransactionModule,
     LiquidityManagerQueue.init(),
     LiquidityManagerQueue.initFlow(),
@@ -43,6 +46,7 @@ import { EverclearProviderService } from '@/liquidity-manager/services/liquidity
     SquidProviderService,
     CCTPV2ProviderService,
     EverclearProviderService,
+    RebalancingProviderService,
   ],
   exports: [LiquidityManagerService],
 })
