@@ -35,6 +35,9 @@ export class IntentSourceModel {
   @Prop({ required: true, type: String })
   status: IntentSourceStatus
 
+  @Prop({ required: false, type: Boolean, default: false })
+  fulfilledBySelf?: boolean
+
   static getSource(intentSourceModel: IntentSourceModel): bigint {
     return intentSourceModel.intent.route.source
   }
@@ -44,3 +47,5 @@ export const IntentSourceSchema = SchemaFactory.createForClass(IntentSourceModel
 
 // Set collation options for case-insensitive search.
 IntentSourceSchema.index({ status: 1 }, { unique: false })
+IntentSourceSchema.index({ fulfilledBySelf: 1 }, { unique: false })
+IntentSourceSchema.index({ fulfilledBySelf: 1, status: 1 }, { unique: false })

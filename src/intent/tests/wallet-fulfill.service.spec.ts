@@ -330,6 +330,7 @@ describe('WalletFulfillService', () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...model,
           status: 'SOLVED',
+          fulfilledBySelf: true,
           receipt: { transactionHash },
         })
       })

@@ -74,6 +74,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
       // Set status to SOLVED and store transaction hash as receipt
       model.status = 'CL_SOLVED'
+      model.fulfilledBySelf = false // Mark as fulfilled by external crowd liquidity
       model.receipt = { transactionHash } as any
       await this.utilsIntentService.updateIntentModel(model)
 

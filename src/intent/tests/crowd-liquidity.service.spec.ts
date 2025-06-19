@@ -186,6 +186,7 @@ describe('CrowdLiquidityService', () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...mockIntentModel,
           status: 'CL_SOLVED',
+          fulfilledBySelf: false,
           receipt: { transactionHash: mockTransactionHash },
         })
       })
@@ -211,6 +212,7 @@ describe('CrowdLiquidityService', () => {
         expect(calls[1]).toEqual(
           expect.objectContaining({
             status: 'CL_SOLVED',
+            fulfilledBySelf: false,
             receipt: { transactionHash: mockTransactionHash },
           }),
         )
@@ -395,6 +397,7 @@ describe('CrowdLiquidityService', () => {
 
         // The original model should be mutated with the final status
         expect(originalModel.status).toBe('CL_SOLVED')
+        expect(originalModel.fulfilledBySelf).toBe(false)
         expect(originalModel.receipt).toEqual({ transactionHash: mockTransactionHash })
       })
 
