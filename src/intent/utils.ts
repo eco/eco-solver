@@ -25,12 +25,18 @@ export type IntentJobServiceName =
   | 'fulfill'
   | 'withdrawal'
   | 'retry'
+
+
+/**
+ * The types of intent job id prefixes
+ */
+export type WatchJobServiceName =
+  | 'watch-native'
+  | 'watch-tokens'
   | 'watch-intent-funded'
   | 'watch-create-intent'
   | 'watch-fulfillement'
   | 'watch-withdrawal'
-  | 'websocket'
-
 /**
  * Decodes the function data for a target contract
  *

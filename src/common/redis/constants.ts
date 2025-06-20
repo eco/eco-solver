@@ -25,11 +25,12 @@ export const QUEUES: Record<any, QueueInterface> = {
       fulfillment: 'fulfillment',
     },
   },
-  ETH_SOCKET: {
-    queue: 'eth_socket',
-    prefix: '{eth_socket}',
+  WATCH_RPC: {
+    queue: 'watch_rpc',
+    prefix: '{watch_rpc}',
     jobs: {
-      erc20_balance_socket: 'erc20_balance_socket',
+      erc20_balance_rpc: 'erc20_balance_rpc',
+      native_balance_rpc: 'native_balance_rpc',
     },
   },
   SIGNER: {

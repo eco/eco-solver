@@ -3,7 +3,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '@/common/utils/strings'
+import { getIntentJobId, getWatchJobId } from '@/common/utils/strings'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -85,7 +85,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
 
         // bigint as it can't serialize to JSON
         const createIntent = BigIntSerializer.serialize(log)
-        const jobId = getIntentJobId(
+        const jobId = getWatchJobId(
           'watch-create-intent',
           createIntent.args.hash,
           createIntent.logIndex,
@@ -99,7 +99,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // add to processing queue
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.create_intent, createIntent, {
           jobId,
-          ...this.intentJobConfig,
+          ...this.watchJobConfig,
         })
       }
     }

@@ -3,7 +3,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '@/common/utils/strings'
+import { getWatchJobId } from '@/common/utils/strings'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -86,7 +86,7 @@ export class WatchWithdrawalService extends WatchEventService<IntentSource> {
 
         // bigint as it can't serialize to JSON
         const withdrawal = BigIntSerializer.serialize(log)
-        const jobId = getIntentJobId('watch-withdrawal', withdrawal.args.hash, withdrawal.logIndex)
+        const jobId = getWatchJobId('watch-withdrawal', withdrawal.args.hash, withdrawal.logIndex)
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -103,7 +103,7 @@ export class WatchWithdrawalService extends WatchEventService<IntentSource> {
         // add to processing queue
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.withdrawal, withdrawal, {
           jobId,
-          ...this.intentJobConfig,
+          ...this.watchJobConfig,
         })
       }
     }

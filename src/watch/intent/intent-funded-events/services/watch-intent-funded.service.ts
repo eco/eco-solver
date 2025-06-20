@@ -137,7 +137,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         // Add to processing queue
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
           jobId,
-          ...this.intentJobConfig,
+          ...this.watchJobConfig,
         })
       }
     }

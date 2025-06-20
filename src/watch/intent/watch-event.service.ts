@@ -14,7 +14,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   implements OnApplicationBootstrap, OnModuleDestroy
 {
   protected logger: Logger
-  protected intentJobConfig: JobsOptions
+  protected watchJobConfig: JobsOptions
   protected unwatch: Record<string, WatchContractEventReturnType> = {}
 
   constructor(
@@ -24,7 +24,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   ) {}
 
   async onModuleInit() {
-    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    this.watchJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
   }
 
   async onApplicationBootstrap() {
