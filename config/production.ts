@@ -1,6 +1,6 @@
 export default {
   server: {
-    url: 'https://solver.prod.bend.eco',
+    url: 'https://solver.bend.eco',
   },
 
   indexer: {
