@@ -1,6 +1,8 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'
+import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
+import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -33,6 +35,8 @@ interface TokenDataAnalyzed extends TokenData {
 type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
+type RelayStrategyContext = RelayQuote
+type StargateStrategyContext = StargateQuote
 
 // CCTPLiFi strategy context for tracking multi-step operations
 interface CCTPLiFiStrategyContext {
@@ -55,16 +59,20 @@ interface CCTPLiFiStrategyContext {
   id: string
 }
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi'
+type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi' | 'Relay' | 'Stargate'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
     ? CCTPStrategyContext
     : S extends 'WarpRoute'
       ? WarpRouteStrategyContext
-      : S extends 'CCTPLiFi'
-        ? CCTPLiFiStrategyContext
-        : never
+      : S extends 'Relay'
+        ? RelayStrategyContext
+        : S extends 'Stargate'
+          ? StargateStrategyContext
+          : S extends 'CCTPLiFi'
+            ? CCTPLiFiStrategyContext
+            : never
 
 // Quote
 
