@@ -7,6 +7,9 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
+import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 
 const walletAddr = '0xWalletAddress'
 
@@ -15,8 +18,14 @@ describe('LiquidityProviderService', () => {
   let liFiProviderService: LiFiProviderService
   let cctpProviderService: CCTPProviderService
   let relayProviderService: RelayProviderService
+  let stargateProviderService: StargateProviderService
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
+  let cctpLiFiProviderService: CCTPLiFiProviderService
+
+  beforeAll(() => {
+    jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
+  })
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,6 +35,7 @@ describe('LiquidityProviderService', () => {
         { provide: CCTPProviderService, useValue: createMock<CCTPProviderService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         { provide: RelayProviderService, useValue: createMock<RelayProviderService>() },
+        { provide: StargateProviderService, useValue: createMock<StargateProviderService>() },
         { provide: WarpRouteProviderService, useValue: createMock<WarpRouteProviderService>() },
         {
           provide: EcoConfigService,
@@ -33,6 +43,8 @@ describe('LiquidityProviderService', () => {
             getLiquidityManager: jest.fn().mockReturnValue({ maxQuoteSlippage: 0.005 }),
           },
         },
+        { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
+        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
       ],
     }).compile()
 
@@ -40,8 +52,30 @@ describe('LiquidityProviderService', () => {
     liFiProviderService = module.get<LiFiProviderService>(LiFiProviderService)
     cctpProviderService = module.get<CCTPProviderService>(CCTPProviderService)
     relayProviderService = module.get<RelayProviderService>(RelayProviderService)
+    stargateProviderService = module.get<StargateProviderService>(StargateProviderService)
     warpRouteProviderService = module.get<WarpRouteProviderService>(WarpRouteProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
+    cctpLiFiProviderService = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
+    ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
+
+    // Set up the mock for getLiquidityManager after getting the service
+    const liquidityManagerConfigMock = {
+      maxQuoteSlippage: 0.005,
+      walletStrategies: {
+        'crowd-liquidity-pool': ['CCTP'],
+        'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+      },
+    }
+    jest
+      .spyOn(ecoConfigService, 'getLiquidityManager')
+      .mockReturnValue(liquidityManagerConfigMock as any)
+
+    // Reinitialize the config in the service
+    liquidityProviderService['config'] = ecoConfigService.getLiquidityManager()
+  })
+
+  afterAll(() => {
+    jest.restoreAllMocks() // optional clean-up
   })
 
   describe('getQuote', () => {
@@ -51,19 +85,23 @@ describe('LiquidityProviderService', () => {
       const mockSwapAmount = 100
       const mockQuote = [
         {
-          amountIn: 100n,
-          amountOut: 200n,
+          amountIn: '100',
+          amountOut: '200',
+          slippage: 0.003, // within 0.5% slippage limit
           tokenIn: mockTokenIn,
           tokenOut: mockTokenOut,
-          slippage: 0.004, // 0.4% slippage - within limit
           strategy: 'LiFi',
+          context: {},
+          id: '1',
         },
       ]
 
       jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(relayProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(stargateProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
         walletAddr,
@@ -76,6 +114,7 @@ describe('LiquidityProviderService', () => {
         mockTokenIn,
         mockTokenOut,
         mockSwapAmount,
+        '1',
       )
       expect(result).toEqual(mockQuote)
     })
@@ -92,6 +131,7 @@ describe('LiquidityProviderService', () => {
           tokenOut: mockTokenOut,
           slippage: 0.006, // 0.6% slippage - exceeds 0.5% limit
           strategy: 'LiFi',
+          id: '1',
         },
         {
           amountIn: 100n,
@@ -100,6 +140,7 @@ describe('LiquidityProviderService', () => {
           tokenOut: mockTokenOut,
           slippage: 0.003, // 0.3% slippage - within limit
           strategy: 'LiFi',
+          id: '1',
         },
       ]
 

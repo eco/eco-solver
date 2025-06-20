@@ -73,6 +73,10 @@ describe('LiquidityManagerService', () => {
       { token: '0xCoreToken1', chainID: 5 },
       { token: '0xCoreToken2', chainID: 10 },
     ],
+    walletStrategies: {
+      'crowd-liquidity-pool': ['CCTP'],
+      'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+    },
   } as LiquidityManagerConfig
 
   afterEach(() => {
