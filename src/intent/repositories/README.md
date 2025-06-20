@@ -12,6 +12,8 @@ The `IntentSourceRepository` provides methods for managing `IntentSourceModel` d
 - `findByIntentHash(hash)` - Find an intent by its hash
 - `updateByIntentHash(hash, updates)` - Update an intent by its hash
 - `getSelfFulfilledStats()` - Get statistics about self-fulfilled intents
+- `findSelfFulfilledSolvedByChainAndToken(chainId, tokenAddress?)` - Find self-fulfilled SOLVED intents for a specific chain and token
+- `calculateTotalRewardsForChainAndToken(chainId, tokenAddress?)` - Calculate total reward amounts for a chain and token
 
 ### Example Usage
 
@@ -26,6 +28,28 @@ const withdrawnIntents = await intentSourceRepository.findSelfFulfilledByStatus(
 const stats = await intentSourceRepository.getSelfFulfilledStats()
 console.log(`Total self-fulfilled: ${stats.totalSelfFulfilled}`)
 console.log(`By status:`, stats.byStatus)
+
+// Find self-fulfilled SOLVED intents for chain 1 with USDC rewards
+const usdcAddress = '0xA0b86a33E6441e6f9Bf0e74E8f48dc45D07d3e9b'
+const chainId = BigInt(1)
+const usdcIntents = await intentSourceRepository.findSelfFulfilledSolvedByChainAndToken(
+  chainId,
+  usdcAddress,
+)
+
+// Find self-fulfilled SOLVED intents for chain 1 with native ETH rewards
+const nativeIntents = await intentSourceRepository.findSelfFulfilledSolvedByChainAndToken(chainId)
+
+// Calculate total USDC rewards for chain 1
+const totalUsdcRewards = await intentSourceRepository.calculateTotalRewardsForChainAndToken(
+  chainId,
+  usdcAddress,
+)
+console.log(`Total USDC rewards: ${totalUsdcRewards}`)
+
+// Calculate total native ETH rewards for chain 1
+const totalEthRewards = await intentSourceRepository.calculateTotalRewardsForChainAndToken(chainId)
+console.log(`Total ETH rewards: ${totalEthRewards}`)
 ```
 
 ## WithdrawalRepository

@@ -20,6 +20,11 @@ export interface IntentSourceFilters {
   hasWithdrawal?: boolean
 }
 
+export interface ChainTokenFilters {
+  chainId: bigint
+  tokenAddress?: Hex // If undefined, includes native gas token rewards
+}
+
 @Injectable()
 export class IntentSourceRepository {
   constructor(
@@ -153,6 +158,98 @@ export class IntentSourceRepository {
       totalSelfFulfilled,
       byStatus,
     }
+  }
+
+  /**
+   * Find self-fulfilled SOLVED intents for a specific source chain and token
+   * @param chainId The source chain ID to search for
+   * @param tokenAddress The token address (undefined for native gas token)
+   */
+  async findSelfFulfilledSolvedByChainAndToken(
+    chainId: bigint,
+    tokenAddress?: Hex,
+  ): Promise<IntentSourceModel[]> {
+    const matchConditions: any = {
+      fulfilledBySelf: true,
+      status: 'SOLVED',
+      $or: [{ 'intent.route.source': chainId }],
+    }
+
+    // If tokenAddress is provided, match specific token in reward tokens
+    // If not provided, match intents with native value > 0
+    if (tokenAddress) {
+      matchConditions['intent.reward.tokens.token'] = tokenAddress
+    } else {
+      matchConditions['intent.reward.nativeValue'] = { $gt: 0 }
+    }
+
+    return this.intentSourceModel.find(matchConditions).sort({ createdAt: -1 }).exec()
+  }
+
+  /**
+   * Calculate the total reward amount for self-fulfilled SOLVED intents on a specific source chain and token
+   * @param chainId The source chain ID to search for
+   * @param tokenAddress The token address (undefined for native gas token)
+   * @returns The total reward amount as bigint
+   */
+  async calculateTotalRewardsForChainAndToken(
+    chainId: bigint,
+    tokenAddress?: Hex,
+  ): Promise<bigint> {
+    const matchConditions: any = {
+      fulfilledBySelf: true,
+      status: 'SOLVED',
+      $or: [{ 'intent.route.source': chainId }],
+    }
+
+    let pipeline: any[]
+
+    if (tokenAddress) {
+      // For specific ERC20 token rewards
+      pipeline = [
+        { $match: matchConditions },
+        { $unwind: '$intent.reward.tokens' },
+        {
+          $match: {
+            'intent.reward.tokens.token': tokenAddress,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: {
+              $sum: {
+                $toLong: '$intent.reward.tokens.amount',
+              },
+            },
+          },
+        },
+      ]
+    } else {
+      // For native gas token rewards
+      matchConditions['intent.reward.nativeValue'] = { $gt: 0 }
+      pipeline = [
+        { $match: matchConditions },
+        {
+          $group: {
+            _id: null,
+            totalAmount: {
+              $sum: {
+                $toLong: '$intent.reward.nativeValue',
+              },
+            },
+          },
+        },
+      ]
+    }
+
+    const result = await this.intentSourceModel.aggregate(pipeline).exec()
+
+    if (result.length === 0) {
+      return BigInt(0)
+    }
+
+    return BigInt(result[0].totalAmount || 0)
   }
 
   /**
