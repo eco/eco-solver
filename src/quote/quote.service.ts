@@ -34,6 +34,7 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
+import { serialize } from '@/common/utils/serialize'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -450,6 +451,14 @@ export class QuoteService implements OnModuleInit {
       return { error: totalFillError }
     }
     const totalAsk = this.feeService.getAsk(totalFillNormalized, quoteIntentModel)
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Generating quote`,
+        properties: serialize({ totalFillNormalized, totalAsk: totalAsk }),
+      }),
+    )
+
     const { totalRewardsNormalized, error: totalRewardsError } =
       await this.feeService.getTotalRewards(quoteIntentModel)
     if (Boolean(totalRewardsError)) {

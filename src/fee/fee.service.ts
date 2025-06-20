@@ -25,6 +25,7 @@ import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
+import { serialize } from '@/common/utils/serialize'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -99,6 +100,13 @@ export class FeeService implements OnModuleInit {
     }
 
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solverFee })
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Fee config',
+        properties: serialize(feeConfig),
+      }),
+    )
 
     switch (feeConfig.algorithm) {
       // the default
