@@ -104,7 +104,7 @@ export class FeeService implements OnModuleInit {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: 'Fee config',
-        properties: serialize(feeConfig),
+        properties: serialize({ feeConfig, solverFee }),
       }),
     )
 
@@ -654,6 +654,13 @@ export class FeeService implements OnModuleInit {
 
   private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
     const solverFee = this.getAskRouteDestinationSolver(route).fee
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'getRouteDestinationSolverFee',
+        properties: serialize({ solverFee, defaultFee: this.intentConfigs.defaultFee }),
+      }),
+    )
 
     // This next line is temporary, to ensure that the solver config has the correct fee structure
     return solverFee['limit'] ? solverFee : this.intentConfigs.defaultFee
