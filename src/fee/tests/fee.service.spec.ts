@@ -426,7 +426,7 @@ describe('FeeService', () => {
         error: undefined,
       })
       const getAsk = jest.spyOn(feeService, 'getAsk').mockReturnValue(totalRewardsNormalized)
-      
+
       expect(await feeService.isRouteFeasible(quote)).toEqual({ error: undefined })
       expect(getTotallFill).toHaveBeenCalled()
       expect(getTotalRewards).toHaveBeenCalled()

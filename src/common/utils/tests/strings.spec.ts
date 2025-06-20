@@ -54,14 +54,18 @@ describe('hasDuplicateStrings', () => {
   })
 
   it('should handle hex addresses correctly', () => {
-    expect(hasDuplicateStrings([
-      '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
-      '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29'
-    ])).toBe(false)
-    expect(hasDuplicateStrings([
-      '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
-      '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
-      '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc'
-    ])).toBe(true)
+    expect(
+      hasDuplicateStrings([
+        '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
+        '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
+      ]),
+    ).toBe(false)
+    expect(
+      hasDuplicateStrings([
+        '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
+        '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
+        '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
+      ]),
+    ).toBe(true)
   })
 })
