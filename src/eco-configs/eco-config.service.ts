@@ -19,6 +19,8 @@ import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
+import { EcoConfigSchema } from './eco-config.schema'
+import { ZodError } from 'zod'
 
 /**
  * Service class for managing application configuration from multiple sources.
@@ -78,6 +80,8 @@ export class EcoConfigService {
 
     // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
+
+    this.validateConfiguration()
 
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
@@ -370,6 +374,70 @@ export class EcoConfigService {
         },
         {} as Record<number, Hex>,
       ),
+    }
+  }
+
+  /**
+   * Transform configuration object for Zod validation
+   * Converts string representations of bigints to actual bigints
+   */
+  private transformConfigForValidation(obj: any): any {
+    if (typeof obj === 'string' && /^\d+n?$/.test(obj)) {
+      // Convert string numbers that might represent bigints
+      return BigInt(obj.replace('n', ''))
+    }
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.transformConfigForValidation(item))
+    }
+    if (obj !== null && typeof obj === 'object') {
+      const transformed: any = {}
+      for (const [key, value] of Object.entries(obj)) {
+        transformed[key] = this.transformConfigForValidation(value)
+      }
+      return transformed
+    }
+    return obj
+  }
+
+  private validateConfiguration() {
+    // Validate the configuration using Zod schema
+    try {
+      // Get the raw config object without JSON serialization
+      const configKeys = Object.keys(EcoConfigSchema.shape)
+      const configObject: any = {}
+
+      // Build config object from individual gets to avoid JSON.stringify issues with BigInt
+      for (const key of configKeys) {
+        if (this.ecoConfig.has(key)) {
+          configObject[key] = this.ecoConfig.get(key)
+        }
+      }
+
+      // Transform string bigints to actual bigints for validation
+      const transformedConfig = this.transformConfigForValidation(configObject)
+      EcoConfigSchema.parse(transformedConfig)
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Configuration validation successful`,
+        }),
+      )
+    } catch (error) {
+      if (error instanceof ZodError) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Configuration validation failed`,
+            properties: {
+              errors: error.errors.map((err) => ({
+                path: err.path.join('.'),
+                message: err.message,
+                code: err.code,
+              })),
+            },
+          }),
+        )
+        throw new Error(`Invalid configuration: ${JSON.stringify(error.errors, null, 2)}`)
+      }
+      throw error
     }
   }
 }

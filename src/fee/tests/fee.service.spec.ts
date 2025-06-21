@@ -70,7 +70,7 @@ describe('FeeService', () => {
     mockLogError.mockClear()
   })
 
-  const defaultFee: FeeConfigType<'linear'> = {
+  const defaultFee: FeeConfigType = {
     limit: {
       tokenBase6: 1000n * 10n ** 6n,
       nativeBase18: 1000n * 10n ** 18n,

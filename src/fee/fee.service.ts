@@ -469,10 +469,11 @@ export class FeeService implements OnModuleInit {
         acc[tokenBalance.address] = {
           token: tokenBalance,
           config: {
-            ...config,
             chainId: solver.chainID,
             address: tokenBalance.address,
-            type: 'erc20',
+            type: 'erc20' as const,
+            minBalance: config?.minBalance ?? 0,
+            targetBalance: config?.targetBalance ?? 0,
           },
           chainId: solver.chainID,
         }
