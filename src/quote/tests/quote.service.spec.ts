@@ -27,6 +27,7 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { Chain, PublicClient, Transport } from 'viem'
+import { CreateIntentService } from '@/intent/create-intent.service'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -82,6 +83,10 @@ describe('QuotesService', () => {
         {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),
+        },
+        {
+          provide: CreateIntentService,
+          useValue: createMock<CreateIntentService>(),
         },
         { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
       ],
