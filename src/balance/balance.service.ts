@@ -70,13 +70,16 @@ export class BalanceService implements OnApplicationBootstrap {
   getInboxTokens(): TokenConfig[] {
     return Object.values(this.configService.getSolvers()).flatMap((solver) => {
       return Object.entries(solver.targets)
-        .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
+        .filter(
+          ([, targetContract]) =>
+            targetContract && isSupportedTokenType(targetContract.contractType),
+        )
         .map(([tokenAddress, targetContract]) => ({
           address: tokenAddress as Hex,
           chainId: solver.chainID,
-          type: targetContract.contractType,
-          minBalance: targetContract.minBalance,
-          targetBalance: targetContract.targetBalance,
+          type: targetContract!.contractType,
+          minBalance: targetContract!.minBalance,
+          targetBalance: targetContract!.targetBalance,
         }))
     })
   }
