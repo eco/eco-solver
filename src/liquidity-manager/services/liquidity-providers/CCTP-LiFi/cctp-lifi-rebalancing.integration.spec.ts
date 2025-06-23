@@ -14,7 +14,7 @@ import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
@@ -76,7 +76,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let cctpLiFiProvider: CCTPLiFiProviderService
   let liFiService: DeepMocked<LiFiProviderService>
   let cctpService: DeepMocked<CCTPProviderService>
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   let flowProducer: DeepMocked<FlowProducer>
@@ -158,8 +158,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<WarpRouteProviderService>(),
         },
         {
-          provide: BalanceService,
-          useValue: createMock<BalanceService>(),
+          provide: RpcBalanceService,
+          useValue: createMock<RpcBalanceService>(),
         },
         {
           provide: EcoConfigService,
@@ -194,7 +194,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     cctpLiFiProvider = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
     liFiService = module.get(LiFiProviderService)
     cctpService = module.get(CCTPProviderService)
-    balanceService = module.get(BalanceService)
+    balanceService = module.get(RpcBalanceService)
     ecoConfigService = module.get(EcoConfigService)
     const crowdLiquidityService = module.get(CrowdLiquidityService)
 

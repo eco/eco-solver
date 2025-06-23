@@ -87,7 +87,7 @@ export class WatchTokensService extends WatchEventService<Solver> {
     }
 
     const erc20Targets = Object.entries(solver.targets).filter(
-      ([, target]) => target.contractType === 'erc20'
+      ([, target]) => target.contractType === 'erc20',
     )
 
     if (erc20Targets.length === 0) {
@@ -137,7 +137,7 @@ export class WatchTokensService extends WatchEventService<Solver> {
    * Create job handler for processing Transfer events
    */
   addJob(solver: Solver): (logs: Log[]) => Promise<void> {
-   return async (logs: ERC20TransferLog[]) => {
+    return async (logs: ERC20TransferLog[]) => {
       for (const log of logs) {
         log.sourceChainID = BigInt(solver.chainID)
         log.sourceNetwork = solver.network
@@ -202,5 +202,4 @@ export class WatchTokensService extends WatchEventService<Solver> {
       return null
     }
   }
-
 }

@@ -26,8 +26,8 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { BalanceService } from '@/balance/balance.service'
-import { TokenConfig } from '@/balance/types'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { TokenConfig } from '@/balance/types/balance.types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
@@ -40,7 +40,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly publicClient: MultichainPublicClientService,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     private readonly utilsIntentService: UtilsIntentService,
   ) {}
 

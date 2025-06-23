@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { parseUnits, Hex, formatUnits } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import {
   RebalanceQuote,
@@ -33,7 +33,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     private readonly liFiService: LiFiProviderService,
     private readonly cctpService: CCTPProviderService,
     private readonly ecoConfigService: EcoConfigService,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {

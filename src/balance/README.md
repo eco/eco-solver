@@ -7,18 +7,21 @@ A comprehensive balance management system for tracking solver wallet balances ac
 The balance manager consists of 3 main components:
 
 ### 1. RPC Balance Service (`services/rpc-balance.service.ts`)
+
 - Fetches balance data directly from blockchain RPC endpoints
 - Supports both native tokens (ETH, MATIC, etc.) and ERC20 tokens
 - Handles multiple chains in parallel
 - Provides formatted balance data with token metadata
 
 ### 2. WebSocket Balance Service (`services/websocket-balance.service.ts`)
+
 - Listens for real-time balance changes via WebSocket connections
 - Monitors Transfer events for ERC20 tokens
 - Monitors native token transfers in blocks
 - Emits balance change events for the main service
 
 ### 3. Database Storage (`schemas/balance-record.schema.ts` & `repositories/balance-record.repository.ts`)
+
 - Stores balance records with block-level precision
 - Maintains historical balance data
 - Provides efficient querying and statistics
@@ -27,6 +30,7 @@ The balance manager consists of 3 main components:
 ## Main Service (`services/balance-manager.service.ts`)
 
 The `BalanceManagerService` orchestrates all components:
+
 - Manages configuration and monitoring setup
 - Handles WebSocket events and triggers RPC updates
 - Provides high-level balance querying methods
@@ -36,21 +40,25 @@ The `BalanceManagerService` orchestrates all components:
 ## Key Features
 
 ### Real-time Monitoring
+
 - WebSocket connections for instant balance change detection
 - Automatic RPC fetching when changes are detected
 - Event-driven architecture for responsive updates
 
 ### Historical Tracking
+
 - Block-level precision for balance records
 - Efficient database indexing for fast queries
 - Balance statistics and analytics
 
 ### Multi-chain Support
+
 - Configurable RPC and WebSocket endpoints
 - Parallel processing across chains
 - Chain-specific native token handling
 
 ### Error Handling & Resilience
+
 - Comprehensive error logging
 - Retry mechanisms for failed requests
 - Graceful degradation when services are unavailable
@@ -84,17 +92,15 @@ const nativeBalance = await this.balanceManager.getCurrentBalance(
 
 ```typescript
 // Add a new solver to monitor
-await this.balanceManager.addSolverToMonitor(
-  '0x742d35Cc8Ebb5295b999C084b9dD5Bf7A93f6c4b'
-)
+await this.balanceManager.addSolverToMonitor('0x742d35Cc8Ebb5295b999C084b9dD5Bf7A93f6c4b')
 
 // Add tokens to monitor for a chain
 await this.balanceManager.addTokensToMonitor(
   BigInt(1), // Chain ID
   [
     '0xA0b86a33E6441e6f9Bf0e74E8f48dc45D07d3e9b', // USDC
-    '0x6B175474E89094C44Da98b954EedeAC495271d0F'  // DAI
-  ]
+    '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
+  ],
 )
 ```
 
@@ -106,14 +112,14 @@ const history = await this.balanceManager.getBalanceHistory(
   BigInt(1), // Chain ID
   '0xA0b86a33E6441e6f9Bf0e74E8f48dc45D07d3e9b', // Token
   '0x742d35Cc8Ebb5295b999C084b9dD5Bf7A93f6c4b', // Solver
-  50 // Limit
+  50, // Limit
 )
 
 // Get balance statistics
 const stats = await this.balanceManager.getBalanceStats(
   BigInt(1), // Chain ID
   '0xA0b86a33E6441e6f9Bf0e74E8f48dc45D07d3e9b', // Token
-  '0x742d35Cc8Ebb5295b999C084b9dD5Bf7A93f6c4b'  // Solver
+  '0x742d35Cc8Ebb5295b999C084b9dD5Bf7A93f6c4b', // Solver
 )
 ```
 
@@ -140,7 +146,9 @@ handleBalanceUpdate(event: BalanceChangeEvent) {
 The balance manager requires configuration for:
 
 ### RPC URLs
+
 Set environment variables for chain RPC endpoints:
+
 ```bash
 ETHEREUM_RPC_URL=https://eth.llamarpc.com
 OPTIMISM_RPC_URL=https://mainnet.optimism.io
@@ -150,7 +158,9 @@ ARBITRUM_RPC_URL=https://arb1.arbitrum.io/rpc
 ```
 
 ### WebSocket URLs
+
 Set environment variables for WebSocket endpoints:
+
 ```bash
 ETHEREUM_WS_URL=wss://eth.llamarpc.com
 OPTIMISM_WS_URL=wss://ws-mainnet.optimism.io
@@ -162,6 +172,7 @@ ARBITRUM_WS_URL=wss://arb1.arbitrum.io/ws
 ## Database Schema
 
 ### BalanceRecord
+
 ```typescript
 {
   chainId: string        // Chain identifier (stored as string for bigint)
@@ -179,6 +190,7 @@ ARBITRUM_WS_URL=wss://arb1.arbitrum.io/ws
 ```
 
 ### Indexes
+
 - Compound unique: `{chainId, tokenAddress, solverAddress, blockNumber}`
 - Query optimization: `{chainId, tokenAddress, solverAddress}`
 - Time-based: `{timestamp: -1}`
@@ -187,6 +199,7 @@ ARBITRUM_WS_URL=wss://arb1.arbitrum.io/ws
 ## Monitoring & Observability
 
 The balance manager provides comprehensive logging:
+
 - RPC fetch operations and results
 - WebSocket connection status and events
 - Database operations and performance
@@ -196,16 +209,19 @@ The balance manager provides comprehensive logging:
 ## Performance Considerations
 
 ### Batch Processing
+
 - RPC requests are batched to avoid rate limiting
 - Database upserts are used to prevent duplicates
 - Parallel processing across chains
 
 ### Caching Strategy
+
 - Latest balances are cached in the database
 - WebSocket events trigger immediate updates
 - Periodic sync ensures data consistency
 
 ### Resource Management
+
 - WebSocket connections are managed with proper cleanup
 - Database connections are pooled
 - Memory usage is optimized with streaming queries

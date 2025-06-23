@@ -1,6 +1,6 @@
 const mockGetTransactionTargetData = jest.fn()
 const mockIsERC20Target = jest.fn()
-import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
+import { RpcBalanceService, TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
@@ -38,7 +38,7 @@ jest.mock('@/contracts', () => {
 
 describe('FeeService', () => {
   let feeService: FeeService
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -47,14 +47,14 @@ describe('FeeService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         FeeService,
-        { provide: BalanceService, useValue: createMock<BalanceService>() },
+        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
       ],
     }).compile()
 
     feeService = chainMod.get(FeeService)
 
-    balanceService = chainMod.get(BalanceService)
+    balanceService = chainMod.get(RpcBalanceService)
     ecoConfigService = chainMod.get(EcoConfigService)
 
     feeService['logger'].debug = mockLogDebug

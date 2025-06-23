@@ -7,7 +7,7 @@ import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
 import { ViemEventLog } from '@/common/events/viem'
 import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenBalance, TokenConfig } from '@/balance/types'
+import { TokenBalance, TokenConfig } from '@/balance/types/balance.types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
@@ -25,8 +25,8 @@ export type TokenFetchAnalysis = {
  * Service class for getting configs for the app
  */
 @Injectable()
-export class BalanceService implements OnApplicationBootstrap {
-  private logger = new Logger(BalanceService.name)
+export class RpcBalanceService implements OnApplicationBootstrap {
+  private logger = new Logger(RpcBalanceService.name)
 
   private readonly tokenBalances: Map<string, TokenBalance> = new Map()
 
@@ -231,12 +231,12 @@ export class BalanceService implements OnApplicationBootstrap {
 
   @Cacheable({ bypassArgIndex: 2 })
   async fetchTokenBalance(
-    chainID: number, 
+    chainID: number,
     tokenAddress: Hex,
     //used by cacheable decorator
     forceRefresh = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<TokenBalance> {
-    const result = await this.fetchTokenBalances(chainID, [tokenAddress],forceRefresh)
+    const result = await this.fetchTokenBalances(chainID, [tokenAddress], forceRefresh)
     return result[tokenAddress]
   }
 

@@ -7,7 +7,7 @@ import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import * as LiFi from '@lifi/sdk'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
@@ -15,7 +15,7 @@ import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
   let kernelAccountClientService: KernelAccountClientV2Service
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
 
   beforeEach(async () => {
@@ -23,7 +23,7 @@ describe('LiFiProviderService', () => {
       providers: [
         LiFiProviderService,
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: BalanceService, useValue: createMock<BalanceService>() },
+        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
         {
           provide: KernelAccountClientV2Service,
           useValue: createMock<KernelAccountClientV2Service>(),
@@ -41,7 +41,7 @@ describe('LiFiProviderService', () => {
       .compile()
 
     ecoConfigService = chainMod.get(EcoConfigService)
-    balanceService = chainMod.get(BalanceService)
+    balanceService = chainMod.get(RpcBalanceService)
     lifiProviderService = chainMod.get(LiFiProviderService)
     kernelAccountClientService = chainMod.get(KernelAccountClientV2Service)
 

@@ -1,20 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { BalanceController } from '../balance.controller'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
 
 describe('BalanceController Test', () => {
   let balanceController: BalanceController
-  let balanceService: BalanceService
+  let balanceService: RpcBalanceService
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BalanceController],
       providers: [
         {
-          provide: BalanceService,
-          useValue: createMock<BalanceService>(),
+          provide: RpcBalanceService,
+          useValue: createMock<RpcBalanceService>(),
         },
         {
           provide: CACHE_MANAGER,
@@ -27,7 +27,7 @@ describe('BalanceController Test', () => {
     }).compile()
 
     balanceController = module.get<BalanceController>(BalanceController)
-    balanceService = module.get<BalanceService>(BalanceService)
+    balanceService = module.get<RpcBalanceService>(RpcBalanceService)
   })
 
   it('should be defined', () => {

@@ -1,4 +1,4 @@
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
@@ -7,7 +7,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Cache } from 'cache-manager'
 
 describe('BalanceService', () => {
-  let balanceService: BalanceService
+  let balanceService: RpcBalanceService
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
 
   const mockKernelClient = {
@@ -24,14 +24,14 @@ describe('BalanceService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        BalanceService,
+        RpcBalanceService,
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: CACHE_MANAGER, useValue: createMock<Cache>() },
       ],
     }).compile()
 
-    balanceService = module.get<BalanceService>(BalanceService)
+    balanceService = module.get<RpcBalanceService>(RpcBalanceService)
     kernelAccountClientService = module.get(KernelAccountClientService)
 
     // Reset all mocks

@@ -1,4 +1,4 @@
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -83,7 +83,7 @@ export class ValidationService implements OnModuleInit {
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly ecoConfigService: EcoConfigService,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 

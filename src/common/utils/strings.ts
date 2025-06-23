@@ -69,11 +69,7 @@ export function getWatchJobId(
  * @returns A formatted job ID string: "serviceName-hash-logIndex"
  * @private
  */
-function getJobId(
-  serviceName: string,
-  intentHash: Hex | undefined,
-  logIndex: number = 0,
-): string {
+function getJobId(serviceName: string, intentHash: Hex | undefined, logIndex: number = 0): string {
   return `${serviceName}-${intentHash}-${logIndex}`
 }
 

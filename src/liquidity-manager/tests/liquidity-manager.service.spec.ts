@@ -6,7 +6,7 @@ import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
 import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
@@ -21,7 +21,7 @@ describe('LiquidityManagerService', () => {
   let liquidityProviderService: LiquidityProviderService
   let crowdLiquidityService: CrowdLiquidityService
   let kernelAccountClientService: KernelAccountClientService
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
 
@@ -29,7 +29,7 @@ describe('LiquidityManagerService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         LiquidityManagerService,
-        { provide: BalanceService, useValue: createMock<BalanceService>() },
+        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
@@ -50,7 +50,7 @@ describe('LiquidityManagerService', () => {
       .useValue(createMock<FlowProducer>())
       .compile()
 
-    balanceService = chainMod.get(BalanceService)
+    balanceService = chainMod.get(RpcBalanceService)
     ecoConfigService = chainMod.get(EcoConfigService)
     crowdLiquidityService = chainMod.get(CrowdLiquidityService)
     liquidityManagerService = chainMod.get(LiquidityManagerService)

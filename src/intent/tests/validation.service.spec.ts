@@ -12,7 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 jest.mock('@/intent/utils', () => {
   return {
@@ -25,7 +25,7 @@ describe('ValidationService', () => {
   let proofService: DeepMocked<ProofService>
   let feeService: DeepMocked<FeeService>
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   const mockLogLog = jest.fn()
@@ -37,7 +37,7 @@ describe('ValidationService', () => {
         { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: BalanceService, useValue: createMock<BalanceService>() },
+        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
       ],
@@ -47,7 +47,7 @@ describe('ValidationService', () => {
     proofService = mod.get(ProofService)
     feeService = mod.get(FeeService)
     ecoConfigService = mod.get(EcoConfigService)
-    balanceService = mod.get(BalanceService)
+    balanceService = mod.get(RpcBalanceService)
     kernelAccountClientService = mod.get(KernelAccountClientService)
     utilsIntentService = mod.get(UtilsIntentService)
 

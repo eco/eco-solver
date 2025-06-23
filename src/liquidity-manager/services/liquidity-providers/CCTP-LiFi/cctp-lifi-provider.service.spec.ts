@@ -6,7 +6,7 @@ import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
@@ -123,7 +123,7 @@ describe('CCTPLiFiProviderService', () => {
         CCTPLiFiProviderService,
         { provide: LiFiProviderService, useValue: mockLiFiService },
         { provide: CCTPProviderService, useValue: mockCCTPService },
-        { provide: BalanceService, useValue: { fetchTokenBalance: jest.fn() } },
+        { provide: RpcBalanceService, useValue: { fetchTokenBalance: jest.fn() } },
         { provide: EcoConfigService, useValue: mockEcoConfigService },
         {
           provide: getQueueToken(LiquidityManagerQueue.queueName),

@@ -9,7 +9,6 @@ import { QuoteModule } from '@/quote/quote.module'
 import { FeeModule } from '@/fee/fee.module'
 import { KmsModule } from '@/kms/kms.module'
 import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
-import { BalanceModule } from '@/balance/balance.module'
 import { ChainMonitorModule } from '@/chain-monitor/chain-monitor.module'
 import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { FlagsModule } from '@/flags/flags.module'
@@ -24,6 +23,7 @@ import { PermitProcessingModule } from '@/permit-processing/permit-processing.mo
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
 import { BalanceMonitorModule } from './balance-monitor/balance-monitor.module'
+import { BalanceModule } from '@/balance/balance.module'
 
 @Module({
   imports: [

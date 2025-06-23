@@ -26,7 +26,6 @@ export type IntentJobServiceName =
   | 'withdrawal'
   | 'retry'
 
-
 /**
  * The types of intent job id prefixes
  */

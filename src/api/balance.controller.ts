@@ -1,5 +1,5 @@
-import { BalanceService } from '@/balance/balance.service'
-import { TokenBalance, TokenConfig } from '@/balance/types'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { TokenBalance, TokenConfig } from '@/balance/types/balance.types'
 import { API_ROOT, BALANCE_ROUTE } from '@/common/routes/constants'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { CacheInterceptor } from '@nestjs/cache-manager'
@@ -9,7 +9,7 @@ import * as _ from 'lodash'
 @Controller(API_ROOT + BALANCE_ROUTE)
 @UseInterceptors(CacheInterceptor)
 export class BalanceController {
-  constructor(private readonly balanceService: BalanceService) {}
+  constructor(private readonly balanceService: RpcBalanceService) {}
 
   @Get()
   async getBalances(@Query('flat') flat?: boolean) {

@@ -10,7 +10,7 @@ import { Solver } from '@/eco-configs/eco-config.types'
 import { QUEUES } from '@/common/redis/constants'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
-import { getIntentJobId, getWatchJobId } from '@/common/utils/strings'
+import { getWatchJobId } from '@/common/utils/strings'
 import { zeroHash } from 'viem'
 
 interface NativeTransferEvent {
@@ -88,7 +88,7 @@ export class WatchNativeService extends WatchEventService<Solver> {
    */
   async subscribeTo(client: PublicClient, solver: Solver): Promise<void> {
     const solverAddress = await this.getSolverAddress(solver)
-    
+
     if (!solverAddress) {
       this.logger.warn(
         EcoLogMessage.fromDefault({
@@ -128,18 +128,14 @@ export class WatchNativeService extends WatchEventService<Solver> {
   /**
    * Process a block to find native token transfers involving the solver
    */
-  private async processBlock(
-    block: Block,
-    solver: Solver,
-    solverAddress: Hex,
-  ): Promise<void> {
+  private async processBlock(block: Block, solver: Solver, solverAddress: Hex): Promise<void> {
     try {
       // Filter transactions that involve the solver and have value > 0
       const relevantTransactions = (block.transactions as Transaction[]).filter(
         (tx) =>
           typeof tx !== 'string' &&
           tx.value > 0n &&
-          (tx.to === solverAddress || tx.from === solverAddress)
+          (tx.to === solverAddress || tx.from === solverAddress),
       )
 
       if (relevantTransactions.length > 0) {
@@ -230,14 +226,10 @@ export class WatchNativeService extends WatchEventService<Solver> {
       )
 
       // Add to processing queue (using a new job type for native transfers)
-      await this.queue.add(
-        QUEUES.WATCH_RPC.jobs.native_balance_socket,
-        serializedEvent,
-        {
-          jobId,
-          ...this.watchJobConfig,
-        },
-      )
+      await this.queue.add(QUEUES.WATCH_RPC.jobs.native_balance_socket, serializedEvent, {
+        jobId,
+        ...this.watchJobConfig,
+      })
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -279,7 +271,7 @@ export class WatchNativeService extends WatchEventService<Solver> {
     try {
       // Get the kernel account client which has the solver's address
       const kernelClient = await this.kernelAccountClientService.getClient(solver.chainID)
-      
+
       if (kernelClient?.kernelAccount?.address) {
         return kernelClient.kernelAccount.address as Hex
       }

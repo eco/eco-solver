@@ -6,7 +6,7 @@ import { entries, keyBy } from 'lodash'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 
 type TokenType = {
   token: Hex
@@ -24,7 +24,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly configService: EcoConfigService,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
   ) {
     super()
   }

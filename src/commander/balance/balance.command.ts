@@ -1,7 +1,7 @@
 import { getAddress } from 'viem'
 import { Command, Option } from 'nest-commander'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { jsonBigInt } from '@/commander/utils'
 import { ClientCommand } from '@/commander/transfer/client.command'
@@ -12,7 +12,7 @@ import { ClientCommand } from '@/commander/transfer/client.command'
 })
 export class BalanceCommand extends ClientCommand {
   constructor(
-    protected readonly balanceService: BalanceService,
+    protected readonly balanceService: RpcBalanceService,
     protected readonly kernelAccountClientService: KernelAccountClientService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {

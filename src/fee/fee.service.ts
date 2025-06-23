@@ -1,4 +1,4 @@
-import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
+import { RpcBalanceService, TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -37,7 +37,7 @@ export class FeeService implements OnModuleInit {
   private whitelist: WhitelistFeeRecord
 
   constructor(
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 

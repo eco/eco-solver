@@ -5,7 +5,7 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -33,7 +33,7 @@ import {
 } from '@/liquidity-manager/types/types'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenConfig } from '@/balance/types'
+import { TokenConfig } from '@/balance/types/balance.types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
@@ -53,7 +53,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     protected liquidityManagerFlowProducer: FlowProducer,
     @InjectModel(RebalanceModel.name)
     private readonly rebalanceModel: Model<RebalanceModel>,
-    public readonly balanceService: BalanceService,
+    public readonly balanceService: RpcBalanceService,
     private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,

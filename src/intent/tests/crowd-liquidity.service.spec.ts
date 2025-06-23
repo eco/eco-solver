@@ -6,7 +6,7 @@ import { cloneDeep } from 'lodash'
 import { CrowdLiquidityService } from '../crowd-liquidity.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { UtilsIntentService } from '../utils-intent.service'
 import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -16,7 +16,7 @@ describe('CrowdLiquidityService', () => {
   let service: CrowdLiquidityService
   let ecoConfigService: DeepMocked<EcoConfigService>
   let publicClientService: DeepMocked<MultichainPublicClientService>
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
 
   const mockConfig = {
@@ -88,8 +88,8 @@ describe('CrowdLiquidityService', () => {
           useValue: createMock<MultichainPublicClientService>(),
         },
         {
-          provide: BalanceService,
-          useValue: createMock<BalanceService>(),
+          provide: RpcBalanceService,
+          useValue: createMock<RpcBalanceService>(),
         },
         {
           provide: UtilsIntentService,
@@ -101,7 +101,7 @@ describe('CrowdLiquidityService', () => {
     service = module.get<CrowdLiquidityService>(CrowdLiquidityService)
     ecoConfigService = module.get(EcoConfigService)
     publicClientService = module.get(MultichainPublicClientService)
-    balanceService = module.get(BalanceService)
+    balanceService = module.get(RpcBalanceService)
     utilsIntentService = module.get(UtilsIntentService)
 
     // Mock config service

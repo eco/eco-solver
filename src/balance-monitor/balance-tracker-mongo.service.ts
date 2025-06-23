@@ -1,4 +1,4 @@
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QUEUES } from '@/common/redis/constants'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
@@ -28,7 +28,7 @@ export class BalanceTrackerService implements OnModuleInit {
 
   constructor(
     @InjectQueue(QUEUES.BALANCE_MONITOR.queue) private readonly balanceQueue: Queue,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     private readonly trackedBalanceRepository: TrackedBalanceRepository,
   ) {}
 
