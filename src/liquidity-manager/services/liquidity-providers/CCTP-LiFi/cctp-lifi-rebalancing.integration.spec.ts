@@ -20,17 +20,14 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 // Types & Models
-import {
-  TokenData,
-  Strategy,
-  RebalanceRequest,
-  LiFiStrategyContext,
-} from '@/liquidity-manager/types/types'
+import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
 import { TokenConfig } from '@/balance/types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -76,6 +73,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let cctpLiFiProvider: CCTPLiFiProviderService
   let liFiService: DeepMocked<LiFiProviderService>
   let cctpService: DeepMocked<CCTPProviderService>
+  let relayService: DeepMocked<RelayProviderService>
+  let stargateService: DeepMocked<StargateProviderService>
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -154,6 +153,14 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<CCTPProviderService>(),
         },
         {
+          provide: RelayProviderService,
+          useValue: createMock<RelayProviderService>(),
+        },
+        {
+          provide: StargateProviderService,
+          useValue: createMock<StargateProviderService>(),
+        },
+        {
           provide: WarpRouteProviderService,
           useValue: createMock<WarpRouteProviderService>(),
         },
@@ -194,6 +201,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     cctpLiFiProvider = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
     liFiService = module.get(LiFiProviderService)
     cctpService = module.get(CCTPProviderService)
+    relayService = module.get(RelayProviderService)
+    stargateService = module.get(StargateProviderService)
     balanceService = module.get(BalanceService)
     ecoConfigService = module.get(EcoConfigService)
     const crowdLiquidityService = module.get(CrowdLiquidityService)

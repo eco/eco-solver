@@ -24,6 +24,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
+import { hasDuplicateStrings } from '@/common/utils/strings'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -151,6 +152,11 @@ export class FeeService implements OnModuleInit {
     if (quote.route.calls.length != 1) {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
+    }
+
+    const rewardTokens = _.map(quote.reward.tokens, 'token')
+    if (hasDuplicateStrings(rewardTokens)) {
+      return { error: QuoteError.DuplicatedRewardToken() }
     }
 
     const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)

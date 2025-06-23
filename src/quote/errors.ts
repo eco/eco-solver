@@ -224,6 +224,10 @@ export class QuoteError extends Error {
     return new EcoError(`A route with more than 1 erc20 target is not supported`)
   }
 
+  static DuplicatedRewardToken() {
+    return new EcoError(`A route with duplicated reward tokens is not supported`)
+  }
+
   static FailedToFetchTarget(chainID: bigint, target: Hex) {
     return new EcoError(
       `Cannot resolve the decimals of a call target ${target} on chain ${chainID}`,
