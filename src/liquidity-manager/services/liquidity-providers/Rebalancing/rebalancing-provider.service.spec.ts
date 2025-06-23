@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { RebalancingProviderService } from './rebalancing-provider.service'
+import { NegativeIntentRebalanceProviderService } from './negative-intent-rebalance-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -8,7 +8,7 @@ import { Hex } from 'viem'
 import { LitActionService } from '@/lit-actions/lit-action.service'
 
 describe('RebalancingProviderService', () => {
-  let service: RebalancingProviderService
+  let service: NegativeIntentRebalanceProviderService
   let ecoConfigService: EcoConfigService
   let kernelAccountClientService: KernelAccountClientService
   let publicClient: MultichainPublicClientService
@@ -93,7 +93,7 @@ describe('RebalancingProviderService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        RebalancingProviderService,
+        NegativeIntentRebalanceProviderService,
         {
           provide: EcoConfigService,
           useValue: {
@@ -135,7 +135,7 @@ describe('RebalancingProviderService', () => {
       ],
     }).compile()
 
-    service = module.get<RebalancingProviderService>(RebalancingProviderService)
+    service = module.get<NegativeIntentRebalanceProviderService>(NegativeIntentRebalanceProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     kernelAccountClientService = module.get<KernelAccountClientService>(KernelAccountClientService)
     publicClient = module.get<MultichainPublicClientService>(MultichainPublicClientService)
