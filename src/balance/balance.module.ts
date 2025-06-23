@@ -8,7 +8,6 @@ import { BalanceService } from './services/balance.service'
 import { RpcBalanceService } from './services/rpc-balance.service'
 import { BalanceProcessor } from './processors/balance.processor'
 import { TransactionModule } from '../transaction/transaction.module'
-import { EcoConfigModule } from '../eco-configs/eco-config.module'
 import { CacheModule } from '@nestjs/cache-manager'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { QUEUES } from '../common/redis/constants'
@@ -18,7 +17,6 @@ import { IntentSourceModel, IntentSourceSchema } from '../intent/schemas/intent-
 @Module({
   imports: [
     TransactionModule,
-    // EcoConfigModule.withAWS(),
     CacheModule.register(),
     // MongoDB schema registration
     MongooseModule.forFeature([

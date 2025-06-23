@@ -34,24 +34,16 @@ export class BalanceRecordRepository {
       address: params.address,
     }
 
-    // Check if we have an existing record
-    const existingRecord = await this.balanceRecordModel.findOne(filter).exec()
-
-    if (existingRecord) {
-      const currentBlockNumber = BigInt(existingRecord.blockNumber)
-      const newBlockNumber = BigInt(params.blockNumber)
-
-      // Only update if new block number is greater
-      if (newBlockNumber <= currentBlockNumber) {
-        this.logger.debug(
-          `Ignoring RPC update for ${params.chainId}:${params.address} - ` +
-            `block ${params.blockNumber} is not greater than current block ${existingRecord.blockNumber}`,
-        )
-        return existingRecord
-      }
+    // Use atomic findOneAndUpdate with a condition to only update if block number is greater
+    // This prevents race conditions and duplicate updates for the same block
+    const updateFilter = {
+      ...filter,
+      $or: [
+        { blockNumber: { $exists: false } }, // Handle case where record doesn't exist
+        { blockNumber: { $lt: params.blockNumber } }, // Only update if new block is greater
+      ],
     }
 
-    // Update or create the record
     const update = {
       balance: params.balance,
       blockNumber: params.blockNumber,
@@ -62,9 +54,36 @@ export class BalanceRecordRepository {
       tokenName: params.tokenName,
     }
 
-    return this.balanceRecordModel
-      .findOneAndUpdate(filter, update, { upsert: true, new: true })
-      .exec()
+    try {
+      const result = await this.balanceRecordModel
+        .findOneAndUpdate(updateFilter, update, { upsert: true, new: true })
+        .exec()
+
+      if (!result) {
+        // No update was made because block number wasn't greater, return existing record
+        const existingRecord = await this.balanceRecordModel.findOne(filter).exec()
+        if (existingRecord) {
+          this.logger.debug(
+            `Ignoring RPC update for ${params.chainId}:${params.address} - ` +
+              `block ${params.blockNumber} is not greater than current block ${existingRecord.blockNumber}`,
+          )
+        }
+        return existingRecord
+      }
+
+      return result
+    } catch (error) {
+      // Handle duplicate key errors gracefully - this can happen during race conditions
+      if (error.code === 11000) {
+        this.logger.warn(
+          `Duplicate key error for ${params.chainId}:${params.address} block ${params.blockNumber} - ` +
+            `returning existing record`,
+        )
+        // Return the existing record
+        return this.balanceRecordModel.findOne(filter).exec()
+      }
+      throw error
+    }
   }
 
   /**
