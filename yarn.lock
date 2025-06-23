@@ -1472,18 +1472,18 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/chains@1.0.36":
-  version "1.0.36"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/chains/-/chains-1.0.36.tgz#3ecee59a6b6dffa2b67144fc91ce568bbd8bf974"
-  integrity sha512-rtnyAvPEyYgDilbfNyjel0xdV7DDsNojorkwdsTXLAEg7VWeIgnltZjGknaWn3YqycCCdphUI+sVvCTKvZgx5A==
+"@eco-foundation/chains@1.0.39":
+  version "1.0.39"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/chains/-/chains-1.0.39.tgz#90da14e31c46bf058be39161f446a4f3136f8a85"
+  integrity sha512-UMmaqi+1HdL6xr0bipkxSexK5FkRTV3pb94w9hnQhZJiEDARBTTLWVSdLVTdImgpGsqYfm1y91uIO2dTBS/mtQ==
   dependencies:
     typia "^8.0.4"
     viem "^2.24.1"
 
-"@eco-foundation/routes-ts@^2.8.2":
-  version "2.8.2"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.8.2.tgz#a4d8f6694cb4fdceb8d7c5452ab4defeb936f8e9"
-  integrity sha512-sCqfsAU+Az2Eb/GjQ4MP7qO5aU3nMhr8wnmRhKKmMqZDfW35nNlb9pGw1/UJPz2HGy20d6LWcm61OHUArbcpgg==
+"@eco-foundation/routes-ts@^2.8.3":
+  version "2.8.3"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.8.3.tgz#4b68011d8fb443b67f1ad6d149a91f16a30f8eeb"
+  integrity sha512-yBtokUCwMtI6+4zNk66VVRz9TlAwnsgH4b2c95421d2c20MZ3fg4TSr+H/dZhfCY1Shsz3PE+SaXcfp21yQgHw==
   dependencies:
     viem "^2.22.21"
 
