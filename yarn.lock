@@ -1472,10 +1472,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/chains@1.0.36":
-  version "1.0.36"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/chains/-/chains-1.0.36.tgz#3ecee59a6b6dffa2b67144fc91ce568bbd8bf974"
-  integrity sha512-rtnyAvPEyYgDilbfNyjel0xdV7DDsNojorkwdsTXLAEg7VWeIgnltZjGknaWn3YqycCCdphUI+sVvCTKvZgx5A==
+"@eco-foundation/chains@1.0.39":
+  version "1.0.39"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/chains/-/chains-1.0.39.tgz#90da14e31c46bf058be39161f446a4f3136f8a85"
+  integrity sha512-UMmaqi+1HdL6xr0bipkxSexK5FkRTV3pb94w9hnQhZJiEDARBTTLWVSdLVTdImgpGsqYfm1y91uIO2dTBS/mtQ==
   dependencies:
     typia "^8.0.4"
     viem "^2.24.1"
