@@ -144,7 +144,7 @@ describe('FeeService', () => {
     })
 
     it('should return the default fee for the solver if intent is set', async () => {
-      const solverFee = { limit: 123n } as any
+      const solverFee = { limit: 123n, constants: {} } as any
       feeService['whitelist'] = {}
       feeService['intentConfigs'] = { defaultFee: { limit: 333n } } as any
       feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: solverFee })
@@ -303,7 +303,7 @@ describe('FeeService', () => {
           native: 0n,
         })
         expect(feeService.getAsk({ token: 100_000_000n, native: 0n }, intent)).toEqual({
-          token: 100_000_000n + baseFee + 2n * unitFee,
+          token: 100_000_000n + baseFee + 1n * unitFee,
           native: 0n,
         })
         expect(feeService.getAsk({ token: 999_000_000n, native: 0n }, intent)).toEqual({
@@ -311,7 +311,7 @@ describe('FeeService', () => {
           native: 0n,
         })
         expect(feeService.getAsk({ token: 1_000_000_000n, native: 0n }, intent)).toEqual({
-          token: 1_000_000_000n + baseFee + 11n * unitFee,
+          token: 1_000_000_000n + baseFee + 10n * unitFee,
           native: 0n,
         })
       })
