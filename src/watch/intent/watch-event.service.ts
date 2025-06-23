@@ -15,7 +15,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
 {
   protected logger: Logger
   protected watchJobConfig: JobsOptions
-  protected unwatch: Record<string, WatchContractEventReturnType> = {}
+  protected unwatch: Record<string, WatchContractEventReturnType[]> = {}
 
   constructor(
     protected readonly queue: Queue,
@@ -60,9 +60,11 @@ export abstract class WatchEventService<T extends { chainID: number }>
         message: `watch-event: unsubscribe`,
       }),
     )
-    Object.values(this.unwatch).forEach((unwatch) => {
+    Object.values(this.unwatch).forEach((unwatchArr) => {
       try {
-        unwatch()
+        unwatchArr.forEach((unwatch) => {
+          unwatch()
+        })
       } catch (e) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -107,7 +109,9 @@ export abstract class WatchEventService<T extends { chainID: number }>
         }),
       )
       try {
-        this.unwatch[chainID]()
+        this.unwatch[chainID].forEach((unwatchEach) => {
+          unwatchEach()
+        })
       } catch (e) {
         this.logger.error(
           EcoLogMessage.withError({

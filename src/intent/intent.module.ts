@@ -7,7 +7,6 @@ import { ValidateIntentService } from './validate-intent.service'
 import { FeasableIntentService } from './feasable-intent.service'
 import { CreateIntentService } from './create-intent.service'
 import { UtilsIntentService } from './utils-intent.service'
-import { BalanceModule } from '../balance/balance.module'
 import { FulfillIntentService } from './fulfill-intent.service'
 import { ProverModule } from '../prover/prover.module'
 import { TransactionModule } from '../transaction/transaction.module'
@@ -21,6 +20,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WithdrawalService } from '@/intent/withdrawal.service'
 import { WithdrawalRepository } from '@/intent/repositories/withdrawal.repository'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { BalanceModule } from '../balance/balance.module'
 
 @Module({
   imports: [

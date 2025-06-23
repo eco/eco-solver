@@ -61,20 +61,22 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       }),
     )
 
-    this.unwatch[source.chainID] = client.watchContractEvent({
-      onError: async (error) => {
-        await this.onError(error, client, source)
-      },
-      address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
-      args: {
-        // // restrict by acceptable chains, chain ids must be bigints
-        // _destinationChain: solverSupportedChains,
-        prover: source.provers,
-      },
-      onLogs: this.addJob(source),
-    })
+    this.unwatch[source.chainID] = [
+      client.watchContractEvent({
+        onError: async (error) => {
+          await this.onError(error, client, source)
+        },
+        address: source.sourceAddress,
+        abi: IntentSourceAbi,
+        eventName: 'IntentCreated',
+        args: {
+          // // restrict by acceptable chains, chain ids must be bigints
+          // _destinationChain: solverSupportedChains,
+          prover: source.provers,
+        },
+        onLogs: this.addJob(source),
+      }),
+    ]
   }
 
   addJob(source: IntentSource): (logs: Log[]) => Promise<void> {

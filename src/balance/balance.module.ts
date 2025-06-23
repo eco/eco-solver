@@ -6,6 +6,8 @@ import { BalanceService } from './services/balance.service'
 import { TransactionModule } from '../transaction/transaction.module'
 import { CacheModule } from '@nestjs/cache-manager'
 import { RpcBalanceService } from './services/rpc-balance.service'
+import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { QUEUES } from '../common/redis/constants'
 
 @Module({
   imports: [
@@ -13,6 +15,7 @@ import { RpcBalanceService } from './services/rpc-balance.service'
     CacheModule.register(),
     // MongoDB schema registration
     MongooseModule.forFeature([{ name: BalanceRecord.name, schema: BalanceRecordSchema }]),
+    initBullMQ(QUEUES.BALANCE_MONITOR),
   ],
 
   providers: [

@@ -363,7 +363,6 @@ export type ERC20TransferLog = Prettify<
   }
 >
 
-
 export function isSupportedTokenType(targetType: TargetContractType): boolean {
   switch (targetType) {
     case 'erc20':

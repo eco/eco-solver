@@ -105,13 +105,13 @@ export class WatchNativeService extends WatchEventService<Solver> {
     // Watch blocks and filter transactions for this solver
     const unwatchBlocks = client.watchBlocks({
       onBlock: async (block: Block) => {
-        await this.processBlock(client, block, solver, solverAddress)
+        await this.processBlock(block, solver, solverAddress)
       },
       onError: async (error) => await this.onError(error, client, solver),
     })
 
     // Store unwatch function
-    this.unwatch[solver.chainID] = unwatchBlocks
+    this.unwatch[solver.chainID] = [unwatchBlocks]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

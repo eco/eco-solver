@@ -108,16 +108,32 @@ export class WatchTokensService extends WatchEventService<Solver> {
 
     // Watch for both incoming and outgoing transfers using OR logic
     // This captures transfers where the solver is either the sender OR receiver
-    const unwatchTransfers = client.watchContractEvent({
+    const unwatchOutgoingTransfers = client.watchContractEvent({
       address: tokenAddresses,
       abi: erc20Abi,
       eventName: 'Transfer',
+      args: {
+        // Filter for transfers involving the solver address
+        to: [solverAddress], // incoming transfers
+      },
+      onLogs: this.addJob(solver),
+      onError: async (error) => await this.onError(error, client, solver),
+    })
+
+    const unwatchIncomingTransfers = client.watchContractEvent({
+      address: tokenAddresses,
+      abi: erc20Abi,
+      eventName: 'Transfer',
+      args: {
+        // Filter for transfers involving the solver address
+        from: [solverAddress], // outgoing transfers
+      },
       onLogs: this.addJob(solver),
       onError: async (error) => await this.onError(error, client, solver),
     })
 
     // Store unwatch function
-    this.unwatch[solver.chainID] = unwatchTransfers
+    this.unwatch[solver.chainID] = [unwatchOutgoingTransfers, unwatchIncomingTransfers]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

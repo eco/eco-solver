@@ -66,16 +66,18 @@ export class WatchWithdrawalService extends WatchEventService<IntentSource> {
       }),
     )
 
-    this.unwatch[source.chainID] = client.watchContractEvent({
-      onError: async (error) => {
-        await this.onError(error, client, source)
-      },
-      address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'Withdrawal',
-      // No specific args filtering needed for withdrawals - we want all withdrawal events
-      onLogs: this.addJob(source),
-    })
+    this.unwatch[source.chainID] = [
+      client.watchContractEvent({
+        onError: async (error) => {
+          await this.onError(error, client, source)
+        },
+        address: source.sourceAddress,
+        abi: IntentSourceAbi,
+        eventName: 'Withdrawal',
+        // No specific args filtering needed for withdrawals - we want all withdrawal events
+        onLogs: this.addJob(source),
+      }),
+    ]
   }
 
   addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
