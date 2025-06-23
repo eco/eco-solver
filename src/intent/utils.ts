@@ -30,8 +30,8 @@ export type IntentJobServiceName =
  * The types of intent job id prefixes
  */
 export type WatchJobServiceName =
-  | 'watch-native'
-  | 'watch-tokens'
+  | 'watch-native-balance-change'
+  | 'watch-token-balance-change'
   | 'watch-intent-funded'
   | 'watch-create-intent'
   | 'watch-fulfillement'

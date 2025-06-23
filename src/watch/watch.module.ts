@@ -13,7 +13,7 @@ import { WatchNativeService } from '@/watch/balance/watch-native.service'
   imports: [
     initBullMQ(QUEUES.SOURCE_INTENT),
     initBullMQ(QUEUES.INBOX),
-    initBullMQ(QUEUES.WATCH_RPC),
+    initBullMQ(QUEUES.BALANCE_MONITOR),
     TransactionModule,
     IntentFundedEventsModule,
   ],

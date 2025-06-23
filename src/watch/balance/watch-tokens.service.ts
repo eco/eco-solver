@@ -18,7 +18,7 @@ export class WatchTokensService extends WatchEventService<Solver> {
   protected logger = new Logger(WatchTokensService.name)
 
   constructor(
-    @InjectQueue(QUEUES.WATCH_RPC.queue) protected readonly queue: Queue,
+    @InjectQueue(QUEUES.BALANCE_MONITOR.queue) protected readonly queue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
@@ -161,7 +161,7 @@ export class WatchTokensService extends WatchEventService<Solver> {
         // bigint as it can't serialize to JSON
         const watchTransfer = BigIntSerializer.serialize(log)
         const jobId = getWatchJobId(
-          'watch-tokens',
+          'watch-token-balance-change',
           watchTransfer.transactionHash,
           watchTransfer.logIndex,
         )
@@ -171,12 +171,84 @@ export class WatchTokensService extends WatchEventService<Solver> {
             properties: { createIntent: watchTransfer, jobId },
           }),
         )
-        // add to processing queue
-        await this.queue.add(QUEUES.WATCH_RPC.jobs.erc20_balance_rpc, watchTransfer, {
-          jobId,
-          ...this.watchJobConfig,
-        })
+        // Create a job to record the token balance change
+        await this.createTokenBalanceChangeJob(solver, log)
       }
+    }
+  }
+
+  /**
+   * Create a job to record a token balance change
+   */
+  private async createTokenBalanceChangeJob(solver: Solver, log: ERC20TransferLog): Promise<void> {
+    try {
+      // Get the solver address to determine direction
+      const solverAddress = await this.getSolverAddress(solver)
+      if (!solverAddress) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: 'Cannot determine balance change direction without solver address',
+            properties: {
+              chainID: solver.chainID,
+              tokenAddress: log.address,
+              transactionHash: log.transactionHash,
+            },
+          }),
+        )
+        return
+      }
+
+      // Determine if this is incoming or outgoing based on transfer direction
+      const direction = log.args.to === solverAddress ? 'incoming' : 'outgoing'
+
+      const balanceChangeData = {
+        chainId: solver.chainID.toString(),
+        address: log.address, // Changed from tokenAddress to address
+        changeAmount: log.args.value.toString(),
+        direction,
+        blockNumber: log.blockNumber.toString(),
+        blockHash: log.blockHash,
+        transactionHash: log.transactionHash,
+        timestamp: new Date(), // Current timestamp as block timestamp might not be available
+        from: log.args.from,
+        to: log.args.to,
+      }
+
+      const serializedData = BigIntSerializer.serialize(balanceChangeData)
+      const jobId = getWatchJobId('watch-token-balance-change', log.transactionHash, log.logIndex)
+
+      // Add balance update job to BALANCE_MONITOR queue
+      await this.queue.add(QUEUES.BALANCE_MONITOR.jobs.update_balance, serializedData, {
+        jobId,
+        ...this.watchJobConfig,
+      })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Token balance change job created',
+          properties: {
+            chainID: solver.chainID,
+            tokenAddress: log.address,
+            transactionHash: log.transactionHash,
+            blockNumber: log.blockNumber.toString(),
+            direction,
+            amount: log.args.value.toString(),
+            jobId,
+          },
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error creating token balance change job',
+          properties: {
+            chainID: solver.chainID,
+            tokenAddress: log.address,
+            transactionHash: log.transactionHash,
+            error: error.message || error,
+          },
+        }),
+      )
     }
   }
 

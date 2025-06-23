@@ -21,7 +21,6 @@ import { WithdrawalService } from '@/intent/withdrawal.service'
 import { WithdrawalRepository } from '@/intent/repositories/withdrawal.repository'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { BalanceModule } from '../balance/balance.module'
-
 @Module({
   imports: [
     BalanceModule,

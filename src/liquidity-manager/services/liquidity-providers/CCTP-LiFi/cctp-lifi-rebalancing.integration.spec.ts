@@ -26,7 +26,7 @@ import {
   RebalanceRequest,
   LiFiStrategyContext,
 } from '@/liquidity-manager/types/types'
-import { TokenConfig } from '@/balance/types'
+import { TokenConfig } from '@/balance/types/balance.types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'

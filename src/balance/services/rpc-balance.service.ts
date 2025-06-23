@@ -125,11 +125,11 @@ export class RpcBalanceService implements OnApplicationBootstrap {
     chainID: number,
     //used by cacheable decorator
     forceRefresh = false, // eslint-disable-line @typescript-eslint/no-unused-vars
-  ): Promise<{ balance: bigint; blockNumber: bigint }> {
+  ): Promise<{ balance: bigint; blockNumber: bigint; blockHash: Hex }> {
     const clientKernel = await this.kernelAccountClientService.getClient(chainID)
     const kernelAddress = clientKernel.kernelAccount?.address
     const eocAddress = clientKernel.account?.address
-    const results = await Promise.all([
+    const [balance, blockNumber] = await Promise.all([
       (async () => {
         if (eocAddress && kernelAddress) {
           const balance = await clientKernel.getBalance({ address: eocAddress })
@@ -140,7 +140,10 @@ export class RpcBalanceService implements OnApplicationBootstrap {
       clientKernel.getBlockNumber(),
     ])
 
-    return { balance: results[0], blockNumber: results[1] }
+    // Get block information
+    const block = await clientKernel.getBlock({ blockNumber })
+
+    return { balance, blockNumber: block.number, blockHash: block.hash }
   }
 
   /**
@@ -150,7 +153,9 @@ export class RpcBalanceService implements OnApplicationBootstrap {
   @Cacheable({ bypassArgIndex: 0 })
   async fetchAllNativeBalances(
     forceRefresh = false,
-  ): Promise<Array<{ chainId: number; balance: bigint; blockNumber: bigint } | null>> {
+  ): Promise<
+    Array<{ chainId: number; balance: bigint; blockNumber: bigint; blockHash: Hex } | null>
+  > {
     // Get native balances for all chains
     const chainIds = Object.keys(this.configService.getSolvers()).map(Number)
     const nativeBalancePromises = chainIds.map(async (chainId) => {
@@ -160,6 +165,7 @@ export class RpcBalanceService implements OnApplicationBootstrap {
           chainId,
           balance: nativeBalanceData.balance,
           blockNumber: nativeBalanceData.blockNumber,
+          blockHash: nativeBalanceData.blockHash,
         }
       } catch (error) {
         return null
@@ -194,27 +200,37 @@ export class RpcBalanceService implements OnApplicationBootstrap {
       }),
     )
 
-    const results = (await client.multicall({
-      contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] => [
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'balanceOf',
-          args: [walletAddress],
-        },
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'decimals',
-        },
-      ]),
-      allowFailure: false,
-    })) as MulticallReturnType
+    // Fetch both token data and block information in parallel
+    const [multicallResults, blockNumber] = await Promise.all([
+      client.multicall({
+        contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] => [
+          {
+            abi: erc20Abi,
+            address: tokenAddress,
+            functionName: 'balanceOf',
+            args: [walletAddress],
+          },
+          {
+            abi: erc20Abi,
+            address: tokenAddress,
+            functionName: 'decimals',
+          },
+        ]),
+        allowFailure: false,
+      }) as Promise<MulticallReturnType>,
+      client.getBlockNumber(),
+    ])
+
+    // Get block information
+    const block = await client.getBlock({ blockNumber })
 
     const tokenBalances: Record<Hex, TokenBalance> = {}
 
     tokenAddresses.forEach((tokenAddress, index) => {
-      const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
+      const [balance = 0n, decimals = 0] = [
+        multicallResults[index * 2],
+        multicallResults[index * 2 + 1],
+      ]
       //throw if we suddenly start supporting tokens with not 6 decimals
       //audit conversion of validity to see its support
       if ((decimals as number) != 6) {
@@ -224,6 +240,8 @@ export class RpcBalanceService implements OnApplicationBootstrap {
         address: tokenAddress,
         balance: balance as bigint,
         decimals: decimals as number,
+        blockNumber: block.number,
+        blockHash: block.hash,
       }
     })
     return tokenBalances

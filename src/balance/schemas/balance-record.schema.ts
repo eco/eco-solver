@@ -8,25 +8,22 @@ import { Document } from 'mongoose'
 })
 export class BalanceRecord extends Document {
   @Prop({ required: true, type: String })
-  chainId: string // Store as string to handle bigint
+  chainId: string
 
   @Prop({ required: true, type: String })
-  tokenAddress: string // Hex address or 'native'
+  address: string // Hex address or 'native'
 
   @Prop({ required: true, type: String })
-  balance: string // Store as string to handle bigint
+  balance: string // Current balance from RPC (store as string to handle bigint)
 
   @Prop({ required: true, type: String })
-  blockNumber: string // Store as string to handle bigint
+  blockNumber: string // Block number when balance was fetched
 
   @Prop({ required: true, type: String })
-  blockHash: string // Hex hash
+  blockHash: string
 
   @Prop({ required: true, type: Date })
   timestamp: Date
-
-  @Prop({ required: false, type: String })
-  transactionHash?: string // Optional Hex hash
 
   @Prop({ required: false, type: Number })
   decimals?: number
@@ -40,14 +37,11 @@ export class BalanceRecord extends Document {
 
 export const BalanceRecordSchema = SchemaFactory.createForClass(BalanceRecord)
 
-// Compound indexes for efficient querying
-BalanceRecordSchema.index({ chainId: 1, tokenAddress: 1 })
-BalanceRecordSchema.index({ chainId: 1, timestamp: -1 })
-BalanceRecordSchema.index({ blockNumber: -1 })
-BalanceRecordSchema.index({ timestamp: -1 })
-BalanceRecordSchema.index({ transactionHash: 1 }, { sparse: true })
+// Unique index for chainId + address (one record per chain/token combination)
+BalanceRecordSchema.index({ chainId: 1, address: 1 }, { unique: true })
 
-// Unique index to prevent duplicate balance records at same block
-BalanceRecordSchema.index({ chainId: 1, tokenAddress: 1, blockNumber: 1 }, { unique: true })
+// Additional indexes for efficient querying
+BalanceRecordSchema.index({ chainId: 1 })
+BalanceRecordSchema.index({ blockNumber: -1 })
 
 export type BalanceRecordModel = BalanceRecord & Document

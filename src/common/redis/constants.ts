@@ -25,14 +25,6 @@ export const QUEUES: Record<any, QueueInterface> = {
       fulfillment: 'fulfillment',
     },
   },
-  WATCH_RPC: {
-    queue: 'watch_rpc',
-    prefix: '{watch_rpc}',
-    jobs: {
-      erc20_balance_rpc: 'erc20_balance_rpc',
-      native_balance_rpc: 'native_balance_rpc',
-    },
-  },
   SIGNER: {
     queue: 'signer',
     prefix: '{signer}',
@@ -49,9 +41,9 @@ export const QUEUES: Record<any, QueueInterface> = {
     queue: 'balance_monitor',
     prefix: '{balance-monitor}',
     jobs: {
-      initialize_monitoring: 'initialize_monitoring',
-      update_balance: 'update_balance',
-      store_balance: 'store_balance',
+      init_balance_record: 'init_balance_record',
+      update_balance_record: 'update_balance_record',
+      update_balance_change: 'update_balance_change',
     },
   },
 }

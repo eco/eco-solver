@@ -6,7 +6,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Cache } from 'cache-manager'
 
-describe('BalanceService', () => {
+describe('RpcBalanceService', () => {
   let balanceService: RpcBalanceService
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
 
@@ -19,6 +19,7 @@ describe('BalanceService', () => {
     },
     getBalance: jest.fn(),
     getBlockNumber: jest.fn(),
+    getBlock: jest.fn(),
   }
 
   beforeEach(async () => {
@@ -42,11 +43,17 @@ describe('BalanceService', () => {
     const chainID = 1 // Ethereum mainnet
     const expectedBalance = 1000000000000000000n // 1 ETH in wei
     const expectedBlockNumber = 18500000n // Example block number
+    const expectedBlockHash =
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as const
 
     beforeEach(() => {
       kernelAccountClientService.getClient.mockResolvedValue(mockKernelClient as any)
       mockKernelClient.getBalance.mockResolvedValue(expectedBalance)
       mockKernelClient.getBlockNumber.mockResolvedValue(expectedBlockNumber)
+      mockKernelClient.getBlock.mockResolvedValue({
+        number: expectedBlockNumber,
+        hash: expectedBlockHash,
+      })
     })
 
     it('should successfully fetch native balance when both kernel and EOA addresses are available', async () => {
@@ -55,18 +62,24 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: expectedBalance,
         blockNumber: expectedBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
         address: mockKernelClient.account.address,
       })
       expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
+      expect(mockKernelClient.getBlock).toHaveBeenCalledWith({ blockNumber: expectedBlockNumber })
     })
 
     it('should return 0n balance when kernel address is not available', async () => {
       const clientWithoutKernel = {
         ...mockKernelClient,
         kernelAccount: null,
+        getBlock: jest.fn().mockResolvedValue({
+          number: expectedBlockNumber,
+          hash: expectedBlockHash,
+        }),
       }
       kernelAccountClientService.getClient.mockResolvedValue(clientWithoutKernel as any)
 
@@ -75,6 +88,7 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: 0n,
         blockNumber: expectedBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
@@ -85,6 +99,10 @@ describe('BalanceService', () => {
       const clientWithoutEOA = {
         ...mockKernelClient,
         account: null,
+        getBlock: jest.fn().mockResolvedValue({
+          number: expectedBlockNumber,
+          hash: expectedBlockHash,
+        }),
       }
       kernelAccountClientService.getClient.mockResolvedValue(clientWithoutEOA as any)
 
@@ -93,6 +111,7 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: 0n,
         blockNumber: expectedBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
@@ -104,6 +123,10 @@ describe('BalanceService', () => {
         ...mockKernelClient,
         kernelAccount: null,
         account: null,
+        getBlock: jest.fn().mockResolvedValue({
+          number: expectedBlockNumber,
+          hash: expectedBlockHash,
+        }),
       }
       kernelAccountClientService.getClient.mockResolvedValue(clientWithoutAddresses as any)
 
@@ -112,6 +135,7 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: 0n,
         blockNumber: expectedBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
@@ -125,18 +149,24 @@ describe('BalanceService', () => {
 
       mockKernelClient.getBalance.mockResolvedValue(polygonBalance)
       mockKernelClient.getBlockNumber.mockResolvedValue(polygonBlockNumber)
+      mockKernelClient.getBlock.mockResolvedValue({
+        number: polygonBlockNumber,
+        hash: expectedBlockHash,
+      })
 
       const result = await balanceService.fetchNativeBalance(polygonChainId)
 
       expect(result).toEqual({
         balance: polygonBalance,
         blockNumber: polygonBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(polygonChainId)
       expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
         address: mockKernelClient.account.address,
       })
       expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
+      expect(mockKernelClient.getBlock).toHaveBeenCalledWith({ blockNumber: polygonBlockNumber })
     })
 
     it('should handle zero balance correctly', async () => {
@@ -147,12 +177,14 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: 0n,
         blockNumber: expectedBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBalance).toHaveBeenCalledWith({
         address: mockKernelClient.account.address,
       })
       expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
+      expect(mockKernelClient.getBlock).toHaveBeenCalledWith({ blockNumber: expectedBlockNumber })
     })
 
     it('should propagate errors from kernel account client service', async () => {
@@ -192,9 +224,11 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: largeBalance,
         blockNumber: expectedBlockNumber,
+        blockHash: expectedBlockHash,
       })
       expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
       expect(mockKernelClient.getBlockNumber).toHaveBeenCalled()
+      expect(mockKernelClient.getBlock).toHaveBeenCalledWith({ blockNumber: expectedBlockNumber })
     })
 
     it('should be cacheable (verify @Cacheable decorator is applied)', () => {
@@ -214,6 +248,10 @@ describe('BalanceService', () => {
           kernelAccount: {
             address: undefined,
           },
+          getBlock: jest.fn().mockResolvedValue({
+            number: expectedBlockNumber,
+            hash: expectedBlockHash,
+          }),
         }
         kernelAccountClientService.getClient.mockResolvedValue(
           clientWithUndefinedKernelAddress as any,
@@ -224,6 +262,7 @@ describe('BalanceService', () => {
         expect(result).toEqual({
           balance: 0n,
           blockNumber: expectedBlockNumber,
+          blockHash: expectedBlockHash,
         })
         expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
         expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
@@ -236,6 +275,10 @@ describe('BalanceService', () => {
           account: {
             address: undefined,
           },
+          getBlock: jest.fn().mockResolvedValue({
+            number: expectedBlockNumber,
+            hash: expectedBlockHash,
+          }),
         }
         kernelAccountClientService.getClient.mockResolvedValue(clientWithUndefinedEOAAddress as any)
 
@@ -244,6 +287,7 @@ describe('BalanceService', () => {
         expect(result).toEqual({
           balance: 0n,
           blockNumber: expectedBlockNumber,
+          blockHash: expectedBlockHash,
         })
         expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(chainID)
         expect(mockKernelClient.getBalance).not.toHaveBeenCalled()
@@ -261,6 +305,7 @@ describe('BalanceService', () => {
         expect(result).toEqual({
           balance: expectedBalance,
           blockNumber: expectedBlockNumber,
+          blockHash: expectedBlockHash,
         })
       })
     })

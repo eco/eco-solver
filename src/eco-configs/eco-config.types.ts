@@ -132,6 +132,13 @@ export type IntervalConfig = {
       opts: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
     }
   }
+  balanceRpcUpdate: {
+    repeatOpts: Omit<RepeatOptions, 'key'>
+    jobTemplate: {
+      name?: string
+      data?: object
+    }
+  }
   defaults: {
     repeatOpts: Omit<RepeatOptions, 'key'>
     jobTemplate?: {

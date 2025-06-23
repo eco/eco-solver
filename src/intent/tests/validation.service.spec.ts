@@ -14,6 +14,7 @@ import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { Hex } from 'viem'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -485,11 +486,15 @@ describe('ValidationService', () => {
             address: '0xToken1',
             balance: 1000000n, // 1 token current balance
             decimals: 6,
+            blockNumber: 12345n,
+            blockHash: '0xabcd1234' as Hex,
           })
           .mockResolvedValueOnce({
             address: '0xToken2',
             balance: 500000n, // 0.5 token current balance
             decimals: 6,
+            blockNumber: 12345n,
+            blockHash: '0xabcd1234' as Hex,
           })
 
         const result = await validationService.validSourceMax(mockIntent)
@@ -508,6 +513,8 @@ describe('ValidationService', () => {
           address: '0xToken1',
           balance: 4500000000n, // 4500 tokens current balance (maxBalance is 5000)
           decimals: 6,
+          blockNumber: 12345n,
+          blockHash: '0xabcd1234' as Hex,
         })
 
         const result = await validationService.validSourceMax(mockIntent)
@@ -542,6 +549,8 @@ describe('ValidationService', () => {
           address: '0xToken1',
           balance: 1000000000000000000n, // 1 token current balance
           decimals: 18,
+          blockNumber: 12345n,
+          blockHash: '0xabcd1234' as Hex,
         })
 
         const result = await validationService.validSourceMax(intentWith18Decimals)
@@ -575,6 +584,8 @@ describe('ValidationService', () => {
           address: '0xToken1',
           balance: 1000000n,
           decimals: 6,
+          blockNumber: 12345n,
+          blockHash: '0xabcd1234' as Hex,
         })
 
         const result = await validationService.validSourceMax(intentWithUnknownToken)
@@ -594,11 +605,15 @@ describe('ValidationService', () => {
             address: '0xToken1',
             balance: 2000000000n, // 2000 tokens
             decimals: 6,
+            blockNumber: 12345n,
+            blockHash: '0xabcd1234' as Hex,
           })
           .mockResolvedValueOnce({
             address: '0xToken2',
             balance: 1000000000n, // 1000 tokens
             decimals: 6,
+            blockNumber: 12345n,
+            blockHash: '0xabcd1234' as Hex,
           })
 
         const result = await validationService.validSourceMax(mockIntent)
@@ -623,6 +638,8 @@ describe('ValidationService', () => {
           address: '0xToken1',
           balance: 999000000n, // 999 tokens (just under 1000)
           decimals: 6,
+          blockNumber: 12345n,
+          blockHash: '0xabcd1234' as Hex,
         })
 
         const result = await validationService.validSourceMax(mockIntent)
@@ -634,6 +651,8 @@ describe('ValidationService', () => {
           address: '0xToken1',
           balance: 999500000n, // 999.5 tokens, would become 1000.5 after reward
           decimals: 6,
+          blockNumber: 12345n,
+          blockHash: '0xabcd1234' as Hex,
         })
 
         const result2 = await validationService.validSourceMax(mockIntent)

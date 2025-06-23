@@ -1097,7 +1097,13 @@ describe('FeeService', () => {
         // We need to provide a non-empty response to avoid the FetchingCallTokensFailed error
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({
           // Add a dummy token balance so the check doesn't fail
-          '0xdummy': { address: '0xdummy', balance: 1n, decimals: 18 },
+          '0xdummy': {
+            address: '0xdummy',
+            balance: 1n,
+            decimals: 18,
+            blockNumber: 12345n,
+            blockHash: '0xabcd1234',
+          },
         })
 
         const result = await feeService.getCallsNormalized(nativeOnlyQuote as any)
@@ -1235,6 +1241,8 @@ describe('FeeService', () => {
           address: '0x1',
           decimals: BASE_DECIMALS,
           balance: 300_000_000n,
+          blockNumber: 12345n,
+          blockHash: '0xabcd1234',
         },
         chainId: 10,
       }

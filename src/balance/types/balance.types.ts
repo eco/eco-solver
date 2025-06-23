@@ -13,6 +13,8 @@ export type TokenBalance = {
   address: Hex
   decimals: number
   balance: bigint
+  blockNumber: bigint
+  blockHash: Hex
 }
 
 export interface BalanceChangeEvent {

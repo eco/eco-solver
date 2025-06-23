@@ -13,28 +13,12 @@ import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { getWatchJobId } from '@/common/utils/strings'
 import { zeroHash } from 'viem'
 
-interface NativeTransferEvent {
-  chainId: bigint
-  network: string
-  transactionHash: Hex
-  blockNumber: bigint
-  blockHash: Hex
-  from: Hex
-  to: Hex
-  value: bigint
-  timestamp: Date
-  solverAddress: Hex
-  direction: 'incoming' | 'outgoing'
-  sourceChainID?: bigint
-  sourceNetwork?: string
-}
-
 @Injectable()
 export class WatchNativeService extends WatchEventService<Solver> {
   protected logger = new Logger(WatchNativeService.name)
 
   constructor(
-    @InjectQueue(QUEUES.WATCH_RPC.queue) protected readonly queue: Queue,
+    @InjectQueue(QUEUES.BALANCE_MONITOR.queue) protected readonly queue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
@@ -182,26 +166,6 @@ export class WatchNativeService extends WatchEventService<Solver> {
   ): Promise<void> {
     try {
       const direction = transaction.to === solverAddress ? 'incoming' : 'outgoing'
-
-      const nativeTransferEvent: NativeTransferEvent = {
-        chainId: BigInt(solver.chainID),
-        network: solver.network,
-        transactionHash: transaction.hash,
-        blockNumber: block.number || 0n,
-        blockHash: block.hash || zeroHash,
-        from: transaction.from,
-        to: transaction.to || zeroAddress,
-        value: transaction.value,
-        timestamp: new Date(Number(block.timestamp) * 1000),
-        solverAddress,
-        direction,
-        sourceChainID: BigInt(solver.chainID),
-        sourceNetwork: solver.network,
-      }
-
-      // Serialize for queue processing
-      const serializedEvent = convertBigIntsToStrings(nativeTransferEvent)
-
       this.logger.debug(
         EcoLogMessage.fromDefault({
           message: 'Native transfer detected',
@@ -218,18 +182,8 @@ export class WatchNativeService extends WatchEventService<Solver> {
         }),
       )
 
-      // Generate unique job ID
-      const jobId = getWatchJobId(
-        'watch-native',
-        transaction.hash,
-        0, // Native transfers don't have log index
-      )
-
-      // Add to processing queue (using a new job type for native transfers)
-      await this.queue.add(QUEUES.WATCH_RPC.jobs.native_balance_socket, serializedEvent, {
-        jobId,
-        ...this.watchJobConfig,
-      })
+      // Create a job to record the balance change
+      await this.createNativeBalanceChangeJob(solver, transaction, block, direction)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -258,6 +212,65 @@ export class WatchNativeService extends WatchEventService<Solver> {
           properties: {
             chainID: solver.chainID,
             logCount: logs.length,
+          },
+        }),
+      )
+    }
+  }
+
+  /**
+   * Create a job to record a native balance change
+   */
+  private async createNativeBalanceChangeJob(
+    solver: Solver,
+    transaction: Transaction,
+    block: Block,
+    direction: 'incoming' | 'outgoing',
+  ): Promise<void> {
+    try {
+      const balanceChangeData = {
+        chainId: solver.chainID.toString(),
+        address: 'native', // Changed from tokenAddress to address
+        changeAmount: transaction.value.toString(),
+        direction,
+        blockNumber: (block.number || 0n).toString(),
+        blockHash: block.hash || zeroHash,
+        transactionHash: transaction.hash,
+        timestamp: new Date(Number(block.timestamp) * 1000),
+        from: transaction.from,
+        to: transaction.to || zeroAddress,
+      }
+
+      const serializedData = convertBigIntsToStrings(balanceChangeData)
+      const jobId = getWatchJobId('watch-native-balance-change', transaction.hash, 0)
+
+      // Add balance update job to BALANCE_MONITOR queue
+      await this.queue.add(QUEUES.BALANCE_MONITOR.jobs.update_balance, serializedData, {
+        jobId,
+        ...this.watchJobConfig,
+      })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Native balance change job created',
+          properties: {
+            chainID: solver.chainID,
+            transactionHash: transaction.hash,
+            blockNumber: block.number?.toString(),
+            direction,
+            amount: transaction.value.toString(),
+            jobId,
+          },
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error creating native balance change job',
+          properties: {
+            chainID: solver.chainID,
+            transactionHash: transaction.hash,
+            error: error.message || error,
           },
         }),
       )
