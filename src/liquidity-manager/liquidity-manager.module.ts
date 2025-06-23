@@ -14,7 +14,7 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
-import { RebalancingProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/rebalancing-provider.service'
+import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/negative-intent-rebalance-provider.service'
 import { LitActionsModule } from '@/lit-actions/lit-actions.module'
 
 @Module({
@@ -38,7 +38,7 @@ import { LitActionsModule } from '@/lit-actions/lit-actions.module'
     CCTPLiFiProviderService,
     RelayProviderService,
     StargateProviderService,
-    RebalancingProviderService,
+    NegativeIntentRebalanceProviderService,
   ],
   exports: [LiquidityManagerService],
 })

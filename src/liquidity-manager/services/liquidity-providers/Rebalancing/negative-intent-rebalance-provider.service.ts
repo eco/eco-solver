@@ -13,8 +13,10 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { LitActionService } from '@/lit-actions/lit-action.service'
 
 @Injectable()
-export class RebalancingProviderService implements IRebalanceProvider<'Rebalancing'> {
-  private logger = new Logger(RebalancingProviderService.name)
+export class NegativeIntentRebalanceProviderService
+  implements IRebalanceProvider<'NegativeIntent'>
+{
+  private logger = new Logger(NegativeIntentRebalanceProviderService.name)
   private config: LiquidityManagerConfig
 
   constructor(
@@ -27,7 +29,7 @@ export class RebalancingProviderService implements IRebalanceProvider<'Rebalanci
   }
 
   getStrategy() {
-    return 'Rebalancing' as const
+    return 'NegativeIntent' as const
   }
 
   async getQuote(
@@ -35,7 +37,7 @@ export class RebalancingProviderService implements IRebalanceProvider<'Rebalanci
     tokenOut: TokenData,
     swapAmount: number,
     id?: string,
-  ): Promise<RebalanceQuote<'Rebalancing'>> {
+  ): Promise<RebalanceQuote<'NegativeIntent'>> {
     // Get the rebalancing percentage from config (default to 5% if not set)
     const rebalancingPercentage = this.config.rebalancingPercentage || 0.05
 
@@ -60,7 +62,7 @@ export class RebalancingProviderService implements IRebalanceProvider<'Rebalanci
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Rebalancing'>): Promise<Hex> {
+  async execute(walletAddress: string, quote: RebalanceQuote<'NegativeIntent'>): Promise<Hex> {
     // Only the crowd liquidity pool can execute rebalancing intents
     const crowdLiquidityPoolAddress = this.getCrowdLiquidityPoolAddress()
     if (walletAddress !== crowdLiquidityPoolAddress) {
@@ -77,7 +79,7 @@ export class RebalancingProviderService implements IRebalanceProvider<'Rebalanci
    * @param quote - The rebalancing quote
    * @returns Transaction hash of the published intent
    */
-  private async publishRebalancingIntent(quote: RebalanceQuote<'Rebalancing'>): Promise<Hex> {
+  private async publishRebalancingIntent(quote: RebalanceQuote<'NegativeIntent'>): Promise<Hex> {
     const { tokenIn, tokenOut, amountIn, amountOut, context } = quote
 
     this.logger.log(
@@ -262,7 +264,7 @@ export class RebalancingProviderService implements IRebalanceProvider<'Rebalanci
 
   private async triggerNegativeIntentRebalance(
     intentHash: Hex,
-    quote: RebalanceQuote<'Rebalancing'>,
+    quote: RebalanceQuote<'NegativeIntent'>,
   ): Promise<void> {
     try {
       const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
