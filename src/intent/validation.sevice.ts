@@ -422,7 +422,7 @@ export class ValidationService implements OnModuleInit {
     solverTargets: Record<string, any>,
   ): Promise<boolean> {
     const tokens = intent.route.tokens.map((t) => t.token)
-    const tokenBalances = await this.balanceService.fetchWalletTokenBalances(
+    const tokenBalances = await this.balanceService.fetchCachedWalletTokenBalances(
       destinationChain,
       walletAddr,
       tokens,

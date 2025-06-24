@@ -104,6 +104,22 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param tokenAddresses the tokens to fetch balances for
    * @returns
    */
+  @Cacheable()
+  async fetchCachedWalletTokenBalances(
+    chainID: number,
+    walletAddress: string,
+    tokenAddresses: Hex[],
+  ): Promise<Record<Hex, TokenBalance>> {
+    return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+  }
+
+  /**
+   * Fetches the token balances of a wallet for the given token list.
+   * @param chainID the chain id
+   * @param walletAddress wallet address
+   * @param tokenAddresses the tokens to fetch balances for
+   * @returns
+   */
   async fetchWalletTokenBalances(
     chainID: number,
     walletAddress: string,
@@ -214,6 +230,7 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param address
    * @returns The native token balance in wei (base units), or 0n if no EOA address is found
    */
+  @Cacheable()
   async getNativeBalance(chainID: number, address: Hex): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     return client.getBalance({ address })
