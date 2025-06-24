@@ -72,12 +72,16 @@ describe('ValidationService', () => {
   describe('on initialization', () => {
     it('should set isNativeETHSupported based on config on module init', () => {
       // Test when native is supported
-      jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue({ isNativeETHSupported: true } as any)
+      jest
+        .spyOn(ecoConfigService, 'getIntentConfigs')
+        .mockReturnValue({ isNativeETHSupported: true } as any)
       validationService.onModuleInit()
       expect(validationService['isNativeETHSupported']).toBe(true)
 
       // Test when native is not supported
-      jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValue({ isNativeETHSupported: false } as any)
+      jest
+        .spyOn(ecoConfigService, 'getIntentConfigs')
+        .mockReturnValue({ isNativeETHSupported: false } as any)
       validationService.onModuleInit()
       expect(validationService['isNativeETHSupported']).toBe(false)
     })
@@ -173,7 +177,11 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if multiple sources supports the prover', async () => {
-        const intent = { source: Number(sourceChainID), destination: Number(chainID), prover } as any
+        const intent = {
+          source: Number(sourceChainID),
+          destination: Number(chainID),
+          prover,
+        } as any
         ecoConfigService.getIntentSources.mockReturnValue([
           { provers: [prover], chainID: Number(chainID) } as any,
           { provers: [prover], chainID: Number(chainID) } as any,
@@ -423,9 +431,9 @@ describe('ValidationService', () => {
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {
-        const intent = { 
-          reward: { deadline: 100, prover: '0x123' }, 
-          route: { source: 1n } 
+        const intent = {
+          reward: { deadline: 100, prover: '0x123' },
+          route: { source: 1n },
         } as any
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
         expect(validationService['validExpirationTime'](intent)).toBe(true)
