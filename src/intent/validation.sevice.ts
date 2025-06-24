@@ -349,6 +349,7 @@ export class ValidationService implements OnModuleInit {
         if (totalFulfillNativeValue > 0n) {
           const hasSufficientNativeBalance = await this.checkNativeBalance(
             walletAddress,
+            intent,
             destinationChain,
             totalFulfillNativeValue,
           )
@@ -482,6 +483,7 @@ export class ValidationService implements OnModuleInit {
    */
   private async checkNativeBalance(
     walletAddr: Hex,
+    intent: ValidationIntentInterface,
     destinationChain: number,
     requiredAmount: bigint,
   ): Promise<boolean> {
@@ -502,6 +504,7 @@ export class ValidationService implements OnModuleInit {
             required: requiredAmount.toString(),
             available: solverNativeBalance.toString(),
             minBalance: this.minEthBalanceWei.toString(),
+            intentHash: intent.hash,
             effectiveAvailable: effectiveBalance.toString(),
             destination: destinationChain,
           },
