@@ -90,7 +90,6 @@ export default {
   gaslessIntentdAppIDs: ['token-pair-validation', 'matrix-test', 'test', 'sdk-demo'],
 
   intentConfigs: {
-    isNativeETHSupported: false,
     defaultFee: {
       limit: {
         tokenBase6: 1000n * 10n ** 6n,
