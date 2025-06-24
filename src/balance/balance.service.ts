@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
-import { add, groupBy, zipWith } from 'lodash'
+import { groupBy, zipWith } from 'lodash'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
