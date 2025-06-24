@@ -81,16 +81,16 @@ describe('ValidationService', () => {
     }
     proofService.getProverType.mockReturnValue(mockProofType as any)
     proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
-    
+
     // Mock fulfillment type - default to non-crowd-liquidity
     ecoConfigService.getFulfill.mockReturnValue({ type: 'smart-wallet-account' } as any)
-    
+
     // Mock kernel account client service
     kernelAccountClientService.getAddress.mockResolvedValue('0xKernelAddress' as any)
-    
+
     // Mock crowd liquidity service
     crowdLiquidityService.getPoolAddress.mockReturnValue('0xPoolAddress' as any)
-    
+
     // Initialize the service
     validationService.onModuleInit()
   })
@@ -569,7 +569,11 @@ describe('ValidationService', () => {
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(true)
-        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(10, '0xKernelAddress', ['0xToken1', '0xToken2'])
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
+          10,
+          '0xKernelAddress',
+          ['0xToken1', '0xToken2'],
+        )
         expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xKernelAddress')
       })
 
@@ -899,8 +903,18 @@ describe('ValidationService', () => {
 
           expect(result).toBe(true)
           expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
-          expect(balanceService.fetchWalletTokenBalances).toHaveBeenNthCalledWith(1, 10, '0xKernelAddress', ['0xToken1'])
-          expect(balanceService.fetchWalletTokenBalances).toHaveBeenNthCalledWith(2, 10, '0xPoolAddress', ['0xToken1'])
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenNthCalledWith(
+            1,
+            10,
+            '0xKernelAddress',
+            ['0xToken1'],
+          )
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenNthCalledWith(
+            2,
+            10,
+            '0xPoolAddress',
+            ['0xToken1'],
+          )
         })
 
         it('should fail if combined balances are insufficient in crowd-liquidity mode', async () => {
