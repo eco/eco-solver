@@ -214,10 +214,13 @@ export class BalanceService implements OnApplicationBootstrap {
    * @returns The native token balance in wei (base units), or 0n if no EOA address is found
    */
   @Cacheable()
-  async getNativeBalance(chainID: number): Promise<bigint> {
+  async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(chainID)
-    const eocAddress = client.account?.address
-    return eocAddress ? await client.getBalance({ address: eocAddress }) : 0n
+    const address = account == 'eoc' ? client.account?.address : client.kernelAccount.address
+    if (!address) {
+      return 0n
+    }
+    return await client.getBalance({ address })
   }
 
   async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
