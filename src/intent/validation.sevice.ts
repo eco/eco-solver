@@ -6,6 +6,7 @@ import {
   equivalentNativeGas,
   getFunctionCalls,
   getFunctionTargets,
+  getNativeFulfill,
   getTransactionTargetData,
   isNativeETH,
   isNativeIntent,
@@ -19,6 +20,7 @@ import { Hex } from 'viem'
 import { isGreaterEqual } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
+import { BalanceService } from '../balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -44,6 +46,7 @@ export type ValidationChecks = {
   validExpirationTime: boolean
   validDestination: boolean
   fulfillOnDifferentChain: boolean
+  sufficientBalance: boolean
 }
 
 /**
@@ -81,6 +84,7 @@ export class ValidationService implements OnModuleInit {
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
+    private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
@@ -113,6 +117,7 @@ export class ValidationService implements OnModuleInit {
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
+    const sufficientBalance = await this.hasSufficientBalance(intent)
 
     return {
       supportedNative,
@@ -123,6 +128,7 @@ export class ValidationService implements OnModuleInit {
       validExpirationTime,
       validDestination,
       fulfillOnDifferentChain,
+      sufficientBalance,
     }
   }
 
@@ -279,6 +285,76 @@ export class ValidationService implements OnModuleInit {
 
     // convert to a normalized total to use utils compare function
     return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+  }
+
+  /**
+   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
+   * @param intent the source intent model
+   * @returns true if the solver has sufficient balance
+   */
+  async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
+    try {
+      const tokens = intent.route.tokens.map((t) => t.token)
+      const destinationChain = Number(intent.route.destination)
+
+      // Fetch token balances
+      const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
+
+      // Check if solver has enough token balances
+      for (const routeToken of intent.route.tokens) {
+        const balance = tokenBalances[routeToken.token]
+        if (!balance || balance.balance < routeToken.amount) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient token balance`,
+              properties: {
+                token: routeToken.token,
+                required: routeToken.amount.toString(),
+                available: balance?.balance.toString() || '0',
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      // Check native balance if there are native value calls
+      const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
+
+      if (totalFulfillNativeValue > 0n) {
+        const eoaSolverNativeBalance = await this.balanceService.getNativeBalance(destinationChain)
+        if (eoaSolverNativeBalance < totalFulfillNativeValue) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient native balance`,
+              properties: {
+                required: totalFulfillNativeValue.toString(),
+                available: eoaSolverNativeBalance.toString(),
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      return true
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `hasSufficientBalance: Error checking balance`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            destination: intent.route.destination,
+          },
+        }),
+      )
+      return false
+    }
   }
 
   /**

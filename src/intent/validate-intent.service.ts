@@ -25,12 +25,15 @@ export type IntentValidations = ValidationChecks & {
 /**
  * Service class that acts as the main validation service for intents.
  * Validation {@license ValidationService}:
- * 1. Supports the prover
- * 2. Supports the targets
- * 3. Supports the selectors
- * 4. Has a valid transfer limit
- * 5. Has a valid expiration time
- * 6. Fulfill chain not same as source chain
+ * supportedProver: boolean
+ * supportedNative: boolean
+ * supportedTargets: boolean
+ * supportedTransaction: boolean
+ * validTransferLimit: boolean
+ * validExpirationTime: boolean
+ * validDestination: boolean
+ * fulfillOnDifferentChain: boolean
+ * sufficientBalance: boolean
  *
  * Validates that the intent was also funded:
  * 1. The intent was funded on chain in the IntentSource

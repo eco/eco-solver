@@ -12,7 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { ProofType } from '@/contracts'
+import { BalanceService } from '@/balance/balance.service'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -23,6 +23,7 @@ describe('ValidationService', () => {
   let validationService: ValidationService
   let proofService: DeepMocked<ProofService>
   let feeService: DeepMocked<FeeService>
+  let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   const mockLogLog = jest.fn()
@@ -33,6 +34,7 @@ describe('ValidationService', () => {
         ValidationService,
         { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
       ],
@@ -41,15 +43,20 @@ describe('ValidationService', () => {
     validationService = mod.get(ValidationService)
     proofService = mod.get(ProofService)
     feeService = mod.get(FeeService)
+    balanceService = mod.get(BalanceService)
     ecoConfigService = mod.get(EcoConfigService)
     utilsIntentService = mod.get(UtilsIntentService)
 
     validationService['logger'].log = mockLogLog
 
-    jest.spyOn(ecoConfigService, 'getIntentConfigs').mockReturnValueOnce({} as any)
+    // Remove this mock as it will interfere with the init test
 
     // Mock proofService methods to return a valid ProofType by default
-    proofService.getProverType.mockReturnValue(ProofType.HYPERLANE)
+    const mockProofType = {
+      isHyperlane: () => true,
+      isMetalayer: () => false,
+    }
+    proofService.getProverType.mockReturnValue(mockProofType as any)
     proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
   })
 
@@ -83,6 +90,7 @@ describe('ValidationService', () => {
         validExpirationTime: false,
         validDestination: true,
         fulfillOnDifferentChain: true,
+        sufficientBalance: true,
       }
       expect(validationsSucceeded(validations)).toBe(false)
     })
@@ -97,6 +105,7 @@ describe('ValidationService', () => {
         validExpirationTime: false,
         validDestination: false,
         fulfillOnDifferentChain: false,
+        sufficientBalance: false,
       }
       expect(validationsSucceeded(validations)).toBe(false)
     })
@@ -111,6 +120,7 @@ describe('ValidationService', () => {
         validExpirationTime: true,
         validDestination: true,
         fulfillOnDifferentChain: true,
+        sufficientBalance: true,
       }
       expect(validationsSucceeded(validations)).toBe(true)
     })
@@ -119,7 +129,7 @@ describe('ValidationService', () => {
   describe('on individual validation cases', () => {
     describe('on supportedProver', () => {
       const sourceChainID = 1n
-      const chainID = sourceChainID
+      const chainID = 1
       const prover = '0xcf25397DC87C750eEF006101172FFbeAeA98Aa76'
       const unsupportedChain = 2n
       const unsupportedProver = '0x26D2C47c5659aC8a1c4A29A052Fa7B2ccD45Ca43'
@@ -146,21 +156,41 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if a single source supports the prover', async () => {
-        const intent = { sourceChainID, prover } as any
+        // Mock the first call for source chain check
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [unsupportedProver], chainID } as any,
           { provers: [prover], chainID } as any,
         ])
-        expect(validationService.supportedProver(intent)).toBe(true)
+        // Mock the second call for destination chain check
+        ecoConfigService.getIntentSources.mockReturnValueOnce([
+          { provers: [prover], chainID } as any,
+        ])
+        expect(
+          validationService.supportedProver({
+            source: Number(sourceChainID),
+            destination: Number(chainID),
+            prover: prover as any,
+          }),
+        ).toBe(true)
       })
 
       it('should succeed if multiple sources supports the prover', async () => {
-        const intent = { sourceChainID, prover } as any
+        // Mock the first call for source chain check
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [prover], chainID } as any,
           { provers: [prover], chainID } as any,
         ])
-        expect(validationService.supportedProver(intent)).toBe(true)
+        // Mock the second call for destination chain check
+        ecoConfigService.getIntentSources.mockReturnValueOnce([
+          { provers: [prover], chainID } as any,
+        ])
+        expect(
+          validationService.supportedProver({
+            source: Number(sourceChainID),
+            destination: Number(chainID),
+            prover: prover as any,
+          }),
+        ).toBe(true)
       })
     })
 
@@ -273,8 +303,8 @@ describe('ValidationService', () => {
 
       it('should fail if not all targets are supported on solver', async () => {
         intent.route.calls = [
-          { target: '0x1', data: '0x12' },
-          { target: '0x2', data: '0x3' },
+          { target: '0x1', data: '0x12', value: 0n },
+          { target: '0x2', data: '0x3', value: 0n },
         ]
         solver.targets = { [intent.route.calls[0].target]: {} }
         expect(validationService.supportedTargets(intent, solver)).toBe(false)
@@ -288,8 +318,8 @@ describe('ValidationService', () => {
 
       it('should succeed if targets supported ', async () => {
         intent.route.calls = [
-          { target: '0x1', data: '0x12' },
-          { target: '0x2', data: '0x34' },
+          { target: '0x1', data: '0x12', value: 0n },
+          { target: '0x2', data: '0x34', value: 0n },
         ]
         solver.targets = { [intent.route.calls[0].target]: {}, [intent.route.calls[1].target]: {} }
         expect(validationService.supportedTargets(intent, solver)).toBe(true)
@@ -308,8 +338,8 @@ describe('ValidationService', () => {
 
       it('should fail if not every function call is supported', async () => {
         intent.route.calls = [
-          { target: '0x1', data: '0x12' },
-          { target: '0x2', data: '0x34' },
+          { target: '0x1', data: '0x12', value: 0n },
+          { target: '0x2', data: '0x34', value: 0n },
         ]
         mockGetTransactionTargetData.mockImplementation((solver, call) => {
           return call.target == intent.route.calls[0].target
@@ -321,8 +351,8 @@ describe('ValidationService', () => {
 
       it('should succeed if every call is supported', async () => {
         intent.route.calls = [
-          { target: '0x1', data: '0x12' },
-          { target: '0x2', data: '0x34' },
+          { target: '0x1', data: '0x12', value: 0n },
+          { target: '0x2', data: '0x34', value: 0n },
         ]
         mockGetTransactionTargetData.mockReturnValue({} as any as TransactionTargetData)
         expect(validationService.supportedTransaction(intent, solver)).toBe(true)
@@ -355,10 +385,11 @@ describe('ValidationService', () => {
       }
       it('should return false if feeService does', async () => {
         const error = new Error('error here')
+        const intent = { hash: '0x123', route: { source: 11 } } as any
         jest
           .spyOn(feeService, 'getTotalFill')
           .mockResolvedValueOnce({ totalFillNormalized: { token: 1n, native: 2n }, error })
-        expect(await validationService.validTransferLimit({} as any)).toBe(false)
+        expect(await validationService.validTransferLimit(intent)).toBe(false)
       })
 
       it('should return false if the total fill above the max fill', async () => {
@@ -404,7 +435,7 @@ describe('ValidationService', () => {
     describe('on validExpirationTime', () => {
       //mostly covered in utilsIntentService
       it('should return whatever UtilsIntentService does', async () => {
-        const intent = { reward: { deadline: 100 } } as any
+        const intent = { reward: { deadline: 100, prover: '0x123' }, route: { source: 11 } } as any
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(true)
         expect(validationService['validExpirationTime'](intent)).toBe(true)
         proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValueOnce(false)
@@ -441,9 +472,125 @@ describe('ValidationService', () => {
         expect(validationService['fulfillOnDifferentChain'](intent)).toBe(true)
       })
     })
+
+    describe('on hasSufficientBalance', () => {
+      const mockIntent = {
+        hash: '0x123',
+        route: {
+          destination: 10,
+          tokens: [
+            { token: '0xToken1', amount: 1000n },
+            { token: '0xToken2', amount: 2000n },
+          ],
+          calls: [
+            { target: '0x1', data: '0x', value: 100n },
+            { target: '0x2', data: '0x', value: 200n },
+          ],
+        },
+      } as any
+
+      it('should return true when solver has sufficient token and native balances', async () => {
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+        balanceService.getNativeBalance.mockResolvedValue(500n)
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        expect(result).toBe(true)
+        expect(balanceService.fetchTokenBalances).toHaveBeenCalledWith(10, ['0xToken1', '0xToken2'])
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10)
+      })
+
+      it('should return false when solver has insufficient token balance', async () => {
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+        balanceService.getNativeBalance.mockResolvedValue(500n)
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        expect(result).toBe(false)
+      })
+
+      it('should return false when solver has insufficient native balance', async () => {
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+        balanceService.getNativeBalance.mockResolvedValue(250n) // insufficient for 300n total
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        expect(result).toBe(false)
+      })
+
+      it('should return false when token balance is missing', async () => {
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          // Missing '0xToken2'
+        })
+        balanceService.getNativeBalance.mockResolvedValue(500n)
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        expect(result).toBe(false)
+      })
+
+      it('should return true when there are no native value calls', async () => {
+        const intentWithoutNative = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            calls: [
+              { target: '0x1', data: '0x', value: 0n },
+              { target: '0x2', data: '0x', value: 0n },
+            ],
+          },
+        }
+
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithoutNative)
+        expect(result).toBe(true)
+        expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
+      })
+
+      it('should return false when balance service throws an error', async () => {
+        balanceService.fetchTokenBalances.mockRejectedValue(new Error('Network error'))
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        expect(result).toBe(false)
+      })
+
+      it('should handle calls without value property', async () => {
+        const intentWithMixedCalls = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            calls: [
+              { target: '0x1', data: '0x', value: 100n },
+              { target: '0x2', data: '0x' }, // no value property
+              { target: '0x3', data: '0x', value: 200n },
+            ],
+          },
+        }
+
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+        balanceService.getNativeBalance.mockResolvedValue(500n)
+
+        const result = await validationService['hasSufficientBalance'](intentWithMixedCalls)
+        expect(result).toBe(true)
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10)
+      })
+    })
   })
 
-  describe.only('on assertValidations', () => {
+  describe('on assertValidations', () => {
     const updateInvalidIntentModel = jest.fn()
     const assetCases: Record<keyof ValidationChecks, string> = {
       supportedProver: 'supportedProver',
@@ -454,6 +601,7 @@ describe('ValidationService', () => {
       validExpirationTime: 'validExpirationTime',
       validDestination: 'validDestination',
       fulfillOnDifferentChain: 'fulfillOnDifferentChain',
+      sufficientBalance: 'sufficientBalance',
     }
     beforeEach(() => {
       utilsIntentService.updateInvalidIntentModel = updateInvalidIntentModel
@@ -480,6 +628,10 @@ describe('ValidationService', () => {
             destination: 10,
             source: 11,
             calls: [],
+            tokens: [
+              { token: '0x1', amount: 1n },
+              { token: '0x2', amount: 2n },
+            ],
           },
         } as any
         const solver = { targets: {} } as any
