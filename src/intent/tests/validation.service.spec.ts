@@ -54,7 +54,7 @@ describe('ValidationService', () => {
     ecoConfigService.getEth.mockReturnValue({
       simpleAccount: { minEthBalanceWei: '0' },
     } as any)
-    
+
     // Mock default solver to prevent null reference errors
     const defaultMockSolver = {
       inboxAddress: '0x123',
@@ -639,7 +639,6 @@ describe('ValidationService', () => {
         expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
       })
 
-
       it('should correctly handle token minimum balance requirements with solver targets', async () => {
         const mockSolver = {
           inboxAddress: '0x123',
@@ -715,7 +714,7 @@ describe('ValidationService', () => {
       it('should log warning when native balance is insufficient', async () => {
         const mockLogWarn = jest.fn()
         validationService['logger'].warn = mockLogWarn
-        
+
         // Mock solver
         const mockSolver = {
           inboxAddress: '0x123',
@@ -750,7 +749,7 @@ describe('ValidationService', () => {
             available: '50',
             intentHash: '0xTestHash',
             destination: 10,
-          })
+          }),
         )
       })
 
@@ -794,7 +793,7 @@ describe('ValidationService', () => {
             available: '500',
             intentHash: '0xTestHash',
             destination: 10,
-          })
+          }),
         )
       })
 
@@ -825,7 +824,7 @@ describe('ValidationService', () => {
             msg: 'hasSufficientBalance: No solver targets found',
             intentHash: '0xTestHash',
             destination: 999,
-          })
+          }),
         )
       })
     })
