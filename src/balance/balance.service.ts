@@ -206,6 +206,20 @@ export class BalanceService implements OnApplicationBootstrap {
     return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())
   }
 
+  /**
+   * Gets the native token balance (ETH, MATIC, etc.) for the solver's EOA wallet on the specified chain.
+   * This is used to check if the solver has sufficient native funds to cover gas costs and native value transfers.
+   *
+   * @param chainID - The chain ID to check the native balance on
+   * @returns The native token balance in wei (base units), or 0n if no EOA address is found
+   */
+  @Cacheable()
+  async getNativeBalance(chainID: number): Promise<bigint> {
+    const client = await this.kernelAccountClientService.getClient(chainID)
+    const eocAddress = client.account?.address
+    return eocAddress ? await client.getBalance({ address: eocAddress }) : 0n
+  }
+
   async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)

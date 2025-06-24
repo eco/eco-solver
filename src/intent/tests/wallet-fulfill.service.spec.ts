@@ -386,7 +386,9 @@ describe('WalletFulfillService', () => {
   })
 
   describe('on getTransactionsForTargets', () => {
-    const model = { intent: { route: { calls: [{ target: address1, data: address2 }] } } } as any
+    const model = {
+      intent: { route: { calls: [{ target: address1, data: address2, value: 0n }] } },
+    } as any
     const tt = { targetConfig: { contractType: 'erc20' } }
 
     it('should return empty if no targets', async () => {
@@ -438,8 +440,8 @@ describe('WalletFulfillService', () => {
         intent: {
           route: {
             calls: [
-              { target: address1, data: '0x3' },
-              { target: address2, data: '0x4' },
+              { target: address1, data: '0x3', value: 0n },
+              { target: address2, data: '0x4', value: 0n },
             ],
           },
         },
@@ -464,7 +466,7 @@ describe('WalletFulfillService', () => {
       intent: {
         hash: '0x1234',
         route: {
-          calls: [{ target: address1, data: address2 }],
+          calls: [{ target: address1, data: address2, value: 0n }],
           deadline: '0x2233',
           salt: '0x3344',
           source: 10,
