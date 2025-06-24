@@ -24,7 +24,6 @@ export class BalanceRecordRepository {
     balance: string
     blockNumber: string
     blockHash: string
-    timestamp: Date
     decimals?: number
     tokenSymbol?: string
     tokenName?: string
@@ -48,7 +47,6 @@ export class BalanceRecordRepository {
       balance: params.balance,
       blockNumber: params.blockNumber,
       blockHash: params.blockHash,
-      timestamp: params.timestamp,
       decimals: params.decimals,
       tokenSymbol: params.tokenSymbol,
       tokenName: params.tokenName,
@@ -106,7 +104,6 @@ export class BalanceRecordRepository {
     blockNumber: string
     blockHash: string
     transactionHash: string
-    timestamp: Date
     from?: string
     to?: string
   }): Promise<BalanceChangeModel> {

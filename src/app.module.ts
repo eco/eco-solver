@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common'
 import { LoggerModule } from 'nestjs-pino'
 import { MongooseModule } from '@nestjs/mongoose'
-import { LiquidityManagerModule } from '@/liquidity-manager/liquidity-manager.module'
 import { ApiModule } from '@/api/api.module'
 import { WatchModule } from '@/watch/watch.module'
 import { IntervalModule } from '@/intervals/interval.module'
@@ -23,6 +22,7 @@ import { PermitProcessingModule } from '@/permit-processing/permit-processing.mo
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
 import { BalanceModule } from '@/balance/balance.module'
+import { LiquidityManagerModule } from './liquidity-manager/liquidity-manager.module'
 
 @Module({
   imports: [

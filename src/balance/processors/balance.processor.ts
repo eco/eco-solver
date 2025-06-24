@@ -50,7 +50,7 @@ export class BalanceProcessor extends WorkerHost {
         case BALANCE_JOBS.update_balance_record:
           return await this.processUpdateBalanceRecord(job)
 
-        case BALANCE_JOBS.update_balance:
+        case BALANCE_JOBS.update_balance_change:
           return await this.processUpdateBalanceChange(job)
 
         default:
@@ -156,7 +156,6 @@ export class BalanceProcessor extends WorkerHost {
         blockNumber: job.data.blockNumber,
         blockHash: job.data.blockHash,
         transactionHash: job.data.transactionHash,
-        timestamp: job.data.timestamp,
         from: job.data.from,
         to: job.data.to,
       })

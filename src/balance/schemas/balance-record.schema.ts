@@ -22,9 +22,6 @@ export class BalanceRecord extends Document {
   @Prop({ required: true, type: String })
   blockHash: string
 
-  @Prop({ required: true, type: Date })
-  timestamp: Date
-
   @Prop({ required: false, type: Number })
   decimals?: number
 

@@ -28,9 +28,6 @@ export class BalanceChange extends Document {
   @Prop({ required: true, type: String })
   transactionHash: string
 
-  @Prop({ required: true, type: Date })
-  timestamp: Date
-
   @Prop({ required: false, type: String })
   from?: string
 

@@ -214,7 +214,6 @@ export class BalanceService implements OnModuleInit {
     blockNumber: string
     blockHash: string
     transactionHash: string
-    timestamp: Date
     from?: string
     to?: string
   }) {
@@ -227,7 +226,6 @@ export class BalanceService implements OnModuleInit {
         blockNumber: params.blockNumber,
         blockHash: params.blockHash,
         transactionHash: params.transactionHash,
-        timestamp: params.timestamp,
         from: params.from,
         to: params.to,
       })
@@ -306,7 +304,6 @@ export class BalanceService implements OnModuleInit {
             balance: tokenData.balance.balance.toString(),
             blockNumber: tokenData.balance.blockNumber.toString(),
             blockHash: tokenData.balance.blockHash,
-            timestamp: new Date(),
             decimals: tokenData.balance.decimals,
             tokenSymbol: tokenData.config.type, // Available from config
             tokenName: tokenData.config.type, // Available from config
@@ -341,7 +338,6 @@ export class BalanceService implements OnModuleInit {
             balance: nativeBalance.balance.toString(),
             blockNumber: nativeBalance.blockNumber.toString(),
             blockHash: nativeBalance.blockHash,
-            timestamp: new Date(),
           })
           nativeUpdates++
         } catch (error) {
@@ -389,7 +385,6 @@ export class BalanceService implements OnModuleInit {
     balance: string
     blockNumber: string
     blockHash: string
-    timestamp: Date
     decimals?: number
     tokenSymbol?: string
     tokenName?: string
@@ -401,7 +396,6 @@ export class BalanceService implements OnModuleInit {
         balance: params.balance,
         blockNumber: params.blockNumber,
         blockHash: params.blockHash,
-        timestamp: params.timestamp,
         decimals: params.decimals,
         tokenSymbol: params.tokenSymbol,
         tokenName: params.tokenName,

@@ -47,7 +47,6 @@ export class BalanceChangeRepository {
     blockNumber: string
     blockHash: string
     transactionHash: string
-    timestamp: Date
     from?: string
     to?: string
   }): Promise<BalanceChangeModel> {
@@ -68,7 +67,7 @@ export class BalanceChangeRepository {
       address,
       blockNumber: { $gte: blockNumber },
     }
-    return this.balanceChangeModel.find(query).sort({ blockNumber: 1, timestamp: 1 }).exec()
+    return this.balanceChangeModel.find(query).sort({ blockNumber: 1, createdAt: 1 }).exec()
   }
 
   /**

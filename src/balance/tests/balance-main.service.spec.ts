@@ -282,7 +282,6 @@ describe('BalanceService', () => {
       balance: '1000000000000000000',
       blockNumber: '18500000',
       blockHash: '0xabcdef',
-      timestamp: new Date('2023-10-01T12:00:00Z'),
       decimals: 18,
       tokenSymbol: 'TEST',
       tokenName: 'Test Token',
@@ -311,7 +310,6 @@ describe('BalanceService', () => {
       blockNumber: '18500000',
       blockHash: '0xabcdef',
       transactionHash: '0x123456',
-      timestamp: new Date('2023-10-01T12:00:00Z'),
       from: '0xfrom',
       to: '0xto',
     }
