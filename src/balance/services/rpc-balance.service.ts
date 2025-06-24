@@ -226,15 +226,27 @@ export class RpcBalanceService implements OnApplicationBootstrap {
 
     const tokenBalances: Record<Hex, TokenBalance> = {}
 
-    tokenAddresses.forEach((tokenAddress, index) => {
+    for (let index = 0; index < tokenAddresses.length; index++) {
+      const tokenAddress = tokenAddresses[index]
       const [balance = 0n, decimals = 0] = [
         multicallResults[index * 2],
         multicallResults[index * 2 + 1],
       ]
-      //throw if we suddenly start supporting tokens with not 6 decimals
+      //skip tokens that don't have 6 decimals - log warning but don't break the entire operation
       //audit conversion of validity to see its support
       if ((decimals as number) != 6) {
-        throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `Skipping token with invalid decimals`,
+            properties: {
+              chainID,
+              tokenAddress,
+              decimals: decimals as number,
+              expectedDecimals: 6,
+            },
+          }),
+        )
+        continue // Skip this token but continue with others
       }
       tokenBalances[tokenAddress] = {
         address: tokenAddress,
@@ -243,7 +255,7 @@ export class RpcBalanceService implements OnApplicationBootstrap {
         blockNumber: block.number,
         blockHash: block.hash,
       }
-    })
+    }
     return tokenBalances
   }
 
@@ -295,11 +307,24 @@ export class RpcBalanceService implements OnApplicationBootstrap {
         tokenAddresses,
         forceRefresh,
       )
-      return zipWith(configs, Object.values(balances), (config, balance) => ({
-        config,
-        balance,
-        chainId: parseInt(chainId),
-      }))
+
+      // Only include configs for tokens that were successfully fetched
+      const results: Array<{
+        config: TokenConfig
+        balance: TokenBalance
+        chainId: number
+      }> = []
+      for (const config of configs) {
+        const balance = balances[config.address]
+        if (balance) {
+          results.push({
+            config,
+            balance,
+            chainId: parseInt(chainId),
+          })
+        }
+      }
+      return results
     })
 
     return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())

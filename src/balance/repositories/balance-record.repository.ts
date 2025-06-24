@@ -55,23 +55,32 @@ export class BalanceRecordRepository {
     }
 
     try {
+      // First, try to update with the condition
       const result = await this.balanceRecordModel
-        .findOneAndUpdate(updateFilter, update, { upsert: true, new: true })
+        .findOneAndUpdate(updateFilter, update, { new: true })
         .exec()
 
-      if (!result) {
-        // No update was made because block number wasn't greater, return existing record
-        const existingRecord = await this.balanceRecordModel.findOne(filter).exec()
-        if (existingRecord) {
-          this.logger.debug(
-            `Ignoring RPC update for ${params.chainId}:${params.address} - ` +
-              `block ${params.blockNumber} is not greater than current block ${existingRecord.blockNumber}`,
-          )
-        }
+      if (result) {
+        // Update was successful
+        return result
+      }
+
+      // No update was made, check if record exists
+      const existingRecord = await this.balanceRecordModel.findOne(filter).exec()
+
+      if (existingRecord) {
+        // Record exists but block number wasn't greater
+        this.logger.debug(
+          `Ignoring RPC update for ${params.chainId}:${params.address} - ` +
+            `block ${params.blockNumber} is not greater than current block ${existingRecord.blockNumber}`,
+        )
         return existingRecord
       }
 
-      return result
+      // Record doesn't exist, create it with upsert
+      return await this.balanceRecordModel
+        .findOneAndUpdate(filter, update, { upsert: true, new: true })
+        .exec()
     } catch (error) {
       // Handle duplicate key errors gracefully - this can happen during race conditions
       if (error.code === 11000) {
