@@ -17,7 +17,7 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual } from '@/fee/utils'
+import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceService } from '../balance/balance.service'
@@ -80,7 +80,7 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 export class ValidationService implements OnModuleInit {
   private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
-
+  private minEthBalanceWei: bigint
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
@@ -90,6 +90,7 @@ export class ValidationService implements OnModuleInit {
 
   onModuleInit() {
     this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
+    this.minEthBalanceWei = BigInt(this.ecoConfigService.getEth().simpleAccount.minEthBalanceWei)
   }
 
   /**
@@ -299,11 +300,32 @@ export class ValidationService implements OnModuleInit {
 
       // Fetch token balances
       const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
+      const solver = this.ecoConfigService.getSolver(destinationChain)
+      if (!solver) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `hasSufficientBalance: No solver targets found`,
+            properties: {
+              intentHash: intent.hash,
+              destination: destinationChain,
+            },
+          }),
+        )
+        return false
+      }
+      const solverTargets = solver.targets // Ensure the solver is initialized
 
       // Check if solver has enough token balances
       for (const routeToken of intent.route.tokens) {
         const balance = tokenBalances[routeToken.token]
-        if (!balance || balance.balance < routeToken.amount) {
+        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        // Normalize the balance to the token's decimals, configs have the minReq in dollar value
+        const balanceMinReq = normalizeBalance(
+          { balance: BigInt(minReqDollar), decimal: 0 },
+          balance.decimals,
+        )
+
+        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient token balance`,
@@ -324,14 +346,17 @@ export class ValidationService implements OnModuleInit {
       const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
 
       if (totalFulfillNativeValue > 0n) {
-        const eoaSolverNativeBalance = await this.balanceService.getNativeBalance(destinationChain)
-        if (eoaSolverNativeBalance < totalFulfillNativeValue) {
+        const solverNativeBalance = await this.balanceService.getNativeBalance(
+          destinationChain,
+          'kernel',
+        )
+        if (solverNativeBalance < totalFulfillNativeValue) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient native balance`,
               properties: {
                 required: totalFulfillNativeValue.toString(),
-                available: eoaSolverNativeBalance.toString(),
+                available: solverNativeBalance.toString(),
                 intentHash: intent.hash,
                 destination: destinationChain,
               },

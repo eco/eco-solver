@@ -49,7 +49,22 @@ describe('ValidationService', () => {
 
     validationService['logger'].log = mockLogLog
 
-    // Remove this mock as it will interfere with the init test
+    // Mock default config values to prevent initialization errors
+    ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
+    ecoConfigService.getEth.mockReturnValue({
+      simpleAccount: { minEthBalanceWei: '0' },
+    } as any)
+    
+    // Mock default solver to prevent null reference errors
+    const defaultMockSolver = {
+      inboxAddress: '0x123',
+      network: 'mainnet',
+      fee: {},
+      chainID: 10n,
+      averageBlockTime: 12000,
+      targets: {},
+    } as any
+    ecoConfigService.getSolver.mockReturnValue(defaultMockSolver)
 
     // Mock proofService methods to return a valid ProofType by default
     const mockProofType = {
@@ -76,6 +91,42 @@ describe('ValidationService', () => {
       ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: false } as any)
       validationService.onModuleInit()
       expect(validationService['isNativeETHSupported']).toBe(false)
+    })
+
+    it('should set minEthBalanceWei from config on module init', () => {
+      const mockMinEthBalance = '500000000000000000' // 0.5 ETH in wei as string
+      ecoConfigService.getEth.mockReturnValue({
+        simpleAccount: { minEthBalanceWei: mockMinEthBalance },
+      } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
+
+      validationService.onModuleInit()
+
+      expect(validationService['minEthBalanceWei']).toBe(BigInt(mockMinEthBalance))
+      expect(ecoConfigService.getEth).toHaveBeenCalled()
+    })
+
+    it('should handle zero minimum ETH balance configuration', () => {
+      ecoConfigService.getEth.mockReturnValue({
+        simpleAccount: { minEthBalanceWei: '0' },
+      } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
+
+      validationService.onModuleInit()
+
+      expect(validationService['minEthBalanceWei']).toBe(0n)
+    })
+
+    it('should handle large minimum ETH balance values', () => {
+      const largeMinBalance = '10000000000000000000' // 10 ETH in wei
+      ecoConfigService.getEth.mockReturnValue({
+        simpleAccount: { minEthBalanceWei: largeMinBalance },
+      } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
+
+      validationService.onModuleInit()
+
+      expect(validationService['minEthBalanceWei']).toBe(BigInt(largeMinBalance))
     })
   })
 
@@ -499,7 +550,7 @@ describe('ValidationService', () => {
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(true)
         expect(balanceService.fetchTokenBalances).toHaveBeenCalledWith(10, ['0xToken1', '0xToken2'])
-        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10)
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
       })
 
       it('should return false when solver has insufficient token balance', async () => {
@@ -585,7 +636,197 @@ describe('ValidationService', () => {
 
         const result = await validationService['hasSufficientBalance'](intentWithMixedCalls)
         expect(result).toBe(true)
-        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10)
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
+      })
+
+
+      it('should correctly handle token minimum balance requirements with solver targets', async () => {
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {
+            '0xToken1': { minBalance: 50 }, // $50 minimum
+            '0xToken2': { minBalance: 100 }, // $100 minimum
+          },
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithTokens = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            tokens: [
+              { token: '0xToken1', amount: 1000n }, // requesting 1000 units
+              { token: '0xToken2', amount: 500n }, // requesting 500 units
+            ],
+            calls: [], // no native calls
+          },
+        }
+
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          // Token1: balance 1100, minReq 50 (normalized to token decimals), available = 1100-50 = 1050, need 1000 ✓
+          '0xToken1': { address: '0xToken1', balance: 1100n, decimals: 6 },
+          // Token2: balance 550, minReq 100 (normalized to token decimals), available = 550-100 = 450, need 500 ✗
+          '0xToken2': { address: '0xToken2', balance: 550n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+        expect(result).toBe(false) // Should fail because Token2 insufficient after min balance
+      })
+
+      it('should pass when solver has no specific minimum balance requirements for tokens', async () => {
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {
+            '0xToken1': {}, // no minBalance specified, defaults to 0
+            '0xToken2': { minBalance: 0 }, // explicitly 0
+          },
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithTokens = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            tokens: [
+              { token: '0xToken1', amount: 1000n },
+              { token: '0xToken2', amount: 500n },
+            ],
+            calls: [],
+          },
+        }
+
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1000n, decimals: 6 }, // exactly enough
+          '0xToken2': { address: '0xToken2', balance: 500n, decimals: 6 }, // exactly enough
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+        expect(result).toBe(true)
+      })
+
+      it('should log warning when native balance is insufficient', async () => {
+        const mockLogWarn = jest.fn()
+        validationService['logger'].warn = mockLogWarn
+        
+        // Mock solver
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {},
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithNativeValue = {
+          hash: '0xTestHash',
+          route: {
+            destination: 10,
+            tokens: [],
+            calls: [{ target: '0x1', data: '0x', value: 100n }],
+          },
+        } as any
+
+        balanceService.fetchTokenBalances.mockResolvedValue({})
+        // Only 50n available, but need 100n
+        balanceService.getNativeBalance.mockResolvedValue(50n)
+
+        const result = await validationService['hasSufficientBalance'](intentWithNativeValue)
+
+        expect(result).toBe(false)
+        expect(mockLogWarn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: 'hasSufficientBalance: Insufficient native balance',
+            required: '100',
+            available: '50',
+            intentHash: '0xTestHash',
+            destination: 10,
+          })
+        )
+      })
+
+      it('should log warning when token balance is insufficient after minimum balance check', async () => {
+        const mockLogWarn = jest.fn()
+        validationService['logger'].warn = mockLogWarn
+
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {
+            '0xToken1': { minBalance: 100 },
+          },
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithTokens = {
+          hash: '0xTestHash',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+
+        expect(result).toBe(false)
+        expect(mockLogWarn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: 'hasSufficientBalance: Insufficient token balance',
+            token: '0xToken1',
+            required: '1000',
+            available: '500',
+            intentHash: '0xTestHash',
+            destination: 10,
+          })
+        )
+      })
+
+      it('should return false and log warning when no solver found for destination chain', async () => {
+        const mockLogWarn = jest.fn()
+        validationService['logger'].warn = mockLogWarn
+
+        ecoConfigService.getSolver.mockReturnValue(undefined) // No solver found
+
+        const intentWithTokens = {
+          hash: '0xTestHash',
+          route: {
+            destination: 999, // non-existent chain
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        balanceService.fetchTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+
+        expect(result).toBe(false)
+        expect(mockLogWarn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: 'hasSufficientBalance: No solver targets found',
+            intentHash: '0xTestHash',
+            destination: 999,
+          })
+        )
       })
     })
   })
