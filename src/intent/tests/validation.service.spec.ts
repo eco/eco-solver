@@ -73,6 +73,9 @@ describe('ValidationService', () => {
     }
     proofService.getProverType.mockReturnValue(mockProofType as any)
     proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
+    
+    // Initialize the service
+    validationService.onModuleInit()
   })
 
   afterEach(async () => {
@@ -747,6 +750,8 @@ describe('ValidationService', () => {
             msg: 'hasSufficientBalance: Insufficient native balance',
             required: '100',
             available: '50',
+            minBalance: '0',
+            effectiveAvailable: '50',
             intentHash: '0xTestHash',
             destination: 10,
           }),
@@ -821,7 +826,7 @@ describe('ValidationService', () => {
         expect(result).toBe(false)
         expect(mockLogWarn).toHaveBeenCalledWith(
           expect.objectContaining({
-            msg: 'hasSufficientBalance: No solver targets found',
+            msg: 'hasSufficientBalance: No solver configured for destination chain',
             intentHash: '0xTestHash',
             destination: 999,
           }),

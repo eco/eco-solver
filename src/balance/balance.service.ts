@@ -211,16 +211,12 @@ export class BalanceService implements OnApplicationBootstrap {
    * This is used to check if the solver has sufficient native funds to cover gas costs and native value transfers.
    *
    * @param chainID - The chain ID to check the native balance on
+   * @param address
    * @returns The native token balance in wei (base units), or 0n if no EOA address is found
    */
-  @Cacheable()
-  async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
+  async getNativeBalance(chainID: number, address: Hex): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(chainID)
-    const address = account == 'eoc' ? client.account?.address : client.kernelAccount.address
-    if (!address) {
-      return 0n
-    }
-    return await client.getBalance({ address })
+    return client.getBalance({ address })
   }
 
   async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
