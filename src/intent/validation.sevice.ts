@@ -7,7 +7,9 @@ import {
   equivalentNativeGas,
   getFunctionCalls,
   getFunctionTargets,
+  getNativeFulfill,
   getTransactionTargetData,
+  isNativeETH,
   isNativeIntent,
 } from '@/intent/utils'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
@@ -17,8 +19,9 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { CallDataInterface } from '../contracts'
-import { isGreaterEqual, normalizeBalance } from '../fee/utils'
+import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
+import { CallDataInterface } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -45,6 +48,7 @@ export type ValidationChecks = {
   validExpirationTime: boolean
   validDestination: boolean
   fulfillOnDifferentChain: boolean
+  sufficientBalance: boolean
 }
 
 /**
@@ -76,25 +80,28 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 
 @Injectable()
 export class ValidationService implements OnModuleInit {
-  private isNativeEnabled = false
+  private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
-
+  private minEthBalanceWei: bigint
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
-    private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: RpcBalanceService,
+    private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   onModuleInit() {
-    this.isNativeEnabled = this.ecoConfigService.getIntentConfigs().isNativeSupported
+    this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
+    this.minEthBalanceWei = BigInt(this.ecoConfigService.getEth().simpleAccount.minEthBalanceWei)
   }
+
   /**
    * Executes all the validations we have on the model and solver
    *
    * @param intent the source intent model
    * @param solver the solver for the source chain
+   * @param txValidationFn
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(
@@ -103,8 +110,9 @@ export class ValidationService implements OnModuleInit {
     txValidationFn: TxValidationFn = () => true,
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
-      sourceChainID: intent.route.source,
       prover: intent.reward.prover,
+      source: Number(intent.route.source),
+      destination: Number(intent.route.destination),
     })
     const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
@@ -114,6 +122,7 @@ export class ValidationService implements OnModuleInit {
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
+    const sufficientBalance = await this.hasSufficientBalance(intent)
 
     return {
       supportedNative,
@@ -125,26 +134,45 @@ export class ValidationService implements OnModuleInit {
       validExpirationTime,
       validDestination,
       fulfillOnDifferentChain,
+      sufficientBalance,
     }
   }
 
   /**
-   * Checks if the IntentCreated event is using a supported prover. It first finds the source intent contract that is on the
-   * source chain of the event. Then it checks if the prover is supported by the source intent. In the
-   * case that there are multiple matching source intent contracts on the same chain, as long as any of
-   * them support the prover, the function will return true.
+   * Checks if a given source chain ID and prover are supported within the available intent sources.
    *
-   * @param ops the intent info
-   * @returns
+   * @param {Object} opts - The operation parameters.
+   * @param {bigint} opts.chainID - The ID of the chain to check for support.
+   * @param {Hex} opts.prover - The prover to validate against the intent sources.
+   * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
-  supportedProver(ops: { sourceChainID: bigint; prover: Hex }): boolean {
-    const srcSolvers = this.ecoConfigService.getIntentSources().filter((intent) => {
-      return BigInt(intent.chainID) == ops.sourceChainID
-    })
+  supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
+    const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
-    return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == ops.prover)
-    })
+    if (!isWhitelisted) return false
+
+    const type = this.proofService.getProverType(Number(opts.source), opts.prover)
+
+    if (!type) {
+      return false
+    }
+
+    switch (true) {
+      case type.isHyperlane():
+      case type.isMetalayer():
+        return this.checkProverWhitelisted(opts.destination, opts.prover)
+      default:
+        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover)
+    }
+  }
+
+  checkProverWhitelisted(chainID: number, prover: Hex): boolean {
+    return this.ecoConfigService
+      .getIntentSources()
+      .some(
+        (intent) =>
+          intent.chainID === chainID && intent.provers.some((_prover) => _prover == prover),
+      )
   }
 
   /**
@@ -157,9 +185,9 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   supportedNative(intent: ValidationIntentInterface): boolean {
-    if (this.isNativeEnabled) {
+    if (this.isNativeETHSupported) {
       if (isNativeIntent(intent)) {
-        return equivalentNativeGas(intent, this.logger)
+        return equivalentNativeGas(intent, this.logger) && isNativeETH(intent)
       }
       return true
     } else {
@@ -203,6 +231,7 @@ export class ValidationService implements OnModuleInit {
    *
    * @param intent the intent model
    * @param solver the solver for the intent
+   * @param txValidationFn
    * @returns
    */
   supportedTransaction(
@@ -224,6 +253,7 @@ export class ValidationService implements OnModuleInit {
       return tx && txValidationFn(tx)
     })
   }
+
   /**
    * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
    * @param intent the source intent model
@@ -406,16 +436,113 @@ export class ValidationService implements OnModuleInit {
   }
 
   /**
+   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
+   * @param intent the source intent model
+   * @returns true if the solver has sufficient balance
+   */
+  async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
+    try {
+      const tokens = intent.route.tokens.map((t) => t.token)
+      const destinationChain = Number(intent.route.destination)
+
+      // Fetch token balances
+      const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
+      const solver = this.ecoConfigService.getSolver(destinationChain)
+      if (!solver) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `hasSufficientBalance: No solver targets found`,
+            properties: {
+              intentHash: intent.hash,
+              destination: destinationChain,
+            },
+          }),
+        )
+        return false
+      }
+      const solverTargets = solver.targets // Ensure the solver is initialized
+
+      // Check if solver has enough token balances
+      for (const routeToken of intent.route.tokens) {
+        const balance = tokenBalances[routeToken.token]
+        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        // Normalize the balance to the token's decimals, configs have the minReq in dollar value
+        const balanceMinReq = normalizeBalance(
+          { balance: BigInt(minReqDollar), decimal: 0 },
+          balance.decimals,
+        )
+
+        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient token balance`,
+              properties: {
+                token: routeToken.token,
+                required: routeToken.amount.toString(),
+                available: balance?.balance.toString() || '0',
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      // Check native balance if there are native value calls
+      const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
+
+      if (totalFulfillNativeValue > 0n) {
+        const solverNativeBalance = await this.balanceService.getNativeBalance(
+          destinationChain,
+          'kernel',
+        )
+        if (solverNativeBalance < totalFulfillNativeValue) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient native balance`,
+              properties: {
+                required: totalFulfillNativeValue.toString(),
+                available: solverNativeBalance.toString(),
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      return true
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `hasSufficientBalance: Error checking balance`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            destination: intent.route.destination,
+          },
+        }),
+      )
+      return false
+    }
+  }
+
+  /**
    *
    * @param intent the source intent model
-   * @param solver the solver for the source chain
    * @returns
    */
   validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
-    const time = Number.parseInt(`${intent.reward.deadline as bigint}`) * 1000
+    const time = Number(intent.reward.deadline) * 1000
     const expires = new Date(time)
-    return this.proofService.isIntentExpirationWithinProofMinimumDate(intent.reward.prover, expires)
+    return this.proofService.isIntentExpirationWithinProofMinimumDate(
+      Number(intent.route.source),
+      intent.reward.prover,
+      expires,
+    )
   }
 
   /**
@@ -431,7 +558,6 @@ export class ValidationService implements OnModuleInit {
    * Checks that the intent fulfillment is on a different chain than its source
    * Needed since some proving methods(Hyperlane) cant prove same chain
    * @param intent the source intent
-   * @param solver the solver used to fulfill
    * @returns
    */
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {

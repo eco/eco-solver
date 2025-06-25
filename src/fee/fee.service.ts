@@ -24,6 +24,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
+import { hasDuplicateStrings } from '@/common/utils/strings'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -51,8 +52,9 @@ export class FeeService implements OnModuleInit {
    * then it returns a special fee for that intent if there is one,
    * otherwise it returns the default fee
    *
-   * @param intent the optional intent for the fee
-   * @param defaultFeeArg the default fee to use if the intent is not provided,
+   * @param args
+   * @param args.intent the optional intent for the fee
+   * @param args.defaultFeeArg the default fee to use if the intent is not provided,
    *                      usually from the solvers own config
    * @returns
    */
@@ -107,18 +109,18 @@ export class FeeService implements OnModuleInit {
         const tokenConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
         const nativeConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).native
         if (normalizedTotal.token !== 0n) {
-          fee.token =
-            BigInt(tokenConfig.baseFee) +
-            (normalizedTotal.token / BigInt(tokenConfig.tranche.unitSize) + 1n) *
-              BigInt(tokenConfig.tranche.unitFee)
+          const unitSize = BigInt(tokenConfig.tranche.unitSize)
+          const units =
+            normalizedTotal.token / unitSize + (normalizedTotal.token % unitSize > 0n ? 1n : 0n)
+          fee.token = BigInt(tokenConfig.baseFee) + units * BigInt(tokenConfig.tranche.unitFee)
         }
 
         //TODO add some fulfillment transaction simulation costs to the fee
         if (normalizedTotal.native !== 0n) {
-          fee.native =
-            BigInt(nativeConfig.baseFee) +
-            (normalizedTotal.native / BigInt(nativeConfig.tranche.unitSize) + 1n) *
-              BigInt(nativeConfig.tranche.unitFee)
+          const unitSize = BigInt(nativeConfig.tranche.unitSize)
+          const units =
+            normalizedTotal.native / unitSize + (normalizedTotal.native % unitSize > 0n ? 1n : 0n)
+          fee.native = BigInt(nativeConfig.baseFee) + units * BigInt(nativeConfig.tranche.unitFee)
         }
 
         break
@@ -151,6 +153,11 @@ export class FeeService implements OnModuleInit {
     if (quote.route.calls.length != 1) {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
+    }
+
+    const rewardTokens = _.map(quote.reward.tokens, 'token')
+    if (hasDuplicateStrings(rewardTokens)) {
+      return { error: QuoteError.DuplicatedRewardToken() }
     }
 
     const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
@@ -250,11 +257,11 @@ export class FeeService implements OnModuleInit {
 
     const source = this.ecoConfigService
       .getIntentSources()
-      .find((intent) => BigInt(intent.chainID) == srcChainID)!
+      .find((intent) => BigInt(intent.chainID) == srcChainID)
     const destination = this.ecoConfigService
       .getIntentSources()
-      .find((intent) => BigInt(intent.chainID) == destChainID)!
-    const solver = this.ecoConfigService.getSolver(destChainID)!
+      .find((intent) => BigInt(intent.chainID) == destChainID)
+    const solver = this.ecoConfigService.getSolver(destChainID)
 
     if (!source || !destination || !solver) {
       let error: Error | undefined
@@ -265,19 +272,18 @@ export class FeeService implements OnModuleInit {
       } else if (!solver) {
         error = QuoteError.NoSolverForDestination(destChainID)
       }
-      if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: error.message,
-            properties: {
-              error,
-              source,
-              solver,
-            },
-          }),
-        )
-        return { error }
-      }
+
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: error!.message,
+          properties: {
+            error,
+            source,
+            solver,
+          },
+        }),
+      )
+      return { error }
     }
 
     //Get the tokens the solver accepts on the source chain
@@ -371,7 +377,10 @@ export class FeeService implements OnModuleInit {
     return {
       rewards: Object.values(erc20Rewards).map((tb) => {
         const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
-        return this.convertNormalize(token!.amount, {
+        if (!token) {
+          throw QuoteError.RewardTokenNotFound(tb.address)
+        }
+        return this.convertNormalize(token.amount, {
           chainID: srcChainID,
           address: tb.address,
           decimals: tb.decimals,
@@ -412,7 +421,10 @@ export class FeeService implements OnModuleInit {
     return {
       tokens: Object.values(erc20Rewards).map((tb) => {
         const token = quote.route.tokens.find((route) => getAddress(route.token) === tb.address)
-        return this.convertNormalize(token!.amount, {
+        if (!token) {
+          throw QuoteError.RouteTokenNotFound(tb.address)
+        }
+        return this.convertNormalize(token.amount, {
           chainID: destChainID,
           address: tb.address,
           decimals: tb.decimals,
@@ -503,8 +515,11 @@ export class FeeService implements OnModuleInit {
           throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
         }
 
-        const recipient = ttd!.decodedFunctionData.args![0] as Hex
-        const transferAmount = ttd!.decodedFunctionData.args![1] as bigint
+        if (!ttd?.decodedFunctionData?.args || ttd.decodedFunctionData.args.length < 2) {
+          throw QuoteError.InvalidFunctionData(call.target)
+        }
+        const recipient = ttd.decodedFunctionData.args[0] as Hex
+        const transferAmount = ttd.decodedFunctionData.args[1] as bigint
         const normMinBalance = this.getNormalizedMinBalance(callTarget)
 
         if (
@@ -558,7 +573,7 @@ export class FeeService implements OnModuleInit {
     quote: QuoteIntentDataInterface,
     chainID: number,
   ): NormalizedCall[] {
-    const calls = getNativeCalls(quote.route.calls as CallDataInterface[]).map((call) => ({
+    return getNativeCalls(quote.route.calls as CallDataInterface[]).map((call) => ({
       recipient: call.target,
       native: {
         amount: call.value,
@@ -569,8 +584,6 @@ export class FeeService implements OnModuleInit {
       address: zeroAddress,
       decimals: 0,
     }))
-
-    return calls
   }
 
   /**
@@ -629,20 +642,18 @@ export class FeeService implements OnModuleInit {
    * @returns
    */
   deconvertNormalize(value: bigint, token: { chainID: bigint; address: Hex; decimals: number }) {
-    const original = value
     //todo some conversion, assuming here 1-1
     return {
       ...token,
-      balance: normalizeBalance({ balance: original, decimal: BASE_DECIMALS }, token.decimals)
-        .balance,
+      balance: normalizeBalance({ balance: value, decimal: BASE_DECIMALS }, token.decimals).balance,
     }
   }
 
   private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
     const solverFee = this.getAskRouteDestinationSolver(route).fee
 
-    // This next line is temporary, to ensure that the solver config has the correct fee structure
-    return solverFee['limit'] ? solverFee : this.intentConfigs.defaultFee
+    // Return solver fee if it has valid structure, otherwise use default
+    return solverFee?.constants ? solverFee : this.intentConfigs.defaultFee
   }
 
   /**
@@ -653,12 +664,16 @@ export class FeeService implements OnModuleInit {
    * @returns
    */
   getAskRouteDestinationSolver(route: QuoteRouteDataInterface) {
-    //hardcode the destination to eth mainnet/sepolia if its part of the route
+    // Constants for Ethereum mainnet and sepolia chain IDs
+    const ETH_MAINNET = 1n
+    const ETH_SEPOLIA = 11155111n
+
+    // Use Ethereum L1 chain if either source or destination is L1
     const destination =
-      route.destination === 1n || route.source === 1n
-        ? 1n
-        : route.destination === 11155111n || route.source === 11155111n
-          ? 11155111n
+      route.destination === ETH_MAINNET || route.source === ETH_MAINNET
+        ? ETH_MAINNET
+        : route.destination === ETH_SEPOLIA || route.source === ETH_SEPOLIA
+          ? ETH_SEPOLIA
           : route.destination
 
     const solver = this.ecoConfigService.getSolver(destination)

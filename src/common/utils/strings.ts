@@ -93,3 +93,17 @@ export function obscureCenter(str: string, visibleChars: number = 2): string {
 
   return `${start}${middle}${end}`
 }
+
+/**
+ * Checks if there are duplicated strings in the array.
+ * @param arr - An array of strings to check for duplicates.
+ * @returns True if duplicates exist, otherwise false.
+ */
+export function hasDuplicateStrings(arr: string[]): boolean {
+  const seen = new Set<string>()
+  for (const str of arr) {
+    if (seen.has(str)) return true
+    seen.add(str)
+  }
+  return false
+}

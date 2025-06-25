@@ -24,13 +24,14 @@ import {
   TokenData,
   Strategy,
   RebalanceRequest,
-  LiFiStrategyContext,
 } from '@/liquidity-manager/types/types'
 import { TokenConfig } from '@/balance/types/balance.types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -76,7 +77,9 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let cctpLiFiProvider: CCTPLiFiProviderService
   let liFiService: DeepMocked<LiFiProviderService>
   let cctpService: DeepMocked<CCTPProviderService>
-  let balanceService: DeepMocked<RpcBalanceService>
+  let relayService: DeepMocked<RelayProviderService>
+  let stargateService: DeepMocked<StargateProviderService>
+  let rpcBalanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   let flowProducer: DeepMocked<FlowProducer>
@@ -154,6 +157,14 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<CCTPProviderService>(),
         },
         {
+          provide: RelayProviderService,
+          useValue: createMock<RelayProviderService>(),
+        },
+        {
+          provide: StargateProviderService,
+          useValue: createMock<StargateProviderService>(),
+        },
+        {
           provide: WarpRouteProviderService,
           useValue: createMock<WarpRouteProviderService>(),
         },
@@ -194,7 +205,9 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     cctpLiFiProvider = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
     liFiService = module.get(LiFiProviderService)
     cctpService = module.get(CCTPProviderService)
-    balanceService = module.get(RpcBalanceService)
+    relayService = module.get(RelayProviderService)
+    stargateService = module.get(StargateProviderService)
+    rpcBalanceService = module.get(RpcBalanceService)
     ecoConfigService = module.get(EcoConfigService)
     const crowdLiquidityService = module.get(CrowdLiquidityService)
 
@@ -265,7 +278,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Step 2: Analyze tokens - this is what the cron job does
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -517,7 +530,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Analyze tokens
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -610,7 +623,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Analyze tokens
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -713,7 +726,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Mock other providers to return empty quotes
       jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([])
@@ -753,7 +766,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Analyze tokens
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -958,7 +971,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Mock quotes for both rebalancing scenarios
       liFiService.getQuote.mockResolvedValue({
@@ -1079,7 +1092,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Mock LiFi service to throw error (this would be called internally by CCTP-LiFi provider)
       liFiService.getQuote.mockRejectedValue(new Error('LiFi API error'))
@@ -1135,7 +1148,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
 
@@ -1167,7 +1180,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Analyze tokens
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -1275,7 +1288,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Analyze tokens - should detect surplus on unsupported chain and deficit on supported chain
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -1348,7 +1361,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         },
       ]
 
-      balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
+      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Try to create quote for more than available balance
       liFiService.getQuote.mockResolvedValue([

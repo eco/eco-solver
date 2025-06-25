@@ -9,6 +9,8 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
+import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { v4 as uuidv4 } from 'uuid'
@@ -19,11 +21,13 @@ export class LiquidityProviderService {
   private config: LiquidityManagerConfig
 
   constructor(
+    protected readonly ecoConfigService: EcoConfigService,
     protected readonly liFiProviderService: LiFiProviderService,
     protected readonly cctpProviderService: CCTPProviderService,
     protected readonly crowdLiquidityService: CrowdLiquidityService,
     protected readonly warpRouteProviderService: WarpRouteProviderService,
-    protected readonly ecoConfigService: EcoConfigService,
+    protected readonly relayProviderService: RelayProviderService,
+    protected readonly stargateProviderService: StargateProviderService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
@@ -182,6 +186,10 @@ export class LiquidityProviderService {
         return this.cctpProviderService
       case 'WarpRoute':
         return this.warpRouteProviderService
+      case 'Relay':
+        return this.relayProviderService
+      case 'Stargate':
+        return this.stargateProviderService
       case 'CCTPLiFi':
         return this.cctpLiFiProviderService
     }
