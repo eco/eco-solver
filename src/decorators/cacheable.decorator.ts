@@ -32,7 +32,7 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
 
       if (!forceRefresh) {
         const cachedData = await cacheManager.get(cacheKey)
-        if (cachedData && typeof cachedData == 'string') {
+        if (cachedData && typeof cachedData === 'string') {
           return deserializeWithBigInt(cachedData)
         }
       }
