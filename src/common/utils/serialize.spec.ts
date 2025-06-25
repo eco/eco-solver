@@ -31,4 +31,11 @@ describe('Serialize BigInt', () => {
 
     expect(objDeserialized).toBe(26836788687203698n)
   })
+
+  it('deserialize string correctly', () => {
+    const obj = "test string"
+    const objDeserialized = deserialize(obj)
+
+    expect(objDeserialized).toBe(obj)
+  })
 })
