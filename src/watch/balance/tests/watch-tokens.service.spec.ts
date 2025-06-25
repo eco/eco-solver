@@ -20,6 +20,11 @@ describe('WatchTokensService', () => {
   let mockKernelAccountClientService: DeepMocked<KernelAccountClientService>
   let mockPublicClient: DeepMocked<PublicClient>
 
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
+
   const mockSolverAddress = '0x1234567890123456789012345678901234567890' as Hex
   const mockTokenAddress1 = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex // USDC
   const mockTokenAddress2 = '0x6B175474E89094C44Da98b954EedeAC495271d0F' as Hex // DAI
@@ -109,7 +114,19 @@ describe('WatchTokensService', () => {
       kernelAccount: { address: mockSolverAddress },
     } as any)
 
+    service['logger'].log = mockLogLog
+    service['logger'].warn = mockLogWarn
+    service['logger'].debug = mockLogDebug
+    service['logger'].error = mockLogError
+
     jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   describe('subscribe', () => {

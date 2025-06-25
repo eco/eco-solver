@@ -19,6 +19,11 @@ describe('WithdrawalService', () => {
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let withdrawalRepository: DeepMocked<WithdrawalRepository>
 
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
+
   const mockWithdrawalEvent: Serialize<WithdrawalLog> = {
     args: {
       hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hex,
@@ -96,10 +101,19 @@ describe('WithdrawalService', () => {
     intentModel = module.get(getModelToken(IntentSourceModel.name))
     utilsIntentService = module.get(UtilsIntentService)
     withdrawalRepository = module.get(WithdrawalRepository)
+
+    service['logger'].log = mockLogLog
+    service['logger'].warn = mockLogWarn
+    service['logger'].debug = mockLogDebug
+    service['logger'].error = mockLogError
   })
 
   afterEach(() => {
     jest.clearAllMocks()
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   describe('processWithdrawal', () => {

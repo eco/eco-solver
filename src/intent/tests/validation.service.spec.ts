@@ -15,7 +15,7 @@ import { FeeConfigType } from '@/eco-configs/eco-config.types'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Hex } from 'viem'
-import { TokenBalance } from '@/balance/types/balance.types'
+
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -31,6 +31,9 @@ describe('ValidationService', () => {
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
   const TokenPartial = {
     blockNumber: 123n,
     blockHash: '0xaabbcc' as Hex,
@@ -59,6 +62,9 @@ describe('ValidationService', () => {
     utilsIntentService = mod.get(UtilsIntentService)
 
     validationService['logger'].log = mockLogLog
+    validationService['logger'].warn = mockLogWarn
+    validationService['logger'].debug = mockLogDebug
+    validationService['logger'].error = mockLogError
 
     // Mock default config values to prevent initialization errors
     ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
@@ -89,6 +95,9 @@ describe('ValidationService', () => {
   afterEach(async () => {
     jest.restoreAllMocks()
     mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   describe('on initialization', () => {

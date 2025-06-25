@@ -19,6 +19,11 @@ describe('WatchNativeService', () => {
   let mockKernelAccountClientService: DeepMocked<KernelAccountClientService>
   let mockPublicClient: DeepMocked<PublicClient>
 
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
+
   const mockEOCAddress = '0x1234567890123456789012345678901234567890' as Hex
   const mockFromAddress = '0x1111111111111111111111111111111111111111' as Hex
   const mockToAddress = '0x9876543210987654321098765432109876543210' as Hex
@@ -124,7 +129,19 @@ describe('WatchNativeService', () => {
       account: { address: mockEOCAddress },
     } as any)
 
+    service['logger'].log = mockLogLog
+    service['logger'].warn = mockLogWarn
+    service['logger'].debug = mockLogDebug
+    service['logger'].error = mockLogError
+
     jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   describe('subscribe', () => {
