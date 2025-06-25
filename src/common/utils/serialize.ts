@@ -1,12 +1,14 @@
 import * as _ from 'lodash'
 
-export type Serialize<T> = {
-  [K in keyof T]: T[K] extends bigint
-    ? { type: 'BigInt'; hex: string }
-    : T[K] extends object
-      ? Serialize<T[K]>
-      : T[K]
-}
+export type Serialize<T> = T extends bigint
+  ? { type: 'BigInt'; hex: string }
+  : {
+      [K in keyof T]: T[K] extends bigint
+        ? { type: 'BigInt'; hex: string }
+        : T[K] extends object
+          ? Serialize<T[K]>
+          : T[K]
+    }
 
 type SerializedBigInt = { type: 'BigInt'; hex: string }
 
@@ -23,10 +25,14 @@ function stringify(data: object) {
   })
 }
 
-export function deserialize<T extends object>(data: Serialize<T>): T {
+export function deserialize<T extends object | bigint>(data: Serialize<T>): T {
+  if (typeof data !== 'object') return data
+
   const deserialized: any = _.cloneDeep(data)
 
-  if (typeof data !== 'object') return data
+  if (isSerializedBigInt(data)) {
+    return BigInt(data.hex) as T
+  }
 
   for (const key in data) {
     const item = data[key]

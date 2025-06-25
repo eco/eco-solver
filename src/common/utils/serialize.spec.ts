@@ -21,4 +21,14 @@ describe('Serialize BigInt', () => {
 
     expect(typeof objDeserialized.bigInt).toBe('bigint')
   })
+
+  it('deserialize bigint correctly', () => {
+    const obj = {
+      type: 'BigInt',
+      hex: '0x5f57eac89ced72',
+    }
+    const objDeserialized = deserialize(obj)
+
+    expect(objDeserialized).toBe(26836788687203698n)
+  })
 })
