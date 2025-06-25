@@ -580,7 +580,7 @@ describe('ValidationService', () => {
       it('should validate multiple wallet addresses in parallel and return true if any has sufficient balance', async () => {
         // Configure for crowd liquidity mode with multiple addresses
         ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
-        
+
         const mockIntent = {
           hash: '0x123',
           route: {
@@ -608,7 +608,7 @@ describe('ValidationService', () => {
         })
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
-        
+
         expect(result).toBe(true)
         expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
@@ -616,7 +616,7 @@ describe('ValidationService', () => {
       it('should return false when all wallet addresses have insufficient balance', async () => {
         // Configure for crowd liquidity mode with multiple addresses
         ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
-        
+
         const mockIntent = {
           hash: '0x123',
           route: {
@@ -632,7 +632,7 @@ describe('ValidationService', () => {
         })
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
-        
+
         expect(result).toBe(false)
         expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
@@ -640,7 +640,7 @@ describe('ValidationService', () => {
       it('should use Promise.all and return true if any address validation succeeds', async () => {
         // Configure for crowd liquidity mode
         ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
-        
+
         const mockIntent = {
           hash: '0x123',
           route: {
@@ -654,19 +654,23 @@ describe('ValidationService', () => {
         // First address has insufficient token balance (fails early)
         // Second address has sufficient balance for both tokens and native
         balanceService.fetchCachedWalletTokenBalances
-          .mockImplementationOnce(() => Promise.resolve({
-            '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
-          }))
-          .mockImplementationOnce(() => Promise.resolve({
-            '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
-          }))
+          .mockImplementationOnce(() =>
+            Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+            }),
+          )
+          .mockImplementationOnce(() =>
+            Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+            }),
+          )
 
         balanceService.getNativeBalance
           .mockImplementationOnce(() => Promise.resolve(150n)) // sufficient (but won't be called for first address)
           .mockImplementationOnce(() => Promise.resolve(150n)) // sufficient
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
-        
+
         expect(result).toBe(true) // Should return true because second address has sufficient balance
         expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
         expect(balanceService.getNativeBalance).toHaveBeenCalledTimes(1) // Only called for second address
@@ -675,7 +679,7 @@ describe('ValidationService', () => {
       it('should handle errors in parallel validation and still return true if any succeeds', async () => {
         // Configure for crowd liquidity mode
         ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
-        
+
         const mockIntent = {
           hash: '0x123',
           route: {
@@ -688,12 +692,14 @@ describe('ValidationService', () => {
         // First wallet throws error, second succeeds
         balanceService.fetchCachedWalletTokenBalances
           .mockImplementationOnce(() => Promise.reject(new Error('Network error')))
-          .mockImplementationOnce(() => Promise.resolve({
-            '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
-          }))
+          .mockImplementationOnce(() =>
+            Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+            }),
+          )
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
-        
+
         expect(result).toBe(true) // Should return true because second address validation succeeds
         expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
@@ -1012,18 +1018,17 @@ describe('ValidationService', () => {
           } as any
 
           // First address has insufficient, second has sufficient
-          balanceService.fetchCachedWalletTokenBalances
-            .mockImplementation((chainId, address) => {
-              if (address === '0xKernelAddress') {
-                return Promise.resolve({
-                  '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
-                })
-              } else {
-                return Promise.resolve({
-                  '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
-                })
-              }
-            })
+          balanceService.fetchCachedWalletTokenBalances.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+              })
+            } else {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+              })
+            }
+          })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
@@ -1052,10 +1057,9 @@ describe('ValidationService', () => {
           } as any
 
           // Both addresses have insufficient balance
-          balanceService.fetchCachedWalletTokenBalances
-            .mockResolvedValue({
-              '0xToken1': { address: '0xToken1', balance: 400n, decimals: 6 },
-            })
+          balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+            '0xToken1': { address: '0xToken1', balance: 400n, decimals: 6 },
+          })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
@@ -1074,14 +1078,13 @@ describe('ValidationService', () => {
           } as any
 
           // First address insufficient, second sufficient
-          balanceService.getNativeBalance
-            .mockImplementation((chainId, address) => {
-              if (address === '0xKernelAddress') {
-                return Promise.resolve(50n) // insufficient
-              } else {
-                return Promise.resolve(150n) // sufficient
-              }
-            })
+          balanceService.getNativeBalance.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.resolve(50n) // insufficient
+            } else {
+              return Promise.resolve(150n) // sufficient
+            }
+          })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
@@ -1102,16 +1105,15 @@ describe('ValidationService', () => {
           } as any
 
           // First address throws error, second has sufficient balance
-          balanceService.fetchCachedWalletTokenBalances
-            .mockImplementation((chainId, address) => {
-              if (address === '0xKernelAddress') {
-                return Promise.reject(new Error('Network error'))
-              } else {
-                return Promise.resolve({
-                  '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
-                })
-              }
-            })
+          balanceService.fetchCachedWalletTokenBalances.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.reject(new Error('Network error'))
+            } else {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+              })
+            }
+          })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
