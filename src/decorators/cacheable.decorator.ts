@@ -1,5 +1,4 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { deserialize, serialize } from '@/common/utils/serialize'
 import { Cache } from '@nestjs/cache-manager'
 
 /**
@@ -49,16 +48,12 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
 
 function serializeWithBigInt(obj: unknown): string {
   return JSON.stringify(obj, (_key, value) =>
-    typeof value === 'bigint'
-      ? { __type: 'BigInt', value: value.toString() }
-      : value
-  );
+    typeof value === 'bigint' ? { __type: 'BigInt', value: value.toString() } : value,
+  )
 }
 
 function deserializeWithBigInt(serialized: string): unknown {
   return JSON.parse(serialized, (_key, value) =>
-    value && typeof value === 'object' && value.__type === 'BigInt'
-      ? BigInt(value.value)
-      : value
-  );
+    value && typeof value === 'object' && value.__type === 'BigInt' ? BigInt(value.value) : value,
+  )
 }
