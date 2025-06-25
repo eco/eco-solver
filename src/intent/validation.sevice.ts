@@ -32,7 +32,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-    IntentModelWithHashInterface {}
+  IntentModelWithHashInterface { }
 
 /**
  * Type that holds all the possible validations that can fail
@@ -86,7 +86,7 @@ export class ValidationService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
