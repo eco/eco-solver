@@ -1,5 +1,3 @@
-import * as _ from 'lodash'
-
 export type Serialize<T> = T extends bigint
   ? { type: 'BigInt'; hex: string }
   : {
@@ -26,26 +24,9 @@ function stringify(data: object) {
 }
 
 export function deserialize<T extends object | bigint>(data: Serialize<T>): T {
-  if (typeof data !== 'object') return data
-
-  const deserialized: any = _.cloneDeep(data)
-
-  if (isSerializedBigInt(data)) {
-    return BigInt(data.hex) as T
-  }
-
-  for (const key in data) {
-    const item = data[key]
-    if (isSerializedBigInt(item)) {
-      deserialized[key] = BigInt(item.hex)
-    } else if (item && typeof item === 'object') {
-      deserialized[key] = deserialize(item)
-    } else {
-      deserialized[key] = item
-    }
-  }
-
-  return deserialized
+  return JSON.parse(JSON.stringify(data), (_key, value) =>
+    value && isSerializedBigInt(value) ? BigInt(value.hex) : value,
+  )
 }
 
 export function serialize<T extends object>(data: T): Serialize<T> {
