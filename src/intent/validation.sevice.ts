@@ -331,35 +331,54 @@ export class ValidationService implements OnModuleInit {
             ]
           : [await this.kernelAccountClientService.getAddress()]
 
-      for (const walletAddress of walletAddresses) {
-        // Validate token balances if tokens present
-        if (intent.route.tokens.length > 0) {
-          const hasSufficientTokenBalance = await this.checkTokenBalances(
-            walletAddress,
-            intent,
-            destinationChain,
-            solver.targets,
-          )
-          if (!hasSufficientTokenBalance) {
-            return false
+      const responses = walletAddresses.map(async (walletAddress) => {
+        try {
+          // Validate token balances if tokens present
+          if (intent.route.tokens.length > 0) {
+            const hasSufficientTokenBalance = await this.checkTokenBalances(
+              walletAddress,
+              intent,
+              destinationChain,
+              solver.targets,
+            )
+            if (!hasSufficientTokenBalance) {
+              return false
+            }
           }
-        }
 
-        // Validate native balance if native value required
-        if (totalFulfillNativeValue > 0n) {
-          const hasSufficientNativeBalance = await this.checkNativeBalance(
-            walletAddress,
-            intent,
-            destinationChain,
-            totalFulfillNativeValue,
-          )
-          if (!hasSufficientNativeBalance) {
-            return false
+          // Validate native balance if native value required
+          if (totalFulfillNativeValue > 0n) {
+            const hasSufficientNativeBalance = await this.checkNativeBalance(
+              walletAddress,
+              intent,
+              destinationChain,
+              totalFulfillNativeValue,
+            )
+            if (!hasSufficientNativeBalance) {
+              return false
+            }
           }
+          return true
+        } catch (error) {
+          // If validation fails for this address, return false but continue checking others
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: 'hasSufficientBalance: Error checking balance for address',
+              properties: {
+                error: error.message,
+                errorStack: error.stack,
+                walletAddress,
+                intentHash: intent.hash,
+                destination: intent.route.destination,
+              },
+            }),
+          )
+          return false
         }
-      }
+      })
 
-      return true
+      const results = await Promise.all(responses)
+      return results.some(Boolean)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({

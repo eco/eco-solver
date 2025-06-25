@@ -577,6 +577,127 @@ describe('ValidationService', () => {
         expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xKernelAddress')
       })
 
+      it('should validate multiple wallet addresses in parallel and return true if any has sufficient balance', async () => {
+        // Configure for crowd liquidity mode with multiple addresses
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+        
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        // Mock so that first wallet fails but second succeeds
+        let callCount = 0
+        balanceService.fetchCachedWalletTokenBalances.mockImplementation(() => {
+          callCount++
+          if (callCount === 1) {
+            // First wallet - insufficient balance
+            return Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+            })
+          } else {
+            // Second wallet - sufficient balance
+            return Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+            })
+          }
+        })
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        
+        expect(result).toBe(true)
+        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+      })
+
+      it('should return false when all wallet addresses have insufficient balance', async () => {
+        // Configure for crowd liquidity mode with multiple addresses
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+        
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 2000n }],
+            calls: [],
+          },
+        } as any
+
+        // Mock all wallets to have insufficient balance
+        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        
+        expect(result).toBe(false)
+        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+      })
+
+      it('should use Promise.all and return true if any address validation succeeds', async () => {
+        // Configure for crowd liquidity mode
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+        
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [{ target: '0x1', data: '0x', value: 100n }],
+          },
+        } as any
+
+        // Mock different results for different addresses
+        // First address has insufficient token balance (fails early)
+        // Second address has sufficient balance for both tokens and native
+        balanceService.fetchCachedWalletTokenBalances
+          .mockImplementationOnce(() => Promise.resolve({
+            '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+          }))
+          .mockImplementationOnce(() => Promise.resolve({
+            '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+          }))
+
+        balanceService.getNativeBalance
+          .mockImplementationOnce(() => Promise.resolve(150n)) // sufficient (but won't be called for first address)
+          .mockImplementationOnce(() => Promise.resolve(150n)) // sufficient
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        
+        expect(result).toBe(true) // Should return true because second address has sufficient balance
+        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+        expect(balanceService.getNativeBalance).toHaveBeenCalledTimes(1) // Only called for second address
+      })
+
+      it('should handle errors in parallel validation and still return true if any succeeds', async () => {
+        // Configure for crowd liquidity mode
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+        
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        // First wallet throws error, second succeeds
+        balanceService.fetchCachedWalletTokenBalances
+          .mockImplementationOnce(() => Promise.reject(new Error('Network error')))
+          .mockImplementationOnce(() => Promise.resolve({
+            '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+          }))
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+        
+        expect(result).toBe(true) // Should return true because second address validation succeeds
+        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+      })
+
       it('should return false when solver has insufficient token balance', async () => {
         balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
@@ -880,7 +1001,7 @@ describe('ValidationService', () => {
           ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
         })
 
-        it('should check balances for both kernel and pool addresses when in crowd-liquidity mode', async () => {
+        it('should check balances for all addresses in parallel and return true if any has sufficient balance', async () => {
           const mockIntent = {
             hash: '0xTestHash',
             route: {
@@ -890,34 +1011,37 @@ describe('ValidationService', () => {
             },
           } as any
 
-          // Both addresses need sufficient balance independently
+          // First address has insufficient, second has sufficient
           balanceService.fetchCachedWalletTokenBalances
-            .mockResolvedValueOnce({
-              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient for kernel
-            })
-            .mockResolvedValueOnce({
-              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient for pool
+            .mockImplementation((chainId, address) => {
+              if (address === '0xKernelAddress') {
+                return Promise.resolve({
+                  '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+                })
+              } else {
+                return Promise.resolve({
+                  '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+                })
+              }
             })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
           expect(result).toBe(true)
           expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenNthCalledWith(
-            1,
+          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledWith(
             10,
             '0xKernelAddress',
             ['0xToken1'],
           )
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenNthCalledWith(
-            2,
+          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledWith(
             10,
             '0xPoolAddress',
             ['0xToken1'],
           )
         })
 
-        it('should fail if combined balances are insufficient in crowd-liquidity mode', async () => {
+        it('should fail if all addresses have insufficient balance in crowd-liquidity mode', async () => {
           const mockIntent = {
             hash: '0xTestHash',
             route: {
@@ -929,20 +1053,17 @@ describe('ValidationService', () => {
 
           // Both addresses have insufficient balance
           balanceService.fetchCachedWalletTokenBalances
-            .mockResolvedValueOnce({
+            .mockResolvedValue({
               '0xToken1': { address: '0xToken1', balance: 400n, decimals: 6 },
-            })
-            .mockResolvedValueOnce({
-              '0xToken1': { address: '0xToken1', balance: 300n, decimals: 6 },
             })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
           expect(result).toBe(false)
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(1) // Should fail on first check
+          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
         })
 
-        it('should check native balances for both addresses in crowd-liquidity mode', async () => {
+        it('should check native balances for all addresses in parallel and return true if any has sufficient', async () => {
           const mockIntent = {
             hash: '0xTestHash',
             route: {
@@ -952,17 +1073,50 @@ describe('ValidationService', () => {
             },
           } as any
 
-          // Both addresses need sufficient native balance independently
+          // First address insufficient, second sufficient
           balanceService.getNativeBalance
-            .mockResolvedValueOnce(150n) // kernel address sufficient
-            .mockResolvedValueOnce(150n) // pool address sufficient
+            .mockImplementation((chainId, address) => {
+              if (address === '0xKernelAddress') {
+                return Promise.resolve(50n) // insufficient
+              } else {
+                return Promise.resolve(150n) // sufficient
+              }
+            })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
           expect(result).toBe(true)
           expect(balanceService.getNativeBalance).toHaveBeenCalledTimes(2)
-          expect(balanceService.getNativeBalance).toHaveBeenNthCalledWith(1, 10, '0xKernelAddress')
-          expect(balanceService.getNativeBalance).toHaveBeenNthCalledWith(2, 10, '0xPoolAddress')
+          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xKernelAddress')
+          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xPoolAddress')
+        })
+
+        it('should validate all addresses in parallel even if one throws an error', async () => {
+          const mockIntent = {
+            hash: '0xTestHash',
+            route: {
+              destination: 10,
+              tokens: [{ token: '0xToken1', amount: 1000n }],
+              calls: [],
+            },
+          } as any
+
+          // First address throws error, second has sufficient balance
+          balanceService.fetchCachedWalletTokenBalances
+            .mockImplementation((chainId, address) => {
+              if (address === '0xKernelAddress') {
+                return Promise.reject(new Error('Network error'))
+              } else {
+                return Promise.resolve({
+                  '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+                })
+              }
+            })
+
+          const result = await validationService['hasSufficientBalance'](mockIntent)
+
+          expect(result).toBe(true) // Should still pass because second address has sufficient balance
+          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
         })
       })
     })
