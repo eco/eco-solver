@@ -1,16 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model, Types, Document } from 'mongoose'
+import { Model, Types } from 'mongoose'
 import { Hex } from 'viem'
 import { WithdrawalModel } from '../schemas/withdrawal.schema'
 import { WatchEventModel } from '../schemas/watch-event.schema'
 import { WithdrawalLog, WithdrawalEventLog, decodeWithdrawalLog } from '@/contracts/intent-source'
 import { Network } from '@/common/alchemy/network'
+import { CreateModelParamsWithExclusions } from '@/common/db/utils'
 
-export type CreateWithdrawalParams = Omit<
-  WithdrawalModel,
-  keyof Document | '_id' | 'createdAt' | 'updatedAt' | 'processedAt'
->
+export type CreateWithdrawalParams = CreateModelParamsWithExclusions<WithdrawalModel, 'processedAt'>
 
 export interface WithdrawalFilters {
   recipient?: Hex

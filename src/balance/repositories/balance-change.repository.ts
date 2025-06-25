@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model, Document } from 'mongoose'
+import { Model } from 'mongoose'
 import { BalanceChange, BalanceChangeModel } from '../schemas/balance-change.schema'
+import { CreateModelParams } from '@/common/db/utils'
 
-export type CreateBalanceChangeParams = Omit<
-  BalanceChange,
-  keyof Document | '_id' | 'createdAt' | 'updatedAt'
->
+// Extract type from BalanceChange schema, excluding Document fields
+export type CreateBalanceChangeParams = CreateModelParams<BalanceChange>
+
+// Alias for watch services - same as CreateBalanceChangeParams since it matches the schema
+export type CreateBalanceChangeFromWatchParams = CreateBalanceChangeParams
 
 @Injectable()
 export class BalanceChangeRepository {
@@ -39,17 +41,9 @@ export class BalanceChangeRepository {
   /**
    * Create a balance change record from watch services
    */
-  async createBalanceChange(params: {
-    chainId: string
-    address: string
-    changeAmount: string
-    direction: 'incoming' | 'outgoing'
-    blockNumber: string
-    blockHash: string
-    transactionHash: string
-    from?: string
-    to?: string
-  }): Promise<BalanceChangeModel> {
+  async createBalanceChange(
+    params: CreateBalanceChangeFromWatchParams,
+  ): Promise<BalanceChangeModel> {
     const balanceChange = new this.balanceChangeModel(params)
     return balanceChange.save()
   }

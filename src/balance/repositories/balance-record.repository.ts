@@ -4,7 +4,29 @@ import { Model } from 'mongoose'
 import { BalanceRecord, BalanceRecordModel } from '../schemas/balance-record.schema'
 import { BalanceChangeModel } from '../schemas/balance-change.schema'
 import { BalanceChangeRepository } from './balance-change.repository'
+import { BalanceChange } from '../schemas/balance-change.schema'
+import { CreateModelParams } from '@/common/db/utils'
 
+// Extract type from BalanceRecord schema, excluding Document fields
+export type UpdateFromRpcParams = CreateModelParams<BalanceRecord>
+
+// Extract type from BalanceChange schema, excluding Document fields
+export type CreateBalanceChangeParams = CreateModelParams<BalanceChange>
+
+export interface GetCurrentBalanceResult {
+  balance: bigint
+  blockNumber: string
+}
+
+/**
+ * Repository for managing balance records - the base balance state for addresses
+ *
+ * This repository handles:
+ * - Creating and updating balance records from RPC calls
+ * - Calculating current balances by combining base records with balance changes
+ * - Ensuring atomic updates and race condition handling
+ * - Delegating balance change operations to BalanceChangeRepository
+ */
 @Injectable()
 export class BalanceRecordRepository {
   private readonly logger = new Logger(BalanceRecordRepository.name)
@@ -16,18 +38,15 @@ export class BalanceRecordRepository {
   ) {}
 
   /**
-   * Update balance record from RPC call - only if block number is greater
+   * Updates a balance record from an RPC call, ensuring block number monotonicity
+   *
+   * Uses atomic findOneAndUpdate with conditional logic to prevent race conditions
+   * and ensure we only update when the new block number is greater than the existing one.
+   *
+   * @param params The balance update parameters
+   * @returns The updated balance record or null if update failed
    */
-  async updateFromRpc(params: {
-    chainId: string
-    address: string
-    balance: string
-    blockNumber: string
-    blockHash: string
-    decimals?: number
-    tokenSymbol?: string
-    tokenName?: string
-  }): Promise<BalanceRecordModel | null> {
+  async updateFromRpc(params: UpdateFromRpcParams): Promise<BalanceRecordModel | null> {
     const filter = {
       chainId: params.chainId,
       address: params.address,
@@ -94,32 +113,35 @@ export class BalanceRecordRepository {
   }
 
   /**
-   * Create a balance change record - delegates to BalanceChangeRepository
+   * Creates a balance change record by delegating to BalanceChangeRepository
+   *
+   * This method provides a convenient interface for creating balance changes
+   * while maintaining separation of concerns between balance records and changes.
+   *
+   * @param params The balance change parameters
+   * @returns The created balance change record
    */
-  async createBalanceChange(params: {
-    chainId: string
-    address: string
-    changeAmount: string
-    direction: 'incoming' | 'outgoing'
-    blockNumber: string
-    blockHash: string
-    transactionHash: string
-    from?: string
-    to?: string
-  }): Promise<BalanceChangeModel> {
+  async createBalanceChange(params: CreateBalanceChangeParams): Promise<BalanceChangeModel> {
     return this.balanceChangeRepository.createBalanceChange(params)
   }
 
   /**
-   * Get current balance for chainId/address/block
-   * Fetches balance record and calculates all balance changes from the specified block
-   * Defaults to latest (largest) block if no block specified
+   * Calculates the current balance for a given address at a specific block
+   *
+   * Combines the base balance record with all outstanding balance changes
+   * since that record's block number. This provides an accurate current balance
+   * without requiring constant RPC updates.
+   *
+   * @param chainId The blockchain chain identifier
+   * @param address The wallet/contract address to query
+   * @param blockNumber Optional specific block number (defaults to latest)
+   * @returns Object containing balance as bigint and block number, or null if no record exists
    */
   async getCurrentBalance(
     chainId: string,
     address: string,
     blockNumber?: string,
-  ): Promise<{ balance: bigint; blockNumber: string } | null> {
+  ): Promise<GetCurrentBalanceResult | null> {
     // Get the balance record
     const balanceRecord = await this.balanceRecordModel
       .findOne({
@@ -152,7 +174,11 @@ export class BalanceRecordRepository {
   }
 
   /**
-   * Get balance record by chainId and address
+   * Retrieves a balance record by chain ID and address
+   *
+   * @param chainId The blockchain chain identifier
+   * @param address The wallet/contract address
+   * @returns The balance record or null if not found
    */
   async findByChainAndAddress(
     chainId: string,
@@ -167,7 +193,12 @@ export class BalanceRecordRepository {
   }
 
   /**
-   * Get all balance records for a chain
+   * Retrieves all balance records for a specific blockchain
+   *
+   * Results are sorted by address for consistent ordering.
+   *
+   * @param chainId The blockchain chain identifier
+   * @returns Array of balance records for the specified chain
    */
   async findByChain(chainId: string): Promise<BalanceRecordModel[]> {
     return this.balanceRecordModel

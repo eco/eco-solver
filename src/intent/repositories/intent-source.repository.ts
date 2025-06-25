@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model, Types, Document } from 'mongoose'
+import { Model, Types } from 'mongoose'
 import { Hex } from 'viem'
 import { IntentSourceModel, IntentSourceStatus } from '../schemas/intent-source.schema'
+import { CreateModelParamsWithExclusions } from '@/common/db/utils'
 
-export type CreateIntentSourceParams = Omit<
+export type CreateIntentSourceParams = CreateModelParamsWithExclusions<
   IntentSourceModel,
-  keyof Document | '_id' | 'createdAt' | 'updatedAt' | 'receipt'
+  'receipt'
 > & {
   receipt?: any
 }

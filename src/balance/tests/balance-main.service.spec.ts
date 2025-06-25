@@ -136,6 +136,96 @@ describe('BalanceService', () => {
       )
     })
 
+    it('should correctly aggregate base balance + outstanding changes + rewards', async () => {
+      // Mock base balance record (RPC fetched balance)
+      const baseBalance = BigInt('1000000000000000000') // 1 ETH base
+      // Mock outstanding balance changes since last RPC update
+      const outstandingChanges = BigInt('300000000000000000') // +0.3 ETH from transfers
+      // Mock rewards from solved intents
+      const rewardAmount = BigInt('200000000000000000') // +0.2 ETH rewards
+
+      // Mock the full aggregation: base + outstanding + rewards
+      const balanceResult = {
+        balance: baseBalance + outstandingChanges, // Repository already includes outstanding changes
+        blockNumber: '18500000',
+      }
+
+      balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
+      intentSourceRepository.calculateTotalRewardsForChainAndToken.mockResolvedValue(rewardAmount)
+
+      const result = await service.getCurrentBalance(chainId, address)
+
+      const expectedTotalBalance = baseBalance + outstandingChanges + rewardAmount
+      expect(result).toEqual({
+        balance: expectedTotalBalance, // 1 + 0.3 + 0.2 = 1.5 ETH
+        blockNumber: '18500000',
+      })
+      expect(result!.balance.toString()).toBe('1500000000000000000')
+    })
+
+    it('should handle balance aggregation with negative outstanding changes', async () => {
+      // Scenario: base balance but outgoing transfers exceed incoming
+      const baseBalance = BigInt('2000000000000000000') // 2 ETH base
+      const negativeOutstandingChanges = BigInt('-500000000000000000') // -0.5 ETH (more outgoing than incoming)
+      const rewardAmount = BigInt('100000000000000000') // +0.1 ETH rewards
+
+      const balanceResult = {
+        balance: baseBalance + negativeOutstandingChanges, // 1.5 ETH after changes
+        blockNumber: '18500000',
+      }
+
+      balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
+      intentSourceRepository.calculateTotalRewardsForChainAndToken.mockResolvedValue(rewardAmount)
+
+      const result = await service.getCurrentBalance(chainId, address)
+
+      expect(result).toEqual({
+        balance: BigInt('1600000000000000000'), // 2 - 0.5 + 0.1 = 1.6 ETH
+        blockNumber: '18500000',
+      })
+    })
+
+    it('should handle zero rewards correctly in balance aggregation', async () => {
+      const balanceResult = {
+        balance: BigInt('1000000000000000000'), // 1 ETH from base + changes
+        blockNumber: '18500000',
+      }
+      const zeroRewards = BigInt('0') // No rewards
+
+      balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
+      intentSourceRepository.calculateTotalRewardsForChainAndToken.mockResolvedValue(zeroRewards)
+
+      const result = await service.getCurrentBalance(chainId, address)
+
+      expect(result).toEqual({
+        balance: BigInt('1000000000000000000'), // Only base + changes, no rewards
+        blockNumber: '18500000',
+      })
+    })
+
+    it('should handle large balance values in aggregation', async () => {
+      const largeBaseBalance = BigInt('999999999999999999999999') // Very large base
+      const largeOutstandingChanges = BigInt('111111111111111111111111') // Large outstanding changes
+      const largeRewards = BigInt('222222222222222222222222') // Large rewards
+
+      const balanceResult = {
+        balance: largeBaseBalance + largeOutstandingChanges,
+        blockNumber: '18500000',
+      }
+
+      balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
+      intentSourceRepository.calculateTotalRewardsForChainAndToken.mockResolvedValue(largeRewards)
+
+      const result = await service.getCurrentBalance(chainId, address)
+
+      const expectedTotal = largeBaseBalance + largeOutstandingChanges + largeRewards
+      expect(result).toEqual({
+        balance: expectedTotal,
+        blockNumber: '18500000',
+      })
+      expect(result!.balance.toString()).toBe('1333333333333333333333332')
+    })
+
     it('should return null when no balance found', async () => {
       balanceRecordRepository.getCurrentBalance.mockResolvedValue(null)
 
@@ -208,6 +298,53 @@ describe('BalanceService', () => {
         BigInt(1),
         undefined, // For native tokens, tokenAddress should be undefined
       )
+    })
+
+    it('should handle rewards calculation errors gracefully', async () => {
+      const balanceResult = {
+        balance: BigInt('1000000000000000000'),
+        blockNumber: '18500000',
+      }
+
+      balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
+      intentSourceRepository.calculateTotalRewardsForChainAndToken.mockRejectedValue(
+        new Error('Intent source service unavailable'),
+      )
+
+      const result = await service.getCurrentBalance(chainId, address)
+
+      // Should continue with balance even if rewards calculation fails
+      expect(result).toEqual({
+        balance: BigInt('1000000000000000000'), // Only base + changes, no rewards due to error
+        blockNumber: '18500000',
+      })
+    })
+
+    it('should verify balance repository aggregation is called correctly', async () => {
+      const specificBlockNumber = '18500100'
+      const balanceResult = {
+        balance: BigInt('1000000000000000000'),
+        blockNumber: specificBlockNumber,
+      }
+      const rewardAmount = BigInt('0')
+
+      balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
+      intentSourceRepository.calculateTotalRewardsForChainAndToken.mockResolvedValue(rewardAmount)
+
+      await service.getCurrentBalance(chainId, address, specificBlockNumber)
+
+      // Verify the repository is called with the specific block number
+      expect(balanceRecordRepository.getCurrentBalance).toHaveBeenCalledWith(
+        '1',
+        address,
+        specificBlockNumber,
+      )
+
+      // Note: The repository's getCurrentBalance method internally:
+      // 1. Fetches the base BalanceRecord
+      // 2. Calls balanceChangeRepository.calculateOutstandingBalance()
+      // 3. Returns base balance + outstanding changes
+      // This test validates the service calls the repository correctly
     })
   })
 
