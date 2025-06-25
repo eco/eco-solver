@@ -20,11 +20,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 // Types & Models
-import {
-  TokenData,
-  Strategy,
-  RebalanceRequest,
-} from '@/liquidity-manager/types/types'
+import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
 import { TokenConfig } from '@/balance/types/balance.types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
