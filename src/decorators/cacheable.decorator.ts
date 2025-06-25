@@ -1,5 +1,6 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Cache } from '@nestjs/cache-manager'
+import { serializeWithBigInt, deserializeWithBigInt } from './utils'
 
 /**
  * This decorator caches the result of a function for a specified time to live (ttl).
@@ -31,7 +32,7 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
 
       if (!forceRefresh) {
         const cachedData = await cacheManager.get(cacheKey)
-        if (cachedData && typeof cachedData == 'string') {
+        if (cachedData && typeof cachedData === 'string') {
           return deserializeWithBigInt(cachedData)
         }
       }
@@ -44,16 +45,4 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
 
     return descriptor
   }
-}
-
-function serializeWithBigInt(obj: unknown): string {
-  return JSON.stringify(obj, (_key, value) =>
-    typeof value === 'bigint' ? { __type: 'BigInt', value: value.toString() } : value,
-  )
-}
-
-function deserializeWithBigInt(serialized: string): unknown {
-  return JSON.parse(serialized, (_key, value) =>
-    value && typeof value === 'object' && value.__type === 'BigInt' ? BigInt(value.value) : value,
-  )
 }
