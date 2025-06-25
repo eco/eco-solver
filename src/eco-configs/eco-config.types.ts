@@ -456,14 +456,13 @@ export interface CCTPConfig {
 
 export interface WarpRoutesConfig {
   routes: {
-    collateral: {
-      chainId: number
-      token: Hex
-    }
     chains: {
       chainId: number
       token: Hex
-      synthetic: Hex
+      // The address of the hyperlane warp contract (synthetic token)
+      warpContract: Hex
+      // The type of token
+      type: 'collateral' | 'synthetic'
     }[]
   }[]
 }
