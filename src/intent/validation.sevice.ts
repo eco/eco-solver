@@ -378,6 +378,17 @@ export class ValidationService implements OnModuleInit {
       })
 
       const results = await Promise.all(responses)
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `hasSufficientBalance: ${totalFulfillNativeValue}`,
+          properties: {
+            walletAddresses,
+            results,
+          },
+        }),
+      )
+
       return results.some(Boolean)
     } catch (error) {
       this.logger.error(
