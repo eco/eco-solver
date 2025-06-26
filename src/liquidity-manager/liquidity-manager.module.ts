@@ -19,6 +19,7 @@ import { SquidProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance-provider.service'
+import { NegativeIntentMonitorService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-monitor.service'
 import { LitActionsModule } from '@/lit-actions/lit-actions.module'
 
 @Module({
@@ -47,6 +48,7 @@ import { LitActionsModule } from '@/lit-actions/lit-actions.module'
     CCTPV2ProviderService,
     EverclearProviderService,
     NegativeIntentRebalanceProviderService,
+    NegativeIntentMonitorService,
   ],
   exports: [LiquidityManagerService],
 })

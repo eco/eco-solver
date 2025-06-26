@@ -10,6 +10,7 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { LitActionService } from '@/lit-actions/lit-action.service'
+import { NegativeIntentMonitorService } from './negative-intent-monitor.service'
 
 @Injectable()
 export class NegativeIntentRebalanceProviderService
@@ -23,6 +24,7 @@ export class NegativeIntentRebalanceProviderService
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly publicClient: MultichainPublicClientService,
     private readonly litActionService: LitActionService,
+    private readonly negativeIntentMonitorService: NegativeIntentMonitorService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
@@ -186,8 +188,25 @@ export class NegativeIntentRebalanceProviderService
     // Wait for transaction confirmation
     await kernelClient.waitForTransactionReceipt({ hash: txHash })
 
+    // Start monitoring the negative intent for proof and withdrawal
+    await this.negativeIntentMonitorService.monitorNegativeIntent(
+      intentHash,
+      tokenIn.chainId,
+      tokenOut.chainId,
+    )
+
     // Trigger the negative intent rebalance Lit action to fulfill the intent
-    await this.triggerNegativeIntentRebalance(intentHash, quote)
+    const fulfillTxHash = await this.triggerNegativeIntentRebalance(intentHash, quote)
+
+    // Update the monitor with the fulfill transaction hash if available
+    if (fulfillTxHash) {
+      await this.negativeIntentMonitorService.monitorNegativeIntent(
+        intentHash,
+        tokenIn.chainId,
+        tokenOut.chainId,
+        fulfillTxHash,
+      )
+    }
 
     return txHash
   }
@@ -212,7 +231,7 @@ export class NegativeIntentRebalanceProviderService
   private async triggerNegativeIntentRebalance(
     intentHash: Hex,
     quote: RebalanceQuote<'NegativeIntent'>,
-  ): Promise<void> {
+  ): Promise<Hex | undefined> {
     try {
       const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
       const publicClient = await this.publicClient.getClient(quote.tokenOut.chainId)
@@ -244,6 +263,8 @@ export class NegativeIntentRebalanceProviderService
           },
         }),
       )
+
+      return fulfillTxHash
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -256,6 +277,7 @@ export class NegativeIntentRebalanceProviderService
         }),
       )
       // Don't throw - the intent was published successfully, fulfillment failure is logged
+      return undefined
     }
   }
 
