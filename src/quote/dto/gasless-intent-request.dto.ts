@@ -8,6 +8,11 @@ export class GaslessIntentRequestDTO {
   @IsNotEmpty()
   @ApiProperty()
   @IsString()
+  intentGroupID: string
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @IsString()
   dAppID: string
 
   @IsArray()

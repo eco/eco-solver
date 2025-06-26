@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { NestExpressApplication } from '@nestjs/platform-express'
@@ -9,7 +10,8 @@ import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
-  if (EcoConfigService.getStaticConfig().logger.usePino) {
+  const staticConfig = EcoConfigService.getStaticConfig()
+  if (staticConfig.logger.usePino) {
     app.useLogger(app.get(Logger))
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
   }
@@ -29,7 +31,11 @@ async function bootstrap() {
 
   // Starts listening for shutdown hooks
   app.enableShutdownHooks()
-  await app.listen(3000)
+
+  const port = staticConfig.port
+  await app.listen(port)
+
+  console.log(`Listening on port ${port}...`)
 }
 
 function getNestParams(): NestApplicationOptions {
