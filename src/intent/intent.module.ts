@@ -1,22 +1,24 @@
-import { Module } from '@nestjs/common'
-import { initBullMQ } from '../bullmq/bullmq.helper'
-import { QUEUES } from '../common/redis/constants'
-import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
-import { ValidateIntentService } from './validate-intent.service'
-import { FeasableIntentService } from './feasable-intent.service'
-import { CreateIntentService } from './create-intent.service'
-import { UtilsIntentService } from './utils-intent.service'
 import { BalanceModule } from '../balance/balance.module'
-import { FulfillIntentService } from './fulfill-intent.service'
-import { ProverModule } from '../prover/prover.module'
-import { TransactionModule } from '../transaction/transaction.module'
-import { MongooseModule } from '@nestjs/mongoose'
-import { SolverModule } from '../solver/solver.module'
-import { FlagsModule } from '../flags/flags.module'
-import { ValidationService } from '@/intent/validation.sevice'
-import { FeeModule } from '@/fee/fee.module'
-import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { CreateIntentService } from './create-intent.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { FeasableIntentService } from './feasable-intent.service'
+import { FeeModule } from '@/fee/fee.module'
+import { FlagsModule } from '../flags/flags.module'
+import { FulfillIntentService } from './fulfill-intent.service'
+import { initBullMQ } from '../bullmq/bullmq.helper'
+import { IntentFulfilledService } from '@/intent/intent-fulfilled.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
+import { Module } from '@nestjs/common'
+import { MongooseModule } from '@nestjs/mongoose'
+import { ProverModule } from '../prover/prover.module'
+import { QUEUES } from '../common/redis/constants'
+import { SolverModule } from '../solver/solver.module'
+import { TransactionModule } from '../transaction/transaction.module'
+import { UtilsIntentService } from './utils-intent.service'
+import { ValidateIntentService } from './validate-intent.service'
+import { ValidationService } from '@/intent/validation.sevice'
+import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
   ],
   providers: [
     CreateIntentService,
+    IntentSourceRepository,
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
@@ -38,16 +41,19 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     UtilsIntentService,
     ValidationService,
     WalletFulfillService,
+    IntentFulfilledService,
   ],
   // controllers: [IntentSourceController],
   exports: [
     CreateIntentService,
+    IntentSourceRepository,
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
     CrowdLiquidityService,
     UtilsIntentService,
     ValidationService,
+    IntentFulfilledService,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })

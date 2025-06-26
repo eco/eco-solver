@@ -86,6 +86,7 @@ export class IntentTestUtils {
     }
 
     const gaslessIntentRequestDTO: GaslessIntentRequestDTO = {
+      intentGroupID: 'IntentGroupID',
       dAppID: 'test',
       intents: [
         {

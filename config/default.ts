@@ -1,4 +1,5 @@
 export default {
+  port: 3000,
   aws: [
     {
       region: 'us-east-2',

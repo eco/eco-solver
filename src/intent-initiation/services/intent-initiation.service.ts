@@ -9,18 +9,20 @@ import { encodeFunctionData, Hex, zeroAddress } from 'viem'
 import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
 import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { FulfillmentLog } from '@/contracts/inbox'
 import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
 import { GaslessIntentExecutionResponseEntryDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response-entry.dto'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getChainConfig } from '@/eco-configs/utils'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { InternalQuoteError } from '@/quote/errors'
-import { ModuleRef } from '@nestjs/core'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
 import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
 import { Permit3Processor } from '@/common/permit/permit3-processor'
+import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
@@ -53,10 +55,11 @@ export class IntentInitiationService implements OnModuleInit {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly quoteRepository: QuoteRepository,
+    private readonly permitDataRepository: PermitDataRepository,
+    private readonly intentSourceRepository: IntentSourceRepository,
     private readonly createIntentService: CreateIntentService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly permitValidationService: PermitValidationService,
-    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
@@ -143,6 +146,17 @@ export class IntentInitiationService implements OnModuleInit {
         // Create and send the batch tx
         const txs = [...permitTxs, ...fundForTxs]
         const tx = batchTransactionsWithMulticall(chainID, txs)
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `_initiateGaslessIntent`,
+            properties: {
+              chainID,
+              tx,
+            },
+          }),
+        )
+
         const txHash = await walletClient.sendTransaction(tx)
 
         return <GaslessIntentExecutionResponseEntryDTO>{
@@ -206,6 +220,128 @@ export class IntentInitiationService implements OnModuleInit {
         successes,
         failures,
       },
+    }
+  }
+
+  async processFulfilled(fulfillmentLog: FulfillmentLog) {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `processFulfilled`,
+        properties: {
+          fulfillmentLog: fulfillmentLog.args,
+        },
+      }),
+    )
+
+    const hash = fulfillmentLog.args._hash
+    const sourceChainID = fulfillmentLog.args._sourceChainID
+    const intentSource = await this.intentSourceRepository.getIntent(hash)
+
+    if (!intentSource) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: intent not found for hash ${hash}`,
+        }),
+      )
+      return
+    }
+
+    const intentGroupID = intentSource.intent.intentGroupID
+
+    if (!intentGroupID) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: intentGroupID not found for intent with hash ${hash}`,
+        }),
+      )
+      return
+    }
+
+    const groupIntents = await this.intentSourceRepository.queryIntents({
+      intentGroupID,
+    })
+
+    if (groupIntents.length > 0 && groupIntents.every((i) => i.status === 'SOLVED')) {
+      // We can execute the final transfer
+      const permitData = await this.permitDataRepository.getPermitData(intentGroupID)
+
+      if (!permitData) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `processFulfilled: permit data not found for intentGroupID ${intentGroupID}`,
+          }),
+        )
+        return
+      }
+
+      const { permit3 } = permitData
+
+      if (!permit3) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `processFulfilled: permit3 not found for intentGroupID ${intentGroupID}`,
+          }),
+        )
+        return
+      }
+
+      // Get chainID and recipient for final transfer
+      // FIXME: This assumes that the final transfer is the one that is not on the source chain
+      const finalTransfer = permit3.allowanceOrTransfers.find(
+        (t) => BigInt(t.chainID) !== sourceChainID,
+      )
+
+      if (!finalTransfer) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `processFulfilled: final transfer not found for intentGroupID ${intentGroupID}`,
+          }),
+        )
+        return
+      }
+
+      const chainID = Number(finalTransfer.chainID)
+      const recipient = finalTransfer.account
+
+      const { response: permitWithTransferExecution, error } =
+        Permit3Processor.buildFinalTransferCallWithPermit(permit3, chainID, recipient)
+      if (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `processFulfilled: error building final transfer call with permit for intentGroupID ${intentGroupID}`,
+            properties: {
+              error,
+            },
+          }),
+        )
+        return
+      }
+
+      const { calls } = permitWithTransferExecution!
+      const tx = batchTransactionsWithMulticall(chainID, calls)
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled`,
+          properties: {
+            chainID,
+            tx,
+          },
+        }),
+      )
+
+      const walletClient = await this.walletClientService.getClient(chainID)
+      const txHash = await walletClient.sendTransaction(tx)
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled`,
+          properties: {
+            chainID,
+            txHash,
+          },
+        }),
+      )
     }
   }
 
@@ -337,7 +473,17 @@ export class IntentInitiationService implements OnModuleInit {
   async generateGaslessIntentTransactions(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<GaslessIntentTransactions>> {
-    const { intents } = gaslessIntentRequestDTO
+    const {
+      intentGroupID,
+      intents,
+      gaslessIntentData: { permitData },
+    } = gaslessIntentRequestDTO
+
+    // Save the permit data to the database
+    await this.permitDataRepository.addPermitDataEntry({
+      intentGroupID,
+      ...permitData!,
+    })
 
     // Mapping chain ids to permit transactions
     const permitDataPerChain = new Map<number, PermitResult>()
@@ -375,6 +521,7 @@ export class IntentInitiationService implements OnModuleInit {
       const permitData = permitDataPerChain.get(chainId)!
 
       const { response: fundForTx, error: fundForTxError } = await this.getIntentFundForTx(
+        intentGroupID,
         quote,
         salt,
         permitData.funder,
@@ -404,10 +551,7 @@ export class IntentInitiationService implements OnModuleInit {
     }
   }
 
-  private async getQuote(
-    quoteID: string,
-  ): Promise<EcoResponse<QuoteIntentModel>> {
-
+  private async getQuote(quoteID: string): Promise<EcoResponse<QuoteIntentModel>> {
     const { response: quote, error } = await this.quoteRepository.fetchQuoteIntentData({
       quoteID,
       intentExecutionType: IntentExecutionType.GASLESS.toString(),
@@ -428,12 +572,15 @@ export class IntentInitiationService implements OnModuleInit {
    * @returns
    */
   private async getIntentFundForTx(
+    intentGroupID: string,
     quote: QuoteIntentModel,
     salt: Hex,
     funder: Hex,
     permitContract: Hex,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
-    const { quoteID, route: quoteRoute } = quote
+    quote = QuoteIntentModel.fromJSON(quote)
+    const quoteRoute = quote.getQuoteRouteData!()
+    const quoteReward = quote.getQuoteRewardData!()
 
     // Now we need to get the route hash with the real salt
     const routeWithSalt: RouteType = {
@@ -441,17 +588,18 @@ export class IntentInitiationService implements OnModuleInit {
       salt,
     }
 
+    const { quoteID } = quote
     const realRouteHash = hashRoute(routeWithSalt)
     const chainConfig = getChainConfig(Number(quoteRoute.source))
     const intentSourceContract = chainConfig.IntentSource
-    const reward = quote.reward
 
     // Update intent db
     await this.createIntentService.createIntentFromIntentInitiation(
+      intentGroupID,
       quoteID,
       funder,
       routeWithSalt,
-      reward,
+      quoteReward,
     )
 
     // function fundFor(
@@ -462,7 +610,7 @@ export class IntentInitiationService implements OnModuleInit {
     //   bool allowPartial
     // )
 
-    const args = [realRouteHash, reward, funder, permitContract, false] as const
+    const args = [realRouteHash, quoteReward, funder, permitContract, false] as const
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -510,14 +658,14 @@ export class IntentInitiationService implements OnModuleInit {
       return { error: permitValidationError }
     }
 
-    const permitTxGenerators: (() => EcoResponse<PermitResult | undefined>)[] = [
+    const permitTxGenerators: (() => Promise<EcoResponse<PermitResult | undefined>>)[] = [
       this.getPermitTxs.bind(this, chainId, permit),
       this.getPermit2Txs.bind(this, chainId, permit2),
       this.getPermit3Txs.bind(this, chainId, permit3),
     ]
 
     for (const permitTxGenerator of permitTxGenerators) {
-      const { response: permitResult, error } = permitTxGenerator()
+      const { response: permitResult, error } = await permitTxGenerator()
 
       if (error) {
         return { error }
@@ -531,10 +679,10 @@ export class IntentInitiationService implements OnModuleInit {
     return { error: EcoError.NoPermitsProvided }
   }
 
-  private getPermitTxs(
+  private async getPermitTxs(
     chainID: number,
     permits: PermitDTO[],
-  ): EcoResponse<PermitResult | undefined> {
+  ): Promise<EcoResponse<PermitResult | undefined>> {
     const executions = permits.filter((permit) => permit.chainID === chainID)
 
     if (executions.length === 0) {
@@ -557,10 +705,10 @@ export class IntentInitiationService implements OnModuleInit {
     }
   }
 
-  private getPermit2Txs(
+  private async getPermit2Txs(
     chainID: number,
     permit2DTO: Permit2DTO[],
-  ): EcoResponse<PermitResult | undefined> {
+  ): Promise<EcoResponse<PermitResult | undefined>> {
     const transactions = permit2DTO
       .filter((permit) => permit.chainID === chainID)
       .flatMap((permit2) => Permit2Processor.generateTxs(permit2))
@@ -580,15 +728,19 @@ export class IntentInitiationService implements OnModuleInit {
     }
   }
 
-  private getPermit3Txs(
+  private async getPermit3Txs(
     chainID: number,
     permit3DTO?: Permit3DTO,
-  ): EcoResponse<PermitResult | undefined> {
+  ): Promise<EcoResponse<PermitResult | undefined>> {
     if (!permit3DTO) {
       return { response: undefined }
     }
 
-    const transaction = Permit3Processor.generateTxs(chainID, permit3DTO)
+    const transaction = await Permit3Processor.generateTxs(
+      chainID,
+      permit3DTO,
+      this.walletClientService,
+    )
 
     if (!transaction) {
       return { response: undefined }
