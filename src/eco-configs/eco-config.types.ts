@@ -440,7 +440,7 @@ export interface HyperlaneConfig {
 
 export interface CrowdLiquidityConfig {
   litNetwork: LIT_NETWORKS_KEYS
-  capacityTokenId: string
+  capacityTokenId?: string
   capacityTokenOwnerPk: string
   defaultTargetBalance: number
   feePercentage: number
