@@ -7,7 +7,7 @@ import { TokenData } from '@/liquidity-manager/types/types'
 import { Hex } from 'viem'
 import { LitActionService } from '@/lit-actions/lit-action.service'
 
-describe('RebalancingProviderService', () => {
+describe('NegativeIntentProviderService', () => {
   let service: NegativeIntentRebalanceProviderService
   let ecoConfigService: EcoConfigService
   let kernelAccountClientService: KernelAccountClientService
@@ -143,8 +143,8 @@ describe('RebalancingProviderService', () => {
   })
 
   describe('getStrategy', () => {
-    it('should return Rebalancing strategy', () => {
-      expect(service.getStrategy()).toBe('Rebalancing')
+    it('should return NegativeIntent strategy', () => {
+      expect(service.getStrategy()).toBe('NegativeIntent')
     })
   })
 
@@ -157,7 +157,7 @@ describe('RebalancingProviderService', () => {
       expect(result.amountIn).toBe(1000n * 10n ** 6n)
       expect(result.amountOut).toBe(950n * 10n ** 6n) // 95% of 1000 = 950 USDC
       expect(result.slippage).toBe(0.05)
-      expect(result.strategy).toBe('Rebalancing')
+      expect(result.strategy).toBe('NegativeIntent')
       expect(result.context.rebalancingPercentage).toBe(0.05)
       expect(result.id).toBe('test-id')
     })
@@ -200,7 +200,7 @@ describe('RebalancingProviderService', () => {
       const quote = await service.getQuote(mockTokenIn, mockTokenOut, 1000, 'test-id')
       
       await expect(service.execute('0xwrongaddress', quote)).rejects.toThrow(
-        'Rebalancing intents can only be executed by the crowd liquidity pool',
+        'NegativeIntent intents can only be executed by the crowd liquidity pool',
       )
     })
 
@@ -211,7 +211,7 @@ describe('RebalancingProviderService', () => {
         amountIn: 1000n * 10n ** 6n,
         amountOut: 1000n * 10n ** 6n, // Same amount, no loss
         slippage: 0,
-        strategy: 'Rebalancing' as const,
+        strategy: 'NegativeIntent' as const,
         context: {
           intentHash: '0x' as Hex,
           rebalancingPercentage: 0,
@@ -219,7 +219,7 @@ describe('RebalancingProviderService', () => {
       }
 
       await expect(service.execute(mockCrowdLiquidityConfig.kernel.address, quote)).rejects.toThrow(
-        'Rebalancing intent must have amountOut < amountIn',
+        'NegativeIntent intent must have amountOut < amountIn',
       )
     })
 

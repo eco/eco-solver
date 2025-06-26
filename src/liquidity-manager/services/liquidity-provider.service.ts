@@ -14,7 +14,7 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { v4 as uuidv4 } from 'uuid'
-import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/negative-intent-rebalance-provider.service'
+import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
