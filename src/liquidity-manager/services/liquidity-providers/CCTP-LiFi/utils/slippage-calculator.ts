@@ -20,6 +20,11 @@ export class SlippageCalculator {
         1 -
         parseFloat(context.destinationSwapQuote.toAmountMin) /
           parseFloat(context.sourceSwapQuote.fromAmount)
+    } else if (context.destinationSwapQuote) {
+      totalSlippage =
+        1 -
+        parseFloat(context.destinationSwapQuote.toAmountMin) /
+          parseFloat(context.destinationSwapQuote.fromAmount)
     }
     return totalSlippage
   }

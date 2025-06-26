@@ -231,12 +231,12 @@ describe('CCTPLiFiProviderService', () => {
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenIn, mockTokenOut, 100)
+      const quote = await service.getQuote(mockTokenIn, mockTokenOut, 100, 'test-id')
 
       expect(quote).toEqual({
         amountIn: parseUnits('100', 6),
         amountOut: parseUnits('45', 18),
-        id: expect.any(String),
+        id: 'test-id',
         slippage: expect.any(Number),
         tokenIn: mockTokenIn,
         tokenOut: mockTokenOut,
