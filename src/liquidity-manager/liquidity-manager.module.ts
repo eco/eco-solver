@@ -18,7 +18,7 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
-import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/negative-intent-rebalance-provider.service'
+import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance-provider.service'
 import { LitActionsModule } from '@/lit-actions/lit-actions.module'
 
 @Module({

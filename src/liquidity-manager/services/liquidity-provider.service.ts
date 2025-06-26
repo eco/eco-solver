@@ -19,7 +19,7 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
-import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/Rebalancing/negative-intent-rebalance-provider.service'
+import { NegativeIntentRebalanceProviderService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
