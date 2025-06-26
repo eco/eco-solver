@@ -4,8 +4,8 @@ import { Model, Types } from 'mongoose'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Hex } from 'viem'
 
-import { WithdrawalRepository } from '../repositories/withdrawal.repository'
-import { WithdrawalModel } from '../schemas/withdrawal.schema'
+import { WithdrawalRepository } from '@/intent/repositories/withdrawal.repository'
+import { WithdrawalModel } from '@/intent/schemas/withdrawal.schema'
 import { Network } from '@/common/alchemy/network'
 
 describe('WithdrawalRepository', () => {

@@ -12,7 +12,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Hex } from 'viem'
 
@@ -27,7 +27,7 @@ describe('ValidationService', () => {
   let proofService: DeepMocked<ProofService>
   let feeService: DeepMocked<FeeService>
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let rpcBalanceService: DeepMocked<RpcBalanceService>
+  let balanceService: DeepMocked<BalanceService>
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   const mockLogLog = jest.fn()
@@ -35,7 +35,7 @@ describe('ValidationService', () => {
   const mockLogDebug = jest.fn()
   const mockLogError = jest.fn()
   const TokenPartial = {
-    blockNumber: 123n,
+    blockNumber: '123',
     blockHash: '0xaabbcc' as Hex,
   }
   beforeEach(async () => {
@@ -44,9 +44,8 @@ describe('ValidationService', () => {
         ValidationService,
         { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
-        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
       ],
@@ -55,9 +54,8 @@ describe('ValidationService', () => {
     validationService = mod.get(ValidationService)
     proofService = mod.get(ProofService)
     feeService = mod.get(FeeService)
-    rpcBalanceService = mod.get(RpcBalanceService)
+    balanceService = mod.get(BalanceService)
     ecoConfigService = mod.get(EcoConfigService)
-    rpcBalanceService = mod.get(RpcBalanceService)
     kernelAccountClientService = mod.get(KernelAccountClientService)
     utilsIntentService = mod.get(UtilsIntentService)
 
@@ -591,31 +589,29 @@ describe('ValidationService', () => {
         ecoConfigService.getSolver.mockReturnValue(mockSolver)
 
         // Mock current balances - well under maxBalance
-        rpcBalanceService.fetchTokenBalance
+        balanceService.getTokenBalance
           .mockResolvedValueOnce({
-            address: '0x1111111111111111111111111111111111111111',
             balance: 1000000n, // 1 token current balance
             decimals: 6,
-            blockNumber: 12345n,
-            blockHash: '0xabcd1234' as Hex,
+            blockNumber: '12345',
+            blockHash: '0xabcd1234',
           })
           .mockResolvedValueOnce({
-            address: '0x2222222222222222222222222222222222222222',
             balance: 500000n, // 0.5 token current balance
             decimals: 6,
-            blockNumber: 12345n,
-            blockHash: '0xabcd1234' as Hex,
+            blockNumber: '12345',
+            blockHash: '0xabcd1234',
           })
 
         const result = await validationService.validSourceMax(mockIntent)
 
         expect(result).toBe(true)
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledTimes(2)
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledWith(
+        expect(balanceService.getTokenBalance).toHaveBeenCalledTimes(2)
+        expect(balanceService.getTokenBalance).toHaveBeenCalledWith(
           1,
           '0x1111111111111111111111111111111111111111',
         )
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledWith(
+        expect(balanceService.getTokenBalance).toHaveBeenCalledWith(
           1,
           '0x2222222222222222222222222222222222222222',
         )
@@ -625,23 +621,22 @@ describe('ValidationService', () => {
         ecoConfigService.getSolver.mockReturnValue(mockSolver)
 
         // Mock current balance that would exceed maxBalance when added to reward
-        rpcBalanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance.mockResolvedValueOnce({
           balance: 4500000000n, // 4500 tokens current balance (maxBalance is 5000)
           decimals: 6,
-          blockNumber: 12345n,
-          blockHash: '0xabcd1234' as Hex,
+          blockNumber: '12345',
+          blockHash: '0xabcd1234',
         })
 
         const result = await validationService.validSourceMax(mockIntent)
 
         expect(result).toBe(false)
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledWith(
+        expect(balanceService.getTokenBalance).toHaveBeenCalledWith(
           1,
           '0x1111111111111111111111111111111111111111',
         )
         // Note: Both token validation and native validation run, so may be called more than once
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalled()
+        expect(balanceService.getTokenBalance).toHaveBeenCalled()
       })
 
       it('should handle different token decimals correctly', async () => {
@@ -666,12 +661,11 @@ describe('ValidationService', () => {
         }
 
         ecoConfigService.getSolver.mockReturnValue(solverWith18Decimals)
-        rpcBalanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance.mockResolvedValueOnce({
           balance: 1000000000000000000n, // 1 token current balance
           decimals: 18,
-          blockNumber: 12345n,
-          blockHash: '0xabcd1234' as Hex,
+          blockNumber: '12345',
+          blockHash: '0xabcd1234',
         })
 
         const result = await validationService.validSourceMax(intentWith18Decimals)
@@ -681,7 +675,7 @@ describe('ValidationService', () => {
 
       it('should return false on balance service error', async () => {
         ecoConfigService.getSolver.mockReturnValue(mockSolver)
-        rpcBalanceService.fetchTokenBalance.mockRejectedValueOnce(new Error('Balance fetch failed'))
+        balanceService.getTokenBalance.mockRejectedValueOnce(new Error('Balance fetch failed'))
 
         const result = await validationService.validSourceMax(mockIntent)
 
@@ -701,20 +695,19 @@ describe('ValidationService', () => {
         }
 
         ecoConfigService.getSolver.mockReturnValue(mockSolver)
-        rpcBalanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance.mockResolvedValueOnce({
           balance: 1000000n,
           decimals: 6,
-          blockNumber: 12345n,
-          blockHash: '0xabcd1234' as Hex,
+          blockNumber: '12345',
+          blockHash: '0xabcd1234',
         })
 
         const result = await validationService.validSourceMax(intentWithUnknownToken)
 
         expect(result).toBe(true)
         // Should only call balance service for known token
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledTimes(1)
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledWith(
+        expect(balanceService.getTokenBalance).toHaveBeenCalledTimes(1)
+        expect(balanceService.getTokenBalance).toHaveBeenCalledWith(
           1,
           '0x1111111111111111111111111111111111111111',
         )
@@ -724,26 +717,24 @@ describe('ValidationService', () => {
         ecoConfigService.getSolver.mockReturnValue(mockSolver)
 
         // Mock balances for both tokens - both within limits
-        rpcBalanceService.fetchTokenBalance
+        balanceService.getTokenBalance
           .mockResolvedValueOnce({
-            address: '0x1111111111111111111111111111111111111111',
             balance: 2000000000n, // 2000 tokens
             decimals: 6,
-            blockNumber: 12345n,
-            blockHash: '0xabcd1234' as Hex,
+            blockNumber: '12345',
+            blockHash: '0xabcd1234',
           })
           .mockResolvedValueOnce({
-            address: '0x2222222222222222222222222222222222222222',
             balance: 1000000000n, // 1000 tokens
             decimals: 6,
-            blockNumber: 12345n,
-            blockHash: '0xabcd1234' as Hex,
+            blockNumber: '12345',
+            blockHash: '0xabcd1234',
           })
 
         const result = await validationService.validSourceMax(mockIntent)
 
         expect(result).toBe(true)
-        expect(rpcBalanceService.fetchTokenBalance).toHaveBeenCalledTimes(2)
+        expect(balanceService.getTokenBalance).toHaveBeenCalledTimes(2)
       })
 
       it('should use correct normalization for maxBalance', async () => {
@@ -758,12 +749,11 @@ describe('ValidationService', () => {
         }
 
         ecoConfigService.getSolver.mockReturnValue(solverWithCustomBalance)
-        rpcBalanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance.mockResolvedValueOnce({
           balance: 999000000n, // 999 tokens (just under 1000)
           decimals: 6,
-          blockNumber: 12345n,
-          blockHash: '0xabcd1234' as Hex,
+          blockNumber: '12345',
+          blockHash: '0xabcd1234',
         })
 
         const result = await validationService.validSourceMax(mockIntent)
@@ -771,12 +761,11 @@ describe('ValidationService', () => {
         expect(result).toBe(true)
 
         // Test case where it would exceed
-        rpcBalanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance.mockResolvedValueOnce({
           balance: 999500000n, // 999.5 tokens, would become 1000.5 after reward
           decimals: 6,
-          blockNumber: 12345n,
-          blockHash: '0xabcd1234' as Hex,
+          blockNumber: '12345',
+          blockHash: '0xabcd1234',
         })
 
         const result2 = await validationService.validSourceMax(mockIntent)
@@ -843,84 +832,99 @@ describe('ValidationService', () => {
       } as any
 
       it('should return true when solver has sufficient token and native balances', async () => {
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1500n,
+            blockNumber: '123',
+            blockHash: '0xabcdef',
             decimals: 6,
-            ...TokenPartial,
-          },
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          })
+          .mockResolvedValueOnce({
             balance: 2500n,
+            blockNumber: '123',
+            blockHash: '0xabcdef',
             decimals: 6,
-            ...TokenPartial,
-          },
+          })
+        balanceService.getNativeBalance.mockResolvedValue({
+          balance: 500n,
+          blockNumber: '123',
+          blockHash: '0xabcdef',
+          decimals: 18,
         })
-        rpcBalanceService.getNativeBalance.mockResolvedValue(500n)
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(true)
-        expect(rpcBalanceService.fetchTokenBalances).toHaveBeenCalledWith(10, [
+        expect(balanceService.getTokenBalance).toHaveBeenCalledWith(
+          10,
           '0x1111111111111111111111111111111111111111',
+        )
+        expect(balanceService.getTokenBalance).toHaveBeenCalledWith(
+          10,
           '0x2222222222222222222222222222222222222222',
-        ])
-        expect(rpcBalanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
+        )
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10)
       })
 
       it('should return false when solver has insufficient token balance', async () => {
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 500n,
             decimals: 6,
             ...TokenPartial,
-          }, // insufficient
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          }) // insufficient
+          .mockResolvedValueOnce({
             balance: 2500n,
             decimals: 6,
             ...TokenPartial,
-          },
+          })
+        balanceService.getNativeBalance.mockResolvedValue({
+          balance: 500n,
+          blockNumber: '123',
+          blockHash: '0xabcdef',
+          decimals: 18,
         })
-        rpcBalanceService.getNativeBalance.mockResolvedValue(500n)
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(false)
       })
 
       it('should return false when solver has insufficient native balance', async () => {
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1500n,
             decimals: 6,
             ...TokenPartial,
-          },
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          })
+          .mockResolvedValueOnce({
             balance: 2500n,
             decimals: 6,
             ...TokenPartial,
-          },
-        })
-        rpcBalanceService.getNativeBalance.mockResolvedValue(250n) // insufficient for 300n total
+          })
+        balanceService.getNativeBalance.mockResolvedValue({
+          balance: 250n,
+          blockNumber: '123',
+          blockHash: '0xabcdef',
+          decimals: 18,
+        }) // insufficient for 300n total
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(false)
       })
 
       it('should return false when token balance is missing', async () => {
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1500n,
             decimals: 6,
             ...TokenPartial,
-          },
-          // Missing '0x2222222222222222222222222222222222222222'
+          })
+          .mockResolvedValueOnce(null) // Missing second token balance
+        balanceService.getNativeBalance.mockResolvedValue({
+          balance: 500n,
+          blockNumber: '123',
+          blockHash: '0xabcdef',
+          decimals: 18,
         })
-        rpcBalanceService.getNativeBalance.mockResolvedValue(500n)
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(false)
@@ -938,28 +942,25 @@ describe('ValidationService', () => {
           },
         }
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1500n,
             decimals: 6,
             ...TokenPartial,
-          },
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          })
+          .mockResolvedValueOnce({
             balance: 2500n,
             decimals: 6,
             ...TokenPartial,
-          },
-        })
+          })
 
         const result = await validationService['hasSufficientBalance'](intentWithoutNative)
         expect(result).toBe(true)
-        expect(rpcBalanceService.getNativeBalance).not.toHaveBeenCalled()
+        expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
       })
 
       it('should return false when balance service throws an error', async () => {
-        rpcBalanceService.fetchTokenBalances.mockRejectedValue(new Error('Network error'))
+        balanceService.getTokenBalance.mockRejectedValue(new Error('Network error'))
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(false)
@@ -978,25 +979,27 @@ describe('ValidationService', () => {
           },
         }
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1500n,
             decimals: 6,
             ...TokenPartial,
-          },
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          })
+          .mockResolvedValueOnce({
             balance: 2500n,
             decimals: 6,
             ...TokenPartial,
-          },
+          })
+        balanceService.getNativeBalance.mockResolvedValue({
+          balance: 500n,
+          blockNumber: '123',
+          blockHash: '0xabcdef',
+          decimals: 18,
         })
-        rpcBalanceService.getNativeBalance.mockResolvedValue(500n)
 
         const result = await validationService['hasSufficientBalance'](intentWithMixedCalls)
         expect(result).toBe(true)
-        expect(rpcBalanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10)
       })
 
       it('should correctly handle token minimum balance requirements with solver targets', async () => {
@@ -1025,22 +1028,19 @@ describe('ValidationService', () => {
           },
         }
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          // Token1: balance 1100, minReq 50 (normalized to token decimals), available = 1100-50 = 1050, need 1000 ✓
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        // Token1: balance 1100, minReq 50 (normalized to token decimals), available = 1100-50 = 1050, need 1000 ✓
+        // Token2: balance 550, minReq 100 (normalized to token decimals), available = 550-100 = 450, need 500 ✗
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1100n,
             decimals: 6,
             ...TokenPartial,
-          },
-          // Token2: balance 550, minReq 100 (normalized to token decimals), available = 550-100 = 450, need 500 ✗
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          })
+          .mockResolvedValueOnce({
             balance: 550n,
             decimals: 6,
             ...TokenPartial,
-          },
-        })
+          })
 
         const result = await validationService['hasSufficientBalance'](intentWithTokens)
         expect(result).toBe(false) // Should fail because Token2 insufficient after min balance
@@ -1072,20 +1072,17 @@ describe('ValidationService', () => {
           },
         }
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+        balanceService.getTokenBalance
+          .mockResolvedValueOnce({
             balance: 1000n,
             decimals: 6,
             ...TokenPartial,
-          }, // exactly enough
-          '0x2222222222222222222222222222222222222222': {
-            address: '0x2222222222222222222222222222222222222222',
+          }) // exactly enough
+          .mockResolvedValueOnce({
             balance: 500n,
             decimals: 6,
             ...TokenPartial,
-          }, // exactly enough
-        })
+          }) // exactly enough
 
         const result = await validationService['hasSufficientBalance'](intentWithTokens)
         expect(result).toBe(true)
@@ -1115,9 +1112,14 @@ describe('ValidationService', () => {
           },
         } as any
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({})
+        // No token balance calls expected for this test case
         // Only 50n available, but need 100n
-        rpcBalanceService.getNativeBalance.mockResolvedValue(50n)
+        balanceService.getNativeBalance.mockResolvedValue({
+          balance: 50n,
+          blockNumber: '123',
+          blockHash: '0xabcdef',
+          decimals: 18,
+        })
 
         const result = await validationService['hasSufficientBalance'](intentWithNativeValue)
 
@@ -1158,13 +1160,10 @@ describe('ValidationService', () => {
           },
         } as any
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
-            balance: 500n,
-            decimals: 6,
-            ...TokenPartial,
-          },
+        balanceService.getTokenBalance.mockResolvedValueOnce({
+          balance: 500n,
+          decimals: 6,
+          ...TokenPartial,
         })
 
         const result = await validationService['hasSufficientBalance'](intentWithTokens)
@@ -1197,13 +1196,10 @@ describe('ValidationService', () => {
           },
         } as any
 
-        rpcBalanceService.fetchTokenBalances.mockResolvedValue({
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
-            balance: 1500n,
-            decimals: 6,
-            ...TokenPartial,
-          },
+        balanceService.getTokenBalance.mockResolvedValueOnce({
+          balance: 1500n,
+          decimals: 6,
+          ...TokenPartial,
         })
 
         const result = await validationService['hasSufficientBalance'](intentWithTokens)

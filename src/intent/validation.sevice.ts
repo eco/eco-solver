@@ -1,4 +1,4 @@
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -86,7 +86,7 @@ export class ValidationService implements OnModuleInit {
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
-    private readonly balanceService: RpcBalanceService,
+    private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
@@ -338,11 +338,27 @@ export class ValidationService implements OnModuleInit {
       }
 
       // Get current balance for this reward token
-      const tokenBalance = await this.balanceService.fetchTokenBalance(
+      const balanceResult = await this.balanceService.getTokenBalance(
         Number(intent.route.source),
         rewardToken.token as Hex,
       )
-      const currentBalance = tokenBalance.balance
+
+      if (!balanceResult) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `validSourceTokenMax: Could not get balance for token`,
+            properties: {
+              rewardToken: rewardToken.token,
+              sourceChain: intent.route.source,
+              intentHash: intent.hash,
+            },
+          }),
+        )
+        return false
+      }
+
+      const currentBalance = balanceResult.balance
+      const decimals = balanceResult.decimals
 
       // Calculate projected balance after receiving the reward amount
       // On source chain, solver receives reward tokens from user
@@ -351,7 +367,7 @@ export class ValidationService implements OnModuleInit {
       // Normalize maxBalance (stored as dollar units(decimal = 0), convert to token units)
       const normalizedMaxBalance = normalizeBalance(
         { balance: BigInt(targetConfig.maxBalance), decimal: 0 },
-        tokenBalance.decimals,
+        decimals,
       ).balance
 
       // Check if projected balance would exceed maxBalance
@@ -442,11 +458,8 @@ export class ValidationService implements OnModuleInit {
    */
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
     try {
-      const tokens = intent.route.tokens.map((t) => t.token)
       const destinationChain = Number(intent.route.destination)
 
-      // Fetch token balances
-      const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
       const solver = this.ecoConfigService.getSolver(destinationChain)
       if (!solver) {
         this.logger.warn(
@@ -464,22 +477,42 @@ export class ValidationService implements OnModuleInit {
 
       // Check if solver has enough token balances
       for (const routeToken of intent.route.tokens) {
-        const balance = tokenBalances[routeToken.token]
+        const balanceResult = await this.balanceService.getTokenBalance(
+          destinationChain,
+          routeToken.token as Hex,
+        )
+
+        if (!balanceResult) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Could not get balance for token`,
+              properties: {
+                token: routeToken.token,
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+
         const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        const decimals = balanceResult.decimals
+
         // Normalize the balance to the token's decimals, configs have the minReq in dollar value
         const balanceMinReq = normalizeBalance(
           { balance: BigInt(minReqDollar), decimal: 0 },
-          balance.decimals,
+          decimals,
         )
 
-        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
+        if (balanceResult.balance - balanceMinReq.balance < routeToken.amount) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient token balance`,
               properties: {
                 token: routeToken.token,
                 required: routeToken.amount.toString(),
-                available: balance?.balance.toString() || '0',
+                available: balanceResult.balance.toString(),
                 intentHash: intent.hash,
                 destination: destinationChain,
               },
@@ -493,17 +526,28 @@ export class ValidationService implements OnModuleInit {
       const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
 
       if (totalFulfillNativeValue > 0n) {
-        const solverNativeBalance = await this.balanceService.getNativeBalance(
-          destinationChain,
-          'kernel',
-        )
-        if (solverNativeBalance < totalFulfillNativeValue) {
+        const nativeBalanceResult = await this.balanceService.getNativeBalance(destinationChain)
+
+        if (!nativeBalanceResult) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Could not get native balance`,
+              properties: {
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+
+        if (nativeBalanceResult.balance < totalFulfillNativeValue) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient native balance`,
               properties: {
                 required: totalFulfillNativeValue.toString(),
-                available: solverNativeBalance.toString(),
+                available: nativeBalanceResult.balance.toString(),
                 intentHash: intent.hash,
                 destination: destinationChain,
               },

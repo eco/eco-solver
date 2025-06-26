@@ -40,7 +40,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly publicClient: MultichainPublicClientService,
-    private readonly balanceService: RpcBalanceService,
+    private readonly rpcBalanceService: RpcBalanceService,
     private readonly utilsIntentService: UtilsIntentService,
   ) {}
 
@@ -155,7 +155,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {TokenConfig[]} Array of supported tokens, each including token details and the corresponding target balance.
    */
   getSupportedTokens(): TokenConfig[] {
-    return this.balanceService
+    return this.ecoConfigService
       .getInboxTokens()
       .filter((token) => this.isSupportedToken(token.chainId, token.address))
       .map((token) => ({
@@ -179,8 +179,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
           isAddressEqual(token.address, rewardToken.token),
       )
     })
-
-    const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
+    // use rpc calls for the crowd liquidity pool address
+    const routeTokensData: TokenData[] = await this.rpcBalanceService.getAllTokenDataForAddress(
       this.getPoolAddress(),
       routeTokens,
     )

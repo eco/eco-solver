@@ -4,8 +4,8 @@ import { Model, Types } from 'mongoose'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Hex } from 'viem'
 
-import { IntentSourceRepository } from '../repositories/intent-source.repository'
-import { IntentSourceModel, IntentSourceStatus } from '../schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { IntentSourceModel, IntentSourceStatus } from '@/intent/schemas/intent-source.schema'
 
 describe('IntentSourceRepository', () => {
   let repository: IntentSourceRepository

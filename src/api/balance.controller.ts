@@ -9,13 +9,13 @@ import * as _ from 'lodash'
 @Controller(API_ROOT + BALANCE_ROUTE)
 @UseInterceptors(CacheInterceptor)
 export class BalanceController {
-  constructor(private readonly balanceService: RpcBalanceService) {}
+  constructor(private readonly rpcBalanceService: RpcBalanceService) {}
 
   @Get()
   async getBalances(@Query('flat') flat?: boolean) {
     const [tokenData, nativeData] = await Promise.all([
-      this.balanceService.getAllTokenData(),
-      this.balanceService.fetchAllNativeBalances(),
+      this.rpcBalanceService.getAllTokenData(),
+      this.rpcBalanceService.fetchAllNativeBalances(),
     ])
 
     const filteredNativeData = nativeData.filter(

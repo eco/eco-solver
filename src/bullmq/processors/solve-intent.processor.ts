@@ -51,6 +51,7 @@ export class SolveIntentProcessor extends WorkerHost {
       case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
         return await this.fulfillIntentService.fulfill(job.data as Hex)
       case QUEUES.SOURCE_INTENT.jobs.withdrawal:
+        //TODO update this to batching
         return await this.withdrawalService.processWithdrawal(job.data as Serialize<WithdrawalLog>)
       default:
         this.logger.error(

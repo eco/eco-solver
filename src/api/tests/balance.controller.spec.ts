@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { BalanceController } from '../balance.controller'
+import { BalanceController } from '@/api/balance.controller'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
 
 describe('BalanceController Test', () => {
   let balanceController: BalanceController
-  let balanceService: RpcBalanceService
+  let rpcBalanceService: RpcBalanceService
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,7 +27,7 @@ describe('BalanceController Test', () => {
     }).compile()
 
     balanceController = module.get<BalanceController>(BalanceController)
-    balanceService = module.get<RpcBalanceService>(RpcBalanceService)
+    rpcBalanceService = module.get<RpcBalanceService>(RpcBalanceService)
   })
 
   it('should be defined', () => {
@@ -52,8 +52,8 @@ describe('BalanceController Test', () => {
         { chainId: 42161, balance: 200000000000000000n, blockNumber: 145000000n },
       ]
 
-      jest.spyOn(balanceService, 'getAllTokenData').mockResolvedValue(tokenData as any)
-      jest.spyOn(balanceService, 'fetchAllNativeBalances').mockResolvedValue(nativeData as any)
+      jest.spyOn(rpcBalanceService, 'getAllTokenData').mockResolvedValue(tokenData as any)
+      jest.spyOn(rpcBalanceService, 'fetchAllNativeBalances').mockResolvedValue(nativeData as any)
 
       const result = await balanceController.getBalances()
 
@@ -67,9 +67,11 @@ describe('BalanceController Test', () => {
     })
 
     it('should call both token and native balance services', async () => {
-      const getAllTokenDataSpy = jest.spyOn(balanceService, 'getAllTokenData').mockResolvedValue([])
+      const getAllTokenDataSpy = jest
+        .spyOn(rpcBalanceService, 'getAllTokenData')
+        .mockResolvedValue([])
       const fetchAllNativeBalancesSpy = jest
-        .spyOn(balanceService, 'fetchAllNativeBalances')
+        .spyOn(rpcBalanceService, 'fetchAllNativeBalances')
         .mockResolvedValue([])
 
       await balanceController.getBalances()
@@ -86,8 +88,8 @@ describe('BalanceController Test', () => {
         { chainId: 42161, balance: 200000000000000000n, blockNumber: 145000000n },
       ]
 
-      jest.spyOn(balanceService, 'getAllTokenData').mockResolvedValue(tokenData as any)
-      jest.spyOn(balanceService, 'fetchAllNativeBalances').mockResolvedValue(nativeData as any)
+      jest.spyOn(rpcBalanceService, 'getAllTokenData').mockResolvedValue(tokenData as any)
+      jest.spyOn(rpcBalanceService, 'fetchAllNativeBalances').mockResolvedValue(nativeData as any)
 
       const result = await balanceController.getBalances()
 
@@ -109,8 +111,8 @@ describe('BalanceController Test', () => {
       ]
       const nativeData = [{ chainId: 1, balance: 500000000000000000n, blockNumber: 18500000n }]
 
-      jest.spyOn(balanceService, 'getAllTokenData').mockResolvedValue(tokenData as any)
-      jest.spyOn(balanceService, 'fetchAllNativeBalances').mockResolvedValue(nativeData as any)
+      jest.spyOn(rpcBalanceService, 'getAllTokenData').mockResolvedValue(tokenData as any)
+      jest.spyOn(rpcBalanceService, 'fetchAllNativeBalances').mockResolvedValue(nativeData as any)
       const groupTokensSpy = jest.spyOn(balanceController, 'groupTokensByChain')
       const groupNativeSpy = jest.spyOn(balanceController, 'groupNativeByChain')
 

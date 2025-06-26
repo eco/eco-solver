@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
 import { Hex } from 'viem'
-import { IntentSourceModel, IntentSourceStatus } from '../schemas/intent-source.schema'
+import { IntentSourceModel, IntentSourceStatus } from '@/intent/schemas/intent-source.schema'
 import { CreateModelParamsWithExclusions } from '@/common/db/utils'
+import { HexNative } from '../../balance/schemas/balance-record.schema'
 
 export type CreateIntentSourceParams = CreateModelParamsWithExclusions<
   IntentSourceModel,
@@ -195,7 +196,7 @@ export class IntentSourceRepository {
    */
   async calculateTotalRewardsForChainAndToken(
     chainId: bigint,
-    tokenAddress?: Hex,
+    tokenAddress?: HexNative,
   ): Promise<bigint> {
     const matchConditions: any = {
       fulfilledBySelf: true,

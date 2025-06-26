@@ -5,7 +5,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 
 export abstract class ClientCommand extends CommandRunner {
   constructor(
-    protected readonly balanceService: RpcBalanceService,
+    protected readonly rpcBalanceService: RpcBalanceService,
     protected readonly kernelAccountClientService: KernelAccountClientService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {

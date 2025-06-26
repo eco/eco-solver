@@ -32,6 +32,7 @@ export class WithdrawalService {
    * @param serializedWithdrawalEvent - The serialized withdrawal event from the blockchain
    */
   async processWithdrawal(serializedWithdrawalEvent: Serialize<WithdrawalLog>): Promise<void> {
+    //TODO update this to batching
     const withdrawalEvent = deserialize(serializedWithdrawalEvent)
 
     this.logger.debug(

@@ -1,14 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { BalanceService } from '../services/balance.service'
-import { BalanceRecordRepository } from '../repositories/balance-record.repository'
-import { BalanceChangeRepository } from '../repositories/balance-change.repository'
-import { RpcBalanceService } from '../services/rpc-balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
+import { BalanceRecordRepository } from '@/balance/repositories/balance-record.repository'
+import { BalanceChangeRepository } from '@/balance/repositories/balance-change.repository'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Queue } from 'bullmq'
 import { getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
+import { TokenConfig } from '@/balance/types/balance.types'
+import { Hex } from 'viem'
 
 describe('BalanceService', () => {
   let service: BalanceService
@@ -111,6 +113,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('1000000000000000000'),
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
       const rewardAmount = BigInt('500000000000000000') // 0.5 ETH rewards
 
@@ -122,6 +126,8 @@ describe('BalanceService', () => {
       const expectedResult = {
         balance: BigInt('1500000000000000000'), // 1 + 0.5 ETH
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       expect(result).toEqual(expectedResult)
@@ -148,6 +154,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: baseBalance + outstandingChanges, // Repository already includes outstanding changes
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
@@ -159,6 +167,8 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: expectedTotalBalance, // 1 + 0.3 + 0.2 = 1.5 ETH
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       })
       expect(result!.balance.toString()).toBe('1500000000000000000')
     })
@@ -172,6 +182,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: baseBalance + negativeOutstandingChanges, // 1.5 ETH after changes
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
@@ -182,6 +194,8 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: BigInt('1600000000000000000'), // 2 - 0.5 + 0.1 = 1.6 ETH
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       })
     })
 
@@ -189,6 +203,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('1000000000000000000'), // 1 ETH from base + changes
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
       const zeroRewards = BigInt('0') // No rewards
 
@@ -200,6 +216,8 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: BigInt('1000000000000000000'), // Only base + changes, no rewards
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       })
     })
 
@@ -211,6 +229,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: largeBaseBalance + largeOutstandingChanges,
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
@@ -222,6 +242,8 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: expectedTotal,
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       })
       expect(result!.balance.toString()).toBe('1333333333333333333333332')
     })
@@ -246,6 +268,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('1000000000000000000'),
         blockNumber,
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
       const rewardAmount = BigInt('200000000000000000') // 0.2 ETH rewards
 
@@ -257,6 +281,8 @@ describe('BalanceService', () => {
       const expectedResult = {
         balance: BigInt('1200000000000000000'), // 1 + 0.2 ETH
         blockNumber,
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       expect(result).toEqual(expectedResult)
@@ -275,6 +301,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('5000000000000000000'),
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
       const rewardAmount = BigInt('1000000000000000000') // 1 ETH native rewards
 
@@ -286,6 +314,8 @@ describe('BalanceService', () => {
       const expectedResult = {
         balance: BigInt('6000000000000000000'), // 5 + 1 ETH
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       expect(result).toEqual(expectedResult)
@@ -304,6 +334,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('1000000000000000000'),
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
@@ -317,6 +349,8 @@ describe('BalanceService', () => {
       expect(result).toEqual({
         balance: BigInt('1000000000000000000'), // Only base + changes, no rewards due to error
         blockNumber: '18500000',
+        decimals: 18,
+        blockHash: '0xabcdef',
       })
     })
 
@@ -325,6 +359,8 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('1000000000000000000'),
         blockNumber: specificBlockNumber,
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
       const rewardAmount = BigInt('0')
 
@@ -355,17 +391,21 @@ describe('BalanceService', () => {
       const balanceResult = {
         balance: BigInt('5000000000000000000'),
         blockNumber: '18500200',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
       const rewardAmount = BigInt('500000000000000000') // 0.5 ETH native rewards
 
       balanceRecordRepository.getCurrentBalance.mockResolvedValue(balanceResult)
       intentSourceRepository.calculateTotalRewardsForChainAndToken.mockResolvedValue(rewardAmount)
 
-      const result = await service.getCurrentNativeBalance(chainId)
+      const result = await service.getNativeBalance(chainId)
 
       const expectedResult = {
         balance: BigInt('5500000000000000000'), // 5 + 0.5 ETH
         blockNumber: '18500200',
+        decimals: 18,
+        blockHash: '0xabcdef',
       }
 
       expect(result).toEqual(expectedResult)
@@ -415,7 +455,7 @@ describe('BalanceService', () => {
   describe('updateBalanceFromRpc', () => {
     const updateParams = {
       chainId: 1,
-      address: '0x1234567890123456789012345678901234567890',
+      address: '0x1234567890123456789012345678901234567890' as const,
       balance: '1000000000000000000',
       blockNumber: '18500000',
       blockHash: '0xabcdef',
@@ -441,14 +481,14 @@ describe('BalanceService', () => {
   describe('createBalanceChange', () => {
     const changeParams = {
       chainId: 1,
-      address: 'native',
+      address: 'native' as const,
       changeAmount: '1000000000000000000',
       direction: 'incoming' as const,
       blockNumber: '18500000',
       blockHash: '0xabcdef',
       transactionHash: '0x123456',
-      from: '0xfrom',
-      to: '0xto',
+      from: '0x0000000000000000000000000000000000000001' as const,
+      to: '0x0000000000000000000000000000000000000002' as const,
     }
 
     it('should create balance change', async () => {
@@ -461,6 +501,280 @@ describe('BalanceService', () => {
       expect(balanceChangeRepository.createBalanceChange).toHaveBeenCalledWith({
         ...changeParams,
         chainId: '1',
+      })
+    })
+  })
+
+  describe('getAllTokenDataForAddress', () => {
+    const mockTokenConfigs: TokenConfig[] = [
+      {
+        address: '0x1234567890123456789012345678901234567890' as Hex,
+        chainId: 1,
+        minBalance: 100,
+        targetBalance: 1000,
+        type: 'erc20',
+      },
+      {
+        address: '0x9876543210987654321098765432109876543210' as Hex,
+        chainId: 1,
+        minBalance: 200,
+        targetBalance: 2000,
+        type: 'erc20',
+      },
+      {
+        address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex,
+        chainId: 137,
+        minBalance: 50,
+        targetBalance: 500,
+        type: 'erc20',
+      },
+    ]
+
+    const mockBalanceResults = {
+      '0x1234567890123456789012345678901234567890': {
+        balance: BigInt('1000000000000000000'),
+        blockNumber: '18500000',
+        decimals: 6,
+        blockHash: '0xabcdef' as Hex,
+      },
+      '0x9876543210987654321098765432109876543210': {
+        balance: BigInt('2000000000000000000'),
+        blockNumber: '18500000',
+        decimals: 6,
+        blockHash: '0xabcdef' as Hex,
+      },
+    }
+
+    const mockPolygonBalanceResults = {
+      '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd': {
+        balance: BigInt('500000000000000000'),
+        blockNumber: '18500000',
+        decimals: 6,
+        blockHash: '0xfedcba' as Hex,
+      },
+    }
+
+    beforeEach(() => {
+      // Mock getTokenBalances to return different results for different chains
+      jest
+        .spyOn(service, 'getTokenBalances')
+        .mockImplementation(async (chainId, tokenAddresses, blockNumber?) => {
+          if (chainId === 1) {
+            return mockBalanceResults
+          } else if (chainId === 137) {
+            return mockPolygonBalanceResults
+          }
+          return {}
+        })
+    })
+
+    it('should successfully get token data for all chains', async () => {
+      const result = await service.getAllTokenDataForAddress(mockTokenConfigs)
+
+      expect(result).toHaveLength(3)
+      expect(result).toEqual([
+        {
+          config: mockTokenConfigs[0],
+          balance: mockBalanceResults['0x1234567890123456789012345678901234567890'],
+          chainId: 1,
+        },
+        {
+          config: mockTokenConfigs[1],
+          balance: mockBalanceResults['0x9876543210987654321098765432109876543210'],
+          chainId: 1,
+        },
+        {
+          config: mockTokenConfigs[2],
+          balance: mockPolygonBalanceResults['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'],
+          chainId: 137,
+        },
+      ])
+
+      expect(service.getTokenBalances).toHaveBeenCalledWith(
+        1,
+        [
+          '0x1234567890123456789012345678901234567890',
+          '0x9876543210987654321098765432109876543210',
+        ],
+        undefined,
+      )
+      expect(service.getTokenBalances).toHaveBeenCalledWith(
+        137,
+        ['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'],
+        undefined,
+      )
+    })
+
+    it('should handle empty token configs array', async () => {
+      const result = await service.getAllTokenDataForAddress([])
+
+      expect(result).toEqual([])
+      expect(service.getTokenBalances).not.toHaveBeenCalled()
+    })
+
+    it('should handle single chain with multiple tokens', async () => {
+      const singleChainTokens = mockTokenConfigs.slice(0, 2) // Only Ethereum tokens
+
+      const result = await service.getAllTokenDataForAddress(singleChainTokens)
+
+      expect(result).toHaveLength(2)
+      expect(result[0].chainId).toBe(1)
+      expect(result[1].chainId).toBe(1)
+      expect(service.getTokenBalances).toHaveBeenCalledTimes(1)
+      expect(service.getTokenBalances).toHaveBeenCalledWith(
+        1,
+        [
+          '0x1234567890123456789012345678901234567890',
+          '0x9876543210987654321098765432109876543210',
+        ],
+        undefined,
+      )
+    })
+
+    it('should handle single token on single chain', async () => {
+      const singleToken = [mockTokenConfigs[0]]
+
+      const result = await service.getAllTokenDataForAddress(singleToken)
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual({
+        config: mockTokenConfigs[0],
+        balance: mockBalanceResults['0x1234567890123456789012345678901234567890'],
+        chainId: 1,
+      })
+      expect(service.getTokenBalances).toHaveBeenCalledWith(
+        1,
+        ['0x1234567890123456789012345678901234567890'],
+        undefined,
+      )
+    })
+
+    it('should pass blockNumber parameter correctly', async () => {
+      const blockNumber = '18500000'
+      const singleToken = [mockTokenConfigs[0]]
+
+      await service.getAllTokenDataForAddress(singleToken, blockNumber)
+
+      expect(service.getTokenBalances).toHaveBeenCalledWith(
+        1,
+        ['0x1234567890123456789012345678901234567890'],
+        blockNumber,
+      )
+    })
+
+    it('should filter out undefined balance results', async () => {
+      // Mock getTokenBalances to return partial results (simulating some tokens not found)
+      jest
+        .spyOn(service, 'getTokenBalances')
+        .mockImplementation(async (chainId, tokenAddresses, blockNumber?) => {
+          if (chainId === 1) {
+            // Only return balance for first token, not the second
+            return {
+              '0x1234567890123456789012345678901234567890':
+                mockBalanceResults['0x1234567890123456789012345678901234567890'],
+            } as Record<Hex, any>
+          }
+          return {} as Record<Hex, any>
+        })
+
+      const singleChainTokens = mockTokenConfigs.slice(0, 2) // Both Ethereum tokens
+      const result = await service.getAllTokenDataForAddress(singleChainTokens)
+
+      // Should only return the token that had a balance result
+      expect(result).toHaveLength(1)
+      expect(result[0].config.address).toBe('0x1234567890123456789012345678901234567890')
+    })
+
+    it('should handle chain-level errors gracefully', async () => {
+      // Mock getTokenBalances to throw error for one chain but succeed for another
+      jest
+        .spyOn(service, 'getTokenBalances')
+        .mockImplementation(async (chainId, tokenAddresses, blockNumber?) => {
+          if (chainId === 1) {
+            throw new Error('Chain 1 RPC failed')
+          } else if (chainId === 137) {
+            return mockPolygonBalanceResults
+          }
+          return {}
+        })
+
+      const result = await service.getAllTokenDataForAddress(mockTokenConfigs)
+
+      // Should only return results from successful chain (137)
+      expect(result).toHaveLength(1)
+      expect(result[0].chainId).toBe(137)
+      expect(result[0].config.address).toBe('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd')
+    })
+
+    it('should handle complete failure gracefully', async () => {
+      // Mock getTokenBalances to always throw errors
+      jest.spyOn(service, 'getTokenBalances').mockRejectedValue(new Error('All chains failed'))
+
+      const result = await service.getAllTokenDataForAddress(mockTokenConfigs)
+
+      expect(result).toEqual([])
+    })
+
+    it('should handle method-level errors and return empty array', async () => {
+      // Force an error by passing invalid input that would cause groupBy to fail
+      const invalidTokens = null as any
+
+      const result = await service.getAllTokenDataForAddress(invalidTokens)
+
+      expect(result).toEqual([])
+    })
+
+    it('should correctly group tokens by chainId', async () => {
+      // Create tokens with mixed chain IDs to test grouping
+      const mixedChainTokens: TokenConfig[] = [
+        { ...mockTokenConfigs[0], chainId: 1 },
+        { ...mockTokenConfigs[1], chainId: 137 },
+        { ...mockTokenConfigs[2], chainId: 1 },
+      ]
+
+      // Mock to track which chains were called
+      const getTokenBalancesSpy = jest
+        .spyOn(service, 'getTokenBalances')
+        .mockImplementation(async (chainId, tokenAddresses, blockNumber?) => {
+          if (chainId === 1) {
+            return {
+              [mixedChainTokens[0].address]: mockBalanceResults[mixedChainTokens[0].address],
+              [mixedChainTokens[2].address]: mockPolygonBalanceResults[mixedChainTokens[2].address],
+            }
+          } else if (chainId === 137) {
+            return {
+              [mixedChainTokens[1].address]: mockPolygonBalanceResults[mixedChainTokens[1].address],
+            }
+          }
+          return {}
+        })
+
+      await service.getAllTokenDataForAddress(mixedChainTokens)
+
+      // Should call getTokenBalances for each unique chain ID
+      expect(getTokenBalancesSpy).toHaveBeenCalledWith(1, expect.any(Array), undefined)
+      expect(getTokenBalancesSpy).toHaveBeenCalledWith(137, expect.any(Array), undefined)
+      expect(getTokenBalancesSpy).toHaveBeenCalledTimes(2)
+    })
+
+    it('should preserve order and structure of results', async () => {
+      const result = await service.getAllTokenDataForAddress(mockTokenConfigs)
+
+      // Verify the structure of each result
+      result.forEach((item) => {
+        expect(item).toHaveProperty('config')
+        expect(item).toHaveProperty('balance')
+        expect(item).toHaveProperty('chainId')
+        expect(item.config).toHaveProperty('address')
+        expect(item.config).toHaveProperty('chainId')
+        expect(item.config).toHaveProperty('minBalance')
+        expect(item.config).toHaveProperty('targetBalance')
+        expect(item.config).toHaveProperty('type')
+        expect(item.balance).toHaveProperty('balance')
+        expect(item.balance).toHaveProperty('blockNumber')
+        expect(item.balance).toHaveProperty('decimals')
+        expect(item.balance).toHaveProperty('blockHash')
+        expect(typeof item.chainId).toBe('number')
       })
     })
   })

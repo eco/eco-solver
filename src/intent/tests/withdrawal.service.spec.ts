@@ -4,13 +4,13 @@ import { Model } from 'mongoose'
 import { getModelToken } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 
-import { WithdrawalService } from '../withdrawal.service'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
-import { UtilsIntentService } from '../utils-intent.service'
+import { WithdrawalService } from '@/intent/withdrawal.service'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { WithdrawalLog } from '@/contracts/intent-source'
 import { Serialize } from '@/common/utils/serialize'
 import { Network } from '@/common/alchemy/network'
-import { WithdrawalRepository } from '../repositories/withdrawal.repository'
+import { WithdrawalRepository } from '@/intent/repositories/withdrawal.repository'
 import { Types } from 'mongoose'
 
 describe('WithdrawalService', () => {

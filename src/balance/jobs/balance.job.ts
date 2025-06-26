@@ -1,4 +1,5 @@
 import { QUEUES } from '@/common/redis/constants'
+import { Hex } from 'viem'
 
 /**
  * Job data interface for updating balance records from RPC
@@ -13,7 +14,7 @@ export interface UpdateBalanceJobData {
   /** Chain ID */
   chainId: string
   /** Token address or 'native' */
-  address: string
+  address: Hex | 'native'
   /** Change amount (positive for increment, negative for decrement) */
   changeAmount: string
   /** Direction of the change */

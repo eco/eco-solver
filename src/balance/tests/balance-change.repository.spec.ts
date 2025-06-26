@@ -2,8 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Model } from 'mongoose'
-import { BalanceChangeRepository } from '../repositories/balance-change.repository'
-import { BalanceChange, BalanceChangeModel } from '../schemas/balance-change.schema'
+import { Hex } from 'viem'
+import { BalanceChangeRepository } from '@/balance/repositories/balance-change.repository'
+import { BalanceChange, BalanceChangeModel } from '@/balance/schemas/balance-change.schema'
 
 describe('BalanceChangeRepository', () => {
   let repository: BalanceChangeRepository
@@ -49,7 +50,7 @@ describe('BalanceChangeRepository', () => {
 
   describe('calculateOutstandingBalance', () => {
     const chainId = '1'
-    const address = '0x1234567890123456789012345678901234567890'
+    const address = '0x1234567890123456789012345678901234567890' as Hex
     const blockNumber = '18500000'
 
     it('should calculate outstanding balance with incoming and outgoing transfers', async () => {
@@ -182,7 +183,7 @@ describe('BalanceChangeRepository', () => {
   describe('createBalanceChange', () => {
     const changeParams = {
       chainId: '1',
-      address: 'native',
+      address: 'native' as const,
       changeAmount: '1000000000000000000',
       direction: 'incoming' as const,
       blockNumber: '18500000',
@@ -214,7 +215,7 @@ describe('BalanceChangeRepository', () => {
 
   describe('getBalanceChangesSince', () => {
     const chainId = '1'
-    const address = '0x1234567890123456789012345678901234567890'
+    const address = '0x1234567890123456789012345678901234567890' as Hex
     const blockNumber = '18500000'
 
     it('should fetch balance changes since specified block', async () => {
@@ -267,7 +268,7 @@ describe('BalanceChangeRepository', () => {
   describe('create', () => {
     const createParams = {
       chainId: '1',
-      address: 'native',
+      address: 'native' as const,
       changeAmount: '1000000000000000000',
       direction: 'incoming' as const,
       blockNumber: '18500000',
@@ -329,7 +330,7 @@ describe('BalanceChangeRepository', () => {
 
   describe('integration scenarios for outstanding balance calculation', () => {
     const chainId = '1'
-    const address = 'native'
+    const address = 'native' as const
     const baseBlockNumber = '18500000'
 
     it('should demonstrate complex outstanding balance scenarios', async () => {

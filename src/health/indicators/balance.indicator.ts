@@ -6,7 +6,7 @@ import { entries, keyBy } from 'lodash'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
 
 type TokenType = {
   token: Hex
@@ -24,7 +24,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly configService: EcoConfigService,
-    private readonly balanceService: RpcBalanceService,
+    private readonly balanceService: BalanceService,
   ) {
     super()
   }
@@ -70,7 +70,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const solvers = this.configService.getSolvers()
 
     // Get all native balances using the balance service
-    const nativeBalances = await this.balanceService.fetchAllNativeBalances()
+    const nativeBalances = await this.balanceService.getAllNativeBalances()
     const nativeBalancesByChain = keyBy(nativeBalances.filter(Boolean), 'chainId')
 
     const balanceTasks = entries(solvers).map(async ([, solver]) => {

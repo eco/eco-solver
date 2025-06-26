@@ -103,6 +103,7 @@ export class WatchWithdrawalService extends WatchEventService<IntentSource> {
         )
 
         // add to processing queue
+        //TODO update this to batching
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.withdrawal, withdrawal, {
           jobId,
           ...this.watchJobConfig,

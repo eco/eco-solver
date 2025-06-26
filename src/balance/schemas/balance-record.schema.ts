@@ -1,5 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { Hex } from 'viem'
+
+// Define a type for Hex address or 'native' to represent native gas token
+export type HexNative = Hex | 'native'
 
 @Schema({
   collection: 'balance_records',
@@ -11,7 +15,7 @@ export class BalanceRecord extends Document {
   chainId: string
 
   @Prop({ required: true, type: String })
-  address: string // Hex address or 'native'
+  address: HexNative // Hex address or 'native'
 
   @Prop({ required: true, type: String })
   balance: string // Current balance from RPC (store as string to handle bigint)
@@ -23,13 +27,13 @@ export class BalanceRecord extends Document {
   blockHash: string
 
   @Prop({ required: false, type: Number })
-  decimals?: number
+  decimals: number
 
   @Prop({ required: false, type: String })
-  tokenSymbol?: string
+  tokenSymbol: string
 
   @Prop({ required: false, type: String })
-  tokenName?: string
+  tokenName: string
 }
 
 export const BalanceRecordSchema = SchemaFactory.createForClass(BalanceRecord)

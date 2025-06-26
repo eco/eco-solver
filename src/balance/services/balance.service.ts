@@ -2,8 +2,12 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
 import { Hex } from 'viem'
+import { groupBy } from 'lodash'
 import { RpcBalanceService } from './rpc-balance.service'
-import { BalanceRecordRepository } from '../repositories/balance-record.repository'
+import {
+  BalanceRecordRepository,
+  GetCurrentBalanceResult,
+} from '../repositories/balance-record.repository'
 import { BalanceChangeRepository } from '../repositories/balance-change.repository'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -14,6 +18,11 @@ import {
   BALANCE_JOB_OPTIONS,
   UpdateBalanceRecordJobData,
 } from '@/balance/jobs/balance.job'
+import {
+  CreateBalanceChangeParams,
+  UpdateBalanceFromRpcParams,
+} from '@/balance/types/balance-service.types'
+import { TokenConfig } from '@/balance/types/balance.types'
 
 /**
  * Simple balance service that provides methods to interact with balance data
@@ -105,14 +114,40 @@ export class BalanceService implements OnModuleInit {
   }
 
   /**
+   * Calculate rewards for a given chain and token address
+   * Extracted helper method to avoid code duplication
+   */
+  private async calculateRewards(chainId: number, address: Hex | 'native'): Promise<bigint> {
+    try {
+      const tokenAddress = address === 'native' ? undefined : (address as Hex)
+      return await this.intentSourceRepository.calculateTotalRewardsForChainAndToken(
+        BigInt(chainId),
+        tokenAddress,
+      )
+    } catch (rewardError) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'BalanceService: Error calculating rewards, continuing without rewards',
+          properties: {
+            chainId,
+            address,
+            error: rewardError.message,
+          },
+        }),
+      )
+      return BigInt(0)
+    }
+  }
+
+  /**
    * Get current balance for chainId/address/block including rewards from SOLVED intents
    * Defaults to latest block if no block specified
    */
   async getCurrentBalance(
     chainId: number,
-    address: string,
+    address: Hex | 'native',
     blockNumber?: string,
-  ): Promise<{ balance: bigint; blockNumber: string } | null> {
+  ): Promise<GetCurrentBalanceResult | null> {
     try {
       const result = await this.balanceRecordRepository.getCurrentBalance(
         chainId.toString(),
@@ -125,25 +160,7 @@ export class BalanceService implements OnModuleInit {
       }
 
       // Get rewards from SOLVED intents for this chain and address
-      let rewardAmount = BigInt(0)
-      try {
-        const tokenAddress = address === 'native' ? undefined : (address as Hex)
-        rewardAmount = await this.intentSourceRepository.calculateTotalRewardsForChainAndToken(
-          BigInt(chainId),
-          tokenAddress,
-        )
-      } catch (rewardError) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'BalanceService: Error calculating rewards, continuing without rewards',
-            properties: {
-              chainId,
-              address,
-              error: rewardError.message,
-            },
-          }),
-        )
-      }
+      const rewardAmount = await this.calculateRewards(chainId, address)
 
       // Add rewards to the balance
       const totalBalance = result.balance + rewardAmount
@@ -165,6 +182,8 @@ export class BalanceService implements OnModuleInit {
       return {
         balance: totalBalance,
         blockNumber: result.blockNumber,
+        blockHash: result.blockHash,
+        decimals: result.decimals,
       }
     } catch (error) {
       this.logger.error(
@@ -185,38 +204,95 @@ export class BalanceService implements OnModuleInit {
   /**
    * Get current native balance
    */
-  async getCurrentNativeBalance(
+  async getNativeBalance(
     chainId: number,
     blockNumber?: string,
-  ): Promise<{ balance: bigint; blockNumber: string } | null> {
+  ): Promise<GetCurrentBalanceResult | null> {
     return this.getCurrentBalance(chainId, 'native', blockNumber)
   }
 
   /**
    * Get current token balance
    */
-  async getCurrentTokenBalance(
+  async getTokenBalance(
     chainId: number,
     tokenAddress: Hex,
     blockNumber?: string,
-  ): Promise<{ balance: bigint; blockNumber: string } | null> {
+  ): Promise<GetCurrentBalanceResult | null> {
     return this.getCurrentBalance(chainId, tokenAddress, blockNumber)
+  }
+
+  /**
+   * Get token balances for all solver tokens on a given chain
+   * Returns a Record mapping token addresses to their balance results
+   */
+  async getTokenBalances(
+    chainId: number,
+    tokenAddresses: Hex[],
+    blockNumber?: string,
+  ): Promise<Record<Hex, GetCurrentBalanceResult>> {
+    const results: Record<Hex, GetCurrentBalanceResult> = {}
+
+    // Process tokens in parallel for efficiency
+    const balancePromises = tokenAddresses.map(async (address) => {
+      const balance = await this.getCurrentBalance(chainId, address, blockNumber)
+      return { address, balance }
+    })
+
+    const balanceResults = await Promise.all(balancePromises)
+
+    // Build the result record, filtering out null results
+    for (const { address, balance } of balanceResults) {
+      if (balance) {
+        results[address] = balance
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * Get token balances for all solver tokens on a given chain
+   * Uses the solver configuration to determine which tokens to fetch
+   */
+  async getTokenBalancesForSolver(
+    chainId: number,
+    blockNumber?: string,
+  ): Promise<Record<Hex, GetCurrentBalanceResult>> {
+    try {
+      const solver = this.configService.getSolver(BigInt(chainId))
+      if (!solver) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: 'BalanceService: No solver found for chain',
+            properties: { chainId },
+          }),
+        )
+        return {}
+      }
+
+      // Get all token addresses for this solver
+      const tokenAddresses = Object.keys(solver.targets) as Hex[]
+
+      return this.getTokenBalances(chainId, tokenAddresses, blockNumber)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'BalanceService: Error getting token balances for solver',
+          properties: {
+            chainId,
+            error: error.message,
+          },
+        }),
+      )
+      return {}
+    }
   }
 
   /**
    * Create balance change from watch services (only called by job processors)
    */
-  async createBalanceChange(params: {
-    chainId: number
-    address: string
-    changeAmount: string
-    direction: 'incoming' | 'outgoing'
-    blockNumber: string
-    blockHash: string
-    transactionHash: string
-    from?: string
-    to?: string
-  }) {
+  async createBalanceChange(params: CreateBalanceChangeParams) {
     try {
       const result = await this.balanceChangeRepository.createBalanceChange({
         chainId: params.chainId.toString(),
@@ -338,6 +414,9 @@ export class BalanceService implements OnModuleInit {
             balance: nativeBalance.balance.toString(),
             blockNumber: nativeBalance.blockNumber.toString(),
             blockHash: nativeBalance.blockHash,
+            decimals: 18, // Native tokens typically have 18 decimals
+            tokenSymbol: 'ETH', // Default native token symbol
+            tokenName: 'Ethereum', // Default native token name
           })
           nativeUpdates++
         } catch (error) {
@@ -377,18 +456,57 @@ export class BalanceService implements OnModuleInit {
   }
 
   /**
+   * Get all native balances for all configured chains
+   * Similar to RpcBalanceService.fetchAllNativeBalances but uses local database
+   */
+  async getAllNativeBalances(): Promise<
+    Array<{ chainId: number; balance: bigint; blockNumber: string } | null>
+  > {
+    try {
+      const chainIds = Object.keys(this.configService.getSolvers()).map(Number)
+      const nativeBalancePromises = chainIds.map(async (chainId) => {
+        try {
+          const nativeBalanceResult = await this.getNativeBalance(chainId)
+          if (!nativeBalanceResult) {
+            return null
+          }
+          return {
+            chainId,
+            balance: nativeBalanceResult.balance,
+            blockNumber: nativeBalanceResult.blockNumber,
+          }
+        } catch (error) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: 'BalanceService: Error getting native balance for chain',
+              properties: {
+                chainId,
+                error: error.message,
+              },
+            }),
+          )
+          return null
+        }
+      })
+
+      return Promise.all(nativeBalancePromises)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'BalanceService: Error getting all native balances',
+          properties: {
+            error: error.message,
+          },
+        }),
+      )
+      return []
+    }
+  }
+
+  /**
    * Update balance record from RPC call (only called by job processors)
    */
-  async updateBalanceFromRpc(params: {
-    chainId: number
-    address: string
-    balance: string
-    blockNumber: string
-    blockHash: string
-    decimals?: number
-    tokenSymbol?: string
-    tokenName?: string
-  }) {
+  async updateBalanceFromRpc(params: UpdateBalanceFromRpcParams) {
     try {
       const result = await this.balanceRecordRepository.updateFromRpc({
         chainId: params.chainId.toString(),
@@ -396,9 +514,9 @@ export class BalanceService implements OnModuleInit {
         balance: params.balance,
         blockNumber: params.blockNumber,
         blockHash: params.blockHash,
-        decimals: params.decimals,
-        tokenSymbol: params.tokenSymbol,
-        tokenName: params.tokenName,
+        decimals: params.decimals ?? 18,
+        tokenSymbol: params.tokenSymbol ?? '',
+        tokenName: params.tokenName ?? '',
       })
 
       this.logger.debug(
@@ -426,6 +544,84 @@ export class BalanceService implements OnModuleInit {
         }),
       )
       throw error
+    }
+  }
+
+  /**
+   * Get all token data for tokens across all chains.
+   * Similar to RpcBalanceService.getAllTokenDataForAddress but uses the BalanceService
+   * database-backed getTokenBalances method instead of direct RPC calls.
+   * Note: walletAddress parameter is maintained for API compatibility but not used
+   * since BalanceService tracks the solver's own balances.
+   *
+   * @param walletAddress - Wallet address (for API compatibility, not used in database queries)
+   * @param tokens - Array of TokenConfig objects specifying which tokens to fetch
+   * @param blockNumber - Optional block number to fetch balances at
+   * @returns Promise resolving to array of objects containing config, balance, and chainId
+   */
+  async getAllTokenDataForAddress(
+    tokens: TokenConfig[],
+    blockNumber?: string,
+  ): Promise<
+    Array<{
+      config: TokenConfig
+      balance: GetCurrentBalanceResult
+      chainId: number
+    }>
+  > {
+    const tokensByChainId = groupBy(tokens, 'chainId')
+    const chainIds = Object.keys(tokensByChainId)
+
+    const balancesPerChainIdPromise = chainIds.map(async (chainId) => {
+      try {
+        const configs = tokensByChainId[chainId]
+        const tokenAddresses = configs.map((token) => token.address)
+
+        const balances = await this.getTokenBalances(parseInt(chainId), tokenAddresses, blockNumber)
+
+        // Map configs to their corresponding balance results
+        return configs
+          .map((config) => {
+            const balance = balances[config.address]
+            if (balance) {
+              return {
+                config,
+                balance,
+                chainId: parseInt(chainId),
+              }
+            }
+            return null
+          })
+          .filter((item) => item !== null) // Filter out null results
+      } catch (error) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: 'BalanceService.getAllTokenDataForAddress: Error getting token data for chain',
+            properties: {
+              chainId,
+              error: error.message,
+            },
+          }),
+        )
+        return [] // Return empty array for failed chains
+      }
+    })
+
+    try {
+      const results = await Promise.all(balancesPerChainIdPromise)
+      return results.flat()
+    } catch {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message:
+            'BalanceService.getAllTokenDataForAddress: Error getting all token data for address',
+          properties: {
+            tokens,
+            blockNumber,
+          },
+        }),
+      )
+      return []
     }
   }
 }

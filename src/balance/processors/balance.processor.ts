@@ -4,13 +4,13 @@ import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceChangeRepository } from '@/balance/repositories/balance-change.repository'
-import { BalanceService } from '../services/balance.service'
-import { BalanceRecordRepository } from '../repositories/balance-record.repository'
+import { BalanceService } from '@/balance/services/balance.service'
+import { BalanceRecordRepository } from '@/balance/repositories/balance-record.repository'
 import {
   BALANCE_JOBS,
   UpdateBalanceJobData as UpdateBalanceChangeJobData,
   UpdateBalanceRecordJobData,
-} from '../jobs/balance.job'
+} from '@/balance/jobs/balance.job'
 
 /**
  * BullMQ processor for balance tracking jobs

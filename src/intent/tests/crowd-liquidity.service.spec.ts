@@ -3,12 +3,12 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Hex } from 'viem'
 import { cloneDeep } from 'lodash'
 
-import { CrowdLiquidityService } from '../crowd-liquidity.service'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
-import { UtilsIntentService } from '../utils-intent.service'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
+import { UtilsIntentService } from '@/intent/utils-intent.service'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoError } from '@/common/errors/eco-error'
 
@@ -16,7 +16,7 @@ describe('CrowdLiquidityService', () => {
   let service: CrowdLiquidityService
   let ecoConfigService: DeepMocked<EcoConfigService>
   let publicClientService: DeepMocked<MultichainPublicClientService>
-  let balanceService: DeepMocked<RpcBalanceService>
+  let rpcBalanceService: DeepMocked<RpcBalanceService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
 
   const mockConfig = {
@@ -101,7 +101,7 @@ describe('CrowdLiquidityService', () => {
     service = module.get<CrowdLiquidityService>(CrowdLiquidityService)
     ecoConfigService = module.get(EcoConfigService)
     publicClientService = module.get(MultichainPublicClientService)
-    balanceService = module.get(RpcBalanceService)
+    rpcBalanceService = module.get(RpcBalanceService)
     utilsIntentService = module.get(UtilsIntentService)
 
     // Mock config service
@@ -114,14 +114,14 @@ describe('CrowdLiquidityService', () => {
     utilsIntentService.updateIntentModel.mockResolvedValue({} as any)
 
     // Mock balance service methods that are called by isPoolSolvent
-    balanceService.getInboxTokens.mockReturnValue([
+    ecoConfigService.getInboxTokens.mockReturnValue([
       {
         chainId: 1,
         address: '0x1111111111111111111111111111111111111111' as Hex,
       },
     ] as any)
 
-    balanceService.getAllTokenDataForAddress.mockResolvedValue([
+    rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([
       {
         config: {
           address: '0x1111111111111111111111111111111111111111' as Hex,

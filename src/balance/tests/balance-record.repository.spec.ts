@@ -2,9 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Model } from 'mongoose'
-import { BalanceRecordRepository } from '../repositories/balance-record.repository'
-import { BalanceChangeRepository } from '../repositories/balance-change.repository'
-import { BalanceRecord, BalanceRecordModel } from '../schemas/balance-record.schema'
+import { Hex } from 'viem'
+import { BalanceRecordRepository } from '@/balance/repositories/balance-record.repository'
+import { BalanceChangeRepository } from '@/balance/repositories/balance-change.repository'
+import { BalanceRecord, BalanceRecordModel } from '@/balance/schemas/balance-record.schema'
 
 describe('BalanceRecordRepository', () => {
   let repository: BalanceRecordRepository
@@ -13,7 +14,7 @@ describe('BalanceRecordRepository', () => {
 
   const mockBalanceRecord = {
     chainId: '1',
-    address: '0x1234567890123456789012345678901234567890',
+    address: '0x1234567890123456789012345678901234567890' as Hex,
     balance: '1000000000000000000',
     blockNumber: '18500000',
     blockHash: '0xabcdef123456',
@@ -46,7 +47,7 @@ describe('BalanceRecordRepository', () => {
 
   describe('getCurrentBalance', () => {
     const chainId = '1'
-    const address = '0x1234567890123456789012345678901234567890'
+    const address = '0x1234567890123456789012345678901234567890' as Hex
 
     it('should aggregate base balance with outstanding changes correctly', async () => {
       const baseBalance = BigInt('1000000000000000000') // 1 ETH
@@ -70,6 +71,8 @@ describe('BalanceRecordRepository', () => {
       expect(result).toEqual({
         balance: baseBalance + outstandingChanges, // 1.5 ETH total
         blockNumber,
+        blockHash: mockBalanceRecord.blockHash,
+        decimals: 18,
       })
 
       expect(mockBalanceRecordModel.findOne).toHaveBeenCalledWith({
@@ -103,6 +106,8 @@ describe('BalanceRecordRepository', () => {
       expect(result).toEqual({
         balance: baseBalance + outstandingChanges, // 1.7 ETH total
         blockNumber: specifiedBlockNumber,
+        blockHash: mockBalanceRecord.blockHash,
+        decimals: 18,
       })
 
       // Should use the specified block number for outstanding changes calculation
@@ -131,6 +136,8 @@ describe('BalanceRecordRepository', () => {
       expect(result).toEqual({
         balance: baseBalance, // No changes, just base balance
         blockNumber: mockBalanceRecord.blockNumber,
+        blockHash: mockBalanceRecord.blockHash,
+        decimals: 18,
       })
     })
 
@@ -166,6 +173,8 @@ describe('BalanceRecordRepository', () => {
       expect(result).toEqual({
         balance: expectedTotal,
         blockNumber: mockBalanceRecord.blockNumber,
+        blockHash: mockBalanceRecord.blockHash,
+        decimals: 18,
       })
       expect(result!.balance.toString()).toBe('1111111111111111111111110')
     })
@@ -190,6 +199,8 @@ describe('BalanceRecordRepository', () => {
       expect(result).toEqual({
         balance: BigInt('500000000000000000'), // 2 - 1.5 = 0.5 ETH
         blockNumber: mockBalanceRecord.blockNumber,
+        blockHash: mockBalanceRecord.blockHash,
+        decimals: 18,
       })
     })
 
@@ -213,6 +224,8 @@ describe('BalanceRecordRepository', () => {
       expect(result).toEqual({
         balance: nativeBalance + nativeChanges, // 6 ETH total
         blockNumber: mockBalanceRecord.blockNumber,
+        blockHash: mockBalanceRecord.blockHash,
+        decimals: 18,
       })
 
       expect(mockBalanceRecordModel.findOne).toHaveBeenCalledWith({
@@ -225,7 +238,7 @@ describe('BalanceRecordRepository', () => {
   describe('updateFromRpc', () => {
     const updateParams = {
       chainId: '1',
-      address: '0x1234567890123456789012345678901234567890',
+      address: '0x1234567890123456789012345678901234567890' as Hex,
       balance: '2000000000000000000',
       blockNumber: '18500100',
       blockHash: '0xnewblockhash',
@@ -346,7 +359,7 @@ describe('BalanceRecordRepository', () => {
   describe('aggregation integration scenarios', () => {
     it('should demonstrate complete balance tracking workflow', async () => {
       const chainId = '1'
-      const address = 'native'
+      const address = 'native' as const
       const initialBlockNumber = '18500000'
       const laterBlockNumber = '18500050'
 
@@ -357,6 +370,9 @@ describe('BalanceRecordRepository', () => {
         balance: '5000000000000000000', // 5 ETH initial
         blockNumber: initialBlockNumber,
         blockHash: '0xinitial',
+        decimals: 18,
+        tokenSymbol: 'ETH',
+        tokenName: 'Ethereum',
       }
 
       mockBalanceRecordModel.findOneAndUpdate.mockReturnValue({
@@ -377,6 +393,8 @@ describe('BalanceRecordRepository', () => {
           address,
           balance: '5000000000000000000', // Original RPC balance
           blockNumber: initialBlockNumber,
+          blockHash: '0xinitial',
+          decimals: 18,
         }),
       } as any)
 
@@ -389,6 +407,8 @@ describe('BalanceRecordRepository', () => {
       expect(currentBalance).toEqual({
         balance: BigInt('5500000000000000000'), // 5 + 0.5 = 5.5 ETH
         blockNumber: initialBlockNumber,
+        blockHash: '0xinitial',
+        decimals: 18,
       })
 
       // Step 4: Later RPC update incorporates the changes
@@ -398,6 +418,9 @@ describe('BalanceRecordRepository', () => {
         balance: '5500000000000000000', // Updated RPC balance includes previous changes
         blockNumber: laterBlockNumber,
         blockHash: '0xlater',
+        decimals: 18,
+        tokenSymbol: 'ETH',
+        tokenName: 'Ethereum',
       }
 
       mockBalanceRecordModel.findOneAndUpdate.mockReturnValue({
@@ -415,6 +438,8 @@ describe('BalanceRecordRepository', () => {
           address,
           balance: '5500000000000000000', // Updated RPC balance
           blockNumber: laterBlockNumber,
+          blockHash: '0xlater',
+          decimals: 18,
         }),
       } as any)
 
@@ -429,6 +454,8 @@ describe('BalanceRecordRepository', () => {
       expect(updatedCurrentBalance).toEqual({
         balance: BigInt('5700000000000000000'), // 5.5 + 0.2 = 5.7 ETH
         blockNumber: laterBlockNumber,
+        blockHash: '0xlater',
+        decimals: 18,
       })
 
       // Verify outstanding changes are calculated from the correct block

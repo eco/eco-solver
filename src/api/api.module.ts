@@ -6,7 +6,7 @@ import { QuoteModule } from '@/quote/quote.module'
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
-import { BalanceModule } from '../balance/balance.module'
+import { BalanceModule } from '@/balance/balance.module'
 
 @Module({
   imports: [

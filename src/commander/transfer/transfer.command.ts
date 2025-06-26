@@ -12,7 +12,7 @@ import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 export class TransferCommand extends CommandRunner {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly balanceService: RpcBalanceService,
+    private readonly rpcBalanceService: RpcBalanceService,
   ) {
     super()
   }
@@ -113,7 +113,7 @@ export class TransferCommand extends CommandRunner {
    * @returns
    */
   async transferTokens(chainID: number, recipient: Hex) {
-    const tokens = await this.balanceService.fetchTokenBalancesForChain(chainID)
+    const tokens = await this.rpcBalanceService.fetchTokenBalancesForChain(chainID, true)
     if (!tokens) {
       console.log('No tokens found')
       return

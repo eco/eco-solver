@@ -1,8 +1,8 @@
 const mockgetChainConfig = jest.fn()
 import { DeepMocked, createMock } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
-import { EcoConfigService } from '../eco-config.service'
-import { AwsConfigService } from '../aws-config.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { AwsConfigService } from '@/eco-configs/aws-config.service'
 
 jest.mock('../utils', () => {
   return {

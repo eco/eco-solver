@@ -7,12 +7,12 @@ import { BalanceChangeRepository } from './repositories/balance-change.repositor
 import { BalanceService } from './services/balance.service'
 import { RpcBalanceService } from './services/rpc-balance.service'
 import { BalanceProcessor } from './processors/balance.processor'
-import { TransactionModule } from '../transaction/transaction.module'
+import { TransactionModule } from '@/transaction/transaction.module'
 import { CacheModule } from '@nestjs/cache-manager'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
-import { QUEUES } from '../common/redis/constants'
-import { IntentSourceRepository } from '../intent/repositories/intent-source.repository'
-import { IntentSourceModel, IntentSourceSchema } from '../intent/schemas/intent-source.schema'
+import { QUEUES } from '@/common/redis/constants'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { IntentSourceModel, IntentSourceSchema } from '@/intent/schemas/intent-source.schema'
 
 @Module({
   imports: [

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import { BalanceChange, BalanceChangeModel } from '../schemas/balance-change.schema'
+import { Hex } from 'viem'
+import { BalanceChange, BalanceChangeModel } from '@/balance/schemas/balance-change.schema'
 import { CreateModelParams } from '@/common/db/utils'
 
 // Extract type from BalanceChange schema, excluding Document fields
@@ -53,7 +54,7 @@ export class BalanceChangeRepository {
    */
   async getBalanceChangesSince(
     chainId: string,
-    address: string,
+    address: Hex | 'native',
     blockNumber: string,
   ): Promise<BalanceChangeModel[]> {
     const query: any = {
@@ -69,7 +70,7 @@ export class BalanceChangeRepository {
    */
   async calculateOutstandingBalance(
     chainId: string,
-    address: string,
+    address: Hex | 'native',
     blockNumber: string,
   ): Promise<bigint> {
     const pipeline: any[] = [

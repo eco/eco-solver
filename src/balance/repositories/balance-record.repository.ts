@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import { BalanceRecord, BalanceRecordModel } from '../schemas/balance-record.schema'
-import { BalanceChangeModel } from '../schemas/balance-change.schema'
+import { Hex } from 'viem'
+import { BalanceRecord, BalanceRecordModel } from '@/balance/schemas/balance-record.schema'
+import { BalanceChangeModel } from '@/balance/schemas/balance-change.schema'
 import { BalanceChangeRepository } from './balance-change.repository'
-import { BalanceChange } from '../schemas/balance-change.schema'
+import { BalanceChange } from '@/balance/schemas/balance-change.schema'
 import { CreateModelParams } from '@/common/db/utils'
 
 // Extract type from BalanceRecord schema, excluding Document fields
@@ -16,6 +17,8 @@ export type CreateBalanceChangeParams = CreateModelParams<BalanceChange>
 export interface GetCurrentBalanceResult {
   balance: bigint
   blockNumber: string
+  blockHash: string
+  decimals: number
 }
 
 /**
@@ -139,7 +142,7 @@ export class BalanceRecordRepository {
    */
   async getCurrentBalance(
     chainId: string,
-    address: string,
+    address: Hex | 'native',
     blockNumber?: string,
   ): Promise<GetCurrentBalanceResult | null> {
     // Get the balance record
@@ -170,6 +173,8 @@ export class BalanceRecordRepository {
     return {
       balance: currentBalance,
       blockNumber: targetBlockNumber,
+      blockHash: balanceRecord.blockHash,
+      decimals: balanceRecord.decimals,
     }
   }
 
@@ -182,7 +187,7 @@ export class BalanceRecordRepository {
    */
   async findByChainAndAddress(
     chainId: string,
-    address: string,
+    address: Hex | 'native',
   ): Promise<BalanceRecordModel | null> {
     return this.balanceRecordModel
       .findOne({

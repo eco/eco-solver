@@ -5,7 +5,7 @@ import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
 import { ViemEventLog } from '@/common/events/viem'
-import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
+import { decodeTransferLog } from '@/contracts'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenBalance, TokenConfig } from '@/balance/types/balance.types'
 import { EcoError } from '@/common/errors/eco-error'
@@ -38,7 +38,9 @@ export class RpcBalanceService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     // iterate over all tokens
-    await Promise.all(this.getInboxTokens().map((token) => this.loadTokenBalance(token)))
+    await Promise.all(
+      this.configService.getInboxTokens().map((token) => this.loadTokenBalance(token)),
+    )
   }
 
   /**
@@ -61,24 +63,6 @@ export class RpcBalanceService implements OnApplicationBootstrap {
     if (balanceObj) {
       balanceObj.balance = balanceObj.balance + intent.args.value
     }
-  }
-
-  /**
-   * Gets the tokens that are in the solver wallets
-   * @returns List of tokens that are supported by the solver
-   */
-  getInboxTokens(): TokenConfig[] {
-    return Object.values(this.configService.getSolvers()).flatMap((solver) => {
-      return Object.entries(solver.targets)
-        .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
-        .map(([tokenAddress, targetContract]) => ({
-          address: tokenAddress as Hex,
-          chainId: solver.chainID,
-          type: targetContract.contractType,
-          minBalance: targetContract.minBalance,
-          targetBalance: targetContract.targetBalance,
-        }))
-    })
   }
 
   /**
@@ -270,20 +254,22 @@ export class RpcBalanceService implements OnApplicationBootstrap {
     return result[tokenAddress]
   }
 
-  @Cacheable()
+  @Cacheable({ bypassArgIndex: 1 })
   async fetchTokenBalancesForChain(
     chainID: number,
+    //used by cacheable decorator
+    forceRefresh = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<Record<Hex, TokenBalance> | undefined> {
     const intentSource = this.configService.getIntentSource(chainID)
     if (!intentSource) {
       return undefined
     }
-    return this.fetchTokenBalances(chainID, intentSource.tokens)
+    return this.fetchTokenBalances(chainID, intentSource.tokens, forceRefresh)
   }
 
   @Cacheable()
   async fetchTokenData(chainID: number): Promise<TokenFetchAnalysis[]> {
-    const tokenConfigs = groupBy(this.getInboxTokens(), 'chainId')[chainID]
+    const tokenConfigs = groupBy(this.configService.getInboxTokens(), 'chainId')[chainID]
     const tokenAddresses = tokenConfigs.map((token) => token.address)
     const tokenBalances = await this.fetchTokenBalances(chainID, tokenAddresses)
     return zipWith(tokenConfigs, Object.values(tokenBalances), (config, token) => ({
@@ -295,7 +281,7 @@ export class RpcBalanceService implements OnApplicationBootstrap {
 
   @Cacheable({ bypassArgIndex: 0 })
   async getAllTokenData(forceRefresh = false) {
-    const tokens = this.getInboxTokens()
+    const tokens = this.configService.getInboxTokens()
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
 

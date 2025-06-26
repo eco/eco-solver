@@ -6,11 +6,11 @@ import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
 import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
 import { mainnet } from 'viem/chains'
-import { ValidationIntentInterface } from './validation.sevice'
+import { ValidationIntentInterface } from '@/intent/validation.sevice'
 import { Logger } from '@nestjs/common'
-import { ChainsSupported } from '../common/chains/supported'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { isEmptyData } from '../common/viem/utils'
+import { ChainsSupported } from '@/common/chains/supported'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { isEmptyData } from '@/common/viem/utils'
 
 // The default number of decimals for native tokens that we enfores for now
 const DEFAULT_NATIVE_DECIMALS = 18

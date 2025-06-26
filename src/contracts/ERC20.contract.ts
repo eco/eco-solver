@@ -1,10 +1,10 @@
 import { ContractFunctionName, decodeEventLog, Hex, Log, Prettify } from 'viem'
-import { getSelector } from '../common/viem/contracts'
-import { TargetContractType } from '../eco-configs/eco-config.types'
-import { EcoError } from '../common/errors/eco-error'
+import { getSelector } from '@/common/viem/contracts'
+import { TargetContractType } from '@/eco-configs/eco-config.types'
+import { EcoError } from '@/common/errors/eco-error'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { ExtractAbiEvent } from 'abitype'
-import { Network } from '../common/alchemy/network'
+import { Network } from '@/common/alchemy/network'
 
 // Need to define the ABI as a const array to use in the type definition
 export const ERC20Abi = [

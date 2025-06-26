@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { WatchNativeService } from '../watch-native.service'
+import { WatchNativeService } from '@/watch/balance/watch-native.service'
 import { Queue } from 'bullmq'
 import { getQueueToken } from '@nestjs/bullmq'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { Hex } from 'viem'
 
 @Schema({
   collection: 'balance_changes',
@@ -11,7 +12,7 @@ export class BalanceChange extends Document {
   chainId: string
 
   @Prop({ required: true, type: String })
-  address: string // Links to BalanceRecord by chainId + address
+  address: Hex | 'native' // Links to BalanceRecord by chainId + address
 
   @Prop({ required: true, type: String })
   changeAmount: string // Amount of the balance change
