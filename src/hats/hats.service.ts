@@ -24,7 +24,7 @@ export class HatsService implements OnModuleInit {
 
   private readonly REWARD_PERIOD_DURATION = 600 // 10 minutes in seconds
 
-  private readonly REWARD_PERIOD_RANGE = [18000, 85500]; // 5-23.75 hours in seconds
+  private readonly REWARD_PERIOD_RANGE = [30000, 30000]; // 8:20 in seconds
 
   private readonly DISTRIBUTION_BATCH_SIZE = 300 // Max number of transfers per batch
 
@@ -478,7 +478,7 @@ export class HatsService implements OnModuleInit {
     const maxOffset = this.REWARD_PERIOD_RANGE[1]
 
     // Generate random seconds within the range
-    const randomOffset = minOffset + Math.floor(Math.random() * (maxOffset - minOffset))
+    const randomOffset = minOffset
 
     // Calculate start and end times
     const startTime = new Date(now.getTime() + randomOffset * 1000) // convert seconds to milliseconds
