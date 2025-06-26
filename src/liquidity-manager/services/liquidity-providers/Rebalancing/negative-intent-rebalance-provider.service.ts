@@ -1,14 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Hex, encodeFunctionData, keccak256, parseUnits } from 'viem'
+import { encodeFunctionData, erc20Abi, Hex, parseUnits } from 'viem'
 import { randomBytes } from 'crypto'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { hashIntent, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
-import { getERC20Selector } from '@/contracts'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { LitActionService } from '@/lit-actions/lit-action.service'
 
@@ -125,8 +124,11 @@ export class NegativeIntentRebalanceProviderService
       calls: [
         {
           target: tokenIn.config.address,
-          // Encode transfer(address,uint256) to send tokens to the crowd liquidity pool
-          data: `${getERC20Selector('transfer')}${this.getCrowdLiquidityPoolAddress().slice(2).padStart(64, '0')}${amountIn.toString(16).padStart(64, '0')}` as Hex,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [this.getCrowdLiquidityPoolAddress(), amountIn],
+          }),
           value: 0n,
         },
       ],
@@ -136,7 +138,7 @@ export class NegativeIntentRebalanceProviderService
     const reward = {
       creator: await this.getKernelWalletAddress(),
       prover: intentSource.provers[0], // Use first available prover
-      deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now
+      deadline: BigInt(Math.floor(Date.now() / 1000) + 5_400), // 1.5 hours from now
       nativeValue: 0n,
       tokens: [
         {
@@ -147,31 +149,23 @@ export class NegativeIntentRebalanceProviderService
     }
 
     // Create the intent object containing both route and reward
-    const intent = {
-      route,
-      reward,
-    }
-
-    // Encode the publishAndFund call
-    const publishAndFundData = encodeFunctionData({
-      abi: IntentSourceAbi,
-      functionName: 'publishAndFund',
-      args: [intent, false], // intent and allowPartial (false for full funding)
-    })
+    const intent = { route, reward }
 
     // Get the kernel wallet client for the source chain
     const kernelClient = await this.kernelAccountClientService.getClient(tokenIn.chainId)
 
     // Execute the transaction using the kernel wallet
-    const txHash = await kernelClient.sendTransaction({
-      to: intentSource.sourceAddress,
-      data: publishAndFundData,
+    const txHash = await kernelClient.writeContract({
+      address: intentSource.sourceAddress,
+      abi: IntentSourceAbi,
+      functionName: 'publishAndFund',
+      args: [intent, false], // intent and allowPartial (false for full funding)
       value: 0n,
-      account: kernelClient.kernelAccount,
       chain: kernelClient.chain,
+      account: kernelClient.kernelAccount,
     })
 
-    const intentHash = this.calculateIntentHash(route)
+    const { intentHash } = hashIntent(intent)
 
     // Update the context with the actual intent hash
     if (quote.context) {
@@ -200,53 +194,6 @@ export class NegativeIntentRebalanceProviderService
 
   private generateSalt(): Hex {
     return `0x${randomBytes(32).toString('hex')}` as Hex
-  }
-
-  private calculateIntentHash(route: any): Hex {
-    // Calculate the intent hash the same way the contract does
-    const encoded = encodeFunctionData({
-      abi: [
-        {
-          name: 'hashRoute',
-          type: 'function',
-          inputs: [
-            {
-              name: 'route',
-              type: 'tuple',
-              components: [
-                { name: 'salt', type: 'bytes32' },
-                { name: 'source', type: 'uint256' },
-                { name: 'destination', type: 'uint256' },
-                { name: 'inbox', type: 'address' },
-                {
-                  name: 'tokens',
-                  type: 'tuple[]',
-                  components: [
-                    { name: 'token', type: 'address' },
-                    { name: 'amount', type: 'uint256' },
-                  ],
-                },
-                {
-                  name: 'calls',
-                  type: 'tuple[]',
-                  components: [
-                    { name: 'target', type: 'address' },
-                    { name: 'data', type: 'bytes' },
-                    { name: 'value', type: 'uint256' },
-                  ],
-                },
-              ],
-            },
-          ],
-          outputs: [{ name: '', type: 'bytes32' }],
-          stateMutability: 'pure',
-        },
-      ],
-      functionName: 'hashRoute',
-      args: [route],
-    })
-
-    return keccak256(encoded)
   }
 
   private getIntentSource(chainId: number) {
