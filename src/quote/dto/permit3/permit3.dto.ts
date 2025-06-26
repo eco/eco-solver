@@ -7,8 +7,9 @@ import {
   IsInt,
   IsNotEmpty,
   IsString,
+  ValidateNested,
 } from 'class-validator'
-import { Transform } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 
 export class AllowanceOrTransferDTO {
   @IsInt()
@@ -36,10 +37,23 @@ export class AllowanceOrTransferDTO {
 }
 
 export class Permit3DTO {
+  @IsInt()
+  @ApiProperty()
+  chainId: number // The original chain ID from the signature
+
   @IsNotEmpty()
   @IsEthereumAddress()
   @ApiProperty()
   permitContract: Hex
+
+  @IsNotEmpty()
+  @IsEthereumAddress()
+  @ApiProperty()
+  owner: Hex
+
+  @IsNotEmpty()
+  @ApiProperty()
+  salt: Hex
 
   @IsNotEmpty()
   @IsString()
@@ -53,26 +67,19 @@ export class Permit3DTO {
 
   @IsInt()
   @ApiProperty()
-  chainId: number // The original chain ID from the signature
+  timestamp: number
 
   @IsArray()
   @ArrayNotEmpty()
   @ApiProperty()
   leafs: Hex[] // The original chain ID from the signature
 
-  @IsNotEmpty()
-  @IsEthereumAddress()
-  @ApiProperty()
-  owner: Hex
-
-  @IsNotEmpty()
-  @ApiProperty()
-  salt: Hex
-
-  @IsInt()
-  @ApiProperty()
-  timestamp: number
-
   // Store all permits by chain ID for easy filtering
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => AllowanceOrTransferDTO)
   allowanceOrTransfers: AllowanceOrTransferDTO[]
 }

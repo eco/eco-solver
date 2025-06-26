@@ -13,6 +13,7 @@ import { ConfigRegex } from '@eco-foundation/chains'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  port: number
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType

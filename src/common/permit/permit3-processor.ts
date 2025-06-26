@@ -1,4 +1,5 @@
 import {
+  Address,
   concat,
   encodeAbiParameters,
   encodeFunctionData,
@@ -10,8 +11,25 @@ import {
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { AllowanceOrTransferDTO, Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
 import { permit3Abi } from '@/contracts/Permit3.abi'
+import { EcoLogger } from '@/common/logging/eco-logger'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import {
+  Permit3Params,
+  Permit3Validator,
+} from '@/intent-initiation/permit-validation/permit3-validator'
+import { KernelExecuteAbi } from '@/contracts/KernelAccount.abi'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { Permit3 } from '@/intent-initiation/permit-data/schemas/permit3/permit3.schema'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoResponse } from '@/common/eco-response'
 
+const logger = new EcoLogger('Permit3Processor')
 const CHAIN_PERMITS_TYPEHASH = '0xd99e9314320a2f250c82ec176bcdc5b9d3636189bc81a91c483b5a2ded83e4da'
+
+export type PermitWithTransferExecution = {
+  chainID: number
+  calls: ExecuteSmartWalletArg[]
+}
 
 /**
  * Struct representing the UnhingedProof as defined in the contract
@@ -465,57 +483,221 @@ export class Permit3Processor {
    * @param chainID
    * @param permit3
    */
-  static generateTxs(chainID: number, permit3: Permit3DTO): ExecuteSmartWalletArg | undefined {
-    const chainPermits = permit3.allowanceOrTransfers.filter((item) => item.chainID === chainID)
+  static async generateTxs(
+    chainID: number,
+    permit3: Permit3DTO,
+    walletClientService: WalletClientDefaultSignerService,
+  ): Promise<ExecuteSmartWalletArg | undefined> {
+    // Rebuild permitsByChain from permit3.allowanceOrTransfers
+    const permitsByChain: Record<number, AllowanceOrTransferDTO[]> = {}
 
-    // Get the permits for this specific chain
-    if (chainPermits.length === 0) {
-      return undefined
+    for (const p of permit3.allowanceOrTransfers) {
+      if (!permitsByChain[p.chainID]) {
+        permitsByChain[p.chainID] = []
+      }
+      permitsByChain[p.chainID].push(p)
     }
 
-    const chainSpecificPermits = {
-      chainId: BigInt(chainID),
-      permits: chainPermits,
-    }
+    // Sort entries by chainID
+    const sortedEntries = Object.entries(permitsByChain).sort(([a], [b]) => Number(a) - Number(b))
 
-    const leaf = encodeChainAllowances(
-      BigInt(chainSpecificPermits.chainId),
-      chainSpecificPermits.permits,
+    // Build leaf list deterministically
+    const expectedLeafs = sortedEntries.map(([chainID, permits]) =>
+      encodeChainAllowances(BigInt(chainID), permits),
     )
 
-    const targetLeafIndex = permit3.leafs.indexOf(leaf)
+    // Get permits for this specific chain
+    const chainPermits = permitsByChain[chainID]
 
-    const { proof: unhingedProof } = createUnhingedProofFromAllLeaves(
+    if (!chainPermits) {
+      return undefined // or throw if this should always be defined
+    }
+
+    // Now compute target leaf correctly
+    const leaf = encodeChainAllowances(BigInt(chainID), chainPermits)
+    const targetLeafIndex = expectedLeafs.indexOf(leaf)
+
+    const { proof: unhingedProof, root: unhingedRoot } = createUnhingedProofFromAllLeaves(
       permit3.leafs,
       targetLeafIndex,
     )
 
     // Create a chain-specific unhinged proof structure
-    const chainSpecificProof: {
-      permits: { chainId: bigint; permits: typeof chainSpecificPermits.permits }
-      unhingedProof: { nodes: Hex[]; counts: Hex }
-    } = {
-      permits: chainSpecificPermits,
+    const chainSpecificProof = {
+      permits: {
+        chainId: BigInt(chainID),
+        permits: chainPermits.map((p) => ({
+          modeOrExpiration: p.modeOrExpiration,
+          token: p.token,
+          account: p.account,
+          amountDelta: p.amountDelta,
+        })),
+      },
       unhingedProof: {
         nodes: unhingedProof.nodes,
         counts: unhingedProof.counts,
       },
     }
 
+    const { owner, salt, deadline, timestamp } = permit3
+    const signature = permit3.signature as Hex
+
+    const permit3Params: Permit3Params = {
+      owner,
+      salt,
+      deadline,
+      timestamp,
+      signature,
+      unhingedRoot,
+      permitContract: permit3.permitContract,
+    }
+
+    const { error: permitValidationError } = await Permit3Validator.validatePermit(permit3Params)
+
+    if (permitValidationError) {
+      logger.error(
+        EcoLogMessage.fromDefault({
+          message: `generateTxs`,
+          properties: {
+            chainID,
+            permit3,
+            error: permitValidationError,
+          },
+        }),
+      )
+    }
+
     // Simulate the transaction to check for potential errors
     const permitData = encodeFunctionData({
       abi: permit3Abi,
       functionName: 'permit',
+      args: [owner, salt, deadline, timestamp, chainSpecificProof, signature],
+    })
+
+    try {
+      const publicClient = await walletClientService.getPublicClient(chainID)
+      const client = await walletClientService.getClient(chainID)
+      const kernelAccountAddress = client.account.address
+
+      await publicClient.simulateContract({
+        address: kernelAccountAddress,
+        abi: KernelExecuteAbi,
+        functionName: 'execute',
+        args: [permit3.permitContract, 0n, permitData, 0],
+        account: kernelAccountAddress, // the smart account must be the sender
+      })
+    } catch (ex) {
+      logger.error(
+        EcoLogMessage.fromDefault({
+          message: `generateTxs: ❌ simulation failed`,
+          properties: {
+            chainID,
+            permit3,
+            error: ex.message,
+          },
+        }),
+      )
+    }
+
+    return { data: permitData, value: 0n, to: permit3.permitContract }
+  }
+
+  static buildFinalTransferCallWithPermit(
+    permit3: Permit3,
+    chainID: number,
+    recipient: Address,
+  ): EcoResponse<PermitWithTransferExecution> {
+    // Step 1: Get transfers for the target chain
+    const transfersForChain = permit3.allowanceOrTransfers.filter((t) => t.chainID === chainID)
+
+    if (transfersForChain.length === 0) {
+      return { error: EcoError.NoTransfersFoundForChain }
+    }
+
+    const chainAllowances: AllowanceOrTransferDTO[] = transfersForChain.map((p) => ({
+      chainID: p.chainID,
+      modeOrExpiration: p.modeOrExpiration,
+      token: p.token,
+      account: p.account,
+      amountDelta: p.amountDelta,
+    }))
+
+    // Step 2: Find Merkle proof for this leaf
+    const leafHash = encodeChainAllowances(BigInt(chainID), chainAllowances)
+    const leafIndex = permit3.leafs.findIndex((l) => l.toLowerCase() === leafHash.toLowerCase())
+
+    if (leafIndex === -1) {
+      return { error: EcoError.LeafNotFoundInSignedPermit }
+    }
+
+    const { proof } = createUnhingedProofFromAllLeaves(permit3.leafs, leafIndex)
+
+    const witnessTypeString = 'UnhingedProof(bytes32[] nodes, bytes32 counts)'
+    const witness = this.hashUnhingedProof({
+      nodes: proof.nodes,
+      counts: proof.counts,
+    })
+
+    // Step 3: Build calldata for permitWitnessTransferFrom
+    const permitCalldata = encodeFunctionData({
+      abi: permit3Abi,
+      functionName: 'permitWitnessTransferFrom',
       args: [
         permit3.owner,
         permit3.salt,
-        permit3.deadline,
+        BigInt(permit3.deadline),
         permit3.timestamp,
-        chainSpecificProof,
+        {
+          chainId: BigInt(chainID),
+          permits: chainAllowances.map((p) => ({
+            modeOrExpiration: Number(p.modeOrExpiration),
+            token: p.token,
+            account: p.account,
+            amountDelta: BigInt(p.amountDelta),
+          })),
+        },
+        witness,
+        witnessTypeString,
         permit3.signature as Hex,
       ],
     })
 
-    return { data: permitData, value: 0n, to: permit3.permitContract }
+    // Step 4: Build calldata for actual transferFrom
+    const transfer = chainAllowances[0] // Assume one transfer for final execution
+    const transferCalldata = encodeFunctionData({
+      abi: permit3Abi,
+      functionName: 'transferFrom',
+      args: [permit3.owner, recipient, transfer.amountDelta, transfer.token],
+    })
+
+    return {
+      response: {
+        chainID,
+        calls: [
+          {
+            to: permit3.permitContract,
+            data: permitCalldata,
+            value: 0n,
+          },
+          {
+            to: permit3.permitContract,
+            data: transferCalldata,
+            value: 0n,
+          },
+        ],
+      },
+    }
+  }
+
+  static hashUnhingedProof(proof: { nodes: Hex[]; counts: Hex }): Hex {
+    const encoded = encodeAbiParameters(
+      [
+        { name: 'nodes', type: 'bytes32[]' },
+        { name: 'counts', type: 'bytes32' },
+      ],
+      [proof.nodes, proof.counts],
+    )
+
+    return keccak256(encoded)
   }
 }
