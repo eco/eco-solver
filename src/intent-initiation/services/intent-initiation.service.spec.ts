@@ -5,25 +5,29 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { FeeService } from '@/fee/fee.service'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { getModelToken } from '@nestjs/mongoose'
-import { Hex, TransactionReceipt } from 'viem'
 import {
   FundForTransactionData,
   IntentInitiationService,
   PermitResult,
 } from '@/intent-initiation/services/intent-initiation.service'
+import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { getModelToken } from '@nestjs/mongoose'
+import { Hex, TransactionReceipt } from 'viem'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { IntentSourceSchema } from '@/intent/schemas/intent-source.schema'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
+import { PermitDataSchema } from '@/intent-initiation/permit-data/schemas/permit-data.schema'
 import { PermitProcessor } from '@/common/permit/permit-processor'
+import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 
 let $: EcoTester
 let service: IntentInitiationService
@@ -108,6 +112,8 @@ describe('IntentInitiationService', () => {
     $ = EcoTester.setupTestFor(IntentInitiationService)
       .withProviders([
         PermitValidationService,
+        PermitDataRepository,
+        IntentSourceRepository,
         QuoteRepository,
         {
           provide: getModelToken(QuoteIntentModel.name),
@@ -118,15 +124,19 @@ describe('IntentInitiationService', () => {
           },
         },
         {
-          provide: EcoConfigService, // ⬅ inject the actual mocked provider here
-          useValue: new EcoConfigService([mockSource as any]),
-        },
-        {
           provide: WalletClientDefaultSignerService,
           useValue: kernelMock,
         },
       ])
       .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])
+      .withSchemas([
+        ['PermitData', PermitDataSchema],
+        ['IntentSourceModel', IntentSourceSchema],
+      ])
+
+    $.overridingProvider(EcoConfigService).useFactory(() => {
+      return new EcoConfigService([mockSource as any])
+    })
 
     service = await $.init()
     quoteRepository = $.get(QuoteRepository)
@@ -193,7 +203,9 @@ describe('IntentInitiationService', () => {
 
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData) })
+        .mockResolvedValue({
+          response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData),
+        })
 
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),
@@ -232,7 +244,9 @@ describe('IntentInitiationService', () => {
 
       jest
         .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({ response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData) })
+        .mockResolvedValue({
+          response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData),
+        })
 
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),

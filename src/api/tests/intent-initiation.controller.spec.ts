@@ -3,12 +3,17 @@ import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { getModelToken } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { PermitData } from '@/intent-initiation/permit-data/schemas/permit-data.schema'
+import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
@@ -41,6 +46,8 @@ describe('IntentInitiationController', () => {
         Permit2Processor,
         PermitProcessor,
         PermitValidationService,
+        PermitDataRepository,
+        IntentSourceRepository,
         QuoteService,
         {
           provide: WalletClientDefaultSignerService,
@@ -49,6 +56,22 @@ describe('IntentInitiationController', () => {
         {
           provide: EcoConfigService,
           useValue: new EcoConfigService([mockSource as any]),
+        },
+        {
+          provide: getModelToken(PermitData.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
+        },
+        {
+          provide: getModelToken(IntentSourceModel.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
         },
       ])
       .withMocks([QuoteService, QuoteRepository, CreateIntentService])
