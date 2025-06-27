@@ -40,4 +40,4 @@ export const IntentSourceSchema = SchemaFactory.createForClass(IntentSourceModel
 
 // Set collation options for case-insensitive search.
 IntentSourceSchema.index({ status: 1 }, { unique: false })
-IntentSourceSchema.index({ "event.transactionHash": 1 }, { unique: true, sparse: true })
+IntentSourceSchema.index({ 'event.transactionHash': 1 }, { unique: true, sparse: true })
