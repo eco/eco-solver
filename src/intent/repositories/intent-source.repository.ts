@@ -14,6 +14,13 @@ export class IntentSourceRepository {
     return this.queryIntent({ 'intent.hash': hash }, projection)
   }
 
+  async getIntentsForGroupID(
+    intentGroupID: string,
+    projection: object = {},
+  ): Promise<IntentSourceModel[]> {
+    return this.queryIntents({ 'intent.intentGroupID': intentGroupID }, projection)
+  }
+
   async exists(query: object): Promise<boolean> {
     const res = await this.model.exists(query)
     return Boolean(res)
@@ -27,7 +34,11 @@ export class IntentSourceRepository {
     return this.model.find(query, projection).lean()
   }
 
-  async update(query: object, updates: object, options?: object): Promise<IntentSourceModel | null> {
+  async update(
+    query: object,
+    updates: object,
+    options?: object,
+  ): Promise<IntentSourceModel | null> {
     const updateOptions = options || { upsert: false, new: true }
     const updatesData = this.updatesHasOp(updates) ? updates : { $set: updates }
 

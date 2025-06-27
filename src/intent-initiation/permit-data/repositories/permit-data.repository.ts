@@ -1,9 +1,9 @@
 import { EcoLogger } from '@/common/logging/eco-logger'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { PermitData } from '@/intent-initiation/permit-data/schemas/permit-data.schema'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 @Injectable()
 export class PermitDataRepository {

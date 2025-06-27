@@ -1,5 +1,4 @@
 import {
-  Address,
   concat,
   encodeAbiParameters,
   encodeFunctionData,
@@ -19,7 +18,6 @@ import {
 } from '@/intent-initiation/permit-validation/permit3-validator'
 import { KernelExecuteAbi } from '@/contracts/KernelAccount.abi'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { Permit3 } from '@/intent-initiation/permit-data/schemas/permit3/permit3.schema'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoResponse } from '@/common/eco-response'
 
@@ -482,12 +480,13 @@ export class Permit3Processor {
    * Generate Permit3 transaction.
    * @param chainID
    * @param permit3
+   * @param walletClientService
    */
   static async generateTxs(
     chainID: number,
     permit3: Permit3DTO,
     walletClientService: WalletClientDefaultSignerService,
-  ): Promise<ExecuteSmartWalletArg | undefined> {
+  ): Promise<EcoResponse<ExecuteSmartWalletArg | undefined>> {
     // Rebuild permitsByChain from permit3.allowanceOrTransfers
     const permitsByChain: Record<number, AllowanceOrTransferDTO[]> = {}
 
@@ -510,7 +509,7 @@ export class Permit3Processor {
     const chainPermits = permitsByChain[chainID]
 
     if (!chainPermits) {
-      return undefined // or throw if this should always be defined
+      return { response: undefined }
     }
 
     // Now compute target leaf correctly
@@ -597,94 +596,15 @@ export class Permit3Processor {
           },
         }),
       )
+
+      return { error: EcoError.PermitSimulationsFailed }
     }
-
-    return { data: permitData, value: 0n, to: permit3.permitContract }
-  }
-
-  static buildFinalTransferCallWithPermit(
-    permit3: Permit3,
-    chainID: number,
-    recipient: Address,
-  ): EcoResponse<PermitWithTransferExecution> {
-    // Step 1: Get transfers for the target chain
-    const transfersForChain = permit3.allowanceOrTransfers.filter((t) => t.chainID === chainID)
-
-    if (transfersForChain.length === 0) {
-      return { error: EcoError.NoTransfersFoundForChain }
-    }
-
-    const chainAllowances: AllowanceOrTransferDTO[] = transfersForChain.map((p) => ({
-      chainID: p.chainID,
-      modeOrExpiration: p.modeOrExpiration,
-      token: p.token,
-      account: p.account,
-      amountDelta: p.amountDelta,
-    }))
-
-    // Step 2: Find Merkle proof for this leaf
-    const leafHash = encodeChainAllowances(BigInt(chainID), chainAllowances)
-    const leafIndex = permit3.leafs.findIndex((l) => l.toLowerCase() === leafHash.toLowerCase())
-
-    if (leafIndex === -1) {
-      return { error: EcoError.LeafNotFoundInSignedPermit }
-    }
-
-    const { proof } = createUnhingedProofFromAllLeaves(permit3.leafs, leafIndex)
-
-    const witnessTypeString = 'UnhingedProof(bytes32[] nodes, bytes32 counts)'
-    const witness = this.hashUnhingedProof({
-      nodes: proof.nodes,
-      counts: proof.counts,
-    })
-
-    // Step 3: Build calldata for permitWitnessTransferFrom
-    const permitCalldata = encodeFunctionData({
-      abi: permit3Abi,
-      functionName: 'permitWitnessTransferFrom',
-      args: [
-        permit3.owner,
-        permit3.salt,
-        BigInt(permit3.deadline),
-        permit3.timestamp,
-        {
-          chainId: BigInt(chainID),
-          permits: chainAllowances.map((p) => ({
-            modeOrExpiration: Number(p.modeOrExpiration),
-            token: p.token,
-            account: p.account,
-            amountDelta: BigInt(p.amountDelta),
-          })),
-        },
-        witness,
-        witnessTypeString,
-        permit3.signature as Hex,
-      ],
-    })
-
-    // Step 4: Build calldata for actual transferFrom
-    const transfer = chainAllowances[0] // Assume one transfer for final execution
-    const transferCalldata = encodeFunctionData({
-      abi: permit3Abi,
-      functionName: 'transferFrom',
-      args: [permit3.owner, recipient, transfer.amountDelta, transfer.token],
-    })
 
     return {
       response: {
-        chainID,
-        calls: [
-          {
-            to: permit3.permitContract,
-            data: permitCalldata,
-            value: 0n,
-          },
-          {
-            to: permit3.permitContract,
-            data: transferCalldata,
-            value: 0n,
-          },
-        ],
+        data: permitData,
+        value: 0n,
+        to: permit3.permitContract,
       },
     }
   }
