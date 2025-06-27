@@ -399,11 +399,31 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       updateRouteHook: (route) => logLiFiProcess(this.logger, route),
       acceptExchangeRateUpdateHook: (params: ExchangeRateUpdateParams) => {
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withId({
+            id: quote.id,
             message: 'LiFi: Exchange rate update',
             properties: { params },
           }),
         )
+        // Ensure the new amount is not less than the minimum expected amount from the original quote.
+        // 'toAmountMin' is calculated by LiFi based on the initial slippage settings.
+        const newToAmount = BigInt(params.newToAmount)
+        const minToAmount = BigInt(quote.context.toAmountMin)
+
+        if (newToAmount < minToAmount) {
+          this.logger.warn(
+            EcoLogMessage.withId({
+              id: quote.id,
+              message:
+                'LiFi: New received amount is lower than the minimum acceptable amount. Rejecting quote.',
+              properties: {
+                newToAmount: newToAmount.toString(),
+                minToAmount: minToAmount.toString(),
+              },
+            }),
+          )
+          return Promise.resolve(false)
+        }
         return Promise.resolve(true)
       },
     })
