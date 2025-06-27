@@ -108,24 +108,31 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       }
     } catch (error) {
       // Enhanced error logging for stranded USDC detection (Priority 2)
-      processor.logger.error('CCTPLiFi: STRANDED USDC ALERT - Destination swap failed', {
-        walletAddress,
-        chainId: destinationChainId,
-        originalTokenTarget: originalTokenOut.address,
-        cctpTxHash: job.data.cctpTransactionHash,
-        messageHash: job.data.messageHash,
-        usdcAmount: destinationSwapQuote.fromAmount,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-        retryCount: job.data.retryCount || 0,
-        attemptsMade: job.attemptsMade,
-        maxAttempts: job.opts?.attempts || 1,
-      })
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message: 'CCTPLiFi: STRANDED USDC ALERT - Destination swap failed',
+          id,
+          properties: {
+            walletAddress,
+            chainId: destinationChainId,
+            originalTokenTarget: originalTokenOut.address,
+            cctpTxHash: job.data.cctpTransactionHash,
+            messageHash: job.data.messageHash,
+            usdcAmount: destinationSwapQuote.fromAmount,
+            error: error.message,
+            timestamp: new Date().toISOString(),
+            retryCount: job.data.retryCount || 0,
+            attemptsMade: job.attemptsMade,
+            maxAttempts: job.opts?.attempts || 1,
+          },
+        }),
+      )
 
       processor.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
           error,
           message: 'CCTPLiFi: Destination swap execution failed',
+          id,
           properties: {
             destinationChainId,
             walletAddress,
@@ -204,8 +211,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     )
 
     processor.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed',
+        id: destinationSwapQuote.id,
         properties: { walletAddress, tempQuote, result },
       }),
     )

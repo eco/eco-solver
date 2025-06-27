@@ -3,6 +3,7 @@ import { formatUnits, parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
+  ExchangeRateUpdateParams,
   executeRoute,
   getRoutes,
   Route,
@@ -378,8 +379,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenIn.config.address,
-          chainOut: quote.tokenIn.config.chainId,
+          tokenOut: quote.tokenOut.config.address,
+          chainOut: quote.tokenOut.config.chainId,
           amountIn: quote.amountIn,
           amountOut: quote.amountOut,
           slippage: quote.slippage,
@@ -396,7 +397,15 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     return executeRoute(quote.context, {
       disableMessageSigning: true,
       updateRouteHook: (route) => logLiFiProcess(this.logger, route),
-      acceptExchangeRateUpdateHook: () => Promise.resolve(true),
+      acceptExchangeRateUpdateHook: (params: ExchangeRateUpdateParams) => {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'LiFi: Exchange rate update',
+            properties: { params },
+          }),
+        )
+        return Promise.resolve(true)
+      },
     })
   }
 
