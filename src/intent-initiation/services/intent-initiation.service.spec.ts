@@ -201,11 +201,9 @@ describe('IntentInitiationService', () => {
 
       jest.spyOn(Permit2Processor, 'generateTxs').mockReturnValue([permit2Tx])
 
-      jest
-        .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({
-          response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData),
-        })
+      jest.spyOn(quoteRepository, 'fetchQuoteIntentData').mockResolvedValue({
+        response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData),
+      })
 
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),
@@ -242,11 +240,9 @@ describe('IntentInitiationService', () => {
 
       jest.spyOn(PermitProcessor, 'generateTxs').mockReturnValue({ response: [permitTx] })
 
-      jest
-        .spyOn(quoteRepository, 'fetchQuoteIntentData')
-        .mockResolvedValue({
-          response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData),
-        })
+      jest.spyOn(quoteRepository, 'fetchQuoteIntentData').mockResolvedValue({
+        response: quoteTestUtils.asQuoteIntentModel(gaslessIntentRequestData),
+      })
 
       jest.spyOn(walletClientService, 'getClient').mockResolvedValue({
         sendTransaction: jest.fn().mockResolvedValue('0xtx'),
