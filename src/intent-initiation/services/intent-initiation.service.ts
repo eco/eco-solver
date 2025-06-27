@@ -222,6 +222,58 @@ export class IntentInitiationService implements OnModuleInit {
       },
     }
   }
+  async executeFinalPermitTransfer(
+    chainID: number,
+    permit3: Permit3DTO,
+  ): Promise<EcoResponse<string>> {
+    const { response: permitResult, error } = await this.getPermit3Txs(chainID, permit3)
+
+    if (error || !permitResult) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `executeFinalPermitTransfer: error getting permit3 txs for chain ${chainID}`,
+          properties: {
+            error: error?.message || 'No permit3 data provided',
+          },
+        }),
+      )
+      return { error: InternalQuoteError(error) }
+    }
+
+    try {
+      const walletClient = await this.walletClientService.getClient(chainID)
+
+      // Get the permit txs for this chain
+      const permitTxs = permitResult!.transactions
+
+      // Create and send the batch tx
+      const tx = batchTransactionsWithMulticall(chainID, permitTxs)
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `executeFinalPermitTransfer`,
+          properties: {
+            chainID,
+            tx,
+          },
+        }),
+      )
+
+      const txHash = await walletClient.sendTransaction(tx)
+      return { response: txHash }
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `_initiateGaslessIntent: error sending transaction for chain ${chainID}`,
+          properties: {
+            error: ex.message,
+          },
+        }),
+      )
+
+      return { error: InternalQuoteError(new Error(`executeFinalPermitTransfer`)) }
+    }
+  }
 
   async processFulfilled(fulfillmentLog: FulfillmentLog) {
     this.logger.debug(
@@ -233,8 +285,10 @@ export class IntentInitiationService implements OnModuleInit {
       }),
     )
 
-    const hash = fulfillmentLog.args._hash
-    const sourceChainID = fulfillmentLog.args._sourceChainID
+    await this._processFulfilled(fulfillmentLog.args._hash)
+  }
+
+  async _processFulfilled(hash: string) {
     const intentSource = await this.intentSourceRepository.getIntent(hash)
 
     if (!intentSource) {
@@ -257,92 +311,78 @@ export class IntentInitiationService implements OnModuleInit {
       return
     }
 
-    const groupIntents = await this.intentSourceRepository.queryIntents({
-      intentGroupID,
-    })
+    const groupIntents = await this.intentSourceRepository.getIntentsForGroupID(intentGroupID)
 
-    if (groupIntents.length > 0 && groupIntents.every((i) => i.status === 'SOLVED')) {
-      // We can execute the final transfer
-      const permitData = await this.permitDataRepository.getPermitData(intentGroupID)
-
-      if (!permitData) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `processFulfilled: permit data not found for intentGroupID ${intentGroupID}`,
-          }),
-        )
-        return
-      }
-
-      const { permit3 } = permitData
-
-      if (!permit3) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `processFulfilled: permit3 not found for intentGroupID ${intentGroupID}`,
-          }),
-        )
-        return
-      }
-
-      // Get chainID and recipient for final transfer
-      // FIXME: This assumes that the final transfer is the one that is not on the source chain
-      const finalTransfer = permit3.allowanceOrTransfers.find(
-        (t) => BigInt(t.chainID) !== sourceChainID,
-      )
-
-      if (!finalTransfer) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `processFulfilled: final transfer not found for intentGroupID ${intentGroupID}`,
-          }),
-        )
-        return
-      }
-
-      const chainID = Number(finalTransfer.chainID)
-      const recipient = finalTransfer.account
-
-      const { response: permitWithTransferExecution, error } =
-        Permit3Processor.buildFinalTransferCallWithPermit(permit3, chainID, recipient)
-      if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `processFulfilled: error building final transfer call with permit for intentGroupID ${intentGroupID}`,
-            properties: {
-              error,
-            },
-          }),
-        )
-        return
-      }
-
-      const { calls } = permitWithTransferExecution!
-      const tx = batchTransactionsWithMulticall(chainID, calls)
-
-      this.logger.debug(
+    if (groupIntents.length === 0) {
+      this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `processFulfilled`,
-          properties: {
-            chainID,
-            tx,
-          },
+          message: `processFulfilled: no intents found for intentGroupID ${intentGroupID}`,
         }),
       )
-
-      const walletClient = await this.walletClientService.getClient(chainID)
-      const txHash = await walletClient.sendTransaction(tx)
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `processFulfilled`,
-          properties: {
-            chainID,
-            txHash,
-          },
-        }),
-      )
+      return
     }
+
+    if (!groupIntents.every((i) => i.status === 'SOLVED')) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: not all intents are solved for intentGroupID ${intentGroupID}`,
+        }),
+      )
+      return
+    }
+
+    // We can execute the final transfer
+    const permitData = await this.permitDataRepository.getPermitData(intentGroupID)
+
+    if (!permitData) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: permit data not found for intentGroupID ${intentGroupID}`,
+        }),
+      )
+      return
+    }
+
+    const { permit3 } = permitData
+
+    if (!permit3) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: permit3 not found for intentGroupID ${intentGroupID}`,
+        }),
+      )
+      return
+    }
+
+    // Get chainID and recipient for final transfer
+    const destinationChainID = Number(groupIntents[0].intent.route.destination)
+
+    const { response: txHash, error: finalTxError } = await this.executeFinalPermitTransfer(
+      destinationChainID,
+      permit3,
+    )
+
+    if (finalTxError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: error executing final permit transfer for intentGroupID ${intentGroupID}`,
+          properties: {
+            error: finalTxError,
+          },
+        }),
+      )
+      return
+    }
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `processFulfilled`,
+        properties: {
+          chainID: destinationChainID,
+          txHash,
+        },
+      }),
+    )
   }
 
   private getTxsGroupedByChain(gaslessIntentTransactions: GaslessIntentTransactions): {
@@ -736,11 +776,15 @@ export class IntentInitiationService implements OnModuleInit {
       return { response: undefined }
     }
 
-    const transaction = await Permit3Processor.generateTxs(
+    const { response: transaction, error } = await Permit3Processor.generateTxs(
       chainID,
       permit3DTO,
       this.walletClientService,
     )
+
+    if (error) {
+      return { error }
+    }
 
     if (!transaction) {
       return { response: undefined }
