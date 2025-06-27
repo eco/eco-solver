@@ -18,7 +18,7 @@ import {
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
-import { SlippageCalculator } from './utils/slippage-calculator'
+import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
 

@@ -1,4 +1,4 @@
-import { SlippageCalculator } from './slippage-calculator'
+import * as SlippageCalculator from './slippage-calculator'
 import { CCTPLiFiStrategyContext } from '@/liquidity-manager/types/types'
 
 describe('SlippageCalculator', () => {
@@ -6,6 +6,7 @@ describe('SlippageCalculator', () => {
     it('should return 0 when there are no swaps', () => {
       const context: CCTPLiFiStrategyContext = {
         rebalance: {},
+        cctpTransfer: { amount: 100n },
       } as unknown as CCTPLiFiStrategyContext
       expect(SlippageCalculator.calculateTotalSlippage(context)).toBe(0)
     })
@@ -13,6 +14,7 @@ describe('SlippageCalculator', () => {
     it('should calculate slippage correctly with only a source swap', () => {
       const context: CCTPLiFiStrategyContext = {
         rebalance: {},
+        cctpTransfer: { amount: 1000n },
         sourceSwapQuote: {
           fromAmount: '1000',
           toAmountMin: '990',
@@ -25,6 +27,7 @@ describe('SlippageCalculator', () => {
     it('should calculate slippage correctly with both source and destination swaps', () => {
       const context: CCTPLiFiStrategyContext = {
         rebalance: {},
+        cctpTransfer: { amount: 1000n },
         sourceSwapQuote: {
           fromAmount: '1000',
           toAmountMin: '990',
@@ -41,6 +44,7 @@ describe('SlippageCalculator', () => {
     it('should calculate slippage correctly with only a destination swap', () => {
       const context: CCTPLiFiStrategyContext = {
         rebalance: {},
+        cctpTransfer: { amount: 1000n },
         destinationSwapQuote: {
           fromAmount: '1000',
           toAmountMin: '950',
