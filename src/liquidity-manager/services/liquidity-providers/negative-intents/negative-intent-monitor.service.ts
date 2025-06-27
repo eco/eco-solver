@@ -1,10 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { ExtractAbiEvent } from 'abitype'
 import { Hex, Log, PublicClient } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { IntentSourceAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi, IProverAbi } from '@eco-foundation/routes-ts'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+
+type IntentProvenEvent = ExtractAbiEvent<typeof IProverAbi, 'IntentProven'>
+type IntentProvenLog = Log<bigint, number, boolean, IntentProvenEvent, true>
 
 interface NegativeIntentContext {
   intentHash: Hex
@@ -69,6 +73,15 @@ export class NegativeIntentMonitorService {
 
     // Step 2: Watch for IntentProven event
     await this.watchForIntentProven(context)
+  }
+
+  /**
+   * Clean up all watchers on module destroy
+   */
+  onModuleDestroy() {
+    this.unwatchFunctions.forEach((unwatch) => unwatch())
+    this.unwatchFunctions.clear()
+    this.monitoredIntents.clear()
   }
 
   /**
@@ -148,14 +161,15 @@ export class NegativeIntentMonitorService {
     // Set up event watcher for IntentProven
     const unwatch = client.watchContractEvent({
       address: intentSource.sourceAddress as Hex,
-      abi: IntentSourceAbi,
+      abi: IProverAbi,
       eventName: 'IntentProven',
+      strict: true,
       args: {
-        intentHash: context.intentHash,
+        _hash: context.intentHash,
       },
-      onLogs: async (logs: Log[]) => {
+      onLogs: async (logs) => {
         for (const log of logs) {
-          await this.handleIntentProven(context, log)
+          await this.handleIntentProven(context, log as IntentProvenLog)
         }
       },
       onError: (error) => {
@@ -192,10 +206,10 @@ export class NegativeIntentMonitorService {
 
       const events = await client.getContractEvents({
         address: intentSourceAddress,
-        abi: IntentSourceAbi,
+        abi: IProverAbi,
         eventName: 'IntentProven',
         args: {
-          intentHash: context.intentHash,
+          _hash: context.intentHash,
         },
         fromBlock,
         toBlock: currentBlock,
@@ -211,7 +225,7 @@ export class NegativeIntentMonitorService {
             },
           }),
         )
-        await this.handleIntentProven(context, events[0])
+        await this.handleIntentProven(context, events[0] as IntentProvenLog)
       }
     } catch (error) {
       this.logger.warn(
@@ -229,7 +243,10 @@ export class NegativeIntentMonitorService {
   /**
    * Handle IntentProven event
    */
-  private async handleIntentProven(context: NegativeIntentContext, log: Log): Promise<void> {
+  private async handleIntentProven(
+    context: NegativeIntentContext,
+    log: IntentProvenLog,
+  ): Promise<void> {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: 'IntentProven event detected',
@@ -282,8 +299,8 @@ export class NegativeIntentMonitorService {
       const txHash = await kernelClient.writeContract({
         address: intentSource.sourceAddress as Hex,
         abi: IntentSourceAbi,
-        functionName: 'withdraw',
-        args: [context.intentHash],
+        functionName: 'withdrawRewards',
+        args: [intent],
         chain: kernelClient.chain,
         account: kernelClient.kernelAccount,
       })
@@ -336,14 +353,5 @@ export class NegativeIntentMonitorService {
   private getIntentSource(chainId: number) {
     const intentSources = this.ecoConfigService.getIntentSources()
     return intentSources.find((source) => source.chainID === chainId)
-  }
-
-  /**
-   * Clean up all watchers on module destroy
-   */
-  onModuleDestroy() {
-    this.unwatchFunctions.forEach((unwatch) => unwatch())
-    this.unwatchFunctions.clear()
-    this.monitoredIntents.clear()
   }
 }
