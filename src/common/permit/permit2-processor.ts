@@ -1,102 +1,70 @@
 import { encodeFunctionData, Hex } from 'viem'
-import { Injectable, Logger } from '@nestjs/common'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { Permit2Abi } from '@/contracts/Permit2.abi'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
-import {
-  Permit2BatchPermitAbi,
-  Permit2SinglePermitAbi,
-  PermitBatchArg,
-  PermitSingleArg,
-} from './permit2-abis'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { PermitBatchArg } from '@/common/permit/interfaces/permit-batch-arg.interface'
+import { PermitSingleArg } from '@/common/permit/interfaces/permit-single-arg.interface'
 
 /**
- * This class returns a transaction for a permit2.
+ * This class processes the permit2 transaction. It generates the transaction for the permits and executes it.
  */
-@Injectable()
-export class Permit2TxBuilder {
-  private logger = new Logger(Permit2TxBuilder.name)
-
+export class Permit2Processor {
   /**
    * This function generates the transaction for the permit2. It encodes the function data for the permit2 function
    * and returns it as an ExecuteSmartWalletArg object.
    *
-   * @param permit - The parameters for the permit processing.
+   * @param permit2 - The parameters for the permit processing.
    * @returns The transaction object for the permit.
    */
-  getPermit2Tx(funder: Hex, permit: Permit2DTO): ExecuteSmartWalletArg {
-    const permitData = permit.permitData
-
+  static generateTxs(permit2: Permit2DTO): ExecuteSmartWalletArg[] {
     const data = this.encodeFunctionData(
-      funder,
-      permitData.getSpender(),
-      permitData.getSigDeadline(),
-      permit.signature,
-      permitData.getDetails(),
+      permit2.funder,
+      permit2.spender,
+      permit2.sigDeadline,
+      permit2.signature,
+      permit2.details,
     )
 
-    return {
-      to: permit.permitContract,
-      data,
-      value: 0n,
-    }
+    return [
+      {
+        to: permit2.permitContract,
+        data,
+        value: 0n,
+      },
+    ]
   }
 
   /**
    * This function encodes the function data for the permit2 function. It uses the ABI and function name to encode
    * the arguments and returns the encoded data.
    *
-   * @param owner - The address of the owner.
+   * @param funder - The address of the funder.
    * @param spender - The address of the spender.
    * @param sigDeadline - The signature deadline.
    * @param signature - The signature.
    * @param details - The details for the permit processing.
    * @returns The encoded function data.
    */
-  private encodeFunctionData(
-    owner: Hex,
+  static encodeFunctionData(
+    funder: Hex,
     spender: Hex,
     sigDeadline: bigint,
     signature: Hex,
     details: Permit2TypedDataDetailsDTO[],
   ): Hex {
     if (details.length === 1) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `encodeFunctionData: single permit`,
-          properties: {
-            details: details[0],
-            spender,
-            sigDeadline,
-            signature,
-          },
-        }),
-      )
-
       return encodeFunctionData({
-        abi: Permit2SinglePermitAbi,
+        abi: Permit2Abi,
         functionName: 'permit',
-        args: [owner, this.buildPermitSingleArg(spender, sigDeadline, details[0]), signature],
+        args: [funder, this.buildPermitSingleArg(spender, sigDeadline, details[0]), signature],
       })
     }
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `encodeFunctionData: batch permit`,
-        properties: {
-          details,
-          spender,
-          sigDeadline,
-          signature,
-        },
-      }),
-    )
-
     return encodeFunctionData({
-      abi: Permit2BatchPermitAbi,
+      abi: Permit2Abi,
       functionName: 'permit',
-      args: [owner, this.buildPermitBatchArg(spender, sigDeadline, details), signature],
+      args: [funder, this.buildPermitBatchArg(spender, sigDeadline, details), signature],
     })
   }
 
@@ -109,7 +77,7 @@ export class Permit2TxBuilder {
    * @param details - The details for the permit processing.
    * @returns The permit argument for a single permit.
    */
-  private buildPermitSingleArg(
+  private static buildPermitSingleArg(
     spender: Hex,
     sigDeadline: bigint,
     details: Permit2TypedDataDetailsDTO,
@@ -135,7 +103,7 @@ export class Permit2TxBuilder {
    * @param details - The details for the permit processing.
    * @returns The permit argument for a batch of permits.
    */
-  private buildPermitBatchArg(
+  private static buildPermitBatchArg(
     spender: Hex,
     sigDeadline: bigint,
     details: Permit2TypedDataDetailsDTO[],
