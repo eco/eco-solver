@@ -152,6 +152,8 @@ export type IntentConfig = {
     metalayer_duration_seconds: number
   }
   isNativeETHSupported: boolean
+  intentFundedRetries: number
+  intentFundedRetryDelayMs: number
 }
 
 /**
