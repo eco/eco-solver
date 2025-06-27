@@ -73,6 +73,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
+      fromBlock: this.lastIndexedBlock[source.chainID.toString()]
+        ? this.lastIndexedBlock[source.chainID.toString()]! + BigInt(1)
+        : undefined,
       onLogs: this.addJob(source),
     })
   }
@@ -82,6 +85,8 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       for (const log of logs) {
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
+
+        this.lastIndexedBlock[log.sourceChainID.toString()] = log.blockNumber
 
         // bigint as it can't serialize to JSON
         const createIntent = BigIntSerializer.serialize(log)
