@@ -14,6 +14,7 @@ import { ValidationChecks, ValidationService, validationsFailed } from '@/intent
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { delay } from '@/common/utils/time'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -44,6 +45,8 @@ export type IntentValidations = ValidationChecks & {
 export class ValidateIntentService implements OnModuleInit {
   private logger = new Logger(ValidateIntentService.name)
   private intentJobConfig: JobsOptions
+  private MAX_RETRIES: number
+  private RETRY_DELAY_MS: number
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
@@ -55,6 +58,9 @@ export class ValidateIntentService implements OnModuleInit {
 
   onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    const intentConfigs = this.ecoConfigService.getIntentConfigs()
+    this.MAX_RETRIES = intentConfigs.intentFundedRetries
+    this.RETRY_DELAY_MS = intentConfigs.intentFundedRetryDelayMs
   }
 
   /**
@@ -158,7 +164,38 @@ export class ValidateIntentService implements OnModuleInit {
       functionName: 'isIntentFunded',
       args: [IntentDataModel.toChainIntent(model.intent)],
     })
-    return isIntentFunded
+
+    if (isIntentFunded) {
+      return true
+    }
+
+    // Retry if the intent is not funded
+    for (let i = 0; i < this.MAX_RETRIES; i++) {
+      await delay(this.RETRY_DELAY_MS, i)
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `intentFunded check failed, retrying... (${i + 1}/${this.MAX_RETRIES})`,
+          properties: {
+            intentHash: model.intent.hash,
+          },
+        }),
+      )
+
+      // Check if the intent is funded again
+      const isIntentFunded = await client.readContract({
+        address: intentSource.sourceAddress,
+        abi: IntentSourceAbi,
+        functionName: 'isIntentFunded',
+        args: [IntentDataModel.toChainIntent(model.intent)],
+      })
+
+      if (isIntentFunded) {
+        return true
+      }
+    }
+
+    return false
   }
 
   /**
