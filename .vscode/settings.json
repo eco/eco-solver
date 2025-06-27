@@ -1,0 +1,10 @@
+{
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.includeCompletionsForImportStatements": true,
+  "typescript.suggest.paths": true,
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.preferences.useAliasesForRenames": true,
+  "typescript.preferences.importModuleSpecifierEnding": "minimal",
+  "typescript.workspaceSymbols.scope": "allOpenProjects"
+}

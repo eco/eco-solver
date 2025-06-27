@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { TerminusModule } from '@nestjs/terminus'
 import { RedisHealthModule } from '@liaoliaots/nestjs-redis-health'
 import { TransactionModule } from '@/transaction/transaction.module'
+import { BalanceModule } from '@/balance/balance.module'
 import { HealthController } from '@/health/health.controller'
 import { HealthService } from '@/health/health.service'
 import { BalanceHealthIndicator } from '@/health/indicators/balance.indicator'
@@ -10,7 +11,7 @@ import { GitCommitHealthIndicator } from '@/health/indicators/git-commit.indicat
 import { MongoDBHealthIndicator } from '@/health/indicators/mongodb.indicator'
 
 @Module({
-  imports: [TransactionModule, RedisHealthModule, TerminusModule],
+  imports: [TransactionModule, BalanceModule, RedisHealthModule, TerminusModule],
   controllers: [HealthController],
   providers: [
     HealthService,

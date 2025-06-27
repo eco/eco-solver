@@ -73,4 +73,5 @@ config/*
 
 #AI
 CLAUDE.md
+CLAUDE.project.md
 **/.claude/settings.local.json

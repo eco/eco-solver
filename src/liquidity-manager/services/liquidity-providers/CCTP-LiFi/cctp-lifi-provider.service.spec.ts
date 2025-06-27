@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getQueueToken } from '@nestjs/bullmq'
-import { Logger } from '@nestjs/common'
 import { parseUnits } from 'viem'
 import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
@@ -16,6 +14,11 @@ describe('CCTPLiFiProviderService', () => {
   let liFiService: jest.Mocked<LiFiProviderService>
   let cctpService: jest.Mocked<CCTPProviderService>
   let mockQueue: any
+
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
 
   const mockTokenIn: TokenData = {
     chainId: 1, // Ethereum
@@ -123,7 +126,6 @@ describe('CCTPLiFiProviderService', () => {
         CCTPLiFiProviderService,
         { provide: LiFiProviderService, useValue: mockLiFiService },
         { provide: CCTPProviderService, useValue: mockCCTPService },
-        { provide: BalanceService, useValue: { fetchTokenBalance: jest.fn() } },
         { provide: EcoConfigService, useValue: mockEcoConfigService },
         {
           provide: getQueueToken(LiquidityManagerQueue.queueName),
@@ -136,13 +138,17 @@ describe('CCTPLiFiProviderService', () => {
     liFiService = module.get(LiFiProviderService)
     cctpService = module.get(CCTPProviderService)
 
-    // Mock logger to avoid log spam
-    jest.spyOn(Logger.prototype, 'debug').mockImplementation()
-    jest.spyOn(Logger.prototype, 'log').mockImplementation()
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation()
+    service['logger'].log = mockLogLog
+    service['logger'].warn = mockLogWarn
+    service['logger'].debug = mockLogDebug
+    service['logger'].error = mockLogError
   })
 
   afterEach(() => {
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
     jest.restoreAllMocks()
     // Reset CCTPLiFiRoutePlanner to defaults to ensure test isolation
     CCTPLiFiRoutePlanner.resetToDefaults()
@@ -333,8 +339,6 @@ describe('CCTPLiFiProviderService', () => {
     })
 
     it('should warn about high slippage', async () => {
-      const warnSpy = jest.spyOn(Logger.prototype, 'warn')
-
       liFiService.getQuote
         .mockResolvedValueOnce({
           amountOut: parseUnits('85', 6), // High slippage
@@ -365,7 +369,7 @@ describe('CCTPLiFiProviderService', () => {
 
       await service.getQuote(mockTokenIn, mockTokenOut, 100)
 
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(mockLogWarn).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: expect.stringContaining('High total slippage detected'),
           route: expect.arrayContaining([
