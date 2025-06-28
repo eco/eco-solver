@@ -14,10 +14,10 @@ import { NegativeIntentMonitorService } from './negative-intent-monitor.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
-export class NegativeIntentRebalanceProviderService
+export class NegativeIntentRebalanceService
   implements IRebalanceProvider<'NegativeIntent'>
 {
-  private logger = new Logger(NegativeIntentRebalanceProviderService.name)
+  private logger = new Logger(NegativeIntentRebalanceService.name)
   private config: LiquidityManagerConfig
 
   constructor(
