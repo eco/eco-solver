@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { encodeFunctionData, erc20Abi, Hex, parseUnits } from 'viem'
+import { encodeFunctionData, erc20Abi, Hex, parseUnits, publicActions } from 'viem'
 import { randomBytes } from 'crypto'
-import { hashIntent, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { hashIntent, IntentSourceAbi, IntentType } from '@eco-foundation/routes-ts'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
@@ -11,6 +11,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { LitActionService } from '@/lit-actions/lit-action.service'
 import { NegativeIntentMonitorService } from './negative-intent-monitor.service'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class NegativeIntentRebalanceProviderService
@@ -21,9 +22,10 @@ export class NegativeIntentRebalanceProviderService
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly publicClient: MultichainPublicClientService,
     private readonly litActionService: LitActionService,
+    private readonly publicClient: MultichainPublicClientService,
+    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
     private readonly negativeIntentMonitorService: NegativeIntentMonitorService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
@@ -63,14 +65,27 @@ export class NegativeIntentRebalanceProviderService
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'NegativeIntent'>): Promise<Hex> {
+  async execute(walletAddress: string, quote: RebalanceQuote<'NegativeIntent'>): Promise<void> {
     // Only the crowd liquidity pool can execute rebalancing intents
     const crowdLiquidityPoolAddress = this.getCrowdLiquidityPoolAddress()
     if (walletAddress !== crowdLiquidityPoolAddress) {
       throw new Error('Rebalancing intents can only be executed by the crowd liquidity pool')
     }
 
-    return this.publishRebalancingIntent(quote)
+    const { intent, intentHash } = await this.publishRebalancingIntent(quote)
+
+    // Trigger the negative intent rebalance Lit action to fulfill the intent
+    const fulfillTxHash = await this.triggerNegativeIntentRebalance(intentHash, quote)
+
+    // Update the monitor with the fulfill transaction hash if available
+    await this.negativeIntentMonitorService.monitorNegativeIntent(
+      intentHash,
+      quote.tokenIn.chainId,
+      quote.tokenOut.chainId,
+      fulfillTxHash,
+    )
+
+    await this.executeWithdrawal(intentHash, intent)
   }
 
   /**
@@ -80,7 +95,7 @@ export class NegativeIntentRebalanceProviderService
    * @param quote - The rebalancing quote
    * @returns Transaction hash of the published intent
    */
-  private async publishRebalancingIntent(quote: RebalanceQuote<'NegativeIntent'>): Promise<Hex> {
+  private async publishRebalancingIntent(quote: RebalanceQuote<'NegativeIntent'>) {
     const { tokenIn, tokenOut, amountIn, amountOut, context } = quote
 
     this.logger.log(
@@ -104,9 +119,6 @@ export class NegativeIntentRebalanceProviderService
 
     // Get the intent source contract for the source chain
     const intentSource = this.getIntentSource(tokenIn.chainId)
-    if (!intentSource) {
-      throw new Error(`No intent source found for chain ${tokenIn.chainId}`)
-    }
 
     // Generate salt for uniqueness
     const salt = this.generateSalt()
@@ -138,7 +150,7 @@ export class NegativeIntentRebalanceProviderService
 
     // Create the reward - fulfiller receives tokenOut (less than they spent)
     const reward = {
-      creator: await this.getKernelWalletAddress(),
+      creator: await this.kernelAccountClientService.getAddress(),
       prover: intentSource.provers[0], // Use first available prover
       deadline: BigInt(Math.floor(Date.now() / 1000) + 5_400), // 1.5 hours from now
       nativeValue: 0n,
@@ -169,11 +181,6 @@ export class NegativeIntentRebalanceProviderService
 
     const { intentHash } = hashIntent(intent)
 
-    // Update the context with the actual intent hash
-    if (quote.context) {
-      quote.context.intentHash = intentHash
-    }
-
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: 'Rebalancing intent published',
@@ -188,27 +195,81 @@ export class NegativeIntentRebalanceProviderService
     // Wait for transaction confirmation
     await kernelClient.waitForTransactionReceipt({ hash: txHash })
 
-    // Start monitoring the negative intent for proof and withdrawal
-    await this.negativeIntentMonitorService.monitorNegativeIntent(
-      intentHash,
-      tokenIn.chainId,
-      tokenOut.chainId,
-    )
+    return { intent, intentHash, txHash }
+  }
 
-    // Trigger the negative intent rebalance Lit action to fulfill the intent
-    const fulfillTxHash = await this.triggerNegativeIntentRebalance(intentHash, quote)
-
-    // Update the monitor with the fulfill transaction hash if available
-    if (fulfillTxHash) {
-      await this.negativeIntentMonitorService.monitorNegativeIntent(
-        intentHash,
-        tokenIn.chainId,
-        tokenOut.chainId,
-        fulfillTxHash,
+  /**
+   * Execute withdrawal for the negative intent
+   */
+  private async executeWithdrawal(intentHash: Hex, intent: IntentType): Promise<void> {
+    try {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Executing withdrawal for negative intent',
+          properties: {
+            intentHash,
+            source: intent.route.source.toString(),
+            destination: intent.route.destination.toString(),
+          },
+        }),
       )
-    }
 
-    return txHash
+      const intentSource = this.getIntentSource(Number(intent.route.source))
+
+      // Get the kernel wallet client for the source chain
+      const walletClient = await this.walletClientDefaultSignerService.getClient(
+        Number(intent.route.source),
+      )
+      const publicClient = walletClient.extend(publicActions)
+
+      // Execute withdrawal on the IntentSource contract
+      const txHash = await walletClient.writeContract({
+        address: intentSource.sourceAddress as Hex,
+        abi: IntentSourceAbi,
+        functionName: 'withdrawRewards',
+        args: [intent],
+      })
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Withdrawal transaction submitted',
+          properties: {
+            intentHash,
+            transactionHash: txHash,
+          },
+        }),
+      )
+
+      // Wait for confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+      if (receipt.status !== 'success') {
+        throw new Error('Withdrawal transaction failed')
+      }
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Negative intent withdrawal completed successfully',
+          properties: {
+            intentHash,
+            transactionHash: txHash,
+            blockNumber: receipt.blockNumber.toString(),
+          },
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Failed to execute withdrawal',
+          properties: {
+            intentHash,
+            error: error.message,
+            stack: error.stack,
+          },
+        }),
+      )
+      throw error
+    }
   }
 
   private generateSalt(): Hex {
@@ -216,12 +277,15 @@ export class NegativeIntentRebalanceProviderService
   }
 
   private getIntentSource(chainId: number) {
-    const intentSources = this.ecoConfigService.getIntentSources()
-    return intentSources.find((source) => source.chainID === chainId)
-  }
+    const intentSource = this.ecoConfigService
+      .getIntentSources()
+      .find((source) => source.chainID === chainId)
 
-  private async getKernelWalletAddress(): Promise<Hex> {
-    return this.kernelAccountClientService.getAddress()
+    if (!intentSource) {
+      throw new Error(`No intent source found for chain ${chainId}`)
+    }
+
+    return intentSource
   }
 
   private getCrowdLiquidityPoolAddress(): Hex {
@@ -231,7 +295,7 @@ export class NegativeIntentRebalanceProviderService
   private async triggerNegativeIntentRebalance(
     intentHash: Hex,
     quote: RebalanceQuote<'NegativeIntent'>,
-  ): Promise<Hex | undefined> {
+  ): Promise<Hex> {
     try {
       const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
       const publicClient = await this.publicClient.getClient(quote.tokenOut.chainId)
@@ -276,8 +340,7 @@ export class NegativeIntentRebalanceProviderService
           },
         }),
       )
-      // Don't throw - the intent was published successfully, fulfillment failure is logged
-      return undefined
+      throw error
     }
   }
 
