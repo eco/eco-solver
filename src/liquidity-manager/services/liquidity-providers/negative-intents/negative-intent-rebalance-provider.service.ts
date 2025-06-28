@@ -47,8 +47,8 @@ export class NegativeIntentRebalanceProviderService
     // Parse amounts with proper decimals
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     // Calculate the amount the fulfiller will receive (less than they spend)
-    const amountOutRaw = swapAmount * (1 - rebalancingPercentage)
-    const amountOut = parseUnits(amountOutRaw.toString(), tokenOut.balance.decimals)
+    const rebalancingBasisPoints = BigInt(Math.floor(rebalancingPercentage * 100_000))
+    const amountOut = (amountIn * (100_000n - rebalancingBasisPoints)) / 100_000n
 
     return {
       amountIn,
