@@ -194,7 +194,7 @@ export class LiquidityProviderService {
         return this.stargateProviderService
       case 'CCTPLiFi':
         return this.cctpLiFiProviderService
-      case 'Rebalancing':
+      case 'NegativeIntent':
         return this.rebalancingProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
