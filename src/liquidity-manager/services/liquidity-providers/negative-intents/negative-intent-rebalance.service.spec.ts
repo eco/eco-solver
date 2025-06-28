@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { Logger } from '@nestjs/common'
 import { encodeFunctionData, erc20Abi, Hex, parseUnits } from 'viem'
-import { NegativeIntentRebalanceProviderService } from './negative-intent-rebalance-provider.service'
+import { NegativeIntentRebalanceService } from './negative-intent-rebalance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -17,8 +17,8 @@ jest.mock('@eco-foundation/routes-ts', () => ({
   IntentSourceAbi: [],
 }))
 
-describe('NegativeIntentRebalanceProviderService', () => {
-  let service: NegativeIntentRebalanceProviderService
+describe('NegativeIntentRebalanceService', () => {
+  let service: NegativeIntentRebalanceService
   let ecoConfigService: jest.Mocked<EcoConfigService>
   let litActionService: jest.Mocked<LitActionService>
   let publicClient: jest.Mocked<MultichainPublicClientService>
@@ -80,7 +80,7 @@ describe('NegativeIntentRebalanceProviderService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        NegativeIntentRebalanceProviderService,
+        NegativeIntentRebalanceService,
         {
           provide: EcoConfigService,
           useValue: {
@@ -131,8 +131,8 @@ describe('NegativeIntentRebalanceProviderService', () => {
       ],
     }).compile()
 
-    service = module.get<NegativeIntentRebalanceProviderService>(
-      NegativeIntentRebalanceProviderService,
+    service = module.get<NegativeIntentRebalanceService>(
+      NegativeIntentRebalanceService,
     )
     ecoConfigService = module.get(EcoConfigService)
     litActionService = module.get(LitActionService)

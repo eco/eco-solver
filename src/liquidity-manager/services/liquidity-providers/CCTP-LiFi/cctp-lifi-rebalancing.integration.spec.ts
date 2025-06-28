@@ -33,6 +33,7 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { serialize } from '@/common/utils/serialize'
+import { NegativeIntentRebalanceService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -80,6 +81,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let cctpService: DeepMocked<CCTPProviderService>
   let relayService: DeepMocked<RelayProviderService>
   let stargateService: DeepMocked<StargateProviderService>
+  let negativeIntentRebalanceService: DeepMocked<NegativeIntentRebalanceService>
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -181,6 +183,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: EverclearProviderService,
           useValue: createMock<EverclearProviderService>(),
+        },
+        {
+          provide: NegativeIntentRebalanceService,
+          useValue: createMock<NegativeIntentRebalanceService>(),
         },
         {
           provide: BalanceService,
