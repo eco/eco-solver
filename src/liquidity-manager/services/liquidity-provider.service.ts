@@ -253,7 +253,7 @@ export class LiquidityProviderService {
         return this.cctpv2ProviderService
       case 'Everclear':
         return this.everclearProviderService
-      case 'Rebalancing':
+      case 'NegativeIntent':
         return this.rebalancingProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)

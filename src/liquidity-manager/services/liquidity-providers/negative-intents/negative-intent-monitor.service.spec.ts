@@ -72,7 +72,7 @@ describe('NegativeIntentMonitorService', () => {
 
     it('should successfully monitor a negative intent with transaction confirmation and event detection', async () => {
       jest.useFakeTimers()
-      
+
       mockClient.waitForTransactionReceipt.mockResolvedValue({
         status: 'success',
         blockNumber: 12345n,
@@ -100,7 +100,7 @@ describe('NegativeIntentMonitorService', () => {
 
       // Run all pending timers
       await jest.runAllTimersAsync()
-      
+
       await promise
 
       expect(mockClient.waitForTransactionReceipt).toHaveBeenCalledWith({
@@ -118,7 +118,7 @@ describe('NegativeIntentMonitorService', () => {
         onError: expect.any(Function),
       })
       expect(mockUnwatch).toHaveBeenCalled()
-      
+
       jest.useRealTimers()
     })
 
@@ -158,7 +158,7 @@ describe('NegativeIntentMonitorService', () => {
 
     it('should timeout if IntentProven event is not detected within timeout period', async () => {
       jest.useFakeTimers()
-      
+
       mockClient.waitForTransactionReceipt.mockResolvedValue({
         status: 'success',
         blockNumber: 12345n,
@@ -177,7 +177,7 @@ describe('NegativeIntentMonitorService', () => {
       )
 
       // Immediately catch the promise to prevent unhandled rejection
-      const resultPromise = promise.catch(e => e)
+      const resultPromise = promise.catch((e) => e)
 
       // Advance timers past the timeout period
       await jest.advanceTimersByTimeAsync(300_001)
@@ -185,14 +185,14 @@ describe('NegativeIntentMonitorService', () => {
       const result = await resultPromise
       expect(result).toBeInstanceOf(Error)
       expect(result.message).toBe('IntentProven event not detected after 300000ms')
-      
+
       // Note: mockUnwatch won't be called in timeout case because the service doesn't call it
       jest.useRealTimers()
     })
 
     it('should handle watch error properly', async () => {
       jest.useFakeTimers()
-      
+
       mockClient.waitForTransactionReceipt.mockResolvedValue({
         status: 'success',
         blockNumber: 12345n,
@@ -214,10 +214,10 @@ describe('NegativeIntentMonitorService', () => {
       )
 
       // Immediately catch the promise to prevent unhandled rejection
-      const resultPromise = promise.catch(e => e)
+      const resultPromise = promise.catch((e) => e)
 
       await jest.runAllTimersAsync()
-      
+
       const result = await resultPromise
       expect(result).toBeInstanceOf(Error)
       expect(result.message).toBe('Watch error')
@@ -228,7 +228,7 @@ describe('NegativeIntentMonitorService', () => {
 
     it('should skip waiting for transaction if no transaction hash provided', async () => {
       jest.useFakeTimers()
-      
+
       mockClient.watchContractEvent.mockImplementation(({ onLogs }) => {
         setImmediate(() => {
           onLogs([

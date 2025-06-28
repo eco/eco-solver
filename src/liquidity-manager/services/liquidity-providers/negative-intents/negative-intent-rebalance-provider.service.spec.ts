@@ -180,7 +180,7 @@ describe('NegativeIntentRebalanceProviderService', () => {
         walletStrategies: {},
         coreTokens: [],
       })
-      
+
       const swapAmount = 100
       const quote = await service.getQuote(mockTokenIn, mockTokenOut, swapAmount)
 
@@ -218,24 +218,23 @@ describe('NegativeIntentRebalanceProviderService', () => {
       kernelAccountClientService.getClient.mockResolvedValue(mockKernelClient as any)
       walletClientDefaultSignerService.getClient.mockResolvedValue(mockWalletClient as any)
       publicClient.getClient.mockResolvedValue(mockPublicClient as any)
-      
+
       mockKernelClient.writeContract.mockResolvedValue('0xPublishTxHash' as Hex)
       mockKernelClient.waitForTransactionReceipt.mockResolvedValue({ status: 'success' })
-      
+
       mockWalletClient.writeContract.mockResolvedValue('0xWithdrawTxHash' as Hex)
-      mockWalletClient.waitForTransactionReceipt.mockResolvedValue({ 
+      mockWalletClient.waitForTransactionReceipt.mockResolvedValue({
         status: 'success',
         blockNumber: 12345n,
       })
-      
+
       mockPublicClient.getBlock.mockResolvedValue({ baseFeePerGas: 1000n })
       mockPublicClient.estimateMaxPriorityFeePerGas.mockResolvedValue(100n)
       mockPublicClient.getTransactionCount.mockResolvedValue(10)
-      
+
       litActionService.executeNegativeIntentRebalanceAction.mockResolvedValue(
         '0xFulfillTxHash' as Hex,
       )
-      
       ;(hashIntent as jest.Mock).mockReturnValue({ intentHash: '0xIntentHash' as Hex })
     })
 
@@ -247,7 +246,7 @@ describe('NegativeIntentRebalanceProviderService', () => {
 
     it('should successfully execute negative intent rebalance', async () => {
       const crowdLiquidityPoolAddress = '0x1234567890123456789012345678901234567890'
-      
+
       await service.execute(crowdLiquidityPoolAddress, mockQuote)
 
       // Verify intent was published
@@ -317,26 +316,26 @@ describe('NegativeIntentRebalanceProviderService', () => {
     it('should throw error if no intent source found', async () => {
       ecoConfigService.getIntentSources.mockReturnValue([])
 
-      await expect(service.execute('0x1234567890123456789012345678901234567890', mockQuote)).rejects.toThrow(
-        'No intent source found for chain 1',
-      )
+      await expect(
+        service.execute('0x1234567890123456789012345678901234567890', mockQuote),
+      ).rejects.toThrow('No intent source found for chain 1')
     })
 
     it('should handle withdrawal transaction failure', async () => {
       mockWalletClient.waitForTransactionReceipt.mockResolvedValue({ status: 'failure' })
 
-      await expect(service.execute('0x1234567890123456789012345678901234567890', mockQuote)).rejects.toThrow(
-        'Withdrawal transaction failed',
-      )
+      await expect(
+        service.execute('0x1234567890123456789012345678901234567890', mockQuote),
+      ).rejects.toThrow('Withdrawal transaction failed')
     })
 
     it('should handle Lit action execution failure', async () => {
       const error = new Error('Lit action failed')
       litActionService.executeNegativeIntentRebalanceAction.mockRejectedValue(error)
 
-      await expect(service.execute('0x1234567890123456789012345678901234567890', mockQuote)).rejects.toThrow(
-        'Lit action failed',
-      )
+      await expect(
+        service.execute('0x1234567890123456789012345678901234567890', mockQuote),
+      ).rejects.toThrow('Lit action failed')
     })
   })
 })
