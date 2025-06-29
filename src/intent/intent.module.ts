@@ -17,12 +17,14 @@ import { ValidationService } from '@/intent/validation.sevice'
 import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { LitActionsModule } from '@/lit-actions/lit-actions.module'
 
 @Module({
   imports: [
     BalanceModule,
     FeeModule,
     FlagsModule,
+    LitActionsModule,
     MongooseModule.forFeature([{ name: IntentSourceModel.name, schema: IntentSourceSchema }]),
     ProverModule,
     SolverModule,
