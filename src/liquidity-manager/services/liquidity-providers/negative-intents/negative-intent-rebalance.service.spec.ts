@@ -131,9 +131,7 @@ describe('NegativeIntentRebalanceService', () => {
       ],
     }).compile()
 
-    service = module.get<NegativeIntentRebalanceService>(
-      NegativeIntentRebalanceService,
-    )
+    service = module.get<NegativeIntentRebalanceService>(NegativeIntentRebalanceService)
     ecoConfigService = module.get(EcoConfigService)
     litActionService = module.get(LitActionService)
     publicClient = module.get(MultichainPublicClientService)
