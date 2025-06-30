@@ -69,6 +69,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     // Get wallet addresses we'll be monitoring
     this.config = this.ecoConfigService.getLiquidityManager()
 
+    if (this.config.enabled !== false) {
+      await this.initializeRebalances()
+    }
+  }
+
+  async initializeRebalances() {
     // Use OP as the default chain assuming the Kernel wallet is the same across all chains
     const opChainId = 10
     const client = await this.kernelAccountClientService.getClient(opChainId)
@@ -302,14 +308,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
         // Use the fallback method that routes through core tokens
-        const quote = await this.liquidityProviderManager.fallback(
+        const quotes = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
           swapAmount,
         )
 
-        quotes.push(quote)
-        currentBalance += quote.amountOut
+        quotes.push(...quotes)
+        quotes.forEach((quote) => {
+          currentBalance += quote.amountOut
+        })
       } catch (fallbackError) {
         this.logger.error(
           EcoLogMessage.fromDefault({

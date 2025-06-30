@@ -3,6 +3,10 @@ export default {
     url: 'https://solver-preprod.bend.eco',
   },
 
+  indexer: {
+    url: 'https://protocol-indexer-production.up.railway.app',
+  },
+
   aws: [
     {
       region: 'us-east-2',

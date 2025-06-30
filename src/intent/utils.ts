@@ -14,6 +14,7 @@ import { isEmptyData } from '../common/viem/utils'
 
 // The default number of decimals for native tokens that we enfores for now
 const DEFAULT_NATIVE_DECIMALS = 18
+const ETH_SYMBOL = 'ETH'
 
 /**
  * Decodes the function data for a target contract
@@ -125,20 +126,39 @@ export function equivalentNativeGas(intent: ValidationIntentInterface, logger: L
 
 /**
  * Iterates over the calls and returns those that do not have empty data
+ * Note: The system does not support calls that have both executable data and native value.
+ * Only pure transfers (value == 0) are considered valid function calls.
  * @param calls the calls to check
  * @returns
  */
 export function getFunctionCalls(calls: CallDataInterface[]) {
-  return calls.filter((call) => !isEmptyData(call.data))
+  return calls.filter((call) => !isEmptyData(call.data) && call.value == 0n)
 }
 
 /**
- * Iterates over the calls and returns those that have empty data and send native value
+ * Iterates over the calls and returns those that have empty data and send native value.
+ * Note: The system does not support calls that have both executable data and native value.
+ * Only pure native transfers (empty data + value > 0) are considered valid native calls.
+ *
  * @param calls the calls to check
- * @returns
+ * @returns Array of calls that transfer native tokens without executing any functions
  */
 export function getNativeCalls(calls: CallDataInterface[]) {
   return calls.filter((call) => call.value > 0 && isEmptyData(call.data))
+}
+
+/**
+ * Calculates the total native token value (ETH, MATIC, etc.) required to fulfill all native value transfers in the intent calls.
+ * This includes the sum of all call.value fields for calls that transfer native tokens.
+ *
+ * @param calls - Array of call data interfaces from the intent route
+ * @returns The total native value required in wei (base units) for all native transfers in the intent
+ */
+export function getNativeFulfill(calls: readonly CallDataInterface[]): bigint {
+  const nativeCalls = getNativeCalls(calls as CallDataInterface[])
+  return nativeCalls.reduce((acc, call) => {
+    return acc + (call.value || 0n)
+  }, 0n)
 }
 
 /**
@@ -148,4 +168,21 @@ export function getNativeCalls(calls: CallDataInterface[]) {
  */
 export function getFunctionTargets(calls: CallDataInterface[]) {
   return getFunctionCalls(calls).map((call) => call.target)
+}
+
+export function isNativeETH(intent: ValidationIntentInterface): boolean {
+  const sourceChain = extractChain({
+    chains: ChainsSupported,
+    id: Number(intent.route.source),
+  })
+  const dstChain = extractChain({
+    chains: ChainsSupported,
+    id: Number(intent.route.destination),
+  })
+  if (!sourceChain || !dstChain) {
+    return false
+  }
+  return (
+    sourceChain.nativeCurrency.symbol == ETH_SYMBOL && dstChain.nativeCurrency.symbol == ETH_SYMBOL
+  )
 }

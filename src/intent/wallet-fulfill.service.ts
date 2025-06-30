@@ -22,6 +22,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import {
   getFunctionCalls,
   getNativeCalls,
+  getNativeFulfill,
   getTransactionTargetData,
   getWaitForTransactionTimeout,
 } from '@/intent/utils'
@@ -211,18 +212,17 @@ export class WalletFulfillService implements IFulfillService {
   }
 
   /**
-   * Iterates over the calls and returns the sum of the native value transfers
-   * @param solver the solver for the intent
-   * @param nativeCalls The calls that have native value transfers
-   * @returns
+   * Creates a native transfer call that sends the total native value required by the intent to the inbox contract.
+   * Uses the utility function to calculate the total native value from all native calls in the intent.
+   *
+   * @param solver - The solver configuration containing the inbox address
+   * @param nativeCalls - The calls that have native value transfers (from getNativeCalls)
+   * @returns A Call object that transfers the total native value to the inbox contract
    */
   private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
-    const nativeFulfillTotal = nativeCalls.reduce((acc, call) => {
-      return acc + (call.value || 0n)
-    }, 0n)
     return {
       to: solver.inboxAddress,
-      value: nativeFulfillTotal,
+      value: getNativeFulfill(nativeCalls),
       data: '0x',
     }
   }
@@ -240,13 +240,19 @@ export class WalletFulfillService implements IFulfillService {
     const claimant = this.ecoConfigService.getEth().claimant
 
     // Hyper Prover
-    const isHyperlane = this.proofService.isHyperlaneProver(model.intent.reward.prover)
+    const isHyperlane = this.proofService.isHyperlaneProver(
+      Number(model.intent.route.source),
+      model.intent.reward.prover,
+    )
     if (isHyperlane) {
       return this.getFulfillTxForHyperprover(inboxAddress, claimant, model)
     }
 
     // Metalayer Prover
-    const isMetalayer = this.proofService.isMetalayerProver(model.intent.reward.prover)
+    const isMetalayer = this.proofService.isMetalayerProver(
+      Number(model.intent.route.source),
+      model.intent.reward.prover,
+    )
     if (isMetalayer) {
       return this.getFulfillTxForMetalayer(inboxAddress, claimant, model)
     }
@@ -322,7 +328,7 @@ export class WalletFulfillService implements IFulfillService {
       [pad(model.intent.reward.prover), '0x', zeroAddress],
     )
 
-    const fee = await this.getProverFee(model, hyperProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -366,12 +372,12 @@ export class WalletFulfillService implements IFulfillService {
     }
 
     const messageData = encodeAbiParameters(
-      [{ type: 'uint32' }, { type: 'bytes32' }],
-      [Number(model.intent.route.source), pad(model.intent.reward.prover)],
+      [{ type: 'bytes32' }],
+      [pad(model.intent.reward.prover)],
     )
 
     // Metalayer may use the same fee structure as Hyperlane
-    const fee = await this.getProverFee(model, metalayerProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -397,12 +403,14 @@ export class WalletFulfillService implements IFulfillService {
    * Calculates the fee required for a transaction by calling the prover contract.
    *
    * @param {IntentSourceModel} model - The model containing intent details, including route, hash, and reward information.
+   * @param claimant - The claimant address
    * @param proverAddr - The address of the prover contract
    * @param messageData - The message data to send
    * @return {Promise<bigint>} A promise that resolves to the fee amount
    */
   private async getProverFee(
     model: IntentSourceModel,
+    claimant: Hex,
     proverAddr: Hex,
     messageData: Hex,
   ): Promise<bigint> {
@@ -416,7 +424,7 @@ export class WalletFulfillService implements IFulfillService {
       args: [
         IntentSourceModel.getSource(model), //_sourceChainID
         [model.intent.hash],
-        [this.ecoConfigService.getEth().claimant],
+        [claimant],
         messageData,
       ],
     })

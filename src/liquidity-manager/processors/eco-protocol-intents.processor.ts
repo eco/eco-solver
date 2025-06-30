@@ -12,6 +12,7 @@ import {
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -37,6 +38,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new RebalanceJobManager(),
       new ExecuteCCTPMintJobManager(),
       new CheckCCTPAttestationJobManager(),
+      new CCTPLiFiDestinationSwapJobManager(),
     ])
   }
 }

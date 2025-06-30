@@ -8,10 +8,30 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+
+// Enhanced job data to support CCTPLiFi operations
+export interface CheckCCTPAttestationJobData {
+  destinationChainId: number
+  messageHash: Hex
+  messageBody: Hex
+  // Optional CCTPLiFi context for destination swap operations
+  cctpLiFiContext?: {
+    destinationSwapQuote: LiFiStrategyContext
+    walletAddress: string
+    originalTokenOut: {
+      address: Hex
+      chainId: number
+      decimals: number
+    }
+  }
+  id?: string
+  [key: string]: unknown // Index signature for BullMQ compatibility
+}
 
 export type CheckCCTPAttestationJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_CCTP_ATTESTATION,
-  { destinationChainId: number; messageHash: Hex; messageBody: Hex },
+  CheckCCTPAttestationJobData,
   { status: 'pending' } | { status: 'complete'; attestation: Hex }
 >
 
@@ -20,13 +40,13 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    * Starts a job scheduler for checking CCTP attestation.
    *
    * @param {Queue} queue - The queue instance where the job will be added.
-   * @param {object} data - The data payload for the CheckCCTPAttestationJob.
+   * @param {CheckCCTPAttestationJobData} data - The data payload for the CheckCCTPAttestationJob.
    * @param {number} delay - Delay processing
    * @return {Promise<void>} A promise that resolves when the job scheduler is successfully added.
    */
   static async start(
     queue: Queue,
-    data: CheckCCTPAttestationJob['data'],
+    data: CheckCCTPAttestationJobData,
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
@@ -70,23 +90,29 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   ): Promise<void> {
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'Adding CCTP mint transaction to execution queue',
+        EcoLogMessage.withId({
+          message:
+            'CCTP: CheckCCTPAttestationJob: Attestation complete. Adding CCTP mint transaction to execution queue',
+          id: job.data.id,
           properties: job.returnvalue,
         }),
       )
+
       await ExecuteCCTPMintJobManager.start(processor.queue, {
         ...job.data,
         attestation: job.returnvalue.attestation,
+        id: job.data.id,
       })
     } else {
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'Check CCTP attestation pending...',
+        EcoLogMessage.withId({
+          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
+          id: job.data.id,
           properties: {
             ...job.returnvalue,
             messageHash: job.data.messageHash,
             destinationChainId: job.data.destinationChainId,
+            isCCTPLiFi: !!job.data.cctpLiFiContext,
           },
         }),
       )
@@ -103,11 +129,13 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    */
   onFailed(job: CheckCCTPAttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `CheckCCTPAttestationJob: Failed`,
+      EcoLogMessage.withId({
+        message: `CCTP: CheckCCTPAttestationJob: Failed`,
+        id: job.data.id,
         properties: {
           error: (error as any)?.message ?? error,
           data: job.data,
+          isCCTPLiFi: !!job.data.cctpLiFiContext,
         },
       }),
     )

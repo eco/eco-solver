@@ -386,7 +386,9 @@ describe('WalletFulfillService', () => {
   })
 
   describe('on getTransactionsForTargets', () => {
-    const model = { intent: { route: { calls: [{ target: address1, data: address2 }] } } } as any
+    const model = {
+      intent: { route: { calls: [{ target: address1, data: address2, value: 0n }] } },
+    } as any
     const tt = { targetConfig: { contractType: 'erc20' } }
 
     it('should return empty if no targets', async () => {
@@ -438,8 +440,8 @@ describe('WalletFulfillService', () => {
         intent: {
           route: {
             calls: [
-              { target: address1, data: '0x3' },
-              { target: address2, data: '0x4' },
+              { target: address1, data: '0x3', value: 0n },
+              { target: address2, data: '0x4', value: 0n },
             ],
           },
         },
@@ -464,9 +466,11 @@ describe('WalletFulfillService', () => {
       intent: {
         hash: '0x1234',
         route: {
-          calls: [{ target: address1, data: address2 }],
+          calls: [{ target: address1, data: address2, value: 0n }],
           deadline: '0x2233',
           salt: '0x3344',
+          source: 10,
+          destination: 11,
           getHash: () => '0xccc',
         },
         reward: {
@@ -500,9 +504,15 @@ describe('WalletFulfillService', () => {
         fulfillIntentService['getFulfillTxForMetalayer'] = jest.fn().mockReturnValue(emptyTxs[0])
         await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForMetalayer']).toHaveBeenCalledTimes(1)
       })
 
@@ -526,9 +536,15 @@ describe('WalletFulfillService', () => {
         )
         expect(tx).toEqual(metaproverTx)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isMetalayerProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForMetalayer']).toHaveBeenCalledTimes(1)
       })
     })
@@ -542,7 +558,10 @@ describe('WalletFulfillService', () => {
           .mockReturnValue(emptyTxs[0])
         await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForHyperproverSingle']).toHaveBeenCalledTimes(1)
       })
 
@@ -555,9 +574,8 @@ describe('WalletFulfillService', () => {
         fulfillIntentService['getFulfillment'] = jest
           .fn()
           .mockReturnValue('fulfillHyperInstantWithRelayer')
-        defaultArgs.push(model.intent.reward.prover)
-        defaultArgs.push('0x0')
-        defaultArgs.push(zeroAddress)
+        defaultArgs.push(address1) // hyperProverAddr
+        defaultArgs.push('0x9911') // messageData
         const hyperproverTx = { to: solver.inboxAddress, data, value: mockFee }
         fulfillIntentService['getFulfillTxForHyperproverSingle'] = jest
           .fn()
@@ -570,7 +588,10 @@ describe('WalletFulfillService', () => {
         expect(tx).toEqual(hyperproverTx)
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(0)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForHyperproverSingle']).toHaveBeenCalledTimes(1)
       })
 
@@ -594,7 +615,10 @@ describe('WalletFulfillService', () => {
         expect(tx).toEqual(hyperproverTx)
         expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(0)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
-        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(model.intent.reward.prover)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+          Number(model.intent.route.source),
+          model.intent.reward.prover,
+        )
         expect(fulfillIntentService['getFulfillTxForHyperproverBatch']).toHaveBeenCalledTimes(1)
       })
     })
@@ -636,7 +660,7 @@ describe('WalletFulfillService', () => {
         [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
         [pad(model.intent.reward.prover), '0x', zeroAddress],
       )
-      expect(mockProverFee).toHaveBeenCalledWith(model, address1, encodedData)
+      expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
     })
   })
 
@@ -674,10 +698,10 @@ describe('WalletFulfillService', () => {
       expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(1)
       expect(mockProverFee).toHaveBeenCalledTimes(1)
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
-        [{ type: 'uint32' }, { type: 'bytes32' }],
-        [Number(model.intent.route.source), pad(model.intent.reward.prover)],
+        [{ type: 'bytes32' }],
+        [pad(model.intent.reward.prover)],
       )
-      expect(mockProverFee).toHaveBeenCalledWith(model, address1, encodedData)
+      expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
     })
   })
 })
