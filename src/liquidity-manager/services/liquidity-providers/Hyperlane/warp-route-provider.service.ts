@@ -140,11 +140,15 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     // Used to complete the job only after the message is relayed
     await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
 
-    this.logger.debug(
+    this.logger.log(
       EcoLogMessage.withId({
-        message: 'WarpRouteProviderService: message relayed',
         id: quote.id,
-        properties: { messageId },
+        message: 'WarpRouteProviderService: message relayed',
+        properties: {
+          chainId: quote.tokenOut.config.chainId,
+          transactionHash: txHash,
+          messageId,
+        },
       }),
     )
 
@@ -155,6 +159,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     amount: bigint,
+    id?: string,
   ): RebalanceQuote<'WarpRoute'> {
     return {
       amountIn: amount,
@@ -164,6 +169,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       tokenOut: tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
+      id,
     }
   }
 
@@ -345,6 +351,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         collateralTokenData,
         tokenOut,
         swapAmount,
+        id,
       )
       return [remoteTransferQuote, liFiQuote]
     }
@@ -432,6 +439,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         tokenIn,
         collateralTokenData,
         swapAmount,
+        id,
       )
       const remoteTransferQuote = this.getRemoteTransferQuote(
         collateralTokenData,

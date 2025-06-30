@@ -18,10 +18,9 @@ import {
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
-import { SlippageCalculator } from './utils/slippage-calculator'
+import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
-import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -54,10 +53,6 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'CCTPLiFi'>> {
-    if (!id) {
-      id = uuidv4()
-    }
-
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'CCTPLiFi: Getting quote',
@@ -273,7 +268,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     tokenOut: TokenData,
     swapAmount: number,
     steps: RouteStep[],
-    id: string,
+    id?: string,
   ): Promise<CCTPLiFiStrategyContext> {
     let sourceSwapQuote: LiFiStrategyContext | undefined
     let destinationSwapQuote: LiFiStrategyContext | undefined

@@ -1472,18 +1472,18 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@eco-foundation/chains@1.0.36":
-  version "1.0.36"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/chains/-/chains-1.0.36.tgz#3ecee59a6b6dffa2b67144fc91ce568bbd8bf974"
-  integrity sha512-rtnyAvPEyYgDilbfNyjel0xdV7DDsNojorkwdsTXLAEg7VWeIgnltZjGknaWn3YqycCCdphUI+sVvCTKvZgx5A==
+"@eco-foundation/chains@1.0.40":
+  version "1.0.40"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/chains/-/chains-1.0.40.tgz#5730083ce8253039056f5ef92567cbad3bb07619"
+  integrity sha512-PCXXLxPgTmmg608mcqoYFY0VTwlewsYjV5D/tCTs2XIbWhp7O4jYlzYdO/tHeK67qaWkzHXCRsEB4ZXWZczSAw==
   dependencies:
     typia "^8.0.4"
     viem "^2.24.1"
 
-"@eco-foundation/routes-ts@^2.6.3":
-  version "2.6.3"
-  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.6.3.tgz#29a15a68a6ab28a61100e64bf392df566ce43ec4"
-  integrity sha512-D/oo4KMcL+NndebwyWhC71x9afDkFeGtBekXFYeoaOft35p2Z3eexVHNl6QenoSCut6kQi7c5Lb7UEpJ4J7J5w==
+"@eco-foundation/routes-ts@^2.8.4":
+  version "2.8.4"
+  resolved "https://registry.yarnpkg.com/@eco-foundation/routes-ts/-/routes-ts-2.8.4.tgz#90fbdb426f5b4c0a539f28c9a4a3e65ee5b4b95e"
+  integrity sha512-6WeVyfAhY9WhIWzy0ghr/ZfKwfsyYSuVyeuNtG0dkEZs+L0/X5DhF8zpnxFUPECKw/id6Mso1hd5cC8/sHMOyQ==
   dependencies:
     viem "^2.22.21"
 
@@ -3285,6 +3285,13 @@
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
+
+"@reservoir0x/relay-sdk@^2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/relay-sdk/-/relay-sdk-2.0.1.tgz#71e0622b02b5ec0642a5fd3094a45dd53c00befe"
+  integrity sha512-HGgUr8cAAx5lT2kxVexhCJ8J/pukRhpBS+y0r/q+Pa1K1Ui/8QOLt2/4r345oQcU+7T0g2Jj/RCP/BjMdH+yPg==
+  dependencies:
+    axios "^1.6.5"
 
 "@rhinestone/module-sdk@^0.2.7":
   version "0.2.7"
@@ -5590,6 +5597,15 @@ axios@0.21.4:
   integrity sha512-ut5vewkiu8jjGBdqpM44XxjuCjq9LAKeHVmoVfHVzy8eHgxxq8SbAVQNovDA8mVi05kP0Ea/n/UzcSHcTJQfNg==
   dependencies:
     follow-redirects "^1.14.0"
+
+axios@^1.6.5:
+  version "1.9.0"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.9.0.tgz#25534e3b72b54540077d33046f77e3b8d7081901"
+  integrity sha512-re4CqKTJaURpzbLHtIi6XpDv20/CnpXOtjRY5/CU32L8gU8ek9UIivcfvSWvmKEngmVbrUtPpdDwWDWL7DNHvg==
+  dependencies:
+    follow-redirects "^1.15.6"
+    form-data "^4.0.0"
+    proxy-from-env "^1.1.0"
 
 b4a@^1.6.4:
   version "1.6.7"
@@ -9695,6 +9711,11 @@ proxy-addr@~2.0.7:
   dependencies:
     forwarded "0.2.0"
     ipaddr.js "1.9.1"
+
+proxy-from-env@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/proxy-from-env/-/proxy-from-env-1.1.0.tgz#e102f16ca355424865755d2c9e8ea4f24d58c3e2"
+  integrity sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==
 
 punycode@^2.1.0, punycode@^2.1.1, punycode@^2.3.0:
   version "2.3.1"
