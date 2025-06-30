@@ -55,7 +55,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
         Object.entries(solver.targets).forEach(([address, source]) => {
           // const [address, source] = targetEntity
-          if (source.contractType === 'erc20') {
+          if (source?.contractType === 'erc20') {
             this.unwatch[`${solver.chainID}-${address}`] = client.watchContractEvent({
               address: address as Hex,
               abi: erc20Abi,
