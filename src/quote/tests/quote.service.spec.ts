@@ -200,6 +200,7 @@ describe('QuotesService', () => {
       validExpirationTime: true,
       validDestination: false,
       fulfillOnDifferentChain: true,
+      sufficientBalance: true,
     }
     const validValidations: ValidationChecks = {
       supportedNative: true,
@@ -211,6 +212,7 @@ describe('QuotesService', () => {
       validExpirationTime: true,
       validDestination: true,
       fulfillOnDifferentChain: true,
+      sufficientBalance: true,
     }
     let updateQuoteDb: jest.SpyInstance
     beforeEach(() => {

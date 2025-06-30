@@ -56,7 +56,7 @@ interface CCTPLiFiStrategyContext {
     totalGasUSD: number
     gasWarnings: string[]
   }
-  id: string
+  id?: string
 }
 
 type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi' | 'Relay' | 'Stargate'

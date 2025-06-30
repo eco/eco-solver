@@ -854,8 +854,8 @@ describe('FeeService', () => {
       route: {
         destination: 1n,
         calls: [
-          { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 100n },
-          { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 200n },
+          { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
+          { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 0n },
         ],
       },
     }
@@ -1033,7 +1033,7 @@ describe('FeeService', () => {
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
-                amount: 100n,
+                amount: 0n,
               },
             },
             {
@@ -1043,7 +1043,7 @@ describe('FeeService', () => {
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
-                amount: 200n,
+                amount: 0n,
               },
             },
           ],
@@ -1057,12 +1057,12 @@ describe('FeeService', () => {
           route: {
             destination: 1n,
             calls: [
-              // Functional call with ERC20 transfer
-              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 100n },
+              // Functional call with ERC20 transfer (value must be 0)
+              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
               // Pure native call with empty data
               { target: '0x7' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 500n },
-              // Another functional call
-              { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 200n },
+              // Another functional call (value must be 0)
+              { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 0n },
             ],
           },
         }
@@ -1089,7 +1089,7 @@ describe('FeeService', () => {
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
-                amount: 100n,
+                amount: 0n,
               },
             },
             // Second functional call
@@ -1100,7 +1100,7 @@ describe('FeeService', () => {
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
-                amount: 200n,
+                amount: 0n,
               },
             },
             // Native call
@@ -1215,9 +1215,9 @@ describe('FeeService', () => {
           route: {
             destination: 1n,
             calls: [
-              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 100n },
+              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
               { target: '0x7' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 500n },
-              { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 200n },
+              { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 0n },
             ],
           },
         }

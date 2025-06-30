@@ -1,4 +1,3 @@
-import { BalanceService } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -7,6 +6,7 @@ import {
   equivalentNativeGas,
   getFunctionCalls,
   getFunctionTargets,
+  getNativeFulfill,
   getTransactionTargetData,
   isNativeETH,
   isNativeIntent,
@@ -18,9 +18,10 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { CallDataInterface } from '../contracts'
-import { isGreaterEqual, normalizeBalance } from '../fee/utils'
+import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
+import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
+import { BalanceService } from '@/balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -47,6 +48,7 @@ export type ValidationChecks = {
   validExpirationTime: boolean
   validDestination: boolean
   fulfillOnDifferentChain: boolean
+  sufficientBalance: boolean
 }
 
 /**
@@ -80,17 +82,18 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 export class ValidationService implements OnModuleInit {
   private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
-
+  private minEthBalanceWei: bigint
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
-    private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
+    private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   onModuleInit() {
     this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
+    this.minEthBalanceWei = BigInt(this.ecoConfigService.getEth().simpleAccount.minEthBalanceWei)
   }
 
   /**
@@ -119,6 +122,7 @@ export class ValidationService implements OnModuleInit {
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
+    const sufficientBalance = await this.hasSufficientBalance(intent)
 
     return {
       supportedNative,
@@ -130,6 +134,7 @@ export class ValidationService implements OnModuleInit {
       validExpirationTime,
       validDestination,
       fulfillOnDifferentChain,
+      sufficientBalance,
     }
   }
 
@@ -423,6 +428,100 @@ export class ValidationService implements OnModuleInit {
             error: error.message,
             intentHash: intent.hash,
             source: intent.route.source,
+          },
+        }),
+      )
+      return false
+    }
+  }
+
+  /**
+   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
+   * @param intent the source intent model
+   * @returns true if the solver has sufficient balance
+   */
+  async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
+    try {
+      const tokens = intent.route.tokens.map((t) => t.token)
+      const destinationChain = Number(intent.route.destination)
+
+      // Fetch token balances
+      const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
+      const solver = this.ecoConfigService.getSolver(destinationChain)
+      if (!solver) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `hasSufficientBalance: No solver targets found`,
+            properties: {
+              intentHash: intent.hash,
+              destination: destinationChain,
+            },
+          }),
+        )
+        return false
+      }
+      const solverTargets = solver.targets // Ensure the solver is initialized
+
+      // Check if solver has enough token balances
+      for (const routeToken of intent.route.tokens) {
+        const balance = tokenBalances[routeToken.token]
+        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        // Normalize the balance to the token's decimals, configs have the minReq in dollar value
+        const balanceMinReq = normalizeBalance(
+          { balance: BigInt(minReqDollar), decimal: 0 },
+          balance.decimals,
+        )
+
+        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient token balance`,
+              properties: {
+                token: routeToken.token,
+                required: routeToken.amount.toString(),
+                available: balance?.balance.toString() || '0',
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      // Check native balance if there are native value calls
+      const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
+
+      if (totalFulfillNativeValue > 0n) {
+        const solverNativeBalance = await this.balanceService.getNativeBalance(
+          destinationChain,
+          'kernel',
+        )
+        if (solverNativeBalance < totalFulfillNativeValue) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient native balance`,
+              properties: {
+                required: totalFulfillNativeValue.toString(),
+                available: solverNativeBalance.toString(),
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      return true
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `hasSufficientBalance: Error checking balance`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            destination: intent.route.destination,
           },
         }),
       )
