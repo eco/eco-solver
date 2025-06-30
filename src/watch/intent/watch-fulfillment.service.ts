@@ -80,8 +80,8 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
         // restrict by acceptable chains, chain ids must be bigints
         _sourceChainID: sourceChains,
       },
-      fromBlock: this.lastIndexedBlock[solver.chainID.toString()]
-        ? this.lastIndexedBlock[solver.chainID.toString()]! + BigInt(1)
+      fromBlock: this.lastIndexedBlock[solver.chainID]
+        ? this.lastIndexedBlock[solver.chainID]! + BigInt(1)
         : undefined,
       onLogs: this.addJob(solver),
       onError: (error) => this.onError(error, client, solver),
@@ -91,7 +91,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   addJob(solver: Solver) {
     return async (logs: FulfillmentLog[]) => {
       for (const log of logs) {
-        this.lastIndexedBlock[solver.chainID.toString()] = log.blockNumber
+        this.lastIndexedBlock[solver.chainID] = log.blockNumber
 
         // bigint as it can't serialize to JSON
         const fulfillment = convertBigIntsToStrings(log)
