@@ -74,3 +74,5 @@ config/*
 #AI
 CLAUDE.md
 **/.claude/settings.local.json
+.env*
+!.env-cmdrc.test
