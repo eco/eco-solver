@@ -63,7 +63,7 @@ describe('LiquidityProviderService', () => {
       maxQuoteSlippage: 0.005,
       walletStrategies: {
         'crowd-liquidity-pool': ['CCTP'],
-        'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+        'eco-wallet': ['LiFi', 'WarpRoute'],
       },
     }
     jest
