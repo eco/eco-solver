@@ -24,7 +24,7 @@ import { KernelVersion } from 'permissionless/accounts'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { entryPoint07Address, EntryPointVersion } from 'viem/account-abstraction'
-import { createKernelAccount } from '@zerodev/sdk'
+import { createKernelAccount, createKernelAccountV0_2 } from '@zerodev/sdk'
 import {
   getAccount,
   getOwnableExecutor,
@@ -55,13 +55,14 @@ export async function createKernelAccountClient<
   const { key = 'kernelAccountClient', name = 'Kernel Account Client', transport } = parameters
   const { account } = parameters
 
-  let walletClient = createWalletClient({
+  const baseClient = createWalletClient({
     ...parameters,
-    account,
+    account: account as LocalAccount,
     key,
     name,
     transport,
-  }) as KernelAccountClient<entryPointVersion>
+  })
+  let walletClient = baseClient as KernelAccountClient<entryPointVersion>
   const kernelVersion = KERNEL_V3_1
   const entryPoint = {
     address: entryPoint07Address,
@@ -74,7 +75,7 @@ export async function createKernelAccountClient<
     kernelVersion,
   })
 
-  const kernelAccount = await createKernelAccount(walletClient, {
+  const kernelAccount = await createKernelAccount(baseClient, {
     plugins: {
       sudo: ecdsaValidator,
     },

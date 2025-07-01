@@ -23,15 +23,13 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token'
 import { SerializableAccountMeta, SvmCallDataWithMetas } from '@/solana/serialization/svm-call-data'
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
 import { SimulationResult } from '@/solana/solana-cost.service'
 import {
-  assertAccountInfo,
-  assertTokenAccount,
-  createLighthouseProgram,
+  getAssertAccountInfoInstruction,
+  getAssertTokenAccountInstruction,
   IntegerOperator,
-} from 'lighthouse-sdk-legacy'
-import { fromWeb3JsPublicKey, toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters'
+  LIGHTHOUSE_PROGRAM_ADDRESS,
+} from 'lighthouse-sdk'
 import { sendTransactionWithRetry } from '@/solana/utils'
 
 const MAILBOX_PROGRAM_ID: PublicKey = new PublicKey('E588QtVUvresuXq2KoNEwAmoifCzYGpRBdHByN9KQMbi')
@@ -286,21 +284,16 @@ export class SolanaFulfillService {
     fulfillInstructions.push(fulfillIx)
 
     if (simulationResult) {
-      const umi = createUmi(connection.rpcEndpoint)
-      umi.programs.add(createLighthouseProgram())
-
       // Solver lamports assertion instruction
       const minLamportsThreshold = simulationResult.solverLamports - simulationResult.lamportsOut
-      const lamportsAssertIx = toWeb3JsInstruction(
-        assertAccountInfo(umi, {
-          targetAccount: fromWeb3JsPublicKey(solverPubkey),
-          assertion: {
-            __kind: 'Lamports',
-            value: Number(minLamportsThreshold),
-            operator: IntegerOperator.GreaterThanOrEqual,
-          },
-        }).getInstructions()[0],
-      )
+      const lamportsAssertIx = getAssertAccountInfoInstruction({
+        targetAccount: solverPubkey.toBase58(),
+        assertion: {
+          __kind: 'Lamports',
+          value: Number(minLamportsThreshold),
+          operator: IntegerOperator.GreaterThanOrEqual,
+        },
+      })
       fulfillInstructions.push(lamportsAssertIx)
 
       // Solver token amounts assertion instructions
@@ -312,16 +305,14 @@ export class SolanaFulfillService {
           (simulationResult.tokenOut[mint.toBase58()] ?? 0n)
 
         fulfillInstructions.push(
-          toWeb3JsInstruction(
-            assertTokenAccount(umi, {
-              targetAccount: fromWeb3JsPublicKey(solverAta),
-              assertion: {
-                __kind: 'Amount',
-                value: Number(minTokensThreshold),
-                operator: IntegerOperator.GreaterThanOrEqual,
-              },
-            }).getInstructions()[0],
-          ),
+          getAssertTokenAccountInstruction({
+            targetAccount: solverAta.toBase58(),
+            assertion: {
+              __kind: 'Amount',
+              value: Number(minTokensThreshold),
+              operator: IntegerOperator.GreaterThanOrEqual,
+            },
+          }),
         )
       })
     }
