@@ -23,7 +23,13 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
-import { ActionPath, WarpRoute, WarpRouteResult, PARTIAL_QUOTE_PATHS } from './warp-route.types'
+import {
+  ActionPath,
+  WarpRoute,
+  WarpRouteResult,
+  PARTIAL_QUOTE_PATHS,
+  WarpToken,
+} from './warp-route.types'
 import {
   WarpRouteError,
   WarpRouteNotFoundError,
