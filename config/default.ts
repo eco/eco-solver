@@ -221,25 +221,4 @@ export default {
       },
     },
   },
-
-  warpRoutes: {
-    routes: [
-      {
-        chains: [
-          {
-            chainId: 1,
-            token: '0x0000000000000000000000000000000000000000',
-            warpContract: '0x0000000000000000000000000000000000000000',
-            type: 'collateral',
-          },
-          {
-            chainId: 1,
-            token: '0x0000000000000000000000000000000000000000',
-            warpContract: '0x0000000000000000000000000000000000000000',
-            type: 'synthetic',
-          },
-        ],
-      },
-    ],
-  },
 }
