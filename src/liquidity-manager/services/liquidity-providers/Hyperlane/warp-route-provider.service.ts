@@ -593,20 +593,6 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const remoteTransferQuote = this.getRemoteTransferQuote(tokenIn, collateralTokenData, amount)
 
-    // Check if tokenOut is the collateral token - if so, we only need the remote transfer
-    if (
-      collateralChain.chainId === tokenOut.config.chainId &&
-      isAddressEqual(collateralChain.token, tokenOut.config.address)
-    ) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRoute: tokenOut is the collateral token, only remote transfer needed',
-          id,
-        }),
-      )
-      return [remoteTransferQuote]
-    }
-
     // Simulate balance after remote transfer so subsequent LiFi quote has the right context
     collateralTokenData.balance.balance += amount
     const liFiQuote = await this.liFiProviderService.getQuote(
@@ -657,25 +643,6 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         client.kernelAccountAddress,
         [intermediateTokenConfig],
       )
-
-      // Check if tokenOut is this synthetic token
-      if (
-        syntheticChain.chainId === tokenOut.config.chainId &&
-        isAddressEqual(syntheticChain.token, tokenOut.config.address)
-      ) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: 'WarpRoute: tokenOut is the synthetic token, only remote transfer needed',
-            id,
-          }),
-        )
-        const remoteTransferQuote = this.getRemoteTransferQuote(
-          tokenIn,
-          intermediateTokenData,
-          amount,
-        )
-        return [remoteTransferQuote]
-      }
 
       try {
         // Simulate the balance on the intermediate token to get a more accurate quote
