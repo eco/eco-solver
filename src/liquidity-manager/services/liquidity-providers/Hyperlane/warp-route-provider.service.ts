@@ -74,11 +74,15 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       }),
     )
 
-    // Get warp route information for both tokens
-    const warpRouteIn = this.getWarpRoute(tokenIn.config.chainId, tokenIn.config.address)
-    const warpRouteOut = this.getWarpRoute(tokenOut.config.chainId, tokenOut.config.address)
+    // Get all possible warp routes for both tokens
+    const warpRoutesIn = this.getAllWarpRoutes(tokenIn.config.chainId, tokenIn.config.address)
+    const warpRoutesOut = this.getAllWarpRoutes(tokenOut.config.chainId, tokenOut.config.address)
 
-    const actionPath = this.getActionPath(warpRouteIn, warpRouteOut)
+    // Determine the correct warp route based on the tokens
+    const { warpRouteIn, warpRouteOut, actionPath } = this.determineWarpRoutes(
+      warpRoutesIn,
+      warpRoutesOut,
+    )
 
     if (actionPath === ActionPath.UNSUPPORTED) {
       throw new UnsupportedActionPathError(tokenIn.config, tokenOut.config)
@@ -333,53 +337,106 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return { warpRoute: undefined, warpToken: undefined }
   }
 
-  private getActionPath(warpRouteIn: WarpRouteResult, warpRouteOut: WarpRouteResult) {
-    const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn
-    const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut
+  private getAllWarpRoutes(chainId: number, token: Hex): WarpRouteResult[] {
+    const config = this.ecoConfigService.getWarpRoutes()
+    const results: WarpRouteResult[] = []
 
+    const isToken = (chain: { chainId: number; token: Hex }) =>
+      chain.chainId === chainId && isAddressEqual(chain.token, token)
+
+    for (const route of config.routes) {
+      const warpToken = route.chains.find(isToken)
+      if (warpToken) {
+        results.push({ warpRoute: route, warpToken })
+      }
+    }
+
+    return results
+  }
+
+  private determineWarpRoutes(
+    warpRoutesIn: WarpRouteResult[],
+    warpRoutesOut: WarpRouteResult[],
+  ): {
+    warpRouteIn: WarpRouteResult | undefined
+    warpRouteOut: WarpRouteResult | undefined
+    actionPath: ActionPath
+  } {
     // Case 1: Both tokens are NOT in any warp route
-    if (!routeIn && !routeOut) {
-      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED (no warp routes)')
-      return ActionPath.UNSUPPORTED
+    if (warpRoutesIn.length === 0 && warpRoutesOut.length === 0) {
+      this.logger.debug('WarpRoute: determineWarpRoutes -> UNSUPPORTED (no warp routes)')
+      return {
+        warpRouteIn: undefined,
+        warpRouteOut: undefined,
+        actionPath: ActionPath.UNSUPPORTED,
+      }
     }
 
     // Case 2: One token is in a warp route, the other is not -> PARTIAL
-    if (!routeIn || !routeOut) {
-      this.logger.debug('WarpRoute: getActionPath -> PARTIAL')
-      return ActionPath.PARTIAL
+    if (warpRoutesIn.length === 0 || warpRoutesOut.length === 0) {
+      this.logger.debug('WarpRoute: determineWarpRoutes -> PARTIAL')
+      return {
+        warpRouteIn: warpRoutesIn[0],
+        warpRouteOut: warpRoutesOut[0],
+        actionPath: ActionPath.PARTIAL,
+      }
     }
 
     // Case 3: Both tokens are in warp routes
-    // For synthetic tokens: different warp routes are not supported (synthetics are unique to one route)
-    // For collateral tokens: they might be in different routes, which is also not supported
-    if (routeIn !== routeOut) {
-      // Special case: if both are collateral tokens, they might share the same address but be in different routes
-      // This is still unsupported
-      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED (different warp routes)')
-      return ActionPath.UNSUPPORTED
+    // Find if there's a common warp route
+    let commonRouteIn: WarpRouteResult | undefined
+    let commonRouteOut: WarpRouteResult | undefined
+
+    for (const routeIn of warpRoutesIn) {
+      for (const routeOut of warpRoutesOut) {
+        if (routeIn.warpRoute === routeOut.warpRoute) {
+          commonRouteIn = routeIn
+          commonRouteOut = routeOut
+          break
+        }
+      }
+      if (commonRouteIn) break
     }
 
-    // Same warp route cases:
+    // If no common route found, it's unsupported
+    if (!commonRouteIn || !commonRouteOut) {
+      this.logger.debug('WarpRoute: determineWarpRoutes -> UNSUPPORTED (different warp routes)')
+      return {
+        warpRouteIn: warpRoutesIn[0], // Return first found for error context
+        warpRouteOut: warpRoutesOut[0],
+        actionPath: ActionPath.UNSUPPORTED,
+      }
+    }
+
+    // Same warp route found - check if it's a valid path
+    const { warpToken: warpTokenIn } = commonRouteIn
+    const { warpToken: warpTokenOut } = commonRouteOut
+
     // Collateral to collateral is not supported
     if (warpTokenIn?.type === 'collateral' && warpTokenOut?.type === 'collateral') {
-      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED (collateral to collateral)')
-      return ActionPath.UNSUPPORTED
+      this.logger.debug('WarpRoute: determineWarpRoutes -> UNSUPPORTED (collateral to collateral)')
+      return {
+        warpRouteIn: commonRouteIn,
+        warpRouteOut: commonRouteOut,
+        actionPath: ActionPath.UNSUPPORTED,
+      }
     }
 
-    // All other cases in the same warp route are FULL:
-    // - collateral to synthetic
-    // - synthetic to collateral
-    // - synthetic to synthetic (different chains)
-    this.logger.debug('WarpRoute: getActionPath -> FULL')
-    return ActionPath.FULL
+    // All other cases in the same warp route are FULL
+    this.logger.debug('WarpRoute: determineWarpRoutes -> FULL')
+    return {
+      warpRouteIn: commonRouteIn,
+      warpRouteOut: commonRouteOut,
+      actionPath: ActionPath.FULL,
+    }
   }
 
   private async getPartialQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
-    warpRouteIn: WarpRouteResult,
-    warpRouteOut: WarpRouteResult,
+    warpRouteIn: WarpRouteResult | undefined,
+    warpRouteOut: WarpRouteResult | undefined,
     id?: string,
   ): Promise<RebalanceQuote[]> {
     this.logger.debug(
@@ -389,8 +446,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       }),
     )
 
-    const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn
-    const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut
+    const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn || {}
+    const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut || {}
 
     const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const client = await this.kernelAccountClientService.getClient(tokenIn.config.chainId)

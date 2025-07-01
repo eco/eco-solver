@@ -287,6 +287,85 @@ describe('WarpRouteProviderService', () => {
       )
     })
 
+    it('should use the correct warp route when collateral is shared between routes', async () => {
+      // Create a config where the same collateral token is used in two different warp routes
+      const sharedCollateralConfig: WarpRoutesConfig = {
+        routes: [
+          {
+            chains: [
+              {
+                chainId: 1,
+                token: '0x4200000000000000000000000000000000000042' as Hex, // Shared collateral
+                warpContract: '0x4200000000000000000000000000000000000042' as Hex,
+                type: 'collateral' as const,
+              },
+              {
+                chainId: 2,
+                token: '0x5200000000000000000000000000000000000052' as Hex,
+                warpContract: '0x5200000000000000000000000000000000000052' as Hex,
+                type: 'synthetic' as const,
+              },
+            ],
+          },
+          {
+            chains: [
+              {
+                chainId: 1,
+                token: '0x4200000000000000000000000000000000000042' as Hex, // Same collateral
+                warpContract: '0x4200000000000000000000000000000000000042' as Hex,
+                type: 'collateral' as const,
+              },
+              {
+                chainId: 3,
+                token: '0x6200000000000000000000000000000000000062' as Hex,
+                warpContract: '0x6200000000000000000000000000000000000062' as Hex,
+                type: 'synthetic' as const,
+              },
+            ],
+          },
+        ],
+      }
+      ecoConfigService.getWarpRoutes.mockReturnValue(sharedCollateralConfig)
+
+      const sharedCollateralToken: TokenData = {
+        chainId: 1,
+        config: {
+          chainId: 1,
+          address: '0x4200000000000000000000000000000000000042',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+      const syntheticToken1: TokenData = {
+        chainId: 2,
+        config: {
+          chainId: 2,
+          address: '0x5200000000000000000000000000000000000052',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x5200000000000000000000000000000000000052',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      // Should succeed when transferring between tokens in the same warp route
+      const quotes = await service.getQuote(sharedCollateralToken, syntheticToken1, 100)
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
+      expect(quotes[0].amountIn).toEqual(parseUnits('100', 18))
+      expect(quotes[0].amountOut).toEqual(parseUnits('100', 18))
+    })
+
     it('should throw an error for transfers between different warp routes', async () => {
       const collateralToken1: TokenData = {
         chainId: 1,
