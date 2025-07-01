@@ -518,6 +518,65 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     }
   }
 
+  private async getBestLiFiQuote(
+    tokenIn: TokenData,
+    candidateTokens: WarpToken[],
+    swapAmount: number,
+    client: any,
+    id?: string,
+  ): Promise<{ tokenData: TokenData; quote: any; outputAmount: bigint } | null> {
+    let bestResult: { tokenData: TokenData; quote: any; outputAmount: bigint } | null = null
+    let bestAmountOut = 0n
+
+    for (const candidateToken of candidateTokens) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: `WarpRoute: Trying LiFi quote to ${candidateToken.token} on ${candidateToken.chainId}`,
+          id,
+        }),
+      )
+
+      try {
+        const tokenConfig = this.getTokenConfig({
+          chainId: candidateToken.chainId,
+          token: candidateToken.token,
+        })
+        const [tokenData] = await this.balanceService.getAllTokenDataForAddress(
+          client.kernelAccountAddress,
+          [tokenConfig],
+        )
+
+        const liFiQuote = await this.liFiProviderService.getQuote(
+          tokenIn,
+          tokenData,
+          swapAmount,
+          id,
+        )
+
+        const outputAmount = BigInt(liFiQuote.context.toAmountMin)
+        if (outputAmount > bestAmountOut) {
+          bestResult = { tokenData, quote: liFiQuote, outputAmount }
+          bestAmountOut = outputAmount
+          this.logger.debug(
+            EcoLogMessage.withId({
+              message: `WarpRoute: New best quote found with output ${outputAmount}`,
+              id,
+            }),
+          )
+        }
+      } catch (error: any) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `WarpRoute: No LiFi quote to ${candidateToken.token}. Error: ${error.message}`,
+            id,
+          }),
+        )
+      }
+    }
+
+    return bestResult
+  }
+
   private getMessageFromReceipt(receipt: TransactionReceipt) {
     const [dispatchIdLog] = parseEventLogs({
       abi: HyperlaneMailboxAbi,
@@ -692,35 +751,37 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       }),
     )
 
-    const collateralChain = warpRoute.chains.find((c) => c.type === 'collateral')
-    if (!collateralChain) {
+    const collateralChains = warpRoute.chains.filter((c) => c.type === 'collateral')
+    if (!collateralChains || collateralChains.length === 0) {
       throw new PartialQuoteError('No collateral found for output synthetic token', {
         warpRoute,
         tokenType: 'synthetic',
       })
     }
 
-    const collateralTokenConfig = this.getTokenConfig({
-      chainId: collateralChain.chainId,
-      token: collateralChain.token,
-    })
-    const [collateralTokenData] = await this.balanceService.getAllTokenDataForAddress(
-      client.kernelAccountAddress,
-      [collateralTokenConfig],
-    )
-
-    const liFiQuote = await this.liFiProviderService.getQuote(
+    const bestLiFiResult = await this.getBestLiFiQuote(
       tokenIn,
-      collateralTokenData,
+      collateralChains,
       swapAmount,
+      client,
       id,
     )
+
+    if (!bestLiFiResult) {
+      throw new PartialQuoteError('No valid collateral chain found for token to synthetic path', {
+        warpRoute,
+        tokenIn: tokenIn.config,
+        tokenOut: tokenOut.config,
+      })
+    }
+
     const remoteTransferQuote = this.getRemoteTransferQuote(
-      collateralTokenData,
+      bestLiFiResult.tokenData,
       tokenOut,
-      BigInt(liFiQuote.context.toAmountMin),
+      bestLiFiResult.outputAmount,
     )
-    return [liFiQuote, remoteTransferQuote]
+
+    return [bestLiFiResult.quote, remoteTransferQuote]
   }
 
   private async handleTokenToCollateralPath(
@@ -746,47 +807,28 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       })
     }
 
-    for (const syntheticChain of syntheticChains) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: `WarpRoute: T->S->C: trying intermediate ${syntheticChain.token} on ${syntheticChain.chainId}`,
-          id,
-        }),
-      )
-      const intermediateTokenConfig = this.getTokenConfig({
-        chainId: syntheticChain.chainId,
-        token: syntheticChain.token,
+    const bestLiFiResult = await this.getBestLiFiQuote(
+      tokenIn,
+      syntheticChains,
+      swapAmount,
+      client,
+      id,
+    )
+
+    if (!bestLiFiResult) {
+      throw new PartialQuoteError('No valid synthetic chain found for token to collateral path', {
+        warpRoute,
+        tokenIn: tokenIn.config,
+        tokenOut: tokenOut.config,
       })
-      const [intermediateTokenData] = await this.balanceService.getAllTokenDataForAddress(
-        client.kernelAccountAddress,
-        [intermediateTokenConfig],
-      )
-      try {
-        const liFiQuote = await this.liFiProviderService.getQuote(
-          tokenIn,
-          intermediateTokenData,
-          swapAmount,
-        )
-        const remoteTransferQuote = this.getRemoteTransferQuote(
-          intermediateTokenData,
-          tokenOut,
-          BigInt(liFiQuote.context.toAmountMin),
-        )
-        return [liFiQuote, remoteTransferQuote]
-      } catch (error: any) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `WarpRoute: No LiFi quote from ${tokenIn.config.address} to intermediate ${syntheticChain.token}. Error: ${error.message}`,
-            id,
-          }),
-        )
-      }
     }
 
-    throw new PartialQuoteError('No valid synthetic chain found for token to collateral path', {
-      warpRoute,
-      tokenIn: tokenIn.config,
-      tokenOut: tokenOut.config,
-    })
+    const remoteTransferQuote = this.getRemoteTransferQuote(
+      bestLiFiResult.tokenData,
+      tokenOut,
+      bestLiFiResult.outputAmount,
+    )
+
+    return [bestLiFiResult.quote, remoteTransferQuote]
   }
 }
