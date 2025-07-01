@@ -835,6 +835,452 @@ describe('WarpRouteProviderService', () => {
     })
   })
 
+  describe('partial quotes with multiple tokens', () => {
+    it('should select the best quote when multiple collateral tokens are available (TOKEN_TO_SYNTHETIC)', async () => {
+      // Setup multiple collateral tokens with different output amounts
+      const tokenIn: TokenData = {
+        chainId: 1,
+        config: {
+          chainId: 1,
+          address: '0x1111111111111111111111111111111111111111',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x1111111111111111111111111111111111111111',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      const syntheticTokenOut: TokenData = {
+        chainId: 2,
+        config: {
+          chainId: 2,
+          address: '0x4200000000000000000000000000000000000042',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      // Setup a warp route with multiple collateral tokens
+      const multiCollateralConfig: WarpRoutesConfig = {
+        routes: [
+          {
+            chains: [
+              {
+                chainId: 1,
+                token: '0x4200000000000000000000000000000000000042',
+                warpContract: '0x4200000000000000000000000000000000000042',
+                type: 'collateral',
+              },
+              {
+                chainId: 3,
+                token: '0x4200000000000000000000000000000000000043',
+                warpContract: '0x4200000000000000000000000000000000000043',
+                type: 'collateral',
+              },
+              {
+                chainId: 2,
+                token: '0x4200000000000000000000000000000000000042',
+                warpContract: '0x4200000000000000000000000000000000000042',
+                type: 'synthetic',
+              },
+            ],
+          },
+        ],
+      }
+
+      ecoConfigService.getWarpRoutes.mockReturnValue(multiCollateralConfig)
+
+      const collateralToken1: TokenData = {
+        chainId: 1,
+        config: {
+          type: 'erc20',
+          address: '0x4200000000000000000000000000000000000042',
+          chainId: 1,
+          targetBalance: 0,
+          minBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          balance: parseUnits('1000', 18),
+          decimals: 18,
+        },
+      }
+
+      const collateralToken2: TokenData = {
+        chainId: 3,
+        config: {
+          type: 'erc20',
+          address: '0x4200000000000000000000000000000000000043',
+          chainId: 3,
+          targetBalance: 0,
+          minBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000043',
+          balance: parseUnits('1000', 18),
+          decimals: 18,
+        },
+      }
+
+      const mockClient = {
+        kernelAccountAddress: WALLET_ADDRESS,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
+
+      // Mock balance service to return the collateral tokens
+      balanceService.getAllTokenDataForAddress
+        .mockResolvedValueOnce([collateralToken1])
+        .mockResolvedValueOnce([collateralToken2])
+
+      // Mock LiFi quotes with different output amounts
+      // First collateral has lower output
+      liFiProviderService.getQuote
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('80', 18),
+          strategy: 'LiFi',
+          context: {
+            toAmountMin: '80000000000000000000', // 80 tokens
+          },
+        } as any)
+        // Second collateral has higher output
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('100', 18),
+          strategy: 'LiFi',
+          context: {
+            toAmountMin: '100000000000000000000', // 100 tokens
+          },
+        } as any)
+
+      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
+
+      expect(quotes).toHaveLength(2)
+      expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
+
+      // Should use the second collateral token (higher output)
+      expect(quotes[0].strategy).toBe('LiFi')
+      expect(quotes[0].amountOut).toBe(parseUnits('100', 18))
+      expect(quotes[1].strategy).toBe('WarpRoute')
+      expect(quotes[1].amountIn).toBe(parseUnits('100', 18))
+    })
+
+    it('should select the best quote when multiple synthetic tokens are available (TOKEN_TO_COLLATERAL)', async () => {
+      const tokenIn: TokenData = {
+        chainId: 1,
+        config: {
+          chainId: 1,
+          address: '0x1111111111111111111111111111111111111111',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x1111111111111111111111111111111111111111',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      const collateralTokenOut: TokenData = {
+        chainId: 3,
+        config: {
+          chainId: 3,
+          address: '0x4200000000000000000000000000000000000042',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      // Setup a warp route with multiple synthetic tokens
+      const multiSyntheticConfig: WarpRoutesConfig = {
+        routes: [
+          {
+            chains: [
+              {
+                chainId: 3,
+                token: '0x4200000000000000000000000000000000000042',
+                warpContract: '0x4200000000000000000000000000000000000042',
+                type: 'collateral',
+              },
+              {
+                chainId: 2,
+                token: '0x4200000000000000000000000000000000000043',
+                warpContract: '0x4200000000000000000000000000000000000043',
+                type: 'synthetic',
+              },
+              {
+                chainId: 4,
+                token: '0x4200000000000000000000000000000000000044',
+                warpContract: '0x4200000000000000000000000000000000000044',
+                type: 'synthetic',
+              },
+            ],
+          },
+        ],
+      }
+
+      ecoConfigService.getWarpRoutes.mockReturnValue(multiSyntheticConfig)
+
+      const syntheticToken1: TokenData = {
+        chainId: 2,
+        config: {
+          type: 'erc20',
+          address: '0x4200000000000000000000000000000000000043',
+          chainId: 2,
+          targetBalance: 0,
+          minBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000043',
+          balance: parseUnits('1000', 18),
+          decimals: 18,
+        },
+      }
+
+      const syntheticToken2: TokenData = {
+        chainId: 4,
+        config: {
+          type: 'erc20',
+          address: '0x4200000000000000000000000000000000000044',
+          chainId: 4,
+          targetBalance: 0,
+          minBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000044',
+          balance: parseUnits('1000', 18),
+          decimals: 18,
+        },
+      }
+
+      const mockClient = {
+        kernelAccountAddress: WALLET_ADDRESS,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
+
+      balanceService.getAllTokenDataForAddress
+        .mockResolvedValueOnce([syntheticToken1])
+        .mockResolvedValueOnce([syntheticToken2])
+
+      // First synthetic has lower output
+      liFiProviderService.getQuote
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('75', 18),
+          strategy: 'LiFi',
+          context: {
+            toAmountMin: '75000000000000000000',
+          },
+        } as any)
+        // Second synthetic has higher output
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('95', 18),
+          strategy: 'LiFi',
+          context: {
+            toAmountMin: '95000000000000000000',
+          },
+        } as any)
+
+      const quotes = await service.getQuote(tokenIn, collateralTokenOut, 100)
+
+      expect(quotes).toHaveLength(2)
+      expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
+
+      // Should use the second synthetic token (higher output)
+      expect(quotes[0].strategy).toBe('LiFi')
+      expect(quotes[0].amountOut).toBe(parseUnits('95', 18))
+      expect(quotes[1].strategy).toBe('WarpRoute')
+      expect(quotes[1].amountIn).toBe(parseUnits('95', 18))
+    })
+
+    it('should handle when no LiFi quotes are available for any candidate token', async () => {
+      const tokenIn: TokenData = {
+        chainId: 1,
+        config: {
+          chainId: 1,
+          address: '0x1111111111111111111111111111111111111111',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x1111111111111111111111111111111111111111',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      const syntheticTokenOut: TokenData = {
+        chainId: 2,
+        config: {
+          chainId: 2,
+          address: '0x4200000000000000000000000000000000000042',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      const mockClient = {
+        kernelAccountAddress: WALLET_ADDRESS,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
+
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([])
+
+      // Mock all LiFi quotes to fail
+      liFiProviderService.getQuote.mockRejectedValue(new Error('No route found'))
+
+      await expect(service.getQuote(tokenIn, syntheticTokenOut, 100)).rejects.toThrow(
+        'No valid collateral chain found for token to synthetic path',
+      )
+    })
+
+    it('should continue trying other tokens when one LiFi quote fails', async () => {
+      const tokenIn: TokenData = {
+        chainId: 1,
+        config: {
+          chainId: 1,
+          address: '0x1111111111111111111111111111111111111111',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x1111111111111111111111111111111111111111',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      const syntheticTokenOut: TokenData = {
+        chainId: 2,
+        config: {
+          chainId: 2,
+          address: '0x4200000000000000000000000000000000000042',
+          type: 'erc20',
+          minBalance: 0,
+          targetBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          decimals: 18,
+          balance: 1000n,
+        },
+      }
+
+      // Setup a warp route with multiple collateral tokens
+      const multiCollateralConfig: WarpRoutesConfig = {
+        routes: [
+          {
+            chains: [
+              {
+                chainId: 1,
+                token: '0x4200000000000000000000000000000000000042',
+                warpContract: '0x4200000000000000000000000000000000000042',
+                type: 'collateral',
+              },
+              {
+                chainId: 3,
+                token: '0x4200000000000000000000000000000000000043',
+                warpContract: '0x4200000000000000000000000000000000000043',
+                type: 'collateral',
+              },
+              {
+                chainId: 2,
+                token: '0x4200000000000000000000000000000000000042',
+                warpContract: '0x4200000000000000000000000000000000000042',
+                type: 'synthetic',
+              },
+            ],
+          },
+        ],
+      }
+
+      ecoConfigService.getWarpRoutes.mockReturnValue(multiCollateralConfig)
+
+      const collateralToken1: TokenData = {
+        chainId: 1,
+        config: {
+          type: 'erc20',
+          address: '0x4200000000000000000000000000000000000042',
+          chainId: 1,
+          targetBalance: 0,
+          minBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000042',
+          balance: parseUnits('1000', 18),
+          decimals: 18,
+        },
+      }
+
+      const collateralToken2: TokenData = {
+        chainId: 3,
+        config: {
+          type: 'erc20',
+          address: '0x4200000000000000000000000000000000000043',
+          chainId: 3,
+          targetBalance: 0,
+          minBalance: 0,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000043',
+          balance: parseUnits('1000', 18),
+          decimals: 18,
+        },
+      }
+
+      const mockClient = {
+        kernelAccountAddress: WALLET_ADDRESS,
+      }
+      kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
+
+      balanceService.getAllTokenDataForAddress
+        .mockResolvedValueOnce([collateralToken1])
+        .mockResolvedValueOnce([collateralToken2])
+
+      // First quote fails, second succeeds
+      liFiProviderService.getQuote
+        .mockRejectedValueOnce(new Error('No route found'))
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('90', 18),
+          strategy: 'LiFi',
+          context: {
+            toAmountMin: '90000000000000000000',
+          },
+        } as any)
+
+      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
+
+      expect(quotes).toHaveLength(2)
+      expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
+
+      // Should use the second collateral token (only successful quote)
+      expect(quotes[0].strategy).toBe('LiFi')
+      expect(quotes[0].amountOut).toBe(parseUnits('90', 18))
+    })
+  })
+
   describe('execute', () => {
     it('should include an approval transaction when necessary', async () => {
       const collateralTokenAddress = '0x0000000000000000000000000000000000000001'

@@ -68,6 +68,8 @@ export class LiquidityProviderService {
               },
             }),
           )
+
+          return undefined
         }
 
         return quotesArray.length > 0 ? quotesArray : undefined
