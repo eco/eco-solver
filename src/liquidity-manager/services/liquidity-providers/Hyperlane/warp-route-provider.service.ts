@@ -10,6 +10,7 @@ import {
   parseUnits,
   TransactionReceipt,
   TransactionRequest,
+  isAddress,
 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -22,12 +23,17 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
-
-enum ActionPath {
-  FULL = 'FULL',
-  PARTIAL = 'PARTIAL',
-  UNSUPPORTED = 'UNSUPPORTED',
-}
+import { ActionPath, WarpRoute, WarpRouteResult, PARTIAL_QUOTE_PATHS } from './warp-route.types'
+import {
+  WarpRouteError,
+  WarpRouteNotFoundError,
+  UnsupportedActionPathError,
+  UnsupportedWalletError,
+  MessageDispatchError,
+  PartialQuoteError,
+  InvalidInputError,
+} from './warp-route.errors'
+import { withRetry, withTimeout } from './warp-route.utils'
 
 @Injectable()
 export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
@@ -50,6 +56,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote[]> {
+    // Validate inputs
+    this.validateTokenData(tokenIn, 'tokenIn')
+    this.validateTokenData(tokenOut, 'tokenOut')
+    if (swapAmount <= 0) {
+      throw new InvalidInputError('Swap amount must be positive', { swapAmount })
+    }
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'WarpRouteProviderService: getting quote',
@@ -62,9 +74,15 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       }),
     )
 
-    const actionPath = this.getActionPath(tokenIn.config, tokenOut.config)
+    // Get warp route information for both tokens
+    const warpRouteIn = this.getWarpRoute(tokenIn.config.chainId, tokenIn.config.address)
+    const warpRouteOut = this.getWarpRoute(tokenOut.config.chainId, tokenOut.config.address)
 
-    if (actionPath === ActionPath.UNSUPPORTED) throw new Error('Unsupported action path')
+    const actionPath = this.getActionPath(warpRouteIn, warpRouteOut)
+
+    if (actionPath === ActionPath.UNSUPPORTED) {
+      throw new UnsupportedActionPathError(tokenIn.config, tokenOut.config)
+    }
 
     if (actionPath === ActionPath.PARTIAL) {
       this.logger.debug(
@@ -74,7 +92,14 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           properties: { tokenIn, tokenOut, swapAmount },
         }),
       )
-      const quotes = await this.getPartialQuote(tokenIn, tokenOut, swapAmount, id)
+      const quotes = await this.getPartialQuote(
+        tokenIn,
+        tokenOut,
+        swapAmount,
+        warpRouteIn,
+        warpRouteOut,
+        id,
+      )
       this.logger.debug(
         EcoLogMessage.withId({
           message: 'WarpRouteProviderService: partial quote generated',
@@ -118,8 +143,18 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     )
 
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
-    const txHash = await this._execute(walletAddress, quote)
-    const receipt = await client.waitForTransactionReceipt({ hash: txHash })
+    const txHash = await withRetry(
+      () => this._execute(walletAddress, quote),
+      { maxRetries: 2, retryDelay: 2000 },
+      this.logger,
+      { operation: 'execute', quote: quote.id },
+    )
+    const receipt = await withRetry(
+      () => client.waitForTransactionReceipt({ hash: txHash }),
+      { maxRetries: 3, retryDelay: 5000 },
+      this.logger,
+      { operation: 'waitForReceipt', txHash },
+    )
 
     const { messageId } = this.getMessageFromReceipt(receipt)
 
@@ -174,28 +209,32 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   }
 
   private async _execute(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>) {
+    if (!isAddress(walletAddress)) {
+      throw new InvalidInputError('Invalid wallet address', { walletAddress })
+    }
+
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
 
     if (isAddressEqual(client.kernelAccountAddress, walletAddress as Hex)) {
-      return this.executeWithKernel(walletAddress, quote)
+      return this.executeWithKernel(walletAddress as Hex, quote)
     }
 
-    throw new Error('Unsupported wallet')
+    throw new UnsupportedWalletError(walletAddress)
   }
 
-  private async executeWithKernel(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>) {
+  private async executeWithKernel(walletAddress: Hex, quote: RebalanceQuote<'WarpRoute'>) {
     const transactions = await this.executeRemoteTransfer(
       quote.tokenIn.config,
       quote.tokenOut.config.chainId,
-      walletAddress as Hex,
+      walletAddress,
       quote.amountOut,
     )
 
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
 
     // Make sure the Kernel wallet is used
-    if (!isAddressEqual(client.kernelAccountAddress, walletAddress as Hex)) {
-      throw new Error('Unexpected wallet during WarpRoute execution')
+    if (!isAddressEqual(client.kernelAccountAddress, walletAddress)) {
+      throw new UnsupportedWalletError(walletAddress)
     }
 
     return client.execute(
@@ -212,16 +251,23 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
     const { warpToken } = this.getWarpRoute(tokenIn.chainId, tokenIn.address)
 
-    if (!warpToken)
-      throw new Error(`Warp route not found for ${tokenIn.address} in chain ${tokenIn.chainId}`)
+    if (!warpToken) {
+      throw new WarpRouteNotFoundError(tokenIn.chainId, tokenIn.address as string)
+    }
 
     // Transfer remote transaction
-    const transferRemoteFee = await client.readContract({
-      address: warpToken.warpContract,
-      abi: hyperlaneCollateralERC20,
-      functionName: 'quoteGasPayment',
-      args: [destinationChainId],
-    })
+    const transferRemoteFee = await withRetry(
+      () =>
+        client.readContract({
+          address: warpToken.warpContract,
+          abi: hyperlaneCollateralERC20,
+          functionName: 'quoteGasPayment',
+          args: [destinationChainId],
+        }),
+      { maxRetries: 3, retryDelay: 1000 },
+      this.logger,
+      { operation: 'quoteGasPayment', chainId: tokenIn.chainId },
+    )
 
     const transferRemoteData = encodeFunctionData({
       abi: hyperlaneCollateralERC20,
@@ -236,7 +282,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     }
 
     // Approval: When operating with a collateral token, an allowance must be set for the warp contract
-    if (warpToken.type === 'collateral') {
+    if (!isAddressEqual(warpToken.warpContract, tokenIn.address)) {
       const approvalData = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
@@ -255,7 +301,23 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return [transferRemoteTx]
   }
 
-  private getWarpRoute(chainId: number, token: Hex) {
+  private validateTokenData(tokenData: TokenData, fieldName: string): void {
+    if (!tokenData) {
+      throw new InvalidInputError(`${fieldName} is required`)
+    }
+    if (!tokenData.config || !isAddress(tokenData.config.address)) {
+      throw new InvalidInputError(`Invalid ${fieldName} address`, {
+        address: tokenData.config?.address,
+      })
+    }
+    if (!tokenData.config.chainId || tokenData.config.chainId <= 0) {
+      throw new InvalidInputError(`Invalid ${fieldName} chainId`, {
+        chainId: tokenData.config?.chainId,
+      })
+    }
+  }
+
+  private getWarpRoute(chainId: number, token: Hex): WarpRouteResult {
     const config = this.ecoConfigService.getWarpRoutes()
 
     const isToken = (chain: { chainId: number; token: Hex }) =>
@@ -271,34 +333,53 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return { warpRoute: undefined, warpToken: undefined }
   }
 
-  private getActionPath(tokenIn: TokenConfig, tokenOut: TokenConfig) {
-    const { warpRoute: warpRouteIn, warpToken: warpTokenIn } = this.getWarpRoute(
-      tokenIn.chainId,
-      tokenIn.address,
-    )
-    const { warpRoute: warpRouteOut, warpToken: warpTokenOut } = this.getWarpRoute(
-      tokenOut.chainId,
-      tokenOut.address,
-    )
+  private getActionPath(warpRouteIn: WarpRouteResult, warpRouteOut: WarpRouteResult) {
+    const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn
+    const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut
 
-    if (!warpRouteIn || !warpRouteOut) {
-      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED')
+    // Case 1: Both tokens are NOT in any warp route
+    if (!routeIn && !routeOut) {
+      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED (no warp routes)')
       return ActionPath.UNSUPPORTED
     }
 
-    if (warpRouteIn === warpRouteOut && warpTokenIn?.type !== warpTokenOut?.type) {
-      this.logger.debug('WarpRoute: getActionPath -> FULL')
-      return ActionPath.FULL
+    // Case 2: One token is in a warp route, the other is not -> PARTIAL
+    if (!routeIn || !routeOut) {
+      this.logger.debug('WarpRoute: getActionPath -> PARTIAL')
+      return ActionPath.PARTIAL
     }
 
-    this.logger.debug('WarpRoute: getActionPath -> PARTIAL')
-    return ActionPath.PARTIAL
+    // Case 3: Both tokens are in warp routes
+    // For synthetic tokens: different warp routes are not supported (synthetics are unique to one route)
+    // For collateral tokens: they might be in different routes, which is also not supported
+    if (routeIn !== routeOut) {
+      // Special case: if both are collateral tokens, they might share the same address but be in different routes
+      // This is still unsupported
+      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED (different warp routes)')
+      return ActionPath.UNSUPPORTED
+    }
+
+    // Same warp route cases:
+    // Collateral to collateral is not supported
+    if (warpTokenIn?.type === 'collateral' && warpTokenOut?.type === 'collateral') {
+      this.logger.debug('WarpRoute: getActionPath -> UNSUPPORTED (collateral to collateral)')
+      return ActionPath.UNSUPPORTED
+    }
+
+    // All other cases in the same warp route are FULL:
+    // - collateral to synthetic
+    // - synthetic to collateral
+    // - synthetic to synthetic (different chains)
+    this.logger.debug('WarpRoute: getActionPath -> FULL')
+    return ActionPath.FULL
   }
 
   private async getPartialQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    warpRouteIn: WarpRouteResult,
+    warpRouteOut: WarpRouteResult,
     id?: string,
   ): Promise<RebalanceQuote[]> {
     this.logger.debug(
@@ -308,14 +389,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       }),
     )
 
-    const { warpRoute: warpRouteIn, warpToken: warpTokenIn } = this.getWarpRoute(
-      tokenIn.config.chainId,
-      tokenIn.config.address,
-    )
-    const { warpRoute: warpRouteOut, warpToken: warpTokenOut } = this.getWarpRoute(
-      tokenOut.config.chainId,
-      tokenOut.config.address,
-    )
+    const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn
+    const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut
 
     const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const client = await this.kernelAccountClientService.getClient(tokenIn.config.chainId)
@@ -324,180 +399,44 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     // The only path is to warp it to its collateral and then swap to the destination.
     // Path: Synthetic -> Collateral -> TokenOut
     if (warpTokenIn?.type === 'synthetic') {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRoute: trying path Synthetic -> Collateral -> TokenOut',
-          id,
-        }),
-      )
-      const collateralChain = warpRouteIn?.chains.find((c) => c.type === 'collateral')
-      if (!collateralChain)
-        throw new Error('No collateral found for input synthetic token in partial quote')
-
-      const collateralTokenConfig = this.getTokenConfig({
-        chainId: collateralChain.chainId,
-        token: collateralChain.token,
-      })
-      const [collateralTokenData] = await this.balanceService.getAllTokenDataForAddress(
-        client.kernelAccountAddress,
-        [collateralTokenConfig],
-      )
-
-      const remoteTransferQuote = this.getRemoteTransferQuote(tokenIn, collateralTokenData, amount)
-
-      // Simulate balance after remote transfer so subsequent LiFi quote has the right context
-      collateralTokenData.balance.balance += amount
-      const liFiQuote = await this.liFiProviderService.getQuote(
-        collateralTokenData,
+      return this.handleSyntheticToTokenPath(
+        tokenIn,
         tokenOut,
+        routeIn!,
+        amount,
         swapAmount,
+        client,
         id,
       )
-      return [remoteTransferQuote, liFiQuote]
     }
 
     // Case 2: The input token is a collateral token.
     // We can warp it to a synthetic token and then swap to the destination.
     // Path: Collateral -> Synthetic -> TokenOut
     if (warpTokenIn?.type === 'collateral') {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRoute: trying path Collateral -> Synthetic -> TokenOut',
-          id,
-        }),
+      return this.handleCollateralToTokenPath(
+        tokenIn,
+        tokenOut,
+        routeIn!,
+        amount,
+        swapAmount,
+        client,
+        id,
       )
-      const syntheticChains = warpRouteIn?.chains.filter((c) => c.type === 'synthetic')
-      if (!syntheticChains) throw new Error('No synthetic chains found for input collateral token')
-
-      for (const syntheticChain of syntheticChains) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `WarpRoute: C->S->T: trying intermediate ${syntheticChain.token} on ${syntheticChain.chainId}`,
-            id,
-          }),
-        )
-        const intermediateTokenConfig = this.getTokenConfig({
-          chainId: syntheticChain.chainId,
-          token: syntheticChain.token,
-        })
-        const [intermediateTokenData] = await this.balanceService.getAllTokenDataForAddress(
-          client.kernelAccountAddress,
-          [intermediateTokenConfig],
-        )
-
-        try {
-          // Simulate the balance on the intermediate token to get a more accurate quote
-          const simulatedIntermediateData = { ...intermediateTokenData }
-          simulatedIntermediateData.balance.balance += amount
-          const liFiQuote = await this.liFiProviderService.getQuote(
-            simulatedIntermediateData,
-            tokenOut,
-            swapAmount,
-          )
-
-          const remoteTransferQuote = this.getRemoteTransferQuote(
-            tokenIn,
-            intermediateTokenData,
-            amount,
-          )
-          return [remoteTransferQuote, liFiQuote]
-        } catch (error) {
-          this.logger.debug(
-            EcoLogMessage.withId({
-              message: `WarpRoute: No LiFi quote from intermediate ${syntheticChain.token} to ${tokenOut.config.address}. Error: ${error.message}`,
-              id,
-            }),
-          )
-        }
-      }
     }
 
     // Case 3: The output token is a synthetic token.
     // This means the only entry point is via its collateral.
     // Path: TokenIn -> Collateral -> Synthetic
     if (warpTokenOut?.type === 'synthetic') {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRoute: trying path TokenIn -> Collateral -> Synthetic',
-          id,
-        }),
-      )
-      const collateralChain = warpRouteOut?.chains.find((c) => c.type === 'collateral')
-      if (!collateralChain)
-        throw new Error('No collateral found for output synthetic token in partial quote')
-
-      const collateralTokenConfig = this.getTokenConfig({
-        chainId: collateralChain.chainId,
-        token: collateralChain.token,
-      })
-      const [collateralTokenData] = await this.balanceService.getAllTokenDataForAddress(
-        client.kernelAccountAddress,
-        [collateralTokenConfig],
-      )
-
-      const liFiQuote = await this.liFiProviderService.getQuote(
-        tokenIn,
-        collateralTokenData,
-        swapAmount,
-        id,
-      )
-      const remoteTransferQuote = this.getRemoteTransferQuote(
-        collateralTokenData,
-        tokenOut,
-        BigInt(liFiQuote.context.toAmountMin),
-      )
-      return [liFiQuote, remoteTransferQuote]
+      return this.handleTokenToSyntheticPath(tokenIn, tokenOut, routeOut!, swapAmount, client, id)
     }
 
     // Case 4: The output token is a collateral token.
     // The only entry point is via its synthetic counterparts.
     // Path: TokenIn -> Synthetic -> Collateral
     if (warpTokenOut?.type === 'collateral') {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRoute: trying path TokenIn -> Synthetic -> Collateral',
-          id,
-        }),
-      )
-      const syntheticChains = warpRouteOut?.chains.filter((c) => c.type === 'synthetic')
-      if (!syntheticChains) throw new Error('No synthetic chains found for output collateral token')
-
-      for (const syntheticChain of syntheticChains) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `WarpRoute: T->S->C: trying intermediate ${syntheticChain.token} on ${syntheticChain.chainId}`,
-            id,
-          }),
-        )
-        const intermediateTokenConfig = this.getTokenConfig({
-          chainId: syntheticChain.chainId,
-          token: syntheticChain.token,
-        })
-        const [intermediateTokenData] = await this.balanceService.getAllTokenDataForAddress(
-          client.kernelAccountAddress,
-          [intermediateTokenConfig],
-        )
-        try {
-          const liFiQuote = await this.liFiProviderService.getQuote(
-            tokenIn,
-            intermediateTokenData,
-            swapAmount,
-          )
-          const remoteTransferQuote = this.getRemoteTransferQuote(
-            intermediateTokenData,
-            tokenOut,
-            BigInt(liFiQuote.context.toAmountMin),
-          )
-          return [liFiQuote, remoteTransferQuote]
-        } catch (error) {
-          this.logger.debug(
-            EcoLogMessage.withId({
-              message: `WarpRoute: No LiFi quote from ${tokenIn.config.address} to intermediate ${syntheticChain.token}. Error: ${error.message}`,
-              id,
-            }),
-          )
-        }
-      }
+      return this.handleTokenToCollateralPath(tokenIn, tokenOut, routeOut!, swapAmount, client, id)
     }
 
     this.logger.debug(
@@ -506,7 +445,10 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         id,
       }),
     )
-    throw new Error('Unable to get quote for partial action path')
+    throw new PartialQuoteError('No partial quote path found', {
+      tokenIn: tokenIn.config,
+      tokenOut: tokenOut.config,
+    })
   }
 
   private getTokenConfig(token: { chainId: number; token: Hex }): TokenConfig {
@@ -528,7 +470,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     })
 
     if (!dispatchIdLog) {
-      throw new Error('No message dispatched in transaction')
+      throw new MessageDispatchError(receipt.transactionHash)
     }
 
     return dispatchIdLog.args
@@ -537,16 +479,290 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   private async waitMessageRelay(chainId: number, messageId: Hex) {
     const client = await this.kernelAccountClientService.getClient(chainId)
     const { mailbox } = Hyperlane.getChainMetadata(this.ecoConfigService.getHyperlane(), chainId)
+    if (!isAddress(mailbox)) {
+      throw new WarpRouteError('Invalid mailbox address', { chainId, mailbox })
+    }
 
-    return new Promise((resolve, reject) => {
-      client.watchEvent({
-        address: mailbox as Hex,
-        strict: true,
-        event: getAbiItem({ abi: HyperlaneMailboxAbi, name: 'ProcessId' }),
-        args: { messageId },
-        onLogs: resolve,
-        onError: reject,
+    const MESSAGE_RELAY_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+
+    return withTimeout(
+      new Promise((resolve, reject) => {
+        client.watchEvent({
+          address: mailbox,
+          strict: true,
+          event: getAbiItem({ abi: HyperlaneMailboxAbi, name: 'ProcessId' }),
+          args: { messageId },
+          onLogs: resolve,
+          onError: reject,
+        })
+      }),
+      MESSAGE_RELAY_TIMEOUT,
+      `Message relay timeout after ${MESSAGE_RELAY_TIMEOUT}ms for messageId: ${messageId}`,
+    )
+  }
+
+  private async handleSyntheticToTokenPath(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    warpRoute: WarpRoute,
+    amount: bigint,
+    swapAmount: number,
+    client: any,
+    id?: string,
+  ): Promise<RebalanceQuote[]> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.SYNTHETIC_TO_COLLATERAL}`,
+        id,
+      }),
+    )
+
+    const collateralChain = warpRoute.chains.find((c) => c.type === 'collateral')
+    if (!collateralChain) {
+      throw new PartialQuoteError('No collateral found for input synthetic token', {
+        warpRoute,
+        tokenType: 'synthetic',
       })
+    }
+
+    const collateralTokenConfig = this.getTokenConfig({
+      chainId: collateralChain.chainId,
+      token: collateralChain.token,
+    })
+    const [collateralTokenData] = await this.balanceService.getAllTokenDataForAddress(
+      client.kernelAccountAddress,
+      [collateralTokenConfig],
+    )
+
+    const remoteTransferQuote = this.getRemoteTransferQuote(tokenIn, collateralTokenData, amount)
+
+    // Check if tokenOut is the collateral token - if so, we only need the remote transfer
+    if (
+      collateralChain.chainId === tokenOut.config.chainId &&
+      isAddressEqual(collateralChain.token, tokenOut.config.address)
+    ) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'WarpRoute: tokenOut is the collateral token, only remote transfer needed',
+          id,
+        }),
+      )
+      return [remoteTransferQuote]
+    }
+
+    // Simulate balance after remote transfer so subsequent LiFi quote has the right context
+    collateralTokenData.balance.balance += amount
+    const liFiQuote = await this.liFiProviderService.getQuote(
+      collateralTokenData,
+      tokenOut,
+      swapAmount,
+      id,
+    )
+    return [remoteTransferQuote, liFiQuote]
+  }
+
+  private async handleCollateralToTokenPath(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    warpRoute: WarpRoute,
+    amount: bigint,
+    swapAmount: number,
+    client: any,
+    id?: string,
+  ): Promise<RebalanceQuote[]> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.COLLATERAL_TO_SYNTHETIC}`,
+        id,
+      }),
+    )
+
+    const syntheticChains = warpRoute.chains.filter((c) => c.type === 'synthetic')
+    if (!syntheticChains || syntheticChains.length === 0) {
+      throw new PartialQuoteError('No synthetic chains found for input collateral token', {
+        warpRoute,
+        tokenType: 'collateral',
+      })
+    }
+
+    for (const syntheticChain of syntheticChains) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: `WarpRoute: C->S->T: trying intermediate ${syntheticChain.token} on ${syntheticChain.chainId}`,
+          id,
+        }),
+      )
+      const intermediateTokenConfig = this.getTokenConfig({
+        chainId: syntheticChain.chainId,
+        token: syntheticChain.token,
+      })
+      const [intermediateTokenData] = await this.balanceService.getAllTokenDataForAddress(
+        client.kernelAccountAddress,
+        [intermediateTokenConfig],
+      )
+
+      // Check if tokenOut is this synthetic token
+      if (
+        syntheticChain.chainId === tokenOut.config.chainId &&
+        isAddressEqual(syntheticChain.token, tokenOut.config.address)
+      ) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'WarpRoute: tokenOut is the synthetic token, only remote transfer needed',
+            id,
+          }),
+        )
+        const remoteTransferQuote = this.getRemoteTransferQuote(
+          tokenIn,
+          intermediateTokenData,
+          amount,
+        )
+        return [remoteTransferQuote]
+      }
+
+      try {
+        // Simulate the balance on the intermediate token to get a more accurate quote
+        const simulatedIntermediateData = { ...intermediateTokenData }
+        simulatedIntermediateData.balance.balance += amount
+        const liFiQuote = await this.liFiProviderService.getQuote(
+          simulatedIntermediateData,
+          tokenOut,
+          swapAmount,
+        )
+
+        const remoteTransferQuote = this.getRemoteTransferQuote(
+          tokenIn,
+          intermediateTokenData,
+          amount,
+        )
+        return [remoteTransferQuote, liFiQuote]
+      } catch (error: any) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `WarpRoute: No LiFi quote from intermediate ${syntheticChain.token} to ${tokenOut.config.address}. Error: ${error.message}`,
+            id,
+          }),
+        )
+      }
+    }
+
+    throw new PartialQuoteError('No valid synthetic chain found for collateral to token path', {
+      warpRoute,
+      tokenIn: tokenIn.config,
+      tokenOut: tokenOut.config,
+    })
+  }
+
+  private async handleTokenToSyntheticPath(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    warpRoute: WarpRoute,
+    swapAmount: number,
+    client: any,
+    id?: string,
+  ): Promise<RebalanceQuote[]> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.TOKEN_TO_SYNTHETIC}`,
+        id,
+      }),
+    )
+
+    const collateralChain = warpRoute.chains.find((c) => c.type === 'collateral')
+    if (!collateralChain) {
+      throw new PartialQuoteError('No collateral found for output synthetic token', {
+        warpRoute,
+        tokenType: 'synthetic',
+      })
+    }
+
+    const collateralTokenConfig = this.getTokenConfig({
+      chainId: collateralChain.chainId,
+      token: collateralChain.token,
+    })
+    const [collateralTokenData] = await this.balanceService.getAllTokenDataForAddress(
+      client.kernelAccountAddress,
+      [collateralTokenConfig],
+    )
+
+    const liFiQuote = await this.liFiProviderService.getQuote(
+      tokenIn,
+      collateralTokenData,
+      swapAmount,
+      id,
+    )
+    const remoteTransferQuote = this.getRemoteTransferQuote(
+      collateralTokenData,
+      tokenOut,
+      BigInt(liFiQuote.context.toAmountMin),
+    )
+    return [liFiQuote, remoteTransferQuote]
+  }
+
+  private async handleTokenToCollateralPath(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    warpRoute: WarpRoute,
+    swapAmount: number,
+    client: any,
+    id?: string,
+  ): Promise<RebalanceQuote[]> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.TOKEN_TO_COLLATERAL}`,
+        id,
+      }),
+    )
+
+    const syntheticChains = warpRoute.chains.filter((c) => c.type === 'synthetic')
+    if (!syntheticChains || syntheticChains.length === 0) {
+      throw new PartialQuoteError('No synthetic chains found for output collateral token', {
+        warpRoute,
+        tokenType: 'collateral',
+      })
+    }
+
+    for (const syntheticChain of syntheticChains) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: `WarpRoute: T->S->C: trying intermediate ${syntheticChain.token} on ${syntheticChain.chainId}`,
+          id,
+        }),
+      )
+      const intermediateTokenConfig = this.getTokenConfig({
+        chainId: syntheticChain.chainId,
+        token: syntheticChain.token,
+      })
+      const [intermediateTokenData] = await this.balanceService.getAllTokenDataForAddress(
+        client.kernelAccountAddress,
+        [intermediateTokenConfig],
+      )
+      try {
+        const liFiQuote = await this.liFiProviderService.getQuote(
+          tokenIn,
+          intermediateTokenData,
+          swapAmount,
+        )
+        const remoteTransferQuote = this.getRemoteTransferQuote(
+          intermediateTokenData,
+          tokenOut,
+          BigInt(liFiQuote.context.toAmountMin),
+        )
+        return [liFiQuote, remoteTransferQuote]
+      } catch (error: any) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `WarpRoute: No LiFi quote from ${tokenIn.config.address} to intermediate ${syntheticChain.token}. Error: ${error.message}`,
+            id,
+          }),
+        )
+      }
+    }
+
+    throw new PartialQuoteError('No valid synthetic chain found for token to collateral path', {
+      warpRoute,
+      tokenIn: tokenIn.config,
+      tokenOut: tokenOut.config,
     })
   }
 }
