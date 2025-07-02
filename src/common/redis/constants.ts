@@ -41,7 +41,6 @@ export const QUEUES: Record<any, QueueInterface> = {
     queue: 'balance_monitor',
     prefix: '{balance-monitor}',
     jobs: {
-      init_balance_record: 'init_balance_record',
       update_balance_record: 'update_balance_record',
       update_balance_change: 'update_balance_change',
     },

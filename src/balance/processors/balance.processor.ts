@@ -46,7 +46,6 @@ export class BalanceProcessor extends WorkerHost {
 
     try {
       switch (job.name) {
-        case BALANCE_JOBS.init_balance_record:
         case BALANCE_JOBS.update_balance_record:
           return await this.processUpdateBalanceRecord(job)
 

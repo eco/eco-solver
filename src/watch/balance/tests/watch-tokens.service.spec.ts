@@ -254,7 +254,7 @@ describe('WatchTokensService', () => {
       await addJobFunction([mockTransferLog])
 
       expect(mockQueue.add).toHaveBeenCalledWith(
-        QUEUES.BALANCE_MONITOR.jobs.update_balance,
+        QUEUES.BALANCE_MONITOR.jobs.update_balance_change,
         expect.objectContaining({
           chainId: '1',
           address: mockTokenAddress1,
@@ -286,7 +286,7 @@ describe('WatchTokensService', () => {
       await addJobFunction([outgoingTransferLog])
 
       expect(mockQueue.add).toHaveBeenCalledWith(
-        QUEUES.BALANCE_MONITOR.jobs.update_balance,
+        QUEUES.BALANCE_MONITOR.jobs.update_balance_change,
         expect.objectContaining({
           direction: 'outgoing',
           from: mockSolverAddress,
@@ -315,7 +315,7 @@ describe('WatchTokensService', () => {
       expect(mockQueue.add).toHaveBeenCalledTimes(2)
       expect(mockQueue.add).toHaveBeenNthCalledWith(
         1,
-        QUEUES.BALANCE_MONITOR.jobs.update_balance,
+        QUEUES.BALANCE_MONITOR.jobs.update_balance_change,
         expect.objectContaining({
           address: mockTokenAddress1,
           changeAmount: '1000000',
@@ -324,7 +324,7 @@ describe('WatchTokensService', () => {
       )
       expect(mockQueue.add).toHaveBeenNthCalledWith(
         2,
-        QUEUES.BALANCE_MONITOR.jobs.update_balance,
+        QUEUES.BALANCE_MONITOR.jobs.update_balance_change,
         expect.objectContaining({
           address: mockTokenAddress2,
           changeAmount: '2000000',
@@ -458,7 +458,7 @@ describe('WatchTokensService', () => {
       await addJobFunction([largeTransferLog])
 
       expect(mockQueue.add).toHaveBeenCalledWith(
-        QUEUES.BALANCE_MONITOR.jobs.update_balance,
+        QUEUES.BALANCE_MONITOR.jobs.update_balance_change,
         expect.objectContaining({
           changeAmount: '999999999999999999999999',
         }),
@@ -509,7 +509,7 @@ describe('WatchTokensService', () => {
 
       // Verify job was created
       expect(mockQueue.add).toHaveBeenCalledWith(
-        QUEUES.BALANCE_MONITOR.jobs.update_balance,
+        QUEUES.BALANCE_MONITOR.jobs.update_balance_change,
         expect.objectContaining({
           chainId: '1',
           address: mockTokenAddress1,

@@ -218,7 +218,7 @@ export class WatchTokensService extends WatchEventService<Solver> {
       const jobId = getWatchJobId('watch-token-balance-change', log.transactionHash, log.logIndex)
 
       // Add balance update job to BALANCE_MONITOR queue
-      await this.queue.add(QUEUES.BALANCE_MONITOR.jobs.update_balance, serializedData, {
+      await this.queue.add(QUEUES.BALANCE_MONITOR.jobs.update_balance_change, serializedData, {
         jobId,
         ...this.watchJobConfig,
       })

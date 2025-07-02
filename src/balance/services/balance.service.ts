@@ -56,7 +56,7 @@ export class BalanceService implements OnModuleInit {
   private async scheduleInitialization(): Promise<void> {
     try {
       //create a time slot so we only get one job in a multi pod env
-      const config = BALANCE_JOB_OPTIONS[BALANCE_JOBS.init_balance_record]
+      const config = BALANCE_JOB_OPTIONS[BALANCE_JOBS.update_balance_record]
       const updateInterval = this.getUpdateInterval()
       const timeSlot = Math.floor(Date.now() / updateInterval)
 
@@ -68,7 +68,7 @@ export class BalanceService implements OnModuleInit {
 
       // Run immediately first
       const immediateJobId = `balance_service_init_immediate_${timeSlot}`
-      await this.balanceQueue.add(BALANCE_JOBS.init_balance_record, jobData, {
+      await this.balanceQueue.add(BALANCE_JOBS.update_balance_record, jobData, {
         ...config,
         jobId: immediateJobId,
       })
@@ -76,7 +76,7 @@ export class BalanceService implements OnModuleInit {
       // Schedule recurring job using configured interval
       const recurringJobId = 'balance_service_init_recurring'
       await this.balanceQueue.add(
-        BALANCE_JOBS.init_balance_record,
+        BALANCE_JOBS.update_balance_record,
         { ...jobData, triggeredAt: undefined }, // Don't set triggeredAt for recurring jobs
         {
           ...config,

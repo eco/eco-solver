@@ -50,19 +50,8 @@ export enum BalanceJobPriority {
  * Job options for balance tracking
  */
 export const BALANCE_JOB_OPTIONS = {
-  [BALANCE_JOBS.init_balance_record]: {
-    jobId: 'init_balance_record',
-    attempts: 3,
-    backoff: {
-      type: 'exponential' as const,
-      delay: 2000,
-    },
-    priority: BalanceJobPriority.INITIALIZATION,
-    removeOnComplete: 1,
-    removeOnFail: 3,
-  },
-  [BALANCE_JOBS.update_balance]: {
-    jobId: 'update_balance',
+  [BALANCE_JOBS.update_balance_record]: {
+    jobId: BALANCE_JOBS.update_balance_record,
     attempts: 3,
     backoff: {
       type: 'exponential' as const,
