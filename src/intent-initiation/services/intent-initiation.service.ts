@@ -1,5 +1,4 @@
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
-import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
@@ -13,7 +12,10 @@ import { FulfillmentLog } from '@/contracts/inbox'
 import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
 import { GaslessIntentExecutionResponseEntryDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response-entry.dto'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentTransactionDataDTO } from '@/intent-initiation/dtos/gasless-intent-transaction-data.dto'
+import { GaslessIntentTransactionDataRequestDTO } from '@/intent-initiation/dtos/gasless-intent-transaction-data-request.dto'
 import { getChainConfig } from '@/eco-configs/utils'
+import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
@@ -22,7 +24,6 @@ import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
 import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
 import { Permit3Processor } from '@/common/permit/permit3-processor'
-import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
@@ -55,15 +56,36 @@ export class IntentInitiationService implements OnModuleInit {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly quoteRepository: QuoteRepository,
-    private readonly permitDataRepository: PermitDataRepository,
+    private readonly groupedIntentRepository: GroupedIntentRepository,
     private readonly intentSourceRepository: IntentSourceRepository,
-    private readonly createIntentService: CreateIntentService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly permitValidationService: PermitValidationService,
   ) {}
 
   onModuleInit() {
     this.gaslessIntentdAppIDs = this.ecoConfigService.getGaslessIntentdAppIDs()
+  }
+
+  async getGaslessIntentTransactionData(
+    gaslessIntentTransactionDataRequestDTO: GaslessIntentTransactionDataRequestDTO,
+  ): Promise<EcoResponse<GaslessIntentTransactionDataDTO>> {
+    const { intentGroupID } = gaslessIntentTransactionDataRequestDTO
+    const { response: groupedIntent, error } =
+      await this.groupedIntentRepository.getIntentForGroupID(intentGroupID)
+
+    if (error) {
+      return { error }
+    }
+
+    const { destinationChainID, destinationChainTxHash } = groupedIntent!
+
+    return {
+      response: {
+        intentGroupID,
+        destinationChainID,
+        destinationChainTxHash,
+      },
+    }
   }
 
   /**
@@ -311,9 +333,9 @@ export class IntentInitiationService implements OnModuleInit {
       return
     }
 
-    const groupIntents = await this.intentSourceRepository.getIntentsForGroupID(intentGroupID)
+    const intents = await this.intentSourceRepository.getIntentsForGroupID(intentGroupID)
 
-    if (groupIntents.length === 0) {
+    if (intents.length === 0) {
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `processFulfilled: no intents found for intentGroupID ${intentGroupID}`,
@@ -322,7 +344,7 @@ export class IntentInitiationService implements OnModuleInit {
       return
     }
 
-    if (!groupIntents.every((i) => i.status === 'SOLVED')) {
+    if (!intents.every((i) => i.status === 'SOLVED')) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
           message: `processFulfilled: not all intents are solved for intentGroupID ${intentGroupID}`,
@@ -332,18 +354,19 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     // We can execute the final transfer
-    const permitData = await this.permitDataRepository.getPermitData(intentGroupID)
+    const { response: groupedIntent, error: intentError } =
+      await this.groupedIntentRepository.getIntentForGroupID(intentGroupID)
 
-    if (!permitData) {
+    if (intentError) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `processFulfilled: permit data not found for intentGroupID ${intentGroupID}`,
+          message: `processFulfilled: groupedIntent found for intentGroupID ${intentGroupID}`,
         }),
       )
       return
     }
 
-    const { permit3 } = permitData
+    const { permit3 } = groupedIntent!
 
     if (!permit3) {
       this.logger.error(
@@ -355,7 +378,7 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     // Get chainID and recipient for final transfer
-    const destinationChainID = Number(groupIntents[0].intent.route.destination)
+    const destinationChainID = Number(intents[0].intent.route.destination)
 
     const { response: txHash, error: finalTxError } = await this.executeFinalPermitTransfer(
       destinationChainID,
@@ -383,6 +406,12 @@ export class IntentInitiationService implements OnModuleInit {
         },
       }),
     )
+
+    // Update the grouped intent with the destination chain ID and transaction hash
+    await this.groupedIntentRepository.updateIntent(intentGroupID, {
+      destinationChainID,
+      destinationChainTxHash: txHash,
+    })
   }
 
   private getTxsGroupedByChain(gaslessIntentTransactions: GaslessIntentTransactions): {
@@ -519,12 +548,6 @@ export class IntentInitiationService implements OnModuleInit {
       gaslessIntentData: { permitData },
     } = gaslessIntentRequestDTO
 
-    // Save the permit data to the database
-    await this.permitDataRepository.addPermitDataEntry({
-      intentGroupID,
-      ...permitData!,
-    })
-
     // Mapping chain ids to permit transactions
     const permitDataPerChain = new Map<number, PermitResult>()
 
@@ -583,6 +606,12 @@ export class IntentInitiationService implements OnModuleInit {
       })
     }
 
+    // Save the permit data to the database
+    await this.groupedIntentRepository.addIntent({
+      intentGroupID,
+      ...permitData!,
+    })
+
     return {
       response: {
         permitDataPerChain,
@@ -634,7 +663,7 @@ export class IntentInitiationService implements OnModuleInit {
     const intentSourceContract = chainConfig.IntentSource
 
     // Update intent db
-    await this.createIntentService.createIntentFromIntentInitiation(
+    await this.intentSourceRepository.createIntentFromIntentInitiation(
       intentGroupID,
       quoteID,
       funder,

@@ -16,13 +16,13 @@ import {
   QuoteError,
   SolverUnsupported,
 } from '@/quote/errors'
+import { GroupedIntent } from '@/intent-initiation/schemas/grouped-intent.schema'
+import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { Model } from 'mongoose'
-import { PermitData } from '@/intent-initiation/permit-data/schemas/permit-data.schema'
-import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
@@ -73,7 +73,7 @@ describe('QuotesService', () => {
         QuoteRepository,
         IntentInitiationService,
         IntentSourceRepository,
-        PermitDataRepository,
+        GroupedIntentRepository,
         PermitValidationService,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
@@ -91,7 +91,7 @@ describe('QuotesService', () => {
           useValue: createMock<Model<QuoteIntentModel>>(),
         },
         {
-          provide: getModelToken(PermitData.name),
+          provide: getModelToken(GroupedIntent.name),
           useValue: {
             create: jest.fn(),
             findOne: jest.fn(),

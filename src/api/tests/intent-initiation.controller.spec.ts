@@ -4,6 +4,8 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { getModelToken } from '@nestjs/mongoose'
+import { GroupedIntent } from '@/intent-initiation/schemas/grouped-intent.schema'
+import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
 import { Hex } from 'viem'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
@@ -12,8 +14,6 @@ import { IntentSourceRepository } from '@/intent/repositories/intent-source.repo
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
-import { PermitData } from '@/intent-initiation/permit-data/schemas/permit-data.schema'
-import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
@@ -46,7 +46,7 @@ describe('IntentInitiationController', () => {
         Permit2Processor,
         PermitProcessor,
         PermitValidationService,
-        PermitDataRepository,
+        GroupedIntentRepository,
         IntentSourceRepository,
         QuoteService,
         {
@@ -58,7 +58,7 @@ describe('IntentInitiationController', () => {
           useValue: new EcoConfigService([mockSource as any]),
         },
         {
-          provide: getModelToken(PermitData.name),
+          provide: getModelToken(GroupedIntent.name),
           useValue: {
             create: jest.fn(),
             findOne: jest.fn(),

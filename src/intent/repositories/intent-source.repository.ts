@@ -1,8 +1,14 @@
 import { EcoLogger } from '@/common/logging/eco-logger'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Hex } from 'viem'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Model } from 'mongoose'
+import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
+import { RewardTokensInterface, CallDataInterface } from '@/contracts'
+import { RouteType, hashIntent } from '@eco-foundation/routes-ts'
 
 @Injectable()
 export class IntentSourceRepository {
@@ -19,6 +25,66 @@ export class IntentSourceRepository {
     projection: object = {},
   ): Promise<IntentSourceModel[]> {
     return this.queryIntents({ 'intent.intentGroupID': intentGroupID }, projection)
+  }
+
+  async createIntentFromIntentInitiation(
+    intentGroupID: string,
+    quoteID: string,
+    funder: Hex,
+    route: RouteType,
+    reward: QuoteRewardDataType,
+  ) {
+    try {
+      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
+      const { creator, prover, deadline, nativeValue } = reward
+      const rewardTokens = reward.tokens as RewardTokensInterface[]
+      const intentHash = hashIntent({ route, reward }).intentHash
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `createIntentFromIntentInitiation`,
+          properties: {
+            intentHash,
+          },
+        }),
+      )
+
+      const intent = new IntentDataModel({
+        intentGroupID,
+        quoteID,
+        hash: intentHash,
+        salt,
+        source,
+        destination,
+        inbox,
+        routeTokens: routeTokens as RewardTokensInterface[],
+        calls: calls as CallDataInterface[],
+        creator,
+        prover,
+        deadline,
+        nativeValue,
+        rewardTokens,
+        logIndex: 0,
+        funder,
+      })
+
+      await this.model.create({
+        // event: null,
+        intent,
+        receipt: null,
+        status: 'PENDING',
+      })
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Error in createIntentFromIntentInitiation`,
+          properties: {
+            quoteID,
+            error: ex.message,
+          },
+        }),
+      )
+    }
   }
 
   async exists(query: object): Promise<boolean> {

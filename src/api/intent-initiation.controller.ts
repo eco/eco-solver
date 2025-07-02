@@ -4,6 +4,8 @@ import { Body, Controller, InternalServerErrorException, Logger, Post } from '@n
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentTransactionDataDTO } from '@/intent-initiation/dtos/gasless-intent-transaction-data.dto'
+import { GaslessIntentTransactionDataRequestDTO } from '@/intent-initiation/dtos/gasless-intent-transaction-data-request.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { QuoteErrorsInterface } from '@/quote/errors'
@@ -39,6 +41,48 @@ export class IntentInitiationController {
 
     if (!error) {
       return gaslessIntentExecutionResponse!
+    }
+
+    const errorStatus = (error as QuoteErrorsInterface).statusCode
+
+    if (errorStatus) {
+      throw getEcoServiceException({ error })
+    }
+
+    // Also throw a generic InternalServerErrorException if error has no statusCode
+    throw getEcoServiceException({
+      httpExceptionClass: InternalServerErrorException,
+      error: { message: JSON.stringify(error) },
+    })
+  }
+
+  /*
+   * Get Gasless Intent Transaction Data
+   */
+  @ApiOperation({
+    summary: 'Get Gasless Intent Transaction Data',
+  })
+  @Post('/getGaslessIntentTransactionData')
+  @ApiResponse({ type: GaslessIntentTransactionDataDTO })
+  async getDestinationChainTransactionHash(
+    @Body() gaslessIntentTransactionDataRequestDTO: GaslessIntentTransactionDataRequestDTO,
+  ): Promise<GaslessIntentTransactionDataDTO> {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Received Get Gasless Intent Transaction Data Request:`,
+        properties: {
+          gaslessIntentTransactionDataRequestDTO,
+        },
+      }),
+    )
+
+    const { response: gaslessIntentTransactionDataDTO, error } =
+      await this.intentInitiationService.getGaslessIntentTransactionData(
+        gaslessIntentTransactionDataRequestDTO,
+      )
+
+    if (!error) {
+      return gaslessIntentTransactionDataDTO!
     }
 
     const errorStatus = (error as QuoteErrorsInterface).statusCode

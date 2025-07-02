@@ -1,3 +1,4 @@
+import { Hex } from 'viem'
 import {
   Permit2,
   Permit2Schema,
@@ -12,9 +13,15 @@ import { Type } from 'class-transformer'
 import { ValidateNested } from 'class-validator'
 
 @Schema({ timestamps: true })
-export class PermitData {
+export class GroupedIntent {
   @Prop({ required: true })
   intentGroupID: string
+
+  @Prop({ required: false })
+  destinationChainID?: number
+
+  @Prop({ required: false })
+  destinationChainTxHash?: Hex
 
   @Prop({ type: [PermitSchema], required: false })
   @ValidateNested()
@@ -38,9 +45,11 @@ export class PermitData {
   updatedAt?: Date
 }
 
-export const PermitDataSchema = SchemaFactory.createForClass(PermitData)
+export const GroupedIntentSchema = SchemaFactory.createForClass(GroupedIntent)
 
 // Define indexes.
-PermitDataSchema.index({ intentGroupID: 1 }, { unique: true })
-PermitDataSchema.index({ createdAt: 1 }, { unique: false })
-PermitDataSchema.index({ updatedAt: 1 }, { unique: false })
+GroupedIntentSchema.index({ intentGroupID: 1 }, { unique: true })
+GroupedIntentSchema.index({ destinationChainID: 1 }, { unique: false })
+GroupedIntentSchema.index({ destinationChainTxHash: 1 }, { unique: false })
+GroupedIntentSchema.index({ createdAt: 1 }, { unique: false })
+GroupedIntentSchema.index({ updatedAt: 1 }, { unique: false })
