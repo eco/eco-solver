@@ -1,9 +1,4 @@
-import {
-  CallDataInterface,
-  decodeCreateIntentLog,
-  IntentCreatedLog,
-  RewardTokensInterface,
-} from '../contracts'
+import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
@@ -11,7 +6,6 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { FlagService } from '../flags/flags.service'
 import { getIntentJobId } from '../common/utils/strings'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { Hex } from 'viem'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
@@ -21,7 +15,6 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { JobsOptions, Queue } from 'bullmq'
 import { Model } from 'mongoose'
 import { QUEUES } from '../common/redis/constants'
-import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 
 /**
@@ -131,66 +124,6 @@ export class CreateIntentService implements OnModuleInit {
           properties: {
             intentHash: intentWs.transactionHash,
             error: e,
-          },
-        }),
-      )
-    }
-  }
-
-  async createIntentFromIntentInitiation(
-    intentGroupID: string,
-    quoteID: string,
-    funder: Hex,
-    route: RouteType,
-    reward: QuoteRewardDataType,
-  ) {
-    try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue } = reward
-      const rewardTokens = reward.tokens as RewardTokensInterface[]
-      const intentHash = hashIntent({ route, reward }).intentHash
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `createIntentFromIntentInitiation`,
-          properties: {
-            intentHash,
-          },
-        }),
-      )
-
-      const intent = new IntentDataModel({
-        intentGroupID,
-        quoteID,
-        hash: intentHash,
-        salt,
-        source,
-        destination,
-        inbox,
-        routeTokens: routeTokens as RewardTokensInterface[],
-        calls: calls as CallDataInterface[],
-        creator,
-        prover,
-        deadline,
-        nativeValue,
-        rewardTokens,
-        logIndex: 0,
-        funder,
-      })
-
-      await this.intentModel.create({
-        // event: null,
-        intent,
-        receipt: null,
-        status: 'PENDING',
-      })
-    } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in createIntentFromIntentInitiation`,
-          properties: {
-            quoteID,
-            error: ex.message,
           },
         }),
       )

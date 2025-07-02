@@ -12,14 +12,14 @@ import {
 } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getModelToken } from '@nestjs/mongoose'
+import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
+import { GroupedIntentSchema } from '@/intent-initiation/schemas/grouped-intent.schema'
 import { Hex, TransactionReceipt } from 'viem'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { IntentSourceSchema } from '@/intent/schemas/intent-source.schema'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
-import { PermitDataRepository } from '@/intent-initiation/permit-data/repositories/permit-data.repository'
-import { PermitDataSchema } from '@/intent-initiation/permit-data/schemas/permit-data.schema'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
@@ -112,7 +112,7 @@ describe('IntentInitiationService', () => {
     $ = EcoTester.setupTestFor(IntentInitiationService)
       .withProviders([
         PermitValidationService,
-        PermitDataRepository,
+        GroupedIntentRepository,
         IntentSourceRepository,
         QuoteRepository,
         {
@@ -130,7 +130,7 @@ describe('IntentInitiationService', () => {
       ])
       .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])
       .withSchemas([
-        ['PermitData', PermitDataSchema],
+        ['GroupedIntent', GroupedIntentSchema],
         ['IntentSourceModel', IntentSourceSchema],
       ])
 
