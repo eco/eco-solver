@@ -20,7 +20,7 @@ import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '../balance/balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
