@@ -4,10 +4,10 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { parseUnits } from 'viem'
-import { walletClientToSigner } from '@/common/utils/viem-to-ethers'
+import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
+import { getSlippage } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
@@ -50,23 +50,21 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
 
     const params = {
+      fromAddress: walletAddress,
       fromChain: tokenIn.chainId.toString(),
       fromToken: tokenIn.config.address,
       fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
       toChain: tokenOut.chainId.toString(),
       toToken: tokenOut.config.address,
       toAddress: walletAddress,
-      slippage: swapSlippage,
+      slippage: swapSlippage * 100, // Slippage is in basis points
       quoteOnly: false,
     }
 
     try {
       const { route } = await this.squid.getRoute(params)
 
-      // The fromAmount is an exact amount, so slippage is on the fromAmount
-      const toAmountMin = BigInt(route.estimate.toAmountMin)
-      const fromAmount = BigInt(route.estimate.fromAmount)
-      const slippage = Number(fromAmount - toAmountMin) / Number(fromAmount)
+      const slippage = getSlippage(route.estimate.toAmountMin, route.estimate.fromAmount)
 
       const quote: RebalanceQuote<'Squid'> = {
         amountIn: BigInt(route.estimate.fromAmount),
@@ -101,7 +99,7 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Squid'>): Promise<unknown> {
+  async execute(walletAddress: string, quote: RebalanceQuote<'Squid'>): Promise<string> {
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Squid: executing quote',
@@ -117,19 +115,31 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       }
 
       const { context: route } = quote
-      const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
-      const signer = walletClientToSigner(client)
-
-      const txResponse = await this.squid.executeRoute({
-        signer: signer as any,
-        route,
+      const approveData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [route.transactionRequest.target!, BigInt(route.params.fromAmount)],
       })
-
-      if (!('wait' in txResponse)) {
-        throw new Error('Squid SDK returned an unexpected transaction response type.')
+      const approveTx = {
+        to: route.params.fromToken,
+        data: approveData,
       }
 
-      const txReceipt = await txResponse.wait()
+      // Build the Squid router execution tx
+      const swapTx = {
+        to: route.transactionRequest.target,
+        data: route.transactionRequest.data,
+        value: route.transactionRequest.value ? BigInt(route.transactionRequest.value) : undefined,
+      }
+
+      const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
+
+      // Execute all in a single userOp to beat the expiry.
+      const txHash = await client.execute([approveTx, swapTx])
+
+      const txReceipt = await client.waitForTransactionReceipt({
+        hash: txHash,
+      })
 
       if (!txReceipt) {
         throw new Error('Transaction receipt was null.')
@@ -143,7 +153,7 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         }),
       )
 
-      return (txReceipt as any).transactionHash
+      return txReceipt.transactionHash
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withErrorAndId({
