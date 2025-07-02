@@ -95,13 +95,14 @@ describe('SquidProviderService', () => {
       expect(quote.strategy).toBe('Squid')
       expect(quote.context).toBe(mockRoute)
       expect(mockSquidInstance.getRoute).toHaveBeenCalledWith({
+        fromAddress: zeroAddress,
         fromChain: '1',
         fromToken: '0xTokenIn',
         fromAmount: '100000000000000000000',
         toChain: '10',
         toToken: '0xTokenOut',
         toAddress: zeroAddress,
-        slippage: 0.01,
+        slippage: 1,
         quoteOnly: false,
       })
     })
@@ -129,31 +130,36 @@ describe('SquidProviderService', () => {
   describe('execute', () => {
     it('should execute a valid quote', async () => {
       await squidProviderService.onModuleInit()
-      const mockRoute = { estimate: { fromAmount: '100' } }
+      const mockRoute = {
+        estimate: { fromAmount: '100', toAmount: '95', toAmountMin: '94' },
+        transactionRequest: {
+          target: zeroAddress,
+          data: '0xdeadbeef',
+          value: '0',
+        },
+        params: {
+          fromToken: '0xToken',
+          fromAmount: '100',
+        },
+      }
       const mockQuote = {
         tokenIn: { chainId: 1 },
         context: mockRoute,
         id: 'test-id',
       } as any
-      const mockTxResponse = {
-        wait: jest.fn().mockResolvedValue({ transactionHash: '0xTxHash' }),
-      }
+
+      const executeMock = jest.fn().mockResolvedValue('0xTxHash')
+      const waitMock = jest.fn().mockResolvedValue({ transactionHash: '0xTxHash' })
 
       kernelAccountClientService.getClient.mockResolvedValue({
-        account: { address: zeroAddress },
-        chain: { id: 1, name: 'mainnet' },
-        request: jest.fn(),
+        execute: executeMock,
+        waitForTransactionReceipt: waitMock,
       } as any)
-
-      mockSquidInstance.executeRoute.mockResolvedValue(mockTxResponse as any)
 
       const result = await squidProviderService.execute(zeroAddress, mockQuote)
 
       expect(result).toBe('0xTxHash')
-      expect(mockSquidInstance.executeRoute).toHaveBeenCalledWith({
-        signer: expect.any(Object),
-        route: mockRoute,
-      })
+      expect(executeMock).toHaveBeenCalledTimes(1)
     })
 
     it('should throw an error for a non-kernel wallet address', async () => {

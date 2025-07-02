@@ -97,6 +97,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       'eco-wallet': ['CCTPLiFi'], // Only test CCTPLiFi strategy
     },
     maxQuoteSlippage: 0.005,
+    swapSlippage: 0.01,
   }
 
   // Mock token configurations
