@@ -20,7 +20,7 @@ import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '../balance/balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -318,7 +318,23 @@ export class ValidationService implements OnModuleInit {
       // Check if solver has enough token balances
       for (const routeToken of intent.route.tokens) {
         const balance = tokenBalances[routeToken.token]
-        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        const target = solverTargets[routeToken.token]
+        if (!balance || !target) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Missing token data`,
+              properties: {
+                token: routeToken.token,
+                target: target,
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+        const minReqDollar = target.minBalance || 0
+
         // Normalize the balance to the token's decimals, configs have the minReq in dollar value
         const balanceMinReq = normalizeBalance(
           { balance: BigInt(minReqDollar), decimal: 0 },
