@@ -50,32 +50,29 @@ export class LiquidityProviderService {
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, id)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
 
-        // Helper function to check if a quote is valid
-        const isQuoteValid = (quote: RebalanceQuote): boolean => quote.slippage <= maxQuoteSlippage
-
-        // Filter out quotes that exceed maximum slippage
-        const validQuotes = quotesArray.filter(isQuoteValid)
-        const rejectedQuotes = quotesArray.filter((quote) => !isQuoteValid(quote))
-
-        // Log rejected quotes
-        rejectedQuotes.forEach((quote) => {
+        const totalSlippage = getTotalSlippage(_.map(quotesArray, 'slippage'))
+        if (totalSlippage > maxQuoteSlippage) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: 'Quote rejected due to excessive slippage',
               properties: {
                 strategy,
-                slippage: quote.slippage,
                 maxQuoteSlippage,
                 tokenIn: this.formatToken(tokenIn),
                 tokenOut: this.formatToken(tokenOut),
-                amountIn: quote.amountIn.toString(),
-                amountOut: quote.amountOut.toString(),
+                quotes: quotesArray.map((quote) => ({
+                  slippage: quote.slippage,
+                  amountIn: quote.amountIn.toString(),
+                  amountOut: quote.amountOut.toString(),
+                })),
               },
             }),
           )
-        })
 
-        return validQuotes.length > 0 ? validQuotes : undefined
+          return undefined
+        }
+
+        return quotesArray.length > 0 ? quotesArray : undefined
       } catch (error) {
         this.logger.error(
           EcoLogMessage.withError({
