@@ -30,3 +30,24 @@ export function getTotalSlippage(slippages: number[]): number {
 
   return 1 - totalRetained
 }
+
+/**
+ * Calculates the slippage between the fromAmount and the toAmountMin.
+ * @param toAmountMin - The minimum amount of tokens received.
+ * @param fromAmount - The amount of tokens sent.
+ * @returns The slippage as a percentage.
+ */
+export function getSlippage(toAmountMin: string, fromAmount: string): number {
+  const toAmountMinBigInt = BigInt(toAmountMin)
+  const fromAmountBigInt = BigInt(fromAmount)
+
+  if (fromAmountBigInt === 0n) {
+    return 0
+  }
+  // To avoid floating point inaccuracies with large numbers, we perform the division using BigInts.
+  // We multiply by 10000 to preserve 4 decimal places of precision for the percentage.
+  const slippage =
+    Number(((fromAmountBigInt - toAmountMinBigInt) * 10000n) / fromAmountBigInt) / 10000
+
+  return slippage
+}

@@ -14,6 +14,7 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
     CCTPLiFiProviderService,
     RelayProviderService,
     StargateProviderService,
+    SquidProviderService,
   ],
   exports: [LiquidityManagerService],
 })
