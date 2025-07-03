@@ -302,6 +302,9 @@ export type Solver = {
   fee: FeeConfigType
   chainID: number
 
+  // The maximum amount of gas tokens, in WEI, that we want to hold in the solver's wallet for the chain
+  nativeMax: bigint
+
   // The average block time for the chain in seconds
   averageBlockTime: number
 }
@@ -337,6 +340,7 @@ export interface TargetContract {
   selectors: string[]
   minBalance: number
   targetBalance: number
+  maxBalance: number
 }
 
 /**
