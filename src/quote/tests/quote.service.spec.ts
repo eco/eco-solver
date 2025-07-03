@@ -27,6 +27,8 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { Chain, PublicClient, Transport } from 'viem'
+import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { EcoError } from '@/common/errors/eco-error'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -59,6 +61,7 @@ describe('QuotesService', () => {
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
   const quoteTestUtils = new QuoteTestUtils()
+  const mockLogWarn = jest.fn()
 
   beforeEach(async () => {
     const quotesConfig = { intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'] }
@@ -105,6 +108,7 @@ describe('QuotesService', () => {
     quoteRepository['logger'].log = mockLogLog
     quoteRepository['logger'].error = mockLogError
     quoteRepository['quotesConfig'] = quotesConfig as QuotesConfig
+    quoteService['logger'].warn = mockLogWarn
   })
 
   afterEach(async () => {
@@ -113,6 +117,7 @@ describe('QuotesService', () => {
     mockLogDebug.mockClear()
     mockLogLog.mockClear()
     mockLogError.mockClear()
+    mockLogWarn.mockClear()
   })
 
   describe('on getQuote', () => {
@@ -351,6 +356,9 @@ describe('QuotesService', () => {
           .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
           .mockReturnValue(expectedFulfillTimeSec || 15)
 
+        // Mock the getGasOverhead method
+        jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
+
         const { response: quoteDataEntry } = await quoteService.generateQuote({
           route: { tokens: [], calls: [] },
           reward: {},
@@ -362,6 +370,7 @@ describe('QuotesService', () => {
           rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),
           estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
+          gasOverhead: 145_000,
         })
       }
 
@@ -707,6 +716,186 @@ describe('QuotesService', () => {
     it('should return the correct expiry time', async () => {
       const expiryTime = quoteService.getQuoteExpiryTime()
       expect(Number(expiryTime)).toBeGreaterThan(0)
+    })
+  })
+
+  describe('on getGasOverhead', () => {
+    const mockQuoteIntentModel = {
+      route: {
+        source: 1n,
+      },
+    } as any
+
+    beforeEach(() => {
+      // Mock the getIntentConfigs method to return the default gasOverhead
+      ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue({
+        defaultGasOverhead: 145_000,
+      })
+    })
+
+    it('should return the gas overhead from solver when available', () => {
+      const mockSolver = {
+        gasOverhead: 25000,
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(25000)
+      expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
+      expect(mockLogDebug).not.toHaveBeenCalled()
+      expect(mockLogError).not.toHaveBeenCalled()
+    })
+
+    it('should return default gasOverhead when solver is undefined', () => {
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(undefined)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(145_000)
+      expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
+      expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
+      expect(mockLogWarn).not.toHaveBeenCalled()
+    })
+
+    it('should return default gasOverhead when solver.gasOverhead is null', () => {
+      const mockSolver = {
+        gasOverhead: null,
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(145_000)
+      expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
+      expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
+      expect(mockLogWarn).not.toHaveBeenCalled()
+    })
+
+    it('should return default gasOverhead when solver.gasOverhead is undefined', () => {
+      const mockSolver = {
+        // gasOverhead is undefined
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(145_000)
+      expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
+      expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
+      expect(mockLogWarn).not.toHaveBeenCalled()
+    })
+
+    it('should return default gasOverhead and log warning when solver.gasOverhead is negative', () => {
+      const mockSolver = {
+        gasOverhead: -5000,
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(145_000)
+      expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
+      expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
+      expect(mockLogWarn).toHaveBeenCalledWith({
+        msg: 'Invalid negative gasOverhead: -5000, using default gas overhead',
+        error: 'Error: Gas overhead is negative: -5000',
+      })
+    })
+
+    it('should return 0 when solver.gasOverhead is 0', () => {
+      const mockSolver = {
+        gasOverhead: 0,
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(0)
+      expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
+      expect(mockLogWarn).not.toHaveBeenCalled()
+    })
+
+    it('should throw error when intentConfigs.defaultGasOverhead is undefined', () => {
+      const mockSolver = {
+        gasOverhead: null,
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+      ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue({
+        // gasOverhead is undefined
+      })
+
+      expect(() => quoteService.getGasOverhead(mockQuoteIntentModel)).toThrow(
+        'Default gas overhead is undefined',
+      )
+      expect(mockLogError).toHaveBeenCalledWith({
+        msg: 'intentConfigs.defaultGasOverhead is undefined',
+        error: 'Error: Default gas overhead is undefined',
+      })
+    })
+
+    it('should throw error when intentConfigs.defaultGasOverhead is null', () => {
+      const mockSolver = {
+        gasOverhead: null,
+      }
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(mockSolver)
+      ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue({
+        defaultGasOverhead: null,
+      })
+
+      expect(() => quoteService.getGasOverhead(mockQuoteIntentModel)).toThrow(
+        'Default gas overhead is undefined',
+      )
+      expect(mockLogError).toHaveBeenCalledWith({
+        msg: 'intentConfigs.defaultGasOverhead is undefined',
+        error: 'Error: Default gas overhead is undefined',
+      })
+    })
+
+    it('should work with different default gasOverhead values', () => {
+      const customGasOverhead = 50_000
+      ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue({
+        defaultGasOverhead: customGasOverhead,
+      })
+      ecoConfigService.getSolver = jest.fn().mockReturnValue(undefined)
+
+      const result = quoteService.getGasOverhead(mockQuoteIntentModel)
+
+      expect(result).toBe(customGasOverhead)
+      expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
+    })
+  })
+
+  describe('on updateQuoteDb', () => {
+    const _id = 'id9'
+    const mockQuoteIntentModelBase = { _id } as unknown as QuoteIntentModel // Base model for updates
+
+    it('should return error if repository fails', async () => {
+      const failedStore = new Error('db error')
+      jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ error: failedStore })
+      const result = await quoteService.updateQuoteDb(mockQuoteIntentModelBase, {
+        error: new Error('test error'),
+      })
+      expect(result.error).toEqual(failedStore)
+    })
+
+    it('should call repository with correct parameters and return its response', async () => {
+      const quoteIntentModel = quoteTestUtils.createQuoteIntentModel()
+      const quoteDataEntry = quoteTestUtils.createQuoteDataEntryDTO()
+      const updateParams: UpdateQuoteParams = { quoteDataEntry }
+
+      const updatedDoc = {
+        ...quoteIntentModel,
+        receipt: { quoteDataEntry },
+      } as QuoteIntentModel
+      jest.spyOn(quoteRepository, 'updateQuoteDb').mockResolvedValue({ response: updatedDoc })
+
+      const { response, error } = await quoteService.updateQuoteDb(quoteIntentModel, updateParams)
+
+      expect(error).toBeUndefined()
+      expect(response).toEqual(updatedDoc)
+      expect(quoteRepository.updateQuoteDb).toHaveBeenCalledTimes(1)
+      expect(quoteRepository.updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, updateParams)
     })
   })
 })

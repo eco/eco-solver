@@ -141,7 +141,7 @@ describe('FulfillmentEstimateService', () => {
         defaultBlockTime: 15,
       } as any)
       expect(() => service.onModuleInit()).toThrow(
-        'executionPaddingSeconds not found in intentConfigs',
+        'executionPaddingSeconds not found in fulfillmentEstimateConfig',
       )
       expect(loggerErrorSpy).toHaveBeenCalled()
     })
@@ -151,7 +151,9 @@ describe('FulfillmentEstimateService', () => {
         executionPaddingSeconds: 3,
         defaultBlockTime: 15,
       } as any)
-      expect(() => service.onModuleInit()).toThrow('blockTimePercentile not found in intentConfigs')
+      expect(() => service.onModuleInit()).toThrow(
+        'blockTimePercentile not found in fulfillmentEstimateConfig',
+      )
       expect(loggerErrorSpy).toHaveBeenCalled()
     })
 
@@ -160,7 +162,9 @@ describe('FulfillmentEstimateService', () => {
         executionPaddingSeconds: 3,
         blockTimePercentile: 0.5,
       } as any)
-      expect(() => service.onModuleInit()).toThrow('defaultBlockTime not found in intentConfigs')
+      expect(() => service.onModuleInit()).toThrow(
+        'defaultBlockTime not found in fulfillmentEstimateConfig',
+      )
       expect(loggerErrorSpy).toHaveBeenCalled()
     })
 

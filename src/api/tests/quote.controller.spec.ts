@@ -65,6 +65,7 @@ describe('QuoteController Test', () => {
           rewardNative: 10n,
           expiryTime: '0',
           estimatedFulfillTimeSec: 9,
+          gasOverhead: 145_000,
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
@@ -79,6 +80,7 @@ describe('QuoteController Test', () => {
           rewardNative: 11n,
           expiryTime: '10',
           estimatedFulfillTimeSec: 9,
+          gasOverhead: 145_000,
         },
       ],
     }
@@ -135,6 +137,7 @@ describe('QuoteController Test', () => {
           rewardNative: 11n,
           expiryTime: '0',
           estimatedFulfillTimeSec: 9,
+          gasOverhead: 145_000,
         },
         {
           intentExecutionType: IntentExecutionType.GASLESS.toString(),
@@ -149,6 +152,7 @@ describe('QuoteController Test', () => {
           rewardNative: 12n,
           expiryTime: '10',
           estimatedFulfillTimeSec: 9,
+          gasOverhead: 145_000,
         },
       ],
     }

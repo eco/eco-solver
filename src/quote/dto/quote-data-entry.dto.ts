@@ -56,4 +56,9 @@ export class QuoteDataEntryDTO {
   @IsNumber()
   @ApiProperty()
   estimatedFulfillTimeSec: number
+
+  @IsNotEmpty()
+  @IsNumber()
+  @ApiProperty()
+  gasOverhead: number
 }

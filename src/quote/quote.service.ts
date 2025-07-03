@@ -35,6 +35,7 @@ import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
+import { EcoError } from '@/common/errors/eco-error'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -532,6 +533,8 @@ export class QuoteService implements OnModuleInit {
     const estimatedFulfillTimeSec =
       this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
 
+    const gasOverhead = this.getGasOverhead(quoteIntentModel)
+
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
@@ -540,6 +543,7 @@ export class QuoteService implements OnModuleInit {
         rewardNative: totalAsk.native,
         expiryTime: this.getQuoteExpiryTime(),
         estimatedFulfillTimeSec,
+        gasOverhead,
       } as QuoteDataEntryDTO,
     }
   }
@@ -657,6 +661,48 @@ export class QuoteService implements OnModuleInit {
   getQuoteExpiryTime(): string {
     //todo implement expiry time logic
     return dayjs().add(5, 'minutes').unix().toString()
+  }
+
+  /**
+   * @returns the gas overhead of the quote
+   */
+  getGasOverhead(quoteIntentModel: QuoteIntentDataInterface): number {
+    const defaultGasOverhead = this.getDefaultGasOverhead()
+    const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.source)
+
+    if (solver?.gasOverhead == null) {
+      return defaultGasOverhead
+    }
+
+    if (solver.gasOverhead < 0) {
+      this.logger.warn(
+        EcoLogMessage.withError({
+          message: `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
+          error: EcoError.NegativeGasOverhead(solver.gasOverhead),
+        }),
+      )
+      return defaultGasOverhead
+    }
+
+    return solver.gasOverhead
+  }
+
+  /**
+   * @returns the default gas overhead
+   */
+  private getDefaultGasOverhead(): number {
+    const intentConfigs = this.ecoConfigService.getIntentConfigs()
+    if (intentConfigs.defaultGasOverhead == null) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: 'intentConfigs.defaultGasOverhead is undefined',
+          error: EcoError.DefaultGasOverheadUndefined(),
+        }),
+      )
+      throw EcoError.DefaultGasOverheadUndefined()
+    }
+
+    return intentConfigs.defaultGasOverhead
   }
 
   /**
