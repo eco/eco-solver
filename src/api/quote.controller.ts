@@ -1,4 +1,5 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
+import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
@@ -85,7 +86,9 @@ export class QuoteController {
     // Also throw a generic InternalServerErrorException if error has no statusCode
     throw getEcoServiceException({
       httpExceptionClass: InternalServerErrorException,
-      error: { message: error.message || JSON.stringify(error) },
+      error: {
+        message: error.message || JSON.stringify(BigIntToStringInterceptor.transformBigInt(error)),
+      },
     })
   }
 }
