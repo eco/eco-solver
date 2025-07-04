@@ -62,6 +62,15 @@ export default {
         data: {},
       },
     },
+    balanceRpcUpdate: {
+      repeatOpts: {
+        every: 3 * 60 * 1000, // 3 minutes
+      },
+      jobTemplate: {
+        name: 'balance-rpc-update',
+        data: {},
+      },
+    },
     defaults: {
       repeatOpts: {
         every: 300_000, // 5 minutes
