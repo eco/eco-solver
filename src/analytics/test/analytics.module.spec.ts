@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing'
 import { AnalyticsModule, ANALYTICS_SERVICE } from '@/analytics/analytics.module'
 import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
 import { PosthogService } from '@/analytics/posthog.service'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { createMock } from '@golevelup/ts-jest'
 
 describe('AnalyticsModule', () => {
   const mockConfig: AnalyticsConfig = {
@@ -15,11 +17,17 @@ describe('AnalyticsModule', () => {
     it('should create module with PostHog service', async () => {
       const module = await Test.createTestingModule({
         imports: [AnalyticsModule.withPostHog(mockConfig)],
-      }).compile()
+      })
+        .overrideProvider(EcoAnalyticsService)
+        .useValue(createMock<EcoAnalyticsService>())
+        .compile()
 
       const service = module.get<AnalyticsService>(ANALYTICS_SERVICE)
       expect(service).toBeDefined()
       expect(service).toBeInstanceOf(PosthogService)
+
+      const ecoAnalyticsService = module.get<EcoAnalyticsService>(EcoAnalyticsService)
+      expect(ecoAnalyticsService).toBeDefined()
     })
 
     it('should be global module', () => {
@@ -30,6 +38,7 @@ describe('AnalyticsModule', () => {
     it('should export analytics service', () => {
       const dynamicModule = AnalyticsModule.withPostHog(mockConfig)
       expect(dynamicModule.exports).toContain(ANALYTICS_SERVICE)
+      expect(dynamicModule.exports).toContain(EcoAnalyticsService)
     })
   })
 
@@ -39,7 +48,10 @@ describe('AnalyticsModule', () => {
 
       const module = await Test.createTestingModule({
         imports: [AnalyticsModule.withConfig(configFactory)],
-      }).compile()
+      })
+        .overrideProvider(EcoAnalyticsService)
+        .useValue(createMock<EcoAnalyticsService>())
+        .compile()
 
       const service = module.get<AnalyticsService>(ANALYTICS_SERVICE)
       expect(service).toBeDefined()
@@ -54,7 +66,10 @@ describe('AnalyticsModule', () => {
 
       const module = await Test.createTestingModule({
         imports: [AnalyticsModule.withConfig(asyncConfigFactory)],
-      }).compile()
+      })
+        .overrideProvider(EcoAnalyticsService)
+        .useValue(createMock<EcoAnalyticsService>())
+        .compile()
 
       const service = module.get<AnalyticsService>(ANALYTICS_SERVICE)
       expect(service).toBeDefined()
@@ -77,7 +92,10 @@ describe('AnalyticsModule', () => {
             },
           }),
         ],
-      }).compile()
+      })
+        .overrideProvider(EcoAnalyticsService)
+        .useValue(createMock<EcoAnalyticsService>())
+        .compile()
 
       const service = module.get<AnalyticsService>(ANALYTICS_SERVICE)
       expect(service).toBeDefined()
@@ -94,7 +112,10 @@ describe('AnalyticsModule', () => {
             }),
           }),
         ],
-      }).compile()
+      })
+        .overrideProvider(EcoAnalyticsService)
+        .useValue(createMock<EcoAnalyticsService>())
+        .compile()
 
       const service = module.get<AnalyticsService>(ANALYTICS_SERVICE)
       expect(service).toBeDefined()
@@ -108,7 +129,10 @@ describe('AnalyticsModule', () => {
             useFactory: () => mockConfig,
           }),
         ],
-      }).compile()
+      })
+        .overrideProvider(EcoAnalyticsService)
+        .useValue(createMock<EcoAnalyticsService>())
+        .compile()
 
       const service = module.get<AnalyticsService>(ANALYTICS_SERVICE)
       expect(service).toBeDefined()
@@ -129,10 +153,10 @@ describe('AnalyticsModule', () => {
       expect(factoryModule.global).toBe(true)
       expect(asyncModule.global).toBe(true)
 
-      // All should export the same service
-      expect(directModule.exports).toEqual([ANALYTICS_SERVICE])
-      expect(factoryModule.exports).toEqual([ANALYTICS_SERVICE])
-      expect(asyncModule.exports).toEqual([ANALYTICS_SERVICE])
+      // All should export the same services
+      expect(directModule.exports).toEqual([ANALYTICS_SERVICE, EcoAnalyticsService])
+      expect(factoryModule.exports).toEqual([ANALYTICS_SERVICE, EcoAnalyticsService])
+      expect(asyncModule.exports).toEqual([ANALYTICS_SERVICE, EcoAnalyticsService])
 
       // All should use the same module class
       expect(directModule.module).toBe(AnalyticsModule)

@@ -5,6 +5,8 @@ import { MultichainPublicClientService } from '../../transaction/multichain-publ
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoAnalyticsService } from '@/analytics'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 /**
  * This service subscribes has hooks for subscribing and unsubscribing to a contract event.
@@ -16,6 +18,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   protected logger: Logger
   protected intentJobConfig: JobsOptions
   protected unwatch: Record<string, WatchContractEventReturnType> = {}
+  protected ecoAnalytics?: EcoAnalyticsService
 
   constructor(
     protected readonly queue: Queue,
@@ -73,6 +76,14 @@ export abstract class WatchEventService<T extends { chainID: number }>
             },
           }),
         )
+
+        // Track unsubscribe error with analytics
+        if (this.ecoAnalytics) {
+          this.ecoAnalytics.trackError(ANALYTICS_EVENTS.WATCH.UNSUBSCRIBE_ERROR, e, {
+            operation: 'unsubscribe_all',
+            service: this.constructor.name,
+          })
+        }
       }
     })
   }
@@ -86,10 +97,39 @@ export abstract class WatchEventService<T extends { chainID: number }>
         },
       }),
     )
+
+    // Track error occurrence if analytics service is available
+    if (this.ecoAnalytics) {
+      this.ecoAnalytics.trackWatchErrorOccurred(error, this.constructor.name, contract)
+    }
+
     //reset the filters as they might have expired or we might have been moved to a new node
     //https://support.quicknode.com/hc/en-us/articles/10838914856977-Error-code-32000-message-filter-not-found
-    await this.unsubscribeFrom(contract.chainID)
-    await this.subscribeTo(client, contract)
+
+    // Track error recovery start
+    if (this.ecoAnalytics) {
+      this.ecoAnalytics.trackWatchErrorRecoveryStarted(this.constructor.name, contract)
+    }
+
+    try {
+      await this.unsubscribeFrom(contract.chainID)
+      await this.subscribeTo(client, contract)
+
+      // Track successful recovery
+      if (this.ecoAnalytics) {
+        this.ecoAnalytics.trackWatchErrorRecoverySuccess(this.constructor.name, contract)
+      }
+    } catch (recoveryError) {
+      // Track recovery failure
+      if (this.ecoAnalytics) {
+        this.ecoAnalytics.trackWatchErrorRecoveryFailed(
+          recoveryError,
+          this.constructor.name,
+          contract,
+        )
+      }
+      throw recoveryError
+    }
   }
 
   /**
@@ -119,6 +159,15 @@ export abstract class WatchEventService<T extends { chainID: number }>
             },
           }),
         )
+
+        // Track unsubscribe error with analytics
+        if (this.ecoAnalytics) {
+          this.ecoAnalytics.trackError(ANALYTICS_EVENTS.WATCH.UNSUBSCRIBE_FROM_ERROR, e, {
+            operation: 'unsubscribe_from_chain',
+            service: this.constructor.name,
+            chainID,
+          })
+        }
       }
     } else {
       this.logger.error(

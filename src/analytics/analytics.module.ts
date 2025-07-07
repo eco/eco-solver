@@ -1,6 +1,7 @@
 import { DynamicModule, FactoryProvider, Global, Module, Provider } from '@nestjs/common'
 import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
 import { PosthogService } from '@/analytics/posthog.service'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 /**
  * Injection token for the Analytics Service
@@ -54,11 +55,13 @@ export class AnalyticsModule {
    * })
    */
   static withPostHog(config: AnalyticsConfig): DynamicModule {
+    const analyticsServiceProvider = AnalyticsModule.createPostHogProvider(config)
+    const ecoAnalyticsServiceProvider = AnalyticsModule.createEcoAnalyticsProvider()
     return {
       global: true,
       module: AnalyticsModule,
-      providers: [AnalyticsModule.createPostHogProvider(config)],
-      exports: [ANALYTICS_SERVICE],
+      providers: [analyticsServiceProvider, ecoAnalyticsServiceProvider],
+      exports: [ANALYTICS_SERVICE, EcoAnalyticsService],
     }
   }
 
@@ -78,11 +81,13 @@ export class AnalyticsModule {
   static withConfig(
     configFactory: (() => AnalyticsConfig) | (() => Promise<AnalyticsConfig>),
   ): DynamicModule {
+    const analyticsServiceProvider = AnalyticsModule.createConfigFactoryProvider(configFactory)
+    const ecoAnalyticsServiceProvider = AnalyticsModule.createEcoAnalyticsProvider()
     return {
       global: true,
       module: AnalyticsModule,
-      providers: [AnalyticsModule.createConfigFactoryProvider(configFactory)],
-      exports: [ANALYTICS_SERVICE],
+      providers: [analyticsServiceProvider, ecoAnalyticsServiceProvider],
+      exports: [ANALYTICS_SERVICE, EcoAnalyticsService],
     }
   }
 
@@ -107,11 +112,13 @@ export class AnalyticsModule {
     useFactory: (...args: any[]) => AnalyticsConfig | Promise<AnalyticsConfig>
     inject?: any[]
   }): DynamicModule {
+    const analyticsServiceProvider = AnalyticsModule.createAsyncConfigProvider(options)
+    const ecoAnalyticsServiceProvider = AnalyticsModule.createEcoAnalyticsProvider()
     return {
       global: true,
       module: AnalyticsModule,
-      providers: [AnalyticsModule.createAsyncConfigProvider(options)],
-      exports: [ANALYTICS_SERVICE],
+      providers: [analyticsServiceProvider, ecoAnalyticsServiceProvider],
+      exports: [ANALYTICS_SERVICE, EcoAnalyticsService],
     }
   }
 
@@ -166,5 +173,20 @@ export class AnalyticsModule {
       inject: options.inject || [],
     }
     return provider
+  }
+
+  /**
+   * Creates a provider for EcoAnalyticsService with proper dependency injection
+   *
+   * @returns Provider that creates EcoAnalyticsService instance with ANALYTICS_SERVICE injected
+   */
+  private static createEcoAnalyticsProvider(): Provider {
+    return {
+      provide: EcoAnalyticsService,
+      useFactory: (analyticsService: AnalyticsService) => {
+        return new EcoAnalyticsService(analyticsService)
+      },
+      inject: [ANALYTICS_SERVICE],
+    }
   }
 }

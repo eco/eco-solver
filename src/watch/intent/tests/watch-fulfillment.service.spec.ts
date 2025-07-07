@@ -2,6 +2,7 @@ import { QUEUES } from '@/common/redis/constants'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { WatchFulfillmentService } from '@/watch/intent/watch-fulfillment.service'
+import { EcoAnalyticsService } from '@/analytics'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { Test, TestingModule } from '@nestjs/testing'
@@ -34,6 +35,7 @@ describe('WatchFulfillmentService', () => {
           useValue: createMock<MultichainPublicClientService>(),
         },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
       imports: [
         BullModule.registerQueue({

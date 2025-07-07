@@ -63,3 +63,9 @@ export { getCurrentEnvironment } from '@/analytics/utils'
 
 // Error handling exports
 export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
+
+// Centralized analytics service export
+export { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+
+// Event constants export
+export { ANALYTICS_EVENTS } from '@/analytics/events.constants'

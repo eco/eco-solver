@@ -62,11 +62,12 @@ export class PosthogService implements AnalyticsService, OnModuleDestroy {
 
     // Default PostHog configuration optimized for backend services
     const defaultConfig = {
-      host: 'https://us.posthog.com', // PostHog US endpoint
+      host: 'https://us.i.posthog.com', // PostHog US endpoint
       flushAt: 20, // Batch size before sending events (balance between performance and latency)
       flushInterval: 10000, // Flush interval in milliseconds (10 seconds - ensures timely delivery)
       requestTimeout: 10000, // Request timeout in milliseconds (10 seconds - reasonable for server-to-server)
       maxCacheSize: 10000, // Maximum number of events to cache (prevents memory issues)
+      person_profiles: false, // Disable person profiles for backend analytics (not useful in server context)
       disableGeoip: false, // Disable GeoIP for location tracking (not useful for backend analytics)
       featureFlagsPollingInterval: 30000, // Feature flags polling interval (30 seconds - good balance for backend)
       onError: (error: Error) => {

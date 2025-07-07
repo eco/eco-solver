@@ -71,10 +71,10 @@ describe('PosthogService', () => {
 
     it('should use default configuration when not provided', () => {
       new PosthogService({ apiKey: 'test-key' })
-      expect(MockedPostHog).toHaveBeenCalledWith(
+      expect(MockedPostHog).toHaveBeenLastCalledWith(
         'test-key',
         expect.objectContaining({
-          host: 'https://us.posthog.com',
+          host: 'https://us.i.posthog.com',
           flushAt: 20,
           flushInterval: 10000,
         }),
