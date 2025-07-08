@@ -5,10 +5,6 @@ import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedLog } from '@/contracts'
 import { Model } from 'mongoose'
-import { CreateModelParams } from '@/common/db/utils'
-
-// Type for creating intent funded event records based on schema
-export type CreateIntentFundedEventParams = CreateModelParams<IntentFundedEventModel>
 
 /**
  * IntentFundedEventRepository is responsible for interacting with the database to store and fetch

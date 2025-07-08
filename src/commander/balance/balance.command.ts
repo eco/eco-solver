@@ -1,7 +1,7 @@
 import { getAddress } from 'viem'
 import { Command, Option } from 'nest-commander'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/balance.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { jsonBigInt } from '@/commander/utils'
 import { ClientCommand } from '@/commander/transfer/client.command'
@@ -12,18 +12,18 @@ import { ClientCommand } from '@/commander/transfer/client.command'
 })
 export class BalanceCommand extends ClientCommand {
   constructor(
-    protected readonly rpcBalanceService: RpcBalanceService,
+    protected readonly balanceService: BalanceService,
     protected readonly kernelAccountClientService: KernelAccountClientService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {
-    super(rpcBalanceService, kernelAccountClientService, ecoConfigService)
+    super(balanceService, kernelAccountClientService, ecoConfigService)
   }
 
   async run(passedParams: string[], options?: Record<string, any>): Promise<void> {
     console.log(`Wallet address: ${await this.getWalletAddress()}`)
     if (Object.values(options || {}).length === 0) {
       console.log('No options provided, fetching all token data')
-      const data = await this.rpcBalanceService.getAllTokenData(true)
+      const data = await this.balanceService.getAllTokenData()
       console.log(`Token data:`)
       console.log(jsonBigInt(data))
       return
@@ -31,11 +31,7 @@ export class BalanceCommand extends ClientCommand {
 
     if (options?.chainID && options?.token) {
       console.log(`Fetching balance on ${options.chainID} for ${options.token}`)
-      const data = await this.rpcBalanceService.fetchTokenBalances(
-        options.chainID,
-        [options.token],
-        true,
-      )
+      const data = await this.balanceService.fetchTokenBalances(options.chainID, [options.token])
 
       console.log(`Token data on chain : ${options.chainID}:`)
       console.log(jsonBigInt(data))
@@ -44,7 +40,7 @@ export class BalanceCommand extends ClientCommand {
 
     if (options?.chainID) {
       console.log(`Fetching all balances on ${options.chainID}`)
-      const data = await this.rpcBalanceService.fetchTokenBalancesForChain(options.chainID, true)
+      const data = await this.balanceService.fetchTokenBalancesForChain(options.chainID)
       console.log(`Tokens data on chain : ${options.chainID}:`)
       console.log(jsonBigInt(data))
     }

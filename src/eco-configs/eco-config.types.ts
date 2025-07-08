@@ -118,7 +118,6 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
-    watchJobConfig: JobsOptions
   }
 }
 
@@ -131,13 +130,6 @@ export type IntervalConfig = {
     jobTemplate: {
       name?: string
       opts: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
-    }
-  }
-  balanceRpcUpdate: {
-    repeatOpts: Omit<RepeatOptions, 'key'>
-    jobTemplate: {
-      name?: string
-      data?: object
     }
   }
   defaults: {
@@ -310,9 +302,6 @@ export type Solver = {
   fee: FeeConfigType
   chainID: number
 
-  // The maximum amount of gas tokens that we want to hold in the solver's wallet for the chain
-  nativeMax: bigint
-
   // The average block time for the chain in seconds
   averageBlockTime: number
 }
@@ -348,7 +337,6 @@ export interface TargetContract {
   selectors: string[]
   minBalance: number
   targetBalance: number
-  maxBalance: number
 }
 
 /**

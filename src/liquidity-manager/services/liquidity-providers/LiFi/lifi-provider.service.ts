@@ -21,8 +21,8 @@ import {
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
-import { TokenConfig } from '@/balance/types/balance.types'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenConfig } from '@/balance/types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -32,7 +32,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly balanceService: RpcBalanceService,
+    private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
   ) {
     // Initialize the asset cache manager

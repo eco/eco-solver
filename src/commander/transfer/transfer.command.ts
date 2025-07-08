@@ -1,7 +1,7 @@
 import { encodeFunctionData, getAddress, Hex, erc20Abi, parseEther } from 'viem'
 import { Command, CommandRunner, Option } from 'nest-commander'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 @Command({
   name: 'transfer',
@@ -12,7 +12,7 @@ import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 export class TransferCommand extends CommandRunner {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly rpcBalanceService: RpcBalanceService,
+    private readonly balanceService: BalanceService,
   ) {
     super()
   }
@@ -113,7 +113,7 @@ export class TransferCommand extends CommandRunner {
    * @returns
    */
   async transferTokens(chainID: number, recipient: Hex) {
-    const tokens = await this.rpcBalanceService.fetchTokenBalancesForChain(chainID, true)
+    const tokens = await this.balanceService.fetchTokenBalancesForChain(chainID)
     if (!tokens) {
       console.log('No tokens found')
       return

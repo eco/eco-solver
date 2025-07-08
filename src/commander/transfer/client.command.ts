@@ -1,11 +1,11 @@
 import { CommandRunner } from 'nest-commander'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/balance.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 export abstract class ClientCommand extends CommandRunner {
   constructor(
-    protected readonly rpcBalanceService: RpcBalanceService,
+    protected readonly balanceService: BalanceService,
     protected readonly kernelAccountClientService: KernelAccountClientService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {

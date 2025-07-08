@@ -26,11 +26,10 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
-import { TokenConfig } from '@/balance/types/balance.types'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -40,8 +39,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly publicClient: MultichainPublicClientService,
-    private readonly rpcBalanceService: RpcBalanceService,
-    private readonly utilsIntentService: UtilsIntentService,
+    private readonly balanceService: BalanceService,
   ) {}
 
   onModuleInit() {
@@ -55,38 +53,19 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve the intent.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    // Unused variable
+    solver
+
     if (!this.isRewardEnough(model)) {
       throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
     }
 
-    if (!(await this.isPoolSolvent(model))) {
+    if (!this.isPoolSolvent(model)) {
       throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
     }
 
-    // Set status to CL_PROCESSING before attempting fulfillment
-    model.status = 'CL_PROCESSING'
-    await this.utilsIntentService.updateIntentModel(model)
-
-    try {
-      const transactionHash = await this._fulfill(model.intent)
-
-      // Set status to SOLVED and store transaction hash as receipt
-      model.status = 'CL_SOLVED'
-      model.fulfilledBySelf = false // Mark as fulfilled by external crowd liquidity
-      model.receipt = { transactionHash } as any
-      await this.utilsIntentService.updateIntentModel(model)
-
-      return transactionHash
-    } catch (error) {
-      // Set status to FAILED and store error as receipt
-      model.status = 'CL_FAILED'
-      model.receipt = { error: error.message || error } as any
-      await this.utilsIntentService.updateIntentModel(model)
-
-      throw error
-    }
+    return this._fulfill(model.intent)
   }
 
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
@@ -155,7 +134,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {TokenConfig[]} Array of supported tokens, each including token details and the corresponding target balance.
    */
   getSupportedTokens(): TokenConfig[] {
-    return this.ecoConfigService
+    return this.balanceService
       .getInboxTokens()
       .filter((token) => this.isSupportedToken(token.chainId, token.address))
       .map((token) => ({
@@ -179,8 +158,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
           isAddressEqual(token.address, rewardToken.token),
       )
     })
-    // use rpc calls for the crowd liquidity pool address
-    const routeTokensData: TokenData[] = await this.rpcBalanceService.getAllTokenDataForAddress(
+
+    const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
       this.getPoolAddress(),
       routeTokens,
     )
