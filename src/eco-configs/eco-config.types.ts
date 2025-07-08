@@ -402,8 +402,13 @@ export interface LiquidityManagerConfig {
   walletStrategies: {
     [walletName: string]: Strategy[]
   }
-  // Percentage loss that fulfillers accept when rebalancing (e.g., 0.05 for 5%)
-  rebalancingPercentage: number
+
+  negativeIntents: {
+    // Percentage loss that fulfillers accept when rebalancing (e.g., 0.05 for 5%)
+    rebalancingPercentage: number
+    // Deadline duration of created negative intents
+    deadlineDuration: number
+  }
 }
 
 export interface LiFiConfigType {

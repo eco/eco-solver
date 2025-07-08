@@ -104,6 +104,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     },
     maxQuoteSlippage: 0.005,
     swapSlippage: 0.01,
+    negativeIntents: {
+      deadlineDuration: 5_400,
+      rebalancingPercentage: 0.05,
+    },
   }
 
   // Mock token configurations
