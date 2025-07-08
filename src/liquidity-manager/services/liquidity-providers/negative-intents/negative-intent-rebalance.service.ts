@@ -304,7 +304,11 @@ export class NegativeIntentRebalanceService implements IRebalanceProvider<'Negat
         publicClient.getTransactionCount({ address: crowdLiquidityConfig.pkp.ethAddress as Hex }),
       ])
 
-      const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
+      // Transaction gas limit is expected to be around 500_000.
+      // This implementation will change soon, and we won't require specifying the gas limit
+      const GAS_LIMIT = 1_000_000
+
+      const transactionBase = { ...feeData, nonce, gasLimit: GAS_LIMIT }
 
       // Execute the negative intent rebalance Lit action
       const fulfillTxHash = await this.litActionService.executeNegativeIntentRebalanceAction(
