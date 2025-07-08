@@ -319,7 +319,7 @@ export class ValidationService implements OnModuleInit {
       for (const routeToken of intent.route.tokens) {
         const balance = tokenBalances[routeToken.token]
         const target = solverTargets[routeToken.token]
-        if (!balance || !target) {
+        if (balance === undefined || balance === null || !target) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Missing token data`,
