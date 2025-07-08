@@ -11,7 +11,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
-import { BASE_DECIMALS } from '../../intent/utils'
+import { BASE_DECIMALS } from '@/fee/utils'
 import { normalizeBalance } from '../utils'
 
 function getFeeConfig(): FeeConfigType {
