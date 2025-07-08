@@ -1,3 +1,4 @@
+import { BalanceService } from '@/balance/services/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -14,13 +15,13 @@ import {
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '../balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -42,6 +43,7 @@ export type ValidationChecks = {
   supportedNative: boolean
   supportedTargets: boolean
   supportedTransaction: boolean
+  validSourceMax: boolean
   validTransferLimit: boolean
   validExpirationTime: boolean
   validDestination: boolean
@@ -86,6 +88,7 @@ export class ValidationService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   onModuleInit() {
@@ -115,6 +118,7 @@ export class ValidationService implements OnModuleInit {
     const supportedTargets = this.supportedTargets(intent, solver)
     const supportedTransaction = this.supportedTransaction(intent, solver, txValidationFn)
     const validTransferLimit = await this.validTransferLimit(intent)
+    const validSourceMax = await this.validSourceMax(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
@@ -125,6 +129,7 @@ export class ValidationService implements OnModuleInit {
       supportedProver,
       supportedTargets,
       supportedTransaction,
+      validSourceMax,
       validTransferLimit,
       validExpirationTime,
       validDestination,
@@ -288,6 +293,164 @@ export class ValidationService implements OnModuleInit {
     return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
   }
 
+  async validSourceMax(intent: ValidationIntentInterface): Promise<boolean> {
+    try {
+      // Get solver for the source chain
+      const solver = this.ecoConfigService.getSolver(intent.route.source)
+      if (!solver) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `validSourceMax: No solver found for source chain ${intent.route.source}`,
+            properties: {
+              sourceChain: intent.route.source,
+              intentHash: intent.hash,
+            },
+          }),
+        )
+        return false
+      }
+
+      // Check each reward token against maxBalance
+      const tokensWithinBound = await this.validSourceTokenMax(intent, solver)
+      const nativeWithinBound = await this.validSourceNativeMax(intent, solver)
+      return tokensWithinBound && nativeWithinBound
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `validSourceMax: Error validating max balance`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            source: intent.route.source,
+          },
+        }),
+      )
+      return false
+    }
+  }
+
+  async validSourceTokenMax(intent: ValidationIntentInterface, solver: Solver): Promise<boolean> {
+    for (const rewardToken of intent.reward.tokens) {
+      const targetConfig = solver.targets[rewardToken.token as string]
+      if (!targetConfig || !targetConfig.maxBalance) {
+        // If no maxBalance is configured, skip this validation
+        continue
+      }
+
+      // Get current balance for this reward token
+      const balanceResult = await this.balanceService.getTokenBalance(
+        Number(intent.route.source),
+        rewardToken.token as Hex,
+      )
+
+      if (!balanceResult) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `validSourceTokenMax: Could not get balance for token`,
+            properties: {
+              rewardToken: rewardToken.token,
+              sourceChain: intent.route.source,
+              intentHash: intent.hash,
+            },
+          }),
+        )
+        return false
+      }
+
+      const currentBalance = balanceResult.balance
+      const decimals = balanceResult.decimals
+
+      // Calculate projected balance after receiving the reward amount
+      // On source chain, solver receives reward tokens from user
+      const projectedBalance = currentBalance + rewardToken.amount
+
+      // Normalize maxBalance (stored as dollar units(decimal = 0), convert to token units)
+      const normalizedMaxBalance = normalizeBalance(
+        { balance: BigInt(targetConfig.maxBalance), decimal: 0 },
+        decimals,
+      ).balance
+
+      // Check if projected balance would exceed maxBalance
+      if (projectedBalance > normalizedMaxBalance) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `validSourceMax: Reward would exceed maxBalance`,
+            properties: {
+              rewardToken: rewardToken.token,
+              currentBalance: currentBalance.toString(),
+              rewardAmount: rewardToken.amount.toString(),
+              projectedBalance: projectedBalance.toString(),
+              maxBalance: normalizedMaxBalance.toString(),
+              intentHash: intent.hash,
+            },
+          }),
+        )
+        return false
+      }
+    }
+    return true
+  }
+
+  async validSourceNativeMax(intent: ValidationIntentInterface, solver: Solver): Promise<boolean> {
+    if (!isNativeIntent(intent)) {
+      return true // If not a native intent, no need to check max balance
+    }
+
+    try {
+      // Get current native balance for the solver's wallet
+      const client = await this.kernelAccountClientService.getClient(Number(intent.route.source))
+      const walletAddress = client.kernelAccount.address
+      const currentNativeBalance = await client.getBalance({ address: walletAddress })
+
+      // Calculate total native amount from the intent
+      // On source chain, solver receives native value from reward and route calls
+      let totalNativeAmount = intent.reward.nativeValue || 0n
+
+      // Add native value from route calls
+      for (const call of intent.route.calls) {
+        if (call.value > 0) {
+          totalNativeAmount += call.value
+        }
+      }
+
+      // Calculate projected balance after receiving the native amounts
+      const projectedBalance = currentNativeBalance + totalNativeAmount
+
+      // Check if projected balance would exceed nativeMax
+      if (projectedBalance > solver.nativeMax) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `validSourceNativeMax: Native reward would exceed nativeMax`,
+            properties: {
+              currentBalance: currentNativeBalance.toString(),
+              rewardNativeValue: (intent.reward.nativeValue || 0n).toString(),
+              totalNativeAmount: totalNativeAmount.toString(),
+              projectedBalance: projectedBalance.toString(),
+              nativeMax: solver.nativeMax.toString(),
+              intentHash: intent.hash,
+              sourceChain: intent.route.source,
+            },
+          }),
+        )
+        return false
+      }
+
+      return true
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `validSourceNativeMax: Error validating native max balance`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            source: intent.route.source,
+          },
+        }),
+      )
+      return false
+    }
+  }
+
   /**
    * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
    * @param intent the source intent model
@@ -295,11 +458,8 @@ export class ValidationService implements OnModuleInit {
    */
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
     try {
-      const tokens = intent.route.tokens.map((t) => t.token)
       const destinationChain = Number(intent.route.destination)
 
-      // Fetch token balances
-      const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
       const solver = this.ecoConfigService.getSolver(destinationChain)
       if (!solver) {
         this.logger.warn(
@@ -317,22 +477,42 @@ export class ValidationService implements OnModuleInit {
 
       // Check if solver has enough token balances
       for (const routeToken of intent.route.tokens) {
-        const balance = tokenBalances[routeToken.token]
+        const balanceResult = await this.balanceService.getTokenBalance(
+          destinationChain,
+          routeToken.token as Hex,
+        )
+
+        if (!balanceResult) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Could not get balance for token`,
+              properties: {
+                token: routeToken.token,
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+
         const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        const decimals = balanceResult.decimals
+
         // Normalize the balance to the token's decimals, configs have the minReq in dollar value
         const balanceMinReq = normalizeBalance(
           { balance: BigInt(minReqDollar), decimal: 0 },
-          balance.decimals,
+          decimals,
         )
 
-        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
+        if (balanceResult.balance - balanceMinReq.balance < routeToken.amount) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient token balance`,
               properties: {
                 token: routeToken.token,
                 required: routeToken.amount.toString(),
-                available: balance?.balance.toString() || '0',
+                available: balanceResult.balance.toString(),
                 intentHash: intent.hash,
                 destination: destinationChain,
               },
@@ -346,17 +526,28 @@ export class ValidationService implements OnModuleInit {
       const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
 
       if (totalFulfillNativeValue > 0n) {
-        const solverNativeBalance = await this.balanceService.getNativeBalance(
-          destinationChain,
-          'kernel',
-        )
-        if (solverNativeBalance < totalFulfillNativeValue) {
+        const nativeBalanceResult = await this.balanceService.getNativeBalance(destinationChain)
+
+        if (!nativeBalanceResult) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Could not get native balance`,
+              properties: {
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+
+        if (nativeBalanceResult.balance < totalFulfillNativeValue) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient native balance`,
               properties: {
                 required: totalFulfillNativeValue.toString(),
-                available: solverNativeBalance.toString(),
+                available: nativeBalanceResult.balance.toString(),
                 intentHash: intent.hash,
                 destination: destinationChain,
               },

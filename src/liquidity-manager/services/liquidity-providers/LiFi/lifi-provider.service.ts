@@ -21,10 +21,9 @@ import {
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { BalanceService } from '@/balance/balance.service'
-import { TokenConfig } from '@/balance/types'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -34,7 +33,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {

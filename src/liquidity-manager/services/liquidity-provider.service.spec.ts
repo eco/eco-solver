@@ -24,6 +24,11 @@ describe('LiquidityProviderService', () => {
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
 
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
+
   beforeAll(() => {
     jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
   })
@@ -77,6 +82,19 @@ describe('LiquidityProviderService', () => {
 
     // Reinitialize the config in the service
     liquidityProviderService['config'] = ecoConfigService.getLiquidityManager()
+
+    // Mock logger methods
+    liquidityProviderService['logger'].log = mockLogLog
+    liquidityProviderService['logger'].warn = mockLogWarn
+    liquidityProviderService['logger'].debug = mockLogDebug
+    liquidityProviderService['logger'].error = mockLogError
+  })
+
+  afterEach(() => {
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   afterAll(() => {

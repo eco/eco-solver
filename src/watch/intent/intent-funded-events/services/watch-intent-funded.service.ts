@@ -1,7 +1,7 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getIntentJobId } from '@/common/utils/strings'
+import { getWatchJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
@@ -129,7 +129,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         const intentFunded = log
         const intentHash = intentFunded.args.intentHash
 
-        const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
+        const jobId = getWatchJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -145,7 +145,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           // Add to processing queue
           await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
             jobId,
-            ...this.intentJobConfig,
+            ...this.watchJobConfig,
           })
 
           // Track successful job addition

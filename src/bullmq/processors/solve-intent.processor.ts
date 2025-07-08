@@ -7,8 +7,9 @@ import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
+import { WithdrawalService } from '@/intent/withdrawal.service'
 import { Hex } from 'viem'
-import { IntentCreatedLog } from '@/contracts'
+import { IntentCreatedLog, WithdrawalLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
@@ -24,6 +25,7 @@ export class SolveIntentProcessor extends WorkerHost {
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly withdrawalService: WithdrawalService,
   ) {
     super()
   }
@@ -70,6 +72,10 @@ export class SolveIntentProcessor extends WorkerHost {
         case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
           result = await this.fulfillIntentService.fulfill(job.data as Hex)
           break
+        case QUEUES.SOURCE_INTENT.jobs.withdrawal:
+        //TODO update this to batching
+        result = await this.withdrawalService.processWithdrawal(job.data as Serialize<WithdrawalLog>)
+        break
         default:
           throw new Error(`Unknown job type: ${job.name}`)
       }

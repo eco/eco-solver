@@ -14,8 +14,7 @@ import {
 } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { TokenConfig } from '@/balance/types'
-import { BalanceService } from '@/balance/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { hyperlaneCollateralERC20 } from '@/contracts/HyperlaneCollateralERC20'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -23,6 +22,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
+import { TokenConfig } from '@/balance/types/balance.types'
 import {
   ActionPath,
   WarpRoute,
@@ -47,7 +47,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly balanceService: BalanceService,
+    private readonly balanceService: RpcBalanceService,
     private readonly liFiProviderService: LiFiProviderService,
     private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}

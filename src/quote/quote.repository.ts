@@ -12,9 +12,23 @@ import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { CreateModelParamsWithExclusions } from '@/common/db/utils'
 
 type QuoteQuery = FilterQuery<QuoteIntentModel>
 type QuoteUpdate = UpdateQuery<QuoteIntentModel>
+
+export interface ValidationResult {
+  isValid: boolean
+  errors: string[]
+}
+
+// Type for creating quote records based on schema, excluding auto-generated fields
+export type CreateQuoteIntentParams = CreateModelParamsWithExclusions<
+  QuoteIntentModel,
+  'receipt'
+> & {
+  receipt?: any
+}
 
 /**
  * QuoteRepository is responsible for interacting with the database to store and fetch quote intent data.
@@ -275,10 +289,7 @@ export class QuoteRepository {
    * @param quoteIntentDataDTO the quote intent data to validate
    * @returns validation result
    */
-  private validateQuoteIntentData(quoteIntentDataDTO: QuoteIntentDataDTO): {
-    isValid: boolean
-    errors: string[]
-  } {
+  private validateQuoteIntentData(quoteIntentDataDTO: QuoteIntentDataDTO): ValidationResult {
     const errors: string[] = []
 
     if (!quoteIntentDataDTO.quoteID?.trim()) {

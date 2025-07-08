@@ -1,5 +1,5 @@
-import { BalanceService } from '@/balance/balance.service'
-import { TokenBalance, TokenConfig } from '@/balance/types'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { TokenBalance, TokenConfig } from '@/balance/types/balance.types'
 import { API_ROOT, BALANCE_ROUTE } from '@/common/routes/constants'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { CacheInterceptor } from '@nestjs/cache-manager'
@@ -9,15 +9,30 @@ import * as _ from 'lodash'
 @Controller(API_ROOT + BALANCE_ROUTE)
 @UseInterceptors(CacheInterceptor)
 export class BalanceController {
-  constructor(private readonly balanceService: BalanceService) {}
+  constructor(private readonly rpcBalanceService: RpcBalanceService) {}
 
   @Get()
   async getBalances(@Query('flat') flat?: boolean) {
-    const data = await this.balanceService.getAllTokenData()
+    const [tokenData, nativeData] = await Promise.all([
+      this.rpcBalanceService.getAllTokenData(),
+      this.rpcBalanceService.fetchAllNativeBalances(),
+    ])
+
+    const filteredNativeData = nativeData.filter(
+      (item): item is NonNullable<typeof item> => item !== null,
+    ) // Remove null entries
+
     if (flat) {
-      return convertBigIntsToStrings(this.groupTokensByChain(data))
+      return convertBigIntsToStrings({
+        tokens: this.groupTokensByChain(tokenData),
+        native: this.groupNativeByChain(filteredNativeData),
+      })
     }
-    return convertBigIntsToStrings(data)
+
+    return convertBigIntsToStrings({
+      tokens: tokenData,
+      native: filteredNativeData,
+    })
   }
 
   groupTokensByChain(
@@ -36,6 +51,27 @@ export class BalanceController {
         address: token.balance.address,
         balance: token.balance.balance,
       })),
+    )
+  }
+
+  groupNativeByChain(
+    data: {
+      chainId: number
+      balance: bigint
+      blockNumber: bigint
+    }[],
+  ) {
+    // Group native balances by chainId
+    const grouped = _.groupBy(data, 'chainId')
+
+    // For each chainId, return the native balance data
+    return _.mapValues(
+      grouped,
+      (nativeBalances) =>
+        nativeBalances.map((native) => ({
+          balance: native.balance,
+          blockNumber: native.blockNumber,
+        }))[0], // Should only be one native balance per chain
     )
   }
 }
