@@ -18,7 +18,7 @@ import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
  * This service subscribes to Inbox contracts for Fulfillment events. It subscribes on all
- * supported chains and prover addresses. Wupdathen an event is emitted, adds the event
+ * supported chains and prover addresses. When an event is emitted, adds the event
  * to the queue to update the intent in the database.
  */
 @Injectable()
