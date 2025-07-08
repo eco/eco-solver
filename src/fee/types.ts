@@ -1,4 +1,4 @@
-import { TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
+import { TokenFetchAnalysis } from '@/balance/balance.service'
 import { RewardTokensInterface } from '@/contracts'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { Hex, Prettify } from 'viem'

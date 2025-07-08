@@ -45,11 +45,6 @@ describe('RelayProviderService', () => {
   let ecoConfigService: EcoConfigService
   let kernelAccountClientV2Service: KernelAccountClientV2Service
 
-  const mockLogLog = jest.fn()
-  const mockLogWarn = jest.fn()
-  const mockLogDebug = jest.fn()
-  const mockLogError = jest.fn()
-
   const mockTokenData: TokenData = {
     chainId: 1,
     config: {
@@ -117,18 +112,6 @@ describe('RelayProviderService', () => {
       id: 1,
       name: 'Ethereum',
     } as any)
-
-    service['logger'].log = mockLogLog
-    service['logger'].warn = mockLogWarn
-    service['logger'].debug = mockLogDebug
-    service['logger'].error = mockLogError
-  })
-
-  afterEach(() => {
-    mockLogLog.mockClear()
-    mockLogWarn.mockClear()
-    mockLogDebug.mockClear()
-    mockLogError.mockClear()
   })
 
   it('should initialize the Relay client on module init', async () => {

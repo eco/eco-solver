@@ -10,9 +10,9 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
-import { TokenData } from '@/liquidity-manager/types/types'
+import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 describe('CCTPLiFi Provider Integration Tests', () => {
   let service: CCTPLiFiProviderService
@@ -105,7 +105,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           },
         },
         {
-          provide: RpcBalanceService,
+          provide: BalanceService,
           useValue: {},
         },
         {

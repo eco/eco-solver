@@ -1,4 +1,4 @@
-import { TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
+import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -6,8 +6,6 @@ import {
   FeeAlgorithmConfig,
   FeeConfigType,
   IntentConfig,
-  Solver,
-  TargetContract,
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
@@ -27,7 +25,6 @@ import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
-import { BalanceService } from '@/balance/services/balance.service'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -48,57 +45,6 @@ export class FeeService implements OnModuleInit {
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
     this.whitelist = this.ecoConfigService.getWhitelist()
-  }
-
-  /**
-   * Converts balance records to TokenFetchAnalysis format with delta calculation for a given chain
-   * @param balanceRecord - Record of token addresses to balance results
-   * @param chainId - The chain ID
-   * @param acceptedTokens - Array of token addresses to filter by
-   * @param solver - Solver configuration containing target contracts
-   * @returns Array of TokenFetchAnalysis objects with calculated deltas, sorted by deficit descending
-   */
-  private getDeficitDescending(
-    balanceRecord: Record<string, any>,
-    chainId: number,
-    acceptedTokens: Hex[],
-    solver: Solver,
-  ) {
-    const tokenAnalyses = Object.entries(balanceRecord)
-      .filter(([address]) => acceptedTokens.includes(address as Hex))
-      .map(([address, balance]) => {
-        const config: TargetContract | undefined = solver.targets[address]
-        if (!config) return null
-        return {
-          config: {
-            ...config,
-            chainId,
-            address: address as Hex,
-            type: config.contractType,
-          },
-          token: {
-            address: address as Hex,
-            balance: balance.balance,
-            decimals: balance.decimals,
-            blockNumber: BigInt(balance.blockNumber),
-            blockHash: balance.blockHash as Hex,
-          },
-          chainId,
-        }
-      })
-      .filter(Boolean) as TokenFetchAnalysis[]
-
-    // Calculate deltas and sort by deficit descending
-    return (
-      tokenAnalyses
-        .map((token) => ({
-          ...token,
-          //calculates, converts and normalizes the delta
-          delta: this.calculateDelta(token),
-        }))
-        //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
-        .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
-    )
   }
 
   /**
@@ -341,34 +287,38 @@ export class FeeService implements OnModuleInit {
     }
 
     //Get the tokens the solver accepts on the source chain
-    const srcBalanceRecord = await this.balanceService.getTokenBalancesForSolver(Number(srcChainID))
-    if (!srcBalanceRecord || Object.keys(srcBalanceRecord).length === 0) {
+    const srcBalance = await this.balanceService.fetchTokenData(Number(srcChainID))
+    if (!srcBalance) {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
-
-    // Create TokenFetchAnalysis objects for source chain tokens with deltas
-    const srcDeficitDescending = this.getDeficitDescending(
-      srcBalanceRecord,
-      Number(srcChainID),
-      source.tokens,
-      solver,
-    )
+    const srcDeficitDescending = srcBalance
+      .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
+      .map((token) => {
+        return {
+          ...token,
+          //calculates, converts and normalizes the delta
+          delta: this.calculateDelta(token),
+        }
+      })
+      //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
+      .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
 
     //Get the tokens the solver accepts on the destination chain
-    const destBalanceRecord = await this.balanceService.getTokenBalancesForSolver(
-      Number(destChainID),
-    )
-    if (!destBalanceRecord || Object.keys(destBalanceRecord).length === 0) {
+    const destBalance = await this.balanceService.fetchTokenData(Number(destChainID))
+    if (!destBalance) {
       throw QuoteError.FetchingCallTokensFailed(quote.route.destination)
     }
-
-    // Create TokenFetchAnalysis objects for destination chain tokens with deltas
-    const destDeficitDescending = this.getDeficitDescending(
-      destBalanceRecord,
-      Number(destChainID),
-      destination.tokens,
-      solver,
-    )
+    const destDeficitDescending = destBalance
+      .filter((tokenAnalysis) => destination.tokens.includes(tokenAnalysis.token.address))
+      .map((token) => {
+        return {
+          ...token,
+          //calculates, converts and normalizes the delta
+          delta: this.calculateDelta(token),
+        }
+      })
+      //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
+      .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
 
     //ge/calculate the rewards for the quote intent
     const { rewards, error: errorRewards } = await this.getRewardsNormalized(quote)
@@ -415,7 +365,7 @@ export class FeeService implements OnModuleInit {
       return { rewards: [] }
     }
 
-    const erc20Rewards = await this.balanceService.getTokenBalances(
+    const erc20Rewards = await this.balanceService.fetchTokenBalances(
       Number(srcChainID),
       acceptedTokens,
     )
@@ -425,15 +375,15 @@ export class FeeService implements OnModuleInit {
     }
 
     return {
-      rewards: Object.entries(erc20Rewards).map(([address, balanceResult]) => {
-        const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === address)
+      rewards: Object.values(erc20Rewards).map((tb) => {
+        const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
         if (!token) {
-          throw QuoteError.RewardTokenNotFound(address as Hex)
+          throw QuoteError.RewardTokenNotFound(tb.address)
         }
         return this.convertNormalize(token.amount, {
           chainID: srcChainID,
-          address: address as Hex,
-          decimals: balanceResult.decimals,
+          address: tb.address,
+          decimals: tb.decimals,
         })
       }),
     }
@@ -460,7 +410,7 @@ export class FeeService implements OnModuleInit {
       return { tokens: [] }
     }
 
-    const erc20Rewards = await this.balanceService.getTokenBalances(
+    const erc20Rewards = await this.balanceService.fetchTokenBalances(
       Number(destChainID),
       acceptedTokens,
     )
@@ -469,15 +419,15 @@ export class FeeService implements OnModuleInit {
     }
 
     return {
-      tokens: Object.entries(erc20Rewards).map(([address, balanceResult]) => {
-        const token = quote.route.tokens.find((route) => getAddress(route.token) === address)
+      tokens: Object.values(erc20Rewards).map((tb) => {
+        const token = quote.route.tokens.find((route) => getAddress(route.token) === tb.address)
         if (!token) {
-          throw QuoteError.RouteTokenNotFound(address as Hex)
+          throw QuoteError.RouteTokenNotFound(tb.address)
         }
         return this.convertNormalize(token.amount, {
           chainID: destChainID,
-          address: address as Hex,
-          decimals: balanceResult.decimals,
+          address: tb.address,
+          decimals: tb.decimals,
         })
       }),
     }
@@ -510,7 +460,7 @@ export class FeeService implements OnModuleInit {
       return { calls: nativeCalls, error: undefined }
     }
 
-    const callERC20Balances = await this.balanceService.getTokenBalances(
+    const callERC20Balances = await this.balanceService.fetchTokenBalances(
       solver.chainID,
       functionTargets,
     )
@@ -519,22 +469,16 @@ export class FeeService implements OnModuleInit {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
     }
 
-    const erc20Balances = Object.entries(callERC20Balances).reduce(
-      (acc, [address, balanceResult]) => {
-        const config: TargetContract = solver.targets[address]
-        acc[address as Hex] = {
-          token: {
-            address: address as Hex,
-            balance: balanceResult.balance,
-            decimals: balanceResult.decimals,
-            blockNumber: BigInt(balanceResult.blockNumber),
-            blockHash: balanceResult.blockHash as Hex,
-          },
+    const erc20Balances = Object.values(callERC20Balances).reduce(
+      (acc, tokenBalance) => {
+        const config = solver.targets[tokenBalance.address]
+        acc[tokenBalance.address] = {
+          token: tokenBalance,
           config: {
             ...config,
             chainId: solver.chainID,
-            address: address as Hex,
-            type: config.contractType,
+            address: tokenBalance.address,
+            type: 'erc20',
           },
           chainId: solver.chainID,
         }

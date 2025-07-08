@@ -1,18 +1,17 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { QUEUES } from '@/common/redis/constants'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getIntentJobId } from '@/common/utils/strings'
+import { QUEUES } from '../common/redis/constants'
+import { UtilsIntentService } from './utils-intent.service'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
 
 /**
- * Service responsible for validating intent feasibility and managing the intent processing pipeline.
- * Determines if an intent can be profitably executed by the solver and queues feasible intents for fulfillment.
+ * Service class for getting configs for the app
  */
 @Injectable()
 export class FeasableIntentService implements OnModuleInit {

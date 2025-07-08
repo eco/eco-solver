@@ -1,7 +1,7 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getWatchJobId } from '@/common/utils/strings'
+import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
@@ -64,24 +64,22 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         },
       }),
     )
-    this.unwatch[source.chainID] = [
-      client.watchContractEvent({
-        onError: async (error) => {
-          await this.onError(error, client, source)
-        },
-        address: source.sourceAddress,
-        abi: IntentSourceAbi,
-        eventName: 'IntentFunded',
-        args: {
-          // // restrict by acceptable chains, chain ids must be bigints
-          // _destinationChain: solverSupportedChains,
-          prover: source.provers,
-        },
-        onLogs: async (logs: Log[]): Promise<void> => {
-          await this.addJob(source, { doValidation: true })(logs)
-        },
-      }),
-    ]
+    this.unwatch[source.chainID] = client.watchContractEvent({
+      onError: async (error) => {
+        await this.onError(error, client, source)
+      },
+      address: source.sourceAddress,
+      abi: IntentSourceAbi,
+      eventName: 'IntentFunded',
+      args: {
+        // // restrict by acceptable chains, chain ids must be bigints
+        // _destinationChain: solverSupportedChains,
+        prover: source.provers,
+      },
+      onLogs: async (logs: Log[]): Promise<void> => {
+        await this.addJob(source, { doValidation: true })(logs)
+      },
+    })
   }
 
   private async isOurIntent(log: IntentFundedLog): Promise<boolean> {
@@ -124,7 +122,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         const intentFunded = log
         const intentHash = intentFunded.args.intentHash
 
-        const jobId = getWatchJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
+        const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -139,7 +137,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         // Add to processing queue
         await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
           jobId,
-          ...this.watchJobConfig,
+          ...this.intentJobConfig,
         })
       }
     }
