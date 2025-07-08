@@ -107,6 +107,7 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
         supportedNative: true,
         supportedTransaction: true,
+        sufficientBalance: true,
       }
 
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
@@ -154,6 +155,7 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
         supportedTransaction: true,
         supportedNative: true,
+        sufficientBalance: true,
       }
 
       const mockUpdate = jest
@@ -192,6 +194,7 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
         supportedTransaction: true,
         supportedNative: true,
+        sufficientBalance: true,
       }
 
       jest.spyOn(validationService, 'assertValidations').mockResolvedValue(successfulValidations)
@@ -232,6 +235,7 @@ describe('QuoteService', () => {
         fulfillOnDifferentChain: true,
         supportedNative: true,
         supportedTransaction: true,
+        sufficientBalance: true,
       }
 
       const mockUpdate = jest
@@ -259,6 +263,9 @@ describe('QuoteService', () => {
         validExpirationTime: true,
         validDestination: true,
         fulfillOnDifferentChain: true,
+        supportedNative: true,
+        supportedTransaction: true,
+        sufficientBalance: true,
       })
 
       const error = await quoteService.validateQuoteIntentData(quoteIntent)
@@ -270,11 +277,13 @@ describe('QuoteService', () => {
       mockAssertValidations.mockResolvedValue({
         supportedProver: true,
         supportedTargets: true,
-        supportedSelectors: true,
         validTransferLimit: true,
         validExpirationTime: true,
         validDestination: true,
         fulfillOnDifferentChain: true,
+        supportedNative: true,
+        supportedTransaction: true,
+        sufficientBalance: true,
       })
 
       mockIsRewardFeasible.mockResolvedValue({ error: new Error('not feasible') })

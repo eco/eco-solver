@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "mongodb-preprod": {
+      "command": "env-cmd",
+      "args": ["-e", "preprod", "npx", "-y", "mongodb-mcp-server"]
+    },
+    "mongodb-prod": {
+      "command": "env-cmd",
+      "args": ["-e", "prod", "npx", "-y", "mongodb-mcp-server"]
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ]
+    }
+  }
+}

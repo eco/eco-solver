@@ -233,4 +233,16 @@ export class QuoteError extends Error {
       `Cannot resolve the decimals of a call target ${target} on chain ${chainID}`,
     )
   }
+
+  static RewardTokenNotFound(address: Hex) {
+    return new EcoError(`Reward token ${address} not found in quote reward tokens`)
+  }
+
+  static RouteTokenNotFound(address: Hex) {
+    return new EcoError(`Route token ${address} not found in quote route tokens`)
+  }
+
+  static InvalidFunctionData(target: Hex) {
+    return new EcoError(`Invalid function data for target ${target}: missing or invalid args`)
+  }
 }

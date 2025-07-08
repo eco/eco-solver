@@ -18,6 +18,11 @@ export async function signKmsTransaction<
 ): Promise<SignTransactionReturnType<serializer, transaction>> {
   const { transaction, serializer = serializeTransaction, config } = parameters
 
+  // viem's `serializeTransaction` omits the `value` field if it is undefined or 0n.
+  // This can cause a signature mismatch, as the final transaction sent to the node includes the `value`.
+  // We ensure `value` is defined here to guarantee the signed hash matches the final transaction payload.
+  transaction.value = transaction.value ?? 0n
+
   const signableTransaction = (() => {
     // For EIP-4844 Transactions, we want to sign the transaction payload body (tx_payload_body) without the sidecars (ie. without the network wrapper).
     // See: https://github.com/ethereum/EIPs/blob/e00f4daa66bd56e2dbd5f1d36d09fd613811a48b/EIPS/eip-4844.md#networking

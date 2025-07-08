@@ -88,11 +88,14 @@ describe('UtilsIntentService', () => {
       it('should updateOne the model as invalid', async () => {
         const invalidCause = {
           supportedProver: false,
+          supportedNative: true,
           supportedTargets: true,
           supportedTransaction: true,
+          validTransferLimit: true,
           validExpirationTime: true,
           validDestination: true,
           fulfillOnDifferentChain: true,
+          sufficientBalance: true,
         } as ValidationChecks
         await utilsIntentService.updateInvalidIntentModel(model, invalidCause)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)

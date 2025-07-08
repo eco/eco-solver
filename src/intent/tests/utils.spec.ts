@@ -11,6 +11,7 @@ import {
   equivalentNativeGas,
   getFunctionCalls,
   getNativeCalls,
+  getNativeFulfill,
   getFunctionTargets,
   isNativeETH,
 } from '@/intent/utils'
@@ -284,43 +285,48 @@ describe('utils tests', () => {
   describe('on getFunctionCalls', () => {
     beforeEach(() => {
       mockIsEmptyData.mockClear()
+      mockIsEmptyData.mockReset()
     })
 
-    it('should return calls that do not have empty data', () => {
+    it('should return calls that have non-empty data and zero value', () => {
       const calls: CallDataInterface[] = [
-        { target: '0x1', data: '0xa9059cbb', value: 0n }, // function call
-        { target: '0x2', data: '0x', value: 100n }, // native transfer
-        { target: '0x3', data: '0x1234', value: 0n }, // function call
+        { target: '0x1', data: '0xa9059cbb', value: 0n }, // function call (valid)
+        { target: '0x2', data: '0x', value: 100n }, // native transfer (excluded)
+        { target: '0x3', data: '0x1234', value: 0n }, // function call (valid)
+        { target: '0x4', data: '0xabcd', value: 50n }, // function call with value (excluded)
       ]
 
       mockIsEmptyData.mockReturnValueOnce(false) // first call has data
       mockIsEmptyData.mockReturnValueOnce(true) // second call is empty
       mockIsEmptyData.mockReturnValueOnce(false) // third call has data
+      mockIsEmptyData.mockReturnValueOnce(false) // fourth call has data but value > 0
 
       const result = getFunctionCalls(calls)
 
       expect(result).toEqual([calls[0], calls[2]])
-      expect(mockIsEmptyData).toHaveBeenCalledTimes(3)
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(4)
       expect(mockIsEmptyData).toHaveBeenNthCalledWith(1, '0xa9059cbb')
       expect(mockIsEmptyData).toHaveBeenNthCalledWith(2, '0x')
       expect(mockIsEmptyData).toHaveBeenNthCalledWith(3, '0x1234')
+      expect(mockIsEmptyData).toHaveBeenNthCalledWith(4, '0xabcd')
     })
 
-    it('should return empty array when all calls have empty data', () => {
+    it('should return empty array when all calls have empty data or non-zero value', () => {
       const calls: CallDataInterface[] = [
-        { target: '0x1', data: '0x', value: 100n },
-        { target: '0x2', data: '0x', value: 200n },
+        { target: '0x1', data: '0x', value: 0n }, // empty data (excluded)
+        { target: '0x2', data: '0x', value: 100n }, // empty data + value (excluded)
+        { target: '0x3', data: '0xabcd', value: 50n }, // has data but value > 0 (excluded)
       ]
 
-      mockIsEmptyData.mockReturnValue(true)
+      mockIsEmptyData.mockReturnValue(true) // all calls have empty data
 
       const result = getFunctionCalls(calls)
 
       expect(result).toEqual([])
-      expect(mockIsEmptyData).toHaveBeenCalledTimes(2)
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(3)
     })
 
-    it('should return all calls when none have empty data', () => {
+    it('should return all calls when they have non-empty data and zero value', () => {
       const calls: CallDataInterface[] = [
         { target: '0x1', data: '0xa9059cbb', value: 0n },
         { target: '0x2', data: '0x1234', value: 0n },
@@ -334,10 +340,45 @@ describe('utils tests', () => {
       expect(mockIsEmptyData).toHaveBeenCalledTimes(2)
     })
 
+    it('should exclude calls with non-zero value even if they have data', () => {
+      const calls: CallDataInterface[] = [
+        { target: '0x1', data: '0xa9059cbb', value: 100n }, // has data but value > 0 (excluded)
+        { target: '0x2', data: '0x1234', value: 200n }, // has data but value > 0 (excluded)
+      ]
+
+      mockIsEmptyData.mockReturnValue(false) // all calls have data
+
+      const result = getFunctionCalls(calls)
+
+      expect(result).toEqual([])
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(2)
+    })
+
     it('should handle empty calls array', () => {
       const result = getFunctionCalls([])
       expect(result).toEqual([])
       expect(mockIsEmptyData).not.toHaveBeenCalled()
+    })
+
+    it('should handle mixed scenarios correctly', () => {
+      const calls: CallDataInterface[] = [
+        { target: '0x1', data: '0xa9059cbb', value: 0n }, // function call (valid)
+        { target: '0x2', data: '0x', value: 0n }, // empty data, no value (excluded)
+        { target: '0x3', data: '0x1234', value: 100n }, // has data but value > 0 (excluded)
+        { target: '0x4', data: '0x', value: 200n }, // native transfer (excluded)
+        { target: '0x5', data: '0xdeadbeef', value: 0n }, // function call (valid)
+      ]
+
+      mockIsEmptyData.mockReturnValueOnce(false) // first call has data
+      mockIsEmptyData.mockReturnValueOnce(true) // second call is empty
+      mockIsEmptyData.mockReturnValueOnce(false) // third call has data
+      mockIsEmptyData.mockReturnValueOnce(true) // fourth call is empty
+      mockIsEmptyData.mockReturnValueOnce(false) // fifth call has data
+
+      const result = getFunctionCalls(calls)
+
+      expect(result).toEqual([calls[0], calls[4]])
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(5)
     })
   })
 
@@ -450,6 +491,126 @@ describe('utils tests', () => {
       const result = getFunctionTargets([])
 
       expect(result).toEqual([])
+    })
+  })
+
+  describe('on getNativeFulfill', () => {
+    beforeEach(() => {
+      mockIsEmptyData.mockClear()
+      mockIsEmptyData.mockReset()
+    })
+
+    it('should return total native value from all native calls', () => {
+      const calls: readonly CallDataInterface[] = [
+        { target: '0x1', data: '0xa9059cbb', value: 100n }, // function call with value
+        { target: '0x2', data: '0x', value: 200n }, // native transfer
+        { target: '0x3', data: '0x1234', value: 300n }, // function call with value
+        { target: '0x4', data: '0x', value: 400n }, // native transfer
+        { target: '0x5', data: '0x', value: 0n }, // no value
+      ]
+
+      // Mock isEmptyData to return true for native transfers (empty data)
+      mockIsEmptyData.mockReturnValueOnce(false) // first call has data
+      mockIsEmptyData.mockReturnValueOnce(true) // second call is empty (native)
+      mockIsEmptyData.mockReturnValueOnce(false) // third call has data
+      mockIsEmptyData.mockReturnValueOnce(true) // fourth call is empty (native)
+      mockIsEmptyData.mockReturnValueOnce(true) // fifth call is empty but no value
+
+      const result = getNativeFulfill(calls)
+
+      // Only calls with value > 0 AND empty data should be included: 200n + 400n = 600n
+      expect(result).toBe(600n)
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(4) // Only called for calls with value > 0
+    })
+
+    it('should return 0n when no native calls exist', () => {
+      const calls: readonly CallDataInterface[] = [
+        { target: '0x1', data: '0xa9059cbb', value: 100n }, // function call with value (not native)
+        { target: '0x2', data: '0x1234', value: 200n }, // function call with value (not native)
+        { target: '0x3', data: '0x', value: 0n }, // empty data but no value
+      ]
+
+      // Set mock to always return false for non-empty data
+      mockIsEmptyData.mockReturnValue(false)
+
+      const result = getNativeFulfill(calls)
+
+      expect(result).toBe(0n)
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(2) // Only called for calls with value > 0
+    })
+
+    it('should return 0n when all calls have value 0', () => {
+      const calls: readonly CallDataInterface[] = [
+        { target: '0x1', data: '0x', value: 0n },
+        { target: '0x2', data: '0x', value: 0n },
+      ]
+
+      const result = getNativeFulfill(calls)
+
+      expect(result).toBe(0n)
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(0) // Not called because no calls have value > 0
+    })
+
+    it('should handle empty calls array', () => {
+      const result = getNativeFulfill([])
+
+      expect(result).toBe(0n)
+      expect(mockIsEmptyData).not.toHaveBeenCalled()
+    })
+
+    it('should handle calls with undefined value property', () => {
+      const calls: readonly CallDataInterface[] = [
+        { target: '0x1', data: '0x', value: 100n },
+        { target: '0x2', data: '0x' } as any, // missing value property
+        { target: '0x3', data: '0x', value: 200n },
+      ]
+
+      mockIsEmptyData.mockReturnValue(true) // all calls with empty data are native
+
+      const result = getNativeFulfill(calls)
+
+      // Only calls with value > 0 AND empty data are included: 100n + 200n = 300n
+      // The call with undefined value doesn't pass call.value > 0 filter
+      expect(result).toBe(300n)
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(2) // Only called for calls with value > 0
+    })
+
+    it('should work with readonly arrays', () => {
+      const calls = [{ target: '0x1', data: '0x', value: 500n }] as const
+
+      mockIsEmptyData.mockReturnValueOnce(true)
+
+      const result = getNativeFulfill(calls)
+
+      expect(result).toBe(500n)
+    })
+
+    it('should sum multiple native transfers correctly', () => {
+      const calls: readonly CallDataInterface[] = [
+        { target: '0x1', data: '0x', value: 1000000000000000000n }, // 1 ETH
+        { target: '0x2', data: '0x', value: 2000000000000000000n }, // 2 ETH
+        { target: '0x3', data: '0x', value: 500000000000000000n }, // 0.5 ETH
+      ]
+
+      mockIsEmptyData.mockReturnValue(true) // all are native transfers
+
+      const result = getNativeFulfill(calls)
+
+      expect(result).toBe(3500000000000000000n) // 3.5 ETH total
+      expect(mockIsEmptyData).toHaveBeenCalledTimes(3)
+    })
+
+    it('should handle very large values', () => {
+      const calls: readonly CallDataInterface[] = [
+        { target: '0x1', data: '0x', value: BigInt('999999999999999999999999999999') },
+        { target: '0x2', data: '0x', value: BigInt('1') },
+      ]
+
+      mockIsEmptyData.mockReturnValue(true)
+
+      const result = getNativeFulfill(calls)
+
+      expect(result).toBe(BigInt('1000000000000000000000000000000'))
     })
   })
 

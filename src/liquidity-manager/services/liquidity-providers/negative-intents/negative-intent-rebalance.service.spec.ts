@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { Logger } from '@nestjs/common'
-import { encodeFunctionData, erc20Abi, Hex, parseUnits } from 'viem'
+import { Hex, parseUnits } from 'viem'
 import { NegativeIntentRebalanceService } from './negative-intent-rebalance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -8,7 +8,7 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { LitActionService } from '@/lit-actions/lit-action.service'
 import { NegativeIntentMonitorService } from './negative-intent-monitor.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { hashIntent, IntentSourceAbi } from '@eco-foundation/routes-ts'
 
 jest.mock('@eco-foundation/routes-ts', () => ({
@@ -90,7 +90,7 @@ describe('NegativeIntentRebalanceService', () => {
                 rebalancingPercentage: 0.05,
               },
             }),
-            getIntentSources: jest.fn(),
+            getIntentSource: jest.fn(),
             getCrowdLiquidity: jest.fn().mockReturnValue({
               kernel: { address: '0x1234567890123456789012345678901234567890' },
               pkp: {
@@ -180,6 +180,7 @@ describe('NegativeIntentRebalanceService', () => {
         },
         walletStrategies: {},
         coreTokens: [],
+        swapSlippage: 0.01,
         negativeIntents: {
           deadlineDuration: 5_400,
           rebalancingPercentage: 0.05,
@@ -219,7 +220,7 @@ describe('NegativeIntentRebalanceService', () => {
     }
 
     beforeEach(() => {
-      ecoConfigService.getIntentSources.mockReturnValue([mockIntentSource])
+      ecoConfigService.getIntentSource.mockReturnValue(mockIntentSource)
       kernelAccountClientService.getClient.mockResolvedValue(mockKernelClient as any)
       walletClientDefaultSignerService.getClient.mockResolvedValue(mockWalletClient as any)
       publicClient.getClient.mockResolvedValue(mockPublicClient as any)
@@ -319,11 +320,11 @@ describe('NegativeIntentRebalanceService', () => {
     })
 
     it('should throw error if no intent source found', async () => {
-      ecoConfigService.getIntentSources.mockReturnValue([])
+      ecoConfigService.getIntentSource.mockReturnValue(undefined)
 
       await expect(
         service.execute('0x1234567890123456789012345678901234567890', mockQuote),
-      ).rejects.toThrow('No intent source found for chain 1')
+      ).rejects.toThrow('Could not find an intent source for chain 1')
     })
 
     it('should handle withdrawal transaction failure', async () => {

@@ -22,6 +22,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import {
   getFunctionCalls,
   getNativeCalls,
+  getNativeFulfill,
   getTransactionTargetData,
   getWaitForTransactionTimeout,
 } from '@/intent/utils'
@@ -211,18 +212,17 @@ export class WalletFulfillService implements IFulfillService {
   }
 
   /**
-   * Iterates over the calls and returns the sum of the native value transfers
-   * @param solver the solver for the intent
-   * @param nativeCalls The calls that have native value transfers
-   * @returns
+   * Creates a native transfer call that sends the total native value required by the intent to the inbox contract.
+   * Uses the utility function to calculate the total native value from all native calls in the intent.
+   *
+   * @param solver - The solver configuration containing the inbox address
+   * @param nativeCalls - The calls that have native value transfers (from getNativeCalls)
+   * @returns A Call object that transfers the total native value to the inbox contract
    */
   private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
-    const nativeFulfillTotal = nativeCalls.reduce((acc, call) => {
-      return acc + (call.value || 0n)
-    }, 0n)
     return {
       to: solver.inboxAddress,
-      value: nativeFulfillTotal,
+      value: getNativeFulfill(nativeCalls),
       data: '0x',
     }
   }
