@@ -9,6 +9,8 @@ import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
  * Service class for getting configs for the app
@@ -22,6 +24,7 @@ export class FeasableIntentService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   async onModuleInit() {
@@ -46,9 +49,23 @@ export class FeasableIntentService implements OnModuleInit {
         message: `FeasableIntent intent ${intentHash}`,
       }),
     )
+
+    // Track feasibility check start
+    this.ecoAnalytics.trackIntentFeasibilityCheckStarted(intentHash)
+
     const data = await this.utilsIntentService.getIntentProcessData(intentHash)
     const { model, solver, err } = data ?? {}
     if (!model || !solver) {
+      // Track feasibility check failed due to missing data
+      this.ecoAnalytics.trackError(
+        ERROR_EVENTS.INTENT_FEASIBILITY_CHECK_FAILED,
+        err || new Error('missing_model_or_solver'),
+        {
+          intentHash,
+          reason: 'missing_model_or_solver',
+          stage: 'data_retrieval',
+        },
+      )
       if (err) {
         throw err
       }
@@ -73,8 +90,14 @@ export class FeasableIntentService implements OnModuleInit {
         jobId,
         ...this.intentJobConfig,
       })
+
+      // Track feasible intent queued for fulfillment
+      this.ecoAnalytics.trackIntentFeasibleAndQueued(intentHash, jobId, model)
     } else {
       await this.utilsIntentService.updateInfeasableIntentModel(model, error)
+
+      // Track infeasible intent
+      this.ecoAnalytics.trackIntentInfeasible(intentHash, model, error)
     }
   }
 }

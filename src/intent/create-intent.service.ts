@@ -23,6 +23,7 @@ import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -40,6 +41,7 @@ export class CreateIntentService implements OnModuleInit {
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   onModuleInit() {
@@ -70,6 +72,9 @@ export class CreateIntentService implements OnModuleInit {
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
+      // Track intent creation attempt
+      this.ecoAnalytics.trackIntentCreationStarted(intent, intentWs)
+
       //check db if the intent is already filled
       const model = await this.intentModel.findOne({
         'intent.hash': intent.hash,
@@ -86,6 +91,9 @@ export class CreateIntentService implements OnModuleInit {
             },
           }),
         )
+
+        // Track duplicate intent detection
+        this.ecoAnalytics.trackIntentDuplicateDetected(intent, model, intentWs)
         return
       }
 
@@ -111,6 +119,12 @@ export class CreateIntentService implements OnModuleInit {
           jobId,
           ...this.intentJobConfig,
         })
+
+        // Track successful intent creation and queue addition
+        this.ecoAnalytics.trackIntentCreatedAndQueued(intent, jobId, intentWs)
+      } else {
+        // Track intent created but not queued due to invalid wallet
+        this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
       }
 
       this.logger.log(
@@ -134,6 +148,9 @@ export class CreateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      // Track intent creation failure
+      this.ecoAnalytics.trackIntentCreationFailed(intent, intentWs, e)
     }
   }
 
@@ -155,6 +172,15 @@ export class CreateIntentService implements OnModuleInit {
             intentHash,
           },
         }),
+      )
+
+      // Track gasless intent creation attempt with complete objects
+      this.ecoAnalytics.trackGaslessIntentCreationStarted(
+        intentHash,
+        quoteID,
+        funder,
+        route,
+        reward,
       )
 
       const intent = new IntentDataModel({
@@ -181,6 +207,16 @@ export class CreateIntentService implements OnModuleInit {
         receipt: null,
         status: 'PENDING',
       })
+
+      // Track successful gasless intent creation with complete context
+      this.ecoAnalytics.trackGaslessIntentCreated(
+        intentHash,
+        quoteID,
+        funder,
+        intent,
+        route,
+        reward,
+      )
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -191,6 +227,9 @@ export class CreateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      // Track gasless intent creation failure with complete context
+      this.ecoAnalytics.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
     }
   }
 

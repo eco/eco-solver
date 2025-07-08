@@ -13,6 +13,7 @@ import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-mana
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
@@ -38,6 +39,10 @@ describe('LiFiProviderService', () => {
         {
           provide: KernelAccountClientV2Service,
           useValue: createMock<KernelAccountClientV2Service>(),
+        },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
         },
       ],
       imports: [

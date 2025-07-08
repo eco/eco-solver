@@ -5,6 +5,7 @@ import { FulfillIntentService } from '../fulfill-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('FulfillIntentService', () => {
   let fulfillIntentService: FulfillIntentService
@@ -43,6 +44,7 @@ describe('FulfillIntentService', () => {
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: WalletFulfillService, useValue: createMock<WalletFulfillService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 

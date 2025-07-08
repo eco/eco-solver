@@ -7,6 +7,7 @@ import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { Test, TestingModule } from '@nestjs/testing'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController
@@ -28,6 +29,10 @@ describe('QuoteController Test', () => {
             get: jest.fn(),
             set: jest.fn(),
           },
+        },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
         },
       ],
     }).compile()
