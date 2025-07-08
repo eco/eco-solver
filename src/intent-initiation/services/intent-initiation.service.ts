@@ -360,7 +360,7 @@ export class IntentInitiationService implements OnModuleInit {
     if (intentError) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `processFulfilled: groupedIntent found for intentGroupID ${intentGroupID}`,
+          message: `processFulfilled: groupedIntent not found for intentGroupID ${intentGroupID}`,
         }),
       )
       return
@@ -379,6 +379,18 @@ export class IntentInitiationService implements OnModuleInit {
 
     // Get chainID and recipient for final transfer
     const destinationChainID = Number(intents[0].intent.route.destination)
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `processFulfilled: about to execute final permit transfer for intentGroupID ${intentGroupID}`,
+        properties: {
+          intents: intents.map((i) => ({
+            quoteID: i.intent.quoteID,
+            hash: i.intent.hash,
+          })),
+        },
+      }),
+    )
 
     const { response: txHash, error: finalTxError } = await this.executeFinalPermitTransfer(
       destinationChainID,
