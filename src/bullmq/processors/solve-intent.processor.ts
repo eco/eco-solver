@@ -73,9 +73,11 @@ export class SolveIntentProcessor extends WorkerHost {
           result = await this.fulfillIntentService.fulfill(job.data as Hex)
           break
         case QUEUES.SOURCE_INTENT.jobs.withdrawal:
-        //TODO update this to batching
-        result = await this.withdrawalService.processWithdrawal(job.data as Serialize<WithdrawalLog>)
-        break
+          //TODO update this to batching
+          result = await this.withdrawalService.processWithdrawal(
+            job.data as Serialize<WithdrawalLog>,
+          )
+          break
         default:
           throw new Error(`Unknown job type: ${job.name}`)
       }
