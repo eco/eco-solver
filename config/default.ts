@@ -221,4 +221,8 @@ export default {
       },
     },
   },
+
+  squid: {
+    baseUrl: 'https://v2.api.squidrouter.com',
+  },
 }

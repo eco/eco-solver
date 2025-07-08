@@ -77,6 +77,7 @@ describe('LiquidityManagerService', () => {
       'crowd-liquidity-pool': ['CCTP'],
       'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
+    swapSlippage: 0.01,
   } as LiquidityManagerConfig
 
   afterEach(() => {
