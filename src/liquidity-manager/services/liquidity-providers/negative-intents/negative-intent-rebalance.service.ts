@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { encodeFunctionData, erc20Abi, Hex, parseUnits, publicActions } from 'viem'
 import { randomBytes } from 'crypto'
 import { hashIntent, IntentSourceAbi, IntentType } from '@eco-foundation/routes-ts'
+import { now } from '@/common/utils/date'
 import { mul } from '@/common/utils/bigint'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -16,8 +17,8 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 
 @Injectable()
 export class NegativeIntentRebalanceService implements IRebalanceProvider<'NegativeIntent'> {
-  private logger = new Logger(NegativeIntentRebalanceService.name)
-  private config: LiquidityManagerConfig
+  private readonly logger = new Logger(NegativeIntentRebalanceService.name)
+  private readonly config: LiquidityManagerConfig
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -41,12 +42,12 @@ export class NegativeIntentRebalanceService implements IRebalanceProvider<'Negat
     id?: string,
   ): Promise<RebalanceQuote<'NegativeIntent'>> {
     // Get the rebalancing percentage from config
-    const { rebalancingPercentage } = this.config
+    const { rebalancingPercentage } = this.config.negativeIntents
 
     // Parse amounts with proper decimals
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     // Calculate the amount the fulfiller will receive (less than they spend)
-    const amountOut = mul(amountIn, rebalancingPercentage)
+    const amountOut = mul(amountIn, 1 - rebalancingPercentage)
 
     return {
       amountIn,
@@ -149,8 +150,8 @@ export class NegativeIntentRebalanceService implements IRebalanceProvider<'Negat
     // Create the reward - fulfiller receives tokenOut (less than they spent)
     const reward = {
       creator: await this.kernelAccountClientService.getAddress(),
-      prover: intentSource.provers[0], // Use first available prover
-      deadline: BigInt(Math.floor(Date.now() / 1000) + 5_400), // 1.5 hours from now
+      prover: intentSource.provers[0], // Use the first available prover
+      deadline: BigInt(now() + this.config.negativeIntents.deadlineDuration), // 1.5 hours from now
       nativeValue: 0n,
       tokens: [
         {

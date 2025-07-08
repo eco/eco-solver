@@ -77,6 +77,10 @@ describe('LiquidityManagerService', () => {
       'crowd-liquidity-pool': ['CCTP'],
       'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
+    negativeIntents: {
+      deadlineDuration: 5_400,
+      rebalancingPercentage: 0.05,
+    },
   } as LiquidityManagerConfig
 
   afterEach(() => {

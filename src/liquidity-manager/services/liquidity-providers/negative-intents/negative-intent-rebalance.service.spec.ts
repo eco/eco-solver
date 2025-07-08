@@ -85,7 +85,10 @@ describe('NegativeIntentRebalanceService', () => {
           provide: EcoConfigService,
           useValue: {
             getLiquidityManager: jest.fn().mockReturnValue({
-              rebalancingPercentage: 0.05,
+              negativeIntents: {
+                deadlineDuration: 5_400,
+                rebalancingPercentage: 0.05,
+              },
             }),
             getIntentSources: jest.fn(),
             getCrowdLiquidity: jest.fn().mockReturnValue({
@@ -177,6 +180,10 @@ describe('NegativeIntentRebalanceService', () => {
         },
         walletStrategies: {},
         coreTokens: [],
+        negativeIntents: {
+          deadlineDuration: 5_400,
+          rebalancingPercentage: 0.05,
+        },
       })
 
       const swapAmount = 100
