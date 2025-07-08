@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { encodeFunctionData, erc20Abi, Hex, parseUnits, publicActions } from 'viem'
 import { randomBytes } from 'crypto'
 import { hashIntent, IntentSourceAbi, IntentType } from '@eco-foundation/routes-ts'
+import { mul } from '@/common/utils/bigint'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
@@ -39,14 +40,13 @@ export class NegativeIntentRebalanceService implements IRebalanceProvider<'Negat
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'NegativeIntent'>> {
-    // Get the rebalancing percentage from config (default to 5% if not set)
-    const rebalancingPercentage = this.config.rebalancingPercentage || 0.05
+    // Get the rebalancing percentage from config
+    const { rebalancingPercentage } = this.config
 
     // Parse amounts with proper decimals
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     // Calculate the amount the fulfiller will receive (less than they spend)
-    const rebalancingBasisPoints = BigInt(Math.floor(rebalancingPercentage * 100_000))
-    const amountOut = (amountIn * (100_000n - rebalancingBasisPoints)) / 100_000n
+    const amountOut = mul(amountIn, rebalancingPercentage)
 
     return {
       amountIn,
