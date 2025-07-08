@@ -403,7 +403,7 @@ export interface LiquidityManagerConfig {
     [walletName: string]: Strategy[]
   }
   // Percentage loss that fulfillers accept when rebalancing (e.g., 0.05 for 5%)
-  rebalancingPercentage?: number
+  rebalancingPercentage: number
 }
 
 export interface LiFiConfigType {
