@@ -136,6 +136,8 @@ export default {
       hyperlane_duration_seconds: 3600,
       metalayer_duration_seconds: 7200,
     },
+    intentFundedRetries: 3,
+    intentFundedRetryDelayMs: 500,
   },
   whitelist: {},
 

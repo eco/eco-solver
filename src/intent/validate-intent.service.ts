@@ -1,19 +1,20 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
-import { QUEUES } from '../common/redis/constants'
+import { Hex } from 'viem'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '../common/utils/strings'
-import { Solver } from '../eco-configs/eco-config.types'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { Hex } from 'viem'
-import { EcoError } from '../common/errors/eco-error'
-import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { Solver } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
+import { delay } from '@/common/utils/time'
+import { QUEUES } from '@/common/redis/constants'
+import { EcoError } from '@/common/errors/eco-error'
+import { getIntentJobId } from '@/common/utils/strings'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -44,6 +45,8 @@ export type IntentValidations = ValidationChecks & {
 export class ValidateIntentService implements OnModuleInit {
   private logger = new Logger(ValidateIntentService.name)
   private intentJobConfig: JobsOptions
+  private MAX_RETRIES: number
+  private RETRY_DELAY_MS: number
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
@@ -55,6 +58,9 @@ export class ValidateIntentService implements OnModuleInit {
 
   onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    const intentConfigs = this.ecoConfigService.getIntentConfigs()
+    this.MAX_RETRIES = intentConfigs.intentFundedRetries
+    this.RETRY_DELAY_MS = intentConfigs.intentFundedRetryDelayMs
   }
 
   /**
@@ -152,12 +158,35 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    const isIntentFunded = await client.readContract({
-      address: intentSource.sourceAddress,
-      abi: IntentSourceAbi,
-      functionName: 'isIntentFunded',
-      args: [IntentDataModel.toChainIntent(model.intent)],
-    })
+    let retryCount = 0
+    let isIntentFunded = false
+
+    do {
+      // Add delay for retries (skip delay on first attempt)
+      if (retryCount > 0) {
+        await delay(this.RETRY_DELAY_MS, retryCount - 1)
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
+            properties: {
+              intentHash: model.intent.hash,
+            },
+          }),
+        )
+      }
+
+      // Check if the intent is funded
+      isIntentFunded = await client.readContract({
+        address: intentSource.sourceAddress,
+        abi: IntentSourceAbi,
+        functionName: 'isIntentFunded',
+        args: [IntentDataModel.toChainIntent(model.intent)],
+      })
+
+      retryCount++
+    } while (!isIntentFunded && retryCount <= this.MAX_RETRIES)
+
     return isIntentFunded
   }
 
