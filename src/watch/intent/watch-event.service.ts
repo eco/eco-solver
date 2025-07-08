@@ -17,13 +17,13 @@ export abstract class WatchEventService<T extends { chainID: number }>
 {
   protected logger: Logger
   protected unwatch: Record<string, WatchContractEventReturnType> = {}
-  protected ecoAnalytics?: EcoAnalyticsService
   protected watchJobConfig: JobsOptions
 
   constructor(
     protected readonly queue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
+    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   async onModuleInit() {
