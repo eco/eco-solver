@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto'
 import { hashIntent, IntentSourceAbi, IntentType } from '@eco-foundation/routes-ts'
 import { now } from '@/common/utils/date'
 import { mul } from '@/common/utils/bigint'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
@@ -281,7 +282,7 @@ export class NegativeIntentRebalanceService implements IRebalanceProvider<'Negat
       .find((source) => source.chainID === chainId)
 
     if (!intentSource) {
-      throw new Error(`No intent source found for chain ${chainId}`)
+      throw EcoError.IntentSourceNotFound(chainId)
     }
 
     return intentSource
