@@ -95,6 +95,7 @@ export class WalletFulfillService implements IFulfillService {
         throw EcoError.FulfillIntentRevertError(receipt)
       }
       model.status = 'SOLVED'
+      model.fulfilledBySelf = true
 
       this.logger.debug(
         EcoLogMessage.fromDefault({

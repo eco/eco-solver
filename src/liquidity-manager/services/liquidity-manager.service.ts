@@ -5,7 +5,6 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -33,9 +32,10 @@ import {
 } from '@/liquidity-manager/types/types'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenConfig } from '@/balance/types'
+import { TokenConfig } from '@/balance/types/balance.types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { BalanceService } from '@/balance/services/balance.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -82,7 +82,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     // Track rebalances for Solver
     await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
-    this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
+    this.tokensPerWallet[kernelAddress] = this.ecoConfigService.getInboxTokens()
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
@@ -98,7 +98,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async analyzeTokens(walletAddress: string) {
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
-      walletAddress,
       this.tokensPerWallet[walletAddress],
     )
     const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({
