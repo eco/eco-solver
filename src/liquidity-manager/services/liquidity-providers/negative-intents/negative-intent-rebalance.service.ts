@@ -277,9 +277,7 @@ export class NegativeIntentRebalanceService implements IRebalanceProvider<'Negat
   }
 
   private getIntentSource(chainId: number) {
-    const intentSource = this.ecoConfigService
-      .getIntentSources()
-      .find((source) => source.chainID === chainId)
+    const intentSource = this.ecoConfigService.getIntentSource(chainId)
 
     if (!intentSource) {
       throw EcoError.IntentSourceNotFound(chainId)
