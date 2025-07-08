@@ -167,24 +167,18 @@ describe('WithdrawalRepository', () => {
 
   describe('exists', () => {
     it('should return true when withdrawal exists', async () => {
-      const mockQuery = {
-        exec: jest.fn().mockResolvedValue(1),
-      }
-      withdrawalModel.countDocuments.mockReturnValue(mockQuery as any)
+      withdrawalModel.exists.mockReturnValue(true as any)
 
       const result = await repository.exists(mockWithdrawalData.intentHash)
 
-      expect(withdrawalModel.countDocuments).toHaveBeenCalledWith({
+      expect(withdrawalModel.exists).toHaveBeenCalledWith({
         intentHash: mockWithdrawalData.intentHash,
       })
       expect(result).toBe(true)
     })
 
     it('should return false when withdrawal does not exist', async () => {
-      const mockQuery = {
-        exec: jest.fn().mockResolvedValue(0),
-      }
-      withdrawalModel.countDocuments.mockReturnValue(mockQuery as any)
+      withdrawalModel.exists.mockReturnValue(false as any)
 
       const result = await repository.exists(mockWithdrawalData.intentHash)
 

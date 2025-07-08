@@ -118,6 +118,7 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    watchJobConfig: JobsOptions
   }
 }
 

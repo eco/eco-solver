@@ -67,12 +67,8 @@ export class WithdrawalRepository {
    * Check if withdrawal already exists by intent hash
    */
   async exists(intentHash: Hex): Promise<boolean> {
-    const count = await this.withdrawalModel
-      .countDocuments({
-        intentHash: intentHash,
-      })
-      .exec()
-    return count > 0
+    const res = await this.withdrawalModel.exists({ intentHash })
+    return Boolean(res)
   }
 
   /**

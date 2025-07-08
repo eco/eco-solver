@@ -24,7 +24,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   ) {}
 
   async onModuleInit() {
-    this.watchJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    this.watchJobConfig = this.ecoConfigService.getRedis().jobs.watchJobConfig
   }
 
   async onApplicationBootstrap() {
