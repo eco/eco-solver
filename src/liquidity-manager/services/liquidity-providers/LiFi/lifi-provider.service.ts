@@ -173,7 +173,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
    * Attempts to get a quote by routing through a core token when no direct route exists
    * @param tokenIn The source token
    * @param tokenOut The destination token
-   * @param swapAmount The amount to swap
+   * @param swapAmountBased The amount to swap in base units
    * @returns A quote for the route through a core token
    */
   async fallback(

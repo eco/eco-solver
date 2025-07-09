@@ -142,7 +142,7 @@ export class LiquidityProviderService {
    * Attempts a route using fallback mechanisms (like core tokens)
    * @param tokenIn The source token
    * @param tokenOut The destination token
-   * @param swapAmount The amount to swap
+   * @param swapAmountBased The amount to swap in base units
    * @returns A quote using the fallback mechanism
    */
   async fallback(
@@ -150,7 +150,7 @@ export class LiquidityProviderService {
     tokenOut: TokenData,
     swapAmountBased: bigint,
   ): Promise<RebalanceQuote[]> {
-    const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
+    const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmountBased)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
 
     const slippage = getTotalSlippage(_.map(quotes, 'slippage'))
