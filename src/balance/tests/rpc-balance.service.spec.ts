@@ -5,7 +5,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Cache } from 'cache-manager'
-
+import { EcoAnalyticsService } from '@/analytics'
 describe('RpcBalanceService', () => {
   let balanceService: RpcBalanceService
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
@@ -29,6 +29,7 @@ describe('RpcBalanceService', () => {
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: CACHE_MANAGER, useValue: createMock<Cache>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 

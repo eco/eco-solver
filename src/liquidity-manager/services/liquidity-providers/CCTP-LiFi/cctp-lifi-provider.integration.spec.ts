@@ -12,7 +12,6 @@ import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-c
 import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
-import { BalanceService } from '@/balance/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'

@@ -16,7 +16,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   implements OnApplicationBootstrap, OnModuleDestroy
 {
   protected logger: Logger
-  protected unwatch: Record<string, WatchContractEventReturnType> = {}
+  protected unwatch: Record<string, WatchContractEventReturnType[]> = {}
   protected watchJobConfig: JobsOptions
 
   constructor(

@@ -30,7 +30,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService)
+    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
