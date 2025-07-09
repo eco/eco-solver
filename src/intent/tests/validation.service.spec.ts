@@ -561,7 +561,7 @@ describe('ValidationService', () => {
       } as any
 
       it('should return true when solver has sufficient token and native balances', async () => {
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
           '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
@@ -569,7 +569,7 @@ describe('ValidationService', () => {
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(true)
-        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledWith(
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
           10,
           '0xKernelAddress',
           ['0xToken1', '0xToken2'],
@@ -592,7 +592,7 @@ describe('ValidationService', () => {
 
         // Mock so that first wallet fails but second succeeds
         let callCount = 0
-        balanceService.fetchCachedWalletTokenBalances.mockImplementation(() => {
+        balanceService.fetchWalletTokenBalances.mockImplementation(() => {
           callCount++
           if (callCount === 1) {
             // First wallet - insufficient balance
@@ -610,7 +610,7 @@ describe('ValidationService', () => {
         const result = await validationService['hasSufficientBalance'](mockIntent)
 
         expect(result).toBe(true)
-        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
 
       it('should return false when all wallet addresses have insufficient balance', async () => {
@@ -627,14 +627,14 @@ describe('ValidationService', () => {
         } as any
 
         // Mock all wallets to have insufficient balance
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
         })
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
 
         expect(result).toBe(false)
-        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
 
       it('should use Promise.all and return true if any address validation succeeds', async () => {
@@ -653,7 +653,7 @@ describe('ValidationService', () => {
         // Mock different results for different addresses
         // First address has insufficient token balance (fails early)
         // Second address has sufficient balance for both tokens and native
-        balanceService.fetchCachedWalletTokenBalances
+        balanceService.fetchWalletTokenBalances
           .mockImplementationOnce(() =>
             Promise.resolve({
               '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
@@ -672,7 +672,7 @@ describe('ValidationService', () => {
         const result = await validationService['hasSufficientBalance'](mockIntent)
 
         expect(result).toBe(true) // Should return true because second address has sufficient balance
-        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
         expect(balanceService.getNativeBalance).toHaveBeenCalledTimes(1) // Only called for second address
       })
 
@@ -690,7 +690,7 @@ describe('ValidationService', () => {
         } as any
 
         // First wallet throws error, second succeeds
-        balanceService.fetchCachedWalletTokenBalances
+        balanceService.fetchWalletTokenBalances
           .mockImplementationOnce(() => Promise.reject(new Error('Network error')))
           .mockImplementationOnce(() =>
             Promise.resolve({
@@ -701,11 +701,11 @@ describe('ValidationService', () => {
         const result = await validationService['hasSufficientBalance'](mockIntent)
 
         expect(result).toBe(true) // Should return true because second address validation succeeds
-        expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
 
       it('should return false when solver has insufficient token balance', async () => {
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
           '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
@@ -716,7 +716,7 @@ describe('ValidationService', () => {
       })
 
       it('should return false when solver has insufficient native balance', async () => {
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
           '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
@@ -727,7 +727,7 @@ describe('ValidationService', () => {
       })
 
       it('should return false when token balance is missing', async () => {
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
           // Missing '0xToken2'
         })
@@ -749,7 +749,7 @@ describe('ValidationService', () => {
           },
         }
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
           '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
@@ -760,7 +760,7 @@ describe('ValidationService', () => {
       })
 
       it('should return false when balance service throws an error', async () => {
-        balanceService.fetchCachedWalletTokenBalances.mockRejectedValue(new Error('Network error'))
+        balanceService.fetchWalletTokenBalances.mockRejectedValue(new Error('Network error'))
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(false)
@@ -779,7 +779,7 @@ describe('ValidationService', () => {
           },
         }
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
           '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
@@ -816,7 +816,7 @@ describe('ValidationService', () => {
           },
         }
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           // Token1: balance 1100, minReq 50 (normalized to token decimals), available = 1100-50 = 1050, need 1000 ✓
           '0xToken1': { address: '0xToken1', balance: 1100n, decimals: 6 },
           // Token2: balance 550, minReq 100 (normalized to token decimals), available = 550-100 = 450, need 500 ✗
@@ -853,7 +853,7 @@ describe('ValidationService', () => {
           },
         }
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1000n, decimals: 6 }, // exactly enough
           '0xToken2': { address: '0xToken2', balance: 500n, decimals: 6 }, // exactly enough
         })
@@ -886,7 +886,7 @@ describe('ValidationService', () => {
           },
         } as any
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({})
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({})
         // Only 50n available, but need 100n
         balanceService.getNativeBalance.mockResolvedValue(50n)
 
@@ -931,7 +931,7 @@ describe('ValidationService', () => {
           },
         } as any
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
         })
 
@@ -965,7 +965,7 @@ describe('ValidationService', () => {
           },
         } as any
 
-        balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
           '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
         })
 
@@ -997,7 +997,7 @@ describe('ValidationService', () => {
         const result = await validationService['hasSufficientBalance'](intentWithNothing)
 
         expect(result).toBe(true)
-        expect(balanceService.fetchCachedWalletTokenBalances).not.toHaveBeenCalled()
+        expect(balanceService.fetchWalletTokenBalances).not.toHaveBeenCalled()
         expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
       })
 
@@ -1018,7 +1018,7 @@ describe('ValidationService', () => {
           } as any
 
           // First address has insufficient, second has sufficient
-          balanceService.fetchCachedWalletTokenBalances.mockImplementation((chainId, address) => {
+          balanceService.fetchWalletTokenBalances.mockImplementation((chainId, address) => {
             if (address === '0xKernelAddress') {
               return Promise.resolve({
                 '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
@@ -1033,13 +1033,13 @@ describe('ValidationService', () => {
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
           expect(result).toBe(true)
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledWith(
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
             10,
             '0xKernelAddress',
             ['0xToken1'],
           )
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledWith(
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
             10,
             '0xPoolAddress',
             ['0xToken1'],
@@ -1057,14 +1057,14 @@ describe('ValidationService', () => {
           } as any
 
           // Both addresses have insufficient balance
-          balanceService.fetchCachedWalletTokenBalances.mockResolvedValue({
+          balanceService.fetchWalletTokenBalances.mockResolvedValue({
             '0xToken1': { address: '0xToken1', balance: 400n, decimals: 6 },
           })
 
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
           expect(result).toBe(false)
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
         })
 
         it('should check native balances for all addresses in parallel and return true if any has sufficient', async () => {
@@ -1105,7 +1105,7 @@ describe('ValidationService', () => {
           } as any
 
           // First address throws error, second has sufficient balance
-          balanceService.fetchCachedWalletTokenBalances.mockImplementation((chainId, address) => {
+          balanceService.fetchWalletTokenBalances.mockImplementation((chainId, address) => {
             if (address === '0xKernelAddress') {
               return Promise.reject(new Error('Network error'))
             } else {
@@ -1118,7 +1118,7 @@ describe('ValidationService', () => {
           const result = await validationService['hasSufficientBalance'](mockIntent)
 
           expect(result).toBe(true) // Should still pass because second address has sufficient balance
-          expect(balanceService.fetchCachedWalletTokenBalances).toHaveBeenCalledTimes(2)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
         })
       })
     })

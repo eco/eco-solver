@@ -104,7 +104,6 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param tokenAddresses the tokens to fetch balances for
    * @returns
    */
-  @Cacheable()
   async fetchCachedWalletTokenBalances(
     chainID: number,
     walletAddress: string,
@@ -118,12 +117,15 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param chainID the chain id
    * @param walletAddress wallet address
    * @param tokenAddresses the tokens to fetch balances for
+   * @param cache Flag to enable or disable caching
    * @returns
    */
+  @Cacheable({ bypassArgIndex: 3 })
   async fetchWalletTokenBalances(
     chainID: number,
     walletAddress: string,
     tokenAddresses: Hex[],
+    cache = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<Record<Hex, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
 
