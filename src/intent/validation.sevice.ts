@@ -342,6 +342,16 @@ export class ValidationService implements OnModuleInit {
               solver.targets,
             )
             if (!hasSufficientTokenBalance) {
+              this.logger.warn(
+                EcoLogMessage.fromDefault({
+                  message: `hasSufficientBalance: Insufficient token balance`,
+                  properties: {
+                    intentHash: intent.hash,
+                    destination: destinationChain,
+                  },
+                }),
+              )
+
               return false
             }
           }
@@ -350,11 +360,20 @@ export class ValidationService implements OnModuleInit {
           if (totalFulfillNativeValue > 0n) {
             const hasSufficientNativeBalance = await this.checkNativeBalance(
               walletAddress,
-              intent,
               destinationChain,
               totalFulfillNativeValue,
             )
             if (!hasSufficientNativeBalance) {
+              this.logger.warn(
+                EcoLogMessage.fromDefault({
+                  message: `hasSufficientBalance: Insufficient native balance`,
+                  properties: {
+                    intentHash: intent.hash,
+                    destination: destinationChain,
+                  },
+                }),
+              )
+
               return false
             }
           }
@@ -431,7 +450,7 @@ export class ValidationService implements OnModuleInit {
   }
 
   /**
-   * Checks if solver has sufficient token balances
+   * Checks if the solver has sufficient token balances
    * @private
    */
   private async checkTokenBalances(
@@ -445,23 +464,12 @@ export class ValidationService implements OnModuleInit {
       destinationChain,
       walletAddr,
       tokens,
-      true,
     )
 
     for (const routeToken of intent.route.tokens) {
       const balance = tokenBalances[routeToken.token]
 
       if (!balance) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: `hasSufficientBalance: Token balance not found`,
-            properties: {
-              token: routeToken.token,
-              intentHash: intent.hash,
-              destination: destinationChain,
-            },
-          }),
-        )
         return false // Insufficient balance
       }
 
@@ -472,24 +480,10 @@ export class ValidationService implements OnModuleInit {
         balance.decimals,
       )
 
-      // Check if available balance (after minimum) is sufficient
+      // Check if the available balance (after the minimum) is enough
       const availableBalance = balance.balance - balanceMinReq.balance
 
       if (availableBalance < routeToken.amount) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: `hasSufficientBalance: Insufficient token balance`,
-            properties: {
-              token: routeToken.token,
-              required: routeToken.amount.toString(),
-              available: balance.balance.toString(),
-              minBalance: balanceMinReq.balance.toString(),
-              effectiveAvailable: availableBalance.toString(),
-              intentHash: intent.hash,
-              destination: destinationChain,
-            },
-          }),
-        )
         return false // Insufficient balance
       }
     }
@@ -498,12 +492,11 @@ export class ValidationService implements OnModuleInit {
   }
 
   /**
-   * Checks if solver has sufficient native balance
+   * Checks if the solver has sufficient native balance
    * @private
    */
   private async checkNativeBalance(
     walletAddr: Hex,
-    intent: ValidationIntentInterface,
     destinationChain: number,
     requiredAmount: bigint,
   ): Promise<boolean> {
@@ -516,23 +509,6 @@ export class ValidationService implements OnModuleInit {
     const effectiveBalance =
       solverNativeBalance > this.minEthBalanceWei ? solverNativeBalance - this.minEthBalanceWei : 0n
 
-    if (effectiveBalance < requiredAmount) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `hasSufficientBalance: Insufficient native balance`,
-          properties: {
-            required: requiredAmount.toString(),
-            available: solverNativeBalance.toString(),
-            minBalance: this.minEthBalanceWei.toString(),
-            intentHash: intent.hash,
-            effectiveAvailable: effectiveBalance.toString(),
-            destination: destinationChain,
-          },
-        }),
-      )
-      return false // Insufficient balance
-    }
-
-    return true // Sufficient native balance
+    return effectiveBalance >= requiredAmount
   }
 }

@@ -896,10 +896,6 @@ describe('ValidationService', () => {
         expect(mockLogWarn).toHaveBeenCalledWith(
           expect.objectContaining({
             msg: 'hasSufficientBalance: Insufficient native balance',
-            required: '100',
-            available: '50',
-            minBalance: '0',
-            effectiveAvailable: '50',
             intentHash: '0xTestHash',
             destination: 10,
           }),
@@ -941,9 +937,6 @@ describe('ValidationService', () => {
         expect(mockLogWarn).toHaveBeenCalledWith(
           expect.objectContaining({
             msg: 'hasSufficientBalance: Insufficient token balance',
-            token: '0xToken1',
-            required: '1000',
-            available: '500',
             intentHash: '0xTestHash',
             destination: 10,
           }),
