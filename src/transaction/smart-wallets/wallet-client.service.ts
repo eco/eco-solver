@@ -13,7 +13,11 @@ import {
 import { SignerService } from '@/sign/signer.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { ViemMultichainClientService } from '../viem_multichain_client.service'
+import { EcoResponse } from '@/common/eco-response'
 import { ChainsSupported } from '@/common/chains/supported'
+import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
 
 export abstract class WalletClientService<
   transport extends Transport = Transport,
@@ -69,5 +73,33 @@ export class WalletClientDefaultSignerService extends WalletClientService {
 
   getAccount(): Promise<PrivateKeyAccount> {
     return Promise.resolve(this.signerService.getAccount())
+  }
+
+  async estimateGas(
+    chainID: number,
+    transactions: ExecuteSmartWalletArg[],
+  ): Promise<EcoResponse<EstimatedGasData>> {
+    const publicClient = await this.getPublicClient(chainID)
+
+    const transaction = batchTransactionsWithMulticall(chainID, transactions)
+
+    // Simulate the contract execution to estimate gas
+    const gasEstimate = await publicClient.estimateGas({
+      account: await this.getAccount(),
+      to: transaction.to,
+      data: transaction.data,
+      value: transaction.value,
+    })
+
+    const gasPrice = await publicClient.getGasPrice()
+
+    return {
+      response: {
+        chainID,
+        gasEstimate,
+        gasPrice,
+        gasCost: gasPrice * gasEstimate,
+      },
+    }
   }
 }

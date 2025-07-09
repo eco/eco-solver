@@ -8,6 +8,13 @@ export class TokenAmountDataModel implements RewardTokensInterface {
   token: Hex
   @Prop({ required: true, type: BigInt })
   amount: bigint
+
+  getRewardTokensInterface?(): RewardTokensInterface {
+    return {
+      token: this.token,
+      amount: this.amount,
+    }
+  }
 }
 
 export const TokenAmountDataSchema = SchemaFactory.createForClass(TokenAmountDataModel)

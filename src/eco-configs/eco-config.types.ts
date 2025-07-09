@@ -14,6 +14,7 @@ import { Strategy } from '@/liquidity-manager/types/types'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  port: number
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType

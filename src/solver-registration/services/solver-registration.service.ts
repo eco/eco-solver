@@ -54,9 +54,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${SolverRegistrationService.name}.onModuleInit()`,
-        properties: {
-          solverRegistrationDTO: this.getSolverRegistrationDTO(),
-        },
       }),
     )
   }

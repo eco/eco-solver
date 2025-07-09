@@ -1,24 +1,25 @@
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { getModelToken } from '@nestjs/mongoose'
+import { GroupedIntent } from '@/intent-initiation/schemas/grouped-intent.schema'
+import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
+import { Hex } from 'viem'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { TransactionReceipt } from 'viem'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { createMock } from '@golevelup/ts-jest'
 
 const intentTestUtils = new IntentTestUtils()
 
@@ -29,15 +30,24 @@ const quoteTestUtils = new QuoteTestUtils()
 
 describe('IntentInitiationController', () => {
   beforeAll(async () => {
+    const mockSource = {
+      getConfig: () => ({
+        rpcs: {
+          keys: {
+            '0x1234': '0x1234',
+          },
+        },
+      }),
+    }
+
     $ = EcoTester.setupTestFor(IntentInitiationController)
       .withProviders([
         IntentInitiationService,
-        KernelAccountClientService,
         Permit2Processor,
-        Permit2TxBuilder,
         PermitProcessor,
-        PermitTxBuilder,
         PermitValidationService,
+        GroupedIntentRepository,
+        IntentSourceRepository,
         QuoteService,
         {
           provide: WalletClientDefaultSignerService,
@@ -45,18 +55,43 @@ describe('IntentInitiationController', () => {
         },
         {
           provide: EcoConfigService,
-          useValue: createMock<EcoConfigService>(),
+          useValue: new EcoConfigService([mockSource as any]),
+        },
+        {
+          provide: getModelToken(GroupedIntent.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
+        },
+        {
+          provide: getModelToken(IntentSourceModel.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
         },
       ])
-      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])
+      .withMocks([QuoteService, QuoteRepository, CreateIntentService])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)
   })
 
   it('returns response when successful', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
-    const mockResponse = { transactionHash: '0x123' } as unknown as TransactionReceipt
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
+    const mockResponse = {
+      successes: [
+        {
+          chainID: 10,
+          quoteIDs: ['quote1', 'quote2'],
+          transactionHash: '0x123' as Hex,
+        },
+      ],
+      failures: [],
+    }
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({ response: mockResponse })
 
@@ -65,7 +100,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('throws BadRequestException for 400 error', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
       error: { ...InternalQuoteError(), statusCode: 400 },
@@ -75,7 +110,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('throws InternalServerErrorException for unexpected error', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
       error: { ...InternalQuoteError(EcoError.QuoteNotFound) },
@@ -87,7 +122,7 @@ describe('IntentInitiationController', () => {
   })
 
   it('throws InternalServerErrorException for error without statusCode', async () => {
-    const dto = intentTestUtils.createGaslessIntentRequestDTO()
+    const { gaslessIntentRequest: dto } = intentTestUtils.createGaslessIntentRequestDTO()
 
     jest.spyOn(service, 'initiateGaslessIntent').mockResolvedValue({
       error: { ...InternalQuoteError(new Error('Something went wrong')) }, // ← no `statusCode`!
