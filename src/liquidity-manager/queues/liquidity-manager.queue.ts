@@ -15,6 +15,10 @@ import {
   CheckCCTPV2AttestationJobManager,
 } from '../jobs/check-cctpv2-attestation.job'
 import { ExecuteCCTPV2MintJob, ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
+import {
+  CheckEverclearIntentJobData,
+  CheckEverclearIntentJobManager,
+} from '../jobs/check-everclear-intent.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -24,6 +28,7 @@ export enum LiquidityManagerJobName {
   CCTP_LIFI_DESTINATION_SWAP = 'CCTP_LIFI_DESTINATION_SWAP',
   CHECK_CCTPV2_ATTESTATION = 'CHECK_CCTPV2_ATTESTATION',
   EXECUTE_CCTPV2_MINT = 'EXECUTE_CCTPV2_MINT',
+  CHECK_EVERCLEAR_INTENT = 'CHECK_EVERCLEAR_INTENT',
 }
 
 export type LiquidityManagerQueueDataType = {
@@ -91,5 +96,9 @@ export class LiquidityManagerQueue {
 
   startExecuteCCTPV2Mint(data: ExecuteCCTPV2MintJob['data']): Promise<void> {
     return ExecuteCCTPV2MintJobManager.start(this.queue, data)
+  }
+
+  startCheckEverclearIntent(data: CheckEverclearIntentJobData): Promise<void> {
+    return CheckEverclearIntentJobManager.start(this.queue, data)
   }
 }

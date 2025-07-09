@@ -18,6 +18,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -36,6 +37,7 @@ export class LiquidityProviderService {
     private readonly ecoAnalytics: EcoAnalyticsService,
     protected readonly squidProviderService: SquidProviderService,
     protected readonly cctpv2ProviderService: CCTPV2ProviderService,
+    protected readonly everclearProviderService: EverclearProviderService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
@@ -247,6 +249,8 @@ export class LiquidityProviderService {
         return this.squidProviderService
       case 'CCTPV2':
         return this.cctpv2ProviderService
+      case 'Everclear':
+        return this.everclearProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
