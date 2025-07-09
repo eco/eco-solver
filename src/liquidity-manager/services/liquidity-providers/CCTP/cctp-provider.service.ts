@@ -26,6 +26,8 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { normalizeBalance, normalizeBalanceToBase } from '@/fee/utils'
+
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -54,7 +56,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint, // in decimal 0, ie USD output
     id?: string,
   ): Promise<RebalanceQuote<'CCTP'>> {
     if (
@@ -64,12 +66,12 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       throw new Error('Unsupported route')
     }
 
-    const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
-    const amountOut = parseUnits(swapAmount.toString(), tokenOut.balance.decimals)
+    const amountIn = normalizeBalanceToBase({balance: parseUnits(swapAmount.toString(), tokenIn.balance.decimals),decimal: tokenIn.balance.decimals})
+    const amountOut = normalizeBalanceToBase({balance: parseUnits(swapAmount.toString(), tokenOut.balance.decimals),decimal: tokenOut.balance.decimals})
 
     return {
-      amountIn: amountIn,
-      amountOut: amountOut,
+      amountIn: amountIn.balance,
+      amountOut: amountOut.balance,
       slippage: 0,
       tokenIn: tokenIn,
       tokenOut: tokenOut,

@@ -52,7 +52,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote[]> {
     const actionPath = this.getActionPath(tokenIn.config, tokenOut.config)
@@ -261,7 +261,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   private async getPartialQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote[]> {
     const warpTokenIn = this.getWarpRoute(tokenIn.chainId, tokenIn.config.address)
@@ -329,8 +329,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       type: 'erc20',
       address: token.token,
       chainId: token.chainId,
-      targetBalance: 0,
-      minBalance: 0,
+      targetBalance: 0n,
+      minBalance: 0n,
     }
   }
 

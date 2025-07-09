@@ -1,13 +1,15 @@
-export function getSlippageRange(amount: bigint, slippage: number) {
-  const slippageFactor = BigInt(Math.round(slippage * 100000))
-  const base = 100000n
+import { multiplyByPercentage } from "@/common/utils/math"
 
-  const min = (amount * (base - slippageFactor)) / base
-  const max = (amount * (base + slippageFactor)) / base
+
+export function getRangeFromPercentage(
+  amount: bigint,
+  percentage: { up: number; down: number },
+): { min: bigint; max: bigint } {
+  const min = multiplyByPercentage(amount, 1 - percentage.down)
+  const max = multiplyByPercentage(amount, 1 + percentage.up)
 
   return { min, max }
 }
-
 /**
  * Calculates the total compounded slippage from an array of individual slippages.
  *

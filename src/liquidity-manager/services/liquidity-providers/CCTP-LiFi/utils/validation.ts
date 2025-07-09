@@ -26,7 +26,7 @@ export class CCTPLiFiValidator {
   static validateRoute(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     maxSlippage: number,
   ): ValidationResult {
     const errors: string[] = []

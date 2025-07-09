@@ -36,7 +36,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote<'Stargate'>> {
     // Convert chain IDs to Stargate chain keys
     const srcChainKey = await this.getChainKey(tokenIn.chainId)

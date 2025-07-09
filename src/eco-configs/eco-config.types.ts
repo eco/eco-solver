@@ -32,7 +32,7 @@ export type EcoConfigType = {
     simpleAccount: {
       walletAddr: Hex
       signerPrivateKey: Hex
-      minEthBalanceWei: number
+      minEthBalanceWei: bigint
       contracts: {
         entryPoint: {
           contractAddress: Hex
@@ -335,8 +335,8 @@ export type FeeAlgoQuadratic = { baseFee: bigint; quadraticFactor: bigint }
 export interface TargetContract {
   contractType: TargetContractType
   selectors: string[]
-  minBalance: number
-  targetBalance: number
+  minBalance: bigint
+  targetBalance: bigint // this should be defined in base 0 decimals in the config file, ie 100USDC should be 100
 }
 
 /**
@@ -429,7 +429,7 @@ export interface CrowdLiquidityConfig {
   litNetwork: LIT_NETWORKS_KEYS
   capacityTokenId: string
   capacityTokenOwnerPk: string
-  defaultTargetBalance: number
+  defaultTargetBalance: bigint
   feePercentage: number
   actions: {
     fulfill: string

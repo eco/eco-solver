@@ -50,7 +50,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'CCTPLiFi'>> {
     this.logger.debug(
@@ -266,7 +266,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
   private async buildRouteContext(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     steps: RouteStep[],
     id?: string,
   ): Promise<CCTPLiFiStrategyContext> {
@@ -358,7 +358,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
    */
   private calculateTotals(
     context: CCTPLiFiStrategyContext,
-    initialAmount: number,
+    initialAmount: bigint,
   ): { totalAmountOut: bigint; totalSlippage: number } {
     const totalSlippage = SlippageCalculator.calculateTotalSlippage(context)
 
@@ -391,8 +391,8 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       config: {
         address: usdcAddress,
         chainId,
-        minBalance: 0,
-        targetBalance: 0,
+        minBalance: 0n,
+        targetBalance: 0n,
         type: 'erc20',
       },
       balance: {
@@ -570,7 +570,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       // Create a CCTP quote for the bridge operation
       const usdcTokenIn = this.createUSDCTokenData(quote.tokenIn.chainId)
       const usdcTokenOut = this.createUSDCTokenData(quote.tokenOut.chainId)
-      const cctpAmount = Number(quote.context.cctpTransfer.amount) / 1e6 // Convert from wei to decimal
+      const cctpAmount = quote.context.cctpTransfer.amount /// 1e6 // Convert from wei to decimal
 
       const cctpQuote = await this.cctpService.getQuote(
         usdcTokenIn,

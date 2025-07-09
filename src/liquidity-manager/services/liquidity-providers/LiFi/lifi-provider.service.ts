@@ -86,7 +86,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
@@ -113,7 +113,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
       fromTokenAddress: tokenIn.config.address,
-      fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
+      fromAmount: swapAmountBased.toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
@@ -179,7 +179,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote[]> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(
@@ -204,8 +204,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           address: coreToken.token,
           chainId: coreToken.chainID,
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         }
         const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
           this.walletAddress,
@@ -237,12 +237,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           }),
         )
 
-        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
-
-        const toAmountMin = parseFloat(
-          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
-        )
-
+        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmountBased)
+        const toAmountMin = BigInt(coreTokenQuote.context.toAmountMin)
         const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
 
         return [coreTokenQuote, rebalanceQuote]

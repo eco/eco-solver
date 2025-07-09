@@ -193,7 +193,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {boolean} Returns true if the token is supported; otherwise, false.
    */
   // eslint-disable-next-line
-  getTokenTargetBalance(chainId: number, address: Hex): number {
+  getTokenTargetBalance(chainId: number, address: Hex): bigint {
     return this.config.defaultTargetBalance
   }
 

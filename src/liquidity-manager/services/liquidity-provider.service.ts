@@ -37,7 +37,7 @@ export class LiquidityProviderService {
     walletAddress: string,
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
@@ -45,9 +45,10 @@ export class LiquidityProviderService {
     // Iterate over strategies and return the first quote
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
+        // go through each strategy and get make sure swapAmountBased is done correct
         const service = this.getStrategyService(strategy)
         const id = uuidv4()
-        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, id)
+        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmountBased, id)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
 
         // Helper function to check if a quote is valid
@@ -81,7 +82,7 @@ export class LiquidityProviderService {
           EcoLogMessage.withError({
             message: 'Unable to get quote from strategy',
             error,
-            properties: { walletAddress, strategy, tokenIn, tokenOut, swapAmount },
+            properties: { walletAddress, strategy, tokenIn, tokenOut, swapAmountBased: swapAmountBased },
           }),
         )
       }
@@ -147,7 +148,7 @@ export class LiquidityProviderService {
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote[]> {
     const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage

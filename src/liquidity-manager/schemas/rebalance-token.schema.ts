@@ -11,19 +11,16 @@ export class RebalanceTokenModel {
   tokenAddress: Hex
 
   @Prop({ required: true })
-  currentBalance: number
+  currentBalance: bigint
 
   @Prop({ required: true })
-  targetBalance: number
+  targetBalance: bigint
 
   static fromTokenData(tokenData: TokenData): RebalanceTokenModel {
-    const currentBalance = parseFloat(
-      formatUnits(tokenData.balance.balance, tokenData.balance.decimals),
-    )
     return {
       chainId: tokenData.chainId,
       tokenAddress: tokenData.config.address,
-      currentBalance,
+      currentBalance: tokenData.balance.balance,
       targetBalance: tokenData.config.targetBalance,
     }
   }

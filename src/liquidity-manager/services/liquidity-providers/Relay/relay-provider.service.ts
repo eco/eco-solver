@@ -38,7 +38,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
       const client: KernelAccountClient<Transport, Chain, SmartAccount, Client> =

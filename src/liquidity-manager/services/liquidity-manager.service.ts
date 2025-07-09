@@ -11,7 +11,7 @@ import {
   analyzeToken,
   analyzeTokenGroup,
   getGroupTotal,
-  getSortGroupByDiff,
+  getSortDescGroupByDiff,
 } from '@/liquidity-manager/utils/token'
 import {
   LiquidityManagerJobName,
@@ -36,6 +36,9 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Hex } from 'viem'
+import { normalizeAnalysisDiffToBase } from '@/fee/utils'
+import { Mathb } from '@/utils/bigint'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -55,7 +58,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     private readonly rebalanceModel: Model<RebalanceModel>,
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-    public readonly liquidityProviderManager: LiquidityProviderService,
+    public readonly liquidityProviderService: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
   ) {
@@ -96,7 +99,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
   }
 
-  async analyzeTokens(walletAddress: string) {
+  async analyzeTokens(walletAddress: Hex) {
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
       walletAddress,
       this.tokensPerWallet[walletAddress],
@@ -132,7 +135,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * @param surplusTokens
    */
   async getOptimizedRebalancing(
-    walletAddress: string,
+    walletAddress: Hex,
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
   ) {
@@ -160,11 +163,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   async executeRebalancing(rebalanceData: RebalanceJobData) {
     const { walletAddress, rebalance } = rebalanceData
     for (const quote of rebalance.quotes) {
-      await this.liquidityProviderManager.execute(walletAddress, deserialize(quote))
+      await this.liquidityProviderService.execute(walletAddress, deserialize(quote))
     }
   }
 
-  async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
+  async storeRebalancing(walletAddress: Hex, request: RebalanceRequest) {
     const groupId = uuid()
     for (const quote of request.quotes) {
       await this.rebalanceModel.create({
@@ -190,7 +193,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * @private
    */
   private async getSwapQuotes(
-    walletAddress: string,
+    walletAddress: Hex,
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
   ) {
@@ -209,7 +212,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * @private
    */
   private async getRebalancingQuotes(
-    walletAddress: string,
+    walletAddress: Hex,
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
   ) {
@@ -217,10 +220,10 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       return []
     }
 
-    const sortedSurplusTokens = getSortGroupByDiff(surplusTokens)
+    const sortedSurplusTokens = getSortDescGroupByDiff(surplusTokens)
     const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
 
-    if (!deficitToken?.analysis?.diff || deficitToken.analysis.diff > surplusTokensTotal) {
+    if (!deficitToken?.analysis?.diff || normalizeAnalysisDiffToBase(deficitToken) > surplusTokensTotal) {
       // Not enough surplus tokens to rebalance
       return []
     }
@@ -233,13 +236,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     for (const surplusToken of sortedSurplusTokens) {
       try {
         // Calculate the amount to swap
-        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        const swapAmountBased = Mathb.min(normalizeAnalysisDiffToBase(deficitToken), normalizeAnalysisDiffToBase(surplusToken))
 
-        const strategyQuotes = await this.liquidityProviderManager.getQuote(
+        const strategyQuotes = await this.liquidityProviderService.getQuote(
           walletAddress,
           surplusToken,
           deficitToken,
-          swapAmount,
+          swapAmountBased,
         )
 
         this.logger.log(
@@ -249,7 +252,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
               strategyQuotes,
               surplusToken,
               deficitToken,
-              swapAmount,
+              swapAmountBased,
               walletAddress,
             },
           }),
@@ -305,13 +308,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
       try {
         // Calculate the amount to swap
-        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        const swapAmountBased = Mathb.min(normalizeAnalysisDiffToBase(deficitToken), normalizeAnalysisDiffToBase(surplusToken))
 
         // Use the fallback method that routes through core tokens
-        const quotes = await this.liquidityProviderManager.fallback(
+        const quotes = await this.liquidityProviderService.fallback(
           surplusToken,
           deficitToken,
-          swapAmount,
+          swapAmountBased, <- test hre
         )
 
         quotes.push(...quotes)

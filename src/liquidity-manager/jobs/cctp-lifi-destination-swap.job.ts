@@ -7,7 +7,7 @@ import {
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { LiFiStrategyContext, RebalanceQuote } from '@/liquidity-manager/types/types'
 
 export interface CCTPLiFiDestinationSwapJobData {
   messageHash: Hex
@@ -164,14 +164,14 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     )
 
     // Create a temporary quote object for LiFi execution
-    const tempQuote = {
+    const tempQuote : RebalanceQuote = {
       tokenIn: {
         chainId: destinationChainId,
         config: {
           address: destinationSwapQuote.fromToken.address as Hex,
           chainId: destinationChainId,
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
           type: 'erc20' as const,
         },
         balance: {
@@ -185,8 +185,8 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         config: {
           address: destinationSwapQuote.toToken.address as Hex,
           chainId: destinationChainId,
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
           type: 'erc20' as const,
         },
         balance: {
@@ -205,7 +205,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     }
 
     // Execute the swap through the liquidity provider service
-    const result = await processor.liquidityManagerService.liquidityProviderManager.execute(
+    const result = await processor.liquidityManagerService.liquidityProviderService.execute(
       walletAddress,
       tempQuote,
     )

@@ -1302,7 +1302,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       // Mock the liquidityProviderManager to simulate real behavior - call provider and handle error
       jest
-        .spyOn(liquidityManagerService['liquidityProviderManager'], 'getQuote')
+        .spyOn(liquidityManagerService['liquidityProviderService'], 'getQuote')
         .mockImplementation(async (walletAddress, tokenIn, tokenOut, swapAmount) => {
           try {
             // Attempt to call the CCTP-LiFi provider (which will throw)
@@ -1332,7 +1332,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       )
 
       // Verify the liquidity provider service was called
-      expect(liquidityManagerService['liquidityProviderManager'].getQuote).toHaveBeenCalled()
+      expect(liquidityManagerService['liquidityProviderService'].getQuote).toHaveBeenCalled()
     })
 
     it('should validate sufficient balance before execution', async () => {

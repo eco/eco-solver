@@ -21,7 +21,7 @@ interface TokenBalanceAnalysis {
 
 interface TokenAnalysis {
   state: TokenState
-  diff: number
+  diff: bigint
   targetSlippage: { min: bigint; max: bigint }
   balance: TokenBalanceAnalysis
 }
