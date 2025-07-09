@@ -35,7 +35,7 @@ function stringify(data: object | bigint) {
   })
 }
 
-export function deserialize<T extends object>(data: T): Deserialize<T> {
+export function deserialize<T extends object | string>(data: T): Deserialize<T> {
   return JSON.parse(JSON.stringify(data), (_key, value) =>
     value && isSerializedBigInt(value) ? BigInt(value.hex) : value,
   )

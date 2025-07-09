@@ -33,7 +33,7 @@ describe('Serialize BigInt', () => {
   })
 
   it('deserialize string correctly', () => {
-    const obj = "test string"
+    const obj = 'test string'
     const objDeserialized = deserialize(obj)
 
     expect(objDeserialized).toBe(obj)
