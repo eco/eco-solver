@@ -143,11 +143,7 @@ export class BalanceService implements OnApplicationBootstrap {
 
     tokenAddresses.forEach((tokenAddress, index) => {
       const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
-      //throw if we suddenly start supporting tokens with not 6 decimals
-      //audit conversion of validity to see its support
-      if ((decimals as number) != 6) {
-        throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
-      }
+
       tokenBalances[tokenAddress] = {
         address: tokenAddress,
         balance: balance as bigint,
