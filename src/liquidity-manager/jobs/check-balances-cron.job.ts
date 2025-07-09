@@ -1,5 +1,5 @@
 import { Queue, JobsOptions } from 'bullmq'
-import { formatUnits } from 'viem'
+import { formatUnits, Hex } from 'viem'
 import { table } from 'table'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
@@ -87,7 +87,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       return
     }
 
-    const { wallet: walletAddress } = job.data
+    const { wallet: walletAddress } = job.data as { wallet: Hex }
 
     const { deficit, surplus, items } =
       await processor.liquidityManagerService.analyzeTokens(walletAddress)

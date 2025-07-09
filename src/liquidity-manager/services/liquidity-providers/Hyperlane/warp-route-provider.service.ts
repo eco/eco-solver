@@ -7,7 +7,6 @@ import {
   isAddressEqual,
   pad,
   parseEventLogs,
-  parseUnits,
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'
@@ -49,6 +48,16 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return 'WarpRoute' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the WarpRoute strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to an array of WarpRoute rebalance quotes
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -60,10 +69,10 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     if (actionPath === ActionPath.UNSUPPORTED) throw new Error('Unsupported action path')
 
     if (actionPath === ActionPath.PARTIAL) {
-      return this.getPartialQuote(tokenIn, tokenOut, swapAmount, id)
+      return this.getPartialQuote(tokenIn, tokenOut, swapAmountBased, id)
     }
 
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    const amount = swapAmountBased
     return [this.getRemoteTransferQuote(tokenIn, tokenOut, amount, id)]
   }
 
@@ -125,12 +134,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   private getRemoteTransferQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    amount: bigint,
+    swapAmountBased: bigint,
     id?: string,
   ): RebalanceQuote<'WarpRoute'> {
     return {
-      amountIn: amount,
-      amountOut: amount,
+      amountIn: swapAmountBased,
+      amountOut: swapAmountBased,
       slippage: 0,
       tokenIn: tokenIn,
       tokenOut: tokenOut,
@@ -267,7 +276,6 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const warpTokenIn = this.getWarpRoute(tokenIn.chainId, tokenIn.config.address)
     const warpTokenOut = this.getWarpRoute(tokenOut.chainId, tokenOut.config.address)
 
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
 
     if (warpTokenIn.warpRoute) {
@@ -281,15 +289,19 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         [collateralTokenConfig],
       )
 
-      const remoteTransferQuote = this.getRemoteTransferQuote(tokenIn, collateralTokenData, amount)
+      const remoteTransferQuote = this.getRemoteTransferQuote(
+        tokenIn,
+        collateralTokenData,
+        swapAmountBased,
+      )
 
       // Use balance after remote transfer
-      collateralTokenData.balance.balance += amount
+      collateralTokenData.balance.balance += swapAmountBased
 
       const liFiQuote = await this.liFiProviderService.getQuote(
         collateralTokenData,
         tokenOut,
-        swapAmount,
+        swapAmountBased,
         id,
       )
 
@@ -308,7 +320,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       const liFiQuote = await this.liFiProviderService.getQuote(
         tokenIn,
         collateralTokenData,
-        swapAmount,
+        swapAmountBased,
         id,
       )
 

@@ -8,12 +8,16 @@ export const DEFAULT_DECIMAL_PRECISION = 6
  * @param decimalPrecision - The number of decimal places to include in the result. Defaults to 6.(0.000001) {@link DEFAULT_DECIMAL_PRECISION}
  * @returns The result of the multiplication, rounded to the specified decimal precision.
  */
-export function multiplyByPercentage(value: bigint, percentage: number, decimalPrecision: number = DEFAULT_DECIMAL_PRECISION): bigint {
+export function multiplyByPercentage(
+  value: bigint,
+  percentage: number,
+  decimalPrecision: number = DEFAULT_DECIMAL_PRECISION,
+): bigint {
   // Validate inputs
   if (percentage < 0 || percentage > 1) {
     throw new Error('Percentage must be between 0 and 1')
   }
-  
+
   if (decimalPrecision > 12 || decimalPrecision <= 0) {
     throw new Error('Decimal precision cannot be greater than 12')
   }

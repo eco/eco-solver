@@ -26,7 +26,7 @@ describe('multiplyByPercentage', () => {
   describe('decimal precision', () => {
     it('should use default decimal precision when not specified', () => {
       const result = multiplyByPercentage(1000000n, 0.123456)
-      const expected = (1000000n * 123456n) / (10n ** BigInt(DEFAULT_DECIMAL_PRECISION))
+      const expected = (1000000n * 123456n) / 10n ** BigInt(DEFAULT_DECIMAL_PRECISION)
       expect(result).toBe(expected)
     })
 
@@ -37,7 +37,7 @@ describe('multiplyByPercentage', () => {
 
     it('should handle high precision calculations', () => {
       const result = multiplyByPercentage(1000000000000n, 0.123456789, 9)
-      const expected = (1000000000000n * 123456789n) / (10n ** 9n)
+      const expected = (1000000000000n * 123456789n) / 10n ** 9n
       expect(result).toBe(expected)
     })
 
@@ -79,7 +79,9 @@ describe('multiplyByPercentage', () => {
     })
 
     it('should throw error for percentage equal to 1.1', () => {
-      expect(() => multiplyByPercentage(1000n, 1.000001)).toThrow('Percentage must be between 0 and 1')
+      expect(() => multiplyByPercentage(1000n, 1.000001)).toThrow(
+        'Percentage must be between 0 and 1',
+      )
     })
 
     it('should accept percentage equal to 0', () => {
@@ -91,11 +93,15 @@ describe('multiplyByPercentage', () => {
     })
 
     it('should throw error for decimal precision greater than 12', () => {
-      expect(() => multiplyByPercentage(1000n, 0.5, 13)).toThrow('Decimal precision cannot be greater than 12')
+      expect(() => multiplyByPercentage(1000n, 0.5, 13)).toThrow(
+        'Decimal precision cannot be greater than 12',
+      )
     })
 
     it('should throw error for decimal precision equal to 13', () => {
-      expect(() => multiplyByPercentage(1000n, 0.5, 13)).toThrow('Decimal precision cannot be greater than 12')
+      expect(() => multiplyByPercentage(1000n, 0.5, 13)).toThrow(
+        'Decimal precision cannot be greater than 12',
+      )
     })
 
     it('should accept decimal precision equal to 12', () => {
@@ -103,22 +109,28 @@ describe('multiplyByPercentage', () => {
     })
 
     it('should throw error for negative decimal precision', () => {
-      expect(() => multiplyByPercentage(1000n, 0.5, -1)).toThrow('Decimal precision cannot be greater than 12')
+      expect(() => multiplyByPercentage(1000n, 0.5, -1)).toThrow(
+        'Decimal precision cannot be greater than 12',
+      )
     })
 
     it('should throw error for decimal precision of 0', () => {
-      expect(() => multiplyByPercentage(1000n, 0.5, 0)).toThrow('Decimal precision cannot be greater than 12')
+      expect(() => multiplyByPercentage(1000n, 0.5, 0)).toThrow(
+        'Decimal precision cannot be greater than 12',
+      )
     })
   })
 
   describe('overflow protection', () => {
     it('should throw error for value too large', () => {
       const largeValue = 2n ** 201n
-      expect(() => multiplyByPercentage(largeValue, 0.5)).toThrow('Value too large for safe multiplication')
+      expect(() => multiplyByPercentage(largeValue, 0.5)).toThrow(
+        'Value too large for safe multiplication',
+      )
     })
 
     it('should handle maximum safe value', () => {
-      const maxSafeValue = (2n ** 200n) / 10000n - 1n
+      const maxSafeValue = 2n ** 200n / 10000n - 1n
       expect(() => multiplyByPercentage(maxSafeValue, 0.5)).not.toThrow()
     })
   })

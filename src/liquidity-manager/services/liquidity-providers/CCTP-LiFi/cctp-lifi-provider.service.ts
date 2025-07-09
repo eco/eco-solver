@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
-import { parseUnits, Hex, formatUnits } from 'viem'
+import { Hex } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import {
   RebalanceQuote,
@@ -32,7 +31,6 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     private readonly liFiService: LiFiProviderService,
     private readonly cctpService: CCTPProviderService,
     private readonly ecoConfigService: EcoConfigService,
-    private readonly balanceService: BalanceService,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -47,6 +45,16 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     return 'CCTPLiFi' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the CCTPLiFi strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single CCTPLiFi rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -60,7 +68,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         properties: {
           tokenIn,
           tokenOut,
-          swapAmount,
+          swapAmountBased,
         },
       }),
     )
@@ -69,7 +77,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     const validation = CCTPLiFiValidator.validateRoute(
       tokenIn,
       tokenOut,
-      swapAmount,
+      swapAmountBased,
       this.config.maxSlippage,
     )
 
@@ -95,7 +103,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
             warnings: validation.warnings,
             tokenIn,
             tokenOut,
-            swapAmount,
+            swapAmountBased,
           },
         }),
       )
@@ -112,10 +120,10 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     )
 
     // 3. Get quotes for each step and build context
-    const context = await this.buildRouteContext(tokenIn, tokenOut, swapAmount, steps, id)
+    const context = await this.buildRouteContext(tokenIn, tokenOut, swapAmountBased, steps, id)
 
     // 4. Calculate total amounts and slippage
-    const { totalAmountOut, totalSlippage } = this.calculateTotals(context, swapAmount)
+    const { totalAmountOut, totalSlippage } = this.calculateTotals(context, swapAmountBased)
 
     // 5. Final validation of calculated slippage
     if (totalSlippage > this.config.maxSlippage) {
@@ -134,7 +142,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     }
 
     const quote: RebalanceQuote<'CCTPLiFi'> = {
-      amountIn: parseUnits(swapAmount.toString(), tokenIn.balance.decimals),
+      amountIn: swapAmountBased,
       amountOut: totalAmountOut,
       slippage: totalSlippage,
       tokenIn,
@@ -272,15 +280,20 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
   ): Promise<CCTPLiFiStrategyContext> {
     let sourceSwapQuote: LiFiStrategyContext | undefined
     let destinationSwapQuote: LiFiStrategyContext | undefined
-    let cctpAmount = swapAmount
+    let cctpAmount = swapAmountBased
 
     try {
       // Get source swap quote if needed
       if (steps.some((step) => step.type === 'sourceSwap')) {
         const usdcTokenData = this.createUSDCTokenData(tokenIn.chainId)
-        const sourceQuote = await this.liFiService.getQuote(tokenIn, usdcTokenData, swapAmount, id)
+        const sourceQuote = await this.liFiService.getQuote(
+          tokenIn,
+          usdcTokenData,
+          swapAmountBased,
+          id,
+        )
         sourceSwapQuote = sourceQuote.context
-        cctpAmount = Number(formatUnits(BigInt(sourceSwapQuote.toAmount), 6))
+        cctpAmount = BigInt(sourceSwapQuote.toAmount)
 
         this.logger.debug(
           EcoLogMessage.withId({
@@ -289,7 +302,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
             properties: {
               tokenIn,
               tokenOut: usdcTokenData,
-              amount: swapAmount,
+              amount: swapAmountBased,
               sourceSwapQuote,
             },
           }),
@@ -342,7 +355,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       cctpTransfer: {
         sourceChain: tokenIn.chainId,
         destinationChain: tokenOut.chainId,
-        amount: parseUnits(cctpAmount.toString(), 6), // USDC has 6 decimals
+        amount: cctpAmount,
       },
       destinationSwapQuote,
       steps: steps.map((step) => step.type),
@@ -358,24 +371,21 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
    */
   private calculateTotals(
     context: CCTPLiFiStrategyContext,
-    initialAmount: bigint,
+    amountOutBased: bigint,
   ): { totalAmountOut: bigint; totalSlippage: number } {
     const totalSlippage = SlippageCalculator.calculateTotalSlippage(context)
 
-    // Calculate final amount out
-    let amountOut = parseUnits(initialAmount.toString(), 6) // Start with initial amount in USDC decimals
-
     if (context.sourceSwapQuote) {
-      amountOut = BigInt(context.sourceSwapQuote.toAmount)
+      amountOutBased = BigInt(context.sourceSwapQuote.toAmount)
     }
 
     // CCTP is 1:1, so no change to amount
 
     if (context.destinationSwapQuote) {
-      amountOut = BigInt(context.destinationSwapQuote.toAmount)
+      amountOutBased = BigInt(context.destinationSwapQuote.toAmount)
     }
 
-    return { totalAmountOut: amountOut, totalSlippage }
+    return { totalAmountOut: amountOutBased, totalSlippage }
   }
 
   /**
@@ -428,8 +438,8 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         config: {
           address: sourceSwapQuote.fromToken.address as Hex,
           chainId: sourceSwapQuote.fromChainId,
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
           type: 'erc20' as const,
         },
         balance: {
@@ -444,8 +454,8 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         config: {
           address: sourceSwapQuote.toToken.address as Hex,
           chainId: sourceSwapQuote.toChainId,
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
           type: 'erc20' as const,
         },
         balance: {

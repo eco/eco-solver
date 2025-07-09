@@ -416,7 +416,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       // Step 4: Get rebalancing quotes - this simulates what the cron job does
       // Mock the liquidityProviderService to return our expected quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('350', 6),
           amountOut: parseUnits('347', 6),
@@ -559,7 +559,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock the liquidityProviderService to return our expected quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('300', 6),
           amountOut: parseUnits('298', 6),
@@ -652,7 +652,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock the liquidityProviderService to return our expected quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('300', 6),
           amountOut: parseUnits('298', 6),
@@ -725,7 +725,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Mock other providers to return empty quotes
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([])
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([])
 
       // Analyze and get quotes
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -890,7 +890,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock liquidityProviderService to return the high-slippage CCTPLiFi quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('200', 6),
           amountOut: parseUnits('180', 6),
@@ -1017,7 +1017,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       // Mock the liquidityProviderService to return quotes with properly structured data
       jest
-        .spyOn(liquidityProviderService, 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockImplementation(async (walletAddress, tokenIn, tokenOut, swapAmount) => {
           return [
             {
@@ -1099,7 +1099,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         .mockRejectedValue(new Error('Cannot create CCTP-LiFi quote due to LiFi API failure'))
 
       // Mock liquidityProviderService to return empty quotes when all providers fail
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([])
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([])
 
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
       const quotes = await liquidityManagerService.getOptimizedRebalancing(
@@ -1112,8 +1112,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       expect(quotes).toHaveLength(0)
 
       // Verify that the liquidity provider service was called
-      expect(liquidityProviderService.getQuote).toHaveBeenCalled()
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledWith(
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalled()
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalledWith(
         walletAddress,
         analysis.surplus.items[0],
         analysis.deficit.items[0],
@@ -1201,7 +1201,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock liquidityProviderService to return the CCTP-LiFi quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('200', 6),
           amountOut: parseUnits('198', 6),
@@ -1332,7 +1332,9 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       )
 
       // Verify the liquidity provider service was called
-      expect(liquidityManagerService['liquidityProviderService'].getQuote).toHaveBeenCalled()
+      expect(
+        liquidityManagerService['liquidityProviderService'].getLiquidityQuotes,
+      ).toHaveBeenCalled()
     })
 
     it('should validate sufficient balance before execution', async () => {

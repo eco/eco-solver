@@ -1,5 +1,4 @@
-import { multiplyByPercentage } from "@/common/utils/math"
-
+import { multiplyByPercentage } from '@/common/utils/math'
 
 export function getRangeFromPercentage(
   amount: bigint,

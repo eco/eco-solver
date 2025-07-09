@@ -33,7 +33,7 @@ export class LiquidityProviderService {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
 
-  async getQuote(
+  async getLiquidityQuotes(
     walletAddress: string,
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -82,7 +82,13 @@ export class LiquidityProviderService {
           EcoLogMessage.withError({
             message: 'Unable to get quote from strategy',
             error,
-            properties: { walletAddress, strategy, tokenIn, tokenOut, swapAmountBased: swapAmountBased },
+            properties: {
+              walletAddress,
+              strategy,
+              tokenIn,
+              tokenOut,
+              swapAmountBased: swapAmountBased,
+            },
           }),
         )
       }

@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { formatUnits, parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -83,6 +82,16 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     return 'LiFi' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the LiFi strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single LiFi rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,

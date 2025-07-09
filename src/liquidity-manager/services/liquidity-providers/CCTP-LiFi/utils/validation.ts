@@ -43,7 +43,7 @@ export class CCTPLiFiValidator {
     }
 
     // Validate swap amount
-    if (swapAmount <= 0) {
+    if (swapAmountBased <= 0) {
       errors.push('Swap amount must be positive')
     }
 

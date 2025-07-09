@@ -164,7 +164,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     )
 
     // Create a temporary quote object for LiFi execution
-    const tempQuote : RebalanceQuote = {
+    const tempQuote: RebalanceQuote = {
       tokenIn: {
         chainId: destinationChainId,
         config: {

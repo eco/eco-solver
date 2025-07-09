@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex, parseUnits } from 'viem'
+import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -33,6 +33,16 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     return 'Stargate' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the Stargate strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single Stargate rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -46,7 +56,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       throw EcoError.RebalancingRouteNotFound()
     }
 
-    const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    const amountIn = swapAmountBased
 
     // Calculate the minimum amount out using the max slippage without losing precision
     const amountMin = this.calculateAmountMin(amountIn)

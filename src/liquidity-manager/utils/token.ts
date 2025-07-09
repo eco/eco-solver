@@ -7,7 +7,7 @@ import {
   TokenBalanceAnalysis,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
-import { normalizeAnalysisDiffToBase, normalizeBalance, normalizeBalanceToBase } from '@/fee/utils'
+import { normalizeAnalysisDiffToBase, normalizeBalance } from '@/fee/utils'
 
 /**
  * Analyzes a token's balance against its configuration and returns the analysis.
@@ -25,7 +25,6 @@ export function analyzeToken(
   const config = toTokenBalance(tokenConfig, decimals)
   // Calculate the maximum and minimum acceptable balances
   const { min: minimum, max: maximum } = getRangeFromPercentage(config.balance, percentage)
-
 
   // Create a balance analysis object
   const balance: TokenBalanceAnalysis = {
@@ -76,7 +75,8 @@ export function analyzeTokenGroup(group: TokenDataAnalyzed[]) {
     Mathb.compare(
       // Normalize the balances to base decimal for comparison
       normalizeAnalysisDiffToBase(b),
-      normalizeAnalysisDiffToBase(a),)
+      normalizeAnalysisDiffToBase(a),
+    ),
   )
   // Calculate the total difference for the group
   const total = getGroupTotal(items)
@@ -92,24 +92,29 @@ export function getGroupTotal(group: TokenDataAnalyzed[]) {
   if (!group || !Array.isArray(group) || group.length === 0) {
     return 0
   }
-  return group.reduce((acc, item) => acc + item?.analysis?.diff ? normalizeAnalysisDiffToBase(item) : 0n, 0n)
+  return group.reduce(
+    (acc, item) => (acc + item?.analysis?.diff ? normalizeAnalysisDiffToBase(item) : 0n),
+    0n,
+  )
 }
 
 /**
  * Gets the sorted group of analyzed token data by their normalized difference in descending order.
  * @param group - The group of analyzed token data.
- * @returns 
+ * @returns
  */
 export function getSortDescGroupByDiff(group: TokenDataAnalyzed[]) {
   if (!group || !Array.isArray(group)) {
     return []
   }
   // Sort the group by diff in descending order
-  return [...group].sort((a, b) => Mathb.compare(
-    // Normalize the balances to base decimal for comparison
-    normalizeAnalysisDiffToBase(b),
-    normalizeAnalysisDiffToBase(a),
-  ))
+  return [...group].sort((a, b) =>
+    Mathb.compare(
+      // Normalize the balances to base decimal for comparison
+      normalizeAnalysisDiffToBase(b),
+      normalizeAnalysisDiffToBase(a),
+    ),
+  )
 }
 
 /**
@@ -117,7 +122,7 @@ export function getSortDescGroupByDiff(group: TokenDataAnalyzed[]) {
  * Assumes that the configuration object contains a target balance in the base decimal (0).
  * @param config The token configuration object.
  * @param decimals The number of decimals for the token.
- * @returns 
+ * @returns
  */
 export function toTokenBalance(config: TokenConfig, decimals: number): TokenBalance {
   return {

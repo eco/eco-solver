@@ -223,7 +223,10 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const sortedSurplusTokens = getSortDescGroupByDiff(surplusTokens)
     const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
 
-    if (!deficitToken?.analysis?.diff || normalizeAnalysisDiffToBase(deficitToken) > surplusTokensTotal) {
+    if (
+      !deficitToken?.analysis?.diff ||
+      normalizeAnalysisDiffToBase(deficitToken) > surplusTokensTotal
+    ) {
       // Not enough surplus tokens to rebalance
       return []
     }
@@ -236,9 +239,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     for (const surplusToken of sortedSurplusTokens) {
       try {
         // Calculate the amount to swap
-        const swapAmountBased = Mathb.min(normalizeAnalysisDiffToBase(deficitToken), normalizeAnalysisDiffToBase(surplusToken))
+        const swapAmountBased = Mathb.min(
+          normalizeAnalysisDiffToBase(deficitToken),
+          normalizeAnalysisDiffToBase(surplusToken),
+        )
 
-        const strategyQuotes = await this.liquidityProviderService.getQuote(
+        const strategyQuotes = await this.liquidityProviderService.getLiquidityQuotes(
           walletAddress,
           surplusToken,
           deficitToken,
@@ -308,7 +314,10 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
       try {
         // Calculate the amount to swap
-        const swapAmountBased = Mathb.min(normalizeAnalysisDiffToBase(deficitToken), normalizeAnalysisDiffToBase(surplusToken))
+        const swapAmountBased = Mathb.min(
+          normalizeAnalysisDiffToBase(deficitToken),
+          normalizeAnalysisDiffToBase(surplusToken),
+        )
 
         // Use the fallback method that routes through core tokens
         const fallbackQuotes = await this.liquidityProviderService.fallback(

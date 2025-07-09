@@ -137,7 +137,7 @@ describe('LiquidityManagerService', () => {
       const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200 } }]
 
       jest
-        .spyOn(liquidityProviderService, 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockResolvedValue([{ amountOut: 100 }] as any)
 
       const result = await liquidityManagerService.getOptimizedRebalancing(
@@ -177,7 +177,7 @@ describe('LiquidityManagerService', () => {
 
       // Setup getQuote to fail for the first surplus token but succeed for the second
       jest
-        .spyOn(liquidityProviderService, 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockImplementation((walletAddress: string, tokenIn: any, tokenOut: any) => {
           if (tokenIn.config.address === '0xSurplus1') {
             return Promise.reject(new Error('Route not found'))
@@ -209,7 +209,7 @@ describe('LiquidityManagerService', () => {
       )
 
       // Verify correct calls were made
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledTimes(2)
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalledTimes(2)
       expect(liquidityProviderService.fallback).toHaveBeenCalledTimes(1)
       expect(liquidityProviderService.fallback).toHaveBeenCalledWith(
         mockSurplusTokens[0],
@@ -242,7 +242,7 @@ describe('LiquidityManagerService', () => {
       liquidityManagerService['config'] = mockConfig
 
       // Setup getQuote to return a quote that reaches the target
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: 100n,
           amountOut: 100n, // This will make current balance reach the min
@@ -259,7 +259,7 @@ describe('LiquidityManagerService', () => {
       )
 
       // Verify only one call was made and fallback was never called
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledTimes(1)
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalledTimes(1)
       expect(fallbackSpy).not.toHaveBeenCalled()
       expect(result).toHaveLength(1)
     })
