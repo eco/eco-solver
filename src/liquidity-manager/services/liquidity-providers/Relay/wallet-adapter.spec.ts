@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { publicActions } from 'viem'
 import { adaptKernelWallet } from './wallet-adapter'
 

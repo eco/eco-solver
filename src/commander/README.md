@@ -7,19 +7,19 @@ The Eco-Solver CLI provides command-line access to various services and operatio
 Run any CLI command using:
 
 ```bash
-yarn cli <command> [options]
+pnpm cli <command> [options]
 ```
 
 To see all available commands:
 
 ```bash
-yarn cli --help
+pnpm cli --help
 ```
 
 You can interact with the preprod environments by connecting your VPN and aws-sso on your terminal, then:
 
 ```bash
-NODE_ENV=preproduction yarn cli <command> [options]
+NODE_ENV=preproduction pnpm cli <command> [options]
 ```
 
 ## Available Commands
@@ -31,7 +31,7 @@ Query token balances across different chains for the Kernel wallet.
 #### Usage
 
 ```bash
-yarn cli balance [options]
+pnpm cli balance [options]
 ```
 
 #### Options
@@ -45,20 +45,20 @@ yarn cli balance [options]
 **Query all tokens on all chains:**
 
 ```bash
-yarn cli balance
+pnpm cli balance
 ```
 
 **Query all tokens on a specific chain:**
 
 ```bash
-yarn cli balance -c 84532  # Base Sepolia
-yarn cli balance -c 1      # Ethereum Mainnet
+pnpm cli balance -c 84532  # Base Sepolia
+pnpm cli balance -c 1      # Ethereum Mainnet
 ```
 
 **Query specific token on specific chain:**
 
 ```bash
-yarn cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+pnpm cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
 ```
 
 #### Output Format
@@ -85,7 +85,7 @@ Transfer ERC20 tokens or native tokens from the Kernel wallet to other addresses
 #### Usage
 
 ```bash
-yarn cli transfer <recipient> [options]
+pnpm cli transfer <recipient> [options]
 ```
 
 #### Options
@@ -102,7 +102,7 @@ yarn cli transfer <recipient> [options]
 **Transfer ERC20 tokens:**
 
 ```bash
-yarn cli transfer 0xRecipientAddress \
+pnpm cli transfer 0xRecipientAddress \
   -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
   -a 1000000 \
   -c 84532
@@ -111,7 +111,7 @@ yarn cli transfer 0xRecipientAddress \
 **Transfer native tokens (ETH):**
 
 ```bash
-yarn cli transfer 0xRecipientAddress \
+pnpm cli transfer 0xRecipientAddress \
   -n 0.1 \
   -c 84532
 ```
@@ -119,7 +119,7 @@ yarn cli transfer 0xRecipientAddress \
 **Transfer all tokens from a chain:**
 
 ```bash
-yarn cli transfer 0xRecipientAddress \
+pnpm cli transfer 0xRecipientAddress \
   -e \
   -c 84532
 ```
@@ -144,7 +144,7 @@ Generate transaction calldata for Safe transactions via OwnableExecutor module i
 #### Usage
 
 ```bash
-yarn cli safe [options]
+pnpm cli safe [options]
 ```
 
 #### Options
@@ -158,7 +158,7 @@ yarn cli safe [options]
 #### Example
 
 ```bash
-yarn cli safe \
+pnpm cli safe \
   -k 0xKernelAddress \
   -t 0xRecipientAddress \
   -a 1000000 \
@@ -182,7 +182,7 @@ Display configuration information and supported chains.
 #### Usage
 
 ```bash
-yarn cli configs [task]
+pnpm cli configs [task]
 ```
 
 #### Examples
@@ -190,13 +190,13 @@ yarn cli configs [task]
 **Display all configurations:**
 
 ```bash
-yarn cli configs
+pnpm cli configs
 ```
 
 **Display supported chains:**
 
 ```bash
-yarn cli configs chains
+pnpm cli configs chains
 ```
 
 #### Output Format
@@ -350,7 +350,7 @@ Commands can be tested using the NestJS testing framework with proper service mo
 Enable debug logging by setting the log level in your configuration:
 
 ```bash
-yarn cli balance --verbose  # If supported by command
+pnpm cli balance --verbose  # If supported by command
 ```
 
 ### Getting Help
@@ -358,10 +358,10 @@ yarn cli balance --verbose  # If supported by command
 Each command supports the `--help` flag for detailed usage information:
 
 ```bash
-yarn cli balance --help
-yarn cli transfer --help
-yarn cli safe --help
-yarn cli configs --help
+pnpm cli balance --help
+pnpm cli transfer --help
+pnpm cli safe --help
+pnpm cli configs --help
 ```
 
 ## Examples by Use Case
@@ -370,40 +370,40 @@ yarn cli configs --help
 
 ```bash
 # Check all balances
-yarn cli balance
+pnpm cli balance
 
 # Monitor specific chain
-yarn cli balance -c 84532
+pnpm cli balance -c 84532
 
 # Check specific token
-yarn cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+pnpm cli balance -c 84532 -t 0x036CbD53842c5426634e7929541eC2318f3dCF7e
 ```
 
 ### Emergency Token Recovery
 
 ```bash
 # Transfer all tokens from a chain
-yarn cli transfer 0xSafeAddress -e -c 84532
+pnpm cli transfer 0xSafeAddress -e -c 84532
 
 # Transfer specific amount
-yarn cli transfer 0xSafeAddress -t 0xTokenAddress -a 1000000 -c 84532
+pnpm cli transfer 0xSafeAddress -t 0xTokenAddress -a 1000000 -c 84532
 ```
 
 ### Configuration Debugging
 
 ```bash
 # Check supported chains
-yarn cli configs
+pnpm cli configs
 
 # Verify solver configuration
-yarn cli configs chains
+pnpm cli configs chains
 ```
 
 ### Safe Integration
 
 ```bash
 # Generate Safe transaction calldata
-yarn cli safe -k 0xKernel -t 0xRecipient -a 1000000 -tk 0xToken
+pnpm cli safe -k 0xKernel -t 0xRecipient -a 1000000 -tk 0xToken
 ```
 
 This CLI interface provides comprehensive access to the eco-solver functionality for operational tasks, debugging, and monitoring purposes.
