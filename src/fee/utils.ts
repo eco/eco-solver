@@ -1,4 +1,6 @@
 import { BASE_DECIMALS } from '@/intent/utils'
+
+export { BASE_DECIMALS }
 import { NormalizedTotal } from './types'
 import { TokenDataAnalyzed } from '@/liquidity-manager/types/types'
 

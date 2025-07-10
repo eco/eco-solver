@@ -14,8 +14,8 @@ export function multiplyByPercentage(
   decimalPrecision: number = DEFAULT_DECIMAL_PRECISION,
 ): bigint {
   // Validate inputs
-  if (percentage < 0 || percentage > 1) {
-    throw new Error('Percentage must be between 0 and 1')
+  if (percentage < 0) {
+    throw new Error('Percentage must be non-negative')
   }
 
   if (decimalPrecision > 12 || decimalPrecision <= 0) {

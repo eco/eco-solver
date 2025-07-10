@@ -111,9 +111,33 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10 }, balance: { balance: 100n } },
-        { config: { targetBalance: 100 }, balance: { balance: 100n } },
-        { config: { targetBalance: 200 }, balance: { balance: 100n } },
+        {
+          chainId: 1,
+          config: { address: '0x1', chainId: 1, targetBalance: 10n, minBalance: 5n, type: 'erc20' },
+          balance: { address: '0x1', balance: 100000000000000000000n, decimals: 18 }, // 100 tokens in 18 decimals
+        },
+        {
+          chainId: 1,
+          config: {
+            address: '0x2',
+            chainId: 1,
+            targetBalance: 100n,
+            minBalance: 50n,
+            type: 'erc20',
+          },
+          balance: { address: '0x2', balance: 100000000000000000000n, decimals: 18 }, // 100 tokens in 18 decimals
+        },
+        {
+          chainId: 1,
+          config: {
+            address: '0x3',
+            chainId: 1,
+            targetBalance: 200n,
+            minBalance: 100n,
+            type: 'erc20',
+          },
+          balance: { address: '0x3', balance: 100000000000000000000n, decimals: 18 }, // 100 tokens in 18 decimals
+        },
       ]
 
       liquidityManagerService['config'] = mockConfig
@@ -132,9 +156,12 @@ describe('LiquidityManagerService', () => {
     it('should return swap quotes if possible', async () => {
       const mockDeficitToken = {
         config: { chainId: 1 },
-        analysis: { diff: 100, balance: { current: 50 }, targetSlippage: { min: 150 } },
+        balance: { decimals: 18 },
+        analysis: { diff: 100n, balance: { current: 50 }, targetSlippage: { min: 150 } },
       }
-      const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200 } }]
+      const mockSurplusTokens = [
+        { config: { chainId: 1 }, balance: { decimals: 18 }, analysis: { diff: 200n } },
+      ]
 
       jest
         .spyOn(liquidityProviderService, 'getLiquidityQuotes')
@@ -155,8 +182,9 @@ describe('LiquidityManagerService', () => {
       // Mock tokens
       const mockDeficitToken = {
         config: { chainId: 2, address: '0xDeficit' },
+        balance: { decimals: 18 },
         analysis: {
-          diff: 100,
+          diff: 100n,
           balance: { current: 50n },
           targetSlippage: { min: 150n },
         },
@@ -164,11 +192,13 @@ describe('LiquidityManagerService', () => {
       const mockSurplusTokens = [
         {
           config: { chainId: 1, address: '0xSurplus1' },
-          analysis: { diff: 50 },
+          balance: { decimals: 18 },
+          analysis: { diff: 50n },
         },
         {
           config: { chainId: 3, address: '0xSurplus2' },
-          analysis: { diff: 150 },
+          balance: { decimals: 18 },
+          analysis: { diff: 150n },
         },
       ]
 
@@ -214,28 +244,37 @@ describe('LiquidityManagerService', () => {
       expect(liquidityProviderService.fallback).toHaveBeenCalledWith(
         mockSurplusTokens[0],
         mockDeficitToken,
-        50, // min of deficit diff and surplus diff
+        50n, // min of deficit diff and surplus diff
       )
 
-      // Verify the result includes only the quote from getQuote
-      // Note: There's a bug in the implementation where fallback quotes are not properly added
-      expect(result).toHaveLength(1)
+      // Verify the result includes both the quote from getQuote and the fallback quote
+      expect(result).toHaveLength(2)
       expect(result[0].amountOut).toEqual(80n) // from getQuote for second token
+      expect(result[1].amountOut).toEqual(40n) // from fallback for first token
     })
 
     it('should stop trying when target balance is reached', async () => {
       // Mock tokens
       const mockDeficitToken = {
         config: { chainId: 2, address: '0xDeficit' },
+        balance: { decimals: 18 },
         analysis: {
-          diff: 100,
+          diff: 100n,
           balance: { current: 50n },
           targetSlippage: { min: 150n },
         },
       }
       const mockSurplusTokens = [
-        { config: { chainId: 1, address: '0xSurplus1' }, analysis: { diff: 50 } },
-        { config: { chainId: 3, address: '0xSurplus2' }, analysis: { diff: 150 } },
+        {
+          config: { chainId: 1, address: '0xSurplus1' },
+          balance: { decimals: 18 },
+          analysis: { diff: 50n },
+        },
+        {
+          config: { chainId: 3, address: '0xSurplus2' },
+          balance: { decimals: 18 },
+          analysis: { diff: 150n },
+        },
       ]
 
       // Make sure the config is set with the mock core tokens

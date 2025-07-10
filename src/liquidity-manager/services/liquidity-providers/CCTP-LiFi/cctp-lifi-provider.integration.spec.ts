@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getQueueToken } from '@nestjs/bullmq'
 import { Logger } from '@nestjs/common'
 import { parseUnits } from 'viem'
+import { normalizeBalanceToBase } from '@/fee/utils'
 import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
@@ -28,8 +29,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
     config: {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
       chainId: 1,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
@@ -44,8 +45,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
     config: {
       address: '0x4200000000000000000000000000000000000042', // OP
       chainId: 10,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
@@ -209,7 +210,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
         } as any)
 
       // Step 2: Get quote and verify structure
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       expect(quote.context.steps).toEqual(['sourceSwap', 'cctpBridge', 'destinationSwap'])
       expect(quote.context.sourceSwapQuote).toBeDefined()
@@ -279,7 +281,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
         },
       } as any)
 
-      const quote = await service.getQuote(mockUSDC, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockUSDC, mockTokenOP, normalizedAmount.balance)
       expect(quote.context.steps).toEqual(['cctpBridge', 'destinationSwap'])
 
       cctpService.getQuote.mockResolvedValueOnce({} as any)
@@ -339,7 +342,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
         },
       } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockUSDCDest, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockUSDCDest, normalizedAmount.balance)
       expect(quote.context.steps).toEqual(['sourceSwap', 'cctpBridge'])
 
       liFiService.execute.mockResolvedValueOnce({
@@ -411,7 +415,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       // Mock source swap failure
       liFiService.execute.mockRejectedValueOnce(new Error('LiFi network error'))
@@ -469,7 +474,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       // Mock successful source swap but CCTP failure
       liFiService.execute.mockResolvedValueOnce({
@@ -582,7 +588,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       expect(quote.slippage).toBeGreaterThan(0.05)
 

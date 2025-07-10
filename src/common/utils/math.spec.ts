@@ -71,17 +71,15 @@ describe('multiplyByPercentage', () => {
 
   describe('input validation', () => {
     it('should throw error for negative percentage', () => {
-      expect(() => multiplyByPercentage(1000n, -0.1)).toThrow('Percentage must be between 0 and 1')
+      expect(() => multiplyByPercentage(1000n, -0.1)).toThrow('Percentage must be non-negative')
     })
 
-    it('should throw error for percentage greater than 1', () => {
-      expect(() => multiplyByPercentage(1000n, 1.1)).toThrow('Percentage must be between 0 and 1')
+    it('should accept percentage greater than 1', () => {
+      expect(() => multiplyByPercentage(1000n, 1.1)).not.toThrow()
     })
 
-    it('should throw error for percentage equal to 1.1', () => {
-      expect(() => multiplyByPercentage(1000n, 1.000001)).toThrow(
-        'Percentage must be between 0 and 1',
-      )
+    it('should accept percentage equal to 1.1', () => {
+      expect(() => multiplyByPercentage(1000n, 1.000001)).not.toThrow()
     })
 
     it('should accept percentage equal to 0', () => {

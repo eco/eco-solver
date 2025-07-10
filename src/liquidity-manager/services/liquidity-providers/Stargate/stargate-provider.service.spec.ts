@@ -7,6 +7,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { StargateQuote, StargateStep } from './types/stargate-quote.interface'
 import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
+import { normalizeBalanceToBase } from '@/fee/utils'
 
 // Mock global fetch
 global.fetch = jest.fn()
@@ -23,8 +24,8 @@ describe('StargateProviderService', () => {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC on Ethereum
       chainId: 1,
       type: 'erc20',
-      targetBalance: 1000,
-      minBalance: 100,
+      targetBalance: 1000n,
+      minBalance: 100n,
     },
     balance: {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
@@ -39,8 +40,8 @@ describe('StargateProviderService', () => {
       address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC on Polygon
       chainId: 137,
       type: 'erc20',
-      targetBalance: 1000,
-      minBalance: 100,
+      targetBalance: 1000n,
+      minBalance: 100n,
     },
     balance: {
       address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
@@ -204,7 +205,12 @@ describe('StargateProviderService', () => {
 
   describe('getQuote', () => {
     it('should get a quote successfully', async () => {
-      const quote = await service.getQuote(mockTokenData, mockTokenDataOut, 10)
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      const quote = await service.getQuote(
+        mockTokenData,
+        mockTokenDataOut,
+        normalizedAmount.balance,
+      )
 
       // Verify fetch was called with the correct URL params
       expect(fetch).toHaveBeenCalledWith(
@@ -241,7 +247,10 @@ describe('StargateProviderService', () => {
       // Mock the getChainKey method to return undefined
       jest.spyOn(service as any, 'getChainKey').mockResolvedValueOnce(undefined)
 
-      await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow()
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenData, mockTokenDataOut, normalizedAmount.balance),
+      ).rejects.toThrow()
     })
 
     it('should throw an error if the API returns an error', async () => {
@@ -252,7 +261,10 @@ describe('StargateProviderService', () => {
         }),
       )
 
-      await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow()
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenData, mockTokenDataOut, normalizedAmount.balance),
+      ).rejects.toThrow()
     })
 
     it('should throw an error if no routes are returned', async () => {
@@ -263,9 +275,10 @@ describe('StargateProviderService', () => {
         }),
       )
 
-      await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow(
-        EcoError.RebalancingRouteNotFound().message,
-      )
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenData, mockTokenDataOut, normalizedAmount.balance),
+      ).rejects.toThrow(EcoError.RebalancingRouteNotFound().message)
     })
   })
 

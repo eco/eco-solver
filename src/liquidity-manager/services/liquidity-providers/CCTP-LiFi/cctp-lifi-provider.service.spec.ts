@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getQueueToken } from '@nestjs/bullmq'
 import { Logger } from '@nestjs/common'
 import { parseUnits } from 'viem'
+import { normalizeBalanceToBase } from '@/fee/utils'
 import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
@@ -22,8 +23,8 @@ describe('CCTPLiFiProviderService', () => {
     config: {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // Real USDT address
       chainId: 1,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
@@ -38,8 +39,8 @@ describe('CCTPLiFiProviderService', () => {
     config: {
       address: '0x4200000000000000000000000000000000000042', // OP token
       chainId: 10,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
@@ -54,8 +55,8 @@ describe('CCTPLiFiProviderService', () => {
     config: {
       address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC Ethereum (checksummed)
       chainId: 1,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
@@ -70,8 +71,8 @@ describe('CCTPLiFiProviderService', () => {
     config: {
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', // USDC Optimism (checksummed)
       chainId: 10,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
@@ -231,10 +232,16 @@ describe('CCTPLiFiProviderService', () => {
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenIn, mockTokenOut, 100, 'test-id')
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(
+        mockTokenIn,
+        mockTokenOut,
+        normalizedAmount.balance,
+        'test-id',
+      )
 
       expect(quote).toEqual({
-        amountIn: parseUnits('100', 6),
+        amountIn: normalizedAmount.balance,
         amountOut: parseUnits('45', 18),
         id: 'test-id',
         slippage: expect.any(Number),
@@ -276,7 +283,8 @@ describe('CCTPLiFiProviderService', () => {
         },
       } as any)
 
-      const quote = await service.getQuote(mockUSDCEthereum, mockTokenOut, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockUSDCEthereum, mockTokenOut, normalizedAmount.balance)
 
       expect(quote.context.steps).toEqual(['cctpBridge', 'destinationSwap'])
       expect(quote.context.sourceSwapQuote).toBeUndefined()
@@ -299,7 +307,8 @@ describe('CCTPLiFiProviderService', () => {
         },
       } as any)
 
-      const quote = await service.getQuote(mockTokenIn, mockUSDCOptimism, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenIn, mockUSDCOptimism, normalizedAmount.balance)
 
       expect(quote.context.steps).toEqual(['sourceSwap', 'cctpBridge'])
       expect(quote.context.sourceSwapQuote).toBeDefined()
@@ -308,7 +317,12 @@ describe('CCTPLiFiProviderService', () => {
     })
 
     it('should get quote for USDC → USDC route (CCTP only)', async () => {
-      const quote = await service.getQuote(mockUSDCEthereum, mockUSDCOptimism, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(
+        mockUSDCEthereum,
+        mockUSDCOptimism,
+        normalizedAmount.balance,
+      )
 
       expect(quote.context.steps).toEqual(['cctpBridge'])
       expect(quote.context.sourceSwapQuote).toBeUndefined()
@@ -319,17 +333,19 @@ describe('CCTPLiFiProviderService', () => {
     it('should throw error for same-chain routes', async () => {
       const sameChainTokenOut = { ...mockTokenOut, chainId: 1 }
 
-      await expect(service.getQuote(mockTokenIn, sameChainTokenOut, 100)).rejects.toThrow(
-        'Invalid CCTPLiFi route',
-      )
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenIn, sameChainTokenOut, normalizedAmount.balance),
+      ).rejects.toThrow('Invalid CCTPLiFi route')
     })
 
     it('should throw error for unsupported chains', async () => {
       const unsupportedTokenOut = { ...mockTokenOut, chainId: 56 } // BSC not supported
 
-      await expect(service.getQuote(mockTokenIn, unsupportedTokenOut, 100)).rejects.toThrow(
-        'Invalid CCTPLiFi route',
-      )
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenIn, unsupportedTokenOut, normalizedAmount.balance),
+      ).rejects.toThrow('Invalid CCTPLiFi route')
     })
 
     it('should warn about high slippage', async () => {
@@ -363,7 +379,8 @@ describe('CCTPLiFiProviderService', () => {
           },
         } as any)
 
-      await service.getQuote(mockTokenIn, mockTokenOut, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      await service.getQuote(mockTokenIn, mockTokenOut, normalizedAmount.balance)
 
       expect(warnSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -560,9 +577,10 @@ describe('CCTPLiFiProviderService', () => {
     it('should handle LiFi quote failures during route building', async () => {
       liFiService.getQuote.mockRejectedValueOnce(new Error('LiFi service unavailable'))
 
-      await expect(service.getQuote(mockTokenIn, mockTokenOut, 100)).rejects.toThrow(
-        'Failed to build route context',
-      )
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenIn, mockTokenOut, normalizedAmount.balance),
+      ).rejects.toThrow('Failed to build route context')
     })
   })
 })

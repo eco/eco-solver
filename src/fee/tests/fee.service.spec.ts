@@ -1275,8 +1275,8 @@ describe('FeeService', () => {
         config: {
           address: '0x1',
           chainId: 10,
-          minBalance: 200,
-          targetBalance: 500,
+          minBalance: 200n,
+          targetBalance: 500n,
           type: 'erc20',
         },
         token: {
