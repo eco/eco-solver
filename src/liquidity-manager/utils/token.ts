@@ -1,5 +1,5 @@
 import { formatUnits, parseUnits } from 'viem'
-import { TokenBalance, TokenConfig } from '@/balance/types'
+import { TokenBalance, TokenConfig } from '@/balance/types/balance.types'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import { getSlippageRange } from '@/liquidity-manager/utils/math'
 import { Mathb } from '@/utils/bigint'
