@@ -4,13 +4,55 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { Address as SvmAddress } from '@solana/addresses'
+import { Address as EvmAddress, Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
+
+// VM Types for different blockchain architectures
+export enum VMType {
+  EVM = 'evm',
+  SVM = 'svm'
+}
+
+// Mapping of chainId to VM type
+export const CHAIN_VM_TYPE_MAP: Record<number, VMType> = {
+  // Ethereum mainnet
+  1: VMType.EVM,
+  // Optimism
+  10: VMType.EVM,
+  // Polygon
+  137: VMType.EVM,
+  // Base
+  8453: VMType.EVM,
+  // Arbitrum
+  42161: VMType.EVM,
+  // Base Sepolia
+  84532: VMType.EVM,
+  // Optimism Sepolia
+  11155420: VMType.EVM,
+  // Solana Mainnet
+  1399811150: VMType.SVM,
+} as const
+
+export function getVMType(chainId: number): VMType {
+  return CHAIN_VM_TYPE_MAP[chainId]
+}
+
+// Address type that supports both EVM (Hex) and SVM (base58) addresses
+export type ChainAddress = EvmAddress | SvmAddress
+
+// Chain configuration for both EVM and SVM chains
+export type EcoChainConfig = {
+  IntentSource: ChainAddress
+  Inbox: ChainAddress
+  HyperProver: ChainAddress
+  MetaProver: ChainAddress
+}
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -295,9 +337,9 @@ export type RpcConfigType = {
  * The config type for a single solver configuration
  */
 export type Solver = {
-  inboxAddress: Hex
+  inboxAddress: ChainAddress
   //target address to contract type mapping
-  targets: Record<Hex, TargetContract>
+  targets: Record<ChainAddress, TargetContract>
   network: Network
   fee: FeeConfigType
   chainID: number
@@ -357,13 +399,13 @@ export class IntentSource {
   // The chain ID of the network
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
-  sourceAddress: Hex
+  sourceAddress: ChainAddress
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
-  inbox: Hex
+  inbox: ChainAddress
   // The addresses of the tokens that we support as rewards
-  tokens: Hex[]
+  tokens: ChainAddress[]
   // The addresses of the provers that we support
-  provers: Hex[]
+  provers: ChainAddress[]
   // custom configs for the intent source
   config?: {
     // Defaults to append, @eco-foundation/routes-ts provers will append to the provers in configs

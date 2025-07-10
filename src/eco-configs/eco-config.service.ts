@@ -81,6 +81,23 @@ export class EcoConfigService {
 
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
+
+    // Log configuration details
+    console.log({
+      message: `Configuration loaded`,
+      nodeEnv: process.env.NODE_ENV,
+      supportedChains: this.getSupportedChains(),
+      intentSources: this.getIntentSources().map(source => ({
+        network: source.network,
+        chainID: source.chainID,
+        tokenCount: source.tokens.length
+      })),
+      solvers: Object.keys(this.getSolvers()).map(chainId => ({
+        chainId,
+        network: this.getSolvers()[chainId].network,
+        targetCount: Object.keys(this.getSolvers()[chainId].targets).length
+      }))
+    });
   }
 
   // Generic getter for key/val of config object
@@ -115,6 +132,7 @@ export class EcoConfigService {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
+    console.log('intentSources', this.get<IntentSource[]>('intentSources'));
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource

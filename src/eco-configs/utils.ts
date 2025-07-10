@@ -1,6 +1,8 @@
-import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoChainConfig } from './eco-config.types'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
+import { Address as SvmAddress } from '@solana/kit'
 
 /**
  * The prefix for non-production deploys on a chain
@@ -45,6 +47,14 @@ export function isPreEnv(): boolean {
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
+  if (id === '1399811150-pre') {
+    return {
+      IntentSource: 'HVymGuzzmVHDZ7QaV2uPxMr97HF1kDNM1Nu8oaaeintK' as SvmAddress,
+      Inbox: 'HVymGuzzmVHDZ7QaV2uPxMr97HF1kDNM1Nu8oaaeintK' as SvmAddress,
+      HyperProver: 'DXJ2PctTfszENQHEmi8ngcHNd92TzMCDWqp6wAx3jQSg' as SvmAddress,
+      MetaProver: '0x0000000000000000000000000000000000000000'
+    }
+  }
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)
