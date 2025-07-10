@@ -80,6 +80,7 @@ export type EcoConfigType = {
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
   squid: SquidConfig
+  everclear: EverclearConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -501,5 +502,9 @@ export interface CCTPLiFiConfig {
 
 export interface SquidConfig {
   integratorId: string
+  baseUrl: string
+}
+
+export interface EverclearConfig {
   baseUrl: string
 }

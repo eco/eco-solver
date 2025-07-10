@@ -39,6 +39,7 @@ type WarpRouteStrategyContext = undefined
 type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
 type SquidStrategyContext = SquidRoute
+type EverclearStrategyContext = undefined
 
 // CCTPLiFi strategy context for tracking multi-step operations
 interface CCTPLiFiStrategyContext {
@@ -61,7 +62,15 @@ interface CCTPLiFiStrategyContext {
   id?: string
 }
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi' | 'Relay' | 'Stargate' | 'Squid'
+type Strategy =
+  | 'LiFi'
+  | 'CCTP'
+  | 'WarpRoute'
+  | 'CCTPLiFi'
+  | 'Relay'
+  | 'Stargate'
+  | 'Squid'
+  | 'Everclear'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -76,7 +85,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
             ? CCTPLiFiStrategyContext
             : S extends 'Squid'
               ? SquidStrategyContext
-              : never
+              : S extends 'Everclear'
+                ? EverclearStrategyContext
+                : never
 
 // Quote
 

@@ -15,6 +15,7 @@ import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { v4 as uuidv4 } from 'uuid'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -31,6 +32,7 @@ export class LiquidityProviderService {
     protected readonly stargateProviderService: StargateProviderService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
     protected readonly squidProviderService: SquidProviderService,
+    protected readonly everclearProviderService: EverclearProviderService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
@@ -226,6 +228,8 @@ export class LiquidityProviderService {
         return this.cctpLiFiProviderService
       case 'Squid':
         return this.squidProviderService
+      case 'Everclear':
+        return this.everclearProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
