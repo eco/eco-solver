@@ -81,7 +81,7 @@ export async function createKernelAccountClient<
     kernelVersion,
   })
 
-  const kernelAccount = await createKernelAccount(walletClient, {
+  const kernelAccount = await createKernelAccount(walletClient as any, {
     plugins: {
       sudo: ecdsaValidator,
     },
