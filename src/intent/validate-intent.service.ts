@@ -100,7 +100,7 @@ export class ValidateIntentService implements OnModuleInit {
     const jobId = getIntentJobId('validate', intentHash, logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `validateIntent ${intentHash}`,
+        message: `addFeasibilityCheckJob ${intentHash}`,
         properties: {
           intentHash,
           jobId,
