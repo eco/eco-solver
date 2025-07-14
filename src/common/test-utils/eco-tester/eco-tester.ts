@@ -305,9 +305,10 @@ export class EcoTester {
         return tester
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       public useFactory(factory: () => any): EcoTester {
-        throw new Error('useFactory is not supported in EcoTesterCustomImplementation')
+        const value = factory()
+        tester.providersToOverride.push([this.provider, value])
+        return tester
       }
     }
     return EcoTesterCustomImplementation
