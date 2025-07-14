@@ -8,11 +8,7 @@ import { TransactionModule } from '@/transaction/transaction.module'
 import { WatchIntentProvenService } from '@/watch/intent/intent-proven-events/services/watch-intent-proven.service'
 
 @Module({
-  imports: [
-    TransactionModule,
-    initBullMQ(QUEUES.SOURCE_INTENT),
-    IntentModule,
-  ],
+  imports: [TransactionModule, initBullMQ(QUEUES.SOURCE_INTENT), IntentModule],
   providers: [WatchIntentProvenService],
   exports: [WatchIntentProvenService],
 })
