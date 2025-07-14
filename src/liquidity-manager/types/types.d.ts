@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'

@@ -2,35 +2,28 @@ import { CreateIntentService } from '@/intent/create-intent.service'
 import { createMock } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { getModelToken } from '@nestjs/mongoose'
-import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
-import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
-import { IntentFundedLog } from '@/contracts'
+import { Hex, PublicClient } from 'viem'
+import { IntentProvenLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Network } from '@/common/alchemy/network'
-import { PublicClient } from 'viem'
+import { Prover, WatchIntentProvenService } from '@/watch/intent/intent-proven-events/services/watch-intent-proven.service'
 import { QUEUES } from '@/common/redis/constants'
-import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
-import { EcoAnalyticsService } from '@/analytics'
 
 let $: EcoTester
-let service: WatchIntentFundedService
+let service: WatchIntentProvenService
 let ecoConfigService: EcoConfigService
 let publicClientService: MultichainPublicClientService
 
-describe('WatchIntentFundedService', () => {
-  const mockDb: any[] = []
+function mockTopics(): [`0x${string}`, `0x${string}`, `0x${string}`] {
+  return [
+    '0x' + 'a'.repeat(64) as Hex,
+    '0x' + 'b'.repeat(64) as Hex,
+    '0x' + 'c'.repeat(64) as Hex,
+  ]
+}
 
-  const mockIntentFundedEventModel = {
-    create: jest.fn(async (doc) => {
-      mockDb.push(doc)
-      return doc
-    }),
-    findOne: jest.fn(async (query) => {
-      return mockDb.find((doc) => doc.transactionHash === query.transactionHash)
-    }),
-  }
+describe('WatchIntentProvenService', () => {
 
   beforeAll(async () => {
     const mockSource = {
@@ -61,19 +54,14 @@ describe('WatchIntentFundedService', () => {
       }),
     }
 
-    $ = EcoTester.setupTestFor(WatchIntentFundedService)
+    $ = EcoTester.setupTestFor(WatchIntentProvenService)
       .withProviders([
-        IntentFundedEventRepository,
-        {
-          provide: getModelToken(IntentFundedEventModel.name),
-          useValue: mockIntentFundedEventModel,
-        },
         {
           provide: EcoConfigService, // ⬅ inject the actual mocked provider here
           useValue: new EcoConfigService([mockSource as any]),
         },
       ])
-      .withMocks([CreateIntentService, MultichainPublicClientService, EcoAnalyticsService])
+      .withMocks([CreateIntentService, MultichainPublicClientService])
       .withQueues([QUEUES.SOURCE_INTENT.queue])
 
     service = await $.init()
@@ -82,7 +70,6 @@ describe('WatchIntentFundedService', () => {
   })
 
   beforeEach(async () => {
-    mockDb.length = 0
   })
 
   afterEach(() => {
@@ -105,8 +92,8 @@ describe('WatchIntentFundedService', () => {
     expect(fakeClient.watchContractEvent).toHaveBeenCalled()
   })
 
-  it('saves to mongo and enqueues the job', async () => {
-    const log: IntentFundedLog = {
+  it('enqueues the job', async () => {
+    const log: IntentProvenLog = {
       address: '0xabc',
       blockHash: '0xblock',
       blockNumber: 123n,
@@ -115,29 +102,24 @@ describe('WatchIntentFundedService', () => {
       transactionIndex: 1,
       data: '0x', // <-- required, even if empty
       removed: false, // <-- required
-      topics: [], // <-- required
-      eventName: 'IntentFunded',
+      topics: mockTopics(), // <-- required
+      eventName: 'IntentProven',
       sourceNetwork: Network.ETH_MAINNET, // <-- required for your code
       sourceChainID: 1n, // <-- required for your code
       args: {
-        intentHash: '0xintent',
-        funder: '0x1',
+        _hash: '0xintent',
+        _claimant: '0x1',
       },
     }
 
-    const source = {
-      chainID: 10,
-      sourceAddress: '0xabc',
-      provers: ['0x1'],
+    const prover = {
       network: 'mainnet',
-    } as unknown as IntentSource
+      chainID: 10,
+      proverAddress: '0xabc',
+    } as unknown as Prover
 
-    const addJob = service['addJob'](source)
+    const addJob = service['addJob'](prover)
     await addJob([log])
-
-    const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xtx' })
-    expect(saved).toBeDefined()
-    expect(saved?.args.intentHash).toBe('0xintent')
 
     expect($.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add).toHaveBeenCalled()
   })
@@ -161,7 +143,7 @@ describe('WatchIntentFundedService', () => {
 
   it('processes replayed logs via onLogs', async () => {
     const fakeClient = createMock<PublicClient>()
-    const emittedLogs: IntentFundedLog[] = [
+    const emittedLogs: IntentProvenLog[] = [
       {
         address: '0xabc',
         blockHash: '0xblock',
@@ -171,21 +153,21 @@ describe('WatchIntentFundedService', () => {
         transactionIndex: 0,
         data: '0x', // <-- required, even if empty
         removed: false, // <-- required
-        topics: [], // <-- required
-        eventName: 'IntentFunded',
+        topics: mockTopics(), // <-- required
+        eventName: 'IntentProven',
         sourceNetwork: Network.ETH_MAINNET, // <-- required for your code
         sourceChainID: 1n, // <-- required for your code
         args: {
-          intentHash: '0xintent123',
-          funder: '0x1',
+          _hash: '0xintent123',
+          _claimant: '0x1',
         },
       },
     ]
 
-    let onLogsFn: (logs: IntentFundedLog[]) => Promise<void> = async () => {}
+    let onLogsFn: (logs: IntentProvenLog[]) => Promise<void> = async () => {}
 
     fakeClient.watchContractEvent.mockImplementation(({ onLogs }) => {
-      onLogsFn = onLogs as (logs: IntentFundedLog[]) => Promise<void>
+      onLogsFn = onLogs as (logs: IntentProvenLog[]) => Promise<void>
       return () => {} // return unsubscribe fn
     })
 
@@ -203,24 +185,21 @@ describe('WatchIntentFundedService', () => {
     await service.subscribe()
     await onLogsFn!(emittedLogs)
 
-    const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xtxhash' })
-    expect(saved).toBeDefined()
     expect($.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add).toHaveBeenCalledWith(
-      QUEUES.SOURCE_INTENT.jobs.validate_intent,
+      QUEUES.SOURCE_INTENT.jobs.proven_intent,
       { intentHash: '0xintent123' },
       expect.any(Object),
     )
   })
 
   it('skips logs when doValidation is true and isOurIntent returns false', async () => {
-    const source = {
-      chainID: 10,
-      sourceAddress: '0xabc',
-      provers: ['0x1'],
+    const prover = {
       network: 'mainnet',
-    } as unknown as IntentSource
+      chainID: 10,
+      proverAddress: '0xabc',
+    } as unknown as Prover
 
-    const log: IntentFundedLog = {
+    const log: IntentProvenLog = {
       address: '0xabc',
       blockHash: '0xblock',
       blockNumber: 123n,
@@ -229,36 +208,33 @@ describe('WatchIntentFundedService', () => {
       transactionIndex: 0,
       data: '0x',
       removed: false,
-      topics: [],
-      eventName: 'IntentFunded',
+      topics: mockTopics(), // <-- required
+      eventName: 'IntentProven',
       sourceNetwork: Network.ETH_MAINNET,
       sourceChainID: 1n,
       args: {
-        intentHash: '0xnotours',
-        funder: '0x1',
+        _hash: '0xnotours',
+        _claimant: '0x1',
       },
     }
 
     // 👇 Mock isOurIntent to return false
     jest.spyOn(service as any, 'isOurIntent').mockResolvedValueOnce(false)
 
-    const addJob = service['addJob'](source, { doValidation: true })
+    const addJob = service['addJob'](prover, { doValidation: true })
     await addJob([log])
 
-    const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xskipme' })
-    expect(saved).toBeUndefined()
     expect($.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add).not.toHaveBeenCalled()
   })
 
   it('processes logs when doValidation is true and isOurIntent returns true', async () => {
-    const source = {
-      chainID: 10,
-      sourceAddress: '0xabc',
-      provers: ['0x1'],
+    const prover = {
       network: 'mainnet',
-    } as unknown as IntentSource
+      chainID: 10,
+      proverAddress: '0xabc',
+    } as unknown as Prover
 
-    const log: IntentFundedLog = {
+    const log: IntentProvenLog = {
       address: '0xabc',
       blockHash: '0xblock',
       blockNumber: 456n,
@@ -267,28 +243,24 @@ describe('WatchIntentFundedService', () => {
       transactionIndex: 0,
       data: '0x',
       removed: false,
-      topics: [],
-      eventName: 'IntentFunded',
+      topics: mockTopics(), // <-- required
+      eventName: 'IntentProven',
       sourceNetwork: Network.ETH_MAINNET,
       sourceChainID: 1n,
       args: {
-        intentHash: '0xours',
-        funder: '0x1',
+        _hash: '0xours',
+        _claimant: '0x1',
       },
     }
 
     // 👇 Mock isOurIntent to return true
     jest.spyOn(service as any, 'isOurIntent').mockResolvedValueOnce(true)
 
-    const addJob = service['addJob'](source, { doValidation: true })
+    const addJob = service['addJob'](prover, { doValidation: true })
     await addJob([log])
 
-    const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xprocessthis' })
-    expect(saved).toBeDefined()
-    expect(saved?.args.intentHash).toBe('0xours')
-
     expect($.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add).toHaveBeenCalledWith(
-      QUEUES.SOURCE_INTENT.jobs.validate_intent,
+      QUEUES.SOURCE_INTENT.jobs.proven_intent,
       { intentHash: '0xours' },
       expect.objectContaining({
         jobId: expect.any(String),
@@ -297,14 +269,13 @@ describe('WatchIntentFundedService', () => {
   })
 
   it('processes only valid logs when doValidation is true', async () => {
-    const source = {
-      chainID: 10,
-      sourceAddress: '0xabc',
-      provers: ['0x1'],
+    const prover = {
       network: 'mainnet',
-    } as unknown as IntentSource
+      chainID: 10,
+      proverAddress: '0xabc',
+    } as unknown as Prover
 
-    const logs: IntentFundedLog[] = [
+    const logs: IntentProvenLog[] = [
       {
         address: '0xabc',
         blockHash: '0xblock1',
@@ -314,13 +285,13 @@ describe('WatchIntentFundedService', () => {
         transactionIndex: 0,
         data: '0x',
         removed: false,
-        topics: [],
-        eventName: 'IntentFunded',
+        topics: mockTopics(), // <-- required
+        eventName: 'IntentProven',
         sourceNetwork: Network.ETH_MAINNET,
         sourceChainID: 1n,
         args: {
-          intentHash: '0xvalidIntent1',
-          funder: '0x1',
+          _hash: '0xvalidIntent1',
+          _claimant: '0x1',
         },
       },
       {
@@ -332,13 +303,13 @@ describe('WatchIntentFundedService', () => {
         transactionIndex: 0,
         data: '0x',
         removed: false,
-        topics: [],
-        eventName: 'IntentFunded',
+        topics: mockTopics(), // <-- required
+        eventName: 'IntentProven',
         sourceNetwork: Network.ETH_MAINNET,
         sourceChainID: 1n,
         args: {
-          intentHash: '0xinvalidIntent',
-          funder: '0x1',
+          _hash: '0xinvalidIntent',
+          _claimant: '0x1',
         },
       },
       {
@@ -350,13 +321,13 @@ describe('WatchIntentFundedService', () => {
         transactionIndex: 0,
         data: '0x',
         removed: false,
-        topics: [],
-        eventName: 'IntentFunded',
+        topics: mockTopics(), // <-- required
+        eventName: 'IntentProven',
         sourceNetwork: Network.ETH_MAINNET,
         sourceChainID: 1n,
         args: {
-          intentHash: '0xvalidIntent2',
-          funder: '0x1',
+          _hash: '0xvalidIntent2',
+          _claimant: '0x1',
         },
       },
     ]
@@ -364,32 +335,23 @@ describe('WatchIntentFundedService', () => {
     // 👇 Simulate validation: only the 2 valid intent hashes should pass
     const isOurIntentMock = jest
       .spyOn(service as any, 'isOurIntent')
-      .mockImplementation(async (log: IntentFundedLog) => {
-        return log.args.intentHash !== '0xinvalidIntent'
+      .mockImplementation(async (log: IntentProvenLog) => {
+        return log.args._hash !== '0xinvalidIntent'
       })
 
-    const addJob = service['addJob'](source, { doValidation: true })
+    const addJob = service['addJob'](prover, { doValidation: true })
     await addJob(logs)
-
-    // ⛳ Only the 2 valid logs should be saved
-    const valid1 = await mockIntentFundedEventModel.findOne({ transactionHash: '0xvalid1' })
-    const valid2 = await mockIntentFundedEventModel.findOne({ transactionHash: '0xvalid2' })
-    const invalid = await mockIntentFundedEventModel.findOne({ transactionHash: '0xinvalid' })
-
-    expect(valid1).toBeDefined()
-    expect(valid2).toBeDefined()
-    expect(invalid).toBeUndefined()
 
     // 🧾 The queue should only be called for the valid logs
     const queue = $.mockOfQueue(QUEUES.SOURCE_INTENT.queue).add
     expect(queue).toHaveBeenCalledTimes(2)
     expect(queue).toHaveBeenCalledWith(
-      QUEUES.SOURCE_INTENT.jobs.validate_intent,
+      QUEUES.SOURCE_INTENT.jobs.proven_intent,
       { intentHash: '0xvalidIntent1' },
       expect.any(Object),
     )
     expect(queue).toHaveBeenCalledWith(
-      QUEUES.SOURCE_INTENT.jobs.validate_intent,
+      QUEUES.SOURCE_INTENT.jobs.proven_intent,
       { intentHash: '0xvalidIntent2' },
       expect.any(Object),
     )

@@ -166,6 +166,12 @@ export class EcoError extends Error {
     return new EcoError(`Default gas overhead is undefined`)
   }
 
+  // Negative Intents
+  static UnexpectedCallCount = new EcoError('Unexpected call count in intent route')
+  static CallDataIsNotTransfer = new EcoError('Call data is not a transfer')
+  static InvalidCallData = new EcoError('Call data too short to extract recipient')
+  static InvalidRecipientEncoding = new EcoError('Invalid recipient encoding in call data')
+
   // EcoConfig Service
 
   static isEcoError(error: any): boolean {

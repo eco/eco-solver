@@ -1,22 +1,23 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex } from 'viem'
-import { JobsOptions, Queue } from 'bullmq'
-import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { Solver } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
-import { delay } from '@/common/utils/time'
-import { QUEUES } from '@/common/redis/constants'
-import { EcoError } from '@/common/errors/eco-error'
-import { getIntentJobId } from '@/common/utils/strings'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
-import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
+import { delay } from '@/common/utils/time'
+import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { getIntentJobId } from '@/common/utils/strings'
+import { Hex } from 'viem'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
+import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { JobsOptions, Queue } from 'bullmq'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { QUEUES } from '@/common/redis/constants'
+import { Solver } from '@/eco-configs/eco-config.types'
+import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -67,9 +68,14 @@ export class ValidateIntentService implements OnModuleInit {
   }
 
   /**
-   * @param intentHash the hash of the intent to fulfill
+   * Processes a job that validates an intent.
+   *
+   * @param data the data for the validation job
+   * @returns true if the intent was validated successfully, false otherwise
    */
-  async validateIntent(intentHash: Hex) {
+  async validateIntent(data: IntentProcessingJobData) {
+    const { intentHash } = data
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `validateIntent ${intentHash}`,
@@ -97,26 +103,35 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    const jobId = getIntentJobId('validate', intentHash, model.intent.logIndex)
+    await this.addFeasibilityCheckJob({ intentHash }, model, model.intent.logIndex)
+    return true
+  }
+
+  private async addFeasibilityCheckJob(
+    data: IntentProcessingJobData,
+    model: IntentSourceModel,
+    logIndex: number = 0,
+  ) {
+    const { intentHash } = data
+    const jobId = getIntentJobId('validate', intentHash, logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `validateIntent ${intentHash}`,
+        message: `addFeasibilityCheckJob ${intentHash}`,
         properties: {
           intentHash,
           jobId,
         },
       }),
     )
-    //add to processing queue
-    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
+
+    // Add to processing queue
+    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, data, {
       jobId,
       ...this.intentJobConfig,
     })
 
     // Track successful validation and queue addition
     this.ecoAnalytics.trackIntentValidatedAndQueued(intentHash, jobId, model)
-
-    return true
   }
 
   /**
@@ -159,6 +174,7 @@ export class ValidateIntentService implements OnModuleInit {
             .map(([check]) => check),
         },
       )
+
       return false
     }
 

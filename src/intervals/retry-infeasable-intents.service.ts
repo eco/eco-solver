@@ -62,10 +62,14 @@ export class RetryInfeasableIntentsService implements OnApplicationBootstrap {
       const jobId = getIntentJobId('retry', model.intent.hash, model.intent.logIndex)
 
       //add to processing queue
-      await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.retry_intent, model.intent.hash, {
-        jobId,
-        ...this.intentJobConfig,
-      })
+      await this.intentQueue.add(
+        QUEUES.SOURCE_INTENT.jobs.retry_intent,
+        { intentHash: model.intent.hash },
+        {
+          jobId,
+          ...this.intentJobConfig,
+        },
+      )
     })
 
     await Promise.all(retryTasks)
