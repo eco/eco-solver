@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'
@@ -76,16 +75,23 @@ type Strategy =
   | 'Squid'
   | 'PublicNegativeIntent'
 
-type StrategyContext<S extends Strategy = Strategy> =
-  S extends 'LiFi' ? LiFiStrategyContext :
-  S extends 'CCTP' ? CCTPStrategyContext :
-  S extends 'WarpRoute' ? WarpRouteStrategyContext :
-  S extends 'Relay' ? RelayStrategyContext :
-  S extends 'Stargate' ? StargateStrategyContext :
-  S extends 'CCTPLiFi' ? CCTPLiFiStrategyContext :
-  S extends 'Squid' ? SquidStrategyContext :
-  S extends 'PublicNegativeIntent' ? PublicNegativeIntentContext :
-  never
+type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
+  ? LiFiStrategyContext
+  : S extends 'CCTP'
+    ? CCTPStrategyContext
+    : S extends 'WarpRoute'
+      ? WarpRouteStrategyContext
+      : S extends 'Relay'
+        ? RelayStrategyContext
+        : S extends 'Stargate'
+          ? StargateStrategyContext
+          : S extends 'CCTPLiFi'
+            ? CCTPLiFiStrategyContext
+            : S extends 'Squid'
+              ? SquidStrategyContext
+              : S extends 'PublicNegativeIntent'
+                ? PublicNegativeIntentContext
+                : never
 
 // Quote
 
