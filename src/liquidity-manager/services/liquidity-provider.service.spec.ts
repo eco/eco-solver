@@ -49,7 +49,10 @@ describe('LiquidityProviderService', () => {
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
         { provide: SquidProviderService, useValue: createMock<SquidProviderService>() },
-        { provide: PublicNegativeIntentRebalanceService, useValue: createMock<PublicNegativeIntentRebalanceService>() },
+        {
+          provide: PublicNegativeIntentRebalanceService,
+          useValue: createMock<PublicNegativeIntentRebalanceService>(),
+        },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
       ],
     }).compile()
@@ -113,7 +116,9 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
-      jest.spyOn(publicNegativeIntentRebalanceService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest
+        .spyOn(publicNegativeIntentRebalanceService, 'getQuote')
+        .mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
         walletAddr,
