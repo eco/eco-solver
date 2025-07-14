@@ -80,6 +80,7 @@ export type EcoConfigType = {
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
   squid: SquidConfig
+  CCTPV2: CCTPV2Config
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -453,6 +454,18 @@ export interface CrowdLiquidityConfig {
 
 export interface CCTPConfig {
   apiUrl: string
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
+export interface CCTPV2Config {
+  apiUrl: string
+  fastTransferEnabled: boolean
   chains: {
     chainId: number
     domain: number

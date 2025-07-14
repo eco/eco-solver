@@ -196,6 +196,62 @@ export default {
     ],
   },
 
+  CCTPV2: {
+    apiUrl: 'https://iris-api.circle.com',
+    fastTransferEnabled: false,
+    chains: [
+      {
+        chainId: 1, // Ethereum
+        domain: 0,
+        token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 10, // Optimism
+        domain: 2,
+        token: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 137, // Polygon
+        domain: 7,
+        token: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 8453, // Base
+        domain: 6,
+        token: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 42161, // Arbitrum
+        domain: 3,
+        token: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 146, // Sonic
+        domain: 13,
+        token: '0x29219dd400f2Bf60E5a23d13Be72B486D4038894',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 137, // World Chain
+        domain: 14,
+        token: '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+    ],
+  },
+
   hyperlane: {
     useHyperlaneDefaultHook: false,
   },
