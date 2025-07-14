@@ -66,14 +66,9 @@ describe('NegativeIntentAnalyzerService', () => {
   }
 
   beforeAll(async () => {
-
-    $ = EcoTester
-      .setupTestFor(NegativeIntentAnalyzerService)
-      .withProviders([
-        EcoConfigService,
-      ])
-      .withMocks([
-      ])
+    $ = EcoTester.setupTestFor(NegativeIntentAnalyzerService)
+      .withProviders([EcoConfigService])
+      .withMocks([])
       .overridingProvider(EcoConfigService)
       .useFactory(() => new EcoConfigService([mockSource as any]))
 
@@ -90,10 +85,10 @@ describe('NegativeIntentAnalyzerService', () => {
 
   it('ranks intents by slippage and output correctly', () => {
     const intents = [
-      makeIntent({ rewardAmount: 90n, routeAmount: 100n }),  // 10% slippage
-      makeIntent({ rewardAmount: 80n, routeAmount: 100n }),  // 20% slippage
-      makeIntent({ rewardAmount: 70n, routeAmount: 100n }),  // 30% slippage (should be skipped)
-      makeIntent({ rewardAmount: 90n, routeAmount: 110n }),  // ~18.18% slippage
+      makeIntent({ rewardAmount: 90n, routeAmount: 100n }), // 10% slippage
+      makeIntent({ rewardAmount: 80n, routeAmount: 100n }), // 20% slippage
+      makeIntent({ rewardAmount: 70n, routeAmount: 100n }), // 30% slippage (should be skipped)
+      makeIntent({ rewardAmount: 90n, routeAmount: 110n }), // ~18.18% slippage
     ]
 
     const result = analyzer.rankIntents(intents, 0.2)
@@ -102,14 +97,14 @@ describe('NegativeIntentAnalyzerService', () => {
       EcoLogMessage.fromDefault({
         message: `ranks intents by slippage and output correctly`,
         properties: {
-          results: result.ranked.map(i => {
+          results: result.ranked.map((i) => {
             return {
               slippage: i.slippage,
               rewardAmount: i.rewardAmount,
               routeAmount: i.routeAmount,
               netDiff: i.netDiff,
             }
-          })
+          }),
         },
       }),
     )

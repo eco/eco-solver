@@ -50,8 +50,8 @@ const mockTokenData: TokenData = {
   balance: {
     address: '0xToken',
     decimals: 18,
-    balance: 1000n
-  }
+    balance: 1000n,
+  },
 }
 
 export const mockQueue = {
@@ -85,9 +85,7 @@ describe('PublicNegativeIntentRebalanceService', () => {
   }
 
   beforeAll(async () => {
-
-    $ = EcoTester
-      .setupTestFor(PublicNegativeIntentRebalanceService)
+    $ = EcoTester.setupTestFor(PublicNegativeIntentRebalanceService)
       .withProviders([
         EcoConfigService,
         {
@@ -95,7 +93,9 @@ describe('PublicNegativeIntentRebalanceService', () => {
           useValue: {
             rankIntents: jest.fn().mockReturnValue({ ranked: [mockIntent] }),
             getSlippage: jest.fn().mockReturnValue(0.01),
-            analyzeIntent: jest.fn().mockReturnValue({ response: { isNegative: true }, error: null }),
+            analyzeIntent: jest
+              .fn()
+              .mockReturnValue({ response: { isNegative: true }, error: null }),
           },
         },
         {
@@ -116,8 +116,7 @@ describe('PublicNegativeIntentRebalanceService', () => {
           useValue: mockQueue,
         },
       ])
-      .withMocks([
-      ])
+      .withMocks([])
       .overridingProvider(EcoConfigService)
       .useFactory(() => new EcoConfigService([mockSource as any]))
 
@@ -125,7 +124,7 @@ describe('PublicNegativeIntentRebalanceService', () => {
   })
 
   afterEach(async () => {
-     jest.restoreAllMocks()
+    jest.restoreAllMocks()
   })
 
   it('should return strategy name', () => {
