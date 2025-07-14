@@ -16,6 +16,6 @@ import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
     IntentProcessorQueue.init(),
   ],
   providers: [IntentProcessorService, IntentProcessor],
-  exports: [],
+  exports: [IntentProcessorService, IntentProcessor],
 })
 export class IntentProcessorModule {}

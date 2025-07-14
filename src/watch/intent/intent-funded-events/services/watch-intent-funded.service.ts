@@ -1,6 +1,8 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { ERROR_EVENTS } from '@/analytics/events.constants'
 import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
@@ -14,8 +16,6 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
-import { EcoAnalyticsService } from '@/analytics'
-import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
  * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
@@ -143,10 +143,14 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
 
         try {
           // Add to processing queue
-          await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
-            jobId,
-            ...this.watchJobConfig,
-          })
+          await this.intentQueue.add(
+            QUEUES.SOURCE_INTENT.jobs.validate_intent,
+            { intentHash },
+            {
+              jobId,
+              ...this.watchJobConfig,
+            },
+          )
 
           // Track successful job addition
           this.ecoAnalytics.trackWatchIntentFundedJobQueued(intentFunded, jobId, source)

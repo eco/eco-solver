@@ -1,17 +1,17 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '@/common/redis/constants'
-import { Injectable, Logger } from '@nestjs/common'
-import { Job } from 'bullmq'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { FeasableIntentService } from '@/intent/feasable-intent.service'
-import { ValidateIntentService } from '@/intent/validate-intent.service'
-import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
-import { Hex } from 'viem'
+import { Injectable, Logger } from '@nestjs/common'
 import { IntentCreatedLog } from '@/contracts'
+import { Job } from 'bullmq'
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
+import { PublicNegativeIntentRebalanceService } from '@/negative-intents/services/public-negative-intent-rebalance.service'
+import { QUEUES } from '@/common/redis/constants'
 import { Serialize } from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { ValidateIntentService } from '@/intent/validate-intent.service'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })
@@ -24,6 +24,7 @@ export class SolveIntentProcessor extends WorkerHost {
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly publicNegativeIntentRebalanceService: PublicNegativeIntentRebalanceService,
   ) {
     super()
   }
@@ -52,27 +53,7 @@ export class SolveIntentProcessor extends WorkerHost {
     })
 
     try {
-      let result: any
-
-      switch (job.name) {
-        case QUEUES.SOURCE_INTENT.jobs.create_intent:
-          result = await this.createIntentService.createIntent(
-            job.data as Serialize<IntentCreatedLog>,
-          )
-          break
-        case QUEUES.SOURCE_INTENT.jobs.validate_intent:
-        case QUEUES.SOURCE_INTENT.jobs.retry_intent:
-          result = await this.validateIntentService.validateIntent(job.data as Hex)
-          break
-        case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
-          result = await this.feasableIntentService.feasableIntent(job.data as Hex)
-          break
-        case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
-          result = await this.fulfillIntentService.fulfill(job.data as Hex)
-          break
-        default:
-          throw new Error(`Unknown job type: ${job.name}`)
-      }
+      const result = await this._process(job)
 
       // Track job completion
       this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.COMPLETED, {
@@ -95,6 +76,32 @@ export class SolveIntentProcessor extends WorkerHost {
       })
 
       throw error
+    }
+  }
+
+  private async _process(
+    job: Job<any, any, string>,
+    processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
+  ): Promise<any> {
+    switch (job.name) {
+      case QUEUES.SOURCE_INTENT.jobs.create_intent:
+        return await this.createIntentService.createIntent(job.data as Serialize<IntentCreatedLog>)
+
+      case QUEUES.SOURCE_INTENT.jobs.validate_intent:
+      case QUEUES.SOURCE_INTENT.jobs.retry_intent:
+        return await this.validateIntentService.validateIntent(job.data)
+
+      case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
+        return await this.feasableIntentService.feasableIntent(job.data)
+
+      case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
+        return await this.fulfillIntentService.fulfill(job.data)
+
+      case QUEUES.SOURCE_INTENT.jobs.proven_intent:
+        return await this.publicNegativeIntentRebalanceService.processIntentProven(job.data)
+
+      default:
+        throw new Error(`Unknown job type: ${job.name}`)
     }
   }
 

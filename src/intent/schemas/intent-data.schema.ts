@@ -45,6 +45,12 @@ export class IntentDataModel implements IntentType {
   @Prop({ required: false })
   funder?: Hex
 
+  @Prop({ required: false })
+  createdAt?: Date
+
+  @Prop({ required: false })
+  updatedAt?: Date
+
   constructor(params: CreateIntentDataModelParams) {
     const {
       quoteID,

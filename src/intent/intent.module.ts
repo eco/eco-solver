@@ -17,6 +17,7 @@ import { ValidationService } from '@/intent/validation.sevice'
 import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
   ],
   providers: [
     CreateIntentService,
+    IntentSourceRepository,
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
@@ -42,6 +44,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
   // controllers: [IntentSourceController],
   exports: [
     CreateIntentService,
+    IntentSourceRepository,
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,

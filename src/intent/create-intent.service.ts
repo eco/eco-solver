@@ -1,29 +1,29 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { QUEUES } from '../common/redis/constants'
-import { JobsOptions, Queue } from 'bullmq'
-import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
-import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import {
   CallDataInterface,
   decodeCreateIntentLog,
   IntentCreatedLog,
   RewardTokensInterface,
 } from '../contracts'
-import { IntentDataModel } from './schemas/intent-data.schema'
-import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
-import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
-import { EcoResponse } from '@/common/eco-response'
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { EcoResponse } from '@/common/eco-response'
+import { FlagService } from '../flags/flags.service'
+import { getIntentJobId } from '../common/utils/strings'
+import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { Hex } from 'viem'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { InjectModel } from '@nestjs/mongoose'
+import { InjectQueue } from '@nestjs/bullmq'
+import { IntentDataModel } from './schemas/intent-data.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { JobsOptions, Queue } from 'bullmq'
+import { Model } from 'mongoose'
+import { QUEUES } from '../common/redis/constants'
+import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
+import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -112,10 +112,14 @@ export class CreateIntentService implements OnModuleInit {
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
       if (validWallet) {
         //add to processing queue
-        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intent.hash, {
-          jobId,
-          ...this.intentJobConfig,
-        })
+        await this.intentQueue.add(
+          QUEUES.SOURCE_INTENT.jobs.validate_intent,
+          { intentHash: intent.hash },
+          {
+            jobId,
+            ...this.intentJobConfig,
+          },
+        )
 
         // Track successful intent creation and queue addition
         this.ecoAnalytics.trackIntentCreatedAndQueued(intent, jobId, intentWs)
@@ -237,18 +241,18 @@ export class CreateIntentService implements OnModuleInit {
    */
   async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
     try {
-      const result = await this.fetchIntent({ 'intent.hash': hash })
+      const { response: intent, error } = await this.fetchIntent({ 'intent.hash': hash })
 
-      if (result.error) {
-        this.ecoAnalytics.trackIntentRetrievalNotFound('getIntentForHash', { hash }, result.error)
+      if (error) {
+        this.ecoAnalytics.trackIntentRetrievalNotFound('getIntentForHash', { hash }, error)
       } else {
         this.ecoAnalytics.trackIntentRetrievalSuccess('getIntentForHash', {
           hash,
-          intent: result.response,
+          intent,
         })
       }
 
-      return result
+      return { response: intent }
     } catch (error) {
       this.ecoAnalytics.trackIntentRetrievalError('getIntentForHash', error, { hash })
       throw error

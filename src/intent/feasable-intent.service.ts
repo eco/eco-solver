@@ -1,16 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { JobsOptions, Queue } from 'bullmq'
-import { InjectQueue } from '@nestjs/bullmq'
-import { QUEUES } from '../common/redis/constants'
-import { UtilsIntentService } from './utils-intent.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { FeeService } from '@/fee/fee.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { FeeService } from '@/fee/fee.service'
+import { getIntentJobId } from '../common/utils/strings'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
+import { JobsOptions, Queue } from 'bullmq'
+import { QUEUES } from '../common/redis/constants'
+import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { UtilsIntentService } from './utils-intent.service'
 
 /**
  * Service class for getting configs for the app
@@ -46,13 +46,32 @@ export class FeasableIntentService implements OnModuleInit {
       throw error
     }
   }
+
+  async feasableIntent(data: IntentProcessingJobData) {
+    const { intentHash, isNegativeIntent } = data
+
+    if (isNegativeIntent) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Intent ${intentHash} is a negative intent, skipping feasibility check`,
+        }),
+      )
+
+      // await this.addFulfillJob(data)
+      return true
+    }
+
+    return this._feasableIntent(data)
+  }
+
   /**
    * Validates that the execution of the intent is feasible. This means that the solver can execute
    * the transaction and that transaction cost is profitable to the solver.
    * @param intentHash the intent hash to fetch the intent data from the db with
    * @returns
    */
-  async feasableIntent(intentHash: Hex) {
+  private async _feasableIntent(intentProcessingJobData: IntentProcessingJobData) {
+    const { intentHash } = intentProcessingJobData
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `FeasableIntent intent ${intentHash}`,
@@ -95,18 +114,36 @@ export class FeasableIntentService implements OnModuleInit {
     )
     if (!error) {
       //add to processing queue
-      await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...this.intentJobConfig,
-      })
-
-      // Track feasible intent queued for fulfillment
-      this.ecoAnalytics.trackIntentFeasibleAndQueued(intentHash, jobId, model)
+      // await this.intentQueue.add(
+      //   QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
+      //   intentProcessingJobData,
+      //   {
+      //     jobId,
+      //     ...this.intentJobConfig,
+      //   },
+      // )
     } else {
       await this.utilsIntentService.updateInfeasableIntentModel(model, error)
-
-      // Track infeasible intent
-      this.ecoAnalytics.trackIntentInfeasible(intentHash, model, error)
     }
   }
+
+  // private async addFulfillJob(data: IntentProcessingJobData, logIndex: number = 0) {
+  //   const { intentHash } = data
+  //   const jobId = getIntentJobId('feasable', intentHash, logIndex)
+  //   this.logger.debug(
+  //     EcoLogMessage.fromDefault({
+  //       message: `FeasableIntent intent ${intentHash}`,
+  //       properties: {
+  //         intentHash,
+  //         jobId,
+  //       },
+  //     }),
+  //   )
+
+  //   // Add to processing queue
+  //   await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, data, {
+  //     jobId,
+  //     ...this.intentJobConfig,
+  //   })
+  // }
 }
