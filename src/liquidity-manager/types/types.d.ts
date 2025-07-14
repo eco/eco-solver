@@ -73,6 +73,7 @@ type Strategy =
   | 'CCTPLiFi'
   | 'Relay'
   | 'Stargate'
+  | 'Squid'
   | 'PublicNegativeIntent'
 
 type StrategyContext<S extends Strategy = Strategy> =
