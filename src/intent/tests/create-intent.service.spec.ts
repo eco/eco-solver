@@ -205,7 +205,7 @@ describe('CreateIntentService', () => {
       expect(mockQueueAdd).toHaveBeenCalledTimes(1)
       expect(mockQueueAdd).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.validate_intent,
-        mockIntent.hash,
+        { intentHash: mockIntent.hash },
         { jobId },
       )
 

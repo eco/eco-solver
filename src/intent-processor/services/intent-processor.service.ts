@@ -28,6 +28,7 @@ import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-ba
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
 import { getChainConfig } from '@/eco-configs/utils'
+import { Job } from 'bullmq'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -233,6 +234,22 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     }
 
     await this.intentProcessorQueue.addExecuteSendBatchJobs(jobsData)
+  }
+
+  async addExecuteWithdrawalsJob(jobsData: ExecuteWithdrawsJobData): Promise<Job> {
+    jobsData.intentSourceAddr = this.getIntentSource()
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `addExecuteWithdrawalsJob`,
+        properties: {
+          jobsData,
+        },
+      }),
+    )
+
+    const jobs = await this.intentProcessorQueue.addExecuteWithdrawalsJobs([jobsData])
+    return jobs[0]
   }
 
   async executeWithdrawals(data: ExecuteWithdrawsJobData) {

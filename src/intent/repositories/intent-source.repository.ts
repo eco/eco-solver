@@ -1,14 +1,20 @@
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Hex } from 'viem'
+import { FilterQuery, Model } from 'mongoose'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
-import { Model } from 'mongoose'
-import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
-import { RewardTokensInterface, CallDataInterface } from '@/contracts'
-import { RouteType, hashIntent } from '@eco-foundation/routes-ts'
+import { IntentSourceModel, IntentSourceStatus } from '@/intent/schemas/intent-source.schema'
+
+export interface IntentFilter {
+  status?: IntentSourceStatus | IntentSourceStatus[]
+  createdAfter?: Date
+  createdBefore?: Date
+  routeToken?: string
+  rewardToken?: string
+  requireNonExpired?: boolean
+  callTarget?: string
+  requireTransferSelector?: boolean
+  requireZeroCallValue?: boolean
+}
 
 @Injectable()
 export class IntentSourceRepository {
@@ -18,73 +24,6 @@ export class IntentSourceRepository {
 
   async getIntent(hash: string, projection: object = {}): Promise<IntentSourceModel | null> {
     return this.queryIntent({ 'intent.hash': hash }, projection)
-  }
-
-  async getIntentsForGroupID(
-    intentGroupID: string,
-    projection: object = {},
-  ): Promise<IntentSourceModel[]> {
-    return this.queryIntents({ 'intent.intentGroupID': intentGroupID }, projection)
-  }
-
-  async createIntentFromIntentInitiation(
-    intentGroupID: string,
-    quoteID: string,
-    funder: Hex,
-    route: RouteType,
-    reward: QuoteRewardDataType,
-  ) {
-    try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue } = reward
-      const rewardTokens = reward.tokens as RewardTokensInterface[]
-      const intentHash = hashIntent({ route, reward }).intentHash
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `createIntentFromIntentInitiation`,
-          properties: {
-            intentHash,
-          },
-        }),
-      )
-
-      const intent = new IntentDataModel({
-        intentGroupID,
-        quoteID,
-        hash: intentHash,
-        salt,
-        source,
-        destination,
-        inbox,
-        routeTokens: routeTokens as RewardTokensInterface[],
-        calls: calls as CallDataInterface[],
-        creator,
-        prover,
-        deadline,
-        nativeValue,
-        rewardTokens,
-        logIndex: 0,
-        funder,
-      })
-
-      await this.model.create({
-        // event: null,
-        intent,
-        receipt: null,
-        status: 'PENDING',
-      })
-    } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in createIntentFromIntentInitiation`,
-          properties: {
-            quoteID,
-            error: ex.message,
-          },
-        }),
-      )
-    }
   }
 
   async exists(query: object): Promise<boolean> {
@@ -129,5 +68,71 @@ export class IntentSourceRepository {
 
   async deleteMany(query: object): Promise<any> {
     return this.model.deleteMany(query)
+  }
+
+  async filterIntents(filter: IntentFilter): Promise<IntentSourceModel[]> {
+    const query: FilterQuery<IntentSourceModel> = {}
+
+    // 1. Filter by intent status (single or multiple)
+    if (filter.status) {
+      query.status = Array.isArray(filter.status) ? { $in: filter.status } : filter.status
+    }
+
+    // 2. Filter by expiration
+    if (filter.requireNonExpired) {
+      query['intent.reward.deadline'] = { $gt: BigInt(Date.now()) }
+    }
+
+    // 3. Filter by creation time
+    this.addDateRangeFilter(filter, query)
+
+    // 4. Filter by route token
+    if (filter.routeToken) {
+      query['intent.route.tokens.token'] = filter.routeToken
+    }
+
+    // 5. Filter by reward token
+    if (filter.rewardToken) {
+      query['intent.reward.tokens.token'] = filter.rewardToken
+    }
+
+    // 6. Filter by single transfer call
+    this.addCallTargetsFilter(filter, query)
+
+    return await this.model.find(query).lean()
+  }
+
+  private addDateRangeFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
+    if (filter.createdAfter || filter.createdBefore) {
+      query.createdAt = {}
+
+      if (filter.createdAfter) {
+        query.createdAt.$gte = filter.createdAfter
+      }
+
+      if (filter.createdBefore) {
+        query.createdAt.$lte = filter.createdBefore
+      }
+    }
+  }
+
+  private addCallTargetsFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
+    if (!(filter.callTarget || filter.requireTransferSelector || filter.requireZeroCallValue)) {
+      return
+    }
+
+    query['intent.route.calls'] = { $size: 1 }
+
+    if (filter.callTarget) {
+      query['intent.route.calls.0.target'] = filter.callTarget
+    }
+
+    if (filter.requireTransferSelector) {
+      query['intent.route.calls.0.data'] = { $regex: /^0xa9059cbb/i }
+    }
+
+    if (filter.requireZeroCallValue) {
+      query['intent.route.calls.0.value'] = BigInt(0)
+    }
   }
 }
