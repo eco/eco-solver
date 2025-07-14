@@ -148,10 +148,14 @@ describe('FeasableIntentService', () => {
         feasable: true,
         jobId,
       })
-      expect(queue.add).toHaveBeenCalledWith(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...feasableIntentService['intentJobConfig'],
-      })
+      expect(queue.add).toHaveBeenCalledWith(
+        QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
+        { intentHash },
+        {
+          jobId,
+          ...feasableIntentService['intentJobConfig'],
+        },
+      )
     })
   })
 })

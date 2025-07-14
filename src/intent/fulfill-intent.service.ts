@@ -1,15 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common'
-import { Hex } from 'viem'
-import { UtilsIntentService } from './utils-intent.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Solver } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
-import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { isNativeIntent } from './utils'
-import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Hex } from 'viem'
+import { Injectable, Logger } from '@nestjs/common'
+import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { isNativeIntent } from './utils'
+import { Solver } from '@/eco-configs/eco-config.types'
+import { UtilsIntentService } from './utils-intent.service'
+import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -32,7 +33,9 @@ export class FulfillIntentService {
    * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
    * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
    */
-  async fulfill(intentHash: Hex): Promise<unknown> {
+  async fulfill(intentProcessingJobData: IntentProcessingJobData): Promise<unknown> {
+    const { intentHash } = intentProcessingJobData
+
     // Track fulfillment attempt start
     this.ecoAnalytics.trackIntentFulfillmentStarted(intentHash)
 
