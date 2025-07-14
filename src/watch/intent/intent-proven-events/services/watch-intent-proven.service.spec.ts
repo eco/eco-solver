@@ -7,7 +7,10 @@ import { IntentProvenLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Network } from '@/common/alchemy/network'
-import { Prover, WatchIntentProvenService } from '@/watch/intent/intent-proven-events/services/watch-intent-proven.service'
+import {
+  Prover,
+  WatchIntentProvenService,
+} from '@/watch/intent/intent-proven-events/services/watch-intent-proven.service'
 import { QUEUES } from '@/common/redis/constants'
 
 let $: EcoTester
@@ -17,14 +20,13 @@ let publicClientService: MultichainPublicClientService
 
 function mockTopics(): [`0x${string}`, `0x${string}`, `0x${string}`] {
   return [
-    '0x' + 'a'.repeat(64) as Hex,
-    '0x' + 'b'.repeat(64) as Hex,
-    '0x' + 'c'.repeat(64) as Hex,
+    ('0x' + 'a'.repeat(64)) as Hex,
+    ('0x' + 'b'.repeat(64)) as Hex,
+    ('0x' + 'c'.repeat(64)) as Hex,
   ]
 }
 
 describe('WatchIntentProvenService', () => {
-
   beforeAll(async () => {
     const mockSource = {
       getConfig: () => ({
@@ -69,8 +71,7 @@ describe('WatchIntentProvenService', () => {
     publicClientService = $.get(MultichainPublicClientService)
   })
 
-  beforeEach(async () => {
-  })
+  beforeEach(async () => {})
 
   afterEach(() => {
     jest.clearAllMocks()

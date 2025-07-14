@@ -9,12 +9,14 @@ import { RouteDataModel } from '@/intent/schemas/route-data.schema'
 
 const TransferSelector = '0xa9059cbb' // ERC20 transfer function selector
 
-function createTestingIntentModel(options: {
-  status?: IntentSourceModel['status']
-  intentOverrides?: Partial<IntentDataModel>
-  routeOverrides?: Partial<RouteDataModel>
-  rewardOverrides?: Partial<RewardDataModel>
-} = {}): IntentSourceModel {
+function createTestingIntentModel(
+  options: {
+    status?: IntentSourceModel['status']
+    intentOverrides?: Partial<IntentDataModel>
+    routeOverrides?: Partial<RouteDataModel>
+    rewardOverrides?: Partial<RewardDataModel>
+  } = {},
+): IntentSourceModel {
   const {
     status = 'PENDING',
     intentOverrides = {},
@@ -79,15 +81,10 @@ describe('IntentSourceRepository', () => {
     dbTestUtils = new DBTestUtils()
     await dbTestUtils.dbOpen()
 
-    $ = EcoTester
-      .setupTestFor(IntentSourceRepository)
-      .withProviders([
-      ])
-      .withMocks([
-      ])
-      .withSchemas([
-        [IntentSourceModel.name, IntentSourceSchema],
-      ])
+    $ = EcoTester.setupTestFor(IntentSourceRepository)
+      .withProviders([])
+      .withMocks([])
+      .withSchemas([[IntentSourceModel.name, IntentSourceSchema]])
       .overridingProvider(EcoConfigService)
       .useFactory(() => new EcoConfigService([mockSource as any]))
 
@@ -297,11 +294,13 @@ describe('IntentSourceRepository', () => {
       status: 'PENDING',
       routeOverrides: {
         tokens: [{ token: '0xROUTE', amount: 100n }],
-        calls: [{
-          target: '0xTARGET',
-          data: TransferSelector, // matches ERC20 transfer
-          value: 0n,
-        }],
+        calls: [
+          {
+            target: '0xTARGET',
+            data: TransferSelector, // matches ERC20 transfer
+            value: 0n,
+          },
+        ],
       },
       rewardOverrides: {
         tokens: [{ token: '0xREWARD', amount: 100n }],
@@ -314,7 +313,7 @@ describe('IntentSourceRepository', () => {
       routeOverrides: {
         tokens: [{ token: '0xROUTE', amount: 200n }],
         calls: [],
-      } as unknown as  RouteDataModel,
+      } as unknown as RouteDataModel,
       rewardOverrides: {
         tokens: [{ token: '0xREWARD', amount: 200n }],
         deadline: BigInt(Date.now() - 1000), // expired
