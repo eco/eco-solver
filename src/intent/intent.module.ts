@@ -39,7 +39,6 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     ValidationService,
     WalletFulfillService,
   ],
-  // controllers: [IntentSourceController],
   exports: [
     CreateIntentService,
     ValidateIntentService,
