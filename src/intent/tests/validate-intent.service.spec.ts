@@ -199,7 +199,7 @@ describe('ValidateIntentService', () => {
         },
       )
       expect(mockLogDebug).toHaveBeenLastCalledWith({
-        msg: `validateIntent ${intentHash}`,
+        msg: `addFeasibilityCheckJob ${intentHash}`,
         intentHash,
         jobId,
       })
