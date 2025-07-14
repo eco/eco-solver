@@ -41,8 +41,8 @@ export class LiquidityProviderService {
     tokenOut: TokenData,
     swapAmount: number,
   ): Promise<RebalanceQuote[]> {
-    const strategies = this.getWalletSupportedStrategies(walletAddress)
-    const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
+    const { maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
+    const strategies = this.getWalletSupportedStrategies(tokenOut.chainId, walletAddress)
     const quoteId = uuidv4()
 
     this.logger.log(
@@ -230,8 +230,8 @@ export class LiquidityProviderService {
     throw new Error(`Strategy not supported: ${strategy}`)
   }
 
-  private getWalletSupportedStrategies(walletAddress: string): Strategy[] {
-    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
+  private getWalletSupportedStrategies(chainID: number, walletAddress: string): Strategy[] {
+    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress(chainID)
 
     const walletType =
       walletAddress === crowdLiquidityPoolAddress ? 'crowd-liquidity-pool' : 'eco-wallet'

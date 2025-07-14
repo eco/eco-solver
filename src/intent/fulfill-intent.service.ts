@@ -59,7 +59,7 @@ export class FulfillIntentService {
   async executeFulfillIntentWithCL(model: IntentSourceModel, solver: Solver): Promise<Hex> {
     if (this.crowdLiquidityService.isRouteSupported(model)) {
       try {
-        return await this.crowdLiquidityService.fulfill(model, solver)
+        return await this.crowdLiquidityService.fulfill(model)
       } catch (error) {
         this.logger.error(
           EcoLogMessage.withError({

@@ -163,7 +163,9 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
   }
 
   private _execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
-    const crowdLiquidityPoolWallet = this.crowdLiquidityService.getPoolAddress()
+    const crowdLiquidityPoolWallet = this.crowdLiquidityService.getPoolAddress(
+      quote.tokenOut.chainId,
+    )
     if (isAddressEqual(crowdLiquidityPoolWallet, walletAddress as Hex)) {
       return this.crowdLiquidityService.rebalanceCCTP(quote.tokenIn, quote.tokenOut)
     }

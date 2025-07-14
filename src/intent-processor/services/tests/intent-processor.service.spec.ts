@@ -946,6 +946,7 @@ describe('IntentProcessorService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
         {
           sourceAddress: '0xSource1' as Hex,
+          stablePoolAddress: '0xStablePoolAddress2',
           inbox: '0xInbox1' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
@@ -954,6 +955,7 @@ describe('IntentProcessorService', () => {
         },
         {
           sourceAddress: '0xSource2' as Hex,
+          stablePoolAddress: '0xStablePoolAddress2',
           inbox: '0xInbox1' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
@@ -978,6 +980,7 @@ describe('IntentProcessorService', () => {
         {
           sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox1' as Hex,
+          stablePoolAddress: '0xStablePoolAddress1',
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
@@ -986,6 +989,7 @@ describe('IntentProcessorService', () => {
         {
           sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox2' as Hex,
+          stablePoolAddress: '0xStablePoolAddress2',
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
