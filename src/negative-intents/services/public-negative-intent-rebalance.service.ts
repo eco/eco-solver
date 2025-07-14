@@ -145,7 +145,7 @@ export class PublicNegativeIntentRebalanceService
     const { intentHashes } = quote.context
 
     for (const hash of intentHashes) {
-      // 1. Fetch the intent by hash from DB
+      // Fetch the intent by hash from DB
       const intent = await this.intentSourceRepository.getIntent(hash)
 
       if (!intent) {
@@ -174,13 +174,6 @@ export class PublicNegativeIntentRebalanceService
       )
 
       await this.addValidateJob(hash)
-      // await this.fulfillmentService.fulfillIntent(intent, walletAddress)
-
-      // 3. Wait for proof (event-driven or polling)
-      // await this.proofWatcher.waitForProof(hash)
-
-      // 4. Trigger withdrawal
-      // await this.withdrawalService.executeWithdrawal(intent)
     }
 
     return { response: intentHashes.length }
