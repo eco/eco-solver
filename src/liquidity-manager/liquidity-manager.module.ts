@@ -22,6 +22,7 @@ import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-pr
     BalanceModule,
     IntentModule,
     TransactionModule,
+    NegativeIntentsModule,
     LiquidityManagerQueue.init(),
     LiquidityManagerQueue.initFlow(),
 
@@ -40,6 +41,6 @@ import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-pr
     SquidProviderService,
     CCTPV2ProviderService,
   ],
-  exports: [LiquidityManagerService],
+  exports: [LiquidityManagerService, NegativeIntentsModule],
 })
 export class LiquidityManagerModule {}
