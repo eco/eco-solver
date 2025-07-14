@@ -6,7 +6,6 @@ import { QUEUES } from '../common/redis/constants'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
 import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
@@ -46,11 +45,11 @@ export class FeasableIntentService implements OnModuleInit {
         }),
       )
 
-      await this.addFulfillJob(intentHash)
+      await this.addFulfillJob(data)
       return true
     }
 
-    return this._feasableIntent(intentHash)
+    return this._feasableIntent(data)
   }
 
   /**
@@ -59,7 +58,8 @@ export class FeasableIntentService implements OnModuleInit {
    * @param intentHash the intent hash to fetch the intent data from the db with
    * @returns
    */
-  private async _feasableIntent(intentHash: Hex) {
+  private async _feasableIntent(intentProcessingJobData: IntentProcessingJobData) {
+    const { intentHash } = intentProcessingJobData
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `FeasableIntent intent ${intentHash}`,
@@ -88,16 +88,21 @@ export class FeasableIntentService implements OnModuleInit {
     )
     if (!error) {
       //add to processing queue
-      await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...this.intentJobConfig,
-      })
+      await this.intentQueue.add(
+        QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
+        intentProcessingJobData,
+        {
+          jobId,
+          ...this.intentJobConfig,
+        },
+      )
     } else {
       await this.utilsIntentService.updateInfeasableIntentModel(model, error)
     }
   }
 
-  private async addFulfillJob(intentHash: Hex, logIndex: number = 0) {
+  private async addFulfillJob(data: IntentProcessingJobData, logIndex: number = 0) {
+    const { intentHash } = data
     const jobId = getIntentJobId('feasable', intentHash, logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -110,7 +115,7 @@ export class FeasableIntentService implements OnModuleInit {
     )
 
     // Add to processing queue
-    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
+    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, data, {
       jobId,
       ...this.intentJobConfig,
     })

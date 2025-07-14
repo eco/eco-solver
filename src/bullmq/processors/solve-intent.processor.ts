@@ -7,7 +7,6 @@ import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
-import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 import { PublicNegativeIntentRebalanceService } from '@/negative-intents/services/public-negative-intent-rebalance.service'
@@ -52,7 +51,7 @@ export class SolveIntentProcessor extends WorkerHost {
         return await this.feasableIntentService.feasableIntent(job.data)
 
       case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
-        return await this.fulfillIntentService.fulfill(job.data as Hex)
+        return await this.fulfillIntentService.fulfill(job.data)
 
       case QUEUES.SOURCE_INTENT.jobs.proven_intent:
         return await this.publicNegativeIntentRebalanceService.processIntentProven(job.data)
