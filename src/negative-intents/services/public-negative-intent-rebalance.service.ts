@@ -58,6 +58,17 @@ export class PublicNegativeIntentRebalanceService
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<PublicNegativeIntent> | RebalanceQuote<PublicNegativeIntent>[]> {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getQuote for PublicNegativeIntent`,
+        properties: {
+          tokenIn,
+          tokenOut,
+          swapAmount,
+        },
+      }),
+    )
+
     // - Query intents by routeToken = tokenIn.config.address and rewardToken = tokenOut.config.address
     const intentFilter: IntentFilter = {
       status: 'PENDING',
