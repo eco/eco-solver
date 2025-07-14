@@ -1,4 +1,4 @@
-import { Address, Hex } from 'viem'
+import { zeroAddress, Hex } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -247,7 +247,7 @@ export class PublicNegativeIntentRebalanceService
 
     const executeWithdrawsJobData: ExecuteWithdrawsJobData = {
       chainId: Number(sourceChainID),
-      intentSourceAddr: null as unknown as Address,
+      intentSourceAddr: zeroAddress,
       intents: [IntentDataModel.toChainIntent(intentSourceModel.intent)],
     }
 
