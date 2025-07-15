@@ -5,6 +5,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
+  ChainAddress,
   EcoConfigType,
   IntentSource,
   KmsConfig,
@@ -15,7 +16,7 @@ import {
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
-import { getChainConfig } from './utils'
+import { getChainAddress, getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
@@ -139,7 +140,7 @@ export class EcoConfigService {
       intent.inbox = config.Inbox
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
       const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
-        (prover) => getAddress(prover) !== zeroAddress,
+        (prover) => getChainAddress(intent.chainID, prover) !== zeroAddress,
       )
       switch (ecoNpm) {
         case 'replace':
@@ -153,7 +154,7 @@ export class EcoConfigService {
       //remove duplicates
       intent.provers = _.uniq(intent.provers)
 
-      intent.tokens = intent.tokens.map((token: string) => getAddress(token))
+      intent.tokens = intent.tokens.map((token: string) => getChainAddress(intent.chainID, token as ChainAddress))
       return intent
     })
   }
@@ -377,7 +378,7 @@ export class EcoConfigService {
   }
 
   getCCTPLiFiConfig(): EcoConfigType['cctpLiFi'] {
-    const liquidityManager = this.getLiquidityManager()
+  const liquidityManager = this.getLiquidityManager()
     const cctp = this.getCCTP()
     return {
       maxSlippage: liquidityManager.maxQuoteSlippage,

@@ -178,7 +178,7 @@ export class ValidateIntentService implements OnModuleInit {
 
       // Check if the intent is funded
       isIntentFunded = await client.readContract({
-        address: intentSource.sourceAddress,
+        address: intentSource.sourceAddress as `0x${string}`,
         abi: IntentSourceAbi,
         functionName: 'isIntentFunded',
         args: [IntentDataModel.toChainIntent(model.intent)],

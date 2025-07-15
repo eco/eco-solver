@@ -34,10 +34,9 @@ export class SvmMultichainClientService implements OnModuleInit {
   }
 
   private setSvmChainConfigs() {
-    const rpcConfig = this.ecoConfigService.getChainRpcs()
-    
+
      // check if we have Solana config
-     if (rpcConfig[1399811150]) {
+     
        const svmChainConfig: SvmChainConfig = {
          rpc: createSolanaRpc('https://solana.drpc.org/'),
          websocketUrl: 'wss://solana.drpc.org',
@@ -46,7 +45,7 @@ export class SvmMultichainClientService implements OnModuleInit {
       
       this.chainConfigs.set(svmChainConfig.domainId, svmChainConfig)
       this.supportedChainIds = Array.from(this.chainConfigs.keys())
-    }
+    
   }
 
 

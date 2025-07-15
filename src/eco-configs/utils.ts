@@ -1,8 +1,9 @@
 import { EcoProtocolAddresses } from '@eco-foundation/routes-ts'
-import { EcoChainConfig } from './eco-config.types'
+import { ChainAddress, EcoChainConfig, getVMType, VMType } from './eco-config.types'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 import { Address as SvmAddress } from '@solana/kit'
+import { Address as EvmAddress, getAddress } from 'viem'
 
 /**
  * The prefix for non-production deploys on a chain
@@ -37,6 +38,14 @@ export function isPreEnv(): boolean {
     getNodeEnv() === NodeEnv.development ||
     getNodeEnv() === NodeEnv.staging
   )
+}
+
+export function getChainAddress(chainID: number, address: ChainAddress): ChainAddress {
+  const vm = getVMType(chainID)
+  if (vm === VMType.EVM) {
+    return getAddress(address as EvmAddress)
+  } else 
+  return getChainConfig(chainID).IntentSource
 }
 
 /**

@@ -81,8 +81,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     )
 
     // Get all possible warp routes for both tokens
-    const warpRoutesIn = this.getAllWarpRoutes(tokenIn.config.chainId, tokenIn.config.address)
-    const warpRoutesOut = this.getAllWarpRoutes(tokenOut.config.chainId, tokenOut.config.address)
+    const warpRoutesIn = this.getAllWarpRoutes(tokenIn.config.chainId, tokenIn.config.address as `0x${string}`)
+    const warpRoutesOut = this.getAllWarpRoutes(tokenOut.config.chainId, tokenOut.config.address as `0x${string}`)
 
     // Determine the correct warp route based on the tokens
     const { warpRouteIn, warpRouteOut, actionPath } = this.determineWarpRoutes(
@@ -259,7 +259,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     amount: bigint,
   ): Promise<TransactionRequest[]> {
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
-    const { warpToken } = this.getWarpRoute(tokenIn.chainId, tokenIn.address)
+    const { warpToken } = this.getWarpRoute(tokenIn.chainId, tokenIn.address as `0x${string}`)
 
     if (!warpToken) {
       throw new WarpRouteNotFoundError(tokenIn.chainId, tokenIn.address as string)
@@ -292,7 +292,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     }
 
     // Approval: When operating with a collateral token, an allowance must be set for the warp contract
-    if (!isAddressEqual(warpToken.warpContract, tokenIn.address)) {
+    if (!isAddressEqual(warpToken.warpContract, tokenIn.address as `0x${string}`)) {
       const approvalData = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
@@ -300,7 +300,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       })
 
       const approvalTx: TransactionRequest = {
-        to: tokenIn.address,
+        to: tokenIn.address as `0x${string}`,
         data: approvalData,
       }
 

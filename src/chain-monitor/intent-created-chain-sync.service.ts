@@ -9,6 +9,7 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
+import { Address as EvmAddress } from 'viem'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 
 /**
@@ -70,13 +71,19 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
       fromBlock = toBlock - IntentCreatedChainSyncService.MAX_BLOCK_RANGE
     }
 
+
+    // Check if sourceAddress is an EVM address (starts with 0x)
+    if (typeof source.sourceAddress === 'string' && !source.sourceAddress.startsWith('0x')) {
+      throw new Error('Solana not supported yet')
+    }
+
     const allCreateIntentLogs = await client.getContractEvents({
-      address: source.sourceAddress,
+      address: source.sourceAddress as EvmAddress,
       abi: IntentSourceAbi,
       eventName: 'IntentCreated',
       strict: true,
       args: {
-        prover: source.provers,
+        prover: source.provers as EvmAddress[],
       },
       fromBlock,
       toBlock,

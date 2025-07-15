@@ -49,7 +49,7 @@ export class FlagService implements OnModuleInit {
    * on ready listener to initialize the flags
    */
   private async initLaunchDarklyClient() {
-    this.context = { kind: 'solver-pod', key: await this.kernelAccountService.getAddress() }
+    this.context = { kind: 'solver-pod', key: '0x0000000000000000000000000000000000000000' }
     this.flagsClient = ld.init(this.ecoConfigService.getLaunchDarkly().apiKey)
     const lock = { initialized: false }
     this.flagsClient.on('ready', async () => {

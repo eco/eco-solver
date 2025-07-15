@@ -65,7 +65,7 @@ export class WalletFulfillService implements IFulfillService {
     const nativeFulfill = this.getNativeFulfill(solver, nativeCalls)
 
     // Create fulfill tx
-    const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress, model)
+    const fulfillTx = await this.getFulfillIntentTx(solver.inboxAddress as `0x${string}`, model)
     fulfillTx.value = fulfillTx.value ?? 0n
     fulfillTx.value += nativeFulfill?.value || 0n // Add the native fulfill value to the fulfill tx
 
@@ -163,7 +163,7 @@ export class WalletFulfillService implements IFulfillService {
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
-          args: [solver.inboxAddress, dstAmount], //spender, amount
+          args: [solver.inboxAddress as `0x${string}`, dstAmount], //spender, amount
         })
 
         return [{ to: target, value: 0n, data: transferFunctionData }]
@@ -221,7 +221,7 @@ export class WalletFulfillService implements IFulfillService {
    */
   private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
     return {
-      to: solver.inboxAddress,
+      to: solver.inboxAddress as `0x${string}`,
       value: getNativeFulfill(nativeCalls),
       data: '0x',
     }
@@ -305,7 +305,7 @@ export class WalletFulfillService implements IFulfillService {
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
-        hyperProverAddr,
+        hyperProverAddr as `0x${string}`,
       ],
     })
 
@@ -328,7 +328,7 @@ export class WalletFulfillService implements IFulfillService {
       [pad(model.intent.reward.prover), '0x', zeroAddress],
     )
 
-    const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, hyperProverAddr as `0x${string}`, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -338,7 +338,7 @@ export class WalletFulfillService implements IFulfillService {
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
-        hyperProverAddr,
+        hyperProverAddr as `0x${string}`,
         messageData,
       ],
     })
@@ -377,7 +377,7 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     // Metalayer may use the same fee structure as Hyperlane
-    const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
+    const fee = await this.getProverFee(model, claimant, metalayerProverAddr as `0x${string}`, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -387,7 +387,7 @@ export class WalletFulfillService implements IFulfillService {
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
-        metalayerProverAddr,
+        metalayerProverAddr as `0x${string}`,
         messageData,
       ],
     })

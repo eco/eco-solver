@@ -65,13 +65,13 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       onError: async (error) => {
         await this.onError(error, client, source)
       },
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentCreated',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
-        prover: source.provers,
+        prover: source.provers as `0x${string}`[],
       },
       onLogs: this.addJob(source),
     })

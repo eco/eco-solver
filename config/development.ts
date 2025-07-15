@@ -102,4 +102,9 @@ export default {
       baseUrl: 'http://localhost:4000',
     },
   },
+
+  kms: {
+    region: 'us-east-2',
+    keyID: 'your-kms-key-id', // Replace with your actual KMS key ID
+  },
 }

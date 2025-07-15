@@ -72,7 +72,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
 
     const sourceChains = this.getSupportedChains()
     this.unwatch[solver.chainID] = client.watchContractEvent({
-      address: solver.inboxAddress,
+      address: solver.inboxAddress as `0x${string}`,
       abi: InboxAbi,
       eventName: 'Fulfillment',
       strict: true,

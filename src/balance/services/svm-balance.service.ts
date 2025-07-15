@@ -23,7 +23,6 @@ export class SvmBalanceService implements BalanceProvider {
    * @param tokenAddresses the tokens to fetch balances for (SPL token mint addresses)
    * @returns
    */
-  @Cacheable()
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: ChainAddress[],
@@ -115,7 +114,6 @@ export class SvmBalanceService implements BalanceProvider {
    * @param account - The account type to check (for Solana, both map to the same wallet)
    * @returns The native SOL balance in lamports
    */
-  @Cacheable()
   async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
     const rpc = await this.svmMultichainClientService.getRpc(chainID)
     const walletAddress = this.getSolverWalletAddress(chainID)

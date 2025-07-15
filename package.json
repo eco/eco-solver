@@ -27,7 +27,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "start:solana": "NODE_ENV=solana nest start --watch",
+    "start:solana": "NODE_ENV=solana yarn start:debug",
     "cli": "ts-node src/commander/command-main.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

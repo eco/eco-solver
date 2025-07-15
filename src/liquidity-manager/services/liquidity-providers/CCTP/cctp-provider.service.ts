@@ -58,8 +58,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     id?: string,
   ): Promise<RebalanceQuote<'CCTP'>> {
     if (
-      !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
-      !this.isSupportedToken(tokenOut.config.chainId, tokenOut.config.address)
+      !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address as `0x${string}`) ||
+      !this.isSupportedToken(tokenOut.config.chainId, tokenOut.config.address as `0x${string}`)
     ) {
       throw new Error('Unsupported route')
     }
@@ -208,7 +208,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     })
 
     const approveTx: TransactionRequest = {
-      to: tokenIn.config.address,
+      to: tokenIn.config.address as `0x${string}`,
       data: approveData,
     }
 
@@ -217,7 +217,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const depositData = encodeFunctionData({
       abi: CCTPTokenMessengerABI,
       functionName: 'depositForBurn',
-      args: [amount, destinationChain.domain, pad(walletAddress), tokenIn.config.address],
+      args: [amount, destinationChain.domain, pad(walletAddress), tokenIn.config.address as `0x${string}`],
     })
 
     const depositTx: TransactionRequest = {

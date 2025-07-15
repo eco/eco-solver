@@ -65,7 +65,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   async getNextBatchWithdrawals() {
     const intentSourceAddr = this.getIntentSource()
 
-    const batchWithdrawals = await this.indexerService.getNextBatchWithdrawals(intentSourceAddr)
+    const batchWithdrawals = await this.indexerService.getNextBatchWithdrawals(intentSourceAddr as `0x${string}`)
     const batchWithdrawalsPerSource = _.groupBy(
       batchWithdrawals,
       (withdrawal) => withdrawal.intent.source,
@@ -92,7 +92,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
       // Set a maximum number of withdrawals per transaction
       chunkWithdrawals.forEach((chunk) => {
-        jobsData.push({ chainId: parseInt(sourceChainId), intentSourceAddr, intents: chunk })
+        jobsData.push({ chainId: parseInt(sourceChainId), intentSourceAddr: intentSourceAddr as `0x${string}`, intents: chunk })
       })
     }
 
@@ -102,7 +102,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   async getNextSendBatch() {
     const intentSourceAddr = this.getIntentSource()
 
-    const proves = await this.indexerService.getNextSendBatch(intentSourceAddr)
+    const proves = await this.indexerService.getNextSendBatch(intentSourceAddr as `0x${string}`)
     const batchProvesPerChain = _.groupBy(proves, (prove) => prove.destinationChainId)
 
     this.logger.debug(
@@ -195,7 +195,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       Object.values(batches).map((batch) => {
         const { prover, source } = batch[0]
         const hashes = _.map(batch, 'hash')
-        return this.getSendBatchTransaction(publicClient, inboxAddr, prover, source, hashes)
+        return this.getSendBatchTransaction(publicClient, inboxAddr as `0x${string}`, prover, source, hashes)
       }),
     )
 
@@ -349,7 +349,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const data = encodeFunctionData({
       abi: InboxAbi,
       functionName: 'initiateProving',
-      args: [BigInt(source), intentHashes, hyperProverAddr, messageData],
+      args: [BigInt(source), intentHashes, hyperProverAddr as `0x${string}`, messageData],
     })
 
     return {

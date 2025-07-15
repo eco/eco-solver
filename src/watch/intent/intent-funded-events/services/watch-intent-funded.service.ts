@@ -68,13 +68,13 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
       onError: async (error) => {
         await this.onError(error, client, source)
       },
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
-        prover: source.provers,
+        prover: source.provers as `0x${string}`[],
       },
       onLogs: async (logs: Log[]): Promise<void> => {
         await this.addJob(source, { doValidation: true })(logs)

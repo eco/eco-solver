@@ -136,10 +136,10 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   getSupportedTokens(): TokenConfig[] {
     return this.balanceService
       .getInboxTokens()
-      .filter((token) => this.isSupportedToken(token.chainId, token.address))
+      .filter((token) => this.isSupportedToken(token.chainId, token.address as `0x${string}`))
       .map((token) => ({
         ...token,
-        targetBalance: this.getTokenTargetBalance(token.chainId, token.address),
+        targetBalance: this.getTokenTargetBalance(token.chainId, token.address as `0x${string}`),
       }))
   }
 
@@ -155,7 +155,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       return intentModel.intent.route.tokens.some(
         (rewardToken) =>
           BigInt(token.chainId) === intentModel.intent.route.destination &&
-          isAddressEqual(token.address, rewardToken.token),
+          isAddressEqual(token.address as `0x${string}`, rewardToken.token),
       )
     })
 
@@ -166,7 +166,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
     return intentModel.intent.route.tokens.every((routeToken) => {
       const token = routeTokensData.find((token) =>
-        isAddressEqual(token.config.address, routeToken.token),
+        isAddressEqual(token.config.address as `0x${string}`, routeToken.token),
       )
       return token && token.balance.balance >= routeToken.amount
     })

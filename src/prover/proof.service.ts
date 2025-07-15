@@ -8,6 +8,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { getVMType, VMType } from '@/eco-configs/eco-config.types'
 
 interface ProverMetadata {
   address: Hex
@@ -119,7 +120,7 @@ export class ProofService implements OnModuleInit {
   private async loadProofTypes() {
     const proofPromises = this.ecoConfigService
       .getIntentSources()
-      .map((source) => this.getProofTypes(source.chainID, source.provers))
+      .map((source) => this.getProofTypes(source.chainID, source.provers as `0x${string}`[]))
 
     // get the proof types for each prover address from on chain
     const proofs = await Promise.all(proofPromises)
@@ -144,6 +145,17 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   private async getProofTypes(chainID: number, provers: Hex[]): Promise<ProverMetadata[]> {
+    // TODO (for kunal): come back and fix this - need proper SVM support
+    const vmType = getVMType(chainID)
+    if (vmType === VMType.SVM) {
+      // For SVM chains, return hyperprover type as default
+      return provers.map((proverAddress) => ({
+        address: proverAddress,
+        type: ProofType.HYPERLANE,
+        chainID: chainID,
+      }))
+    }
+    
     const client = await this.publicClient.getClient(Number(chainID))
     const proofCalls: ProofCall[] = provers.map((proverAddress) => ({
       address: proverAddress,

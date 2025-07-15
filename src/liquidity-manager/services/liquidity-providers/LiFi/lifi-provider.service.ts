@@ -23,12 +23,15 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
+import { ChainAddress, getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
   private walletAddress: string
   private assetCacheManager: LiFiAssetCacheManager
+  private svmMultichainClientService: SvmMultichainClientService
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -37,6 +40,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   ) {
     // Initialize the asset cache manager
     this.assetCacheManager = new LiFiAssetCacheManager(this.ecoConfigService, this.logger)
+    this.svmMultichainClientService = new SvmMultichainClientService(this.ecoConfigService)
   }
 
   async onModuleInit() {
@@ -45,6 +49,12 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     // Use first intent source's network as the default network
     const [intentSource] = this.ecoConfigService.getIntentSources()
 
+    // Check if this is an SVM chain and use SVM client
+    const vmType = getVMType(intentSource.chainID)
+    if (vmType === VMType.SVM) {
+      this.walletAddress = await this.svmMultichainClientService.getAddress()
+      return;
+    }
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address
 
@@ -208,7 +218,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           targetBalance: 0,
         }
         const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
-          this.walletAddress,
+          this.walletAddress as ChainAddress,
           [coreTokenConfig],
         )
 

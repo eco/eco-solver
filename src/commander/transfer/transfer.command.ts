@@ -2,6 +2,8 @@ import { encodeFunctionData, getAddress, Hex, erc20Abi, parseEther } from 'viem'
 import { Command, CommandRunner, Option } from 'nest-commander'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { BalanceService } from '@/balance/balance.service'
+import { ChainAddress } from '@/eco-configs/eco-config.types'
+import { Address as EvmAddress } from 'viem'
 
 @Command({
   name: 'transfer',
@@ -92,15 +94,20 @@ export class TransferCommand extends CommandRunner {
    * @param recipient the recipient address
    * @param amount the amount to transfer, assumes in correct decimal format for that token
    */
-  async transferToken(chainID: number, token: Hex, recipient: Hex, amount: bigint) {
+  async transferToken(chainID: number, token: ChainAddress, recipient: Hex, amount: bigint) {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const transferFunctionData = encodeFunctionData({
       abi: erc20Abi,
       functionName: 'transfer',
       args: [recipient, amount],
     })
+
+    if (typeof token === 'string' && !token.startsWith('0x')) {
+      throw new Error('Solana not supported yet')
+    }
+
     const receipt = await client.execute([
-      { to: token, data: transferFunctionData, value: BigInt(0) },
+      { to: token as EvmAddress, data: transferFunctionData, value: BigInt(0) },
     ])
     console.log('Transfer Receipt', receipt)
     await client.waitForTransactionReceipt({ hash: receipt, confirmations: 5 })

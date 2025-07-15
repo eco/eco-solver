@@ -4,7 +4,7 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Address as SvmAddress } from '@solana/addresses'
+import { Address as SvmAddress } from '@solana/kit';
 import { Address as EvmAddress, Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
@@ -21,20 +21,8 @@ export enum VMType {
 
 // Mapping of chainId to VM type
 export const CHAIN_VM_TYPE_MAP: Record<number, VMType> = {
-  // Ethereum mainnet
-  1: VMType.EVM,
   // Optimism
   10: VMType.EVM,
-  // Polygon
-  137: VMType.EVM,
-  // Base
-  8453: VMType.EVM,
-  // Arbitrum
-  42161: VMType.EVM,
-  // Base Sepolia
-  84532: VMType.EVM,
-  // Optimism Sepolia
-  11155420: VMType.EVM,
   // Solana Mainnet
   1399811150: VMType.SVM,
 } as const

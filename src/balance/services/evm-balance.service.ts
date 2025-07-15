@@ -4,7 +4,6 @@ import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenBalance } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
-import { Cacheable } from '@/decorators/cacheable.decorator'
 import { BalanceProvider } from '../interfaces/balance-provider.interface'
 import { ChainAddress } from '@/eco-configs/eco-config.types'
 
@@ -22,7 +21,6 @@ export class EvmBalanceService implements BalanceProvider {
    * @param tokenAddresses the tokens to fetch balances for
    * @returns
    */
-  @Cacheable()
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: ChainAddress[],
@@ -100,7 +98,6 @@ export class EvmBalanceService implements BalanceProvider {
    * @param chainID - The chain ID to check the native balance on
    * @returns The native token balance in wei (base units), or 0n if no EOA address is found
    */
-  @Cacheable()
   async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const address = account == 'eoc' ? client.account?.address : client.kernelAccount.address

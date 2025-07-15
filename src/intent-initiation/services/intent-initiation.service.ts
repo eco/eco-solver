@@ -330,7 +330,7 @@ export class IntentInitiationService implements OnModuleInit {
 
     // Final transaction object
     const fundTx = {
-      to: intentSourceContract,
+      to: intentSourceContract as `0x${string}`,
       data,
       value: 0n,
     }

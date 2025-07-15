@@ -378,11 +378,11 @@ export class FeeService implements OnModuleInit {
       rewards: Object.values(erc20Rewards).map((tb) => {
         const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
         if (!token) {
-          throw QuoteError.RewardTokenNotFound(tb.address)
+          throw QuoteError.RewardTokenNotFound(tb.address as Hex)
         }
         return this.convertNormalize(token.amount, {
           chainID: srcChainID,
-          address: tb.address,
+          address: tb.address as Hex,
           decimals: tb.decimals,
         })
       }),
@@ -422,11 +422,11 @@ export class FeeService implements OnModuleInit {
       tokens: Object.values(erc20Rewards).map((tb) => {
         const token = quote.route.tokens.find((route) => getAddress(route.token) === tb.address)
         if (!token) {
-          throw QuoteError.RouteTokenNotFound(tb.address)
+          throw QuoteError.RouteTokenNotFound(tb.address as Hex)
         }
         return this.convertNormalize(token.amount, {
           chainID: destChainID,
-          address: tb.address,
+          address: tb.address as Hex,
           decimals: tb.decimals,
         })
       }),
@@ -596,7 +596,7 @@ export class FeeService implements OnModuleInit {
     const delta = token.token.balance - minBalance
     return this.convertNormalize(delta, {
       chainID: BigInt(token.chainId),
-      address: token.config.address,
+      address: token.config.address as Hex,
       decimals: token.token.decimals,
     })
   }

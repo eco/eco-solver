@@ -22,7 +22,7 @@ export class RebalanceTokenModel {
     )
     return {
       chainId: tokenData.chainId,
-      tokenAddress: tokenData.config.address,
+      tokenAddress: tokenData.config.address as `0x${string}`,
       currentBalance,
       targetBalance: tokenData.config.targetBalance,
     }

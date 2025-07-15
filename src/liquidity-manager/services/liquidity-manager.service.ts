@@ -21,7 +21,7 @@ import {
 import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
-import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { ChainAddress, LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
@@ -98,7 +98,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async analyzeTokens(walletAddress: string) {
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
-      walletAddress,
+      walletAddress as ChainAddress,
       this.tokensPerWallet[walletAddress],
     )
     const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({

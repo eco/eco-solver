@@ -13,6 +13,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
+import { Address as EvmAddress } from 'viem'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -67,8 +68,12 @@ export class IntentFundedChainSyncService extends ChainSyncService {
       fromBlock = toBlock - IntentFundedChainSyncService.MAX_BLOCK_RANGE
     }
 
+    if (typeof source.sourceAddress === 'string' && !source.sourceAddress.startsWith('0x')) {
+      throw new Error('Solana not supported yet')
+    }
+
     const allIntentFundedLogs = await client.getContractEvents({
-      address: source.sourceAddress,
+      address: source.sourceAddress as EvmAddress,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
       strict: true,

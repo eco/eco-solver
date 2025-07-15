@@ -116,9 +116,9 @@ export class BalanceService implements OnApplicationBootstrap {
    */
   async fetchWalletTokenBalances(
     chainID: number,
-    walletAddress: string,
-    tokenAddresses: string[],
-  ): Promise<Record<string, TokenBalance>> {
+    walletAddress: ChainAddress,
+    tokenAddresses: ChainAddress[],
+  ): Promise<Record<ChainAddress, TokenBalance>> {
     const vmType = getVMType(chainID)
     
     switch (vmType) {
@@ -202,7 +202,7 @@ export class BalanceService implements OnApplicationBootstrap {
     }
   }
 
-  async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
+  async getAllTokenDataForAddress(walletAddress: ChainAddress, tokens: TokenConfig[]) {
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
 
