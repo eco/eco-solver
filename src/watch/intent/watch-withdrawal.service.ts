@@ -12,7 +12,6 @@ import { Log, PublicClient } from 'viem'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * This service subscribes to IntentSource contracts for Withdrawal events. It subscribes on all
@@ -27,9 +26,8 @@ export class WatchWithdrawalService extends WatchEventService<IntentSource> {
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
-    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
+    super(intentQueue, publicClientService, ecoConfigService)
   }
 
   /**

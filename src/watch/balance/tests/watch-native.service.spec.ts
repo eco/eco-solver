@@ -10,7 +10,6 @@ import { QUEUES } from '@/common/redis/constants'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { PublicClient, Hex, Block, Transaction } from 'viem'
 import { Network } from '@/common/alchemy/network'
-import { EcoAnalyticsService } from '@/analytics'
 
 describe('WatchNativeService', () => {
   let service: WatchNativeService
@@ -110,7 +109,6 @@ describe('WatchNativeService', () => {
           provide: KernelAccountClientService,
           useValue: createMock<KernelAccountClientService>(),
         },
-        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 

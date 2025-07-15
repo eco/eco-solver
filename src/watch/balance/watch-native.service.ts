@@ -11,7 +11,6 @@ import { QUEUES } from '@/common/redis/constants'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { getWatchJobId } from '@/common/utils/strings'
-import { EcoAnalyticsService } from '@/analytics'
 
 @Injectable()
 export class WatchNativeService extends WatchEventService<Solver> {
@@ -22,9 +21,8 @@ export class WatchNativeService extends WatchEventService<Solver> {
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
-    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(queue, publicClientService, ecoConfigService, ecoAnalytics)
+    super(queue, publicClientService, ecoConfigService)
   }
 
   /**
@@ -97,7 +95,7 @@ export class WatchNativeService extends WatchEventService<Solver> {
     })
 
     // Store unwatch function
-    this.unwatch[solver.chainID] = [unwatchBlocks as any]
+    this.unwatch[solver.chainID] = [unwatchBlocks]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

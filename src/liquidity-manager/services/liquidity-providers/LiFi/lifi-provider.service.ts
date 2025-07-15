@@ -24,7 +24,6 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
-import { TokenConfig } from '@/balance/types/balance.types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {

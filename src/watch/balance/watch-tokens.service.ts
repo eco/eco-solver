@@ -12,7 +12,6 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getWatchJobId } from '@/common/utils/strings'
 import { ERC20TransferLog } from '@/contracts'
 import * as BigIntSerializer from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics'
 
 @Injectable()
 export class WatchTokensService extends WatchEventService<Solver> {
@@ -23,9 +22,8 @@ export class WatchTokensService extends WatchEventService<Solver> {
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
-    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(queue, publicClientService, ecoConfigService, ecoAnalytics)
+    super(queue, publicClientService, ecoConfigService)
   }
 
   /**

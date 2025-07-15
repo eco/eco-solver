@@ -11,7 +11,6 @@ import { Solver } from '@/eco-configs/eco-config.types'
 import { PublicClient, Hex, Log } from 'viem'
 import { ERC20TransferLog } from '@/contracts'
 import { Network } from '@/common/alchemy/network'
-import { EcoAnalyticsService } from '@/analytics'
 
 describe('WatchTokensService', () => {
   let service: WatchTokensService
@@ -95,7 +94,6 @@ describe('WatchTokensService', () => {
           provide: KernelAccountClientService,
           useValue: createMock<KernelAccountClientService>(),
         },
-        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 

@@ -10,7 +10,6 @@ import {
   LocalAccount,
   OneOf,
   publicActions,
-  PublicClient,
   Transport,
   WalletClient,
 } from 'viem'
@@ -82,7 +81,7 @@ export async function createKernelAccountClient<
     kernelVersion,
   })
 
-  const kernelAccount = await createKernelAccount(walletClient as any as PublicClient, {
+  const kernelAccount = await createKernelAccount(walletClient, {
     plugins: {
       sudo: ecdsaValidator,
     },

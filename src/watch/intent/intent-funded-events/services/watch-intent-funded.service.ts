@@ -34,7 +34,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
+    super(intentQueue, publicClientService, ecoConfigService)
   }
 
   /**
@@ -67,28 +67,26 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         },
       }),
     )
-    this.unwatch[source.chainID] = [
-      client.watchContractEvent({
-        onError: async (error) => {
-          await this.onError(error, client, source)
-        },
-        address: source.sourceAddress,
-        abi: IntentSourceAbi,
-        eventName: 'IntentFunded',
-        args: {
-          // // restrict by acceptable chains, chain ids must be bigints
-          // _destinationChain: solverSupportedChains,
-          prover: source.provers,
-        },
-        onLogs: async (logs: Log[]): Promise<void> => {
-          // Track intent funded events detected
-          if (logs.length > 0) {
-            this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
-          }
-          await this.addJob(source, { doValidation: true })(logs)
-        },
-      }),
-    ]
+    this.unwatch[source.chainID] = client.watchContractEvent({
+      onError: async (error) => {
+        await this.onError(error, client, source)
+      },
+      address: source.sourceAddress,
+      abi: IntentSourceAbi,
+      eventName: 'IntentFunded',
+      args: {
+        // // restrict by acceptable chains, chain ids must be bigints
+        // _destinationChain: solverSupportedChains,
+        prover: source.provers,
+      },
+      onLogs: async (logs: Log[]): Promise<void> => {
+        // Track intent funded events detected
+        if (logs.length > 0) {
+          this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
+        }
+        await this.addJob(source, { doValidation: true })(logs)
+      },
+    })
   }
 
   private async isOurIntent(log: IntentFundedLog): Promise<boolean> {
