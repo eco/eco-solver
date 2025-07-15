@@ -34,7 +34,7 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
 
 ## Prerequisites
 
-- **Node.js** v20.14.0 (use [nvm](https://github.com/nvm-sh/nvm))
+- **Node.js** v20.19.0 (use [nvm](https://github.com/nvm-sh/nvm))
 - **Yarn** v1.22.22 (managed by Corepack)
 - **Docker** & **Docker Compose** v3.8+
 - AWS credentials (SSO or IAM) for Secrets Manager & KMS access
@@ -137,8 +137,8 @@ git clone <repository-url>
 cd eco-solver
 
 # Node & Yarn
-nvm install 20.14.0
-nvm use 20.14.0
+nvm install 20.19.0
+nvm use 20.19.0
 corepack enable
 
 # Install packages

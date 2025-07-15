@@ -79,6 +79,7 @@ export type EcoConfigType = {
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
+  squid: SquidConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -162,6 +163,9 @@ export type IntentConfig = {
   isNativeETHSupported: boolean
   intentFundedRetries: number
   intentFundedRetryDelayMs: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -315,6 +319,8 @@ export type Solver = {
 
   // The average block time for the chain in seconds
   averageBlockTime: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  gasOverhead?: number
 }
 
 /**
@@ -389,7 +395,7 @@ export interface LiquidityManagerConfig {
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
-  swapSlippage?: number
+  swapSlippage: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
@@ -503,4 +509,9 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface SquidConfig {
+  integratorId: string
+  baseUrl: string
 }
