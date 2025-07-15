@@ -3,7 +3,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getWatchJobId } from '@/common/utils/strings'
+import { getIntentJobId } from '@/common/utils/strings'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -31,7 +31,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(inboxQueue, publicClientService, ecoConfigService)
+    super(inboxQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -98,7 +98,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       for (const log of logs) {
         // bigint as it can't serialize to JSON
         const fulfillment = convertBigIntsToStrings(log)
-        const jobId = getWatchJobId(
+        const jobId = getIntentJobId(
           'watch-fulfillement',
           fulfillment.args._hash ?? zeroHash,
           fulfillment.logIndex ?? 0,

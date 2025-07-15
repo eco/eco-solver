@@ -159,8 +159,8 @@ describe('WatchIntentService', () => {
       mockUnwatch1 = jest.fn()
       mockUnwatch2 = jest.fn()
       watchIntentService['unwatch'] = {
-        1: [mockUnwatch1],
-        2: [mockUnwatch2],
+        1: mockUnwatch1,
+        2: mockUnwatch2,
       }
     })
 
@@ -202,7 +202,7 @@ describe('WatchIntentService', () => {
     beforeEach(async () => {
       mockUnwatch1 = jest.fn()
       watchIntentService['unwatch'] = {
-        [chainID]: [mockUnwatch1],
+        [chainID]: mockUnwatch1,
       }
     })
 

@@ -19,8 +19,6 @@ import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
-import { TokenConfig } from '@/balance/types/balance.types'
-import { isSupportedTokenType } from '@/contracts'
 
 /**
  * Service class for managing application configuration from multiple sources.
@@ -139,24 +137,6 @@ export class EcoConfigService {
 
       intent.tokens = intent.tokens.map((token: string) => getAddress(token))
       return intent
-    })
-  }
-
-  /**
-   * Gets the tokens that are in the solver wallets
-   * @returns List of tokens that are supported by the solver
-   */
-  getInboxTokens(): TokenConfig[] {
-    return Object.values(this.getSolvers()).flatMap((solver) => {
-      return Object.entries(solver.targets)
-        .filter(([, targetContract]) => isSupportedTokenType(targetContract.contractType))
-        .map(([tokenAddress, targetContract]) => ({
-          address: tokenAddress as Hex,
-          chainId: solver.chainID,
-          type: targetContract.contractType,
-          minBalance: targetContract.minBalance,
-          targetBalance: targetContract.targetBalance,
-        }))
     })
   }
 
@@ -316,6 +296,10 @@ export class EcoConfigService {
 
   getLiFi(): EcoConfigType['liFi'] {
     return this.get('liFi')
+  }
+
+  getSquid(): EcoConfigType['squid'] {
+    return this.get('squid')
   }
 
   // Returns the liquidity manager config

@@ -6,6 +6,7 @@ import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
 import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
@@ -15,7 +16,6 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
-import { BalanceService } from '@/balance/services/balance.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -82,6 +82,7 @@ describe('LiquidityManagerService', () => {
       'crowd-liquidity-pool': ['CCTP'],
       'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
+    swapSlippage: 0.01,
   } as LiquidityManagerConfig
 
   afterEach(() => {

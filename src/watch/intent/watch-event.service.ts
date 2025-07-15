@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
@@ -63,11 +63,9 @@ export abstract class WatchEventService<T extends { chainID: number }>
         message: `watch-event: unsubscribe`,
       }),
     )
-    Object.values(this.unwatch).forEach((unwatchArr) => {
+    Object.values(this.unwatch).forEach((unwatch) => {
       try {
-        unwatchArr.forEach((unwatch) => {
-          unwatch()
-        })
+        unwatch()
       } catch (e) {
         this.logger.error(
           EcoLogMessage.withError({
@@ -149,9 +147,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
         }),
       )
       try {
-        this.unwatch[chainID].forEach((unwatchEach) => {
-          unwatchEach()
-        })
+        this.unwatch[chainID]()
       } catch (e) {
         this.logger.error(
           EcoLogMessage.withError({

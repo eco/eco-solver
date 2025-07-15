@@ -72,15 +72,6 @@ export default {
         data: {},
       },
     },
-    balanceRpcUpdate: {
-      repeatOpts: {
-        every: 3 * 60 * 1000, // 3 minutes
-      },
-      jobTemplate: {
-        name: 'balance-rpc-update',
-        data: {},
-      },
-    },
     defaults: {
       repeatOpts: {
         every: 300_000, // 5 minutes
@@ -138,12 +129,15 @@ export default {
     },
     intentFundedRetries: 3,
     intentFundedRetryDelayMs: 500,
+    // Gas overhead is the intent creation gas cost for the source chain, i.e. the cost of calling publishAndFund on IntentSource.
+    // This is the default gas overhead
+    defaultGasOverhead: 145_000,
   },
   whitelist: {},
 
   fulfillmentEstimate: {
     // Padding to add to the execution-time estimation
-    executionPaddingSeconds: 0.1,
+    executionPaddingSeconds: 0.5,
     // Percentile of block time to use for execution-time estimation
     blockTimePercentile: 0.5,
     // Default block time to use for unknown chains
@@ -239,5 +233,9 @@ export default {
         },
       },
     },
+  },
+
+  squid: {
+    baseUrl: 'https://v2.api.squidrouter.com',
   },
 }

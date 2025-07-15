@@ -1,7 +1,7 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getWatchJobId } from '@/common/utils/strings'
+import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
@@ -34,7 +34,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService)
+    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -129,7 +129,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         const intentFunded = log
         const intentHash = intentFunded.args.intentHash
 
-        const jobId = getWatchJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
+        const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 
         this.logger.debug(
           EcoLogMessage.fromDefault({

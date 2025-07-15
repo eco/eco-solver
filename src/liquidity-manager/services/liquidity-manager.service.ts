@@ -32,12 +32,12 @@ import {
 } from '@/liquidity-manager/types/types'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenConfig } from '@/balance/types/balance.types'
+import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
-import { BalanceService } from '@/balance/services/balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -85,7 +85,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     // Track rebalances for Solver
     await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
-    this.tokensPerWallet[kernelAddress] = this.ecoConfigService.getInboxTokens()
+    this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
@@ -101,6 +101,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async analyzeTokens(walletAddress: string) {
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
+      walletAddress,
       this.tokensPerWallet[walletAddress],
     )
     const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({

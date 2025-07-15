@@ -9,16 +9,6 @@ jest.mock('viem', () => ({
   verifyTypedData: jest.fn(),
 }))
 
-jest.mock('@/common/logging/eco-logger', () => ({
-  EcoLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-  })),
-}))
-
 const mockVerifyTypedData = verifyTypedData as jest.Mock
 
 const now = Math.floor(Date.now() / 1000)

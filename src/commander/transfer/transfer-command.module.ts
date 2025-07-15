@@ -1,4 +1,4 @@
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/balance.service'
 import { TransferCommand } from '@/commander/transfer/transfer.command'
 import { KmsService } from '@/kms/kms.service'
 import { SignerKmsService } from '@/sign/signer-kms.service'
@@ -13,14 +13,14 @@ import { Module } from '@nestjs/common'
     KmsService,
     SignerKmsService,
     KernelAccountClientService,
-    RpcBalanceService,
+    BalanceService,
   ],
   exports: [
     TransferCommand,
     KmsService,
     SignerKmsService,
     KernelAccountClientService,
-    RpcBalanceService,
+    BalanceService,
   ],
 })
 export class TransferCommandModule {}

@@ -4,10 +4,10 @@ import { Hex, pad, parseUnits, getAbiItem, encodeEventTopics, keccak256, toHex }
 import { TokenData } from '@/liquidity-manager/types/types'
 import { WarpRouteProviderService } from './warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { BalanceService } from '@/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
-import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 
@@ -51,7 +51,7 @@ const WARP_ROUTE_CONFIG: WarpRoutesConfig = {
 describe('WarpRouteProviderService', () => {
   let service: WarpRouteProviderService
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let rpcBalanceService: DeepMocked<RpcBalanceService>
+  let balanceService: DeepMocked<BalanceService>
   let liFiProviderService: DeepMocked<LiFiProviderService>
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
 
@@ -68,7 +68,7 @@ describe('WarpRouteProviderService', () => {
           provide: EcoConfigService,
           useValue: ecoConfigServiceMock,
         },
-        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: LiFiProviderService, useValue: createMock<LiFiProviderService>() },
         {
           provide: KernelAccountClientService,
@@ -79,7 +79,7 @@ describe('WarpRouteProviderService', () => {
 
     service = module.get<WarpRouteProviderService>(WarpRouteProviderService)
     ecoConfigService = module.get(EcoConfigService)
-    rpcBalanceService = module.get(RpcBalanceService)
+    balanceService = module.get(BalanceService)
     liFiProviderService = module.get(LiFiProviderService)
     kernelAccountClientService = module.get(KernelAccountClientService)
   })
@@ -604,7 +604,7 @@ describe('WarpRouteProviderService', () => {
         kernelAccountAddress: WALLET_ADDRESS,
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
-      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([collateralTokenData])
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([collateralTokenData])
 
       const quotes = await service.getQuote(syntheticTokenData, collateralTokenData, swapAmount)
 
@@ -650,7 +650,7 @@ describe('WarpRouteProviderService', () => {
         kernelAccountAddress: WALLET_ADDRESS,
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
-      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([syntheticTokenData])
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([syntheticTokenData])
 
       const quotes = await service.getQuote(collateralTokenData, syntheticTokenData, swapAmount)
 
@@ -711,7 +711,7 @@ describe('WarpRouteProviderService', () => {
         kernelAccountAddress: WALLET_ADDRESS,
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
-      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([collateralTokenData])
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([collateralTokenData])
       liFiProviderService.getQuote.mockResolvedValue({
         strategy: 'lifi',
         context: { toAmountMin: '100' },
@@ -776,7 +776,7 @@ describe('WarpRouteProviderService', () => {
         kernelAccountAddress: WALLET_ADDRESS,
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
-      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([collateralTokenData])
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([collateralTokenData])
       liFiProviderService.getQuote.mockResolvedValue({
         strategy: 'lifi',
         context: { toAmountMin: '100' },
@@ -827,7 +827,7 @@ describe('WarpRouteProviderService', () => {
       brokenConfig.routes[0].chains = [brokenConfig.routes[0].chains[1]] // remove collateral
 
       ecoConfigService.getWarpRoutes.mockReturnValue(brokenConfig)
-      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([])
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([])
 
       await expect(service.getQuote(tokenIn, tokenOut, swapAmount)).rejects.toThrow(
         'Unable to get partial quote: No collateral found for input synthetic token',
@@ -938,7 +938,7 @@ describe('WarpRouteProviderService', () => {
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
 
       // Mock balance service to return the collateral tokens
-      rpcBalanceService.getAllTokenDataForAddress
+      balanceService.getAllTokenDataForAddress
         .mockResolvedValueOnce([collateralToken1])
         .mockResolvedValueOnce([collateralToken2])
 
@@ -1073,7 +1073,7 @@ describe('WarpRouteProviderService', () => {
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
 
-      rpcBalanceService.getAllTokenDataForAddress
+      balanceService.getAllTokenDataForAddress
         .mockResolvedValueOnce([syntheticToken1])
         .mockResolvedValueOnce([syntheticToken2])
 
@@ -1145,7 +1145,7 @@ describe('WarpRouteProviderService', () => {
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
 
-      rpcBalanceService.getAllTokenDataForAddress.mockResolvedValue([])
+      balanceService.getAllTokenDataForAddress.mockResolvedValue([])
 
       // Mock all LiFi quotes to fail
       liFiProviderService.getQuote.mockRejectedValue(new Error('No route found'))
@@ -1255,7 +1255,7 @@ describe('WarpRouteProviderService', () => {
       }
       kernelAccountClientService.getClient.mockResolvedValue(mockClient as any)
 
-      rpcBalanceService.getAllTokenDataForAddress
+      balanceService.getAllTokenDataForAddress
         .mockResolvedValueOnce([collateralToken1])
         .mockResolvedValueOnce([collateralToken2])
 

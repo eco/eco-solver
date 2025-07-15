@@ -81,6 +81,7 @@ export type EcoConfigType = {
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
+  squid: SquidConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -135,13 +136,6 @@ export type IntervalConfig = {
       opts: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
     }
   }
-  balanceRpcUpdate: {
-    repeatOpts: Omit<RepeatOptions, 'key'>
-    jobTemplate: {
-      name?: string
-      data?: object
-    }
-  }
   defaults: {
     repeatOpts: Omit<RepeatOptions, 'key'>
     jobTemplate?: {
@@ -164,6 +158,9 @@ export type IntentConfig = {
   isNativeETHSupported: boolean
   intentFundedRetries: number
   intentFundedRetryDelayMs: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -312,11 +309,10 @@ export type Solver = {
   fee: FeeConfigType
   chainID: number
 
-  // The maximum amount of gas tokens that we want to hold in the solver's wallet for the chain
-  nativeMax: bigint
-
   // The average block time for the chain in seconds
   averageBlockTime: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  gasOverhead?: number
 }
 
 /**
@@ -350,7 +346,6 @@ export interface TargetContract {
   selectors: string[]
   minBalance: number
   targetBalance: number
-  maxBalance: number
 }
 
 /**
@@ -391,7 +386,7 @@ export interface LiquidityManagerConfig {
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
-  swapSlippage?: number
+  swapSlippage: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
@@ -505,4 +500,9 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface SquidConfig {
+  integratorId: string
+  baseUrl: string
 }

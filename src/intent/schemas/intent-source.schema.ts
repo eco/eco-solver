@@ -2,17 +2,12 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { WatchEventModel, WatchEventSchema } from './watch-event.schema'
 import { IntentDataModel, IntentSourceDataSchema } from './intent-data.schema'
 import { GetTransactionReceiptReturnType } from 'viem'
-import { Types } from 'mongoose'
 
 export type IntentSourceStatus =
   | 'PENDING'
-  | 'CL_PROCESSING'
   | 'SOLVED'
-  | 'CL_SOLVED'
-  | 'WITHDRAWN'
   | 'EXPIRED'
   | 'FAILED'
-  | 'CL_FAILED'
   | 'INVALID'
   | 'INFEASABLE'
   | 'NON-BEND-WALLET'
@@ -36,12 +31,6 @@ export class IntentSourceModel {
   @Prop({ required: true, type: String })
   status: IntentSourceStatus
 
-  @Prop({ required: false, type: Boolean, default: false })
-  fulfilledBySelf?: boolean
-
-  @Prop({ required: false, type: Types.ObjectId, ref: 'WithdrawalModel' })
-  withdrawalId?: Types.ObjectId
-
   static getSource(intentSourceModel: IntentSourceModel): bigint {
     return intentSourceModel.intent.route.source
   }
@@ -51,6 +40,3 @@ export const IntentSourceSchema = SchemaFactory.createForClass(IntentSourceModel
 
 // Set collation options for case-insensitive search.
 IntentSourceSchema.index({ status: 1 }, { unique: false })
-IntentSourceSchema.index({ fulfilledBySelf: 1 }, { unique: false })
-IntentSourceSchema.index({ fulfilledBySelf: 1, status: 1 }, { unique: false })
-IntentSourceSchema.index({ withdrawalId: 1 }, { unique: false })

@@ -11,6 +11,7 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 import { EcoAnalyticsService } from '@/analytics'
+import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -23,11 +24,7 @@ describe('LiquidityProviderService', () => {
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
-
-  const mockLogLog = jest.fn()
-  const mockLogWarn = jest.fn()
-  const mockLogDebug = jest.fn()
-  const mockLogError = jest.fn()
+  let squidProviderService: SquidProviderService
 
   beforeAll(() => {
     jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
@@ -50,6 +47,7 @@ describe('LiquidityProviderService', () => {
           },
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
+        { provide: SquidProviderService, useValue: createMock<SquidProviderService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
           provide: EcoAnalyticsService,
@@ -67,6 +65,7 @@ describe('LiquidityProviderService', () => {
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     cctpLiFiProviderService = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
+    squidProviderService = module.get<SquidProviderService>(SquidProviderService)
 
     // Set up the mock for getLiquidityManager after getting the service
     const liquidityManagerConfigMock = {
@@ -82,19 +81,6 @@ describe('LiquidityProviderService', () => {
 
     // Reinitialize the config in the service
     liquidityProviderService['config'] = ecoConfigService.getLiquidityManager()
-
-    // Mock logger methods
-    liquidityProviderService['logger'].log = mockLogLog
-    liquidityProviderService['logger'].warn = mockLogWarn
-    liquidityProviderService['logger'].debug = mockLogDebug
-    liquidityProviderService['logger'].error = mockLogError
-  })
-
-  afterEach(() => {
-    mockLogLog.mockClear()
-    mockLogWarn.mockClear()
-    mockLogDebug.mockClear()
-    mockLogError.mockClear()
   })
 
   afterAll(() => {
@@ -125,6 +111,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(stargateProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
         walletAddr,

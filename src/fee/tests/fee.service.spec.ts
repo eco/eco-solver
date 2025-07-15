@@ -1,7 +1,6 @@
 const mockGetTransactionTargetData = jest.fn()
 const mockIsERC20Target = jest.fn()
-import { BalanceService } from '@/balance/services/balance.service'
-import { TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
+import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
@@ -403,9 +402,9 @@ describe('FeeService', () => {
     it('should return an error if reward tokens have duplicates', async () => {
       quote.reward = {
         tokens: [
-          { token: '0x1111111111111111111111111111111111111111', amount: 1000n },
-          { token: '0x2222222222222222222222222222222222222222', amount: 2000n },
-          { token: '0x1111111111111111111111111111111111111111', amount: 3000n },
+          { token: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc', amount: 1000n },
+          { token: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29', amount: 2000n },
+          { token: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc', amount: 3000n },
         ],
       }
       expect(await feeService.isRouteFeasible(quote)).toEqual({
@@ -416,8 +415,8 @@ describe('FeeService', () => {
     it('should allow unique reward tokens', async () => {
       quote.reward = {
         tokens: [
-          { token: '0x1111111111111111111111111111111111111111', amount: 1000n },
-          { token: '0x2222222222222222222222222222222222222222', amount: 2000n },
+          { token: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc', amount: 1000n },
+          { token: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29', amount: 2000n },
         ],
       }
       const getTotallFill = jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({
@@ -592,12 +591,12 @@ describe('FeeService', () => {
         destination: 11n,
         rewards: [
           {
-            address: '0x1111111111111111111111111111111111111111' as Hex,
+            address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc' as Hex,
             decimals: 8,
             balance: 100_000_000n,
           },
           {
-            address: '0x2222222222222222222222222222222222222222' as Hex,
+            address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29' as Hex,
             decimals: 4,
             balance: 1_000n,
           },
@@ -605,44 +604,40 @@ describe('FeeService', () => {
       },
       reward: {
         tokens: [
-          { token: '0x1111111111111111111111111111111111111111', amount: 10_000_000_000n },
-          { token: '0x2222222222222222222222222222222222222222', amount: 1_000n },
+          { token: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc', amount: 10_000_000_000n },
+          { token: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29', amount: 1_000n },
         ],
       },
     } as any
     const source = {
       chainID: 10n,
       tokens: [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
+        '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
+        '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
+        '0x1',
+        '0x2',
+        '0x3',
       ],
     } as any
     const destination = {
       chainID: 11n,
-      tokens: [
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-      ],
+      tokens: ['0x1', '0x2', '0x3'],
     } as any
 
     const tokenAnalysis = [
       {
         token: {
-          address: '0x3333333333333333333333333333333333333333',
+          address: '0x1',
         },
       },
       {
         token: {
-          address: '0x4444444444444444444444444444444444444444',
+          address: '0x2',
         },
       },
       {
         token: {
-          address: '0x5555555555555555555555555555555555555555',
+          address: '0x3',
         },
       },
     ] as any
@@ -677,7 +672,7 @@ describe('FeeService', () => {
     it('should return error if fetching token data fails', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(undefined as any)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(undefined as any)
       await expect(feeService.calculateTokens(quote as any)).rejects.toThrow(
         QuoteError.FetchingCallTokensFailed(quote.route.source),
       )
@@ -687,7 +682,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(tokenAnalysis)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ error } as any)
       const tok = jest
@@ -706,7 +701,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(tokenAnalysis)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
@@ -725,7 +720,7 @@ describe('FeeService', () => {
       const error = { error: 'error' }
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
-      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(tokenAnalysis)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
@@ -742,53 +737,8 @@ describe('FeeService', () => {
 
     it('should calculate the delta for all tokens', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
-
-      // Create a solver with targets that match our mock addresses
-      const mockSolver = {
-        ...linearSolver,
-        chainID: 10, // source chain
-        targets: {
-          '0x3333333333333333333333333333333333333333': {
-            contractType: 'erc20',
-            minBalance: 100,
-            targetBalance: 500,
-          },
-          '0x4444444444444444444444444444444444444444': {
-            contractType: 'erc20',
-            minBalance: 200,
-            targetBalance: 600,
-          },
-          '0x5555555555555555555555555555555555555555': {
-            contractType: 'erc20',
-            minBalance: 300,
-            targetBalance: 700,
-          },
-        },
-      }
-      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(mockSolver)
-
-      // Mock getTokenBalancesForSolver to return the correct format
-      const mockBalanceRecord = {
-        '0x3333333333333333333333333333333333333333': {
-          balance: 1000000000n,
-          blockNumber: '18500000',
-          blockHash: '0xabcdef',
-          decimals: 6,
-        },
-        '0x4444444444444444444444444444444444444444': {
-          balance: 2000000000n,
-          blockNumber: '18500000',
-          blockHash: '0xabcdef',
-          decimals: 6,
-        },
-        '0x5555555555555555555555555555555555555555': {
-          balance: 3000000000n,
-          blockNumber: '18500000',
-          blockHash: '0xabcdef',
-          decimals: 6,
-        },
-      }
-      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(mockBalanceRecord)
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
         return BigInt(token.token.address) as any
       })
@@ -798,63 +748,12 @@ describe('FeeService', () => {
       const tok = jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ tokens } as any)
       const calls = { stuff: '123' } as any
       const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls } as any)
-      // Expected structure after getDeficitDescending processes the balance records
-      const deficitDescending = [
-        {
-          config: {
-            ...mockSolver.targets['0x3333333333333333333333333333333333333333'],
-            address: '0x3333333333333333333333333333333333333333',
-            chainId: expect.any(Number),
-            type: 'erc20',
-          },
-          token: {
-            address: '0x3333333333333333333333333333333333333333',
-            balance: 1000000000n,
-            decimals: 6,
-            blockNumber: 18500000n,
-            blockHash: '0xabcdef',
-          },
-          chainId: expect.any(Number),
-          delta: BigInt('0x3333333333333333333333333333333333333333'),
-        },
-        {
-          config: {
-            ...mockSolver.targets['0x4444444444444444444444444444444444444444'],
-            address: '0x4444444444444444444444444444444444444444',
-            chainId: expect.any(Number),
-            type: 'erc20',
-          },
-          token: {
-            address: '0x4444444444444444444444444444444444444444',
-            balance: 2000000000n,
-            decimals: 6,
-            blockNumber: 18500000n,
-            blockHash: '0xabcdef',
-          },
-          chainId: expect.any(Number),
-          delta: BigInt('0x4444444444444444444444444444444444444444'),
-        },
-        {
-          config: {
-            ...mockSolver.targets['0x5555555555555555555555555555555555555555'],
-            address: '0x5555555555555555555555555555555555555555',
-            chainId: expect.any(Number),
-            type: 'erc20',
-          },
-          token: {
-            address: '0x5555555555555555555555555555555555555555',
-            balance: 3000000000n,
-            decimals: 6,
-            blockNumber: 18500000n,
-            blockHash: '0xabcdef',
-          },
-          chainId: expect.any(Number),
-          delta: BigInt('0x5555555555555555555555555555555555555555'),
-        },
-      ]
+      const deficitDescending = tokenAnalysis.map((ta) => {
+        return { ...ta, delta: BigInt(ta.token.address) }
+      })
       expect(await feeService.calculateTokens(quote as any)).toEqual({
         calculated: {
-          solver: mockSolver,
+          solver: linearSolver,
           rewards,
           tokens,
           calls,
@@ -876,12 +775,12 @@ describe('FeeService', () => {
         destination: 11n,
         rewards: [
           {
-            address: '0x1111111111111111111111111111111111111111' as Hex,
+            address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc' as Hex,
             decimals: 8,
             balance: 100_000_000n,
           },
           {
-            address: '0x2222222222222222222222222222222222222222' as Hex,
+            address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29' as Hex,
             decimals: 4,
             balance: 1_000n,
           },
@@ -889,20 +788,20 @@ describe('FeeService', () => {
       },
       reward: {
         tokens: [
-          { token: '0x1111111111111111111111111111111111111111', amount: 10_000_000_000n },
-          { token: '0x2222222222222222222222222222222222222222', amount: 1_000n },
+          { token: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc', amount: 10_000_000_000n },
+          { token: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29', amount: 1_000n },
         ],
       },
     } as any
 
     const erc20Rewards = {
-      '0x1111111111111111111111111111111111111111': {
-        address: '0x1111111111111111111111111111111111111111',
+      '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc': {
+        address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
         decimals: 8,
         balance: 10_000_000_000n,
       },
-      '0x2222222222222222222222222222222222222222': {
-        address: '0x2222222222222222222222222222222222222222',
+      '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29': {
+        address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
         decimals: 4,
         balance: 1_000n,
       },
@@ -917,7 +816,7 @@ describe('FeeService', () => {
     })
 
     it('should return an error if the balances call fails', async () => {
-      const mockBalance = jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue({})
+      const mockBalance = jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({})
       expect(await feeService.getRewardsNormalized(quote as any)).toEqual({
         rewards: [],
         error: QuoteError.FetchingRewardTokensFailed(BigInt(quote.route.source)),
@@ -930,19 +829,19 @@ describe('FeeService', () => {
     })
 
     it('should map rewards and convertNormalize the output', async () => {
-      jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue(erc20Rewards)
+      jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(erc20Rewards)
       const convert = jest.spyOn(feeService, 'convertNormalize')
       expect(await feeService.getRewardsNormalized(quote as any)).toEqual({
         rewards: [
           {
             chainID: quote.route.source,
-            address: '0x1111111111111111111111111111111111111111',
+            address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
             decimals: 6,
             balance: 100_000_000n,
           },
           {
             chainID: quote.route.source,
-            address: '0x2222222222222222222222222222222222222222',
+            address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
             decimals: 6,
             balance: 100_000n,
           },
@@ -957,18 +856,8 @@ describe('FeeService', () => {
       route: {
         destination: 1n,
         calls: [
-          {
-            target: '0x1111111111111111111111111111111111111111' as Hex,
-            selector: '0x2' as Hex,
-            data: '0x3' as Hex,
-            value: 0n,
-          },
-          {
-            target: '0x4444444444444444444444444444444444444444' as Hex,
-            selector: '0x5' as Hex,
-            data: '0x6' as Hex,
-            value: 0n,
-          },
+          { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
+          { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 0n },
         ],
       },
     }
@@ -988,7 +877,7 @@ describe('FeeService', () => {
 
     it('should return an error if the balances call fails', async () => {
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solver)
-      const mockBalance = jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue({})
+      const mockBalance = jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({})
       expect(await feeService.getCallsNormalized(quote as any)).toEqual({
         calls: [],
         error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)),
@@ -1011,13 +900,13 @@ describe('FeeService', () => {
       let solverWithTargets: any = {
         chainID: 1n,
         targets: {
-          '0x1111111111111111111111111111111111111111': {
-            contractType: 'erc20',
+          '0x1': {
+            type: 'erc20',
             minBalance: 200,
             targetBalance: 222,
           },
-          '0x4444444444444444444444444444444444444444': {
-            contractType: 'erc20',
+          '0x4': {
+            type: 'erc20',
             minBalance: 300,
             targetBalance: 111,
           },
@@ -1026,48 +915,34 @@ describe('FeeService', () => {
       let tokenAnalysis: any
       beforeEach(() => {
         callBalances = {
-          '0x1111111111111111111111111111111111111111': {
-            address: '0x1111111111111111111111111111111111111111',
+          '0x1': {
+            address: '0x1',
             decimals: 6,
             balance: transferAmount,
-            blockNumber: '18500000',
-            blockHash: '0xabcdef',
           },
-          '0x4444444444444444444444444444444444444444': {
-            address: '0x4444444444444444444444444444444444444444',
+          '0x4': {
+            address: '0x4',
             decimals: 4,
             balance: transferAmount,
-            blockNumber: '18500000',
-            blockHash: '0xabcdef',
           },
         } as any
         tokenAnalysis = {
-          '0x1111111111111111111111111111111111111111': {
+          '0x1': {
             chainId: 1n,
-            token: {
-              ...callBalances['0x1111111111111111111111111111111111111111'],
-              blockNumber: BigInt(
-                callBalances['0x1111111111111111111111111111111111111111'].blockNumber,
-              ),
-            },
+            token: callBalances['0x1'],
             config: {
-              address: '0x1111111111111111111111111111111111111111',
+              address: '0x1',
               chainId: 1n,
-              ...solverWithTargets.targets['0x1111111111111111111111111111111111111111'],
+              ...solverWithTargets.targets['0x1'],
             },
           },
-          '0x4444444444444444444444444444444444444444': {
+          '0x4': {
             chainId: 1n,
-            token: {
-              ...callBalances['0x4444444444444444444444444444444444444444'],
-              blockNumber: BigInt(
-                callBalances['0x4444444444444444444444444444444444444444'].blockNumber,
-              ),
-            },
+            token: callBalances['0x4'],
             config: {
-              address: '0x4444444444444444444444444444444444444444',
+              address: '0x4',
               chainId: 1n,
-              ...solverWithTargets.targets['0x4444444444444444444444444444444444444444'],
+              ...solverWithTargets.targets['0x4'],
             },
           },
         }
@@ -1076,7 +951,7 @@ describe('FeeService', () => {
 
       it('should return an error if tx target data is not for an erc20 transfer', async () => {
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue(callBalances)
+        jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(null)
         mockIsERC20Target.mockReturnValue(false)
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
@@ -1097,10 +972,9 @@ describe('FeeService', () => {
 
       it('should return an error if the call target is not in the fetched balances', async () => {
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue({
-          '0x4444444444444444444444444444444444444444':
-            callBalances['0x4444444444444444444444444444444444444444'],
-        })
+        jest
+          .spyOn(balanceService, 'fetchTokenBalances')
+          .mockResolvedValue({ '0x4': callBalances['0x4'] })
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
@@ -1113,13 +987,10 @@ describe('FeeService', () => {
       })
 
       it('should return an error if solver lacks liquidity in a call token', async () => {
-        const normMinBalance = feeService.getNormalizedMinBalance(
-          tokenAnalysis['0x1111111111111111111111111111111111111111'],
-        )
-        callBalances['0x1111111111111111111111111111111111111111'].balance =
-          transferAmount + normMinBalance - 1n
+        const normMinBalance = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        callBalances['0x1'].balance = transferAmount + normMinBalance - 1n
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue(callBalances)
+        jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         const convert = jest.spyOn(feeService, 'convertNormalize')
@@ -1127,7 +998,7 @@ describe('FeeService', () => {
           solver.chainID,
           quote.route.calls[0].target,
           transferAmount,
-          callBalances['0x1111111111111111111111111111111111111111'].balance,
+          callBalances['0x1'].balance,
           normMinBalance,
         )
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
@@ -1140,39 +1011,17 @@ describe('FeeService', () => {
           msg: QuoteError.SolverLacksLiquidity.name,
           error,
           quote,
-          callTarget: expect.objectContaining({
-            token: expect.objectContaining({
-              address: '0x1111111111111111111111111111111111111111',
-              balance: transferAmount + normMinBalance - 1n,
-              decimals: 6,
-              blockNumber: 18500000n,
-              blockHash: '0xabcdef',
-            }),
-            config: expect.objectContaining({
-              address: '0x1111111111111111111111111111111111111111',
-              type: 'erc20',
-              contractType: 'erc20',
-              minBalance: 200,
-              targetBalance: 222,
-              chainId: 1n,
-            }),
-          }),
+          callTarget: tokenAnalysis['0x1'],
         })
       })
 
       it('should convert and normalize the erc20 calls', async () => {
-        const normMinBalance1 = feeService.getNormalizedMinBalance(
-          tokenAnalysis['0x1111111111111111111111111111111111111111'],
-        )
-        const normMinBalance4 = feeService.getNormalizedMinBalance(
-          tokenAnalysis['0x4444444444444444444444444444444444444444'],
-        )
+        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        callBalances['0x1111111111111111111111111111111111111111'].balance =
-          transferAmount + normMinBalance1 + 1n
-        callBalances['0x4444444444444444444444444444444444444444'].balance =
-          transferAmount + normMinBalance4 + 1n
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue(callBalances)
+        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
+        callBalances['0x4'].balance = transferAmount + normMinBalance4 + 1n
+        jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
         const convert = jest.spyOn(feeService, 'convertNormalize')
@@ -1182,7 +1031,7 @@ describe('FeeService', () => {
             {
               balance: transferAmount,
               chainID: solver.chainID,
-              address: '0x1111111111111111111111111111111111111111',
+              address: '0x1',
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
@@ -1192,7 +1041,7 @@ describe('FeeService', () => {
             {
               balance: transferAmount * 10n ** 2n,
               chainID: solver.chainID,
-              address: '0x4444444444444444444444444444444444444444',
+              address: '0x4',
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
@@ -1211,43 +1060,22 @@ describe('FeeService', () => {
             destination: 1n,
             calls: [
               // Functional call with ERC20 transfer (value must be 0)
-              {
-                target: '0x1111111111111111111111111111111111111111' as Hex,
-                selector: '0x2' as Hex,
-                data: '0x3' as Hex,
-                value: 0n,
-              },
+              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
               // Pure native call with empty data
-              {
-                target: '0x7777777777777777777777777777777777777777' as Hex,
-                selector: '0x0' as Hex,
-                data: '0x' as Hex,
-                value: 500n,
-              },
+              { target: '0x7' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 500n },
               // Another functional call (value must be 0)
-              {
-                target: '0x4444444444444444444444444444444444444444' as Hex,
-                selector: '0x5' as Hex,
-                data: '0x6' as Hex,
-                value: 0n,
-              },
+              { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 0n },
             ],
           },
         }
 
-        const normMinBalance1 = feeService.getNormalizedMinBalance(
-          tokenAnalysis['0x1111111111111111111111111111111111111111'],
-        )
-        const normMinBalance4 = feeService.getNormalizedMinBalance(
-          tokenAnalysis['0x4444444444444444444444444444444444444444'],
-        )
+        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        callBalances['0x1111111111111111111111111111111111111111'].balance =
-          transferAmount + normMinBalance1 + 1n
-        callBalances['0x4444444444444444444444444444444444444444'].balance =
-          transferAmount + normMinBalance4 + 1n
+        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
+        callBalances['0x4'].balance = transferAmount + normMinBalance4 + 1n
         // Only return balances for functional calls (0x1 and 0x4), not for native call (0x7)
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue(callBalances)
+        jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
 
@@ -1259,7 +1087,7 @@ describe('FeeService', () => {
             {
               balance: transferAmount,
               chainID: solver.chainID,
-              address: '0x1111111111111111111111111111111111111111',
+              address: '0x1',
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
@@ -1270,7 +1098,7 @@ describe('FeeService', () => {
             {
               balance: transferAmount * 10n ** 2n,
               chainID: solver.chainID,
-              address: '0x4444444444444444444444444444444444444444',
+              address: '0x4',
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
@@ -1279,7 +1107,7 @@ describe('FeeService', () => {
             },
             // Native call
             {
-              recipient: '0x7777777777777777777777777777777777777777',
+              recipient: '0x7',
               native: {
                 amount: 500n,
               },
@@ -1299,18 +1127,8 @@ describe('FeeService', () => {
             destination: 1n,
             calls: [
               // Pure native calls with empty data
-              {
-                target: '0x7777777777777777777777777777777777777777' as Hex,
-                selector: '0x0' as Hex,
-                data: '0x' as Hex,
-                value: 300n,
-              },
-              {
-                target: '0x8888888888888888888888888888888888888888' as Hex,
-                selector: '0x0' as Hex,
-                data: '0x' as Hex,
-                value: 700n,
-              },
+              { target: '0x7' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 300n },
+              { target: '0x8' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 700n },
             ],
           },
         }
@@ -1318,14 +1136,9 @@ describe('FeeService', () => {
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         // fetchTokenBalances should be called with empty array since no functional calls
         // We need to provide a non-empty response to avoid the FetchingCallTokensFailed error
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue({
+        jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({
           // Add a dummy token balance so the check doesn't fail
-          '0xdddddddddddddddddddddddddddddddddddddddd': {
-            balance: 1n,
-            decimals: 18,
-            blockNumber: '12345',
-            blockHash: '0xabcd1234',
-          },
+          '0xdummy': { address: '0xdummy', balance: 1n, decimals: 18 },
         })
 
         const result = await feeService.getCallsNormalized(nativeOnlyQuote as any)
@@ -1333,7 +1146,7 @@ describe('FeeService', () => {
         expect(result).toEqual({
           calls: [
             {
-              recipient: '0x7777777777777777777777777777777777777777',
+              recipient: '0x7',
               native: {
                 amount: 300n,
               },
@@ -1343,7 +1156,7 @@ describe('FeeService', () => {
               decimals: 0,
             },
             {
-              recipient: '0x8888888888888888888888888888888888888888',
+              recipient: '0x8',
               native: {
                 amount: 700n,
               },
@@ -1363,33 +1176,19 @@ describe('FeeService', () => {
             destination: 1n,
             calls: [
               // Functional call with zero native value
-              {
-                target: '0x1111111111111111111111111111111111111111' as Hex,
-                selector: '0x2' as Hex,
-                data: '0x3' as Hex,
-                value: 0n,
-              },
+              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
               // Call with empty data and zero value (should not be treated as native call)
-              {
-                target: '0x9999999999999999999999999999999999999999' as Hex,
-                selector: '0x0' as Hex,
-                data: '0x' as Hex,
-                value: 0n,
-              },
+              { target: '0x9' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 0n },
             ],
           },
         }
 
-        const normMinBalance1 = feeService.getNormalizedMinBalance(
-          tokenAnalysis['0x1111111111111111111111111111111111111111'],
-        )
+        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        callBalances['0x1111111111111111111111111111111111111111'].balance =
-          transferAmount + normMinBalance1 + 1n
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue({
-          '0x1111111111111111111111111111111111111111':
-            callBalances['0x1111111111111111111111111111111111111111'],
-        })
+        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
+        jest
+          .spyOn(balanceService, 'fetchTokenBalances')
+          .mockResolvedValue({ '0x1': callBalances['0x1'] })
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
 
@@ -1401,7 +1200,7 @@ describe('FeeService', () => {
             {
               balance: transferAmount,
               chainID: solver.chainID,
-              address: '0x1111111111111111111111111111111111111111',
+              address: '0x1',
               decimals: BASE_DECIMALS,
               recipient: 0,
               native: {
@@ -1418,42 +1217,24 @@ describe('FeeService', () => {
           route: {
             destination: 1n,
             calls: [
-              {
-                target: '0x1111111111111111111111111111111111111111' as Hex,
-                selector: '0x2' as Hex,
-                data: '0x3' as Hex,
-                value: 0n,
-              },
-              {
-                target: '0x7777777777777777777777777777777777777777' as Hex,
-                selector: '0x0' as Hex,
-                data: '0x' as Hex,
-                value: 500n,
-              },
-              {
-                target: '0x4444444444444444444444444444444444444444' as Hex,
-                selector: '0x5' as Hex,
-                data: '0x6' as Hex,
-                value: 0n,
-              },
+              { target: '0x1' as Hex, selector: '0x2' as Hex, data: '0x3' as Hex, value: 0n },
+              { target: '0x7' as Hex, selector: '0x0' as Hex, data: '0x' as Hex, value: 500n },
+              { target: '0x4' as Hex, selector: '0x5' as Hex, data: '0x6' as Hex, value: 0n },
             ],
           },
         }
 
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         const fetchTokenBalancesSpy = jest
-          .spyOn(balanceService, 'getTokenBalances')
+          .spyOn(balanceService, 'fetchTokenBalances')
           .mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
 
         await feeService.getCallsNormalized(mixedQuote as any)
 
-        // Should only be called with functional call targets (0x1111... and 0x4444...), not native call target (0x7777...)
-        expect(fetchTokenBalancesSpy).toHaveBeenCalledWith(solver.chainID, [
-          '0x1111111111111111111111111111111111111111',
-          '0x4444444444444444444444444444444444444444',
-        ])
+        // Should only be called with functional call targets (0x1 and 0x4), not native call target (0x7)
+        expect(fetchTokenBalancesSpy).toHaveBeenCalledWith(solver.chainID, ['0x1', '0x4'])
       })
 
       it('should handle empty calls array', async () => {
@@ -1468,7 +1249,7 @@ describe('FeeService', () => {
         }
 
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        jest.spyOn(balanceService, 'getTokenBalances').mockResolvedValue({})
+        jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue({})
 
         const result = await feeService.getCallsNormalized(emptyQuote as any)
 
@@ -1485,18 +1266,16 @@ describe('FeeService', () => {
     beforeEach(() => {
       token = {
         config: {
-          address: '0x1111111111111111111111111111111111111111',
+          address: '0x1',
           chainId: 10,
           minBalance: 200,
           targetBalance: 500,
           type: 'erc20',
         },
         token: {
-          address: '0x1111111111111111111111111111111111111111',
+          address: '0x1',
           decimals: BASE_DECIMALS,
           balance: 300_000_000n,
-          blockNumber: 12345n,
-          blockHash: '0xabcd1234',
         },
         chainId: 10,
       }
