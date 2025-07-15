@@ -150,12 +150,12 @@ export class EcoError extends Error {
   }
 
   // Solver Registration
-  static SolverRegistrationError = new EcoError()
+  static SolverRegistrationError = new EcoError(`Solver registration failed`)
 
   // Signature Validations
-  static TypedDataVerificationFailed = new EcoError()
-  static SignatureExpired = new EcoError()
-  static InvalidSignature = new EcoError()
+  static TypedDataVerificationFailed = new EcoError(`Typed data verification failed`)
+  static SignatureExpired = new EcoError(`Signature expired`)
+  static InvalidSignature = new EcoError(`Invalid signature provided`)
 
   // Quote Service
   static NegativeGasOverhead(gasOverhead: number) {
@@ -227,5 +227,9 @@ export class EcoError extends Error {
       error.enumKey ||
       'Unexpected error occurred'
     )
+  }
+
+  toString(): string {
+    return this.message
   }
 }
