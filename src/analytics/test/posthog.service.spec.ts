@@ -113,6 +113,45 @@ describe('PosthogService', () => {
       })
     })
 
+    it('should handle BigInt values in properties', async () => {
+      const propertiesWithBigInt = {
+        balance: 1000n,
+        amount: 500n,
+        nested: { value: 250n },
+        array: [100n, 200n],
+        string: 'test',
+        number: 42,
+      }
+
+      await service.capture('user123', 'test_event', propertiesWithBigInt)
+
+      expect(mockPostHogClient.capture).toHaveBeenCalledWith({
+        distinctId: 'user123',
+        event: 'test_event',
+        properties: {
+          balance: '1000',
+          amount: '500',
+          nested: { value: '250' },
+          array: ['100', '200'],
+          string: 'test',
+          number: 42,
+          timestamp: expect.any(Date),
+        },
+      })
+    })
+
+    it('should handle empty properties', async () => {
+      await service.capture('user123', 'test_event')
+
+      expect(mockPostHogClient.capture).toHaveBeenCalledWith({
+        distinctId: 'user123',
+        event: 'test_event',
+        properties: {
+          timestamp: expect.any(Date),
+        },
+      })
+    })
+
     it('should handle capture errors', async () => {
       const error = new Error('Capture failed')
       mockPostHogClient.capture.mockImplementation(() => {

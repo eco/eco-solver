@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
 import { PostHog } from 'posthog-node'
 import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
 import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
+import { convertBigIntsToStrings } from '@/common/viem/utils'
 
 /**
  * PostHog analytics service implementation for backend event tracking
@@ -151,12 +152,15 @@ export class PosthogService implements AnalyticsService, OnModuleDestroy {
     properties?: Record<string, any>,
   ): Promise<void> {
     try {
+      // Convert BigInt values to strings to prevent serialization errors
+      const serializedProperties = properties ? convertBigIntsToStrings(properties) : {}
+
       // Send event to PostHog with enhanced metadata
       this.client.capture({
         distinctId,
         event,
         properties: {
-          ...properties,
+          ...serializedProperties,
           // Add automatic timestamp for accurate event ordering
           timestamp: new Date(),
         },
