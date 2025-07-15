@@ -8,6 +8,7 @@ export const QUEUES: Record<any, QueueInterface> = {
       feasable_intent: 'feasable_intent',
       fulfill_intent: 'fulfill_intent',
       retry_intent: 'retry_intent',
+      withdrawal: 'withdrawal_intent',
     },
   },
   INTERVAL: {
@@ -24,13 +25,6 @@ export const QUEUES: Record<any, QueueInterface> = {
       fulfillment: 'fulfillment',
     },
   },
-  ETH_SOCKET: {
-    queue: 'eth_socket',
-    prefix: '{eth_socket}',
-    jobs: {
-      erc20_balance_socket: 'erc20_balance_socket',
-    },
-  },
   SIGNER: {
     queue: 'signer',
     prefix: '{signer}',
@@ -42,6 +36,14 @@ export const QUEUES: Record<any, QueueInterface> = {
     queue: 'solver',
     prefix: '{solver}',
     jobs: {},
+  },
+  BALANCE_MONITOR: {
+    queue: 'balance_monitor',
+    prefix: '{balance-monitor}',
+    jobs: {
+      update_balance_record: 'update_balance_record',
+      update_balance_change: 'update_balance_change',
+    },
   },
 }
 

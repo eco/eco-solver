@@ -1,8 +1,10 @@
-import { ContractFunctionName, decodeEventLog, Hex } from 'viem'
-import { getSelector } from '../common/viem/contracts'
-import { TargetContractType } from '../eco-configs/eco-config.types'
-import { EcoError } from '../common/errors/eco-error'
+import { ContractFunctionName, decodeEventLog, Hex, Log, Prettify } from 'viem'
+import { getSelector } from '@/common/viem/contracts'
+import { TargetContractType } from '@/eco-configs/eco-config.types'
+import { EcoError } from '@/common/errors/eco-error'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
+import { ExtractAbiEvent } from 'abitype'
+import { Network } from '@/common/alchemy/network'
 
 // Need to define the ABI as a const array to use in the type definition
 export const ERC20Abi = [
@@ -352,6 +354,14 @@ export function decodeTransferLog(data: Hex, topics: [signature: Hex, ...args: H
     data,
   })
 }
+
+// Define the type for the IntentCreated event log
+export type ERC20TransferLog = Prettify<
+  Log<bigint, number, false, ExtractAbiEvent<typeof ERC20Abi, 'Transfer'>, true> & {
+    sourceNetwork: Network
+    sourceChainID: bigint
+  }
+>
 
 export function isSupportedTokenType(targetType: TargetContractType): boolean {
   switch (targetType) {

@@ -56,6 +56,11 @@ describe('PermitValidationService', () => {
   const mockWalletClientDefaultSignerService =
     quoteTestUtils.getMockWalletClientDefaultSignerService()
 
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
+
   beforeAll(async () => {
     $ = EcoTester.setupTestFor(PermitValidationService)
       .withProviders([
@@ -71,10 +76,22 @@ describe('PermitValidationService', () => {
       ...mockPublicClient,
       extend: () => mockPublicClient,
     })
+
+    service['logger'].log = mockLogLog
+    service['logger'].warn = mockLogWarn
+    service['logger'].debug = mockLogDebug
+    service['logger'].error = mockLogError
   })
 
   beforeEach(() => {
     jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   it('returns error if vault address is invalid', async () => {
