@@ -437,7 +437,6 @@ export interface CrowdLiquidityConfig {
   litNetwork: LIT_NETWORKS_KEYS
   capacityTokenOwnerPk: string
   defaultTargetBalance: number
-  feePercentage: number
   actions: {
     fulfill: string
     rebalance: string

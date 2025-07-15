@@ -11,12 +11,23 @@ import {
 
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { privateKeyToAccount } from 'viem/accounts'
-import { encodeAbiParameters, Hex, isAddressEqual, pad, publicActions, zeroAddress } from 'viem'
+import {
+  encodeAbiParameters,
+  Hex,
+  isAddressEqual,
+  pad,
+  parseUnits,
+  publicActions,
+  zeroAddress,
+} from 'viem'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
+import { getChainConfig } from '@/eco-configs/utils'
 import { CrowdLiquidityConfig } from '@/eco-configs/eco-config.types'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
+import { Cacheable } from '@/decorators/cacheable.decorator'
+import { getEthPrice } from '@/common/coingecko/api'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
@@ -24,7 +35,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { stablePoolAbi } from '@/contracts/StablePool'
-import { hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { hashIntent, IMessageBridgeProverAbi, IntentType } from '@eco-foundation/routes-ts'
 import {
   FulfillActionArgs,
   FulfillActionResponse,
@@ -51,12 +62,14 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {IntentSourceModel} model - The source model containing the intent and related chain information.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  fulfill(model: IntentSourceModel): Promise<Hex> {
-    if (!this.isRewardEnough(model)) {
+  async fulfill(model: IntentSourceModel): Promise<Hex> {
+    const isRewardEnough = await this.isRewardEnough(model)
+    if (!isRewardEnough) {
       throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
     }
 
-    if (!this.isPoolSolvent(model)) {
+    const isPoolSolver = await this.isPoolSolvent(model)
+    if (!isPoolSolver) {
       throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
     }
 
@@ -172,17 +185,17 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
    * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
    */
-  isRewardEnough(intentModel: IntentSourceModel): boolean {
+  async isRewardEnough(intentModel: IntentSourceModel): Promise<boolean> {
     const { route, reward } = intentModel.intent
     const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
     const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
 
-    const minimumReward = (totalRouteAmount * BigInt(this.config.feePercentage * 1e6)) / BigInt(1e6)
+    const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount)
 
-    return totalRewardAmount >= minimumReward
+    return totalRewardAmount >= totalRouteAmount + executionFee
   }
 
-  private async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
+  protected async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
     const { pkp, actions } = this.config
 
     // Serialize intent
@@ -193,19 +206,15 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       { intent, publicKey: pkp.publicKey },
     )
 
-    const messageData = encodeAbiParameters(
-      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-      [pad(intentModel.reward.prover), '0x', zeroAddress],
-    )
+    const { destination, messageData } = this.getProverData(intentModel)
 
-    const destinationChainID = Number(intentModel.route.destination)
-    const walletClient = await this.walletClientService.getClient(destinationChainID)
+    const walletClient = await this.walletClientService.getClient(destination)
     const publicClient = walletClient.extend(publicActions)
 
     const { rewardHash, intentHash } = hashIntent(intent)
 
     const hash = await walletClient.writeContract({
-      address: this.getPoolAddress(destinationChainID),
+      address: this.getPoolAddress(destination),
       abi: stablePoolAbi,
       functionName: 'fulfillAndProve',
       args: [
@@ -223,6 +232,77 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     await publicClient.waitForTransactionReceipt({ hash })
 
     return hash
+  }
+
+  protected async getExecutionFee(
+    intentModel: IntentDataModel,
+    totalRouteAmount: bigint,
+  ): Promise<bigint> {
+    const destinationChainID = Number(intentModel.route.destination)
+    const poolAddr = this.getPoolAddress(destinationChainID)
+
+    const { ethPrice, bridgingFeeBps } = await this.getPoolFees(destinationChainID, poolAddr)
+
+    const bridgingFee = (totalRouteAmount * bridgingFeeBps.multiplier) / bridgingFeeBps.base
+
+    // Prover fee is ETH, so we get the ETH price to charge this prover fee in USD
+    const proverFee = await this.getProverFee(intentModel)
+    const ethPriceInt = (parseUnits(ethPrice.toString(), 6) * proverFee) / BigInt(1e18)
+
+    // TODO: Assumes 6 decimal values
+    return ethPriceInt + bridgingFee
+  }
+
+  @Cacheable()
+  protected async getPoolFees(chainID: number, poolAddr: Hex) {
+    const walletClient = await this.walletClientService.getClient(chainID)
+    const publicClient = walletClient.extend(publicActions)
+
+    // The contract uses BPS as an integer to represent percentage where `50` equals 0.5%
+    // This is a constant value in the contract that cannot be read from it.
+    const bridgingFeeBpsBase = 100n
+
+    const bridgingFeeBpsRequest = publicClient.readContract({
+      address: poolAddr,
+      abi: stablePoolAbi,
+      functionName: 'bridgingFeeBps',
+    })
+
+    const [bridgingFeeBps, ethPrice] = await Promise.all([bridgingFeeBpsRequest, getEthPrice()])
+
+    return { bridgingFeeBps: { multiplier: bridgingFeeBps, base: bridgingFeeBpsBase }, ethPrice }
+  }
+
+  getProverData(intentModel: IntentDataModel) {
+    const messageData = encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+      [pad(intentModel.reward.prover), '0x', zeroAddress],
+    )
+
+    const source = Number(intentModel.route.source)
+    const destination = Number(intentModel.route.destination)
+
+    const intentHash = intentModel.hash
+    const claimant = this.getPoolAddress(source)
+
+    const localProver = getChainConfig(destination).HyperProver
+
+    return { messageData, intentHash, localProver, claimant, source, destination }
+  }
+
+  protected async getProverFee(intentModel: IntentDataModel) {
+    const { source, destination, localProver, intentHash, claimant, messageData } =
+      this.getProverData(intentModel)
+
+    const walletClient = await this.walletClientService.getClient(destination)
+    const publicClient = walletClient.extend(publicActions)
+
+    return publicClient.readContract({
+      address: localProver,
+      abi: IMessageBridgeProverAbi,
+      functionName: 'fetchFee',
+      args: [BigInt(source), [intentHash], [claimant], messageData],
+    })
   }
 
   private async callLitAction<Params extends LitActionSdkParams['jsParams'], Response = object>(
