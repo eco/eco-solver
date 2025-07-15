@@ -228,8 +228,4 @@ export class EcoError extends Error {
       'Unexpected error occurred'
     )
   }
-
-  toString(): string {
-    return this.message
-  }
 }
