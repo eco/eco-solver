@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY } from '@lit-protocol/constants'
