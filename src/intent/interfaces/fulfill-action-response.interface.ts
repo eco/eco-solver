@@ -1,9 +1,10 @@
 import { Hex } from 'viem'
 import { IntentType } from '@eco-foundation/routes-ts'
+import { BigIntsToStrings } from '@/common/types/generics'
 
 export interface FulfillActionArgs {
-  intent: IntentType
   publicKey?: string
+  intent: BigIntsToStrings<IntentType>
 }
 
 export interface FulfillActionResponse {

@@ -41,6 +41,7 @@ import {
   FulfillActionArgs,
   FulfillActionResponse,
 } from '@/intent/interfaces/fulfill-action-response.interface'
+import { convertBigIntsToStrings } from '@/common/viem/utils'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -222,9 +223,12 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     // Serialize intent
     const intent = this.getIntentType(intentModel)
 
+    // Convert all bigints to strings
+    const serializedIntent = convertBigIntsToStrings(intent)
+
     const poolData = await this.callLitAction<FulfillActionArgs, FulfillActionResponse>(
       actions.fulfill,
-      { intent, publicKey: pkp.publicKey },
+      { intent: serializedIntent, publicKey: pkp.publicKey },
     )
 
     const { destination, messageData } = this.getProverData(intentModel)
