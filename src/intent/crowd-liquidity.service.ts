@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY } from '@lit-protocol/constants'
@@ -47,13 +48,14 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   private config: CrowdLiquidityConfig
 
   constructor(
-    private readonly ecoConfigService: EcoConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly walletClientService: WalletClientDefaultSignerService,
   ) {}
 
   onModuleInit() {
-    this.config = this.ecoConfigService.getCrowdLiquidity()
+    this.config = this.configService.getCrowdLiquidity()
   }
 
   /**
@@ -154,7 +156,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param chainID Chain ID
    */
   getPoolAddress(chainID: number): Hex {
-    const intentSource = this.ecoConfigService.getIntentSource(chainID)
+    const intentSource = this.configService.getIntentSource(chainID)
     if (!intentSource) throw EcoError.IntentSourceNotFound(chainID)
     if (!intentSource.stablePoolAddress)
       throw new Error(`Stable pool not present on chain id ${chainID}`)
