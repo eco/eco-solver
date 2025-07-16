@@ -23,6 +23,7 @@ import { SolverModule } from '@/solver/solver.module'
 import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
+import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
     LiquidityManagerModule,
     WatchModule,
     IntentProcessorModule,
+    IntentFulfillmentModule,
     ...getPino(),
   ],
   controllers: [],

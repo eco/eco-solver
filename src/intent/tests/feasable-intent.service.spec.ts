@@ -6,12 +6,12 @@ import { IntentSourceModel } from '../schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { UtilsIntentService } from '../utils-intent.service'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { FeasableIntentService } from '../feasable-intent.service'
 import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { QuoteError } from '@/quote/errors'
+import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 
 describe('FeasableIntentService', () => {
   let feasableIntentService: FeasableIntentService
@@ -38,11 +38,11 @@ describe('FeasableIntentService', () => {
       ],
       imports: [
         BullModule.registerQueue({
-          name: QUEUES.SOURCE_INTENT.queue,
+          name: IntentFulfillmentQueue.queueName,
         }),
       ],
     })
-      .overrideProvider(getQueueToken(QUEUES.SOURCE_INTENT.queue))
+      .overrideProvider(getQueueToken(IntentFulfillmentQueue.queueName))
       .useValue(createMock<Queue>())
       .compile()
 
@@ -50,14 +50,19 @@ describe('FeasableIntentService', () => {
     feeService = chainMod.get(FeeService)
     utilsIntentService = chainMod.get(UtilsIntentService)
     ecoConfigService = chainMod.get(EcoConfigService)
-    queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
+    queue = chainMod.get(getQueueToken(IntentFulfillmentQueue.queueName))
 
     feasableIntentService['logger'].debug = mockLogDebug
     feasableIntentService['logger'].log = mockLogLog
     feasableIntentService['logger'].error = mockLogError
   })
 
-  const mockData = { model: { intent: { logIndex: 1, hash: '0x123' as Hex } }, solver: {} }
+  const mockData = {
+    model: {
+      intent: { logIndex: 1, hash: '0x123' as Hex, route: { destination: 1n } },
+    },
+    solver: {},
+  }
   const intentHash = mockData.model.intent.hash
   const jobId = `feasable-${intentHash}-${mockData.model.intent.logIndex}`
   afterEach(async () => {
@@ -137,6 +142,8 @@ describe('FeasableIntentService', () => {
     it('should add the intent when its feasable to the queue to be processed', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
       jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ calls: [] } as any)
+      const mockAdd = jest.fn()
+      feasableIntentService['intentFulfillmentQueue'].addFulfillIntentJob = mockAdd
 
       await feasableIntentService.feasableIntent(intentHash)
 
@@ -146,9 +153,9 @@ describe('FeasableIntentService', () => {
         feasable: true,
         jobId,
       })
-      expect(queue.add).toHaveBeenCalledWith(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...feasableIntentService['intentJobConfig'],
+      expect(mockAdd).toHaveBeenCalledWith({
+        chainId: Number(mockData.model.intent.route.destination),
+        intentHash: mockData.model.intent.hash,
       })
     })
   })
