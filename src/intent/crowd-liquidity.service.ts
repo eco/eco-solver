@@ -156,6 +156,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   getPoolAddress(chainID: number): Hex {
     const intentSource = this.ecoConfigService.getIntentSource(chainID)
     if (!intentSource) throw EcoError.IntentSourceNotFound(chainID)
+    if (!intentSource.stablePoolAddress)
+      throw new Error(`Stable pool not present on chain id ${chainID}`)
     return intentSource.stablePoolAddress
   }
 

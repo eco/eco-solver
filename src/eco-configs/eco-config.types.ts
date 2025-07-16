@@ -365,7 +365,7 @@ export class IntentSource {
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
   // The address that the StablePool contract
-  stablePoolAddress: Hex
+  stablePoolAddress?: Hex
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
   inbox: Hex
   // The addresses of the tokens that we support as rewards
