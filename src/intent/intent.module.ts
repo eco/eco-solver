@@ -17,6 +17,7 @@ import { ValidationService } from '@/intent/validation.sevice'
 import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { CacheModule } from '@nestjs/cache-manager'
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     SolverModule,
     TransactionModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
+    CacheModule.register(),
   ],
   providers: [
     CreateIntentService,
