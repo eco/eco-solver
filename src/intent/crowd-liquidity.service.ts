@@ -220,6 +220,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       },
     }
 
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Crowd liquidity: Pre-call',
+        properties: { intent: serializedIntent, publicKey: pkp.publicKey, ipfsId: actions.fulfill },
+      }),
+    )
+
     const poolData = await this.callLitAction<FulfillActionArgs, FulfillActionResponse>(
       actions.fulfill,
       { intent: serializedIntent, publicKey: pkp.publicKey },
@@ -340,10 +347,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   >(ipfsId: string, params: Params): Promise<Response> {
     const { capacityTokenOwnerPk, pkp, litNetwork } = this.config
 
-    const litNodeClient = new LitNodeClient({
-      litNetwork,
-      debug: false,
-    })
+    const litNodeClient = new LitNodeClient({ litNetwork, debug: false })
     await litNodeClient.connect()
 
     // ================ Create capacity delegation AuthSig ================
