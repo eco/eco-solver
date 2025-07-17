@@ -1,10 +1,34 @@
 import { Hex } from 'viem'
-import { IntentType } from '@eco-foundation/routes-ts'
-import { BigIntsToStrings } from '@/common/types/generics'
 
 export interface FulfillActionArgs {
   publicKey?: string
-  intent: BigIntsToStrings<IntentType>
+  intent: {
+    route: {
+      salt: Hex
+      inbox: Hex
+      source: number
+      destination: number
+      calls: readonly {
+        data: Hex
+        target: Hex
+        value: string
+      }[]
+      tokens: readonly {
+        token: Hex
+        amount: string
+      }[]
+    }
+    reward: {
+      prover: Hex
+      creator: Hex
+      deadline: number
+      nativeValue: string
+      tokens: readonly {
+        token: Hex
+        amount: string
+      }[]
+    }
+  }
 }
 
 export interface FulfillActionResponse {

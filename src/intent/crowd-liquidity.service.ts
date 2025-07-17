@@ -224,19 +224,40 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     const intent = this.getIntentType(intentModel)
 
     // Convert all bigints to strings
-    const serializedIntent = convertBigIntsToStrings(intent)
+    const serializedStringIntent = convertBigIntsToStrings(intent)
+    const serializedIntent: FulfillActionArgs['intent'] = {
+      route: {
+        ...serializedStringIntent.route,
+        source: Number(serializedStringIntent.route.source),
+        destination: Number(serializedStringIntent.route.destination),
+      },
+      reward: {
+        ...serializedStringIntent.reward,
+        deadline: Number(serializedStringIntent.reward.deadline),
+      },
+    }
 
     const poolData = await this.callLitAction<FulfillActionArgs, FulfillActionResponse>(
       actions.fulfill,
       { intent: serializedIntent, publicKey: pkp.publicKey },
     )
 
+    const { rewardHash, intentHash } = hashIntent(intent)
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Crowd liquidity: Pool data',
+        properties: {
+          poolData,
+          intentHash,
+        },
+      }),
+    )
+
     const { destination, messageData } = this.getProverData(intentModel)
 
     const walletClient = await this.walletClientService.getClient(destination)
     const publicClient = walletClient.extend(publicActions)
-
-    const { rewardHash, intentHash } = hashIntent(intent)
 
     const hash = await walletClient.writeContract({
       address: this.getPoolAddress(destination),
@@ -330,10 +351,10 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     })
   }
 
-  private async callLitAction<Params extends LitActionSdkParams['jsParams'], Response = object>(
-    ipfsId: string,
-    params: Params,
-  ): Promise<Response> {
+  private async callLitAction<
+    Params extends LitActionSdkParams['jsParams'],
+    Response extends { signature: string } = { signature: string },
+  >(ipfsId: string, params: Params): Promise<Response> {
     const { capacityTokenOwnerPk, pkp, litNetwork } = this.config
 
     const litNodeClient = new LitNodeClient({
@@ -398,7 +419,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       throw new Error(litRes.response)
     }
 
-    return litRes.response as Response
+    return { ...litRes.response, signature: litRes.signatures.sig.signature as string } as Response
   }
 
   /**
