@@ -72,9 +72,6 @@ export class CreateIntentService implements OnModuleInit {
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
-      // Track intent creation attempt
-      this.ecoAnalytics.trackIntentCreationStarted(intent, intentWs)
-
       //check db if the intent is already filled
       const model = await this.intentModel.findOne({
         'intent.hash': intent.hash,
@@ -239,7 +236,23 @@ export class CreateIntentService implements OnModuleInit {
    * @returns the intent or an error
    */
   async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
-    return this.fetchIntent({ 'intent.hash': hash })
+    try {
+      const result = await this.fetchIntent({ 'intent.hash': hash })
+
+      if (result.error) {
+        this.ecoAnalytics.trackIntentRetrievalNotFound('getIntentForHash', { hash }, result.error)
+      } else {
+        this.ecoAnalytics.trackIntentRetrievalSuccess('getIntentForHash', {
+          hash,
+          intent: result.response,
+        })
+      }
+
+      return result
+    } catch (error) {
+      this.ecoAnalytics.trackIntentRetrievalError('getIntentForHash', error, { hash })
+      throw error
+    }
   }
 
   /**
@@ -248,12 +261,20 @@ export class CreateIntentService implements OnModuleInit {
    * @returns the intent or an error
    */
   async fetchIntent(query: object): Promise<EcoResponse<IntentSourceModel>> {
-    const intent = await this.intentModel.findOne(query)
+    try {
+      const intent = await this.intentModel.findOne(query)
 
-    if (!intent) {
-      return { error: EcoError.IntentNotFound }
+      if (!intent) {
+        const error = EcoError.IntentNotFound
+        this.ecoAnalytics.trackIntentRetrievalNotFound('fetchIntent', { query }, error)
+        return { error }
+      }
+
+      this.ecoAnalytics.trackIntentRetrievalSuccess('fetchIntent', { query, intent })
+      return { response: intent }
+    } catch (error) {
+      this.ecoAnalytics.trackIntentRetrievalError('fetchIntent', error, { query })
+      throw error
     }
-
-    return { response: intent }
   }
 }

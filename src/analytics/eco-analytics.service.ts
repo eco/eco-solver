@@ -3,7 +3,6 @@ import { AnalyticsService, ANALYTICS_SERVICE } from '@/analytics'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
 
@@ -28,14 +27,24 @@ export class EcoAnalyticsService {
     })
   }
 
-  // ========== INTENT MODULE ANALYTICS ==========
+  /**
+   * Public method for tracking success events
+   */
+  trackSuccess(eventName: string, data: Record<string, any>): void {
+    this.safeTrack(eventName, data)
+  }
 
-  trackIntentCreationStarted(intent: any, intentWs: any) {
-    this.safeTrack(ANALYTICS_EVENTS.INTENT.CREATION_STARTED, {
-      intent,
-      intentWs,
+  /**
+   * Public method for tracking error events
+   */
+  trackError(eventName: string, error: any, data: Record<string, any>): void {
+    this.safeTrack(eventName, {
+      error,
+      ...data,
     })
   }
+
+  // ========== INTENT MODULE ANALYTICS ==========
 
   trackIntentDuplicateDetected(intent: any, model: any, intentWs: any) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.DUPLICATE_DETECTED, {
@@ -60,27 +69,18 @@ export class EcoAnalyticsService {
     })
   }
 
+  trackIntentCreationStarted(intent: any, intentWs: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CREATION_STARTED, {
+      intent,
+      intentWs,
+    })
+  }
+
   trackIntentCreationFailed(intent: any, intentWs: any, error: any) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.CREATION_FAILED, {
       intent,
       intentWs,
       error,
-    })
-  }
-
-  trackGaslessIntentCreationStarted(
-    intentHash: string,
-    quoteID: string,
-    funder: string,
-    route: any,
-    reward: any,
-  ) {
-    this.safeTrack(ANALYTICS_EVENTS.INTENT.GASLESS_CREATION_STARTED, {
-      intentHash,
-      quoteID,
-      funder,
-      route,
-      reward,
     })
   }
 
@@ -102,8 +102,26 @@ export class EcoAnalyticsService {
     })
   }
 
+  trackGaslessIntentCreationStarted(
+    intentHash: string,
+    quoteID: string,
+    funder: string,
+    route: any,
+    reward: any,
+  ) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.GASLESS_CREATION_STARTED, {
+      intentHash,
+      quoteID,
+      funder,
+      route,
+      reward,
+    })
+  }
+
   trackIntentValidationStarted(intentHash: string) {
-    this.safeTrack(ANALYTICS_EVENTS.INTENT.VALIDATION_STARTED, { intentHash })
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.VALIDATION_STARTED, {
+      intentHash,
+    })
   }
 
   trackIntentValidationFailed(
@@ -128,12 +146,6 @@ export class EcoAnalyticsService {
     })
   }
 
-  trackIntentFeasibilityCheckStarted(intentHash: string) {
-    this.safeTrack(ANALYTICS_EVENTS.INTENT.FEASIBILITY_CHECK_STARTED, {
-      intentHash,
-    })
-  }
-
   trackIntentFeasibleAndQueued(intentHash: string, jobId: string, model: IntentSourceModel) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.FEASIBLE_AND_QUEUED, {
       intentHash,
@@ -148,10 +160,6 @@ export class EcoAnalyticsService {
       model,
       error,
     })
-  }
-
-  trackIntentFulfillmentStarted(intentHash: string) {
-    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILLMENT_STARTED, { intentHash })
   }
 
   trackIntentFulfillmentMethodSelected(
@@ -211,16 +219,6 @@ export class EcoAnalyticsService {
     })
   }
 
-  trackQuoteStorageSuccess(
-    quoteIntentDataDTO: QuoteIntentDataDTO,
-    quoteIntents: QuoteIntentModel[],
-  ) {
-    this.safeTrack(ANALYTICS_EVENTS.QUOTE.STORAGE_SUCCESS, {
-      quoteIntentDataDTO,
-      quoteIntents,
-    })
-  }
-
   trackQuoteProcessingSuccess(
     quoteIntentDataDTO: QuoteIntentDataDTO,
     isReverseQuote: boolean,
@@ -236,6 +234,13 @@ export class EcoAnalyticsService {
       totalErrors,
       processingTimeMs: processingTime,
       executionTypes,
+    })
+  }
+
+  trackQuoteStorageSuccess(quoteIntentDataDTO: QuoteIntentDataDTO, quoteIntents: any) {
+    this.safeTrack(ANALYTICS_EVENTS.QUOTE.STORAGE_SUCCESS, {
+      quoteIntentDataDTO,
+      quoteIntents,
     })
   }
 
@@ -395,68 +400,399 @@ export class EcoAnalyticsService {
 
   // ========== GENERIC ERROR TRACKING ==========
 
-  trackError(eventName: string, error: any, context?: Record<string, any>) {
-    this.safeTrack(eventName, {
+  // ========== WALLET FULFILLMENT SERVICE TRACKING ==========
+
+  trackIntentFulfillmentStarted(intentHash: string) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILLMENT_STARTED, {
+      intentHash,
+    })
+  }
+
+  trackIntentFulfillmentSuccess(model: any, solver: any, receipt: any, processingTime: number) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.WALLET_FULFILLMENT_SUCCESS, {
+      model,
+      solver,
+      receipt,
+      processingTimeMs: processingTime,
+    })
+  }
+
+  trackIntentFulfillmentFailed(model: any, solver: any, error: any, processingTime: number) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.WALLET_FULFILLMENT_FAILED, {
+      model,
+      solver,
       error,
-      ...context,
+      processingTimeMs: processingTime,
     })
   }
 
-  // ========== GENERIC SUCCESS TRACKING ==========
-
-  trackSuccess(eventName: string, context?: Record<string, any>) {
-    this.safeTrack(eventName, context || {})
-  }
-
-  // ========== CONTROLLER REQUEST/RESPONSE TRACKING ==========
-
-  trackRequestReceived(endpoint: string, requestData: any) {
-    this.safeTrack('request_received', {
-      endpoint,
-      requestData,
+  trackIntentFulfillmentTransactionReverted(model: any, solver: any, receipt: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.WALLET_FULFILLMENT_TRANSACTION_REVERTED, {
+      model,
+      solver,
+      receipt,
     })
   }
 
-  trackResponseSuccess(endpoint: string, responseData: any) {
-    this.safeTrack('response_success', {
-      endpoint,
-      responseData,
+  trackIntentFeasibilityCheckStarted(intentHash: string) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FEASIBILITY_CHECK_STARTED, {
+      intentHash,
     })
   }
 
-  trackResponseError(endpoint: string, error: any, context: any) {
-    this.safeTrack('response_error', {
-      endpoint,
+  trackIntentFeasibilityCheckSuccess(intent: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FEASIBILITY_CHECK_SUCCESS, {
+      intent,
+    })
+  }
+
+  trackIntentFeasibilityCheckFailed(intent: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FEASIBILITY_CHECK_FAILED, {
+      intent,
+      error,
+    })
+  }
+
+  trackErc20TransactionHandlingSuccess(
+    transactionTargetData: any,
+    solver: any,
+    target: any,
+    result: any,
+  ) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.ERC20_TRANSACTION_HANDLING_SUCCESS, {
+      transactionTargetData,
+      solver,
+      target,
+      result,
+    })
+  }
+
+  trackErc20TransactionHandlingUnsupported(transactionTargetData: any, solver: any, target: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.ERC20_TRANSACTION_HANDLING_UNSUPPORTED, {
+      transactionTargetData,
+      solver,
+      target,
+    })
+  }
+
+  trackTransactionTargetGenerationSuccess(model: any, solver: any, functionFulfills: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.TRANSACTION_TARGET_GENERATION_SUCCESS, {
+      model,
+      solver,
+      functionFulfills,
+    })
+  }
+
+  trackTransactionTargetGenerationError(model: any, solver: any, call: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.TRANSACTION_TARGET_GENERATION_ERROR, {
+      model,
+      solver,
+      call,
+    })
+  }
+
+  trackTransactionTargetUnsupportedContractType(
+    model: any,
+    solver: any,
+    transactionTargetData: any,
+  ) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.TRANSACTION_TARGET_UNSUPPORTED_CONTRACT_TYPE, {
+      model,
+      solver,
+      transactionTargetData,
+    })
+  }
+
+  trackFulfillIntentTxCreationSuccess(
+    model: any,
+    inboxAddress: any,
+    proverType: string,
+    result: any,
+  ) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILL_INTENT_TX_CREATION_SUCCESS, {
+      model,
+      inboxAddress,
+      proverType,
+      result,
+    })
+  }
+
+  trackFulfillIntentTxCreationFailed(model: any, inboxAddress: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILL_INTENT_TX_CREATION_FAILED, {
+      model,
+      inboxAddress,
+      error,
+    })
+  }
+
+  // ========== UTILS INTENT SERVICE TRACKING ==========
+
+  trackIntentStatusUpdate(model: any, status: string, reason?: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_STATUS_UPDATE, {
+      model,
+      status,
+      reason,
+    })
+  }
+
+  trackFulfillmentProcessingSuccess(fulfillment: any, model: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILLMENT_PROCESSING_SUCCESS, {
+      fulfillment,
+      model,
+    })
+  }
+
+  trackFulfillmentProcessingIntentNotFound(fulfillment: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILLMENT_PROCESSING_INTENT_NOT_FOUND, {
+      fulfillment,
+    })
+  }
+
+  trackFulfillmentProcessingError(fulfillment: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.FULFILLMENT_PROCESSING_ERROR, {
+      fulfillment,
+      error,
+    })
+  }
+
+  trackIntentProcessDataRetrievalSuccess(intentHash: string, model: any, solver: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_PROCESS_DATA_RETRIEVAL_SUCCESS, {
+      intentHash,
+      model,
+      solver,
+    })
+  }
+
+  trackIntentProcessDataRetrievalModelNotFound(intentHash: string, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_PROCESS_DATA_RETRIEVAL_MODEL_NOT_FOUND, {
+      intentHash,
+      error,
+    })
+  }
+
+  trackIntentProcessDataRetrievalSolverNotFound(intentHash: string, model: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_PROCESS_DATA_RETRIEVAL_SOLVER_NOT_FOUND, {
+      intentHash,
+      model,
+    })
+  }
+
+  trackIntentProcessDataRetrievalError(intentHash: string, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_PROCESS_DATA_RETRIEVAL_ERROR, {
+      intentHash,
+      error,
+    })
+  }
+
+  trackSolverResolutionSuccess(destination: any, solver: any, opts?: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.SOLVER_RESOLUTION_SUCCESS, {
+      destination,
+      solver,
+      opts,
+    })
+  }
+
+  trackSolverResolutionNotFound(destination: any, opts?: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.SOLVER_RESOLUTION_NOT_FOUND, {
+      destination,
+      opts,
+    })
+  }
+
+  // ========== CROWD LIQUIDITY SERVICE TRACKING ==========
+
+  trackCrowdLiquidityFulfillmentSuccess(
+    model: any,
+    solver: any,
+    result: any,
+    processingTime: number,
+  ) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_SUCCESS, {
+      model,
+      solver,
+      result,
+      processingTimeMs: processingTime,
+    })
+  }
+
+  trackCrowdLiquidityFulfillmentFailed(
+    model: any,
+    solver: any,
+    error: any,
+    processingTime: number,
+  ) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_FAILED, {
+      model,
+      solver,
+      error,
+      processingTimeMs: processingTime,
+    })
+  }
+
+  trackCrowdLiquidityFulfillmentRewardNotEnough(model: any, solver: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_REWARD_NOT_ENOUGH, {
+      model,
+      solver,
+      error,
+    })
+  }
+
+  trackCrowdLiquidityFulfillmentPoolNotSolvent(model: any, solver: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_POOL_NOT_SOLVENT, {
+      model,
+      solver,
+      error,
+    })
+  }
+
+  trackCrowdLiquidityRebalanceSuccess(tokenIn: any, tokenOut: any, result: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_REBALANCE_SUCCESS, {
+      tokenIn,
+      tokenOut,
+      result,
+    })
+  }
+
+  trackCrowdLiquidityRebalanceError(tokenIn: any, tokenOut: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_REBALANCE_ERROR, {
+      tokenIn,
+      tokenOut,
+      error,
+    })
+  }
+
+  trackCrowdLiquidityRouteSupportCheck(intentModel: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_ROUTE_SUPPORT_CHECK, {
+      intentModel,
+    })
+  }
+
+  trackCrowdLiquidityRouteSupportResult(intentModel: any, isSupported: boolean, details: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_ROUTE_SUPPORT_RESULT, {
+      intentModel,
+      isSupported,
+      details,
+    })
+  }
+
+  trackCrowdLiquidityRewardCheck(intentModel: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_REWARD_CHECK, {
+      intentModel,
+    })
+  }
+
+  trackCrowdLiquidityRewardCheckResult(intentModel: any, isEnough: boolean, details: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_REWARD_CHECK_RESULT, {
+      intentModel,
+      isEnough,
+      details,
+    })
+  }
+
+  trackCrowdLiquidityPoolSolvencyCheck(intentModel: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_POOL_SOLVENCY_CHECK, {
+      intentModel,
+    })
+  }
+
+  trackCrowdLiquidityPoolSolvencyResult(intentModel: any, isSolvent: boolean, details: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_POOL_SOLVENCY_RESULT, {
+      intentModel,
+      isSolvent,
+      details,
+    })
+  }
+
+  trackCrowdLiquidityPoolSolvencyError(intentModel: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_POOL_SOLVENCY_ERROR, {
+      intentModel,
+      error,
+    })
+  }
+
+  trackCrowdLiquidityLitActionSuccess(ipfsId: string, params: any, result: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_LIT_ACTION_SUCCESS, {
+      ipfsId,
+      params,
+      result,
+    })
+  }
+
+  trackCrowdLiquidityLitActionError(ipfsId: string, params: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_LIT_ACTION_ERROR, {
+      ipfsId,
+      params,
+      error,
+    })
+  }
+
+  // ========== CREATE INTENT SERVICE TRACKING ==========
+
+  trackIntentRetrievalSuccess(method: string, context: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_RETRIEVAL_SUCCESS, {
+      method,
+      context,
+    })
+  }
+
+  trackIntentRetrievalNotFound(method: string, context: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_RETRIEVAL_NOT_FOUND, {
+      method,
+      context,
+      error,
+    })
+  }
+
+  trackIntentRetrievalError(method: string, error: any, context: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.INTENT_RETRIEVAL_ERROR, {
+      method,
       error,
       context,
     })
   }
 
-  // ========== DATABASE OPERATION TRACKING ==========
+  // ========== FEASABLE INTENT SERVICE TRACKING ==========
 
-  trackDatabaseQuery(operation: string, queryData: any) {
-    this.safeTrack('database_query', {
-      operation,
-      queryData,
+  trackQuoteFeasibilityCheckSuccess(quoteIntent: any) {
+    this.safeTrack(ANALYTICS_EVENTS.QUOTE.FEASIBILITY_CHECK_SUCCESS, {
+      quoteIntent,
     })
   }
 
-  trackDatabaseError(operation: string, error: any, context: any) {
-    this.safeTrack('database_error', {
-      operation,
+  trackQuoteFeasibilityCheckError(quoteIntent: any, error: any) {
+    this.safeTrack(ANALYTICS_EVENTS.QUOTE.FEASIBILITY_CHECK_ERROR, {
+      quoteIntent,
+      error,
+    })
+  }
+
+  // ========== GENERIC SUCCESS TRACKING ==========
+
+  // ========== CONTROLLER REQUEST/RESPONSE TRACKING ==========
+
+  trackHealthRequestReceived(endpoint: string, requestData: any) {
+    this.safeTrack('health_request_received', {
+      endpoint,
+      requestData,
+    })
+  }
+
+  trackHealthResponseSuccess(endpoint: string, responseData: any) {
+    this.safeTrack('health_response_success', {
+      endpoint,
+      responseData,
+    })
+  }
+
+  trackHealthResponseError(endpoint: string, error: any, context: any) {
+    this.safeTrack('health_response_error', {
+      endpoint,
       error,
       context,
     })
   }
 
   // ========== JOB PROCESSING TRACKING ==========
-
-  trackJobStarted(jobName: string, jobContext: any) {
-    this.safeTrack('job_started', {
-      jobName,
-      jobContext,
-    })
-  }
 
   trackJobCompleted(jobName: string, jobContext: any) {
     this.safeTrack('job_completed', {

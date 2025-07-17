@@ -31,11 +31,20 @@ export class FeasableIntentService implements OnModuleInit {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
   }
   async feasableQuote(quoteIntent: QuoteIntentModel) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `feasableQuote intent ${quoteIntent._id}`,
-      }),
-    )
+    try {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `feasableQuote intent ${quoteIntent._id}`,
+        }),
+      )
+
+      // TODO: Add actual feasibility logic here
+
+      this.ecoAnalytics.trackQuoteFeasibilityCheckSuccess(quoteIntent)
+    } catch (error) {
+      this.ecoAnalytics.trackQuoteFeasibilityCheckError(quoteIntent, error)
+      throw error
+    }
   }
   /**
    * Validates that the execution of the intent is feasible. This means that the solver can execute

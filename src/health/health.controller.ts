@@ -26,19 +26,19 @@ export class HealthController {
       }),
     )
 
-    this.ecoAnalytics.trackRequestReceived(ANALYTICS_EVENTS.HEALTH.CHECK_REQUEST, {})
+    this.ecoAnalytics.trackHealthRequestReceived(ANALYTICS_EVENTS.HEALTH.CHECK_REQUEST, {})
 
     try {
       const result = await this.healthService.checkHealth()
 
-      this.ecoAnalytics.trackResponseSuccess(ANALYTICS_EVENTS.HEALTH.CHECK_SUCCESS, {
+      this.ecoAnalytics.trackHealthResponseSuccess(ANALYTICS_EVENTS.HEALTH.CHECK_SUCCESS, {
         result,
         processingTimeMs: Date.now() - startTime,
       })
 
       return result
     } catch (error) {
-      this.ecoAnalytics.trackResponseError(ANALYTICS_EVENTS.HEALTH.CHECK_ERROR, error, {
+      this.ecoAnalytics.trackHealthResponseError(ANALYTICS_EVENTS.HEALTH.CHECK_ERROR, error, {
         processingTimeMs: Date.now() - startTime,
       })
       throw error

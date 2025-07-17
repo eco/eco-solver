@@ -6,15 +6,15 @@
 // ========== INTENT MODULE EVENTS ==========
 export const INTENT_EVENTS = {
   // Intent Creation
-  CREATION_STARTED: 'intent_creation_started',
   DUPLICATE_DETECTED: 'intent_duplicate_detected',
   CREATED_AND_QUEUED: 'intent_created_and_queued',
   CREATED_WALLET_REJECTED: 'intent_created_wallet_rejected',
+  CREATION_STARTED: 'intent_creation_started',
   CREATION_FAILED: 'intent_creation_failed',
 
   // Gasless Intent Creation
-  GASLESS_CREATION_STARTED: 'gasless_intent_creation_started',
   GASLESS_CREATED: 'gasless_intent_created',
+  GASLESS_CREATION_STARTED: 'gasless_intent_creation_started',
   GASLESS_CREATION_FAILED: 'gasless_intent_creation_failed',
 
   // Intent Validation
@@ -31,21 +31,79 @@ export const INTENT_EVENTS = {
 
   // Intent Feasibility
   FEASIBILITY_CHECK_STARTED: 'intent_feasibility_check_started',
+  FEASIBILITY_CHECK_SUCCESS: 'intent_feasibility_check_success',
   FEASIBILITY_CHECK_FAILED: 'intent_feasibility_check_failed',
   FEASIBLE_AND_QUEUED: 'intent_feasible_and_queued',
   INFEASIBLE: 'intent_infeasible',
 
   // Intent Fulfillment
   FULFILLMENT_STARTED: 'intent_fulfillment_started',
+  FULFILLMENT_SUCCESS: 'intent_fulfillment_success',
   FULFILLMENT_FAILED: 'intent_fulfillment_failed',
   FULFILLMENT_SKIPPED: 'intent_fulfillment_skipped',
   FULFILLMENT_METHOD_SELECTED: 'intent_fulfillment_method_selected',
+  FULFILLMENT_TRANSACTION_REVERTED: 'intent_fulfillment_transaction_reverted',
+
+  // Wallet Fulfillment
+  WALLET_FULFILLMENT_SUCCESS: 'wallet_fulfillment_success',
+  WALLET_FULFILLMENT_FAILED: 'wallet_fulfillment_failed',
+  WALLET_FULFILLMENT_TRANSACTION_REVERTED: 'wallet_fulfillment_transaction_reverted',
+
+  // ERC20 Transaction Handling
+  ERC20_TRANSACTION_HANDLING_SUCCESS: 'erc20_transaction_handling_success',
+  ERC20_TRANSACTION_HANDLING_UNSUPPORTED: 'erc20_transaction_handling_unsupported',
+
+  // Transaction Target Generation
+  TRANSACTION_TARGET_GENERATION_SUCCESS: 'transaction_target_generation_success',
+  TRANSACTION_TARGET_GENERATION_ERROR: 'transaction_target_generation_error',
+  TRANSACTION_TARGET_UNSUPPORTED_CONTRACT_TYPE: 'transaction_target_unsupported_contract_type',
+
+  // Fulfill Intent Transaction Creation
+  FULFILL_INTENT_TX_CREATION_SUCCESS: 'fulfill_intent_tx_creation_success',
+  FULFILL_INTENT_TX_CREATION_FAILED: 'fulfill_intent_tx_creation_failed',
+
+  // Intent Status Updates
+  INTENT_STATUS_UPDATE: 'intent_status_update',
+
+  // Fulfillment Processing
+  FULFILLMENT_PROCESSING_SUCCESS: 'fulfillment_processing_success',
+  FULFILLMENT_PROCESSING_ERROR: 'fulfillment_processing_error',
+  FULFILLMENT_PROCESSING_INTENT_NOT_FOUND: 'fulfillment_processing_intent_not_found',
+
+  // Intent Process Data Retrieval
+  INTENT_PROCESS_DATA_RETRIEVAL_SUCCESS: 'intent_process_data_retrieval_success',
+  INTENT_PROCESS_DATA_RETRIEVAL_ERROR: 'intent_process_data_retrieval_error',
+  INTENT_PROCESS_DATA_RETRIEVAL_MODEL_NOT_FOUND: 'intent_process_data_retrieval_model_not_found',
+  INTENT_PROCESS_DATA_RETRIEVAL_SOLVER_NOT_FOUND: 'intent_process_data_retrieval_solver_not_found',
+
+  // Solver Resolution
+  SOLVER_RESOLUTION_SUCCESS: 'solver_resolution_success',
+  SOLVER_RESOLUTION_NOT_FOUND: 'solver_resolution_not_found',
+
+  // Intent Retrieval
+  INTENT_RETRIEVAL_SUCCESS: 'intent_retrieval_success',
+  INTENT_RETRIEVAL_ERROR: 'intent_retrieval_error',
+  INTENT_RETRIEVAL_NOT_FOUND: 'intent_retrieval_not_found',
 
   // Crowd Liquidity
   CROWD_LIQUIDITY_ROUTE_CHECK: 'intent_crowd_liquidity_route_check',
   CROWD_LIQUIDITY_FULFILLMENT_STARTED: 'intent_crowd_liquidity_fulfillment_started',
   CROWD_LIQUIDITY_FULFILLMENT_SUCCEEDED: 'intent_crowd_liquidity_fulfillment_succeeded',
   CROWD_LIQUIDITY_FULFILLMENT_FAILED: 'intent_crowd_liquidity_fulfillment_failed',
+  CROWD_LIQUIDITY_FULFILLMENT_SUCCESS: 'crowd_liquidity_fulfillment_success',
+  CROWD_LIQUIDITY_FULFILLMENT_REWARD_NOT_ENOUGH: 'crowd_liquidity_fulfillment_reward_not_enough',
+  CROWD_LIQUIDITY_FULFILLMENT_POOL_NOT_SOLVENT: 'crowd_liquidity_fulfillment_pool_not_solvent',
+  CROWD_LIQUIDITY_REBALANCE_SUCCESS: 'crowd_liquidity_rebalance_success',
+  CROWD_LIQUIDITY_REBALANCE_ERROR: 'crowd_liquidity_rebalance_error',
+  CROWD_LIQUIDITY_ROUTE_SUPPORT_CHECK: 'crowd_liquidity_route_support_check',
+  CROWD_LIQUIDITY_ROUTE_SUPPORT_RESULT: 'crowd_liquidity_route_support_result',
+  CROWD_LIQUIDITY_REWARD_CHECK: 'crowd_liquidity_reward_check',
+  CROWD_LIQUIDITY_REWARD_CHECK_RESULT: 'crowd_liquidity_reward_check_result',
+  CROWD_LIQUIDITY_POOL_SOLVENCY_CHECK: 'crowd_liquidity_pool_solvency_check',
+  CROWD_LIQUIDITY_POOL_SOLVENCY_RESULT: 'crowd_liquidity_pool_solvency_result',
+  CROWD_LIQUIDITY_POOL_SOLVENCY_ERROR: 'crowd_liquidity_pool_solvency_error',
+  CROWD_LIQUIDITY_LIT_ACTION_SUCCESS: 'crowd_liquidity_lit_action_success',
+  CROWD_LIQUIDITY_LIT_ACTION_ERROR: 'crowd_liquidity_lit_action_error',
   WALLET_FULFILLMENT_FALLBACK: 'intent_wallet_fulfillment_fallback',
 } as const
 
@@ -83,6 +141,10 @@ export const QUOTE_EVENTS = {
   // Quote Database Operations
   DATABASE_STORE_SUCCESS: 'quote_database_store_success',
   DATABASE_STORE_ERROR: 'quote_database_store_error',
+
+  // Quote Feasibility Check
+  FEASIBILITY_CHECK_SUCCESS: 'quote_feasibility_check_success',
+  FEASIBILITY_CHECK_ERROR: 'quote_feasibility_check_error',
 } as const
 
 // ========== WATCH MODULE EVENTS ==========
