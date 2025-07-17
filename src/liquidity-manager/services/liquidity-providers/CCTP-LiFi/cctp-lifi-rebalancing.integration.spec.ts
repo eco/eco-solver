@@ -29,6 +29,7 @@ import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { NegativeIntentRebalanceService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -76,6 +77,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let cctpService: DeepMocked<CCTPProviderService>
   let relayService: DeepMocked<RelayProviderService>
   let stargateService: DeepMocked<StargateProviderService>
+  let negativeIntentRebalanceService: DeepMocked<NegativeIntentRebalanceService>
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -98,6 +100,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     },
     maxQuoteSlippage: 0.005,
     swapSlippage: 0.01,
+    negativeIntents: {
+      deadlineDuration: 5_400,
+      rebalancingPercentage: 0.05,
+    },
   }
 
   // Mock token configurations
@@ -169,6 +175,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: SquidProviderService,
           useValue: createMock<SquidProviderService>(),
+        },
+        {
+          provide: NegativeIntentRebalanceService,
+          useValue: createMock<NegativeIntentRebalanceService>(),
         },
         {
           provide: BalanceService,
