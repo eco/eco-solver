@@ -62,21 +62,79 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   /**
    * Executes the process to fulfill an intent based on the provided model and solver.
    *
-   * @param {IntentSourceModel} model - The source model containing the intent and related chain information.
+   * @param {IntentSourceModel} intentModel - The source model containing the intent and related chain information.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  async fulfill(model: IntentSourceModel): Promise<Hex> {
-    const isRewardEnough = await this.isRewardEnough(model)
+  async fulfill(intentModel: IntentSourceModel): Promise<Hex> {
+    const proverFee = await this.getProverFee(intentModel.intent)
+
+    const totalRouteAmount = intentModel.intent.route.tokens.reduce(
+      (acc, token) => acc + token.amount,
+      0n,
+    )
+    const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount, proverFee)
+
+    const isRewardEnough = await this.isRewardEnough(intentModel, totalRouteAmount, executionFee)
     if (!isRewardEnough) {
-      throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
+      throw EcoError.CrowdLiquidityRewardNotEnough(intentModel.intent.hash)
     }
 
-    const isPoolSolver = await this.isPoolSolvent(model)
+    const isPoolSolver = await this.isPoolSolvent(intentModel)
     if (!isPoolSolver) {
-      throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
+      throw EcoError.CrowdLiquidityPoolNotSolvent(intentModel.intent.hash)
     }
 
-    return this._fulfill(model.intent)
+    const { pkp, actions } = this.config
+
+    // Serialize intent
+    const intent = this.getIntentType(intentModel.intent)
+
+    // Convert all bigints to strings
+    const serializedStringIntent = convertBigIntsToStrings(intent)
+    const serializedIntent: FulfillActionArgs['intent'] = {
+      route: {
+        ...serializedStringIntent.route,
+        source: Number(serializedStringIntent.route.source),
+        destination: Number(serializedStringIntent.route.destination),
+      },
+      reward: {
+        ...serializedStringIntent.reward,
+        deadline: Number(serializedStringIntent.reward.deadline),
+      },
+    }
+
+    const poolData = await this.callLitAction<FulfillActionArgs, FulfillActionResponse>(
+      actions.fulfill,
+      { intent: serializedIntent, publicKey: pkp.publicKey },
+    )
+
+    const { rewardHash, intentHash } = hashIntent(intent)
+
+    const { destination, messageData } = this.getProverData(intentModel.intent)
+
+    const walletClient = await this.walletClientService.getClient(destination)
+    const publicClient = walletClient.extend(publicActions)
+
+    const hash = await walletClient.writeContract({
+      address: this.getPoolAddress(destination),
+      abi: stablePoolAbi,
+      functionName: 'fulfillAndProve',
+      value: proverFee,
+      args: [
+        intent.route,
+        rewardHash,
+        poolData.rewardVault,
+        intentHash,
+        poolData.localProver,
+        BigInt(poolData.ttl),
+        messageData,
+        poolData.signature,
+      ],
+    })
+
+    await publicClient.waitForTransactionReceipt({ hash })
+
+    return hash
   }
 
   // eslint-disable-next-line
@@ -188,91 +246,27 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * Determines if the reward provided in the intent model is sufficient based on the route amount and the fee percentage.
    *
    * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
+   * @param totalRouteAmount
+   * @param executionFee
    * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
    */
-  async isRewardEnough(intentModel: IntentSourceModel): Promise<boolean> {
-    const { route, reward } = intentModel.intent
-    const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
-    const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
-
-    const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount)
+  async isRewardEnough(
+    intentModel: IntentSourceModel,
+    totalRouteAmount: bigint,
+    executionFee: bigint,
+  ): Promise<boolean> {
+    const totalRewardAmount = intentModel.intent.reward.tokens.reduce(
+      (acc, token) => acc + token.amount,
+      0n,
+    )
 
     return totalRewardAmount >= totalRouteAmount + executionFee
-  }
-
-  protected async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
-    const { pkp, actions } = this.config
-
-    // Serialize intent
-    const intent = this.getIntentType(intentModel)
-
-    // Convert all bigints to strings
-    const serializedStringIntent = convertBigIntsToStrings(intent)
-    const serializedIntent: FulfillActionArgs['intent'] = {
-      route: {
-        ...serializedStringIntent.route,
-        source: Number(serializedStringIntent.route.source),
-        destination: Number(serializedStringIntent.route.destination),
-      },
-      reward: {
-        ...serializedStringIntent.reward,
-        deadline: Number(serializedStringIntent.reward.deadline),
-      },
-    }
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Crowd liquidity: Pre-call',
-        properties: { intent: serializedIntent, publicKey: pkp.publicKey, ipfsId: actions.fulfill },
-      }),
-    )
-
-    const poolData = await this.callLitAction<FulfillActionArgs, FulfillActionResponse>(
-      actions.fulfill,
-      { intent: serializedIntent, publicKey: pkp.publicKey },
-    )
-
-    const { rewardHash, intentHash } = hashIntent(intent)
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Crowd liquidity: Pool data',
-        properties: {
-          poolData,
-          intentHash,
-        },
-      }),
-    )
-
-    const { destination, messageData } = this.getProverData(intentModel)
-
-    const walletClient = await this.walletClientService.getClient(destination)
-    const publicClient = walletClient.extend(publicActions)
-
-    const hash = await walletClient.writeContract({
-      address: this.getPoolAddress(destination),
-      abi: stablePoolAbi,
-      functionName: 'fulfillAndProve',
-      args: [
-        intent.route,
-        rewardHash,
-        poolData.rewardVault,
-        intentHash,
-        poolData.localProver,
-        BigInt(poolData.ttl),
-        messageData,
-        poolData.signature,
-      ],
-    })
-
-    await publicClient.waitForTransactionReceipt({ hash })
-
-    return hash
   }
 
   protected async getExecutionFee(
     intentModel: IntentDataModel,
     totalRouteAmount: bigint,
+    proverFee: bigint,
   ): Promise<bigint> {
     const destinationChainID = Number(intentModel.route.destination)
     const poolAddr = this.getPoolAddress(destinationChainID)
@@ -282,7 +276,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     const bridgingFee = (totalRouteAmount * bridgingFeeBps.multiplier) / bridgingFeeBps.base
 
     // Prover fee is ETH, so we get the ETH price to charge this prover fee in USD
-    const proverFee = await this.getProverFee(intentModel)
     const ethPriceInt = (parseUnits(ethPrice.toString(), 6) * proverFee) / BigInt(1e18)
 
     // TODO: Assumes 6 decimal values
