@@ -41,5 +41,6 @@ export interface FulfillActionResponse {
   ttl: number
   accessLiquidityHash: Hex
   targetAmount: string
+  fee: string
   executionFee: string
 }

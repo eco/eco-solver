@@ -66,13 +66,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
   async fulfill(intentModel: IntentSourceModel): Promise<Hex> {
-    const proverFee = await this.getProverFee(intentModel.intent)
+    const excessFee = 0n
 
     const totalRouteAmount = intentModel.intent.route.tokens.reduce(
       (acc, token) => acc + token.amount,
       0n,
     )
-    const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount, proverFee)
+    const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount, excessFee)
 
     const isRewardEnough = await this.isRewardEnough(intentModel, totalRouteAmount, executionFee)
     if (!isRewardEnough) {
@@ -117,6 +117,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       }),
     )
 
+    const proverFee = await this.getProverFee(intentModel.intent)
     const { destination, messageData } = this.getProverData(intentModel.intent)
 
     const walletClient = await this.walletClientService.getClient(destination)
