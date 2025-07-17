@@ -131,23 +131,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       routeTokens,
     )
 
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'isPoolSolvent',
-        properties: {
-          routeTokens,
-          routeTokensData: routeTokensData.map((token) => ({
-            address: token.config.address,
-            balance: token.balance.balance.toString(),
-          })),
-          routeTokensOriginal: intentModel.intent.route.tokens.map((token) => ({
-            ...token,
-            amount: token.amount.toString(),
-          })),
-        },
-      }),
-    )
-
     return intentModel.intent.route.tokens.every((routeToken) => {
       const token = routeTokensData.find((token) =>
         isAddressEqual(token.config.address, routeToken.token),
