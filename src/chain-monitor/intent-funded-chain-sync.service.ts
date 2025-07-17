@@ -6,7 +6,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedLog } from '@/contracts'
-import { IntentSource } from '@/eco-configs/eco-config.types'
+import { IntentSource, getVMType, VMType } from '@/eco-configs/eco-config.types'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -55,6 +55,13 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @returns
    */
   async getMissingTxs(source: IntentSource): Promise<IntentFundedLog[]> {
+    const vmType = getVMType(source.chainID)
+    
+    if (vmType === VMType.SVM) {
+      // Do nothing for Solana chains
+      return []
+    }
+
     const client = await this.kernelAccountClientService.getClient(source.chainID)
     const lastRecordedTx = await this.getLastRecordedTx(source)
 
@@ -66,10 +73,6 @@ export class IntentFundedChainSyncService extends ChainSyncService {
 
     if (fromBlock && toBlock - fromBlock > IntentFundedChainSyncService.MAX_BLOCK_RANGE) {
       fromBlock = toBlock - IntentFundedChainSyncService.MAX_BLOCK_RANGE
-    }
-
-    if (typeof source.sourceAddress === 'string' && !source.sourceAddress.startsWith('0x')) {
-      throw new Error('Solana not supported yet')
     }
 
     const allIntentFundedLogs = await client.getContractEvents({

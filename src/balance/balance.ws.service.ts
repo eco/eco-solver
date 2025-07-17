@@ -20,7 +20,6 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
   private logger = new Logger(BalanceWebsocketService.name)
   private intentJobConfig: JobsOptions
   private unwatch: Record<string, WatchContractEventReturnType> = {}
-  private solanaSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi> | null = null
   private solanaAbortControllers: AbortController[] = []
 
   constructor(
@@ -101,22 +100,16 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
   private async subscribeSolanaTransfers(solver: any) {
     try {
       // Get the Solana chain config
-      const chainConfig = this.svmMultichainClientService.getChainConfig(solver.chainID)
-      console.log("SOLANA chainConfig", chainConfig);
-      if (!chainConfig?.websocketUrl) {
-        this.logger.warn(`No websocket URL configured for Solana chain ${solver.chainID}`)
-        return
-      }
 
       // Create websocket connection using solana/kit
-      this.solanaSubscriptions = createSolanaRpcSubscriptions(chainConfig.websocketUrl)
+      const solanaSubscriptions = await this.svmMultichainClientService.getRpcSubscriptions(solver.chainID);
       
       // Get the solver's wallet address
       const solverAddress = this.svmMultichainClientService.getAddress()
       
       // Subscribe to account notifications for the solver address to detect incoming transfers
       const abortController = new AbortController()
-      const notifications = await this.solanaSubscriptions
+      const notifications = await solanaSubscriptions
         .accountNotifications(solverAddress, { commitment: 'confirmed' })
         .subscribe({ abortSignal: abortController.signal })
       

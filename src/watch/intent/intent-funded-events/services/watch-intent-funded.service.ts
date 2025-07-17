@@ -14,6 +14,9 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
+import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { Address as SvmAddress, Rpc, SolanaRpcApi, RpcSubscriptions, SolanaRpcSubscriptionsApi } from '@solana/kit'
+import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 
 /**
  * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
@@ -28,6 +31,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     private readonly intentFundedEventRepository: IntentFundedEventRepository,
     protected readonly publicClientService: MultichainPublicClientService,
+    private readonly svmClientService: SvmMultichainClientService,
     private createIntentService: CreateIntentService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {
@@ -41,8 +45,16 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    */
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
-      const client = await this.publicClientService.getClient(source.chainID)
-      await this.subscribeTo(client, source)
+      const vmType = getVMType(source.chainID)
+      
+      if (vmType === VMType.EVM) {
+        const client = await this.publicClientService.getClient(source.chainID)
+        await this.subscribeTo(client, source)
+      } else if (vmType === VMType.SVM) {
+        await this.subscribeToSvm(source)
+      } else {
+        throw new Error(`Unsupported VM type for chain ${source.chainID}`)
+      }
     })
 
     await Promise.all(subscribeTasks)
@@ -58,7 +70,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   async subscribeTo(client: PublicClient, source: IntentSource) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `watch intent funded: subscribeToSource`,
+        message: `watch intent funded: subscribeToSource (EVM)`,
         properties: {
           source,
         },
@@ -80,6 +92,94 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         await this.addJob(source, { doValidation: true })(logs)
       },
     })
+  }
+
+  async subscribeToSvm(source: IntentSource) {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `watch intent funded: subscribeToSource (SVM)`,
+        properties: {
+          source,
+        },
+      }),
+    )
+
+    const rpc: RpcSubscriptions<SolanaRpcSubscriptionsApi> = await this.svmClientService.getRpcSubscriptions(source.chainID);
+    const abortController = new AbortController()
+    
+    // Use async iteration pattern for account notifications
+    this.trackAccountChanges(rpc, source, abortController.signal)
+
+    // Store unsubscribe function
+    this.unwatch[source.chainID] = () => {
+      abortController.abort()
+    }
+  }
+
+  private async trackAccountChanges(rpc: RpcSubscriptions<SolanaRpcSubscriptionsApi>, source: IntentSource, abortSignal: AbortSignal) {
+    try {
+      const accountNotifications = await rpc
+        .accountNotifications(source.sourceAddress as SvmAddress, { commitment: 'confirmed' })
+        .subscribe({ abortSignal })
+
+      for await (const notification of accountNotifications) {
+        try {
+          const { slot } = notification.context
+          const accountInfo = notification.value
+          
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `SVM account change detected`,
+              properties: {
+                slot,
+                chainID: source.chainID,
+                address: source.sourceAddress,
+              },
+            }),
+          )
+
+          console.log("SVM accountInfo", accountInfo);
+          console.log("SVM notification", notification);
+
+          // Create synthetic log for SVM events
+          const svmLog: Log = {
+            address: source.sourceAddress as `0x${string}`,
+            blockHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
+            blockNumber: BigInt(slot),
+            data: accountInfo ? '0x' + Buffer.from(accountInfo.data).toString('hex') as `0x${string}` : '0x',
+            logIndex: 0,
+            removed: false,
+            topics: ['0x' + Buffer.from('IntentFunded').toString('hex').padStart(64, '0') as `0x${string}`],
+            transactionHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
+            transactionIndex: 0,
+          }
+
+          await this.addJob(source, { doValidation: false })([svmLog])
+        } catch (error) {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: `SVM notification processing error`,
+              properties: {
+                error: error.message,
+                chainID: source.chainID,
+              },
+            }),
+          )
+        }
+      }
+    } catch (error) {
+      if (!abortSignal.aborted) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `SVM subscription error`,
+            properties: {
+              error: error.message,
+              chainID: source.chainID,
+            },
+          }),
+        )
+      }
+    }
   }
 
   private async isOurIntent(log: IntentFundedLog): Promise<boolean> {
@@ -115,13 +215,18 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           }
         }
 
-        log.sourceChainID = BigInt(source.chainID)
-        log.sourceNetwork = source.network
-
-        // bigint as it can't serialize to JSON
-        const intentFunded = log
+        // Convert log to IntentFundedLog format
+        const intentFunded = {
+          ...log,
+          sourceChainID: BigInt(source.chainID),
+          sourceNetwork: source.network,
+          args: log.args || {
+            intentHash: log.topics[1] || '0x0000000000000000000000000000000000000000000000000000000000000000',
+            // Add other args as needed based on the event structure
+          },
+        } as IntentFundedLog
+        
         const intentHash = intentFunded.args.intentHash
-
         const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 
         this.logger.debug(

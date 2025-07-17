@@ -4,7 +4,7 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentCreatedLog } from '../contracts'
-import { IntentSource } from '../eco-configs/eco-config.types'
+import { IntentSource, getVMType, VMType } from '../eco-configs/eco-config.types'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -56,6 +56,13 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    * @returns
    */
   async getMissingTxs(source: IntentSource): Promise<IntentCreatedLog[]> {
+    const vmType = getVMType(source.chainID)
+    
+    if (vmType === VMType.SVM) {
+      // Do nothing for Solana chains
+      return []
+    }
+
     const client = await this.kernelAccountClientService.getClient(source.chainID)
 
     const supportedChains = this.ecoConfigService.getSupportedChains()
@@ -69,12 +76,6 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
 
     if (fromBlock && toBlock - fromBlock > IntentCreatedChainSyncService.MAX_BLOCK_RANGE) {
       fromBlock = toBlock - IntentCreatedChainSyncService.MAX_BLOCK_RANGE
-    }
-
-
-    // Check if sourceAddress is an EVM address (starts with 0x)
-    if (typeof source.sourceAddress === 'string' && !source.sourceAddress.startsWith('0x')) {
-      throw new Error('Solana not supported yet')
     }
 
     const allCreateIntentLogs = await client.getContractEvents({

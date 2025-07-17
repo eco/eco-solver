@@ -58,9 +58,9 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
   if (id === '1399811150-pre') {
     return {
-      IntentSource: 'HVymGuzzmVHDZ7QaV2uPxMr97HF1kDNM1Nu8oaaeintK' as SvmAddress,
-      Inbox: 'HVymGuzzmVHDZ7QaV2uPxMr97HF1kDNM1Nu8oaaeintK' as SvmAddress,
-      HyperProver: 'DXJ2PctTfszENQHEmi8ngcHNd92TzMCDWqp6wAx3jQSg' as SvmAddress,
+      IntentSource: 'B8Z2Sv1zspyQbAa4VWGCbq88cyUfw5G1HKgsxQDM1uF7' as SvmAddress,
+      Inbox: 'B8Z2Sv1zspyQbAa4VWGCbq88cyUfw5G1HKgsxQDM1uF7' as SvmAddress,
+      HyperProver: '8bvpmgp9xbGngm9KmfX5poJer8dW4BJb7LaxuSmfCPZz' as SvmAddress,
       MetaProver: '0x0000000000000000000000000000000000000000'
     }
   }
