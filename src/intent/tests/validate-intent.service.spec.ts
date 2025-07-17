@@ -152,7 +152,7 @@ describe('ValidateIntentService', () => {
       validateIntentService['destructureIntent'] = jest
         .fn()
         .mockReturnValueOnce({ model: undefined, solver: undefined })
-      expect(await validateIntentService.validateIntent(intentHash)).toBe(false)
+      expect(await validateIntentService.validateIntent({ intentHash })).toBe(false)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `validateIntent ${intentHash}`,
@@ -166,7 +166,7 @@ describe('ValidateIntentService', () => {
         .fn()
         .mockReturnValueOnce({ model: {}, solver: {} })
       validateIntentService['assertValidations'] = jest.fn().mockReturnValueOnce(false)
-      expect(await validateIntentService.validateIntent(intentHash)).toBe(false)
+      expect(await validateIntentService.validateIntent({ intentHash })).toBe(false)
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
     })
 
@@ -183,21 +183,21 @@ describe('ValidateIntentService', () => {
       queue.add = mockAddQueue
       const jobId = 'validate-asdf-0'
       mockGetIntentJobId.mockReturnValueOnce(jobId)
-      expect(await validateIntentService.validateIntent(intentHash)).toBe(true)
+      expect(await validateIntentService.validateIntent({ intentHash })).toBe(true)
       expect(mockGetIntentJobId).toHaveBeenCalledTimes(1)
       expect(mockAddQueue).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledTimes(2)
       expect(mockGetIntentJobId).toHaveBeenCalledWith('validate', intentHash, model.intent.logIndex)
       expect(mockAddQueue).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.feasable_intent,
-        intentHash,
+        { intentHash },
         {
           jobId,
           ...validateIntentService['intentJobConfig'],
         },
       )
       expect(mockLogDebug).toHaveBeenLastCalledWith({
-        msg: `validateIntent ${intentHash}`,
+        msg: `addFeasibilityCheckJob ${intentHash}`,
         intentHash,
         jobId,
       })

@@ -150,12 +150,12 @@ export class EcoError extends Error {
   }
 
   // Solver Registration
-  static SolverRegistrationError = new EcoError()
+  static SolverRegistrationError = new EcoError(`Solver registration failed`)
 
   // Signature Validations
-  static TypedDataVerificationFailed = new EcoError()
-  static SignatureExpired = new EcoError()
-  static InvalidSignature = new EcoError()
+  static TypedDataVerificationFailed = new EcoError(`Typed data verification failed`)
+  static SignatureExpired = new EcoError(`Signature expired`)
+  static InvalidSignature = new EcoError(`Invalid signature provided`)
 
   // Quote Service
   static NegativeGasOverhead(gasOverhead: number) {
@@ -165,6 +165,12 @@ export class EcoError extends Error {
   static DefaultGasOverheadUndefined() {
     return new EcoError(`Default gas overhead is undefined`)
   }
+
+  // Negative Intents
+  static UnexpectedCallCount = new EcoError('Unexpected call count in intent route')
+  static CallDataIsNotTransfer = new EcoError('Call data is not a transfer')
+  static InvalidCallData = new EcoError('Call data too short to extract recipient')
+  static InvalidRecipientEncoding = new EcoError('Invalid recipient encoding in call data')
 
   // EcoConfig Service
 

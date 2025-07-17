@@ -15,6 +15,7 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
+import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -64,9 +65,14 @@ export class ValidateIntentService implements OnModuleInit {
   }
 
   /**
-   * @param intentHash the hash of the intent to fulfill
+   * Processes a job that validates an intent.
+   *
+   * @param data the data for the validation job
+   * @returns true if the intent was validated successfully, false otherwise
    */
-  async validateIntent(intentHash: Hex) {
+  async validateIntent(data: IntentProcessingJobData) {
+    const { intentHash } = data
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `validateIntent ${intentHash}`,
@@ -85,23 +91,28 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    const jobId = getIntentJobId('validate', intentHash, model.intent.logIndex)
+    await this.addFeasibilityCheckJob({ intentHash }, model.intent.logIndex)
+    return true
+  }
+
+  private async addFeasibilityCheckJob(data: IntentProcessingJobData, logIndex: number = 0) {
+    const { intentHash } = data
+    const jobId = getIntentJobId('validate', intentHash, logIndex)
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `validateIntent ${intentHash}`,
+        message: `addFeasibilityCheckJob ${intentHash}`,
         properties: {
           intentHash,
           jobId,
         },
       }),
     )
-    //add to processing queue
-    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
+
+    // Add to processing queue
+    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, data, {
       jobId,
       ...this.intentJobConfig,
     })
-
-    return true
   }
 
   /**

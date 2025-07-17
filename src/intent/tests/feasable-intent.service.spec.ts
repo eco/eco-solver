@@ -81,13 +81,13 @@ describe('FeasableIntentService', () => {
   describe('on feasableIntent', () => {
     it('should error out if processing intent data fails', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(undefined)
-      await expect(feasableIntentService.feasableIntent(intentHash)).resolves.not.toThrow()
+      await expect(feasableIntentService.feasableIntent({ intentHash })).resolves.not.toThrow()
 
       const error = new Error('noo')
       jest
         .spyOn(utilsIntentService, 'getIntentProcessData')
         .mockResolvedValue({ err: error } as any)
-      await expect(feasableIntentService.feasableIntent(intentHash)).rejects.toThrow(error)
+      await expect(feasableIntentService.feasableIntent({ intentHash })).rejects.toThrow(error)
     })
 
     it('should fail if intent has more than 1 target call', async () => {
@@ -107,7 +107,7 @@ describe('FeasableIntentService', () => {
       jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({
         error: QuoteError.MultiFulfillRoute(),
       } as any)
-      await feasableIntentService.feasableIntent(intentHash)
+      await feasableIntentService.feasableIntent({ intentHash })
       expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
         errData.model,
         QuoteError.MultiFulfillRoute(),
@@ -126,7 +126,7 @@ describe('FeasableIntentService', () => {
         .spyOn(feeService, 'isRouteFeasible')
         .mockResolvedValue({ error: QuoteError.MultiFulfillRoute() })
 
-      await feasableIntentService.feasableIntent(intentHash)
+      await feasableIntentService.feasableIntent({ intentHash })
 
       expect(utilsIntentService.updateInfeasableIntentModel).toHaveBeenCalledWith(
         mockData.model,
@@ -138,7 +138,7 @@ describe('FeasableIntentService', () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
       jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ calls: [] } as any)
 
-      await feasableIntentService.feasableIntent(intentHash)
+      await feasableIntentService.feasableIntent({ intentHash })
 
       expect(mockLogDebug).toHaveBeenCalledTimes(2)
       expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
@@ -146,10 +146,14 @@ describe('FeasableIntentService', () => {
         feasable: true,
         jobId,
       })
-      expect(queue.add).toHaveBeenCalledWith(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...feasableIntentService['intentJobConfig'],
-      })
+      expect(queue.add).toHaveBeenCalledWith(
+        QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
+        { intentHash },
+        {
+          jobId,
+          ...feasableIntentService['intentJobConfig'],
+        },
+      )
     })
   })
 })

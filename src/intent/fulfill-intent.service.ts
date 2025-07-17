@@ -8,6 +8,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { isNativeIntent } from './utils'
+import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -29,7 +30,8 @@ export class FulfillIntentService {
    * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
    * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
    */
-  async fulfill(intentHash: Hex): Promise<unknown> {
+  async fulfill(intentProcessingJobData: IntentProcessingJobData): Promise<unknown> {
+    const { intentHash } = intentProcessingJobData
     const data = await this.utilsIntentService.getIntentProcessData(intentHash)
     const { model, solver, err } = data ?? {}
 

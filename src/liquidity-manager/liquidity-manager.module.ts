@@ -15,12 +15,14 @@ import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { NegativeIntentsModule } from '@/negative-intents/negative-intents.module'
 
 @Module({
   imports: [
     BalanceModule,
     IntentModule,
     TransactionModule,
+    NegativeIntentsModule,
     LiquidityManagerQueue.init(),
     LiquidityManagerQueue.initFlow(),
 
@@ -38,6 +40,6 @@ import { SquidProviderService } from '@/liquidity-manager/services/liquidity-pro
     StargateProviderService,
     SquidProviderService,
   ],
-  exports: [LiquidityManagerService],
+  exports: [LiquidityManagerService, NegativeIntentsModule],
 })
 export class LiquidityManagerModule {}

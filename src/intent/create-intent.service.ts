@@ -107,10 +107,14 @@ export class CreateIntentService implements OnModuleInit {
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
       if (validWallet) {
         //add to processing queue
-        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intent.hash, {
-          jobId,
-          ...this.intentJobConfig,
-        })
+        await this.intentQueue.add(
+          QUEUES.SOURCE_INTENT.jobs.validate_intent,
+          { intentHash: intent.hash },
+          {
+            jobId,
+            ...this.intentJobConfig,
+          },
+        )
       }
 
       this.logger.log(

@@ -63,7 +63,7 @@ describe('FulfillIntentService', () => {
       const error = new Error('stuff went bad')
       utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ err: error })
 
-      await expect(() => fulfillIntentService.fulfill(hash)).rejects.toThrow(error)
+      await expect(() => fulfillIntentService.fulfill({ intentHash: hash })).rejects.toThrow(error)
     })
 
     describe('Wallet Fulfills', () => {
@@ -74,7 +74,7 @@ describe('FulfillIntentService', () => {
       })
 
       it('should fulfill using crowd liquidity if fulfill type is crowd-liquidity', async () => {
-        await fulfillIntentService.fulfill(hash)
+        await fulfillIntentService.fulfill({ intentHash: hash })
         expect(crowdLiquidityService.fulfill).toHaveBeenCalled()
       })
     })
@@ -85,7 +85,7 @@ describe('FulfillIntentService', () => {
       })
 
       it('should fulfill using smart wallet account if fulfill type is undefined', async () => {
-        await fulfillIntentService.fulfill(hash)
+        await fulfillIntentService.fulfill({ intentHash: hash })
         expect(walletFulfillService.fulfill).toHaveBeenCalled()
       })
     })
