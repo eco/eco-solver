@@ -79,8 +79,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       throw EcoError.CrowdLiquidityRewardNotEnough(intentModel.intent.hash)
     }
 
-    const isPoolSolver = await this.isPoolSolvent(intentModel)
-    if (!isPoolSolver) {
+    const isPoolSolvent = await this.isPoolSolvent(intentModel)
+    if (!isPoolSolvent) {
       throw EcoError.CrowdLiquidityPoolNotSolvent(intentModel.intent.hash)
     }
 
@@ -109,6 +109,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     )
 
     const { rewardHash, intentHash } = hashIntent(intent)
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Crowd liquidity: Pool data',
+        properties: { poolData, intentHash },
+      }),
+    )
 
     const { destination, messageData } = this.getProverData(intentModel.intent)
 

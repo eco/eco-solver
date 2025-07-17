@@ -1054,49 +1054,117 @@ export const stablePoolAbi = [
         internalType: 'address',
       },
       {
-        name: 'routeHash',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'reward',
+        name: 'intent',
         type: 'tuple',
-        internalType: 'struct Reward',
+        internalType: 'struct Intent',
         components: [
           {
-            name: 'creator',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'prover',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'deadline',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'nativeValue',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'tokens',
-            type: 'tuple[]',
-            internalType: 'struct TokenAmount[]',
+            name: 'route',
+            type: 'tuple',
+            internalType: 'struct Route',
             components: [
               {
-                name: 'token',
+                name: 'salt',
+                type: 'bytes32',
+                internalType: 'bytes32',
+              },
+              {
+                name: 'source',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'destination',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'inbox',
                 type: 'address',
                 internalType: 'address',
               },
               {
-                name: 'amount',
+                name: 'tokens',
+                type: 'tuple[]',
+                internalType: 'struct TokenAmount[]',
+                components: [
+                  {
+                    name: 'token',
+                    type: 'address',
+                    internalType: 'address',
+                  },
+                  {
+                    name: 'amount',
+                    type: 'uint256',
+                    internalType: 'uint256',
+                  },
+                ],
+              },
+              {
+                name: 'calls',
+                type: 'tuple[]',
+                internalType: 'struct Call[]',
+                components: [
+                  {
+                    name: 'target',
+                    type: 'address',
+                    internalType: 'address',
+                  },
+                  {
+                    name: 'data',
+                    type: 'bytes',
+                    internalType: 'bytes',
+                  },
+                  {
+                    name: 'value',
+                    type: 'uint256',
+                    internalType: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: 'reward',
+            type: 'tuple',
+            internalType: 'struct Reward',
+            components: [
+              {
+                name: 'creator',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'prover',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'deadline',
                 type: 'uint256',
                 internalType: 'uint256',
+              },
+              {
+                name: 'nativeValue',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'tokens',
+                type: 'tuple[]',
+                internalType: 'struct TokenAmount[]',
+                components: [
+                  {
+                    name: 'token',
+                    type: 'address',
+                    internalType: 'address',
+                  },
+                  {
+                    name: 'amount',
+                    type: 'uint256',
+                    internalType: 'uint256',
+                  },
+                ],
               },
             ],
           },
@@ -1849,6 +1917,17 @@ export const stablePoolAbi = [
   },
   {
     type: 'error',
+    name: 'InsufficientLiquidity',
+    inputs: [
+      {
+        name: 'message',
+        type: 'string',
+        internalType: 'string',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'InvalidInitialization',
     inputs: [],
   },
@@ -1870,6 +1949,11 @@ export const stablePoolAbi = [
   {
     type: 'error',
     name: 'NotAllowedOnSpokeChain',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'NotHubPool',
     inputs: [],
   },
   {
