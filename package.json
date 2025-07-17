@@ -45,7 +45,7 @@
     "@0xsquid/squid-types": "^0.1.163",
     "@aws-sdk/client-kms": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.592.0",
-    "@eco-foundation/chains": "1.0.40",
+    "@eco-foundation/chains": "1.0.41",
     "@eco-foundation/routes-ts": "^2.8.4",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
@@ -69,8 +69,8 @@
     "@web3-kms-signer/core": "1.0.6",
     "@web3-kms-signer/kms-provider-aws": "1.0.6",
     "@web3-kms-signer/kms-wallets": "1.0.6",
-    "@zerodev/ecdsa-validator": "^5.4.5",
-    "@zerodev/sdk": "^5.4.28",
+    "@zerodev/ecdsa-validator": "^5.4.9",
+    "@zerodev/sdk": "^5.4.40",
     "abitype": "^1.0.8",
     "asn1js": "^3.0.5",
     "axios": "0.21.4",
@@ -88,7 +88,7 @@
     "mongoose": "^8.9.5",
     "nest-commander": "^3.17.0",
     "nestjs-pino": "^4.1.0",
-    "permissionless": "^0.2.39",
+    "permissionless": "^0.2.49",
     "pino-http": "^10.2.0",
     "posthog-node": "^5.1.1",
     "redlock": "^5.0.0-beta.2",
@@ -96,7 +96,7 @@
     "rxjs": "^7.8.1",
     "table": "^6.8.2",
     "uuid": "^11.0.5",
-    "viem": "^2.25.0"
+    "viem": "^2.31.7"
   },
   "devDependencies": {
     "@golevelup/ts-jest": "^0.5.0",

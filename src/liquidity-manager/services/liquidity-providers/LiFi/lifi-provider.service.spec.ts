@@ -94,7 +94,7 @@ describe('LiFiProviderService', () => {
 
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
 
-      const rpcUrls = { '10': 'http://op.rpc.com' }
+      const rpcUrls = { '10': ['http://op.rpc.com'] }
       jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue(rpcUrls)
 
       await lifiProviderService.onModuleInit()
@@ -115,7 +115,7 @@ describe('LiFiProviderService', () => {
       mockGetClient.mockReturnValue({ account: { address: '0x123' } } as any)
 
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
-      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue({ '10': 'http://op.rpc.com' })
+      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue({ '10': ['http://op.rpc.com'] })
 
       // Mock cache initialization failure
       mockAssetCacheManager.initialize.mockRejectedValue(new Error('Cache init failed'))

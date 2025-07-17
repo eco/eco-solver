@@ -303,9 +303,9 @@ export class EcoConfigService {
   }
 
   // Returns the liquidity manager config
-  getChainRpcs(): Record<number, string> {
+  getChainRpcs(): Record<number, string[]> {
     const entries = ChainsSupported.map(
-      (chain) => [chain.id, this.getRpcUrl(chain).rpcUrl] as const,
+      (chain) => [chain.id, this.getRpcUrls(chain).rpcUrls] as const,
     )
     return Object.fromEntries(entries)
   }
@@ -320,7 +320,7 @@ export class EcoConfigService {
    * @param chain The chain object to get the RPC URL for
    * @returns The RPC URL string for the specified chain
    */
-  getRpcUrl(chain: Chain): { rpcUrl: string; config: TransportConfig } {
+  getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
     const rpcChain = this.ecoChains.getChain(chain.id)
@@ -329,25 +329,25 @@ export class EcoConfigService {
 
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    let rpc: string | undefined
+    let rpcs: string[] = []
     if (isWebSocketEnabled) {
-      rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
+      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
     } else {
-      rpc = custom?.http?.[0] || def?.http?.[0]
+      rpcs = [...(custom?.http || def?.http || [])]
     }
 
     const config: TransportConfig['config'] = customRpcUrls?.config
 
     if (customRpcUrls?.http) {
       isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
-      rpc = isWebSocketEnabled ? customRpcUrls.webSocket![0] : customRpcUrls.http[0]
+      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
     }
 
-    if (!rpc) {
+    if (!rpcs.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrl: rpc, config: { isWebsocket: isWebSocketEnabled, config } }
+    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
   }
 
   /**
