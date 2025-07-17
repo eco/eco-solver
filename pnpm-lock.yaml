@@ -21,8 +21,8 @@ importers:
         specifier: ^3.592.0
         version: 3.844.0
       '@eco-foundation/chains':
-        specifier: 1.0.40
-        version: 1.0.40(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+        specifier: 1.0.41
+        version: 1.0.41(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@eco-foundation/eco-kms-core':
         specifier: ^2.0.0
         version: 2.0.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -96,10 +96,10 @@ importers:
         specifier: ^4.1.7
         version: 4.3.2(jest-environment-node@29.7.0)(mongodb@6.17.0(socks@2.8.5))
       '@zerodev/ecdsa-validator':
-        specifier: ^5.4.5
+        specifier: ^5.4.9
         version: 5.4.9(@zerodev/sdk@5.4.40(viem@2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(viem@2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@zerodev/sdk':
-        specifier: ^5.4.28
+        specifier: ^5.4.40
         version: 5.4.40(viem@2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       abitype:
         specifier: ^1.0.8
@@ -153,7 +153,7 @@ importers:
         specifier: ^4.1.0
         version: 4.4.0(@nestjs/common@10.4.19(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(pino-http@10.5.0)(pino@9.7.0)(rxjs@7.8.2)
       permissionless:
-        specifier: ^0.2.39
+        specifier: ^0.2.49
         version: 0.2.49(viem@2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       pino-http:
         specifier: ^10.2.0
@@ -174,7 +174,7 @@ importers:
         specifier: ^11.0.5
         version: 11.1.0
       viem:
-        specifier: ^2.25.0
+        specifier: ^2.31.7
         version: 2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
     devDependencies:
       '@golevelup/ts-jest':
@@ -651,8 +651,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@eco-foundation/chains@1.0.40':
-    resolution: {integrity: sha512-PCXXLxPgTmmg608mcqoYFY0VTwlewsYjV5D/tCTs2XIbWhp7O4jYlzYdO/tHeK67qaWkzHXCRsEB4ZXWZczSAw==}
+  '@eco-foundation/chains@1.0.41':
+    resolution: {integrity: sha512-kjrJgBcG0bUgH86dmVjv2XkyoYRCTDNDB2iSsM9RSG69tpJsylMAG2gUrGHvhfOgDv1QFzLTNK7IW17frQp8Ew==}
 
   '@eco-foundation/eco-kms-core@2.0.0':
     resolution: {integrity: sha512-hCYeg6/pQsFz1StA96FX8uG40g8H5Jj/Z4Vb0Si4yXNYZ8DdqiOHa2JYv5F24Vipu3vkSBIPllkhNisE8R83jg==}
@@ -6417,7 +6417,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@eco-foundation/chains@1.0.40(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+  '@eco-foundation/chains@1.0.41(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       typia: 8.2.0(@samchon/openapi@3.3.0)(typescript@5.8.3)
       viem: 2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)

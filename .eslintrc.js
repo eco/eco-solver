@@ -12,7 +12,7 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js', '.pnpm-store/**', 'pnpm-lock.yaml'],
+  ignorePatterns: ['.eslintrc.js', '**/.pnpm-store/**', 'pnpm-lock.yaml'],
   rules: {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
