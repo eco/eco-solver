@@ -26,7 +26,7 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
   - [4. Docker Compose Services](#4-docker-compose-services)
   - [5. Running the Application](#5-running-the-application)
   - [6. Running Tests](#6-running-tests)
-- [Typical Yarn Scripts](#typical-yarn-scripts)
+- [Typical pnpm Scripts](#typical-pnpm-scripts)
 - [API Quick-Start](#api-quick-start)
 - [Contributing](#contributing)
 
@@ -35,7 +35,7 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
 ## Prerequisites
 
 - **Node.js** v20.19.0 (use [nvm](https://github.com/nvm-sh/nvm))
-- **Yarn** v1.22.22 (managed by Corepack)
+- **pnpm** v9.x (managed by Corepack)
 - **Docker** & **Docker Compose** v3.8+
 - AWS credentials (SSO or IAM) for Secrets Manager & KMS access
 
@@ -96,7 +96,6 @@ When setting up this repository for the first time, follow these steps to config
 
 3. **Test MCP Services**:
    The following services are configured in `.mcp.json`:
-
    - **mongodb-preprod**: Uses `env-cmd -e preprod` to load preprod MongoDB connection from `.env-cmdrc`
    - **mongodb-prod**: Uses `env-cmd -e prod` to load production MongoDB connection from `.env-cmdrc`
    - **github**: Uses Docker to run GitHub MCP server with your personal access token
@@ -105,7 +104,6 @@ When setting up this repository for the first time, follow these steps to config
 
 4. **Verify Connection Strings**:
    Connection strings are automatically loaded from:
-
    - `.env-cmdrc` (JSON format with preprod/prod environments)
    - `.env.preprod` and `.env.prod` (traditional .env format)
 
@@ -136,13 +134,13 @@ The MCP configuration is defined in `.mcp.json` at the project root.
 git clone <repository-url>
 cd eco-solver
 
-# Node & Yarn
+# Node & pnpm
 nvm install 20.19.0
 nvm use 20.19.0
 corepack enable
 
 # Install packages
-yarn install
+pnpm install
 ```
 
 ### 2. AWS Configuration
@@ -194,7 +192,7 @@ docker compose --profile app up --build   # --build to pick up local code change
 docker compose --profile all down
 ```
 
-Internally the `app` service mounts `./src` and `./config` as bind-volumes and runs `yarn start:dev`, so code changes are live-reloaded.
+Internally the `app` service mounts `./src` and `./config` as bind-volumes and runs `pnpm start:dev`, so code changes are live-reloaded.
 
 A few **environment variables** are forwarded into the container via `docker-compose.yml`:
 
@@ -209,28 +207,28 @@ Make sure you export `AWS_PROFILE` in your shell before launching compose so the
 ### 5. Running the Application
 
 ```bash
-yarn start:dev   # Hot-reload dev mode
-yarn start       # Compile & run once
+pnpm start:dev   # Hot-reload dev mode
+pnpm start       # Compile & run once
 ```
 
 ### 6. Running Tests
 
 ```bash
-yarn test        # all unit tests
-yarn test --watch
+pnpm test        # all unit tests
+pnpm test --watch
 ```
 
 ---
 
-## Typical Yarn Scripts
+## Typical pnpm Scripts
 
 | Script                           | Purpose                                                        |
 | -------------------------------- | -------------------------------------------------------------- |
-| `yarn build`                     | Compile TypeScript into `dist/`                                |
-| `yarn cli`                       | Invoke commander CLI utilities (balance check, transfer, etc.) |
-| `yarn lint` / `lint:fix`         | ESLint code quality                                            |
-| `yarn prettier` / `prettier:fix` | Code formatting                                                |
-| `yarn test:cov`                  | Unit-test coverage report                                      |
+| `pnpm build`                     | Compile TypeScript into `dist/`                                |
+| `pnpm cli`                       | Invoke commander CLI utilities (balance check, transfer, etc.) |
+| `pnpm lint` / `lint:fix`         | ESLint code quality                                            |
+| `pnpm prettier` / `prettier:fix` | Code formatting                                                |
+| `pnpm test:cov`                  | Unit-test coverage report                                      |
 
 ---
 

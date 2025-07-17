@@ -3,8 +3,11 @@
 /node_modules
 /build
 
-# Yarn
+# Package managers
 .yarn-offline-cache/
+.pnpm-store/
+.pnpm-debug.log*
+.pnpm-audit.log*
 
 # Logs
 logs
