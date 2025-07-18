@@ -8,6 +8,8 @@
 .pnpm-store/
 .pnpm-debug.log*
 .pnpm-audit.log*
+package-lock.json
+yarn.lock
 
 # Logs
 logs
