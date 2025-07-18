@@ -24,6 +24,7 @@ import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { EcoAnalyticsService } from '@/analytics'
 import * as viem from 'viem'
 
 jest.spyOn(viem, 'verifyTypedData').mockResolvedValue(true)
@@ -107,7 +108,13 @@ describe('IntentInitiationService', () => {
           useClass: quoteTestUtils.getMockWalletClientDefaultSignerService(),
         },
       ])
-      .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService])
+      .withMocks([
+        FeeService,
+        ValidationService,
+        SignerKmsService,
+        CreateIntentService,
+        EcoAnalyticsService,
+      ])
 
     service = await $.init()
     permitProcessor = $.get(PermitProcessor)

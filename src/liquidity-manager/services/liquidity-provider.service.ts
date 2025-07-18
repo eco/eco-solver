@@ -14,6 +14,8 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { v4 as uuidv4 } from 'uuid'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 
 @Injectable()
@@ -30,6 +32,7 @@ export class LiquidityProviderService {
     protected readonly relayProviderService: RelayProviderService,
     protected readonly stargateProviderService: StargateProviderService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
     protected readonly squidProviderService: SquidProviderService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
@@ -92,6 +95,20 @@ export class LiquidityProviderService {
 
         return quotesArray.length > 0 ? quotesArray : undefined
       } catch (error) {
+        this.ecoAnalytics.trackError(
+          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.STRATEGY_QUOTE_ERROR,
+          error,
+          {
+            walletAddress,
+            strategy,
+            tokenIn: this.formatToken(tokenIn),
+            tokenOut: this.formatToken(tokenOut),
+            swapAmount,
+            operation: 'strategy_quote',
+            service: this.constructor.name,
+          },
+        )
+
         this.logger.error(
           EcoLogMessage.withErrorAndId({
             message: 'Unable to get quote from strategy',

@@ -22,6 +22,7 @@
     "protocol"
   ],
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -91,6 +92,7 @@
     "nestjs-pino": "^4.1.0",
     "permissionless": "^0.2.49",
     "pino-http": "^10.2.0",
+    "posthog-node": "^5.1.1",
     "redlock": "^5.0.0-beta.2",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
