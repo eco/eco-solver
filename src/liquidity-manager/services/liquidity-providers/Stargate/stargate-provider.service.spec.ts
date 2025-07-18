@@ -234,10 +234,10 @@ describe('StargateProviderService', () => {
         strategy: 'Stargate',
       })
 
-      // Verify slippage calculation
+      // Verify slippage calculation - should be the same since both tokens have 6 decimals
       const expectedSlippage =
         1 - Number(mockStargateQuote.dstAmountMin) / Number(mockStargateQuote.srcAmount)
-      expect(quote.slippage).toEqual(expectedSlippage)
+      expect(quote.slippage).toBeCloseTo(expectedSlippage, 10)
 
       // Verify context is the Stargate quote
       expect(quote.context).toEqual(mockStargateQuote)

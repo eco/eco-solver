@@ -24,7 +24,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
-import { getSlippage } from '@/liquidity-manager/utils/math'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -158,7 +158,17 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const route = this.selectRoute(result.routes)
 
     // This assumes tokens are 1:1
-    const slippage = getSlippage(route.toAmountMin, route.fromAmount)
+    const dstTokenMin = {
+      address: tokenOut.config.address,
+      decimals: tokenOut.balance.decimals,
+      balance: BigInt(route.toAmountMin),
+    }
+    const srcToken = {
+      address: tokenIn.config.address,
+      decimals: tokenIn.balance.decimals,
+      balance: BigInt(route.fromAmount),
+    }
+    const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
     return {
       amountIn: BigInt(route.fromAmount),

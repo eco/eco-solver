@@ -7,7 +7,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
-import { getSlippage } from '@/liquidity-manager/utils/math'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
@@ -64,7 +64,17 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     try {
       const { route } = await this.squid.getRoute(params)
 
-      const slippage = getSlippage(route.estimate.toAmountMin, route.estimate.fromAmount)
+      const dstTokenMin = {
+        address: tokenOut.config.address,
+        decimals: tokenOut.balance.decimals,
+        balance: BigInt(route.estimate.toAmountMin),
+      }
+      const srcToken = {
+        address: tokenIn.config.address,
+        decimals: tokenIn.balance.decimals,
+        balance: BigInt(route.estimate.fromAmount),
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       const quote: RebalanceQuote<'Squid'> = {
         amountIn: BigInt(route.estimate.fromAmount),

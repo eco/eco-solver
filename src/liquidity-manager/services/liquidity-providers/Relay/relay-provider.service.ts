@@ -11,6 +11,7 @@ import { ChainsSupported } from '@/common/chains/supported'
 import { adaptKernelWallet } from './wallet-adapter'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { SmartAccount } from 'viem/account-abstraction'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -85,7 +86,17 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         throw EcoError.RebalancingRouteNotFound()
       }
 
-      const slippage = 1 - Number(amountOut) / Number(amountIn)
+      const dstTokenMin = {
+        address: tokenOut.config.address,
+        decimals: tokenOut.balance.decimals,
+        balance: BigInt(amountOut),
+      }
+      const srcToken = {
+        address: tokenIn.config.address,
+        decimals: tokenIn.balance.decimals,
+        balance: BigInt(amountIn),
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       return {
         slippage,

@@ -8,6 +8,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
@@ -104,7 +105,17 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       // Select the best route (first one is usually the best)
       const route = this.selectRoute(routesData.routes)
 
-      const slippage = 1 - Number(route.dstAmountMin) / Number(route.srcAmount)
+      const dstTokenMin = {
+        address: tokenOut.config.address,
+        decimals: tokenOut.balance.decimals,
+        balance: BigInt(route.dstAmountMin),
+      }
+      const srcToken = {
+        address: tokenIn.config.address,
+        decimals: tokenIn.balance.decimals,
+        balance: BigInt(route.srcAmount),
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       return {
         amountIn: BigInt(route.srcAmount),

@@ -1,4 +1,5 @@
-import { getTotalSlippage, getSlippage } from './math'
+import { getTotalSlippage, getSlippagePercent } from './math'
+import { TokenBalance } from '@/balance/types'
 
 describe('math utils', () => {
   describe('getTotalSlippage', () => {
@@ -60,49 +61,135 @@ describe('math utils', () => {
     })
   })
 
-  describe('getSlippage', () => {
+  describe('getSlippagePercent', () => {
     it('should return 0 when fromAmount is 0', () => {
-      const slippage = getSlippage('100', '0')
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 100n,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 0n,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(0)
     })
 
     it('should calculate slippage correctly for standard numbers', () => {
       // (1000 - 995) / 1000 = 0.005
-      const slippage = getSlippage('995', '1000')
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 995n,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 1000n,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(0.005)
     })
 
     it('should return 0 when toAmountMin equals fromAmount', () => {
-      const slippage = getSlippage('1000', '1000')
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 1000n,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 1000n,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(0)
     })
 
     it('should handle large numbers without loss of precision', () => {
-      const fromAmount = '100000000000000000000' // 100 ETH in wei
-      const toAmountMin = '99500000000000000000' // 99.5 ETH in wei
-      const slippage = getSlippage(toAmountMin, fromAmount)
+      const fromAmount = 100000000000000000000n // 100 ETH in wei
+      const toAmountMin = 99500000000000000000n // 99.5 ETH in wei
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: toAmountMin,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: fromAmount,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(0.005)
     })
 
     it('should handle very large numbers that would overflow standard Number', () => {
-      const fromAmount = '90071992547409930000' // Larger than MAX_SAFE_INTEGER
-      const toAmountMin = '90062985348155189007' // Represents a 0.01% slippage
-      const slippage = getSlippage(toAmountMin, fromAmount)
+      const fromAmount = 90071992547409930000n // Larger than MAX_SAFE_INTEGER
+      const toAmountMin = 90062985348155189007n // Represents a 0.01% slippage
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: toAmountMin,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: fromAmount,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       // Using toBeCloseTo for floating point comparison
       expect(slippage).toBeCloseTo(0.0001)
     })
 
     it('should calculate slippage with several decimal places correctly', () => {
       // (100000 - 99370) / 100000 = 0.0063
-      const fromAmount = '100000'
-      const toAmountMin = '99370'
-      const slippage = getSlippage(toAmountMin, fromAmount)
+      const fromAmount = 100000n
+      const toAmountMin = 99370n
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: toAmountMin,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: fromAmount,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(0.0063)
     })
 
     it('should return 1 for 100% slippage if toAmountMin is 0', () => {
-      const slippage = getSlippage('0', '1000')
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 0n,
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18,
+        balance: 1000n,
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(1)
+    })
+
+    it('should handle different token decimals correctly', () => {
+      // Test with different decimals for src and dst tokens
+      const dstTokenMin: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 6, // USDC-like (6 decimals)
+        balance: 995000000n, // 995 USDC
+      }
+      const srcToken: TokenBalance = {
+        address: '0x1234567890123456789012345678901234567890',
+        decimals: 18, // ETH-like (18 decimals)
+        balance: 1000000000000000000000n, // 1000 ETH
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
+      expect(slippage).toBe(0.005) // Still 0.5% slippage after normalization
     })
   })
 })
