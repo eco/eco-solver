@@ -56,23 +56,31 @@ export interface RhinestoneBundleMessage extends BaseRhinestoneMessage {
   }[]
 }
 
+export type ChainCall = {
+  chainId: number
+  data: Hex
+  to: Address
+  value: string
+}
+
+export type ChainAction = {
+  id: number
+  settlementLayer: string
+  call: ChainCall
+}
+
+export type FillAction = ChainAction
+
+export type ClaimAction = ChainAction & {
+  beforeFill: boolean
+}
+
 export interface RhinestoneRelayerActionV1 extends BaseRhinestoneMessage {
   type: RhinestoneMessageType.RelayerActionV1
   id: string
   timestamp: number
-  fill: {
-    id: number
-    settlementLayer: string
-    call: ChainExecution
-    tokens: []
-  }
-  claims: {
-    id: number
-    settlementLayer: string
-    call: ChainExecution
-    tokens: []
-    beforeFill: false
-  }[]
+  fill: FillAction
+  claims: ClaimAction[]
 }
 
 export type RhinestoneMessage =
