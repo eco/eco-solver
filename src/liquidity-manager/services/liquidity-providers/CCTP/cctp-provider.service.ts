@@ -7,7 +7,6 @@ import {
   keccak256,
   pad,
   parseEventLogs,
-  parseUnits,
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'
@@ -26,6 +25,7 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { normalizeBalanceToBase } from '@/fee/utils'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -51,10 +51,20 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return 'CCTP' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the CCTP strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single CCTP rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'CCTP'>> {
     if (
@@ -64,12 +74,18 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       throw new Error('Unsupported route')
     }
 
-    const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
-    const amountOut = parseUnits(swapAmount.toString(), tokenOut.balance.decimals)
+    const amountIn = normalizeBalanceToBase({
+      balance: swapAmountBased,
+      decimal: tokenIn.balance.decimals,
+    })
+    const amountOut = normalizeBalanceToBase({
+      balance: swapAmountBased,
+      decimal: tokenOut.balance.decimals,
+    })
 
     return {
-      amountIn: amountIn,
-      amountOut: amountOut,
+      amountIn: amountIn.balance,
+      amountOut: amountOut.balance,
       slippage: 0,
       tokenIn: tokenIn,
       tokenOut: tokenOut,

@@ -13,7 +13,12 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { isEmptyData } from '../common/viem/utils'
 
 // The default number of decimals for native tokens that we enfores for now
-const DEFAULT_NATIVE_DECIMALS = 18
+export const DEFAULT_NATIVE_DECIMALS = 18
+/**
+ * The base decimal number for erc20 tokens.
+ */
+export const BASE_DECIMALS: number = 18
+
 const ETH_SYMBOL = 'ETH'
 
 /**

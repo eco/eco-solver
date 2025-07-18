@@ -1,4 +1,8 @@
+import { BASE_DECIMALS } from '@/intent/utils'
+
+export { BASE_DECIMALS }
 import { NormalizedTotal } from './types'
+import { TokenDataAnalyzed } from '@/liquidity-manager/types/types'
 
 type BalanceObject = {
   balance: bigint
@@ -22,6 +26,29 @@ export function normalizeBalance(value: BalanceObject, targetDecimal: number): B
   }
 
   return { balance: newBalance, decimal: targetDecimal }
+}
+
+/**
+ * Normalizes the balance to the base decimal.
+ * @param value the balance object to normalize
+ * @returns
+ */
+export function normalizeBalanceToBase(value: BalanceObject): BalanceObject {
+  return normalizeBalance(value, BASE_DECIMALS)
+}
+
+/**
+ * @description This function normalizes the analysis diff to the base decimal.
+ * @param tokenAnalized the token data that has been analyzed
+ * @returns
+ */
+export function normalizeAnalysisDiffToBase(tokenAnalized: TokenDataAnalyzed): bigint {
+  const normalizedDiff = normalizeBalanceToBase({
+    balance: tokenAnalized.analysis.diff,
+    decimal: tokenAnalized.balance.decimals,
+  })
+
+  return normalizedDiff.balance
 }
 
 /**

@@ -3,6 +3,7 @@ import { getQueueToken, getFlowProducerToken } from '@nestjs/bullmq'
 import { getModelToken } from '@nestjs/mongoose'
 import { Logger } from '@nestjs/common'
 import { parseUnits } from 'viem'
+import { normalizeBalanceToBase } from '@/fee/utils'
 import { FlowProducer, Queue } from 'bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import * as LiFi from '@lifi/sdk'
@@ -106,29 +107,29 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT on Ethereum
       chainId: 1,
-      targetBalance: 1000,
-      minBalance: 800,
+      targetBalance: 1000n,
+      minBalance: 800n,
       type: 'erc20' as const,
     },
     {
       address: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', // USDT on Optimism
       chainId: 10,
-      targetBalance: 1000,
-      minBalance: 800,
+      targetBalance: 1000n,
+      minBalance: 800n,
       type: 'erc20' as const,
     },
     {
       address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Ethereum
       chainId: 1,
-      targetBalance: 1000,
-      minBalance: 800,
+      targetBalance: 1000n,
+      minBalance: 800n,
       type: 'erc20' as const,
     },
     {
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', // USDC on Optimism
       chainId: 10,
-      targetBalance: 1000,
-      minBalance: 800,
+      targetBalance: 1000n,
+      minBalance: 800n,
       type: 'erc20' as const,
     },
   ]
@@ -367,8 +368,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             config: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               chainId: 1,
-              minBalance: 0,
-              targetBalance: 0,
+              minBalance: 0n,
+              targetBalance: 0n,
               type: 'erc20' as const,
             },
             balance: {
@@ -389,8 +390,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             config: {
               address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
               chainId: 10,
-              minBalance: 0,
-              targetBalance: 0,
+              minBalance: 0n,
+              targetBalance: 0n,
               type: 'erc20' as const,
             },
             balance: {
@@ -427,7 +428,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       // Step 4: Get rebalancing quotes - this simulates what the cron job does
       // Mock the liquidityProviderService to return our expected quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('350', 6),
           amountOut: parseUnits('347', 6),
@@ -570,7 +571,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock the liquidityProviderService to return our expected quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('300', 6),
           amountOut: parseUnits('298', 6),
@@ -663,7 +664,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock the liquidityProviderService to return our expected quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('300', 6),
           amountOut: parseUnits('298', 6),
@@ -736,7 +737,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       balanceService.getAllTokenDataForAddress.mockResolvedValue(mockTokenData)
 
       // Mock other providers to return empty quotes
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([])
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([])
 
       // Analyze and get quotes
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
@@ -842,8 +843,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             config: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               chainId: 1,
-              minBalance: 0,
-              targetBalance: 0,
+              minBalance: 0n,
+              targetBalance: 0n,
               type: 'erc20' as const,
             },
             balance: {
@@ -864,8 +865,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
             config: {
               address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
               chainId: 10,
-              minBalance: 0,
-              targetBalance: 0,
+              minBalance: 0n,
+              targetBalance: 0n,
               type: 'erc20' as const,
             },
             balance: {
@@ -901,7 +902,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock liquidityProviderService to return the high-slippage CCTPLiFi quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('200', 6),
           amountOut: parseUnits('180', 6),
@@ -1001,9 +1002,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       jest
         .spyOn(cctpLiFiProvider, 'getQuote')
         .mockImplementation(async (tokenIn, tokenOut, swapAmount) => {
+          // swapAmount is now a bigint (already normalized)
+          const amountNumber = Number(swapAmount) / 1e18 // Convert from 18 decimal bigint to number
           return {
-            amountIn: parseUnits(swapAmount.toString(), 6),
-            amountOut: parseUnits((swapAmount * 0.99).toString(), 6), // 1% slippage
+            amountIn: swapAmount,
+            amountOut: BigInt(Math.floor(amountNumber * 0.99 * 1e18)), // 1% slippage
             slippage: 0.01,
             tokenIn,
             tokenOut,
@@ -1012,7 +1015,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
               cctpTransfer: {
                 sourceChain: tokenIn.chainId,
                 destinationChain: tokenOut.chainId,
-                amount: parseUnits(swapAmount.toString(), 6),
+                amount: swapAmount,
               },
               steps: ['cctpBridge'],
               id: '1',
@@ -1026,14 +1029,32 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       // Should have 2 deficit items
       expect(analysis.deficit.items).toHaveLength(2)
 
-      // Mock the liquidityProviderService to return quotes with properly structured data
+      // Mock the liquidityProviderService to return quotes only for compatible token pairs
       jest
-        .spyOn(liquidityProviderService, 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockImplementation(async (walletAddress, tokenIn, tokenOut, swapAmount) => {
+          // Only return quotes for compatible token pairs (same token type, different chains)
+          const isCompatiblePair =
+            tokenIn.chainId !== tokenOut.chainId &&
+            ((tokenIn.config.address === '0xdAC17F958D2ee523a2206206994597C13D831ec7' && // USDT Ethereum
+              tokenOut.config.address === '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58') || // USDT Optimism
+              (tokenIn.config.address === '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' && // USDT Optimism
+                tokenOut.config.address === '0xdAC17F958D2ee523a2206206994597C13D831ec7') || // USDT Ethereum
+              (tokenIn.config.address === '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' && // USDC Optimism
+                tokenOut.config.address === '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48') || // USDC Ethereum
+              (tokenIn.config.address === '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' && // USDC Ethereum
+                tokenOut.config.address === '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85')) // USDC Optimism
+
+          if (!isCompatiblePair) {
+            return [] // Return empty array for incompatible pairs
+          }
+
+          // swapAmount is now a bigint (already normalized)
+          const amountNumber = Number(swapAmount) / 1e18 // Convert from 18 decimal bigint to number
           return [
             {
-              amountIn: parseUnits(swapAmount.toString(), 6),
-              amountOut: parseUnits((swapAmount * 0.99).toString(), 6), // 1% slippage
+              amountIn: swapAmount,
+              amountOut: BigInt(Math.floor(amountNumber * 0.99 * 1e18)), // 1% slippage
               slippage: 0.01,
               tokenIn,
               tokenOut,
@@ -1042,7 +1063,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
                 cctpTransfer: {
                   sourceChain: tokenIn.chainId,
                   destinationChain: tokenOut.chainId,
-                  amount: parseUnits(swapAmount.toString(), 6),
+                  amount: swapAmount,
                 },
                 steps: ['cctpBridge'],
                 id: '1',
@@ -1064,10 +1085,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         }
       }
 
-      // Should have quotes for both deficits
+      // Should have quotes for both deficits since both have compatible surplus tokens
       expect(rebalances).toHaveLength(2)
 
-      // Verify both would be stored
+      // Verify rebalancing would be stored
       for (const rebalance of rebalances) {
         await liquidityManagerService.storeRebalancing(walletAddress, rebalance)
       }
@@ -1110,7 +1131,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         .mockRejectedValue(new Error('Cannot create CCTP-LiFi quote due to LiFi API failure'))
 
       // Mock liquidityProviderService to return empty quotes when all providers fail
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([])
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([])
 
       const analysis = await liquidityManagerService.analyzeTokens(walletAddress)
       const quotes = await liquidityManagerService.getOptimizedRebalancing(
@@ -1123,12 +1144,12 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       expect(quotes).toHaveLength(0)
 
       // Verify that the liquidity provider service was called
-      expect(liquidityProviderService.getQuote).toHaveBeenCalled()
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledWith(
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalled()
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalledWith(
         walletAddress,
         analysis.surplus.items[0],
         analysis.deficit.items[0],
-        expect.any(Number),
+        expect.any(BigInt),
       )
     })
 
@@ -1212,7 +1233,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       })
 
       // Mock liquidityProviderService to return the CCTP-LiFi quote
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: parseUnits('200', 6),
           amountOut: parseUnits('198', 6),
@@ -1269,8 +1290,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       const unsupportedTokenConfig: TokenConfig = {
         address: '0xunsupported',
         chainId: 999, // Unsupported chain
-        targetBalance: 1000,
-        minBalance: 800,
+        targetBalance: 1000n,
+        minBalance: 800n,
         type: 'erc20' as const,
       }
 
@@ -1311,13 +1332,21 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         .spyOn(cctpLiFiProvider, 'getQuote')
         .mockRejectedValue(new Error('CCTP not supported on chain 999'))
 
-      // Mock the liquidityProviderManager to simulate real behavior - call provider and handle error
+      // Mock the liquidityProviderService to simulate real behavior - call provider and handle error
       jest
-        .spyOn(liquidityManagerService['liquidityProviderManager'], 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockImplementation(async (walletAddress, tokenIn, tokenOut, swapAmount) => {
           try {
             // Attempt to call the CCTP-LiFi provider (which will throw)
-            const quote = await cctpLiFiProvider.getQuote(tokenIn, tokenOut, swapAmount)
+            const normalizedAmount = normalizeBalanceToBase({
+              balance: swapAmount,
+              decimal: tokenIn.balance.decimals,
+            })
+            const quote = await cctpLiFiProvider.getQuote(
+              tokenIn,
+              tokenOut,
+              normalizedAmount.balance,
+            )
             return [quote]
           } catch (error) {
             // When provider fails, return empty array (simulating real service behavior)
@@ -1339,11 +1368,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       expect(cctpLiFiProvider.getQuote).toHaveBeenCalledWith(
         analysis.surplus.items[0], // Token on unsupported chain
         analysis.deficit.items[0], // Token on supported chain
-        expect.any(Number),
+        expect.any(BigInt),
       )
 
       // Verify the liquidity provider service was called
-      expect(liquidityManagerService['liquidityProviderManager'].getQuote).toHaveBeenCalled()
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalled()
     })
 
     it('should validate sufficient balance before execution', async () => {
