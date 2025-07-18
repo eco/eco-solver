@@ -2,8 +2,6 @@ const mockGetAddress = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { KMSWallets } from '@web3-kms-signer/kms-wallets'
-import { Signer } from '@web3-kms-signer/core'
 import { Logger } from '@nestjs/common'
 import { KmsService } from '@/kms/kms.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'

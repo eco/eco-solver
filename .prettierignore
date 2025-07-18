@@ -2,5 +2,7 @@ node_modules
 .github
 dist
 pnpm-lock.yaml
-yarn.lock
 package-lock.json
+.pnpm-store
+.pnpm-debug.log*
+.pnpm-audit.log*
