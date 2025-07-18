@@ -1,3 +1,5 @@
+import { DEFAULT_NATIVE_DECIMALS } from '@/intent/utils'
+
 //Defaults to 6.(0.000001)
 export const DEFAULT_DECIMAL_PRECISION = 6
 
@@ -18,8 +20,8 @@ export function multiplyByPercentage(
     throw new Error('Percentage must be non-negative')
   }
 
-  if (decimalPrecision > 12 || decimalPrecision <= 0) {
-    throw new Error('Decimal precision cannot be greater than 12')
+  if (decimalPrecision > DEFAULT_NATIVE_DECIMALS || decimalPrecision <= 0) {
+    throw new Error(`Decimal precision cannot be greater than ${DEFAULT_NATIVE_DECIMALS}`)
   }
 
   // Check for potential overflow (conservative estimate)

@@ -22,6 +22,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
+import { getSlippage } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -145,7 +146,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const route = this.selectRoute(result.routes)
 
     // This assumes tokens are 1:1
-    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.fromAmount)
+    const slippage = getSlippage(route.toAmountMin, route.fromAmount)
 
     return {
       amountIn: BigInt(route.fromAmount),

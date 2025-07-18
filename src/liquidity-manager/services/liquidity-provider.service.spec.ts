@@ -10,6 +10,7 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import * as uuid from 'uuid' // import as a namespace so we can spyOn later
+import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -22,6 +23,7 @@ describe('LiquidityProviderService', () => {
   let warpRouteProviderService: WarpRouteProviderService
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
+  let squidProviderService: SquidProviderService
 
   beforeAll(() => {
     jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
@@ -44,6 +46,7 @@ describe('LiquidityProviderService', () => {
           },
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
+        { provide: SquidProviderService, useValue: createMock<SquidProviderService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
       ],
     }).compile()
@@ -57,13 +60,14 @@ describe('LiquidityProviderService', () => {
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     cctpLiFiProviderService = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
+    squidProviderService = module.get<SquidProviderService>(SquidProviderService)
 
     // Set up the mock for getLiquidityManager after getting the service
     const liquidityManagerConfigMock = {
       maxQuoteSlippage: 0.005,
       walletStrategies: {
         'crowd-liquidity-pool': ['CCTP'],
-        'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
+        'eco-wallet': ['LiFi', 'WarpRoute'],
       },
     }
     jest
@@ -102,6 +106,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(stargateProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getLiquidityQuotes(
         walletAddr,
@@ -119,33 +124,37 @@ describe('LiquidityProviderService', () => {
       expect(result).toEqual(mockQuote)
     })
 
-    it('should filter out quotes exceeding maximum slippage', async () => {
+    it('should select the quote batch with the highest final output amount', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
       const mockSwapAmount = 100n
-      const mockQuotes = [
+
+      const liFiQuotes = [
         {
           amountIn: 100n,
-          amountOut: 200n,
+          amountOut: 190n,
           tokenIn: mockTokenIn,
           tokenOut: mockTokenOut,
-          slippage: 0.006, // 0.6% slippage - exceeds 0.5% limit
-          strategy: 'LiFi',
-          id: '1',
-        },
-        {
-          amountIn: 100n,
-          amountOut: 195n,
-          tokenIn: mockTokenIn,
-          tokenOut: mockTokenOut,
-          slippage: 0.003, // 0.3% slippage - within limit
+          slippage: 0.002,
           strategy: 'LiFi',
           id: '1',
         },
       ]
 
-      jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(mockQuotes as any)
-      jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue([])
+      const warpRouteQuotes = [
+        {
+          amountIn: 100n,
+          amountOut: 200n,
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+          slippage: 0.001,
+          strategy: 'WarpRoute',
+          id: '1',
+        },
+      ]
+
+      jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(liFiQuotes as any)
+      jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(warpRouteQuotes as any)
 
       const result = await liquidityProviderService.getLiquidityQuotes(
         walletAddr,
@@ -154,27 +163,16 @@ describe('LiquidityProviderService', () => {
         mockSwapAmount,
       )
 
-      expect(result).toHaveLength(1)
-      expect(result[0].slippage).toBe(0.003)
+      expect(result).toEqual(warpRouteQuotes)
     })
 
-    it('should throw error if all quotes exceed maximum slippage', async () => {
+    it('should throw error if no valid quotes are returned from any strategy', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
       const mockSwapAmount = 100n
-      const mockQuotes = [
-        {
-          amountIn: 100n,
-          amountOut: 200n,
-          tokenIn: mockTokenIn,
-          tokenOut: mockTokenOut,
-          slippage: 0.006, // 0.6% slippage - exceeds limit
-          strategy: 'LiFi',
-        },
-      ]
 
-      jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(mockQuotes as any)
-      jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue([])
+      jest.spyOn(liFiProviderService, 'getQuote').mockRejectedValue(new Error('No route'))
+      jest.spyOn(warpRouteProviderService, 'getQuote').mockRejectedValue(new Error('No route'))
 
       await expect(
         liquidityProviderService.getLiquidityQuotes(
@@ -184,6 +182,47 @@ describe('LiquidityProviderService', () => {
           mockSwapAmount,
         ),
       ).rejects.toThrow('Unable to get quote for route')
+    })
+
+    it('should correctly handle multi-step quotes with compound slippage', async () => {
+      const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
+      const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
+      const mockSwapAmount = 100n
+
+      // Multi-step quote with compound slippage just under the limit
+      const multiStepQuotes = [
+        {
+          amountIn: 100n,
+          amountOut: 99n,
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+          slippage: 0.0025, // 0.25% slippage
+          strategy: 'WarpRoute',
+          id: '1',
+        },
+        {
+          amountIn: 99n,
+          amountOut: 98n,
+          tokenIn: mockTokenIn,
+          tokenOut: mockTokenOut,
+          slippage: 0.0025, // 0.25% slippage
+          strategy: 'WarpRoute',
+          id: '1',
+        },
+      ]
+      // Total slippage: 1 - (0.9975 * 0.9975) = 0.00499375 < 0.005
+
+      jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue([] as any)
+      jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(multiStepQuotes as any)
+
+      const result = await liquidityProviderService.getLiquidityQuotes(
+        walletAddr,
+        mockTokenIn as any,
+        mockTokenOut as any,
+        mockSwapAmount,
+      )
+
+      expect(result).toEqual(multiStepQuotes)
     })
   })
 

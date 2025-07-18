@@ -153,6 +153,15 @@ export class EcoError extends Error {
   static SignatureExpired = new EcoError()
   static InvalidSignature = new EcoError()
 
+  // Quote Service
+  static NegativeGasOverhead(gasOverhead: number) {
+    return new EcoError(`Gas overhead is negative: ${gasOverhead}`)
+  }
+
+  static DefaultGasOverheadUndefined() {
+    return new EcoError(`Default gas overhead is undefined`)
+  }
+
   // EcoConfig Service
 
   static isEcoError(error: any): boolean {

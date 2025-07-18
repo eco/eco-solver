@@ -24,7 +24,7 @@ export function analyzeToken(
   const { decimals } = tokenBalance
   const config = toTokenBalance(tokenConfig, decimals)
   // Calculate the maximum and minimum acceptable balances
-  const { min: minimum, max: maximum } = getRangeFromPercentage(config.balance, percentage)
+  const { min: minimum, max: maximum } = getRangeFromPercentage(config, percentage)
 
   // Create a balance analysis object
   const balance: TokenBalanceAnalysis = {
@@ -38,7 +38,7 @@ export function analyzeToken(
   const state = getTokenState(balance)
   // Calculate the difference between the current balance and the target balance
   const diff = getTokenBalanceDiff(balance)
-  const targetSlippage = getRangeFromPercentage(config.balance, percentage)
+  const targetSlippage = getRangeFromPercentage(config, percentage)
 
   return { balance, diff, state, targetSlippage }
 }

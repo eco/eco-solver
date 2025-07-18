@@ -14,6 +14,7 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { v4 as uuidv4 } from 'uuid'
+import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -29,6 +30,7 @@ export class LiquidityProviderService {
     protected readonly relayProviderService: RelayProviderService,
     protected readonly stargateProviderService: StargateProviderService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
+    protected readonly squidProviderService: SquidProviderService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
@@ -41,54 +43,62 @@ export class LiquidityProviderService {
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
+    const quoteId = uuidv4()
+
+    this.logger.log(
+      EcoLogMessage.withId({
+        message: 'Getting quote',
+        properties: { walletAddress, tokenIn, tokenOut, swapAmountBased },
+        id: quoteId,
+      }),
+    )
 
     // Iterate over strategies and return the first quote
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         // go through each strategy and get make sure swapAmountBased is done correct
         const service = this.getStrategyService(strategy)
-        const id = uuidv4()
-        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmountBased, id)
+        this.logger.log(
+          EcoLogMessage.withId({
+            message: 'Getting quote for strategy',
+            properties: { strategy, tokenIn, tokenOut, swapAmountBased },
+            id: quoteId,
+          }),
+        )
+        const quotes = await service.getQuote(tokenIn, tokenOut, swapAmountBased, quoteId)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
 
-        // Helper function to check if a quote is valid
-        const isQuoteValid = (quote: RebalanceQuote): boolean => quote.slippage <= maxQuoteSlippage
-
-        // Filter out quotes that exceed maximum slippage
-        const validQuotes = quotesArray.filter(isQuoteValid)
-        const rejectedQuotes = quotesArray.filter((quote) => !isQuoteValid(quote))
-
-        // Log rejected quotes
-        rejectedQuotes.forEach((quote) => {
+        const totalSlippage = getTotalSlippage(_.map(quotesArray, 'slippage'))
+        if (totalSlippage > maxQuoteSlippage) {
           this.logger.warn(
-            EcoLogMessage.fromDefault({
+            EcoLogMessage.withId({
               message: 'Quote rejected due to excessive slippage',
               properties: {
                 strategy,
-                slippage: quote.slippage,
                 maxQuoteSlippage,
                 tokenIn: this.formatToken(tokenIn),
                 tokenOut: this.formatToken(tokenOut),
-                amountIn: quote.amountIn.toString(),
-                amountOut: quote.amountOut.toString(),
+                quotes: quotesArray.map((quote) => ({
+                  slippage: quote.slippage,
+                  amountIn: quote.amountIn.toString(),
+                  amountOut: quote.amountOut.toString(),
+                })),
               },
+              id: quoteId,
             }),
           )
-        })
 
-        return validQuotes.length > 0 ? validQuotes : undefined
+          return undefined
+        }
+
+        return quotesArray.length > 0 ? quotesArray : undefined
       } catch (error) {
         this.logger.error(
-          EcoLogMessage.withError({
+          EcoLogMessage.withErrorAndId({
             message: 'Unable to get quote from strategy',
             error,
-            properties: {
-              walletAddress,
-              strategy,
-              tokenIn,
-              tokenOut,
-              swapAmountBased: swapAmountBased,
-            },
+            properties: { walletAddress, strategy, tokenIn, tokenOut, swapAmountBased },
+            id: quoteId,
           }),
         )
       }
@@ -115,7 +125,7 @@ export class LiquidityProviderService {
     }
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'Quotes for route',
         properties: {
           walletAddress,
@@ -133,6 +143,15 @@ export class LiquidityProviderService {
             }
           }),
         },
+        id: quoteId,
+      }),
+    )
+
+    this.logger.log(
+      EcoLogMessage.withId({
+        message: 'Best quote',
+        properties: { bestQuote: this.formatQuoteBatch(bestQuote) },
+        id: quoteId,
       }),
     )
 
@@ -140,6 +159,13 @@ export class LiquidityProviderService {
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote) {
+    this.logger.log(
+      EcoLogMessage.withId({
+        message: 'Executing quote',
+        properties: { quote },
+        id: quote.id,
+      }),
+    )
     const service = this.getStrategyService(quote.strategy)
     return service.execute(walletAddress, quote)
   }
@@ -199,6 +225,8 @@ export class LiquidityProviderService {
         return this.stargateProviderService
       case 'CCTPLiFi':
         return this.cctpLiFiProviderService
+      case 'Squid':
+        return this.squidProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
