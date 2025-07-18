@@ -40,62 +40,16 @@ export class RhinestoneApiService implements OnModuleInit {
     bundleId: string,
     event: FillPreconfirmationEvent,
   ): Promise<BundleEventsResponse> {
-    const url = `${this.config.orchestratorUrl}/bundles/${bundleId}/events`
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Posting bundle event',
-        properties: {
-          bundleId,
-          eventType: event.type,
-          chainId: event.chainId,
-          txHash: event.txHash,
-        },
-      }),
-    )
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.config.orchestratorApiKey,
-        },
-        body: JSON.stringify(event),
-      })
-
-      if (!response.ok) {
-        const errorBody = await response.text()
-        throw new Error(
-          `API request failed: ${response.status} ${response.statusText} - ${errorBody}`,
-        )
-      }
-
-      const data = await response.json()
-
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Bundle event posted successfully',
-          properties: {
-            bundleId,
-            eventsCount: data.events?.length || 0,
-          },
-        }),
-      )
-
-      return data
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to post bundle event',
-          properties: {
-            bundleId,
-            error: error.message,
-          },
-        }),
-      )
-      throw error
-    }
+    return this.makeApiRequest<BundleEventsResponse>(`/bundles/${bundleId}/events`, {
+      method: 'POST',
+      body: event,
+      logContext: {
+        bundleId,
+        eventType: event.type,
+        chainId: event.chainId,
+        txHash: event.txHash,
+      },
+    })
   }
 
   /**
@@ -115,5 +69,78 @@ export class RhinestoneApiService implements OnModuleInit {
       chainId,
       txHash,
     })
+  }
+
+  /**
+   * Make an API request to the Rhinestone orchestrator
+   * @param endpoint The API endpoint (relative to orchestratorUrl)
+   * @param options Request options
+   * @returns The response data
+   */
+  private async makeApiRequest<T = any>(
+    endpoint: string,
+    options: {
+      method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+      body?: any
+      logContext?: Record<string, any>
+    },
+  ): Promise<T> {
+    const url = `${this.config.orchestratorUrl}${endpoint}`
+    const { method, body, logContext = {} } = options
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Making ${method} request to Rhinestone API`,
+        properties: {
+          url,
+          method,
+          ...logContext,
+        },
+      }),
+    )
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.config.orchestratorApiKey,
+        },
+        ...(body && { body: JSON.stringify(body) }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        throw new Error(
+          `API request failed: ${response.status} ${response.statusText} - ${errorBody}`,
+        )
+      }
+
+      const data = await response.json()
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `${method} request completed successfully`,
+          properties: {
+            url,
+            ...logContext,
+          },
+        }),
+      )
+
+      return data
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Failed to make ${method} request`,
+          properties: {
+            url,
+            error: error.message,
+            ...logContext,
+          },
+        }),
+      )
+      throw error
+    }
   }
 }

@@ -11,8 +11,7 @@ export class MockEcoConfigService {
         process.env.RHINESTONE_WS_URL || 'wss://orchestrator.rhinestone.wtf/bundles/events',
       orchestratorUrl:
         process.env.RHINESTONE_ORCHESTRATOR_URL || 'https://orchestrator.rhinestone.wtf',
-      orchestratorApiKey:
-        process.env.RHINESTONE_API_KEY || 'test-api-key',
+      orchestratorApiKey: process.env.RHINESTONE_API_KEY || 'test-api-key',
     },
     logger: {
       usePino: false,
