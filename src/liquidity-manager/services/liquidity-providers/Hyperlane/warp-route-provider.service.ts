@@ -547,21 +547,21 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           chainId: candidateToken.chainId,
           token: candidateToken.token,
         })
-        const [tokenData] = await this.balanceService.getAllTokenDataForAddress(
-          client.kernelAccountAddress,
-          [tokenConfig],
-        )
+        const tokenOut: TokenData = {
+          chainId: candidateToken.chainId,
+          config: tokenConfig,
+          balance: {
+            address: candidateToken.token,
+            decimals: 0, // Placeholder. This is not used for LiFi quotes.
+            balance: 0n, // Placeholder. This is not used for LiFi quotes.
+          },
+        }
 
-        const liFiQuote = await this.liFiProviderService.getQuote(
-          tokenIn,
-          tokenData,
-          swapAmount,
-          id,
-        )
+        const liFiQuote = await this.liFiProviderService.getQuote(tokenIn, tokenOut, swapAmount, id)
 
         const outputAmount = BigInt(liFiQuote.context.toAmountMin)
         if (outputAmount > bestAmountOut) {
-          bestResult = { tokenData, quote: liFiQuote, outputAmount }
+          bestResult = { tokenData: tokenOut, quote: liFiQuote, outputAmount }
           bestAmountOut = outputAmount
           this.logger.debug(
             EcoLogMessage.withId({
