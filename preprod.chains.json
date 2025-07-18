@@ -1,0 +1,1225 @@
+{
+    "intentSources": [
+      {
+        "network": "arb-mainnet",
+        "chainID": 42161,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+          "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+          "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+        ]
+      },
+      {
+        "network": "celo-mainnet",
+        "chainID": 42220,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
+          "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e"
+        ]
+      },
+      {
+        "network": "base-mainnet",
+        "chainID": 8453,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+          "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189"
+        ]
+      },
+      {
+        "network": "polygon-mainnet",
+        "chainID": 137,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+          "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+          "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+        ]
+      },
+      {
+        "network": "unichain-mainnet",
+        "chainID": 130,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x078D782b760474a361dDA0AF3839290b0EF57AD6",
+          "0x9151434b16b9763660705744891fA906F660EcC5"
+        ]
+      },
+      {
+        "network": "opt-mainnet",
+        "chainID": 10,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+          "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+          "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+          "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189"
+        ]
+      },
+      {
+        "network": "eth-mainnet",
+        "chainID": 1,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+          "0xdac17f958d2ee523a2206206994597c13d831ec7"
+        ]
+      },
+      {
+        "network": "ink-mainnet",
+        "chainID": 57073,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x0200C29006150606B650577BBE7B6248F58470c1",
+          "0xF1815bd50389c46847f0Bda824eC8da914045D14"
+        ]
+      },
+      {
+        "network": "form-network-mainnet",
+        "chainID": 478,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xFBf489bb4783D4B1B2e7D07ba39873Fb8068507D",
+          "0xFA3198ecF05303a6d96E57a45E6c815055D255b1"
+        ]
+      },
+      {
+        "network": "appchain-mainnet",
+        "chainID": 466,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x675C3ce7F43b00045a4Dab954AF36160fb57cB45"
+        ]
+      },
+      {
+        "network": "inevm-mainnet",
+        "chainID": 2525,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x8358D8291e3bEDb04804975eEa0fe9fe0fAfB147",
+          "0x97423A68BAe94b5De52d767a17aBCc54c157c0E5"
+        ]
+      },
+      {
+        "network": "apechain-mainnet",
+        "chainID": 33139,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xF1815bd50389c46847f0Bda824eC8da914045D14"
+        ]
+      },
+      {
+        "network": "b3-mainnet",
+        "chainID": 8333,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x2Af198A85F9AA11cd6042A0596FbF23978514DA3"
+        ]
+      },
+      {
+        "network": "sanko-mainnet",
+        "chainID": 1996,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x13D675BC5e659b11CFA331594cF35A20815dCF02"
+        ]
+      },
+      {
+        "network": "molten-mainnet",
+        "chainID": 360,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xDf0195C990a94006869959a9c77add160164207e"
+        ]
+      },
+      {
+        "chainID": 1380012617,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "network": "rari-mainnet",
+        "tokens": [
+          "0x46B991aCbD9290967a3A9e02f14895c2F9FE809A",
+          "0x362FAE9A75B27BBc550aAc28a7c1F96C8D483120",
+          "0xFbDa5F676cB37624f28265A144A48B0d6e87d3b6"
+        ]
+      },
+      {
+        "network": "manta-pacific-mainnet",
+        "chainID": 169,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xb73603C5d87fA094B7314C74ACE2e64D165016fb",
+          "0xf417F5A458eC102B90352F697D6e2Ac3A3d2851f"
+        ]
+      },
+      {
+        "network": "worldchain-mainnet",
+        "chainID": 480,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1"
+        ]
+      },
+      {
+        "network": "sonic-mainnet",
+        "chainID": 146,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x29219dd400f2Bf60E5a23d13Be72B486D4038894"
+        ]
+      },
+      {
+        "network": "alienx-mainnet",
+        "chainID": 10241024,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0x14B90E36Ca85D8B563430C0940E80d3A040285cC",
+          "0x486bee264E0F6EB9A1d5947F5FCB097C5378c8E3"
+        ]
+      },
+      {
+        "network": "hyperevm-mainnet",
+        "chainID": 999,
+        "config": {
+          "ecoRoutes": "replace"
+        },
+        "tokens": [
+          "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+        ]
+      }
+    ],
+    "solvers": {
+      "1": {
+        "targets": {
+          "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 175,
+            "maxBalance": 200
+          },
+          "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 115,
+            "maxBalance": 200
+          }
+        },
+        "network": "eth-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 350000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 350000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 1,
+        "averageBlockTime": 12
+      },
+      "10": {
+        "targets": {
+          "0x0b2c639c533813f4aa9d7837caf62653d097ff85": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 180,
+            "maxBalance": 200
+          },
+          "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 150,
+            "maxBalance": 200
+          },
+          "0x7F5c764cBc14f9669B88837ca1490cCa17c31607": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 187,
+            "maxBalance": 200
+          },
+          "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 350,
+            "maxBalance": 200
+          }
+        },
+        "network": "opt-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 70000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 10,
+        "averageBlockTime": 2
+      },
+      "137": {
+        "targets": {
+          "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 100,
+            "maxBalance": 200
+          },
+          "0xc2132d05d31c914a87c6611c10748aeb04b58e8f": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 250,
+            "maxBalance": 200
+          },
+          "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 740,
+            "maxBalance": 200
+          }
+        },
+        "network": "polygon-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 137,
+        "averageBlockTime": 2.1
+      },
+      "8453": {
+        "targets": {
+          "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 150,
+            "maxBalance": 200
+          },
+          "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 25,
+            "targetBalance": 150,
+            "maxBalance": 200
+          },
+          "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 50,
+            "targetBalance": 85,
+            "maxBalance": 200
+          }
+        },
+        "network": "base-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 70000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 8453,
+        "averageBlockTime": 2
+      },
+      "42161": {
+        "targets": {
+          "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 10,
+            "maxBalance": 200
+          },
+          "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 190,
+            "maxBalance": 200
+          },
+          "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 257,
+            "maxBalance": 200
+          }
+        },
+        "network": "arb-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 42161,
+        "averageBlockTime": 0.25
+      },
+      "42220": {
+        "targets": {
+          "0xceba9300f2b948710d2653dd7b07f33a8b32118c": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 445,
+            "maxBalance": 200
+          },
+          "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 455,
+            "maxBalance": 200
+          }
+        },
+        "network": "celo-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 42220,
+        "averageBlockTime": 5
+      },
+      "130": {
+        "targets": {
+          "0x078D782b760474a361dDA0AF3839290b0EF57AD6": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 275,
+            "maxBalance": 200
+          },
+          "0x9151434b16b9763660705744891fA906F660EcC5": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 235,
+            "maxBalance": 200
+          }
+        },
+        "network": "unichain-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 130,
+        "averageBlockTime": 1
+      },
+      "57073": {
+        "targets": {
+          "0x0200C29006150606B650577BBE7B6248F58470c1": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 460,
+            "maxBalance": 200
+          },
+          "0xF1815bd50389c46847f0Bda824eC8da914045D14": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 320,
+            "maxBalance": 200
+          }
+        },
+        "network": "ink-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 57073,
+        "averageBlockTime": 1
+      },
+      "1380012617": {
+        "targets": {
+          "0x362FAE9A75B27BBc550aAc28a7c1F96C8D483120": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 10,
+            "targetBalance": 35,
+            "maxBalance": 200
+          },
+          "0x46B991aCbD9290967a3A9e02f14895c2F9FE809A": {
+            "contractType": "erc20",
+            "minBalance": 75,
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "targetBalance": 0,
+            "maxBalance": 200
+          },
+          "0xFbDa5F676cB37624f28265A144A48B0d6e87d3b6": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 25,
+            "targetBalance": 50,
+            "maxBalance": 200
+          }
+        },
+        "network": "rari-chain-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 1380012617,
+        "averageBlockTime": 2
+      },
+      "33139": {
+        "targets": {
+          "0xF1815bd50389c46847f0Bda824eC8da914045D14": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 90,
+            "maxBalance": 200
+          }
+        },
+        "network": "apechain-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 20000,
+              "tranche": {
+                "unitFee": 150000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 150000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 33139,
+        "averageBlockTime": 2
+      },
+      "8333": {
+        "targets": {
+          "0x2Af198A85F9AA11cd6042A0596FbF23978514DA3": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 10,
+            "targetBalance": 75,
+            "maxBalance": 200
+          }
+        },
+        "network": "b3-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 150000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 150000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 8333,
+        "averageBlockTime": 2
+      },
+      "2525": {
+        "targets": {
+          "0x8358D8291e3bEDb04804975eEa0fe9fe0fAfB147": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 20,
+            "maxBalance": 200
+          },
+          "0x97423A68BAe94b5De52d767a17aBCc54c157c0E5": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 35,
+            "maxBalance": 200
+          }
+        },
+        "network": "inevm-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 2525,
+        "averageBlockTime": 2
+      },
+      "1996": {
+        "targets": {
+          "0x13D675BC5e659b11CFA331594cF35A20815dCF02": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 25,
+            "targetBalance": 25,
+            "maxBalance": 200
+          }
+        },
+        "network": "sanko-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 1996,
+        "averageBlockTime": 2
+      },
+      "478": {
+        "targets": {
+          "0xFBf489bb4783D4B1B2e7D07ba39873Fb8068507D": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 30,
+            "maxBalance": 200
+          },
+          "0xFA3198ecF05303a6d96E57a45E6c815055D255b1": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 10,
+            "targetBalance": 40,
+            "maxBalance": 200
+          }
+        },
+        "network": "form-network-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 478,
+        "averageBlockTime": 2
+      },
+      "466": {
+        "targets": {
+          "0x675C3ce7F43b00045a4Dab954AF36160fb57cB45": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 2,
+            "targetBalance": 70,
+            "maxBalance": 200
+          }
+        },
+        "network": "appchain-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 466,
+        "averageBlockTime": 2
+      },
+      "360": {
+        "targets": {
+          "0xDf0195C990a94006869959a9c77add160164207e": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 1,
+            "targetBalance": 46,
+            "maxBalance": 200
+          }
+        },
+        "network": "molten-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 360,
+        "averageBlockTime": 2
+      },
+      "169": {
+        "targets": {
+          "0xb73603C5d87fA094B7314C74ACE2e64D165016fb": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 45,
+            "maxBalance": 200
+          },
+          "0xf417F5A458eC102B90352F697D6e2Ac3A3d2851f": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 5,
+            "targetBalance": 60,
+            "maxBalance": 200
+          }
+        },
+        "network": "manta-pacific-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 50000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 169,
+        "averageBlockTime": 2
+      },
+      "480": {
+        "targets": {
+          "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 500,
+            "maxBalance": 200
+          }
+        },
+        "network": "worldchain-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 480,
+        "averageBlockTime": 2
+      },
+      "146": {
+        "targets": {
+          "0x29219dd400f2Bf60E5a23d13Be72B486D4038894": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 500,
+            "maxBalance": 200
+          }
+        },
+        "network": "sonic-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 146,
+        "averageBlockTime": 1
+      },
+      "10241024": {
+        "targets": {
+          "0x14B90E36Ca85D8B563430C0940E80d3A040285cC": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 150,
+            "maxBalance": 200
+          },
+          "0x486bee264E0F6EB9A1d5947F5FCB097C5378c8E3": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 150,
+            "maxBalance": 200
+          }
+        },
+        "network": "alienx-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 10241024,
+        "averageBlockTime": 2
+      },
+      "999": {
+        "targets": {
+          "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb": {
+            "contractType": "erc20",
+            "selectors": [
+              "transfer(address,uint256)"
+            ],
+            "minBalance": 75,
+            "targetBalance": 150,
+            "maxBalance": 200
+          }
+        },
+        "network": "hyperevm-mainnet",
+        "fee": {
+          "algorithm": "linear",
+          "limit": {
+            "tokenBase6": 5000000000,
+            "nativeBase18": 10000000000000000
+          },
+          "constants": {
+            "token": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            },
+            "native": {
+              "baseFee": 10000,
+              "tranche": {
+                "unitFee": 20000,
+                "unitSize": 100000000
+              }
+            }
+          }
+        },
+        "chainID": 999,
+        "averageBlockTime": 2
+      }
+    }
+  }
