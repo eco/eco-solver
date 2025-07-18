@@ -1,25 +1,18 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { RhinestoneWebsocketService } from '../services/rhinestone-websocket.service'
+import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
 import {
-  RhinestonePingMessage,
-  RhinestoneBundleMessage,
   RHINESTONE_EVENTS,
+  RhinestoneBundleMessage,
+  RhinestonePingMessage,
   RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
 
-/**
- * Example usage of the RhinestoneWebsocketService
- * This demonstrates how to:
- * 1. Connect to the WebSocket
- * 2. Listen for events
- * 3. Send messages
- */
 @Injectable()
-export class RhinestoneExampleService implements OnModuleInit {
-  private readonly logger = new Logger(RhinestoneExampleService.name)
+export class RhinestoneService implements OnModuleInit {
+  private readonly logger = new Logger(RhinestoneService.name)
 
-  constructor(private rhinestoneService: RhinestoneWebsocketService) {}
+  constructor(private readonly rhinestoneService: RhinestoneWebsocketService) {}
 
   async onModuleInit() {
     // Connect to the WebSocket server

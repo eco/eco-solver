@@ -11,7 +11,7 @@ rhinestone/
 ├── types/
 │   └── rhinestone-websocket.types.ts      # TypeScript types and interfaces
 ├── examples/
-│   └── rhinestone.example.ts              # Example usage
+│   └── rhinestone.service.ts              # Example usage
 ├── standalone/                             # Standalone testing setup
 │   ├── rhinestone-standalone.main.ts      # Standalone server entry point
 │   ├── rhinestone-standalone.module.ts    # Module with mocked dependencies

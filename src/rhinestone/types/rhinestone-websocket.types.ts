@@ -1,4 +1,4 @@
-import { Hex } from 'viem'
+import { Address, Hex } from 'viem'
 
 export const RHINESTONE_EVENTS = {
   CONNECTED: 'rhinestone.connected',
@@ -27,38 +27,33 @@ export interface RhinestonePingMessage extends BaseRhinestoneMessage {
   timestamp?: number
 }
 
+export type ChainExecution = {
+  chainId: number
+  to: Address
+  value: bigint
+  data: Hex
+}
+
 export interface RhinestoneBundleMessage extends BaseRhinestoneMessage {
   type: RhinestoneMessageType.RhinestoneBundle
   bundleId: string
-  targetFillPayload: {
-    chainId: number
-    data: Hex
-    to: Hex
-    value: string
-  }
-  acrossDepositEvents: [
-    {
-      originClaimPayload: {
-        chainId: number
-        data: Hex
-        to: Hex
-        value: string
-      }
-      inputToken: Hex
-      outputToken: Hex
-      inputAmount: string
-      outputAmount: string
-      destinationChainId: number
-      depositId: string
-      quoteTimestamp: number
-      fillDeadline: string
-      exclusivityDeadline: string
-      depositor: Hex
-      recipient: Hex
-      exclusiveRelayer: Hex
-      message: Hex
-    },
-  ]
+  targetFillPayload: ChainExecution
+  acrossDepositEvents: {
+    originClaimPayload: ChainExecution
+    inputToken: Address
+    outputToken: Address
+    inputAmount: string
+    outputAmount: string
+    destinationChainId: number
+    depositId: string
+    quoteTimestamp: number
+    fillDeadline: string
+    exclusivityDeadline: string
+    depositor: Address
+    recipient: Address
+    exclusiveRelayer: Address
+    message: Hex
+  }[]
 }
 
 export interface RhinestoneRelayerActionV1 extends BaseRhinestoneMessage {
@@ -68,23 +63,13 @@ export interface RhinestoneRelayerActionV1 extends BaseRhinestoneMessage {
   fill: {
     id: number
     settlementLayer: string
-    call: {
-      chainId: number
-      to: Hex
-      value: string
-      data: Hex
-    }
+    call: ChainExecution
     tokens: []
   }
   claims: {
     id: number
     settlementLayer: string
-    call: {
-      chainId: number
-      to: Hex
-      value: string
-      data: Hex
-    }
+    call: ChainExecution
     tokens: []
     beforeFill: false
   }[]

@@ -4,7 +4,7 @@ import { RhinestoneWebsocketService } from '../services/rhinestone-websocket.ser
 import { RhinestoneTestController } from './rhinestone-test.controller'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MockEcoConfigService } from './mocks/eco-config.service.mock'
-import { RhinestoneExampleService } from '@/rhinestone/examples/rhinestone.example'
+import { RhinestoneService } from '@/rhinestone/services/rhinestone.service'
 
 @Module({
   imports: [EventEmitterModule.forRoot()],
@@ -15,7 +15,7 @@ import { RhinestoneExampleService } from '@/rhinestone/examples/rhinestone.examp
       useClass: MockEcoConfigService,
     },
     RhinestoneWebsocketService,
-    RhinestoneExampleService,
+    RhinestoneService,
   ],
 })
 export class RhinestoneStandaloneModule {}
