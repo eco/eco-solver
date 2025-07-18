@@ -380,4 +380,12 @@ export class EcoConfigService {
       ),
     }
   }
+
+  /**
+   * Returns the Rhinestone WebSocket configuration
+   * @returns the Rhinestone config
+   */
+  getRhinestone(): EcoConfigType['rhinestone'] {
+    return this.get('rhinestone')
+  }
 }
