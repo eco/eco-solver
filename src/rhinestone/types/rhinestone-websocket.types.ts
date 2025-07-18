@@ -30,7 +30,7 @@ export interface RhinestonePingMessage extends BaseRhinestoneMessage {
 export type ChainExecution = {
   chainId: number
   to: Address
-  value: bigint
+  value: string
   data: Hex
 }
 
