@@ -1,11 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
+import { RhinestoneWebsocketService } from '../services/rhinestone-websocket.service'
 import {
   RhinestonePingMessage,
-  RhinestoneDataMessage,
+  RhinestoneBundleMessage,
   RHINESTONE_EVENTS,
-} from './rhinestone-websocket.types'
+} from '../types/rhinestone-websocket.types'
 
 /**
  * Example usage of the RhinestoneWebsocketService
@@ -43,11 +43,11 @@ export class RhinestoneExampleService implements OnModuleInit {
     this.logger.log(`Received Ping message: ${JSON.stringify(message)}`)
   }
 
-  // Listen for Data messages
-  @OnEvent(RHINESTONE_EVENTS.MESSAGE_DATA)
-  handleDataMessage(message: RhinestoneDataMessage) {
-    this.logger.log(`Received Data message: ${JSON.stringify(message)}`)
-    // Process the message data
+  // Listen for Bundle messages
+  @OnEvent(RHINESTONE_EVENTS.MESSAGE_BUNDLE)
+  handleBundleMessage(message: RhinestoneBundleMessage) {
+    this.logger.log(`Received Bundle message: ${JSON.stringify(message)}`)
+    // Process the bundle data
   }
 
   // Listen for errors
@@ -56,16 +56,16 @@ export class RhinestoneExampleService implements OnModuleInit {
     this.logger.error(`WebSocket error: ${error.message}`)
   }
 
-  // Example method to send a message
-  async sendMessage(data: any) {
+  // Example method to send a bundle
+  async sendBundle(data: any) {
     try {
       await this.rhinestoneService.send({
-        type: 'Message',
+        type: 'RhinestoneBundle',
         data: data,
         id: Math.random().toString(36).substring(7),
       })
     } catch (error) {
-      this.logger.error('Failed to send message:', error)
+      this.logger.error('Failed to send bundle:', error)
     }
   }
 

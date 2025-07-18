@@ -28,6 +28,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "start:rhinestone": "ts-node -r tsconfig-paths/register src/rhinestone/standalone/rhinestone-standalone.main.ts",
+    "start:rhinestone:dev": "nodemon --watch 'src/rhinestone/**' --ext 'ts' --exec 'ts-node -r tsconfig-paths/register src/rhinestone/standalone/rhinestone-standalone.main.ts'",
     "cli": "ts-node src/commander/command-main.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

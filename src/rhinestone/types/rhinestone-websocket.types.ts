@@ -1,6 +1,6 @@
 export enum RhinestoneMessageType {
   Ping = 'Ping',
-  Message = 'Message',
+  RhinestoneBundle = 'RhinestoneBundle',
 }
 
 export interface BaseRhinestoneMessage {
@@ -12,13 +12,13 @@ export interface RhinestonePingMessage extends BaseRhinestoneMessage {
   timestamp?: number
 }
 
-export interface RhinestoneDataMessage extends BaseRhinestoneMessage {
-  type: RhinestoneMessageType.Message
+export interface RhinestoneBundleMessage extends BaseRhinestoneMessage {
+  type: RhinestoneMessageType.RhinestoneBundle
   data: unknown
   id?: string
 }
 
-export type RhinestoneMessage = RhinestonePingMessage | RhinestoneDataMessage
+export type RhinestoneMessage = RhinestonePingMessage | RhinestoneBundleMessage
 
 export const RHINESTONE_EVENTS = {
   CONNECTED: 'rhinestone.connected',
@@ -28,7 +28,7 @@ export const RHINESTONE_EVENTS = {
   PING: 'rhinestone.ping',
   PONG: 'rhinestone.pong',
   MESSAGE_PING: 'rhinestone.message.Ping',
-  MESSAGE_DATA: 'rhinestone.message.Message',
+  MESSAGE_BUNDLE: 'rhinestone.message.RhinestoneBundle',
 } as const
 
 export type RhinestoneEventMap = {
@@ -39,5 +39,5 @@ export type RhinestoneEventMap = {
   [RHINESTONE_EVENTS.PING]: Buffer
   [RHINESTONE_EVENTS.PONG]: Buffer
   [RHINESTONE_EVENTS.MESSAGE_PING]: RhinestonePingMessage
-  [RHINESTONE_EVENTS.MESSAGE_DATA]: RhinestoneDataMessage
+  [RHINESTONE_EVENTS.MESSAGE_BUNDLE]: RhinestoneBundleMessage
 }

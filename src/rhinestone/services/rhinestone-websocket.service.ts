@@ -1,13 +1,13 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import WebSocket from 'ws'
+import * as WebSocket from 'ws'
 import {
   RhinestoneMessage,
   RhinestoneMessageType,
   RhinestonePingMessage,
-  RhinestoneDataMessage,
+  RhinestoneBundleMessage,
   RHINESTONE_EVENTS,
-} from './rhinestone-websocket.types'
+} from '../types/rhinestone-websocket.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 export interface RhinestoneWebsocketConfig {
@@ -91,6 +91,8 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
     this.ws.on('message', (data: WebSocket.Data) => {
       try {
+        this.logger.debug(`Received raw message: ${data.toString()}`)
+
         const message = this.parseMessage(data)
         this.logger.debug(`Received message: ${JSON.stringify(message)}`)
 
@@ -99,8 +101,11 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           case RhinestoneMessageType.Ping:
             this.eventEmitter.emit(RHINESTONE_EVENTS.MESSAGE_PING, message as RhinestonePingMessage)
             break
-          case RhinestoneMessageType.Message:
-            this.eventEmitter.emit(RHINESTONE_EVENTS.MESSAGE_DATA, message as RhinestoneDataMessage)
+          case RhinestoneMessageType.RhinestoneBundle:
+            this.eventEmitter.emit(
+              RHINESTONE_EVENTS.MESSAGE_BUNDLE,
+              message as RhinestoneBundleMessage,
+            )
             break
           default:
             this.logger.warn(`Unknown message type: ${(message as any).type}`)
@@ -160,12 +165,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           type: RhinestoneMessageType.Ping,
           timestamp: parsedData.timestamp,
         } as RhinestonePingMessage
-      case RhinestoneMessageType.Message:
+      case RhinestoneMessageType.RhinestoneBundle:
         return {
-          type: RhinestoneMessageType.Message,
+          type: RhinestoneMessageType.RhinestoneBundle,
           data: parsedData.data,
           id: parsedData.id,
-        } as RhinestoneDataMessage
+        } as RhinestoneBundleMessage
       default:
         // This should never happen due to validation above
         throw new Error(`Unhandled message type: ${parsedData.type}`)
