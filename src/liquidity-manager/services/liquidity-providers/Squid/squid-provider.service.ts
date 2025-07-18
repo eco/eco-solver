@@ -4,10 +4,11 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
+import { parseUnits } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
 import { getSlippage } from '@/liquidity-manager/utils/math'
+import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
@@ -115,15 +116,11 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       }
 
       const { context: route } = quote
-      const approveData = encodeFunctionData({
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [route.transactionRequest.target!, BigInt(route.params.fromAmount)],
-      })
-      const approveTx = {
-        to: route.params.fromToken,
-        data: approveData,
-      }
+      const approveTx = createApproveTransaction(
+        route.params.fromToken,
+        route.transactionRequest.target!,
+        BigInt(route.params.fromAmount),
+      )
 
       // Build the Squid router execution tx
       const swapTx = {
