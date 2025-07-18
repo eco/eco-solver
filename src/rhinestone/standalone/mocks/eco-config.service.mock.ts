@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { EcoConfigType } from '@/eco-configs/eco-config.types'
+import { Hex } from 'viem'
 
 @Injectable()
 export class MockEcoConfigService {
@@ -16,6 +17,36 @@ export class MockEcoConfigService {
           level: 'debug',
         },
       },
+    },
+    eth: {
+      privateKey: process.env.ETH_PRIVATE_KEY as Hex, // Default test private key
+      simpleAccount: {
+        walletAddr: '0x0000000000000000000000000000000000000000' as Hex,
+        signerPrivateKey: process.env.SIGNER_PRIVATE_KEY as Hex,
+        minEthBalanceWei: 0,
+        contracts: {
+          entryPoint: {
+            contractAddress: '0x0000000000000000000000000000000000000000' as Hex,
+          },
+          paymaster: {
+            contractAddresses: [] as Hex[],
+          },
+          simpleAccountFactory: {
+            contractAddress: '0x0000000000000000000000000000000000000000' as Hex,
+          },
+        },
+      },
+      claimant: '0x0000000000000000000000000000000000000000' as Hex,
+      nonce: {
+        update_interval_ms: 1000,
+      },
+      pollingInterval: 1000,
+    },
+    rpcs: {
+      config: {
+        webSockets: false,
+      },
+      keys: {},
     },
   }
 
@@ -40,6 +71,14 @@ export class MockEcoConfigService {
 
   getLoggerConfig() {
     return this.config.logger!
+  }
+
+  getEth(): EcoConfigType['eth'] {
+    return this.config.eth!
+  }
+
+  getRPCs(): EcoConfigType['rpcs'] {
+    return this.config.rpcs!
   }
 
   // Static method to match the original
