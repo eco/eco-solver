@@ -11,6 +11,8 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
+import { EcoAnalyticsService } from '@/analytics'
+import { createMock } from '@golevelup/ts-jest'
 
 describe('CCTPLiFiProviderService', () => {
   let service: CCTPLiFiProviderService
@@ -126,6 +128,10 @@ describe('CCTPLiFiProviderService', () => {
         { provide: CCTPProviderService, useValue: mockCCTPService },
         { provide: BalanceService, useValue: { fetchTokenBalance: jest.fn() } },
         { provide: EcoConfigService, useValue: mockEcoConfigService },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
         {
           provide: getQueueToken(LiquidityManagerQueue.queueName),
           useValue: mockQueue,

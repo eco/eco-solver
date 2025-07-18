@@ -5,7 +5,6 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -39,6 +38,8 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import { normalizeAnalysisDiffToBase } from '@/fee/utils'
 import { Mathb } from '@/utils/bigint'
+import { ANALYTICS_EVENTS, EcoAnalyticsService } from '@/analytics'
+import { BalanceService } from '@/balance/balance.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -61,6 +62,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly liquidityProviderService: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
@@ -237,6 +239,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     // First try all direct routes from surplus tokens to deficit token
     for (const surplusToken of sortedSurplusTokens) {
+      const swapAmount = 0n
       try {
         // Calculate the amount to swap
         const swapAmountBased = Mathb.min(
@@ -273,6 +276,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       } catch (error) {
         // Track failed surplus tokens
         failedSurplusTokens.push(surplusToken)
+
+        this.ecoAnalytics.trackError(ANALYTICS_EVENTS.LIQUIDITY_MANAGER.QUOTE_ROUTE_ERROR, error, {
+          surplusToken: surplusToken.config,
+          deficitToken: deficitToken.config,
+          swapAmount,
+          walletAddress,
+          operation: 'direct_route_quote',
+          service: this.constructor.name,
+        })
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -311,7 +323,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     for (const surplusToken of failedSurplusTokens) {
       // Skip if we've already reached target balance
       if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
-
+      const swapAmount = 0n
       try {
         // Calculate the amount to swap
         const swapAmountBased = Mathb.min(
@@ -331,6 +343,20 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           currentBalance += quote.amountOut
         })
       } catch (fallbackError) {
+        this.ecoAnalytics.trackError(
+          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,
+          fallbackError,
+          {
+            surplusToken: surplusToken.config,
+            deficitToken: deficitToken.config,
+            swapAmount,
+            currentBalance,
+            targetBalance: deficitToken.analysis.targetSlippage.min,
+            operation: 'fallback_route_quote',
+            service: this.constructor.name,
+          },
+        )
+
         this.logger.error(
           EcoLogMessage.fromDefault({
             message: 'Unable to find fallback route',

@@ -23,6 +23,7 @@ import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -40,6 +41,7 @@ export class CreateIntentService implements OnModuleInit {
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   onModuleInit() {
@@ -86,6 +88,9 @@ export class CreateIntentService implements OnModuleInit {
             },
           }),
         )
+
+        // Track duplicate intent detection
+        this.ecoAnalytics.trackIntentDuplicateDetected(intent, model, intentWs)
         return
       }
 
@@ -111,6 +116,12 @@ export class CreateIntentService implements OnModuleInit {
           jobId,
           ...this.intentJobConfig,
         })
+
+        // Track successful intent creation and queue addition
+        this.ecoAnalytics.trackIntentCreatedAndQueued(intent, jobId, intentWs)
+      } else {
+        // Track intent created but not queued due to invalid wallet
+        this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
       }
 
       this.logger.log(
@@ -134,6 +145,9 @@ export class CreateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      // Track intent creation failure
+      this.ecoAnalytics.trackIntentCreationFailed(intent, intentWs, e)
     }
   }
 
@@ -155,6 +169,15 @@ export class CreateIntentService implements OnModuleInit {
             intentHash,
           },
         }),
+      )
+
+      // Track gasless intent creation attempt with complete objects
+      this.ecoAnalytics.trackGaslessIntentCreationStarted(
+        intentHash,
+        quoteID,
+        funder,
+        route,
+        reward,
       )
 
       const intent = new IntentDataModel({
@@ -181,6 +204,16 @@ export class CreateIntentService implements OnModuleInit {
         receipt: null,
         status: 'PENDING',
       })
+
+      // Track successful gasless intent creation with complete context
+      this.ecoAnalytics.trackGaslessIntentCreated(
+        intentHash,
+        quoteID,
+        funder,
+        intent,
+        route,
+        reward,
+      )
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -191,6 +224,9 @@ export class CreateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      // Track gasless intent creation failure with complete context
+      this.ecoAnalytics.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
     }
   }
 
@@ -200,7 +236,23 @@ export class CreateIntentService implements OnModuleInit {
    * @returns the intent or an error
    */
   async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
-    return this.fetchIntent({ 'intent.hash': hash })
+    try {
+      const result = await this.fetchIntent({ 'intent.hash': hash })
+
+      if (result.error) {
+        this.ecoAnalytics.trackIntentRetrievalNotFound('getIntentForHash', { hash }, result.error)
+      } else {
+        this.ecoAnalytics.trackIntentRetrievalSuccess('getIntentForHash', {
+          hash,
+          intent: result.response,
+        })
+      }
+
+      return result
+    } catch (error) {
+      this.ecoAnalytics.trackIntentRetrievalError('getIntentForHash', error, { hash })
+      throw error
+    }
   }
 
   /**
@@ -209,12 +261,20 @@ export class CreateIntentService implements OnModuleInit {
    * @returns the intent or an error
    */
   async fetchIntent(query: object): Promise<EcoResponse<IntentSourceModel>> {
-    const intent = await this.intentModel.findOne(query)
+    try {
+      const intent = await this.intentModel.findOne(query)
 
-    if (!intent) {
-      return { error: EcoError.IntentNotFound }
+      if (!intent) {
+        const error = EcoError.IntentNotFound
+        this.ecoAnalytics.trackIntentRetrievalNotFound('fetchIntent', { query }, error)
+        return { error }
+      }
+
+      this.ecoAnalytics.trackIntentRetrievalSuccess('fetchIntent', { query, intent })
+      return { response: intent }
+    } catch (error) {
+      this.ecoAnalytics.trackIntentRetrievalError('fetchIntent', error, { query })
+      throw error
     }
-
-    return { response: intent }
   }
 }

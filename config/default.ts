@@ -50,6 +50,16 @@ export default {
           delay: 2_000,
         },
       },
+      watchJobConfig: {
+        removeOnComplete: true,
+        removeOnFail: false,
+
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2_000,
+        },
+      },
     },
   },
   intervals: {

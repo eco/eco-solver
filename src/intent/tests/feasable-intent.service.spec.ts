@@ -12,6 +12,7 @@ import { FeasableIntentService } from '../feasable-intent.service'
 import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { QuoteError } from '@/quote/errors'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('FeasableIntentService', () => {
   let feasableIntentService: FeasableIntentService
@@ -31,6 +32,7 @@ describe('FeasableIntentService', () => {
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),

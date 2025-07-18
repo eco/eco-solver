@@ -14,6 +14,8 @@ import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { BalanceService } from '@/balance/balance.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { createMock } from '@golevelup/ts-jest'
 
 describe('CCTPLiFi Provider Integration Tests', () => {
   let service: CCTPLiFiProviderService
@@ -124,6 +126,10 @@ describe('CCTPLiFi Provider Integration Tests', () => {
               account: { address: '0x1234567890123456789012345678901234567890' },
             }),
           },
+        },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
         },
       ],
     }).compile()
