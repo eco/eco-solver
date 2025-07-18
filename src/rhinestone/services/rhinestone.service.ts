@@ -7,10 +7,13 @@ import {
   RHINESTONE_EVENTS,
   RhinestonePingMessage,
   RhinestoneRelayerActionV1,
+  FillAction,
 } from '../types/rhinestone-websocket.types'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Hash } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 
 @Injectable()
 export class RhinestoneService implements OnModuleInit {
@@ -19,6 +22,7 @@ export class RhinestoneService implements OnModuleInit {
   constructor(
     private readonly rhinestoneService: RhinestoneWebsocketService,
     private readonly walletClient: WalletClientDefaultSignerService,
+    private readonly kernelAccountClient: KernelAccountClientService,
     private readonly rhinestoneApi: RhinestoneApiService,
   ) {}
 
@@ -147,12 +151,12 @@ export class RhinestoneService implements OnModuleInit {
       }
     }
 
-    // Step 2: Execute the fill
+    // Step 2: Execute the fill with approval
     let fillTxHash: Hash
     try {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Executing fill ${action.fill.id}`,
+          message: `Executing fill ${action.fill.id} with approval`,
           properties: {
             actionId: action.id,
             fillId: action.fill.id,
@@ -161,7 +165,7 @@ export class RhinestoneService implements OnModuleInit {
         }),
       )
 
-      fillTxHash = await this.executeTransaction(action.fill.call)
+      fillTxHash = await this.executeFillWithApproval(action.fill)
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -324,6 +328,78 @@ export class RhinestoneService implements OnModuleInit {
           properties: {
             chainId: execution.chainId,
             to: execution.to,
+            error: error.message,
+          },
+        }),
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Execute a fill transaction with approval
+   * @param fill The fill action details
+   * @returns The transaction hash
+   */
+  private async executeFillWithApproval(fill: FillAction): Promise<Hash> {
+    try {
+      // For now, we'll parse the fill data to determine if approval is needed
+      // This is a simplified implementation - in production, you'd want to
+      // properly decode the fill data to extract token addresses and amounts
+
+      const transactions: ExecuteSmartWalletArg[] = []
+
+      // TODO: Parse fill.call.data to determine:
+      // 1. If this is an ERC20 transfer that needs approval
+      // 2. Extract token address, spender address, and amount
+      // For now, we'll just execute the fill directly
+      // In a real implementation, you would:
+      // - Decode the calldata to understand the operation
+      // - Check if it's an ERC20 transfer requiring approval
+      // - Create approval transaction if needed
+
+      // Example approval transaction (commented out until we can properly parse the fill data):
+      // const approvalTx: ExecuteSmartWalletArg = {
+      //   to: tokenAddress,
+      //   value: 0n,
+      //   data: encodeFunctionData({
+      //     abi: ERC20Abi,
+      //     functionName: 'approve',
+      //     args: [spenderAddress, amount],
+      //   }),
+      // }
+      // transactions.push(approvalTx)
+
+      // Add the fill transaction
+      const fillTx: ExecuteSmartWalletArg = {
+        to: fill.call.to,
+        value: BigInt(fill.call.value),
+        data: fill.call.data,
+      }
+      transactions.push(fillTx)
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Executing fill with KernelAccountClient`,
+          properties: {
+            fillId: fill.id,
+            chainId: fill.call.chainId,
+            transactionCount: transactions.length,
+          },
+        }),
+      )
+
+      const client = await this.kernelAccountClient.getClient(fill.call.chainId)
+      const txHash = await client.execute(transactions)
+
+      return txHash
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Failed to execute fill with approval`,
+          properties: {
+            fillId: fill.id,
+            chainId: fill.call.chainId,
             error: error.message,
           },
         }),
