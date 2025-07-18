@@ -21,10 +21,6 @@
     "bend",
     "protocol"
   ],
-  "packageManager": "pnpm@9.0.0",
-  "engines": {
-    "pnpm": ">=9.0.0"
-  },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "nest build",
