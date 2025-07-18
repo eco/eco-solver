@@ -510,4 +510,6 @@ export interface SquidConfig {
 
 export interface RhinestoneConfig {
   websocketUrl: string
+  orchestratorUrl: string
+  orchestratorApiKey: string
 }

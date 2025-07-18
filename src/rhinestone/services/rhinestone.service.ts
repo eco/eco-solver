@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
+import { RhinestoneApiService } from './rhinestone-api.service'
 import {
   RHINESTONE_EVENTS,
   RhinestoneBundleMessage,
@@ -19,6 +20,7 @@ export class RhinestoneService implements OnModuleInit {
   constructor(
     private readonly rhinestoneService: RhinestoneWebsocketService,
     private readonly walletClient: WalletClientDefaultSignerService,
+    private readonly rhinestoneApi: RhinestoneApiService,
   ) {}
 
   async onModuleInit() {
@@ -116,5 +118,54 @@ export class RhinestoneService implements OnModuleInit {
       )
       throw error
     }
+  }
+
+  /**
+   * Execute a relayer action's fill
+   * @param action The relayer action containing the fill details
+   * @returns The transaction hash
+   */
+  async executeRelayerAction(action: RhinestoneRelayerActionV1): Promise<Hash> {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Executing relayer action ${action.id}`,
+        properties: {
+          actionId: action.id,
+          fillId: action.fill.id,
+          chainId: action.fill.call.chainId,
+        },
+      }),
+    )
+
+    const txHash = await this.executeTransaction(action.fill.call)
+
+    // Post-fill preconfirmation to Rhinestone API
+    try {
+      await this.rhinestoneApi.postFillPreconfirmation(action.id, action.fill.call.chainId, txHash)
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Fill preconfirmation posted for bundle ${action.id}`,
+          properties: {
+            actionId: action.id,
+            txHash,
+          },
+        }),
+      )
+    } catch (error) {
+      // Log error but don't fail the transaction
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Failed to post fill preconfirmation`,
+          properties: {
+            actionId: action.id,
+            txHash,
+            error: error.message,
+          },
+        }),
+      )
+    }
+
+    return txHash
   }
 }
