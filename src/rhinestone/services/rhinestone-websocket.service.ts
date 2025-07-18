@@ -1,14 +1,15 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import * as WebSocket from 'ws'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
   RhinestoneMessage,
   RhinestoneMessageType,
   RhinestonePingMessage,
   RhinestoneBundleMessage,
   RHINESTONE_EVENTS,
+  RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 export interface RhinestoneWebsocketConfig {
   url: string
@@ -51,11 +52,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
   async onModuleDestroy() {
     await this.disconnect()
-  }
-
-  setConfig(config: RhinestoneWebsocketConfig) {
-    this.config = { ...this.config, ...config }
-    this.logger.log(`WebSocket config updated: ${JSON.stringify(this.config)}`)
   }
 
   async connect(): Promise<void> {
@@ -105,6 +101,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             this.eventEmitter.emit(
               RHINESTONE_EVENTS.MESSAGE_BUNDLE,
               message as RhinestoneBundleMessage,
+            )
+            break
+          case RhinestoneMessageType.RelayerActionV1:
+            this.eventEmitter.emit(
+              RHINESTONE_EVENTS.RELAYER_ACTION_V1,
+              message as RhinestoneRelayerActionV1,
             )
             break
           default:
@@ -158,23 +160,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       throw new Error(`Invalid or missing message type: ${parsedData.type}`)
     }
 
-    // Return type-safe message based on type
-    switch (parsedData.type) {
-      case RhinestoneMessageType.Ping:
-        return {
-          type: RhinestoneMessageType.Ping,
-          timestamp: parsedData.timestamp,
-        } as RhinestonePingMessage
-      case RhinestoneMessageType.RhinestoneBundle:
-        return {
-          type: RhinestoneMessageType.RhinestoneBundle,
-          data: parsedData.data,
-          id: parsedData.id,
-        } as RhinestoneBundleMessage
-      default:
-        // This should never happen due to validation above
-        throw new Error(`Unhandled message type: ${parsedData.type}`)
-    }
+    return parsedData
   }
 
   private startPingInterval() {

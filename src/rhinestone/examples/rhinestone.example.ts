@@ -5,6 +5,7 @@ import {
   RhinestonePingMessage,
   RhinestoneBundleMessage,
   RHINESTONE_EVENTS,
+  RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
 
 /**
@@ -50,34 +51,16 @@ export class RhinestoneExampleService implements OnModuleInit {
     // Process the bundle data
   }
 
+  // Listen for Bundle messages
+  @OnEvent(RHINESTONE_EVENTS.RELAYER_ACTION_V1)
+  handleRelayerAction(message: RhinestoneRelayerActionV1) {
+    this.logger.log(`Received RhinestoneRelayerActionV1: ${JSON.stringify(message)}`)
+    // Process the bundle data
+  }
+
   // Listen for errors
   @OnEvent(RHINESTONE_EVENTS.ERROR)
   handleError(error: Error) {
     this.logger.error(`WebSocket error: ${error.message}`)
-  }
-
-  // Example method to send a bundle
-  async sendBundle(data: any) {
-    try {
-      await this.rhinestoneService.send({
-        type: 'RhinestoneBundle',
-        data: data,
-        id: Math.random().toString(36).substring(7),
-      })
-    } catch (error) {
-      this.logger.error('Failed to send bundle:', error)
-    }
-  }
-
-  // Example method to send a ping
-  async sendPing() {
-    try {
-      await this.rhinestoneService.send({
-        type: 'Ping',
-        timestamp: Date.now(),
-      })
-    } catch (error) {
-      this.logger.error('Failed to send ping:', error)
-    }
   }
 }
