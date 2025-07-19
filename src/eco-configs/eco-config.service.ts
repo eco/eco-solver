@@ -115,14 +115,23 @@ export class EcoConfigService {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
+    const intentSources = this.get<IntentSource[]>('intentSources')
+
+    // Collect all unique HyperProver addresses from all chains
+    const allHyperProvers: Hex[] = _.uniq(
+      intentSources.map((intent: IntentSource) => {
+        const config = getChainConfig(intent.chainID)
+        return getAddress(config.HyperProver)
+      }),
+    )
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
-      intent.sourceAddress = config.IntentSource
-      intent.inbox = config.Inbox
+      intent.sourceAddress = getAddress(config.IntentSource)
+      intent.inbox = getAddress(config.Inbox)
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
-      const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
-        (prover) => getAddress(prover) !== zeroAddress,
-      )
+      const ecoNpmProvers: Hex[] = [...allHyperProvers, config.MetaProver]
+        .map((prover) => getAddress(prover))
+        .filter((prover) => getAddress(prover) !== zeroAddress)
       switch (ecoNpm) {
         case 'replace':
           intent.provers = ecoNpmProvers

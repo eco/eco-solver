@@ -13,6 +13,7 @@ import { IntentType } from '@eco-foundation/routes-ts'
 export type ExecuteWithdrawsJobData = {
   chainId: number
   intentSourceAddr: Hex
+  inbox: Hex
   intents: IntentType[]
 }
 
