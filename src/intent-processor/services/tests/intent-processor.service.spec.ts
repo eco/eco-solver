@@ -262,6 +262,7 @@ describe('IntentProcessorService', () => {
           expect.objectContaining({
             chainId: 1,
             intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
             intents: expect.any(Array),
           }),
         ]),
@@ -445,6 +446,8 @@ describe('IntentProcessorService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             chainId: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
             proves: expect.arrayContaining([
               expect.objectContaining({ hash: '0x1111', prover: '0xProver1', source: 1 }),
               expect.objectContaining({ hash: '0x2222', prover: '0xProver1', source: 1 }),
@@ -490,8 +493,16 @@ describe('IntentProcessorService', () => {
       expect(queueAddExecuteSendBatchJobs).toHaveBeenCalledTimes(1)
       expect(queueAddExecuteSendBatchJobs).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ chainId: 2 }),
-          expect.objectContaining({ chainId: 3 }),
+          expect.objectContaining({
+            chainId: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
+          }),
+          expect.objectContaining({
+            chainId: 3,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
+          }),
         ]),
       )
     })
@@ -595,6 +606,7 @@ describe('IntentProcessorService', () => {
       const data = {
         chainId: 1,
         intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         intents: [
           {
             route: route,
@@ -669,11 +681,15 @@ describe('IntentProcessorService', () => {
       // Mock data - single batch
       const data = {
         chainId: 1,
+        intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         proves: [
           {
             hash: '0x1111' as Hex,
             prover: '0xProver1' as Hex,
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
         ],
       }
@@ -718,21 +734,29 @@ describe('IntentProcessorService', () => {
       // Mock data - multiple batches with different prover-source combinations
       const data = {
         chainId: 1,
+        intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         proves: [
           {
             hash: '0x1111' as Hex,
             prover: '0xProver1' as Hex,
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
           {
             hash: '0x2222' as Hex,
             prover: '0xProver2' as Hex, // Different prover
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
           {
             hash: '0x3333' as Hex,
             prover: '0xProver1' as Hex,
             source: 3, // Different source
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
         ],
       }
@@ -935,13 +959,8 @@ describe('IntentProcessorService', () => {
     })
   })
 
-  describe('getIntentSource and getInbox', () => {
-    it('should return the intent source address', () => {
-      const result = service['getIntentSource']()
-      expect(result).toBe(mockIntentSource)
-    })
-
-    it('should throw error if multiple intent sources', () => {
+  describe('multiple intent sources support', () => {
+    it('should handle multiple intent sources in getNextBatchWithdrawals', async () => {
       // Mock multiple intent sources
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
         {
@@ -954,26 +973,33 @@ describe('IntentProcessorService', () => {
         },
         {
           sourceAddress: '0xSource2' as Hex,
-          inbox: '0xInbox1' as Hex,
-          network: Network.ETH_MAINNET,
-          chainID: 1,
-          tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex],
+          inbox: '0xInbox2' as Hex,
+          network: Network.ARB_MAINNET,
+          chainID: 42161,
+          tokens: ['0xToken2' as Hex],
+          provers: ['0xProver2' as Hex],
         },
       ])
 
-      expect(() => service['getIntentSource']()).toThrow(
-        'Implementation has to be refactor to support multiple intent source addresses.',
-      )
+      // Mock withdrawals for each intent source
+      indexerService.getNextBatchWithdrawals = jest
+        .fn()
+        .mockResolvedValueOnce([]) // First source returns empty
+        .mockResolvedValueOnce([]) // Second source returns empty
+
+      const queueAddExecuteWithdrawalsJobs = jest.fn()
+      service['intentProcessorQueue'].addExecuteWithdrawalsJobs = queueAddExecuteWithdrawalsJobs
+
+      await service.getNextBatchWithdrawals()
+
+      // Should be called for each intent source
+      expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledTimes(2)
+      expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledWith('0xSource1')
+      expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledWith('0xSource2')
     })
 
-    it('should return the inbox address', () => {
-      const result = service['getInbox']()
-      expect(result).toBe(mockInbox)
-    })
-
-    it('should throw error if multiple inbox addresses', () => {
-      // Mock multiple inboxes
+    it('should handle multiple intent sources in getNextSendBatch', async () => {
+      // Mock multiple intent sources
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
         {
           sourceAddress: '0xSource1' as Hex,
@@ -984,18 +1010,30 @@ describe('IntentProcessorService', () => {
           provers: ['0xProver1' as Hex],
         },
         {
-          sourceAddress: '0xSource1' as Hex,
+          sourceAddress: '0xSource2' as Hex,
           inbox: '0xInbox2' as Hex,
-          network: Network.ETH_MAINNET,
-          chainID: 1,
-          tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex],
+          network: Network.ARB_MAINNET,
+          chainID: 42161,
+          tokens: ['0xToken2' as Hex],
+          provers: ['0xProver2' as Hex],
         },
       ])
 
-      expect(() => service['getInbox']()).toThrow(
-        'Implementation has to be refactor to support multiple inbox addresses.',
-      )
+      // Mock send batches for each intent source
+      indexerService.getNextSendBatch = jest
+        .fn()
+        .mockResolvedValueOnce([]) // First source returns empty
+        .mockResolvedValueOnce([]) // Second source returns empty
+
+      const queueAddExecuteSendBatchJobs = jest.fn()
+      service['intentProcessorQueue'].addExecuteSendBatchJobs = queueAddExecuteSendBatchJobs
+
+      await service.getNextSendBatch()
+
+      // Should be called for each intent source
+      expect(indexerService.getNextSendBatch).toHaveBeenCalledTimes(2)
+      expect(indexerService.getNextSendBatch).toHaveBeenCalledWith('0xSource1')
+      expect(indexerService.getNextSendBatch).toHaveBeenCalledWith('0xSource2')
     })
   })
 })
