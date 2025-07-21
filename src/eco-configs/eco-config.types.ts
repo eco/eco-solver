@@ -468,7 +468,7 @@ export interface CCTPConfig {
 
 export interface CCTPV2Config {
   apiUrl: string
-  fastTransferEnabled: boolean
+  fastTransferEnabled?: boolean
   chains: {
     chainId: number
     domain: number

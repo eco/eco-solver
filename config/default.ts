@@ -208,7 +208,6 @@ export default {
 
   CCTPV2: {
     apiUrl: 'https://iris-api.circle.com',
-    fastTransferEnabled: false,
     chains: [
       {
         chainId: 1, // Ethereum
