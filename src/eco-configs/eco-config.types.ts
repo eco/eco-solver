@@ -11,9 +11,11 @@ import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
+import { AnalyticsConfig } from '@/analytics'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType
@@ -120,6 +122,7 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    watchJobConfig: JobsOptions
   }
 }
 

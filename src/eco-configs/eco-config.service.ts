@@ -182,6 +182,10 @@ export class EcoConfigService {
     return this.get('launchDarkly')
   }
 
+  getAnalyticsConfig(): EcoConfigType['analytics'] {
+    return this.get('analytics')
+  }
+
   getDatabaseConfig(): EcoConfigType['database'] {
     return this.get('database')
   }
