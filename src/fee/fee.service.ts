@@ -666,17 +666,7 @@ export class FeeService implements OnModuleInit {
    * @returns
    */
   getAskRouteDestinationSolver(route: QuoteRouteDataInterface) {
-    // Constants for Ethereum mainnet and sepolia chain IDs
-    const ETH_MAINNET = 1n
-    const ETH_SEPOLIA = 11155111n
-
-    // Use Ethereum L1 chain if either source or destination is L1
-    const destination =
-      route.destination === ETH_MAINNET || route.source === ETH_MAINNET
-        ? ETH_MAINNET
-        : route.destination === ETH_SEPOLIA || route.source === ETH_SEPOLIA
-          ? ETH_SEPOLIA
-          : route.destination
+    const destination = route.destination
 
     const solver = this.ecoConfigService.getSolver(destination)
     if (!solver) {
