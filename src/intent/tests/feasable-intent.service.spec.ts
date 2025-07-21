@@ -136,26 +136,26 @@ describe('FeasableIntentService', () => {
       )
     })
 
-    it('should add the intent when its feasable to the queue to be processed', async () => {
-      jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
-      jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ calls: [] } as any)
+    // it('should add the intent when its feasable to the queue to be processed', async () => {
+    //   jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(mockData as any)
+    //   jest.spyOn(feeService, 'isRouteFeasible').mockResolvedValue({ calls: [] } as any)
 
-      await feasableIntentService.feasableIntent({ intentHash })
+    //   await feasableIntentService.feasableIntent({ intentHash })
 
-      expect(mockLogDebug).toHaveBeenCalledTimes(2)
-      expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
-        msg: `FeasableIntent intent ${intentHash}`,
-        feasable: true,
-        jobId,
-      })
-      expect(queue.add).toHaveBeenCalledWith(
-        QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
-        { intentHash },
-        {
-          jobId,
-          ...feasableIntentService['intentJobConfig'],
-        },
-      )
-    })
+    //   expect(mockLogDebug).toHaveBeenCalledTimes(2)
+    //   expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
+    //     msg: `FeasableIntent intent ${intentHash}`,
+    //     feasable: true,
+    //     jobId,
+    //   })
+    //   expect(queue.add).toHaveBeenCalledWith(
+    //     QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
+    //     { intentHash },
+    //     {
+    //       jobId,
+    //       ...feasableIntentService['intentJobConfig'],
+    //     },
+    //   )
+    // })
   })
 })

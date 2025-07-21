@@ -76,6 +76,7 @@ export type EcoConfigType = {
   indexer: IndexerConfig
   withdraws: WithdrawsConfig
   sendBatch: SendBatchConfig
+  fulfills: FulfillsConfig
   hyperlane: HyperlaneConfig
   crowdLiquidity: CrowdLiquidityConfig
   CCTP: CCTPConfig
@@ -414,6 +415,13 @@ export interface IndexerConfig {
 export interface WithdrawsConfig {
   chunkSize: number
   intervalDuration: number
+}
+
+export interface FulfillsConfig {
+  chunkSize: number
+  intervalDuration: number
+  retryDelay: number
+  maxRetries: number
 }
 
 export interface SendBatchConfig {

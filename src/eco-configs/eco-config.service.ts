@@ -274,6 +274,10 @@ export class EcoConfigService {
     return this.get('sendBatch')
   }
 
+  getFulfillsConfig(): EcoConfigType['fulfills'] {
+    return this.get('fulfills')
+  }
+
   // Returns the liquidity manager config
   getIndexer(): EcoConfigType['indexer'] {
     return this.get('indexer')
