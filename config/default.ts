@@ -212,35 +212,35 @@ export default {
       {
         chainId: 1, // Ethereum
         domain: 0,
-        token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
       {
         chainId: 10, // Optimism
         domain: 2,
-        token: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+        token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
       {
         chainId: 137, // Polygon
         domain: 7,
-        token: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+        token: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
       {
         chainId: 8453, // Base
         domain: 6,
-        token: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+        token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
       {
         chainId: 42161, // Arbitrum
         domain: 3,
-        token: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        token: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
