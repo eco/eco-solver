@@ -666,9 +666,7 @@ export class FeeService implements OnModuleInit {
    * @returns
    */
   getAskRouteDestinationSolver(route: QuoteRouteDataInterface) {
-    const destination = route.destination
-
-    const solver = this.ecoConfigService.getSolver(destination)
+    const solver = this.ecoConfigService.getSolver(route.destination)
     if (!solver) {
       //we shouldn't get here after validations are run so throw
       throw QuoteError.NoSolverForDestination(destination)
