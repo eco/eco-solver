@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Hash } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 import { RhinestoneConfig } from '@/eco-configs/eco-config.types'
 
 export interface FillPreconfirmationEvent {
@@ -22,12 +22,12 @@ export interface BundleEventsResponse {
 @Injectable()
 export class RhinestoneApiService implements OnModuleInit {
   private readonly logger = new Logger(RhinestoneApiService.name)
-  private config: RhinestoneConfig
+  private config: RhinestoneConfig['api']
 
-  constructor(private readonly ecoConfigService: EcoConfigService) {}
+  constructor(private readonly rhinestoneConfigService: RhinestoneConfigService) {}
 
   onModuleInit() {
-    this.config = this.ecoConfigService.getRhinestone()
+    this.config = this.rhinestoneConfigService.getAPI()
   }
 
   /**

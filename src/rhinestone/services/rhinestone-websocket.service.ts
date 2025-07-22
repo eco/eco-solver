@@ -1,15 +1,15 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import * as WebSocket from 'ws'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
+  RHINESTONE_EVENTS,
+  RhinestoneBundleMessage,
   RhinestoneMessage,
   RhinestoneMessageType,
   RhinestonePingMessage,
-  RhinestoneBundleMessage,
-  RHINESTONE_EVENTS,
   RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
+import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 
 export interface RhinestoneWebsocketConfig {
   url: string
@@ -32,12 +32,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
   constructor(
     private eventEmitter: EventEmitter2,
-    private ecoConfigService: EcoConfigService,
+    private rhinestoneConfigService: RhinestoneConfigService,
   ) {
     // Initialize configuration from EcoConfigService
-    const rhinestoneConfig = this.ecoConfigService.getRhinestone()
+    const rhinestoneWebsocketConfig = this.rhinestoneConfigService.getWebsocket()
     this.config = {
-      url: rhinestoneConfig.websocketUrl,
+      url: rhinestoneWebsocketConfig.url,
       reconnect: true,
       reconnectInterval: 5000,
       maxReconnectAttempts: 10,
@@ -73,6 +73,53 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       this.logger.error(`Failed to create WebSocket connection: ${error}`)
       throw error
     }
+  }
+
+  async send(message: any): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected')
+    }
+
+    const messageStr = typeof message === 'string' ? message : JSON.stringify(message)
+
+    return new Promise((resolve, reject) => {
+      this.ws!.send(messageStr, (error) => {
+        if (error) {
+          this.logger.error(`Failed to send message: ${error}`)
+          reject(error)
+        } else {
+          this.logger.debug(`Message sent: ${messageStr}`)
+          resolve()
+        }
+      })
+    })
+  }
+
+  async disconnect(): Promise<void> {
+    this.isIntentionallyClosed = true
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
+    this.stopPingInterval()
+
+    if (this.ws) {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.close()
+        this.logger.log('WebSocket connection closed')
+      }
+      this.ws = null
+    }
+  }
+
+  isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN
+  }
+
+  getReadyState(): number | null {
+    return this.ws ? this.ws.readyState : null
   }
 
   private setupEventHandlers() {
@@ -203,52 +250,5 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         this.logger.error(`Reconnect attempt failed: ${error}`)
       })
     }, delay)
-  }
-
-  async send(message: any): Promise<void> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket is not connected')
-    }
-
-    const messageStr = typeof message === 'string' ? message : JSON.stringify(message)
-
-    return new Promise((resolve, reject) => {
-      this.ws!.send(messageStr, (error) => {
-        if (error) {
-          this.logger.error(`Failed to send message: ${error}`)
-          reject(error)
-        } else {
-          this.logger.debug(`Message sent: ${messageStr}`)
-          resolve()
-        }
-      })
-    })
-  }
-
-  async disconnect(): Promise<void> {
-    this.isIntentionallyClosed = true
-
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout)
-      this.reconnectTimeout = null
-    }
-
-    this.stopPingInterval()
-
-    if (this.ws) {
-      if (this.ws.readyState === WebSocket.OPEN) {
-        this.ws.close()
-        this.logger.log('WebSocket connection closed')
-      }
-      this.ws = null
-    }
-  }
-
-  isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN
-  }
-
-  getReadyState(): number | null {
-    return this.ws ? this.ws.readyState : null
   }
 }

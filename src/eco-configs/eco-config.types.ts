@@ -509,7 +509,21 @@ export interface SquidConfig {
 }
 
 export interface RhinestoneConfig {
-  websocketUrl: string
-  orchestratorUrl: string
-  orchestratorApiKey: string
+  websocket: {
+    url: string
+  }
+  api: {
+    orchestratorUrl: string
+    orchestratorApiKey: string
+  }
+  order: {
+    settlementLayer: string
+  }
+  contracts: Record<
+    number,
+    {
+      router: Hex
+      ecoAdapter: Hex
+    }
+  >
 }

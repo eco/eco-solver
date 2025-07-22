@@ -149,6 +149,17 @@ export class EcoError extends Error {
     return new EcoError(`CrowdLiquidity pool is not solvent for intent: ${intentHash}`)
   }
 
+  // Rhinestone
+
+  static InvalidRouterCall = new EcoError('Rhinestone: Invalid router call')
+  static InvalidRhinestoneRelayerAction = new EcoError('Rhinestone: Invalid message')
+  static InvalidDecodedFunctionData(functionName: string) {
+    return new EcoError(`Rhinestone: Invalid function name ${functionName}`)
+  }
+  static RhinestoneChainNotDefined(chainID: number) {
+    return new EcoError(`Rhinestone: Contracts for chain id ${chainID} not found.`)
+  }
+
   // Solver Registration
   static SolverRegistrationError = new EcoError()
 

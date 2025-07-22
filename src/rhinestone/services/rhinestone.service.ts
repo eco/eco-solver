@@ -1,34 +1,38 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
+import { Hash } from 'viem'
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+
 import { RhinestoneApiService } from './rhinestone-api.service'
+import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
 import {
   ChainExecution,
+  FillAction,
   RHINESTONE_EVENTS,
   RhinestonePingMessage,
   RhinestoneRelayerActionV1,
-  FillAction,
 } from '../types/rhinestone-websocket.types'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Hash } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
 
 @Injectable()
 export class RhinestoneService implements OnModuleInit {
   private readonly logger = new Logger(RhinestoneService.name)
 
   constructor(
-    private readonly rhinestoneService: RhinestoneWebsocketService,
     private readonly walletClient: WalletClientDefaultSignerService,
     private readonly kernelAccountClient: KernelAccountClientService,
     private readonly rhinestoneApi: RhinestoneApiService,
+    private readonly rhinestoneWebsocketService: RhinestoneWebsocketService,
+    private readonly rhinestoneValidatorService: RhinestoneValidatorService,
   ) {}
 
   async onModuleInit() {
     // Connect to the WebSocket server
-    await this.rhinestoneService.connect()
+    await this.rhinestoneWebsocketService.connect()
   }
 
   // Listen for connection events
@@ -53,6 +57,9 @@ export class RhinestoneService implements OnModuleInit {
   @OnEvent(RHINESTONE_EVENTS.RELAYER_ACTION_V1)
   async handleRelayerAction(message: RhinestoneRelayerActionV1) {
     this.logger.log(`Received RhinestoneRelayerActionV1: ${JSON.stringify(message)}`)
+
+    // Throws if the message is invalid
+    this.rhinestoneValidatorService.validateRelayerAction(message)
 
     try {
       const result = await this.executeRelayerAction(message)
@@ -390,9 +397,7 @@ export class RhinestoneService implements OnModuleInit {
       )
 
       const client = await this.kernelAccountClient.getClient(fill.call.chainId)
-      const txHash = await client.execute(transactions)
-
-      return txHash
+      return await client.execute(transactions)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
