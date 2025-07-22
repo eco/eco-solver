@@ -1,11 +1,15 @@
 import { Queue } from 'bullmq'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { Hex } from 'viem/_types/types/misc'
 
 export enum IntentFulfillmentJobName {
   FULFILL_INTENT = 'FULFILL_INTENT',
 }
 
-export type IntentFulfillmentQueueDataType = any
+export type IntentFulfillmentQueueDataType = {
+  intentHash: Hex
+  chainId: number
+}
 
 export type IntentFulfillmentQueueType = Queue<
   IntentFulfillmentQueueDataType,

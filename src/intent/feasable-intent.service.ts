@@ -1,6 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { JobsOptions } from 'bullmq'
+import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
@@ -19,24 +17,19 @@ import {
  * Service class for getting configs for the app
  */
 @Injectable()
-export class FeasableIntentService implements OnModuleInit {
+export class FeasableIntentService {
   private logger = new Logger(FeasableIntentService.name)
-  private intentJobConfig: JobsOptions
   private readonly intentFulfillmentQueue: IntentFulfillmentQueue
   constructor(
     @InjectQueue(IntentFulfillmentQueue.queueName)
     intentFulfillmentQueue: IntentFulfillmentQueueType,
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
-    private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     this.intentFulfillmentQueue = new IntentFulfillmentQueue(intentFulfillmentQueue)
   }
 
-  async onModuleInit() {
-    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
-  }
   async feasableQuote(quoteIntent: QuoteIntentModel) {
     try {
       this.logger.debug(

@@ -74,17 +74,6 @@ describe('FeasableIntentService', () => {
     mockLogLog.mockClear()
   })
 
-  describe('onModuleInit', () => {
-    it('should set the intentJobConfig', async () => {
-      const mockConfig = { foo: 'bar' }
-      jest
-        .spyOn(ecoConfigService, 'getRedis')
-        .mockReturnValue({ jobs: { intentJobConfig: mockConfig } } as any)
-      await feasableIntentService.onModuleInit()
-      expect(feasableIntentService['intentJobConfig']).toEqual(mockConfig)
-    })
-  })
-
   describe('on feasableIntent', () => {
     it('should error out if processing intent data fails', async () => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue(undefined)

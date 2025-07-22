@@ -11,8 +11,9 @@ import {
 } from '@/intent-fulfillment/jobs/fulfill-intent.job'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 
+const CONCURRENCY = 10
 @Injectable()
-@Processor(IntentFulfillmentQueue.queueName, { concurrency: 10 })
+@Processor(IntentFulfillmentQueue.queueName, { concurrency: CONCURRENCY })
 export class IntentFulfillmentProcessor extends GroupedJobsProcessor<FulfillIntentJob> {
   constructor(
     @InjectQueue(IntentFulfillmentQueue.queueName)
