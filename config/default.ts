@@ -252,7 +252,7 @@ export default {
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
       {
-        chainId: 137, // World Chain
+        chainId: 480, // World Chain
         domain: 14,
         token: '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
