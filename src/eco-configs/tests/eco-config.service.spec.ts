@@ -55,10 +55,10 @@ describe('Eco Config Helper Tests', () => {
       provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4'],
     }
     const mockChainConfig = {
-      IntentSource: 'source',
+      IntentSource: '0x2222222222222222222222222222222222222222',
       HyperProver: '0x0000000000000000000000000000000000000000',
       MetaProver: '0x1111111111111111111111111111111111111111',
-      Inbox: 'inbox',
+      Inbox: '0x3333333333333333333333333333333333333333',
     }
 
     beforeEach(() => {
@@ -167,7 +167,7 @@ describe('Eco Config Helper Tests', () => {
       },
     }
     const mockChainConfig = {
-      Inbox: 'inbox',
+      Inbox: '0x3333333333333333333333333333333333333333',
     }
 
     beforeEach(() => {

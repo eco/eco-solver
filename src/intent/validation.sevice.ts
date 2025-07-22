@@ -167,12 +167,10 @@ export class ValidationService implements OnModuleInit {
   }
 
   checkProverWhitelisted(chainID: number, prover: Hex): boolean {
-    return this.ecoConfigService
-      .getIntentSources()
-      .some(
-        (intent) =>
-          intent.chainID === chainID && intent.provers.some((_prover) => _prover == prover),
-      )
+    return this.ecoConfigService.getIntentSources().some((intent) => {
+      if (intent.chainID !== chainID) return false
+      return intent.provers.some((_prover) => _prover == prover)
+    })
   }
 
   /**
