@@ -1,4 +1,9 @@
-import { CallDataInterface, decodeCreateIntentLog, IntentCreatedLog, RewardTokensInterface } from '../contracts'
+import {
+  CallDataInterface,
+  decodeCreateIntentLog,
+  IntentCreatedLog,
+  RewardTokensInterface,
+} from '../contracts'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
