@@ -1,4 +1,5 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getIntentJobId } from '@/common/utils/strings'
@@ -40,9 +41,10 @@ export class WatchIntentProvenService extends WatchEventService<Prover> {
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
     private createIntentService: CreateIntentService,
+    protected readonly ecoAnalytics: EcoAnalyticsService,
     protected readonly ecoConfigService: EcoConfigService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService)
+    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -158,7 +160,7 @@ export class WatchIntentProvenService extends WatchEventService<Prover> {
           { intentHash },
           {
             jobId,
-            ...this.intentJobConfig,
+            ...this.watchJobConfig,
           },
         )
       }

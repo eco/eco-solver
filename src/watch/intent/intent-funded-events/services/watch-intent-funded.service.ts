@@ -34,7 +34,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService)
+    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -148,7 +148,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
             { intentHash },
             {
               jobId,
-              ...this.intentJobConfig,
+              ...this.watchJobConfig,
             },
           )
 
