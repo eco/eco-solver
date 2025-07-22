@@ -16,6 +16,9 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import { serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
+const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
+const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
+
 @Injectable()
 export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
   private logger = new Logger(CCTPV2ProviderService.name)
@@ -99,7 +102,9 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
 
     // Prioritize fast transfer if enabled and available
     if (this.config.fastTransferEnabled) {
-      const fastOption = feeOptions.find((o) => o.finalityThreshold === 1000)
+      const fastOption = feeOptions.find(
+        (o) => o.finalityThreshold === CCTPV2_FINALITY_THRESHOLD_FAST,
+      )
       if (fastOption) {
         const quote = createQuote(fastOption, 'fast')
         if (quote) {
@@ -116,7 +121,9 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     }
 
     // Fallback to standard transfer
-    const standardOption = feeOptions.find((o) => o.finalityThreshold === 2000)
+    const standardOption = feeOptions.find(
+      (o) => o.finalityThreshold === CCTPV2_FINALITY_THRESHOLD_STANDARD,
+    )
     if (standardOption) {
       const quote = createQuote(standardOption, 'standard')
       if (quote) {
@@ -143,7 +150,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         transferType: 'standard',
         fee: 0n,
         feeBps: 0,
-        minFinalityThreshold: 2000,
+        minFinalityThreshold: CCTPV2_FINALITY_THRESHOLD_STANDARD,
       },
       id,
     }
@@ -196,7 +203,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         destinationChainConfig.domain,
         pad(walletAddress as Hex),
         sourceChainConfig.token,
-        pad('0x0', { size: 32 }), // destinationCaller
+        pad('0x0'), // destinationCaller
         quote.context.fee, // maxFee
         minFinalityThreshold, // minFinalityThreshold
       ],

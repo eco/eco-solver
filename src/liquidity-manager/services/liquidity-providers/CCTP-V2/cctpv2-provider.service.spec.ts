@@ -10,6 +10,9 @@ import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-mana
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { Queue } from 'bullmq'
 
+const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
+const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
+
 // Mock global fetch
 global.fetch = jest.fn()
 
@@ -98,8 +101,8 @@ describe('CCTPV2ProviderService', () => {
         ok: true,
         json: () =>
           Promise.resolve([
-            { finalityThreshold: 1000, minimumFee: 10 }, // 0.1% fee
-            { finalityThreshold: 2000, minimumFee: 0 },
+            { finalityThreshold: CCTPV2_FINALITY_THRESHOLD_FAST, minimumFee: 10 }, // 0.1% fee
+            { finalityThreshold: CCTPV2_FINALITY_THRESHOLD_STANDARD, minimumFee: 0 },
           ]),
       })
 
@@ -107,7 +110,7 @@ describe('CCTPV2ProviderService', () => {
       expect(quotes).toHaveLength(1)
       expect(quotes[0].context.transferType).toBe('fast')
       expect(quotes[0].context.feeBps).toBe(10)
-      expect(quotes[0].context.minFinalityThreshold).toBe(1000)
+      expect(quotes[0].context.minFinalityThreshold).toBe(CCTPV2_FINALITY_THRESHOLD_FAST)
       expect(quotes[0].slippage).toBe(0.1)
     })
 
@@ -117,8 +120,8 @@ describe('CCTPV2ProviderService', () => {
         ok: true,
         json: () =>
           Promise.resolve([
-            { finalityThreshold: 1000, minimumFee: 10 },
-            { finalityThreshold: 2000, minimumFee: 0 },
+            { finalityThreshold: CCTPV2_FINALITY_THRESHOLD_FAST, minimumFee: 10 },
+            { finalityThreshold: CCTPV2_FINALITY_THRESHOLD_STANDARD, minimumFee: 0 },
           ]),
       })
 
@@ -162,7 +165,7 @@ describe('CCTPV2ProviderService', () => {
           transferType: 'fast',
           fee: parseUnits('0.01', 6),
           feeBps: 10,
-          minFinalityThreshold: 1000,
+          minFinalityThreshold: CCTPV2_FINALITY_THRESHOLD_FAST,
         },
         id: 'test-id',
       }
