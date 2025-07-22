@@ -4,6 +4,7 @@ import { BaseJobManager } from '@/common/bullmq/base-job'
 import { IntentFulfillmentJobName } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 import { serialize, Serialize, deserialize } from '@/common/utils/serialize'
 import { getIntentJobId } from '@/common/utils/strings'
+import { IntentFulfillmentProcessor } from '@/intent-fulfillment/processors/intent-fulfillment.processor'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 export type FulfillIntentJobData = {
@@ -17,7 +18,10 @@ export type FulfillIntentJob = Job<
   IntentFulfillmentJobName.FULFILL_INTENT
 >
 
-export abstract class IntentFulfillmentJobManager extends BaseJobManager<FulfillIntentJob> {}
+export abstract class IntentFulfillmentJobManager extends BaseJobManager<
+  FulfillIntentJob,
+  IntentFulfillmentProcessor
+> {}
 
 export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
   static createJob(jobData: FulfillIntentJobData): {
@@ -44,13 +48,36 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
     return job.name === IntentFulfillmentJobName.FULFILL_INTENT
   }
 
-  async process(job: FulfillIntentJob, processor: any): Promise<void> {
+  async process(job: FulfillIntentJob, processor: IntentFulfillmentProcessor): Promise<void> {
     if (this.is(job)) {
-      return processor.fulfillIntentService.fulfill(deserialize(job.data).intentHash)
+      const jobData = deserialize(job.data)
+      processor.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `[START] Fulfilling job`,
+          properties: {
+            jobId: job.id,
+            intentHash: jobData.intentHash,
+            chainId: jobData.chainId,
+          },
+        }),
+      )
+
+      await processor.fulfillIntentService.fulfill(jobData.intentHash)
+
+      processor.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `[END] Fulfilling job`,
+          properties: {
+            jobId: job.id,
+            intentHash: jobData.intentHash,
+            chainId: jobData.chainId,
+          },
+        }),
+      )
     }
   }
 
-  onFailed(job: FulfillIntentJob, processor: any, error: Error) {
+  onFailed(job: FulfillIntentJob, processor: IntentFulfillmentProcessor, error: Error) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `${FulfillIntentJobManager.name}: Failed`,

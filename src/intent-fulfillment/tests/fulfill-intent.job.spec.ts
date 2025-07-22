@@ -52,6 +52,12 @@ describe('FulfillIntentJobManager', () => {
       }
       const mockProcessor = {
         fulfillIntentService: mockFulfillIntentService,
+        logger: {
+          debug: jest.fn(),
+          log: jest.fn(),
+          error: jest.fn(),
+          warn: jest.fn(),
+        },
       }
 
       const manager = new FulfillIntentJobManager()
