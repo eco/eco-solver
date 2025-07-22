@@ -70,7 +70,7 @@
     "@nestjs/terminus": "^10.2.3",
     "@reservoir0x/relay-sdk": "^2.0.1",
     "@rhinestone/module-sdk": "^0.2.7",
-    "@shelf/jest-mongodb": "^4.1.7",
+    "@shelf/jest-mongodb": "^5.2.2",
     "@zerodev/ecdsa-validator": "^5.4.9",
     "@zerodev/sdk": "^5.4.40",
     "abitype": "^1.0.8",

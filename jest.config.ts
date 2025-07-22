@@ -15,7 +15,7 @@ module.exports = {
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': [
+    '^.+\\.(t)s$': [
       'ts-jest',
       {
         tsconfig: '<rootDir>/../tsconfig.json',
@@ -24,7 +24,6 @@ module.exports = {
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
-  testEnvironment: 'node',
   watchman: false, // ✅ disables Watchman and uses node-based file crawling
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>//$1',
