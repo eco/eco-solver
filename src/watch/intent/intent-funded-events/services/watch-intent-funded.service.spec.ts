@@ -1,5 +1,6 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { createMock } from '@golevelup/ts-jest'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { getModelToken } from '@nestjs/mongoose'
@@ -12,7 +13,6 @@ import { Network } from '@/common/alchemy/network'
 import { PublicClient } from 'viem'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
-import { EcoAnalyticsService } from '@/analytics'
 
 let $: EcoTester
 let service: WatchIntentFundedService

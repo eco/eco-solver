@@ -1,5 +1,6 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { createMock } from '@golevelup/ts-jest'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { Hex, PublicClient } from 'viem'
@@ -63,7 +64,7 @@ describe('WatchIntentProvenService', () => {
           useValue: new EcoConfigService([mockSource as any]),
         },
       ])
-      .withMocks([CreateIntentService, MultichainPublicClientService])
+      .withMocks([CreateIntentService, MultichainPublicClientService, EcoAnalyticsService])
       .withQueues([QUEUES.SOURCE_INTENT.queue])
 
     service = await $.init()
