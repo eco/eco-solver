@@ -15,6 +15,8 @@ export class CCTPLiFiRoutePlanner {
     137: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Polygon
     8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base
     42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Arbitrum
+    146: '0x29219dd400f2Bf60E5a23d13Be72B486D4038894', // Sonic
+    480: '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1', // World Chain
   }
 
   private static USDC_ADDRESSES: Record<number, Hex> = {
