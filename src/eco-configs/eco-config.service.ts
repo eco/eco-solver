@@ -254,42 +254,38 @@ export class EcoConfigService {
     return this.get('liquidityManager')
   }
 
-  // Returns the liquidity manager config
   getWhitelist(): EcoConfigType['whitelist'] {
     return this.get('whitelist')
   }
 
-  // Returns the liquidity manager config
   getHyperlane(): EcoConfigType['hyperlane'] {
     return this.get('hyperlane')
   }
 
-  // Returns the liquidity manager config
   getWithdraws(): EcoConfigType['withdraws'] {
     return this.get('withdraws')
   }
 
-  // Returns the liquidity manager config
   getSendBatch(): EcoConfigType['sendBatch'] {
     return this.get('sendBatch')
   }
 
-  // Returns the liquidity manager config
   getIndexer(): EcoConfigType['indexer'] {
     return this.get('indexer')
   }
 
-  // Returns the liquidity manager config
   getCCTP(): EcoConfigType['CCTP'] {
     return this.get('CCTP')
   }
 
-  // Returns the liquidity manager config
+  getCCTPV2(): EcoConfigType['CCTPV2'] {
+    return this.get('CCTPV2')
+  }
+
   getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
     return this.get('crowdLiquidity')
   }
 
-  // Returns the liquidity manager config
   getWarpRoutes(): EcoConfigType['warpRoutes'] {
     return this.get('warpRoutes')
   }

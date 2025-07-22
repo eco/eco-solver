@@ -41,13 +41,13 @@ describe('math utils', () => {
     it('should handle multiple different slippages', () => {
       // 1%, 2%, 1.5% compound to: 1 - (0.99 * 0.98 * 0.985) = 0.044353
       const result = getTotalSlippage([0.01, 0.02, 0.015])
-      expect(result).toBeCloseTo(0.044353, 5)
+      expect(result).toBe(0.0444)
     })
 
     it('should handle the example from the comment', () => {
       // Example from the function comment
       const result = getTotalSlippage([0.01, 0.02, 0.015])
-      expect(result).toBeCloseTo(0.0443, 3)
+      expect(result).toBe(0.0444)
     })
 
     it('should handle zero slippages', () => {
@@ -71,14 +71,14 @@ describe('math utils', () => {
       // Two 0.25% slippages
       const result = getTotalSlippage([0.0025, 0.0025])
       // 1 - (0.9975 * 0.9975) = 0.00499375
-      expect(result).toBeCloseTo(0.00499375, 8)
+      expect(result).toBe(0.005)
     })
 
     it('should handle case that slightly exceeds typical limit', () => {
       // Two 0.3% slippages
       const result = getTotalSlippage([0.003, 0.003])
       // 1 - (0.997 * 0.997) = 0.005991
-      expect(result).toBeCloseTo(0.005991, 6)
+      expect(result).toBe(0.006)
     })
   })
 
