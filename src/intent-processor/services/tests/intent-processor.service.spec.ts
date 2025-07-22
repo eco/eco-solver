@@ -936,12 +936,12 @@ describe('IntentProcessorService', () => {
   })
 
   describe('getIntentSource and getInbox', () => {
-    it('should return the intent source address', () => {
+    it('should return array of intent source addresses', () => {
       const result = service['getIntentSource']()
-      expect(result).toBe(mockIntentSource)
+      expect(result).toEqual([mockIntentSource])
     })
 
-    it('should throw error if multiple intent sources', () => {
+    it('should return array of unique intent sources when multiple provided', () => {
       // Mock multiple intent sources
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
         {
@@ -962,9 +962,8 @@ describe('IntentProcessorService', () => {
         },
       ])
 
-      expect(() => service['getIntentSource']()).toThrow(
-        'Implementation has to be refactor to support multiple intent source addresses.',
-      )
+      const result = service['getIntentSource']()
+      expect(result).toEqual(['0xSource1', '0xSource2'])
     })
 
     it('should return the inbox address', () => {

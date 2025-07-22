@@ -28,7 +28,6 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
 
 @Module({
   imports: [
-    ApiModule,
     AnalyticsModule.withAsyncConfig({
       useFactory: async (configService: EcoConfigService) => {
         const analyticsConfig = configService.getAnalyticsConfig()
@@ -46,20 +45,19 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
       },
       inject: [EcoConfigService],
     }),
+    ApiModule,
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),
     FeeModule,
     FlagsModule,
     HealthModule,
-    IntentModule,
-    PermitProcessingModule,
     IntentInitiationModule,
-    SolverRegistrationModule,
-    KmsModule,
-    SignModule,
+    IntentModule,
+    IntentProcessorModule,
     IntervalModule,
-    ProcessorModule,
+    KmsModule,
+    LiquidityManagerModule,
     MongooseModule.forRootAsync({
       inject: [EcoConfigService],
       useFactory: async (configService: EcoConfigService) => {
@@ -69,12 +67,14 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
         }
       },
     }),
+    PermitProcessingModule,
+    ProcessorModule,
     ProverModule,
     QuoteModule,
+    SignModule,
     SolverModule,
-    LiquidityManagerModule,
+    SolverRegistrationModule,
     WatchModule,
-    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],
