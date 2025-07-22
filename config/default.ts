@@ -203,6 +203,13 @@ export default {
         tokenMessenger: '0x19330d10D9Cc8751218eaf51E8885D058642E08A',
         messageTransmitter: '0xC30362313FBBA5cf9163F0bb16a0e01f01A896ca',
       },
+      {
+        chainId: 130,
+        domain: 10,
+        token: '0x078D782b760474a361dDA0AF3839290b0EF57AD6',
+        tokenMessenger: '0x4e744b28E787c3aD0e810eD65A24461D4ac5a762',
+        messageTransmitter: '0x353bE9E2E38AB1D19104534e4edC21c643Df86f4',
+      },
     ],
   },
 
@@ -252,9 +259,16 @@ export default {
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
       {
-        chainId: 137, // World Chain
+        chainId: 480, // World Chain
         domain: 14,
         token: '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1',
+        tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
+        messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
+      },
+      {
+        chainId: 130, // Uni Chain
+        domain: 10,
+        token: '0x078D782b760474a361dDA0AF3839290b0EF57AD6',
         tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
         messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
       },
