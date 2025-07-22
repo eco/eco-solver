@@ -23,9 +23,28 @@ import { SolverModule } from '@/solver/solver.module'
 import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
+import { AnalyticsModule } from '@/analytics/analytics.module'
+import { getCurrentEnvironment } from '@/common/utils/environment'
 
 @Module({
   imports: [
+    AnalyticsModule.withAsyncConfig({
+      useFactory: async (configService: EcoConfigService) => {
+        const analyticsConfig = configService.getAnalyticsConfig()
+
+        // Get the current environment for group identification
+        const environment = getCurrentEnvironment()
+
+        return {
+          ...analyticsConfig,
+          // Set environment-based group context for analytics
+          groups: {
+            environment: environment,
+          },
+        }
+      },
+      inject: [EcoConfigService],
+    }),
     ApiModule,
     BalanceModule,
     ChainMonitorModule,
@@ -33,14 +52,12 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
     FeeModule,
     FlagsModule,
     HealthModule,
-    IntentModule,
-    PermitProcessingModule,
     IntentInitiationModule,
-    SolverRegistrationModule,
-    KmsModule,
-    SignModule,
+    IntentModule,
+    IntentProcessorModule,
     IntervalModule,
-    ProcessorModule,
+    KmsModule,
+    LiquidityManagerModule,
     MongooseModule.forRootAsync({
       inject: [EcoConfigService],
       useFactory: async (configService: EcoConfigService) => {
@@ -50,12 +67,14 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
         }
       },
     }),
+    PermitProcessingModule,
+    ProcessorModule,
     ProverModule,
     QuoteModule,
+    SignModule,
     SolverModule,
-    LiquidityManagerModule,
+    SolverRegistrationModule,
     WatchModule,
-    IntentProcessorModule,
     ...getPino(),
   ],
   controllers: [],
