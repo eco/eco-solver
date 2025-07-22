@@ -168,18 +168,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
   // eslint-disable-next-line
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData): Promise<Hex> {
+    // This rebalancing route should be disabled in the AWS config for now. It's TBD whether we'll continue supporting it; we'll probably replace it with the negative intents.
     throw new Error('Unimplemented')
-
-    // const { pkp, actions } = this.config
-    //
-    // const publicClient = await this.publicClient.getClient(tokenIn.chainId)
-    //
-    // const params = {
-    //   publicKey: pkp.publicKey,
-    //   intent,
-    // }
-    //
-    // return this.callLitAction<FulfillActionArgs, FulfillActionResponse>(actions.rebalance, params)
   }
 
   /**
@@ -310,17 +300,34 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   ): Promise<boolean> {
     this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
 
-    const totalRewardAmount = intentModel.intent.reward.tokens.reduce(
-      (acc, token) => acc + token.amount,
-      0n,
-    )
+    const { route, reward } = intentModel.intent
 
-    const minimumReward = totalRouteAmount + executionFee
+    const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
+
+    const minExcessFee = this.config.minExcessFees[Number(route.destination)] ?? 0n
+
+    const minimumReward = totalRouteAmount + executionFee + minExcessFee
     const isEnough = totalRewardAmount >= minimumReward
+
+    if (!isEnough) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Reward not enough for intent',
+          properties: {
+            totalRouteAmount: totalRouteAmount.toString(),
+            totalRewardAmount: totalRewardAmount.toString(),
+            minimumReward: minimumReward.toString(),
+            minExcessFee: minExcessFee.toString(),
+          },
+        }),
+      )
+    }
 
     this.ecoAnalytics.trackCrowdLiquidityRewardCheckResult(intentModel, isEnough, {
       totalRouteAmount: totalRouteAmount.toString(),
       totalRewardAmount: totalRewardAmount.toString(),
+      executionFee: executionFee.toString(),
+      minExcessFee: minExcessFee.toString(),
       minimumReward: minimumReward.toString(),
     })
 

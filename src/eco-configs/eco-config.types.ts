@@ -450,6 +450,7 @@ export interface CrowdLiquidityConfig {
     publicKey: string
   }
   supportedTokens: { chainId: number; tokenAddress: Hex }[]
+  minExcessFees: Record<number, bigint>
 }
 
 export interface CCTPConfig {
