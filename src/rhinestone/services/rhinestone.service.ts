@@ -59,7 +59,7 @@ export class RhinestoneService implements OnModuleInit {
     this.logger.log(`Received RhinestoneRelayerActionV1: ${JSON.stringify(message)}`)
 
     // Throws if the message is invalid
-    this.rhinestoneValidatorService.validateRelayerAction(message)
+    await this.rhinestoneValidatorService.validateRelayerAction(message)
 
     try {
       const result = await this.executeRelayerAction(message)
