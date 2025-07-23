@@ -1,6 +1,7 @@
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
+import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -14,7 +15,10 @@ import { PublicNegativeIntentRebalanceService } from '@/negative-intents/service
 import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
-import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { v4 as uuidv4 } from 'uuid'
+import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import * as _ from 'lodash'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -30,6 +34,7 @@ export class LiquidityProviderService {
     protected readonly relayProviderService: RelayProviderService,
     protected readonly stargateProviderService: StargateProviderService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
+    protected readonly cctpv2ProviderService: CCTPV2ProviderService,
     protected readonly squidProviderService: SquidProviderService,
     protected readonly publicNegativeIntentRebalanceService: PublicNegativeIntentRebalanceService,
     private readonly ecoAnalytics: EcoAnalyticsService,
@@ -244,6 +249,8 @@ export class LiquidityProviderService {
         return this.squidProviderService
       case 'CCTPV2':
         return this.cctpv2ProviderService
+      case 'PublicNegativeIntent':
+        return this.publicNegativeIntentRebalanceService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }
