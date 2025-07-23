@@ -174,6 +174,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<SquidProviderService>(),
         },
         {
+          provide: PublicNegativeIntentRebalanceService,
+          useValue: createMock<PublicNegativeIntentRebalanceService>(),
+        },
+        {
           provide: CCTPV2ProviderService,
           useValue: createMock<CCTPV2ProviderService>(),
         },

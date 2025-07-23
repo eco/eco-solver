@@ -67,13 +67,26 @@ export class NegativeIntentAnalyzerService {
   }
 
   isNegativeIntent(intentSource: IntentSourceModel): boolean {
-    const { response: analysisResult, error } = this.analyzeIntent(intentSource)
+    try {
+      const { response: analysisResult, error } = this.analyzeIntent(intentSource)
 
-    if (error) {
+      if (error) {
+        return false
+      }
+
+      return analysisResult!.isNegative
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `isNegativeIntent: Failed to analyze intent ${intentSource.intent.hash}`,
+          properties: {
+            error: ex.message || ex,
+            intentHash: intentSource.intent.hash,
+          },
+        }),
+      )
       return false
     }
-
-    return analysisResult!.isNegative
   }
 
   analyzeIntent(intentSource: IntentSourceModel): EcoResponse<NegativeIntentAnalysisResult> {

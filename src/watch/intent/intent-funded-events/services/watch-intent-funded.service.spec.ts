@@ -12,6 +12,8 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { Network } from '@/common/alchemy/network'
 import { PublicClient } from 'viem'
 import { QUEUES } from '@/common/redis/constants'
+import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { QuoteRepository } from '@/quote/quote.repository'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
 
 let $: EcoTester
@@ -23,6 +25,16 @@ describe('WatchIntentFundedService', () => {
   const mockDb: any[] = []
 
   const mockIntentFundedEventModel = {
+    create: jest.fn(async (doc) => {
+      mockDb.push(doc)
+      return doc
+    }),
+    findOne: jest.fn(async (query) => {
+      return mockDb.find((doc) => doc.transactionHash === query.transactionHash)
+    }),
+  }
+
+  const mockQuoteIntentModel = {
     create: jest.fn(async (doc) => {
       mockDb.push(doc)
       return doc
@@ -67,6 +79,11 @@ describe('WatchIntentFundedService', () => {
         {
           provide: getModelToken(IntentFundedEventModel.name),
           useValue: mockIntentFundedEventModel,
+        },
+        QuoteRepository,
+        {
+          provide: getModelToken(QuoteIntentModel.name),
+          useValue: mockQuoteIntentModel,
         },
         {
           provide: EcoConfigService, // ⬅ inject the actual mocked provider here

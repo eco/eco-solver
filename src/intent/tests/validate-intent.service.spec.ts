@@ -158,7 +158,7 @@ describe('ValidateIntentService', () => {
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `validateIntent ${intentHash}`,
-        intentHash,
+        data: { intentHash },
       })
     })
 

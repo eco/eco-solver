@@ -1,5 +1,6 @@
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
+import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { createMock } from '@golevelup/ts-jest'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { EcoAnalyticsService } from '@/analytics'
@@ -9,7 +10,10 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { PublicNegativeIntentRebalanceService } from '@/negative-intents/services/public-negative-intent-rebalance.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
-import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { TestingModule, Test } from '@nestjs/testing'
+import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 
 const walletAddr = '0xWalletAddress'
 
@@ -47,6 +51,10 @@ describe('LiquidityProviderService', () => {
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
         { provide: SquidProviderService, useValue: createMock<SquidProviderService>() },
+        {
+          provide: PublicNegativeIntentRebalanceService,
+          useValue: createMock<PublicNegativeIntentRebalanceService>(),
+        },
         { provide: CCTPV2ProviderService, useValue: createMock<CCTPV2ProviderService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
