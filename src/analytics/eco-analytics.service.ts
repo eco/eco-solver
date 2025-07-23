@@ -69,6 +69,13 @@ export class EcoAnalyticsService {
     })
   }
 
+  trackIntentCreatedNegativeIntentRejected(intent: any, intentWs: any) {
+    this.safeTrack(ANALYTICS_EVENTS.INTENT.CREATED_NEGATIVE_INTENT_REJECTED, {
+      intent,
+      intentWs,
+    })
+  }
+
   trackIntentCreationStarted(intent: any, intentWs: any) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.CREATION_STARTED, {
       intent,
@@ -165,6 +172,7 @@ export class EcoAnalyticsService {
   trackIntentFulfillmentMethodSelected(
     intentHash: string,
     fulfillmentType: string,
+    isNegativeIntent: boolean,
     isNativeIntent: boolean,
     model: IntentSourceModel,
     solver?: any,

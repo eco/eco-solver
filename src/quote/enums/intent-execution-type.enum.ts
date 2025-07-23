@@ -15,6 +15,12 @@ export class IntentExecutionType extends Enumify {
     return undefined
   }
 
+  static isGasless(enumstr: string): boolean {
+    const intentExecutionType = this.fromString(enumstr)
+
+    return intentExecutionType ? intentExecutionType.isGasless() : false
+  }
+
   isSelfPublish(): boolean {
     return this === IntentExecutionType.SELF_PUBLISH
   }

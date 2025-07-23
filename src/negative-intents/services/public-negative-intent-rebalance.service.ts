@@ -60,7 +60,7 @@ export class PublicNegativeIntentRebalanceService
   ): Promise<RebalanceQuote<PublicNegativeIntent> | RebalanceQuote<PublicNegativeIntent>[]> {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `getQuote for PublicNegativeIntent`,
+        message: `${PublicNegativeIntentRebalanceService.name}.getQuote`,
         properties: {
           tokenIn,
           tokenOut,
@@ -69,13 +69,11 @@ export class PublicNegativeIntentRebalanceService
       }),
     )
 
-    // - Query intents by routeToken = tokenIn.config.address and rewardToken = tokenOut.config.address
+    // - Query intents by routeToken = tokenOut.config.address and rewardToken = tokenIn.config.address
     const intentFilter: IntentFilter = {
       status: 'PENDING',
-      // createdAfter?: Date
-      // createdBefore?: Date
-      routeToken: tokenIn.config.address,
-      rewardToken: tokenOut.config.address,
+      routeToken: tokenOut.config.address,
+      rewardToken: tokenIn.config.address,
       requireNonExpired: true,
       requireTransferSelector: true,
       requireZeroCallValue: true,
@@ -84,6 +82,12 @@ export class PublicNegativeIntentRebalanceService
     const negativeIntents = await this.getNegativeIntents(intentFilter)
 
     if (negativeIntents.length === 0) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `${PublicNegativeIntentRebalanceService.name}.getQuote: no negative intents found`,
+        }),
+      )
+
       return []
     }
 
@@ -122,6 +126,15 @@ export class PublicNegativeIntentRebalanceService
       context,
       id,
     }
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `${PublicNegativeIntentRebalanceService.name}.getQuote: returning quote`,
+        properties: {
+          quote,
+        },
+      }),
+    )
 
     return quote
   }

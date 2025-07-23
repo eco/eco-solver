@@ -170,6 +170,15 @@ export class QuoteRepository {
   }
 
   /**
+   * Fetch a quote by its ID
+   * @param quoteID the ID of the quote to fetch
+   * @returns the quote or an error
+   */
+  async getQuoteByID(quoteID: string): Promise<EcoResponse<QuoteIntentModel>> {
+    return this.fetchQuoteIntentData({ quoteID })
+  }
+
+  /**
    * Fetch a quote from the db
    * @param query the quote query filter
    * @returns the quote or an error
