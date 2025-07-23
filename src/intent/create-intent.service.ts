@@ -22,6 +22,7 @@ import { IntentDataModel } from './schemas/intent-data.schema'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { JobsOptions, Queue } from 'bullmq'
 import { Model } from 'mongoose'
+import { ModuleRef } from '@nestjs/core'
 import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 import { QUEUES } from '../common/redis/constants'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
@@ -36,19 +37,23 @@ import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.se
 export class CreateIntentService implements OnModuleInit {
   private logger = new EcoLogger(CreateIntentService.name)
   private intentJobConfig: JobsOptions
+  private negativeIntentAnalyzerService: NegativeIntentAnalyzerService
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
-    private readonly negativeIntentAnalyzerService: NegativeIntentAnalyzerService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    this.negativeIntentAnalyzerService = this.moduleRef.get(NegativeIntentAnalyzerService, {
+      strict: false,
+    })
   }
 
   /**
