@@ -6,6 +6,7 @@ import { ERROR_EVENTS } from '@/analytics/events.constants'
 import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
 import { IntentFundedLog } from '@/contracts'
@@ -15,6 +16,7 @@ import { Log, PublicClient } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
+import { QuoteRepository } from '@/quote/quote.repository'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 
 /**
@@ -30,7 +32,8 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     private readonly intentFundedEventRepository: IntentFundedEventRepository,
     protected readonly publicClientService: MultichainPublicClientService,
-    private createIntentService: CreateIntentService,
+    private readonly createIntentService: CreateIntentService,
+    private readonly quoteRepository: QuoteRepository,
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
@@ -95,20 +98,27 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
      * .The intent was not even a gasless one! Remember, publishAndFund() *also* emits IntentFunded events,
      *  and those ones are not gasless intents.
      */
-    const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
+    const { response: intentSourceModel, error } = await this.createIntentService.getIntentForHash(
+      log.args.intentHash,
+    )
 
     if (error) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `IntentFunded event is not ours, skipping`,
-          properties: {
-            intentHash: log.args.intentHash,
-          },
-        }),
-      )
+      return false
     }
 
-    return !error
+    const quoteID = intentSourceModel!.intent.quoteID
+
+    if (!quoteID) {
+      return false
+    }
+
+    const { response: quote, error: quoteError } = await this.quoteRepository.getQuoteByID(quoteID)
+
+    if (quoteError) {
+      return false
+    }
+
+    return IntentExecutionType.isGasless(quote!.intentExecutionType)
   }
 
   addJob(source: IntentSource, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void> {
@@ -118,6 +128,15 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         if (opts?.doValidation) {
           const isValidLog = await this.isOurIntent(log)
           if (!isValidLog) {
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `addJob: IntentFunded event is not ours, skipping`,
+                properties: {
+                  intentHash: log.args.intentHash,
+                },
+              }),
+            )
+
             continue
           }
         }

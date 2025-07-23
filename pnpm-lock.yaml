@@ -21,7 +21,7 @@ importers:
         specifier: ^3.592.0
         version: 3.846.0
       '@eco-foundation/chains':
-        specifier: 1.0.45
+        specifier: ^1.0.45
         version: 1.0.45(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@eco-foundation/eco-kms-core':
         specifier: ^2.0.0

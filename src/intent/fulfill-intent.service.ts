@@ -35,6 +35,7 @@ export class FulfillIntentService {
    */
   async fulfill(intentProcessingJobData: IntentProcessingJobData): Promise<unknown> {
     const { intentHash } = intentProcessingJobData
+    const isNegativeIntent = Boolean(intentProcessingJobData.isNegativeIntent)
 
     // Track fulfillment attempt start
     this.ecoAnalytics.trackIntentFulfillmentStarted(intentHash)
@@ -46,6 +47,7 @@ export class FulfillIntentService {
       // Track fulfillment failed due to data error
       this.ecoAnalytics.trackError(ANALYTICS_EVENTS.INTENT.FULFILLMENT_FAILED, err, {
         intentHash,
+        isNegativeIntent,
         data,
         reason: 'intent_data_error',
         stage: 'data_retrieval',
@@ -60,6 +62,7 @@ export class FulfillIntentService {
         new Error('missing_model_or_solver'),
         {
           intentHash,
+          isNegativeIntent,
           data,
           model,
           solver,
@@ -74,6 +77,7 @@ export class FulfillIntentService {
       // Track already solved intent
       this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FULFILLMENT_SKIPPED, {
         intentHash,
+        isNegativeIntent,
         model,
         solver,
         reason: 'already_solved',
@@ -90,6 +94,7 @@ export class FulfillIntentService {
     this.ecoAnalytics.trackIntentFulfillmentMethodSelected(
       intentHash,
       type || 'smart-wallet-account',
+      isNegativeIntent,
       isNative,
       model,
       solver,

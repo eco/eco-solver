@@ -80,7 +80,7 @@ export class ValidateIntentService implements OnModuleInit {
       EcoLogMessage.fromDefault({
         message: `validateIntent ${intentHash}`,
         properties: {
-          intentHash: intentHash,
+          data,
         },
       }),
     )
@@ -103,7 +103,7 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    await this.addFeasibilityCheckJob({ intentHash }, model, model.intent.logIndex)
+    await this.addFeasibilityCheckJob(data, model, model.intent.logIndex)
     return true
   }
 

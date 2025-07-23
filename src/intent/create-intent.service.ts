@@ -21,6 +21,7 @@ import { IntentDataModel } from './schemas/intent-data.schema'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { JobsOptions, Queue } from 'bullmq'
 import { Model } from 'mongoose'
+import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 import { QUEUES } from '../common/redis/constants'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
@@ -40,6 +41,7 @@ export class CreateIntentService implements OnModuleInit {
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
+    private readonly negativeIntentAnalyzerService: NegativeIntentAnalyzerService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
@@ -110,23 +112,6 @@ export class CreateIntentService implements OnModuleInit {
       })
 
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
-      if (validWallet) {
-        //add to processing queue
-        await this.intentQueue.add(
-          QUEUES.SOURCE_INTENT.jobs.validate_intent,
-          { intentHash: intent.hash },
-          {
-            jobId,
-            ...this.intentJobConfig,
-          },
-        )
-
-        // Track successful intent creation and queue addition
-        this.ecoAnalytics.trackIntentCreatedAndQueued(intent, jobId, intentWs)
-      } else {
-        // Track intent created but not queued due to invalid wallet
-        this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
-      }
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -139,6 +124,33 @@ export class CreateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      if (!validWallet) {
+        // Track intent created but not queued due to invalid wallet
+        this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
+        return
+      }
+
+      const isNegativeIntent = this.negativeIntentAnalyzerService.isNegativeIntent(record)
+
+      if (isNegativeIntent) {
+        // Track intent created but not queued due to being a negative intent
+        this.ecoAnalytics.trackIntentCreatedNegativeIntentRejected(intent, intentWs)
+        return
+      }
+
+      // Add to processing queue
+      await this.intentQueue.add(
+        QUEUES.SOURCE_INTENT.jobs.validate_intent,
+        { intentHash: intent.hash },
+        {
+          jobId,
+          ...this.intentJobConfig,
+        },
+      )
+
+      // Track successful intent creation and queue addition
+      this.ecoAnalytics.trackIntentCreatedAndQueued(intent, jobId, intentWs)
     } catch (e) {
       this.logger.error(
         EcoLogMessage.fromDefault({

@@ -66,6 +66,16 @@ export class NegativeIntentAnalyzerService {
     return Number(scale - ratio) / Number(scale)
   }
 
+  isNegativeIntent(intentSource: IntentSourceModel): boolean {
+    const { response: analysisResult, error } = this.analyzeIntent(intentSource)
+
+    if (error) {
+      return false
+    }
+
+    return analysisResult!.isNegative
+  }
+
   analyzeIntent(intentSource: IntentSourceModel): EcoResponse<NegativeIntentAnalysisResult> {
     const intent = intentSource.intent
     const calls = intentSource.intent.route.calls
