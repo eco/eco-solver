@@ -18,7 +18,6 @@ import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
-import { NegativeIntentsModule } from '@/negative-intents/negative-intents.module'
 
 @Module({
   imports: [
@@ -29,7 +28,6 @@ import { NegativeIntentsModule } from '@/negative-intents/negative-intents.modul
     ProverModule,
     SolverModule,
     TransactionModule,
-    NegativeIntentsModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
   ],
   providers: [
