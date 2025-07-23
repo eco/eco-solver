@@ -263,6 +263,7 @@ export class CreateIntentService implements OnModuleInit {
 
       if (error) {
         this.ecoAnalytics.trackIntentRetrievalNotFound('getIntentForHash', { hash }, error)
+        return { error }
       } else {
         this.ecoAnalytics.trackIntentRetrievalSuccess('getIntentForHash', {
           hash,
