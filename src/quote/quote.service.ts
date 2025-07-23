@@ -35,6 +35,8 @@ import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
+import { EcoAnalyticsService } from '@/analytics'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -65,6 +67,7 @@ export class QuoteService implements OnModuleInit {
     private readonly ecoConfigService: EcoConfigService,
     private readonly fulfillmentEstimateService: FulfillmentEstimateService,
     private readonly moduleRef: ModuleRef,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   onModuleInit() {
@@ -127,12 +130,26 @@ export class QuoteService implements OnModuleInit {
     quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn,
     isReverseQuote: boolean,
   ): Promise<EcoResponse<QuoteDataDTO>> {
+    const startTime = Date.now()
+
+    // Track quote processing start
+    this.ecoAnalytics.trackQuoteProcessingStarted(quoteIntentDataDTO, isReverseQuote)
+
     const { response: quoteIntents, error: saveError } =
       await this.storeQuoteIntentData(quoteIntentDataDTO)
 
     if (saveError) {
+      // Track storage error
+      this.ecoAnalytics.trackError(ANALYTICS_EVENTS.QUOTE.STORAGE_FAILED, saveError, {
+        quoteID: quoteIntentDataDTO.quoteID,
+        dAppID: quoteIntentDataDTO.dAppID,
+        processingTimeMs: Date.now() - startTime,
+      })
       return { error: InternalSaveError(saveError) }
     }
+
+    // Track successful storage
+    this.ecoAnalytics.trackQuoteStorageSuccess(quoteIntentDataDTO, quoteIntents!)
 
     const errors: any[] = []
 
@@ -141,6 +158,16 @@ export class QuoteService implements OnModuleInit {
     }
 
     for (const quoteIntent of quoteIntents!) {
+      const validationStartTime = Date.now()
+
+      // Track validation start
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.VALIDATION_STARTED, {
+        quoteID: quoteIntentDataDTO.quoteID,
+        dAppID: quoteIntentDataDTO.dAppID,
+        intentExecutionType: quoteIntent.intentExecutionType,
+        isReverseQuote,
+      })
+
       const error = await this.validateQuoteIntentData(
         quoteIntent,
         txValidationFn,
@@ -149,8 +176,36 @@ export class QuoteService implements OnModuleInit {
 
       if (error) {
         errors.push(error)
+
+        // Track validation failure
+        this.ecoAnalytics.trackError(ANALYTICS_EVENTS.QUOTE.VALIDATION_FAILED, error, {
+          quoteID: quoteIntentDataDTO.quoteID,
+          dAppID: quoteIntentDataDTO.dAppID,
+          intentExecutionType: quoteIntent.intentExecutionType,
+          isReverseQuote,
+          validationTimeMs: Date.now() - validationStartTime,
+        })
         continue
       }
+
+      // Track successful validation
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.VALIDATION_SUCCESS, {
+        quoteID: quoteIntentDataDTO.quoteID,
+        dAppID: quoteIntentDataDTO.dAppID,
+        intentExecutionType: quoteIntent.intentExecutionType,
+        isReverseQuote,
+        validationTimeMs: Date.now() - validationStartTime,
+      })
+
+      const generationStartTime = Date.now()
+
+      // Track generation start
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.GENERATION_STARTED, {
+        quoteID: quoteIntentDataDTO.quoteID,
+        dAppID: quoteIntentDataDTO.dAppID,
+        intentExecutionType: quoteIntent.intentExecutionType,
+        isReverseQuote,
+      })
 
       const { response: quoteDataEntry, error: quoteError } =
         await this.generateQuoteForIntentExecutionType({
@@ -163,16 +218,59 @@ export class QuoteService implements OnModuleInit {
       if (quoteError) {
         errors.push(quoteError)
         await this.updateQuoteDb(quoteIntent, { error: quoteError })
+
+        // Track generation failure
+        this.ecoAnalytics.trackError(ANALYTICS_EVENTS.QUOTE.GENERATION_FAILED, quoteError, {
+          quoteID: quoteIntentDataDTO.quoteID,
+          dAppID: quoteIntentDataDTO.dAppID,
+          intentExecutionType: quoteIntent.intentExecutionType,
+          isReverseQuote,
+          generationTimeMs: Date.now() - generationStartTime,
+        })
         continue
       }
 
       quoteDataDTO.quoteEntries.push(quoteDataEntry!)
       await this.updateQuoteDb(quoteIntent, { quoteDataEntry })
+
+      // Track successful generation
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.GENERATION_SUCCESS, {
+        quoteID: quoteIntentDataDTO.quoteID,
+        dAppID: quoteIntentDataDTO.dAppID,
+        intentExecutionType: quoteIntent.intentExecutionType,
+        isReverseQuote,
+        generationTimeMs: Date.now() - generationStartTime,
+      })
     }
 
+    const totalProcessingTime = Date.now() - startTime
+
     if (quoteDataDTO.quoteEntries.length === 0) {
+      // Track complete failure
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.QUOTE.PROCESSING_FAILED_ALL,
+        new Error('All quotes failed'),
+        {
+          quoteID: quoteIntentDataDTO.quoteID,
+          dAppID: quoteIntentDataDTO.dAppID,
+          isReverseQuote,
+          totalErrors: errors.length,
+          errorCount: errors.length,
+          processingTimeMs: totalProcessingTime,
+        },
+      )
       return { error: errors }
     }
+
+    // Track successful completion
+    this.ecoAnalytics.trackQuoteProcessingSuccess(
+      quoteIntentDataDTO,
+      isReverseQuote,
+      quoteDataDTO.quoteEntries.length,
+      errors.length,
+      totalProcessingTime,
+      quoteDataDTO.quoteEntries.map((q) => q.intentExecutionType),
+    )
 
     return { response: quoteDataDTO }
   }

@@ -31,6 +31,7 @@ import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
+import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -45,6 +46,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   /**
@@ -56,6 +58,8 @@ export class WalletFulfillService implements IFulfillService {
    * @return {Promise<void>} Resolves with no value. Throws an error if the intent fulfillment fails.
    */
   async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    const startTime = Date.now()
+
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
 
     // Create transactions for intent targets
@@ -92,6 +96,7 @@ export class WalletFulfillService implements IFulfillService {
       // set the status and receipt for the model
       model.receipt = receipt as any
       if (receipt.status === 'reverted') {
+        this.ecoAnalytics.trackIntentFulfillmentTransactionReverted(model, solver, receipt)
         throw EcoError.FulfillIntentRevertError(receipt)
       }
       model.status = 'SOLVED'
@@ -106,6 +111,9 @@ export class WalletFulfillService implements IFulfillService {
           },
         }),
       )
+
+      const processingTime = Date.now() - startTime
+      this.ecoAnalytics.trackIntentFulfillmentSuccess(model, solver, receipt, processingTime)
 
       return transactionHash
     } catch (e) {
@@ -123,6 +131,9 @@ export class WalletFulfillService implements IFulfillService {
           },
         }),
       )
+
+      const processingTime = Date.now() - startTime
+      this.ecoAnalytics.trackIntentFulfillmentFailed(model, solver, e, processingTime)
 
       // Throw error to retry job
       throw e
@@ -142,8 +153,11 @@ export class WalletFulfillService implements IFulfillService {
   async finalFeasibilityCheck(intent: IntentDataModel) {
     const { error } = await this.feeService.isRouteFeasible(intent)
     if (error) {
+      this.ecoAnalytics.trackIntentFeasibilityCheckFailed(intent, error)
       throw error
     }
+
+    this.ecoAnalytics.trackIntentFeasibilityCheckSuccess(intent)
   }
 
   /**
@@ -166,8 +180,11 @@ export class WalletFulfillService implements IFulfillService {
           args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
-        return [{ to: target, value: 0n, data: transferFunctionData }]
+        const result = [{ to: target, value: 0n, data: transferFunctionData }]
+        this.ecoAnalytics.trackErc20TransactionHandlingSuccess(tt, solver, target, result)
+        return result
       default:
+        this.ecoAnalytics.trackErc20TransactionHandlingUnsupported(tt, solver, target)
         return []
     }
   }
@@ -186,6 +203,7 @@ export class WalletFulfillService implements IFulfillService {
     const functionFulfills = functionCalls.flatMap((call) => {
       const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
+        this.ecoAnalytics.trackTransactionTargetGenerationError(model, solver, call)
         this.logger.error(
           EcoLogMessage.withError({
             message: `fulfillIntent: Invalid transaction data`,
@@ -204,10 +222,12 @@ export class WalletFulfillService implements IFulfillService {
         case 'erc721':
         case 'erc1155':
         default:
+          this.ecoAnalytics.trackTransactionTargetUnsupportedContractType(model, solver, tt)
           return []
       }
     })
 
+    this.ecoAnalytics.trackTransactionTargetGenerationSuccess(model, solver, functionFulfills)
     return functionFulfills
   }
 
@@ -245,7 +265,14 @@ export class WalletFulfillService implements IFulfillService {
       model.intent.reward.prover,
     )
     if (isHyperlane) {
-      return this.getFulfillTxForHyperprover(inboxAddress, claimant, model)
+      const result = await this.getFulfillTxForHyperprover(inboxAddress, claimant, model)
+      this.ecoAnalytics.trackFulfillIntentTxCreationSuccess(
+        model,
+        inboxAddress,
+        'hyperlane',
+        result,
+      )
+      return result
     }
 
     // Metalayer Prover
@@ -254,10 +281,19 @@ export class WalletFulfillService implements IFulfillService {
       model.intent.reward.prover,
     )
     if (isMetalayer) {
-      return this.getFulfillTxForMetalayer(inboxAddress, claimant, model)
+      const result = await this.getFulfillTxForMetalayer(inboxAddress, claimant, model)
+      this.ecoAnalytics.trackFulfillIntentTxCreationSuccess(
+        model,
+        inboxAddress,
+        'metalayer',
+        result,
+      )
+      return result
     }
 
-    throw new Error('Unsupported fulfillment method')
+    const error = new Error('Unsupported fulfillment method')
+    this.ecoAnalytics.trackFulfillIntentTxCreationFailed(model, inboxAddress, error)
+    throw error
   }
 
   /**

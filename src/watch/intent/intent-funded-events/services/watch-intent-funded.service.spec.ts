@@ -12,6 +12,7 @@ import { Network } from '@/common/alchemy/network'
 import { PublicClient } from 'viem'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 let $: EcoTester
 let service: WatchIntentFundedService
@@ -72,7 +73,7 @@ describe('WatchIntentFundedService', () => {
           useValue: new EcoConfigService([mockSource as any]),
         },
       ])
-      .withMocks([CreateIntentService, MultichainPublicClientService])
+      .withMocks([CreateIntentService, MultichainPublicClientService, EcoAnalyticsService])
       .withQueues([QUEUES.SOURCE_INTENT.queue])
 
     service = await $.init()

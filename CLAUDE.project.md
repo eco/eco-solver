@@ -17,7 +17,7 @@
 
 - **Runtime**: Node.js v20.14.0
 - **Framework**: NestJS with TypeScript
-- **Package Manager**: Yarn v1.22.22
+- **Package Manager**: pnpm v9.x
 
 ### Data Layer
 
@@ -85,18 +85,18 @@
 
 ```bash
 # Development
-yarn start:dev          # Hot-reload development mode
-yarn start              # Compile and run once
-yarn build              # Compile TypeScript to dist/
+pnpm start:dev          # Hot-reload development mode
+pnpm start              # Compile and run once
+pnpm build              # Compile TypeScript to dist/
 
 # Code Quality (REQUIRED before commits)
-yarn test               # Run all unit tests
-yarn format             # Run lint:fix + prettier:fix (REQUIRED)
-yarn lint               # ESLint code quality check
-yarn prettier           # Code formatting check
+pnpm test               # Run all unit tests
+pnpm format             # Run lint:fix + prettier:fix (REQUIRED)
+pnpm lint               # ESLint code quality check
+pnpm prettier           # Code formatting check
 
 # CLI Utilities
-yarn cli                # Commander CLI utilities (balance, transfer, etc.)
+pnpm cli                # Commander CLI utilities (balance, transfer, etc.)
 ```
 
 ### Docker Development
@@ -159,8 +159,8 @@ docker compose --profile app up --build
 
 - **Unit tests**: 100% coverage for all new functionality
 - **Integration tests**: Critical path validation
-- **Test commands**: `yarn test`, `yarn test:cov`, `yarn test:watch`
-- **Pre-commit**: ALWAYS run `yarn test && yarn format` before commits
+- **Test commands**: `pnpm test`, `pnpm test:cov`, `pnpm test:watch`
+- **Pre-commit**: ALWAYS run `pnpm test && pnpm format` before commits
 
 ### Test Organization
 
