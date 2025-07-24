@@ -16,6 +16,8 @@ import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp
 import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
 import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
+import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
+import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -36,6 +38,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
     public readonly liquidityManagerService: LiquidityManagerService,
     public readonly cctpProviderService: CCTPProviderService,
     public readonly cctpv2ProviderService: CCTPV2ProviderService,
+    public readonly everclearProviderService: EverclearProviderService,
   ) {
     super(LiquidityManagerProcessor.name, [
       new CheckBalancesCronJobManager(),
@@ -45,6 +48,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new CCTPLiFiDestinationSwapJobManager(),
       new CheckCCTPV2AttestationJobManager(),
       new ExecuteCCTPV2MintJobManager(),
+      new CheckEverclearIntentJobManager(),
     ])
   }
 }
