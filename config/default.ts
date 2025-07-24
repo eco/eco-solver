@@ -94,7 +94,7 @@ export default {
   },
 
   quotesConfig: {
-    intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
+    intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS', 'CROWD_LIQUIDITY'],
   },
 
   gaslessIntentdAppIDs: ['token-pair-validation', 'matrix-test', 'test', 'sdk-demo'],

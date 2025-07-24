@@ -38,6 +38,8 @@ import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { IntentSourceModel, IntentSourceStatus } from '@/intent/schemas/intent-source.schema'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -68,6 +70,7 @@ export class QuoteService implements OnModuleInit {
     private readonly fulfillmentEstimateService: FulfillmentEstimateService,
     private readonly moduleRef: ModuleRef,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
   ) {}
 
   onModuleInit() {
@@ -418,6 +421,9 @@ export class QuoteService implements OnModuleInit {
       case intentExecutionType.isGasless():
         return this.generateQuoteForGasless(params)
 
+      case intentExecutionType.isCrowdLiquidity():
+        return this.generateQuoteForCrowdLiquidity(params)
+
       default:
         return {
           error: InternalQuoteError(
@@ -521,6 +527,28 @@ export class QuoteService implements OnModuleInit {
     )
 
     return gas * gasPrice
+  }
+
+  private async generateQuoteForCrowdLiquidity(
+    params: GenerateQuoteParams,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { quoteIntent } = params
+    const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
+
+    if (!crowdLiquidityConfig.enabled) {
+      return { error: InternalQuoteError(new Error('CrowdLiquidity quoting is disabled')) }
+    }
+
+    const intentSourceModel = this.quoteIntentToIntenSource(quoteIntent as QuoteIntentModel)
+    if (!this.crowdLiquidityService.isRouteSupported(intentSourceModel)) {
+      return { error: InternalQuoteError(new Error('Route not supported by CrowdLiquidity')) }
+    }
+
+    if (!(await this.crowdLiquidityService.isPoolSolvent(intentSourceModel))) {
+      return { error: InternalQuoteError(new Error('CrowdLiquidity pool is not solvent')) }
+    }
+
+    return this._generateCrowdLiquidityQuote(quoteIntent as QuoteIntentModel)
   }
 
   /**
@@ -813,5 +841,63 @@ export class QuoteService implements OnModuleInit {
     updateQuoteParams: UpdateQuoteParams,
   ): Promise<EcoResponse<QuoteIntentModel>> {
     return this.quoteRepository.updateQuoteDb(quoteIntentModel, updateQuoteParams)
+  }
+
+  private quoteIntentToIntenSource(quoteIntent: QuoteIntentModel): IntentSourceModel {
+    return {
+      intent: {
+        ...quoteIntent,
+        route: {
+          ...quoteIntent.route,
+          salt: ZERO_SALT,
+        },
+        hash: '0x', // Placeholder hash
+        funder: '0x', // Placeholder funder
+        logIndex: 0, // Placeholder logIndex
+      },
+      status: 'PENDING' as IntentSourceStatus,
+      receipt: {} as any,
+    } as IntentSourceModel
+  }
+
+  private async _generateCrowdLiquidityQuote(
+    quoteIntentModel: QuoteIntentModel,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { route, reward } = quoteIntentModel
+    const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
+
+    const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
+    const minExcessFee = crowdLiquidityConfig.minExcessFees[Number(route.destination)] ?? 0n
+
+    const intentSourceModel = this.quoteIntentToIntenSource(quoteIntentModel)
+    const executionFee = await this.crowdLiquidityService.getExecutionFee(
+      intentSourceModel.intent,
+      totalRouteAmount,
+      0n, // Prover fee is calculated inside getExecutionFee
+    )
+
+    const requiredReward = totalRouteAmount + executionFee + minExcessFee
+
+    const rewardTokens: QuoteRewardTokensDTO[] = reward.tokens.map((t) => ({
+      token: t.token,
+      amount: requiredReward,
+    }))
+
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
+    const gasOverhead = this.getGasOverhead(quoteIntentModel)
+
+    return {
+      response: {
+        intentExecutionType: IntentExecutionType.CROWD_LIQUIDITY.toString(),
+        routeTokens: route.tokens,
+        routeCalls: route.calls,
+        rewardTokens,
+        rewardNative: reward.nativeValue,
+        expiryTime: this.getQuoteExpiryTime(),
+        estimatedFulfillTimeSec,
+        gasOverhead,
+      },
+    }
   }
 }

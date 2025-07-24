@@ -30,6 +30,7 @@ import { Chain, PublicClient, Transport } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { EcoError } from '@/common/errors/eco-error'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -58,6 +59,7 @@ describe('QuotesService', () => {
   let ecoConfigService: DeepMocked<EcoConfigService>
   let quoteModel: DeepMocked<Model<QuoteIntentModel>>
   let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
+  let crowdLiquidityService: DeepMocked<CrowdLiquidityService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
@@ -89,6 +91,7 @@ describe('QuotesService', () => {
         },
         { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
       ],
     }).compile()
 
@@ -96,6 +99,7 @@ describe('QuotesService', () => {
     quoteRepository = chainMod.get(QuoteRepository)
     feeService = chainMod.get(FeeService)
     validationService = chainMod.get(ValidationService)
+    crowdLiquidityService = chainMod.get(CrowdLiquidityService)
 
     ecoConfigService = chainMod.get(EcoConfigService)
     quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
@@ -898,6 +902,71 @@ describe('QuotesService', () => {
       expect(response).toEqual(updatedDoc)
       expect(quoteRepository.updateQuoteDb).toHaveBeenCalledTimes(1)
       expect(quoteRepository.updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, updateParams)
+    })
+  })
+
+  describe('CrowdLiquidity Quotes', () => {
+    const quoteIntentData = quoteTestUtils.createQuoteIntentDataDTO({
+      intentExecutionTypes: [IntentExecutionType.CROWD_LIQUIDITY.toString()],
+    })
+    const quoteIntentModel = quoteTestUtils.getQuoteIntentModel(
+      quoteIntentData.intentExecutionTypes[0],
+      quoteIntentData,
+    )
+
+    it('should generate a CrowdLiquidity quote when enabled and eligible', async () => {
+      ecoConfigService.getCrowdLiquidity.mockReturnValue({ enabled: true } as any)
+      crowdLiquidityService.isRouteSupported.mockReturnValue(true)
+      crowdLiquidityService.isPoolSolvent.mockResolvedValue(true)
+      jest
+        .spyOn(quoteService as any, '_generateCrowdLiquidityQuote')
+        .mockResolvedValue({ response: {} })
+
+      const { response, error } = await quoteService['generateQuoteForCrowdLiquidity']({
+        quoteIntent: quoteIntentModel,
+      } as any)
+
+      expect(error).toBeUndefined()
+      expect(response).toBeDefined()
+      expect(crowdLiquidityService.isRouteSupported).toHaveBeenCalled()
+      expect(crowdLiquidityService.isPoolSolvent).toHaveBeenCalled()
+      expect(quoteService['_generateCrowdLiquidityQuote']).toHaveBeenCalled()
+    })
+
+    it('should return an error when CL is disabled', async () => {
+      ecoConfigService.getCrowdLiquidity.mockReturnValue({ enabled: false } as any)
+
+      const { error } = await quoteService['generateQuoteForCrowdLiquidity']({
+        quoteIntent: quoteIntentModel,
+      } as any)
+
+      expect(error).toBeDefined()
+      expect(error.message).toContain('CrowdLiquidity quoting is disabled')
+    })
+
+    it('should return an error when route is not supported by CL', async () => {
+      ecoConfigService.getCrowdLiquidity.mockReturnValue({ enabled: true } as any)
+      crowdLiquidityService.isRouteSupported.mockReturnValue(false)
+
+      const { error } = await quoteService['generateQuoteForCrowdLiquidity']({
+        quoteIntent: quoteIntentModel,
+      } as any)
+
+      expect(error).toBeDefined()
+      expect(error.message).toContain('Route not supported by CrowdLiquidity')
+    })
+
+    it('should return an error when CL pool is not solvent', async () => {
+      ecoConfigService.getCrowdLiquidity.mockReturnValue({ enabled: true } as any)
+      crowdLiquidityService.isRouteSupported.mockReturnValue(true)
+      crowdLiquidityService.isPoolSolvent.mockResolvedValue(false)
+
+      const { error } = await quoteService['generateQuoteForCrowdLiquidity']({
+        quoteIntent: quoteIntentModel,
+      } as any)
+
+      expect(error).toBeDefined()
+      expect(error.message).toContain('CrowdLiquidity pool is not solvent')
     })
   })
 })
