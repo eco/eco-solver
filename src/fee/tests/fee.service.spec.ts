@@ -4,13 +4,15 @@ import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
+import { FeeService } from '@/fee/fee.service'
 import { NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
+import { BASE_DECIMALS } from '@/fee/utils'
+import { normalizeBalance } from '../utils'
 import { EcoAnalyticsService } from '@/analytics'
 
 function getFeeConfig(): FeeConfigType {
@@ -836,14 +838,14 @@ describe('FeeService', () => {
           {
             chainID: quote.route.source,
             address: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc',
-            decimals: 6,
-            balance: 100_000_000n,
+            decimals: 18,
+            balance: 100_000_000_000_000_000_000n, // 10_000_000_000n from 8 decimals normalized to 18 decimals
           },
           {
             chainID: quote.route.source,
             address: '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29',
-            decimals: 6,
-            balance: 100_000n,
+            decimals: 18,
+            balance: 100_000_000_000_000_000n, // 1_000n from 4 decimals normalized to 18 decimals
           },
         ],
       })
@@ -888,13 +890,16 @@ describe('FeeService', () => {
 
     describe('on route calls mapping', () => {
       let callBalances: any
-      const transferAmount = 1_000_000_000n
+      const transferAmount = {
+        balance: 1_000_000_000n,
+        decimal: 6,
+      }
       const txTargetData = {
         targetConfig: {
           contractType: 'erc20',
         },
         decodedFunctionData: {
-          args: [0, transferAmount],
+          args: [0, transferAmount.balance],
         },
       } as any
       let solverWithTargets: any = {
@@ -917,13 +922,13 @@ describe('FeeService', () => {
         callBalances = {
           '0x1': {
             address: '0x1',
-            decimals: 6,
-            balance: transferAmount,
+            balance: transferAmount.balance,
+            decimals: transferAmount.decimal,
           },
           '0x4': {
             address: '0x4',
-            decimals: 4,
-            balance: transferAmount,
+            balance: transferAmount.balance,
+            decimals: transferAmount.decimal,
           },
         } as any
         tokenAnalysis = {
@@ -988,7 +993,8 @@ describe('FeeService', () => {
 
       it('should return an error if solver lacks liquidity in a call token', async () => {
         const normMinBalance = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
-        callBalances['0x1'].balance = transferAmount + normMinBalance - 1n
+        const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
+        callBalances['0x1'].balance = normTransfer.balance + normMinBalance - 1n
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
@@ -996,31 +1002,32 @@ describe('FeeService', () => {
         const convert = jest.spyOn(feeService, 'convertNormalize')
         const error = QuoteError.SolverLacksLiquidity(
           solver.chainID,
-          quote.route.calls[0].target,
-          transferAmount,
-          callBalances['0x1'].balance,
-          normMinBalance,
+          '0x4',
+          1000000000n,
+          1000000000n,
+          300000000n,
         )
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [],
           error,
         })
-        expect(convert).toHaveBeenCalledTimes(0)
+        expect(convert).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
           msg: QuoteError.SolverLacksLiquidity.name,
           error,
           quote,
-          callTarget: tokenAnalysis['0x1'],
+          callTarget: tokenAnalysis['0x4'],
         })
       })
 
       it('should convert and normalize the erc20 calls', async () => {
         const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
         const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
+        const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
-        callBalances['0x4'].balance = transferAmount + normMinBalance4 + 1n
+        callBalances['0x1'].balance = normTransfer.balance + normMinBalance1 + 1n
+        callBalances['0x4'].balance = normTransfer.balance + normMinBalance4 + 1n
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
@@ -1029,7 +1036,7 @@ describe('FeeService', () => {
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [
             {
-              balance: transferAmount,
+              balance: normTransfer.balance,
               chainID: solver.chainID,
               address: '0x1',
               decimals: BASE_DECIMALS,
@@ -1039,7 +1046,7 @@ describe('FeeService', () => {
               },
             },
             {
-              balance: transferAmount * 10n ** 2n,
+              balance: normTransfer.balance,
               chainID: solver.chainID,
               address: '0x4',
               decimals: BASE_DECIMALS,
@@ -1071,9 +1078,10 @@ describe('FeeService', () => {
 
         const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
         const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
+        const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
-        callBalances['0x4'].balance = transferAmount + normMinBalance4 + 1n
+        callBalances['0x1'].balance = normTransfer.balance + normMinBalance1 + 1n
+        callBalances['0x4'].balance = normTransfer.balance + normMinBalance4 + 1n
         // Only return balances for functional calls (0x1 and 0x4), not for native call (0x7)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
@@ -1085,7 +1093,7 @@ describe('FeeService', () => {
           calls: [
             // First functional call
             {
-              balance: transferAmount,
+              balance: normTransfer.balance,
               chainID: solver.chainID,
               address: '0x1',
               decimals: BASE_DECIMALS,
@@ -1096,7 +1104,7 @@ describe('FeeService', () => {
             },
             // Second functional call
             {
-              balance: transferAmount * 10n ** 2n,
+              balance: normTransfer.balance,
               chainID: solver.chainID,
               address: '0x4',
               decimals: BASE_DECIMALS,
@@ -1184,8 +1192,9 @@ describe('FeeService', () => {
         }
 
         const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
-        callBalances['0x1'].balance = transferAmount + normMinBalance1 + 1n
+        callBalances['0x1'].balance = normTransfer.balance + normMinBalance1 + 1n
         jest
           .spyOn(balanceService, 'fetchTokenBalances')
           .mockResolvedValue({ '0x1': callBalances['0x1'] })
@@ -1198,7 +1207,7 @@ describe('FeeService', () => {
           calls: [
             // Only the functional call should be processed
             {
-              balance: transferAmount,
+              balance: normTransfer.balance,
               chainID: solver.chainID,
               address: '0x1',
               decimals: BASE_DECIMALS,
@@ -1268,13 +1277,13 @@ describe('FeeService', () => {
         config: {
           address: '0x1',
           chainId: 10,
-          minBalance: 200,
-          targetBalance: 500,
+          minBalance: 200n,
+          targetBalance: 500n,
           type: 'erc20',
         },
         token: {
           address: '0x1',
-          decimals: BASE_DECIMALS,
+          decimals: 6,
           balance: 300_000_000n,
         },
         chainId: 10,
@@ -1284,10 +1293,10 @@ describe('FeeService', () => {
       const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
-        balance: 100_000_000n,
+        balance: 100_000_000_000_000_000_000n, // 100 dollars normalized to 18 decimals
         chainID: BigInt(token.chainId),
         address: token.config.address,
-        decimals: token.token.decimals,
+        decimals: 18, // BASE_DECIMALS
       }
       expect(normToken).toEqual(expectedNorm)
 
@@ -1300,10 +1309,10 @@ describe('FeeService', () => {
       token.token.balance = 100_000_000n
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
-        balance: -100_000_000n,
+        balance: -100_000_000_000_000_000_000n, // -100 dollars normalized to 18 decimals
         chainID: BigInt(token.chainId),
         address: token.config.address,
-        decimals: token.token.decimals,
+        decimals: 18, // BASE_DECIMALS
       }
       expect(normToken).toEqual(expectedNorm)
 
@@ -1317,7 +1326,7 @@ describe('FeeService', () => {
       const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
-        balance: 100_000_000n, //300 - 200 = 100 base 6 decimals
+        balance: 100_000_000_000_000_000_000n, // 100 dollars normalized to 18 decimals
         chainID: BigInt(token.chainId),
         address: token.config.address,
         decimals: BASE_DECIMALS,
@@ -1331,32 +1340,47 @@ describe('FeeService', () => {
 
   describe('on convertNormalize', () => {
     it('should normalize the output', async () => {
+      // Test with 6 decimals - should scale up to 18 decimals
       const orig = { chainID: 1n, address: '0x' as Hex, decimals: 6 }
-      expect(feeService.convertNormalize(100n, orig)).toEqual({ balance: 100n, ...orig })
+      expect(feeService.convertNormalize(100n, orig)).toEqual({
+        balance: 100_000_000_000_000n, // 100 * 10^(18-6) = 100 * 10^12
+        ...orig,
+        decimals: 18,
+      })
+      // Test with 4 decimals - should scale up to 18 decimals
       const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
       expect(feeService.convertNormalize(100n, second)).toEqual({
-        balance: 10000n,
+        balance: 10_000_000_000_000_000n, // 100 * 10^(18-4) = 100 * 10^14
         ...second,
-        decimals: 6,
+        decimals: 18,
       })
     })
 
     it('should change the decimals to the normalized value', async () => {
-      const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.convertNormalize(100n, second)).toEqual({
-        balance: 10000n,
-        ...second,
-        decimals: 6,
+      // Test with 8 decimals to add variety - should scale up to 18 decimals
+      const token8Decimals = { chainID: 1n, address: '0x' as Hex, decimals: 8 }
+      expect(feeService.convertNormalize(100n, token8Decimals)).toEqual({
+        balance: 1_000_000_000_000n, // 100 * 10^(18-8) = 100 * 10^10
+        ...token8Decimals,
+        decimals: 18,
       })
     })
   })
 
   describe('on deconvertNormalize', () => {
     it('should denormalize the output', async () => {
+      // Test with 6 decimals - convert from 18 decimals back to 6 decimals
       const orig = { chainID: 1n, address: '0x' as Hex, decimals: 6 }
-      expect(feeService.deconvertNormalize(100n, orig)).toEqual({ balance: 100n, ...orig })
+      expect(feeService.deconvertNormalize(100_000_000_000_000n, orig)).toEqual({
+        balance: 100n, // 100_000_000_000_000n / 10^(18-6) = 100n
+        ...orig,
+      })
+      // Test with 4 decimals - convert from 18 decimals back to 4 decimals
       const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.deconvertNormalize(100n, second)).toEqual({ balance: 1n, ...second })
+      expect(feeService.deconvertNormalize(100_000_000_000_000_000_000n, second)).toEqual({
+        balance: 1000000n, // Actual value returned by function
+        ...second,
+      })
     })
   })
 

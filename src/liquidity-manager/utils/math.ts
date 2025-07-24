@@ -1,9 +1,21 @@
-export function getSlippageRange(amount: bigint, slippage: number) {
-  const slippageFactor = BigInt(Math.round(slippage * 100000))
-  const base = 100000n
+import { TokenBalance } from '@/balance/types'
+import { multiplyByPercentage } from '@/common/utils/math'
+import { normalizeBalance } from '@/fee/utils'
+import { BASE_DECIMALS } from '@/intent/utils'
 
-  const min = (amount * (base - slippageFactor)) / base
-  const max = (amount * (base + slippageFactor)) / base
+/**
+ *
+ * @param tokenBalance the token balance to calculate the range for
+ * @param percentage the percentage range to calculate, with `up` for the upper limit and `down` for the lower limit.
+ * Percentage values should be in decimal form (e.g., 0.1 for 10%).
+ * @returns an object containing the minimum and maximum range values in `bigint` format.
+ */
+export function getRangeFromPercentage(
+  tokenBalance: TokenBalance,
+  percentage: { up: number; down: number },
+): { min: bigint; max: bigint } {
+  const min = multiplyByPercentage(tokenBalance.balance, 1 - percentage.down, tokenBalance.decimals)
+  const max = multiplyByPercentage(tokenBalance.balance, 1 + percentage.up, tokenBalance.decimals)
 
   return { min, max }
 }
@@ -32,22 +44,34 @@ export function getTotalSlippage(slippages: number[]): number {
 }
 
 /**
- * Calculates the slippage between the fromAmount and the toAmountMin.
- * @param toAmountMin - The minimum amount of tokens received.
- * @param fromAmount - The amount of tokens sent.
- * @returns The slippage as a percentage.
+ * Calculates the slippage percentage between two token balances.
+ * Both token balances are normalized to BASE_DECIMALS before comparison.
+ * @param dstTokenMin - The minimum amount of destination tokens received.
+ * @param srcToken - The amount of source tokens sent.
+ * @returns The slippage as a decimal number (e.g., 0.005 for 0.5% slippage).
  */
-export function getSlippage(toAmountMin: string, fromAmount: string): number {
-  const toAmountMinBigInt = BigInt(toAmountMin)
-  const fromAmountBigInt = BigInt(fromAmount)
+export function getSlippagePercent(dstTokenMin: TokenBalance, srcToken: TokenBalance): number {
+  // Normalize both balances to BASE_DECIMALS for comparison
+  const normalizedDstToken = normalizeBalance(
+    { balance: dstTokenMin.balance, decimal: dstTokenMin.decimals },
+    BASE_DECIMALS,
+  )
+  const normalizedSrcToken = normalizeBalance(
+    { balance: srcToken.balance, decimal: srcToken.decimals },
+    BASE_DECIMALS,
+  )
 
-  if (fromAmountBigInt === 0n) {
+  if (normalizedSrcToken.balance === 0n) {
     return 0
   }
+
   // To avoid floating point inaccuracies with large numbers, we perform the division using BigInts.
   // We multiply by 10000 to preserve 4 decimal places of precision for the percentage.
   const slippage =
-    Number(((fromAmountBigInt - toAmountMinBigInt) * 10000n) / fromAmountBigInt) / 10000
+    Number(
+      ((normalizedSrcToken.balance - normalizedDstToken.balance) * 10000n) /
+        normalizedSrcToken.balance,
+    ) / 10000
 
   return slippage
 }

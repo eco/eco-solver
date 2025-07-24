@@ -63,7 +63,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
       eocAddress: `0x${string}`
       chainID: number
       balance: string
-      minEthBalanceWei: number
+      minEthBalanceWei: bigint
     }[] = []
     const solvers = this.configService.getSolvers()
     const balanceTasks = entries(solvers).map(async ([, solver]) => {
