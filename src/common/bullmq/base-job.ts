@@ -1,7 +1,7 @@
 /* eslint @typescript-eslint/no-unused-vars: 0 */
 import { Job as BullMQJob } from 'bullmq'
 
-export abstract class BaseJobManager<Job extends BullMQJob> {
+export abstract class BaseJobManager<Job extends BullMQJob, Processor = unknown> {
   /**
    * Checks if the given job is of the specific type.
    * @param job - The job to check.
@@ -14,14 +14,14 @@ export abstract class BaseJobManager<Job extends BullMQJob> {
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  abstract process(job: Job, processor: unknown): Promise<Job['returnvalue']>
+  abstract process(job: Job, processor: Processor): Promise<Job['returnvalue']>
 
   /**
    * Hook triggered when a job is completed.
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  onComplete(job: Job, processor: unknown): void {
+  onComplete(job: Job, processor: Processor): void {
     // Placeholder method implementation
   }
 
@@ -30,7 +30,7 @@ export abstract class BaseJobManager<Job extends BullMQJob> {
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  onFailed(job: Job, processor: unknown, error: unknown): void {
+  onFailed(job: Job, processor: Processor, error: unknown): void {
     // Placeholder method implementation
   }
 }

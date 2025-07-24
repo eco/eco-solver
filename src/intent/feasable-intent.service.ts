@@ -1,8 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { JobsOptions, Queue } from 'bullmq'
+import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
-import { QUEUES } from '../common/redis/constants'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
@@ -11,25 +8,28 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import {
+  IntentFulfillmentQueue,
+  IntentFulfillmentQueueType,
+} from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 
 /**
  * Service class for getting configs for the app
  */
 @Injectable()
-export class FeasableIntentService implements OnModuleInit {
+export class FeasableIntentService {
   private logger = new Logger(FeasableIntentService.name)
-  private intentJobConfig: JobsOptions
+  private readonly intentFulfillmentQueue: IntentFulfillmentQueue
   constructor(
-    @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
+    @InjectQueue(IntentFulfillmentQueue.queueName)
+    intentFulfillmentQueue: IntentFulfillmentQueueType,
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
-    private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) {}
-
-  async onModuleInit() {
-    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+  ) {
+    this.intentFulfillmentQueue = new IntentFulfillmentQueue(intentFulfillmentQueue)
   }
+
   async feasableQuote(quoteIntent: QuoteIntentModel) {
     try {
       this.logger.debug(
@@ -95,9 +95,9 @@ export class FeasableIntentService implements OnModuleInit {
     )
     if (!error) {
       //add to processing queue
-      await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, intentHash, {
-        jobId,
-        ...this.intentJobConfig,
+      await this.intentFulfillmentQueue.addFulfillIntentJob({
+        intentHash,
+        chainId: Number(model.intent.route.destination),
       })
 
       // Track feasible intent queued for fulfillment
