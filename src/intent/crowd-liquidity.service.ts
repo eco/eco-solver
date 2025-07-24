@@ -334,7 +334,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     return isEnough
   }
 
-  protected async getExecutionFee(
+  public async getExecutionFee(
     intentModel: IntentDataModel,
     totalRouteAmount: bigint,
     proverFee: bigint,

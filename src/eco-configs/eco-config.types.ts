@@ -438,6 +438,7 @@ export interface HyperlaneConfig {
 }
 
 export interface CrowdLiquidityConfig {
+  enabled?: boolean
   litNetwork: LIT_NETWORKS_KEYS
   capacityTokenOwnerPk: string
   defaultTargetBalance: number
