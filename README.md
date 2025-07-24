@@ -96,7 +96,6 @@ When setting up this repository for the first time, follow these steps to config
 
 3. **Test MCP Services**:
    The following services are configured in `.mcp.json`:
-
    - **mongodb-preprod**: Uses `env-cmd -e preprod` to load preprod MongoDB connection from `.env-cmdrc`
    - **mongodb-prod**: Uses `env-cmd -e prod` to load production MongoDB connection from `.env-cmdrc`
    - **github**: Uses Docker to run GitHub MCP server with your personal access token
@@ -105,7 +104,6 @@ When setting up this repository for the first time, follow these steps to config
 
 4. **Verify Connection Strings**:
    Connection strings are automatically loaded from:
-
    - `.env-cmdrc` (JSON format with preprod/prod environments)
    - `.env.preprod` and `.env.prod` (traditional .env format)
 
