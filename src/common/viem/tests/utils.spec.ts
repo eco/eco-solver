@@ -1,7 +1,5 @@
 import { addressKeys, convertBigIntsToStrings } from '../utils'
-import { Chain, InvalidAddressError } from 'viem'
-
-const mockApiKeys = { alchemy: 'alchemy', quicknode: 'quicknode' }
+import { InvalidAddressError } from 'viem'
 
 describe('Viem Utils', () => {
   describe('addressKeys', () => {

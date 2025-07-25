@@ -130,7 +130,7 @@ export class FulfillIntentService {
           },
         )
 
-        const result = await this.crowdLiquidityService.fulfill(model, solver)
+        const result = await this.crowdLiquidityService.fulfill(model)
 
         // Track successful crowd liquidity fulfillment
         this.ecoAnalytics.trackSuccess(
