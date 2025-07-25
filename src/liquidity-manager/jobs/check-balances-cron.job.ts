@@ -26,7 +26,8 @@ type CheckBalancesCronJob = LiquidityManagerJob<
  */
 export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
   static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
-  static ecoCronJobManager: EcoCronJobManager
+  // static ecoCronJobManager: EcoCronJobManager
+  private static ecoCronJobManagers: Record<string, EcoCronJobManager> = {}
 
   /**
    * Gets the unique job scheduler name for a specific wallet
@@ -44,12 +45,19 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param walletAddress - Wallet address
    */
   static async start(queue: Queue, interval: number, walletAddress: string): Promise<void> {
-    this.ecoCronJobManager = new EcoCronJobManager(
-      LiquidityManagerJobName.CHECK_BALANCES,
-      'check-balances',
-    )
+    if (!this.ecoCronJobManagers[walletAddress]) {
+      this.ecoCronJobManagers[walletAddress] = new EcoCronJobManager(
+        LiquidityManagerJobName.CHECK_BALANCES,
+        `check-balances-${walletAddress}`,
+      )
+    }
 
-    await this.ecoCronJobManager.start(queue, interval, walletAddress)
+    await this.ecoCronJobManagers[walletAddress].start(queue, interval, walletAddress)
+  }
+
+  static stop(walletAddress: string) {
+    this.ecoCronJobManagers[walletAddress]?.stop()
+    delete this.ecoCronJobManagers[walletAddress]
   }
 
   /**
