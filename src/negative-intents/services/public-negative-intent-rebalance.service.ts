@@ -1,4 +1,4 @@
-import { zeroAddress, Hex } from 'viem'
+import { zeroAddress, Hex, parseUnits } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -55,29 +55,41 @@ export class PublicNegativeIntentRebalanceService
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    rawSwapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<PublicNegativeIntent> | RebalanceQuote<PublicNegativeIntent>[]> {
+    const swapAmount = parseUnits(rawSwapAmount.toString(), tokenIn.balance.decimals)
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${PublicNegativeIntentRebalanceService.name}.getQuote`,
         properties: {
           tokenIn,
           tokenOut,
+          rawSwapAmount,
           swapAmount,
         },
       }),
     )
 
-    // - Query intents by routeToken = tokenOut.config.address and rewardToken = tokenIn.config.address
+    // - Query intents by routeToken = tokenIn.config.address and rewardToken = tokenOut.config.address
     const intentFilter: IntentFilter = {
       status: 'PENDING',
-      routeToken: tokenOut.config.address,
-      rewardToken: tokenIn.config.address,
+      routeToken: tokenIn.config.address,
+      rewardToken: tokenOut.config.address,
       requireNonExpired: true,
       requireTransferSelector: true,
       requireZeroCallValue: true,
     }
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getQuote`,
+        properties: {
+          intentFilter,
+        },
+      }),
+    )
 
     const negativeIntents = await this.getNegativeIntents(intentFilter)
 
@@ -96,7 +108,7 @@ export class PublicNegativeIntentRebalanceService
     let accumulated = 0n
 
     for (const intent of negativeIntents) {
-      if (accumulated >= BigInt(swapAmount)) {
+      if (accumulated >= swapAmount) {
         break
       }
 
@@ -111,6 +123,19 @@ export class PublicNegativeIntentRebalanceService
     const totalIn = selected.reduce((sum, i) => sum + i.routeAmount, 0n)
     const totalOut = selected.reduce((sum, i) => sum + i.rewardAmount, 0n)
     const avgSlippage = NegativeIntentAnalyzerService.getSlippage(totalOut, totalIn)
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `${PublicNegativeIntentRebalanceService.name}.getQuote: selected`,
+        properties: {
+          // selected,
+          accumulated,
+          totalIn,
+          totalOut,
+          avgSlippage,
+        },
+      }),
+    )
 
     const context: PublicNegativeIntentContext = {
       intentHashes: selected.map((rankedIntent) => rankedIntent.intentSource.intent.hash),
@@ -164,7 +189,7 @@ export class PublicNegativeIntentRebalanceService
       if (!intent) {
         this.logger.error(
           EcoLogMessage.fromDefault({
-            message: `Intent not found for hash: ${hash}`,
+            message: `${PublicNegativeIntentRebalanceService.name}.execute: intent not found for hash: ${hash}`,
             properties: {
               intentHash: hash,
               walletAddress,
@@ -178,7 +203,7 @@ export class PublicNegativeIntentRebalanceService
       // Fulfill intent
       this.logger.debug(
         EcoLogMessage.fromDefault({
-          message: `Adding fulfill job for intent ${hash}`,
+          message: `${PublicNegativeIntentRebalanceService.name}.execute: adding fulfill job for intent: ${hash}`,
           properties: {
             intentHash: hash,
             walletAddress,
@@ -195,7 +220,7 @@ export class PublicNegativeIntentRebalanceService
   async processIntentProven(data: IntentProcessingJobData): Promise<void> {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `processIntentProven`,
+        message: `${PublicNegativeIntentRebalanceService.name}.processIntentProven`,
         properties: {
           data,
         },
@@ -208,7 +233,7 @@ export class PublicNegativeIntentRebalanceService
     if (!intentSourceModel) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `processIntentProven: intent not found for hash: ${intentHash}`,
+          message: `${PublicNegativeIntentRebalanceService.name}.processIntentProven: intent not found for hash: ${intentHash}`,
         }),
       )
       return
@@ -233,7 +258,7 @@ export class PublicNegativeIntentRebalanceService
     if (!analysisResult!.isNegative) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
-          message: `processIntentProven: intent ${intentHash} is not negative, skipping`,
+          message: `${PublicNegativeIntentRebalanceService.name}.processIntentProven: intent ${intentHash} is not negative, skipping`,
           properties: { intentHash },
         }),
       )
@@ -243,7 +268,7 @@ export class PublicNegativeIntentRebalanceService
     // Withdraw rewards
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `processIntentProven: about to withdraw rewards for intent: ${intentHash}`,
+        message: `${PublicNegativeIntentRebalanceService.name}.processIntentProven: about to withdraw rewards for intent: ${intentHash}`,
         properties: { intentHash },
       }),
     )
@@ -261,7 +286,7 @@ export class PublicNegativeIntentRebalanceService
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `processIntentProven: withdraw rewards for intent: ${intentHash} job added`,
+        message: `${PublicNegativeIntentRebalanceService.name}.processIntentProven: withdraw rewards for intent: ${intentHash} job added`,
         properties: {
           job,
         },

@@ -122,12 +122,14 @@ describe('IntentSourceRepository', () => {
   })
 
   it('filters by non-expired intents', async () => {
+    const nowInSeconds = Math.floor(Date.now() / 1000)
+
     await intentSourceRepository.insertMany([
       createTestingIntentModel({
-        rewardOverrides: { deadline: BigInt(Date.now() + 60_000) },
+        rewardOverrides: { deadline: BigInt(nowInSeconds + 60) },
       }),
       createTestingIntentModel({
-        rewardOverrides: { deadline: BigInt(Date.now() - 1000) },
+        rewardOverrides: { deadline: BigInt(nowInSeconds - 1) },
       }),
     ])
 

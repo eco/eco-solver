@@ -59,6 +59,7 @@ describe('CreateIntentService', () => {
     chainMod.useLogger(false)
 
     createIntentService = chainMod.get(CreateIntentService)
+    createIntentService.onModuleInit()
     validSmartWalletService = chainMod.get(ValidSmartWalletService)
     flagService = chainMod.get(FlagService)
     ecoConfigService = chainMod.get(EcoConfigService)
@@ -67,6 +68,7 @@ describe('CreateIntentService', () => {
 
     createIntentService['logger'].debug = mockLogDebug
     createIntentService['logger'].log = mockLogLog
+    jest.spyOn(createIntentService['negativeIntentAnalyzerService'], 'isNegativeIntent').mockReturnValue(false)
   })
 
   afterEach(async () => {
@@ -208,7 +210,7 @@ describe('CreateIntentService', () => {
       expect(mockQueueAdd).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.validate_intent,
         { intentHash: mockIntent.hash },
-        { jobId },
+        expect.objectContaining({ jobId }),
       )
 
       expect(mockLogLog).toHaveBeenNthCalledWith(1, {

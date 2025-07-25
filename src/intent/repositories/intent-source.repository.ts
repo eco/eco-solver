@@ -79,8 +79,10 @@ export class IntentSourceRepository {
     }
 
     // 2. Filter by expiration
+    const nowInSeconds = Math.floor(Date.now() / 1000)
+
     if (filter.requireNonExpired) {
-      query['intent.reward.deadline'] = { $gt: BigInt(Date.now()) }
+      query['intent.reward.deadline'] = { $gt: BigInt(nowInSeconds) }
     }
 
     // 3. Filter by creation time
@@ -99,7 +101,23 @@ export class IntentSourceRepository {
     // 6. Filter by single transfer call
     this.addCallTargetsFilter(filter, query)
 
-    return await this.model.find(query).lean()
+    const rawResults = await this.model.find(query)
+
+    const intents: IntentSourceModel[] = rawResults.map((doc) => {
+      const intent = doc.toObject({ versionKey: false }) as IntentSourceModel
+
+      intent.intent.route.tokens.forEach((token) => {
+        token.amount = BigInt(token.amount.toString())
+      })
+
+      intent.intent.reward.tokens.forEach((token) => {
+        token.amount = BigInt(token.amount.toString())
+      })
+
+      return intent
+    })
+
+    return intents
   }
 
   private addDateRangeFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
