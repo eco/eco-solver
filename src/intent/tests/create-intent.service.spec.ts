@@ -68,7 +68,9 @@ describe('CreateIntentService', () => {
 
     createIntentService['logger'].debug = mockLogDebug
     createIntentService['logger'].log = mockLogLog
-    jest.spyOn(createIntentService['negativeIntentAnalyzerService'], 'isNegativeIntent').mockReturnValue(false)
+    jest
+      .spyOn(createIntentService['negativeIntentAnalyzerService'], 'isNegativeIntent')
+      .mockReturnValue(false)
   })
 
   afterEach(async () => {
