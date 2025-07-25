@@ -38,7 +38,7 @@ services:
       - ./config:/usr/src/app/config
       - ~/.aws:/root/.aws:ro
     restart: unless-stopped
-    command: ['yarn', 'start:dev']
+    command: ['pnpm', 'start:dev']
     profiles: ['app', 'all']
 
   mongodb:

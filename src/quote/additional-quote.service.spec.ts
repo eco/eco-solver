@@ -6,6 +6,7 @@ import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { Logger } from '@nestjs/common'
 import { parseGwei } from 'viem'
+import { EcoAnalyticsService } from '@/analytics'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
@@ -68,6 +69,7 @@ describe('QuoteService', () => {
         IntentInitiationService,
         FulfillmentEstimateService,
         QuoteRepository,
+        EcoAnalyticsService,
         {
           provide: EcoConfigService,
           useValue: {

@@ -12,6 +12,7 @@ import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { ValidationService } from '@/intent/validation.sevice'
+import { EcoAnalyticsService } from '@/analytics'
 import { zeroHash } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { EcoError } from '@/common/errors/eco-error'
@@ -52,6 +53,7 @@ describe('ValidateIntentService', () => {
           useValue: createMock<MultichainPublicClientService>(),
         },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),
