@@ -12,17 +12,13 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Hex } from 'viem'
 import { BalanceService } from '@/balance/balance.service'
-
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
     getTransactionTargetData: mockGetTransactionTargetData,
   }
 })
-
 describe('ValidationService', () => {
   let validationService: ValidationService
   let proofService: DeepMocked<ProofService>
@@ -30,7 +26,6 @@ describe('ValidationService', () => {
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
-  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   const mockLogLog = jest.fn()
 
   beforeEach(async () => {
@@ -42,8 +37,6 @@ describe('ValidationService', () => {
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
-        { provide: BalanceService, useValue: createMock<BalanceService>() },
-        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
       ],
     }).compile()
 
@@ -53,8 +46,6 @@ describe('ValidationService', () => {
     balanceService = mod.get(BalanceService)
     ecoConfigService = mod.get(EcoConfigService)
     utilsIntentService = mod.get(UtilsIntentService)
-    balanceService = mod.get(BalanceService)
-    kernelAccountClientService = mod.get(KernelAccountClientService)
 
     validationService['logger'].log = mockLogLog
 
@@ -77,8 +68,8 @@ describe('ValidationService', () => {
 
     // Mock proofService methods to return a valid ProofType by default
     const mockProofType = {
-      isHyperlane: jest.fn().mockReturnValue(true),
-      isMetalayer: jest.fn().mockReturnValue(false),
+      isHyperlane: () => true,
+      isMetalayer: () => false,
     }
     proofService.getProverType.mockReturnValue(mockProofType as any)
     proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
@@ -92,16 +83,12 @@ describe('ValidationService', () => {
   describe('on initialization', () => {
     it('should set isNativeETHSupported based on config on module init', () => {
       // Test when native is supported
-      jest
-        .spyOn(ecoConfigService, 'getIntentConfigs')
-        .mockReturnValue({ isNativeETHSupported: true } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: true } as any)
       validationService.onModuleInit()
       expect(validationService['isNativeETHSupported']).toBe(true)
 
       // Test when native is not supported
-      jest
-        .spyOn(ecoConfigService, 'getIntentConfigs')
-        .mockReturnValue({ isNativeETHSupported: false } as any)
+      ecoConfigService.getIntentConfigs.mockReturnValue({ isNativeETHSupported: false } as any)
       validationService.onModuleInit()
       expect(validationService['isNativeETHSupported']).toBe(false)
     })
@@ -150,7 +137,6 @@ describe('ValidationService', () => {
         supportedNative: true,
         supportedTargets: true,
         supportedTransaction: true,
-        validSourceMax: true,
         validTransferLimit: true,
         validExpirationTime: false,
         validDestination: true,
@@ -166,7 +152,6 @@ describe('ValidationService', () => {
         supportedNative: false,
         supportedTargets: false,
         supportedTransaction: false,
-        validSourceMax: false,
         validTransferLimit: false,
         validExpirationTime: false,
         validDestination: false,
@@ -182,7 +167,6 @@ describe('ValidationService', () => {
         supportedNative: true,
         supportedTargets: true,
         supportedTransaction: true,
-        validSourceMax: true,
         validTransferLimit: true,
         validExpirationTime: true,
         validDestination: true,
@@ -223,11 +207,6 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if a single source supports the prover', async () => {
-        const intent = {
-          source: Number(sourceChainID),
-          destination: Number(chainID),
-          prover,
-        } as any
         // Mock the first call for source chain check
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [unsupportedProver], chainID } as any,
@@ -247,11 +226,6 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if multiple sources supports the prover', async () => {
-        const intent = {
-          source: Number(sourceChainID),
-          destination: Number(chainID),
-          prover,
-        } as any
         // Mock the first call for source chain check
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [prover], chainID } as any,
@@ -550,284 +524,6 @@ describe('ValidationService', () => {
       })
     })
 
-    describe('on validSourceMax', () => {
-      const mockSolver = {
-        chainID: 1,
-        nativeMax: 1000000000000000000n, // 1 ETH max native balance
-        targets: {
-          '0x1234567890123456789012345678901234567890': {
-            contractType: 'erc20',
-            selectors: ['transfer(address,uint256)'],
-            minBalance: 100,
-            targetBalance: 1000,
-            maxBalance: 5000,
-          },
-          '0xabcdef1234567890123456789012345678901234': {
-            contractType: 'erc20',
-            selectors: ['transfer(address,uint256)'],
-            minBalance: 50,
-            targetBalance: 500,
-            maxBalance: 2500,
-          },
-          '0x9876543210987654321098765432109876543210': {
-            contractType: 'erc20',
-            selectors: ['transfer(address,uint256)'],
-            minBalance: 100,
-            targetBalance: 1000,
-            // No maxBalance property
-          },
-        },
-      } as any
-
-      const mockIntent = {
-        hash: '0xIntentHash',
-        route: {
-          source: 1n,
-          calls: [{ value: 100000000000000000n }], // 0.1 ETH call value
-        },
-        reward: {
-          tokens: [
-            { token: '0x1234567890123456789012345678901234567890', amount: 1000000n }, // 1 token (6 decimals)
-            { token: '0xabcdef1234567890123456789012345678901234', amount: 2000000n }, // 2 tokens (6 decimals)
-          ],
-          nativeValue: 200000000000000000n, // 0.2 ETH reward
-        },
-      } as any
-
-      beforeEach(() => {
-        jest.clearAllMocks()
-      })
-
-      it('should return false when no solver is found for source chain', async () => {
-        ecoConfigService.getSolver.mockReturnValue(undefined)
-
-        const result = await validationService['validSourceMax'](mockIntent)
-
-        expect(result).toBe(false)
-        expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockIntent.route.source)
-      })
-
-      it('should return true when no maxBalance is configured for any reward tokens', async () => {
-        const intentWithNoMaxTokens = {
-          ...mockIntent,
-          reward: {
-            tokens: [{ token: '0x9876543210987654321098765432109876543210', amount: 1000000n }],
-            nativeValue: 0n,
-          },
-          route: {
-            source: 1n,
-            calls: [{ value: 0n }], // Ensure no native value in calls
-          },
-        }
-
-        ecoConfigService.getSolver.mockReturnValue(mockSolver)
-
-        const result = await validationService['validSourceMax'](intentWithNoMaxTokens)
-
-        expect(result).toBe(true)
-        expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockIntent.route.source)
-      })
-
-      it('should return true when projected balance does not exceed maxBalance', async () => {
-        ecoConfigService.getSolver.mockReturnValue(mockSolver)
-
-        // Mock current balances - well under maxBalance
-        balanceService.fetchTokenBalance
-          .mockResolvedValueOnce({
-            address: '0x1234567890123456789012345678901234567890' as Hex,
-            balance: 1000000n, // 1 token current balance
-            decimals: 6,
-          })
-          .mockResolvedValueOnce({
-            address: '0xabcdef1234567890123456789012345678901234' as Hex,
-            balance: 500000n, // 0.5 token current balance
-            decimals: 6,
-          })
-
-        // Mock kernel client for native balance check
-        const mockClient = {
-          kernelAccount: { address: '0xSolverWallet' as Hex },
-          getBalance: jest.fn().mockResolvedValue(100000000000000000n), // 0.1 ETH current balance
-        } as any
-        kernelAccountClientService.getClient.mockResolvedValue(mockClient)
-
-        const result = await validationService['validSourceMax'](mockIntent)
-
-        expect(result).toBe(true)
-        expect(balanceService.fetchTokenBalance).toHaveBeenCalledTimes(2)
-        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(
-          1,
-          '0x1234567890123456789012345678901234567890',
-        )
-        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(
-          1,
-          '0xabcdef1234567890123456789012345678901234',
-        )
-      })
-
-      it('should return false when projected balance exceeds maxBalance', async () => {
-        ecoConfigService.getSolver.mockReturnValue(mockSolver)
-
-        // Mock current balance that would exceed maxBalance when added to reward
-        balanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1234567890123456789012345678901234567890' as Hex,
-          balance: 4500000000n, // 4500 tokens current balance (maxBalance is 5000)
-          decimals: 6,
-        })
-
-        const result = await validationService['validSourceMax'](mockIntent)
-
-        expect(result).toBe(false)
-        expect(balanceService.fetchTokenBalance).toHaveBeenCalledWith(
-          1,
-          '0x1234567890123456789012345678901234567890',
-        )
-      })
-
-      it('should handle different token decimals correctly', async () => {
-        // Test with 18 decimal token
-        const solverWith18Decimals = {
-          ...mockSolver,
-          targets: {
-            '0x1234567890123456789012345678901234567890': {
-              ...mockSolver.targets['0x1234567890123456789012345678901234567890'],
-              maxBalance: 5000, // Still 5000 in dollar units
-            },
-            '0xabcdef1234567890123456789012345678901234': {
-              ...mockSolver.targets['0xabcdef1234567890123456789012345678901234'],
-              maxBalance: 2500, // Keep original maxBalance
-            },
-          },
-        }
-
-        ecoConfigService.getSolver.mockReturnValue(solverWith18Decimals)
-
-        balanceService.fetchTokenBalance
-          .mockResolvedValueOnce({
-            address: '0x1234567890123456789012345678901234567890' as Hex,
-            balance: 1000000000000000000n, // 1 token (18 decimals)
-            decimals: 18,
-          })
-          .mockResolvedValueOnce({
-            address: '0xabcdef1234567890123456789012345678901234' as Hex,
-            balance: 500000n, // 0.5 tokens (6 decimals)
-            decimals: 6,
-          })
-
-        // Mock kernel client
-        const mockClient = {
-          kernelAccount: { address: '0xSolverWallet' as Hex },
-          getBalance: jest.fn().mockResolvedValue(100000000000000000n),
-        } as any
-        kernelAccountClientService.getClient.mockResolvedValue(mockClient)
-
-        const result = await validationService['validSourceMax'](mockIntent)
-
-        expect(result).toBe(true)
-        expect(balanceService.fetchTokenBalance).toHaveBeenCalledTimes(2)
-      })
-
-      it('should use correct normalization for maxBalance', async () => {
-        const solverWithCustomBalance = {
-          ...mockSolver,
-          targets: {
-            '0x1234567890123456789012345678901234567890': {
-              ...mockSolver.targets['0x1234567890123456789012345678901234567890'],
-              maxBalance: 1000, // 1000 dollar units
-            },
-          },
-        }
-
-        ecoConfigService.getSolver.mockReturnValue(solverWithCustomBalance)
-
-        // Mock balance that when normalized should be within limits
-        balanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1234567890123456789012345678901234567890' as Hex,
-          balance: 500000000n, // 500 tokens (6 decimals)
-          decimals: 6,
-        })
-
-        // Mock kernel client
-        const mockClient = {
-          kernelAccount: { address: '0xSolverWallet' as Hex },
-          getBalance: jest.fn().mockResolvedValue(100000000000000000n),
-        } as any
-        kernelAccountClientService.getClient.mockResolvedValue(mockClient)
-
-        const result = await validationService['validSourceMax'](mockIntent)
-
-        expect(result).toBe(true)
-      })
-
-      it('should return false when error occurs during validation', async () => {
-        ecoConfigService.getSolver.mockReturnValue(mockSolver)
-        balanceService.fetchTokenBalance.mockRejectedValue(new Error('Balance fetch failed'))
-
-        const result = await validationService['validSourceMax'](mockIntent)
-
-        expect(result).toBe(false)
-      })
-
-      it('should return false when native balance exceeds nativeMax', async () => {
-        // Create intent with only native rewards, no tokens
-        const nativeOnlyIntent = {
-          hash: '0xIntentHash',
-          route: {
-            source: 1n,
-            calls: [{ value: 100000000000000000n }], // 0.1 ETH call value
-          },
-          reward: {
-            tokens: [], // No token rewards
-            nativeValue: 200000000000000000n, // 0.2 ETH reward
-          },
-        } as any
-
-        ecoConfigService.getSolver.mockReturnValue(mockSolver)
-
-        // Mock high current native balance that would exceed nativeMax when reward is added
-        const mockClient = {
-          kernelAccount: { address: '0xSolverWallet' as Hex },
-          getBalance: jest.fn().mockResolvedValue(900000000000000000n), // 0.9 ETH current
-        } as any
-        kernelAccountClientService.getClient.mockResolvedValue(mockClient)
-
-        // Intent has 0.2 ETH reward + 0.1 ETH call value = 0.3 ETH
-        // Total would be 0.9 + 0.3 = 1.2 ETH, exceeding 1 ETH nativeMax
-
-        const result = await validationService['validSourceMax'](nativeOnlyIntent)
-
-        expect(result).toBe(false)
-        expect(kernelAccountClientService.getClient).toHaveBeenCalledWith(1)
-      })
-
-      it('should return true for non-native intents when checking native max', async () => {
-        const nonNativeIntent = {
-          ...mockIntent,
-          reward: {
-            tokens: [{ token: '0x1234567890123456789012345678901234567890', amount: 1000000n }],
-            nativeValue: 0n,
-          },
-          route: {
-            source: 1n,
-            calls: [{ value: 0n }], // No native value in calls
-          },
-        }
-
-        ecoConfigService.getSolver.mockReturnValue(mockSolver)
-
-        balanceService.fetchTokenBalance.mockResolvedValueOnce({
-          address: '0x1234567890123456789012345678901234567890' as Hex,
-          balance: 1000000n,
-          decimals: 6,
-        })
-
-        const result = await validationService['validSourceMax'](nonNativeIntent)
-
-        expect(result).toBe(true)
-        // Should not call kernel client for non-native intents
-        expect(kernelAccountClientService.getClient).not.toHaveBeenCalled()
-      })
-    })
     describe('on hasSufficientBalance', () => {
       const mockIntent = {
         hash: '0x123',
@@ -1141,7 +837,6 @@ describe('ValidationService', () => {
       supportedNative: 'supportedNative',
       supportedTargets: 'supportedTargets',
       supportedTransaction: 'supportedTransaction',
-      validSourceMax: 'validSourceMax',
       validTransferLimit: 'validTransferLimit',
       validExpirationTime: 'validExpirationTime',
       validDestination: 'validDestination',
