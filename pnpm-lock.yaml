@@ -33,8 +33,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@eco-foundation/routes-ts':
-        specifier: ^2.8.10
-        version: 2.8.10(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+        specifier: ^2.8.12
+        version: 2.8.12(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@launchdarkly/node-server-sdk':
         specifier: ^9.7.1
         version: 9.10.1
@@ -666,8 +666,8 @@ packages:
   '@eco-foundation/eco-kms-wallets@2.0.0':
     resolution: {integrity: sha512-7zaH5uKk23layaqD35xyM1cT3bWr8VPpf/gXrYL344SkAdBt1FyDfeOt59TMuezmp5Bbxg5/NIcn3DGp/RzMHg==}
 
-  '@eco-foundation/routes-ts@2.8.10':
-    resolution: {integrity: sha512-4n9yyuQf616fpZZ/idMWu/iAQTxzrsNcc316pCioUlO1KQJzk4PnSm9queuiceUFcEfwxNT3TUZb69WHvyXNSA==}
+  '@eco-foundation/routes-ts@2.8.12':
+    resolution: {integrity: sha512-TmjvGY5BRcqLlY+aEufkla7XOM29SmK7w0HIEGRQNwMeGsWyZd/KPUVIayNV/Jc0e5IOSeefONcjPQtfwZBp4w==}
 
   '@eslint-community/eslint-utils@4.7.0':
     resolution: {integrity: sha512-dyybb3AcajC7uha6CvhdVRJqaKyn7w2YKqKyAN37NKYgZT36w+iRb0Dymmc5qEJ549c/S31cMMSFd75bteCpCw==}
@@ -6577,7 +6577,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@eco-foundation/routes-ts@2.8.10(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+  '@eco-foundation/routes-ts@2.8.12(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       viem: 2.33.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
