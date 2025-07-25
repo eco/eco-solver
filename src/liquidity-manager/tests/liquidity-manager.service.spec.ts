@@ -96,17 +96,11 @@ describe('LiquidityManagerService', () => {
         .spyOn(ecoConfigService, 'getLiquidityManager')
         .mockReturnValue({ intervalDuration } as any)
 
-      const startCronSpy = jest
-        .spyOn(CheckBalancesCronJobManager, 'start')
-        .mockResolvedValue()
+      const startCronSpy = jest.spyOn(CheckBalancesCronJobManager, 'start').mockResolvedValue()
 
       await liquidityManagerService.onApplicationBootstrap()
 
-      expect(startCronSpy).toHaveBeenCalledWith(
-        queue,
-        intervalDuration,
-        zeroAddress,
-      )
+      expect(startCronSpy).toHaveBeenCalledWith(queue, intervalDuration, zeroAddress)
     })
 
     it('should set liquidity manager config', async () => {
