@@ -48,8 +48,8 @@ export class NegativeIntentAnalyzerService {
    * Computes slippage as a number between 0 and 1.
    * Uses bigint math to avoid precision loss from large values (e.g., wei).
    *
-   * @param rewardAmount - The "output" amount (e.g., reward) in bigint
-   * @param routeAmount - The "input" amount (e.g., route) in bigint
+   * @param rewardAmount - The "output" amount (reward) in bigint
+   * @param routeAmount - The "input" amount (route) in bigint
    * @param scale - Optional scale factor (default 1_000_000n for 6 decimal places)
    * @returns slippage as a number (e.g., 0.15 for 15% slippage)
    */
@@ -172,6 +172,17 @@ export class NegativeIntentAnalyzerService {
       const slippage = NegativeIntentAnalyzerService.getSlippage(rewardAmount, routeAmount)
 
       if (slippage > maxSlippage) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `rankIntents: Slippage too high`,
+            properties: {
+              netDiff,
+              slippage,
+              maxSlippage,
+            },
+          }),
+        )
+
         skipped.push({
           intentSource,
           reason: `Slippage too high: ${slippage.toFixed(4)}`,
