@@ -9,6 +9,7 @@ export const INTENT_EVENTS = {
   DUPLICATE_DETECTED: 'intent_duplicate_detected',
   CREATED_AND_QUEUED: 'intent_created_and_queued',
   CREATED_WALLET_REJECTED: 'intent_created_wallet_rejected',
+  CREATED_NEGATIVE_INTENT_REJECTED: 'intent_created_negative_intent_rejected',
   CREATION_STARTED: 'intent_creation_started',
   CREATION_FAILED: 'intent_creation_failed',
 

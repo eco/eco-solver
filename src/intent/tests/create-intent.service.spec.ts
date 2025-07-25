@@ -13,6 +13,7 @@ import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet
 import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 
 jest.mock('../../contracts', () => {
   return {
@@ -35,6 +36,7 @@ describe('CreateIntentService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         CreateIntentService,
+        NegativeIntentAnalyzerService,
         { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
         { provide: FlagService, useValue: createMock<FlagService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
@@ -53,10 +55,11 @@ describe('CreateIntentService', () => {
       .overrideProvider(getQueueToken(QUEUES.SOURCE_INTENT.queue))
       .useValue(createMock<Queue>())
       .compile()
-    //turn off the services from logging durring testing
+    // turn off the services from logging durring testing
     chainMod.useLogger(false)
 
     createIntentService = chainMod.get(CreateIntentService)
+    createIntentService.onModuleInit()
     validSmartWalletService = chainMod.get(ValidSmartWalletService)
     flagService = chainMod.get(FlagService)
     ecoConfigService = chainMod.get(EcoConfigService)
@@ -65,6 +68,9 @@ describe('CreateIntentService', () => {
 
     createIntentService['logger'].debug = mockLogDebug
     createIntentService['logger'].log = mockLogLog
+    jest
+      .spyOn(createIntentService['negativeIntentAnalyzerService'], 'isNegativeIntent')
+      .mockReturnValue(false)
   })
 
   afterEach(async () => {
@@ -205,8 +211,8 @@ describe('CreateIntentService', () => {
       expect(mockQueueAdd).toHaveBeenCalledTimes(1)
       expect(mockQueueAdd).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.validate_intent,
-        mockIntent.hash,
-        { jobId },
+        { intentHash: mockIntent.hash },
+        expect.objectContaining({ jobId }),
       )
 
       expect(mockLogLog).toHaveBeenNthCalledWith(1, {

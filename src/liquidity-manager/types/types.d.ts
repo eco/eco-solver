@@ -70,6 +70,10 @@ interface CCTPLiFiStrategyContext {
   id?: string
 }
 
+interface PublicNegativeIntentContext {
+  intentHashes: Hex[]
+}
+
 type Strategy =
   | 'LiFi'
   | 'CCTP'
@@ -79,6 +83,8 @@ type Strategy =
   | 'Stargate'
   | 'Squid'
   | 'CCTPV2'
+  | 'PublicNegativeIntent'
+
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -95,7 +101,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
               ? SquidStrategyContext
               : S extends 'CCTPV2'
                 ? CCTPV2StrategyContext
-                : never
+                : S extends 'PublicNegativeIntent'
+                  ? PublicNegativeIntentContext
+                  : never
 
 // Quote
 

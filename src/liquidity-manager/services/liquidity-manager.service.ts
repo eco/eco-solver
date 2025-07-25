@@ -321,16 +321,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
         // Use the fallback method that routes through core tokens
-        const quotes = await this.liquidityProviderManager.fallback(
+        const fallbackQuotes = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
           swapAmount,
         )
 
-        quotes.push(...quotes)
-        quotes.forEach((quote) => {
+        quotes.push(...fallbackQuotes)
+        for (const quote of fallbackQuotes) {
           currentBalance += quote.amountOut
-        })
+        }
       } catch (fallbackError) {
         this.ecoAnalytics.trackError(
           ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,
