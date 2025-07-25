@@ -1,5 +1,6 @@
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoResponse } from '@/common/eco-response'
 import { Queue, JobSchedulerTemplateOptions, Job } from 'bullmq'
 
 interface JobTemplate {
@@ -14,7 +15,8 @@ interface JobTemplate {
  */
 export class EcoCronJobManager {
   private logger: EcoLogger
-  private stopRequested = false
+  private started: boolean = false
+  private stopRequested: boolean = false
 
   constructor(
     private readonly jobName: string,
@@ -30,20 +32,30 @@ export class EcoCronJobManager {
    * @param walletAddress - Wallet address
    */
   async start(queue: Queue, interval: number, walletAddress: string): Promise<void> {
+    if (this.started) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `start() called again while already running for walletAddress: ${walletAddress} — ignoring`,
+        }),
+      )
+      return
+    }
+
+    this.started = true
     this.stopRequested = false
 
     this.logger.log(
       EcoLogMessage.fromDefault({
-        message: `starting for walletAddress: ${walletAddress}`,
+        message: `start: walletAddress: ${walletAddress}`,
         properties: {
-          queue: queue.name,
+          queueName: queue.name,
           interval,
         },
       }),
     )
 
-    setTimeout(
-      async () => {
+    setImmediate(async () => {
+      try {
         while (!this.stopRequested) {
           await this.checkAndEmitDeduped(
             queue,
@@ -55,13 +67,13 @@ export class EcoCronJobManager {
 
         this.logger.log(
           EcoLogMessage.fromDefault({
-            message: `stopped for ${walletAddress}`,
+            message: `stopped for walletAddress: ${walletAddress}`,
           }),
         )
-      },
-      10,
-      this,
-    )
+      } finally {
+        this.started = false
+      }
+    })
   }
 
   stop() {
@@ -89,29 +101,40 @@ export class EcoCronJobManager {
     queue: Queue,
     walletAddress: string,
     jobTemplate: JobTemplate,
-  ): Promise<Job<any, any, string>> {
-    const { name: jobName, data: jobData, opts: jobOpts } = jobTemplate
+  ): Promise<EcoResponse<Job<any, any, string>>> {
+    try {
+      const { name: jobName, data: jobData, opts: jobOpts } = jobTemplate
 
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `checkAndEmitDeduped: adding job for queue: ${queue.name} walletAddress: ${walletAddress}`,
-      }),
-    )
+      const job = await queue.add(jobName, jobData, {
+        jobId: `${this.jobIDPrefix}-${walletAddress}`,
+        ...jobOpts,
+      })
 
-    const job = await queue.add(jobName, jobData, {
-      jobId: `${this.jobIDPrefix}-${walletAddress}`,
-      ...jobOpts,
-    })
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `checkAndEmitDeduped: job added walletAddress: ${walletAddress}`,
+          properties: {
+            jobId: job.id,
+            queue: queue.name,
+          },
+        }),
+      )
 
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `checkAndEmitDeduped: job added`,
-        properties: {
-          job,
-        },
-      }),
-    )
+      return { response: job }
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `checkAndEmitDeduped: error adding job`,
+          properties: {
+            walletAddress,
+            queue: queue.name,
+            error: ex.message || ex,
+          },
+        }),
+        ex.stack,
+      )
 
-    return job
+      return { error: ex }
+    }
   }
 }
