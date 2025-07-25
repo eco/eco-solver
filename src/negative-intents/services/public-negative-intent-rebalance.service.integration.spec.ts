@@ -43,12 +43,12 @@ function createTestingIntentModel(
         tokens: [{ token: '0xInputToken', amount: 2000n }],
         calls: [
           {
-            target: "0xInputToken",
-            data: "0xa9059cbb000000000000000000000000054968e2f376192c69b8f30870d450519ff77ac8000000000000000000000000000000000000000000000000000000000001adb0",
+            target: '0xInputToken',
+            data: '0xa9059cbb000000000000000000000000054968e2f376192c69b8f30870d450519ff77ac8000000000000000000000000000000000000000000000000000000000001adb0',
             value: 0n,
-          }
+          },
         ],
-      ...routeOverrides,
+        ...routeOverrides,
       },
       reward: {
         creator: '0xCREATOR',
