@@ -14,10 +14,14 @@ export interface ProveIntentData {
   hash: Hex
   prover: Hex
   source: number
+  intentSourceAddr: Hex
+  inbox: Hex
 }
 
 export type ExecuteSendBatchJobData = {
   chainId: number
+  intentSourceAddr: Hex
+  inbox: Hex
   proves: ProveIntentData[]
 }
 
