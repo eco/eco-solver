@@ -56,12 +56,10 @@ export class EcoCronJobManager {
 
     setImmediate(async () => {
       try {
+        const jobTemplate = this.createJobTemplate(walletAddress)
+
         while (!this.stopRequested) {
-          await this.checkAndEmitDeduped(
-            queue,
-            walletAddress,
-            this.createJobTemplate(walletAddress),
-          )
+          await this.checkAndEmitDeduped(queue, walletAddress, jobTemplate)
           await this.delay(interval)
         }
 
