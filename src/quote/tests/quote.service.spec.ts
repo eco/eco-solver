@@ -9,7 +9,15 @@ import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-e
 import { getModelToken } from '@nestjs/mongoose'
 import { GroupedIntent } from '@/intent-initiation/schemas/grouped-intent.schema'
 import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
-import { InfeasibleQuote, InsufficientBalance, InternalQuoteError, InternalSaveError, InvalidQuoteIntent, QuoteError, SolverUnsupported } from '@/quote/errors'
+import {
+  InfeasibleQuote,
+  InsufficientBalance,
+  InternalQuoteError,
+  InternalSaveError,
+  InvalidQuoteIntent,
+  QuoteError,
+  SolverUnsupported,
+} from '@/quote/errors'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'

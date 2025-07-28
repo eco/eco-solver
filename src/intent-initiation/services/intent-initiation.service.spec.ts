@@ -6,7 +6,11 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { FeeService } from '@/fee/fee.service'
-import { FundForTransactionData, IntentInitiationService, PermitResult } from '@/intent-initiation/services/intent-initiation.service'
+import {
+  FundForTransactionData,
+  IntentInitiationService,
+  PermitResult,
+} from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getModelToken } from '@nestjs/mongoose'
 import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
@@ -125,7 +129,13 @@ describe('IntentInitiationService', () => {
           useValue: kernelMock,
         },
       ])
-      .withMocks([FeeService, ValidationService, SignerKmsService, CreateIntentService, EcoAnalyticsService])
+      .withMocks([
+        FeeService,
+        ValidationService,
+        SignerKmsService,
+        CreateIntentService,
+        EcoAnalyticsService,
+      ])
       .withSchemas([
         ['GroupedIntent', GroupedIntentSchema],
         ['IntentSourceModel', IntentSourceSchema],
