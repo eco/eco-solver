@@ -152,7 +152,7 @@ export default {
   },
 
   indexer: {
-    url: 'https://indexer.eco.com',
+    url: 'https://protocol-indexer-production.up.railway.app',
   },
   withdraws: {
     chunkSize: 20,
