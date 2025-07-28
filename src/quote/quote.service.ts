@@ -867,7 +867,9 @@ export class QuoteService implements OnModuleInit {
     const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
 
     const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
-    const minExcessFee = crowdLiquidityConfig.minExcessFees[Number(route.destination)] ?? 0n
+    const minExcessFee = BigInt(
+      crowdLiquidityConfig.minExcessFees[Number(route.destination)] ?? '0',
+    )
 
     const intentSourceModel = this.quoteIntentToIntenSource(quoteIntentModel)
     const executionFee = await this.crowdLiquidityService.getExecutionFee(
