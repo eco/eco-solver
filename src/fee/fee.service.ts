@@ -1,4 +1,4 @@
-import { TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
+import { BalanceService, TokenFetchAnalysis } from '@/balance/services/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -27,7 +27,6 @@ import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
-import { BalanceService } from '@/balance/services/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 
 /**

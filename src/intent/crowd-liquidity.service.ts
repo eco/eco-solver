@@ -27,7 +27,7 @@ import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
-import { TokenConfig } from '@/balance/types/balance.types'
+import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
@@ -43,7 +43,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     private readonly publicClient: MultichainPublicClientService,
     private readonly rpcBalanceService: RpcBalanceService,
     private readonly utilsIntentService: UtilsIntentService,
-    private readonly balanceService: BalanceService,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
@@ -222,7 +221,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         )
       })
 
-      // use rpc calls for the crowd liquidity pool address
       const routeTokensData: TokenData[] = await this.rpcBalanceService.getAllTokenDataForAddress(
         this.getPoolAddress(),
         routeTokens,
