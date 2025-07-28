@@ -1,4 +1,5 @@
 const mockGetTransactionTargetData = jest.fn()
+const mockDeconvertNormalize = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
 import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
@@ -36,6 +37,13 @@ jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
     getTransactionTargetData: mockGetTransactionTargetData,
+  }
+})
+
+jest.mock('@/common/utils/normalize', () => {
+  return {
+    ...jest.requireActual('@/common/utils/normalize'),
+    deconvertNormalize: mockDeconvertNormalize,
   }
 })
 
@@ -124,6 +132,7 @@ describe('QuotesService', () => {
     mockLogLog.mockClear()
     mockLogError.mockClear()
     mockLogWarn.mockClear()
+    mockDeconvertNormalize.mockClear()
   })
 
   describe('on getQuote', () => {
@@ -354,8 +363,8 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
+        mockDeconvertNormalize.mockImplementation((amount) => {
+          return amount
         })
 
         jest
@@ -618,8 +627,8 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
+        mockDeconvertNormalize.mockImplementation((amount) => {
+          return amount
         })
         feeService.convertNormalize = jest.fn().mockImplementation((amount) => {
           return { balance: amount }

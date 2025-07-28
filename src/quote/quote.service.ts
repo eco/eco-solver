@@ -1,8 +1,9 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { deconvertNormalize } from '@/common/utils/normalize'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
+import { TxValidationFn, ValidationService, validationsSucceeded } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
@@ -592,7 +593,7 @@ export class QuoteService implements OnModuleInit {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
+            tokenToFund.amount += deconvertNormalize(amount, deficit.delta)
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -620,9 +621,7 @@ export class QuoteService implements OnModuleInit {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += Mathb.abs(
-              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
-            )
+            tokenToFund.amount += Mathb.abs(deconvertNormalize(amount, deficit.delta))
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -713,11 +712,11 @@ export class QuoteService implements OnModuleInit {
 
         if (amountToFill > 0n) {
           // Convert back to original decimals
-          const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
+          const finalAmount = deconvertNormalize(amountToFill, {
             chainID: intent.route.destination,
             address: deficit.delta.address,
             decimals: deficit.token.decimals,
-          }).balance
+          })
 
           // Add to route tokens and calls
           routeTokens.push({
