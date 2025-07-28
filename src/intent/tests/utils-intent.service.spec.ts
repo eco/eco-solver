@@ -15,6 +15,7 @@ import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { QuoteError } from '@/quote/errors'
+import { EcoAnalyticsService } from '@/analytics'
 
 jest.mock('viem', () => {
   return {
@@ -41,6 +42,7 @@ describe('UtilsIntentService', () => {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),
         },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     })
       .overrideProvider(getQueueToken(QUEUES.SOURCE_INTENT.queue))

@@ -1,11 +1,14 @@
 FROM node:20
 
+# Install pnpm globally
+RUN corepack enable
+
 WORKDIR /usr/src/app
 COPY . .
 
-RUN yarn install
-RUN yarn build
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
 
 EXPOSE 3000
 
-ENTRYPOINT [ "yarn", "start" ]
+ENTRYPOINT [ "pnpm", "start" ]

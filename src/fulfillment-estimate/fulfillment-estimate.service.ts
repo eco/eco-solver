@@ -21,28 +21,28 @@ export class FulfillmentEstimateService implements OnModuleInit {
     if (this.fulfillmentConfig.executionPaddingSeconds == null) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'executionPaddingSeconds not found in intentConfigs',
+          message: 'executionPaddingSeconds not found in fulfillmentEstimateConfig',
         }),
       )
-      throw new Error('executionPaddingSeconds not found in intentConfigs')
+      throw new Error('executionPaddingSeconds not found in fulfillmentEstimateConfig')
     }
 
     if (this.fulfillmentConfig.blockTimePercentile == null) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'blockTimePercentile not found in intentConfigs',
+          message: 'blockTimePercentile not found in fulfillmentEstimateConfig',
         }),
       )
-      throw new Error('blockTimePercentile not found in intentConfigs')
+      throw new Error('blockTimePercentile not found in fulfillmentEstimateConfig')
     }
 
     if (this.fulfillmentConfig.defaultBlockTime == null) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'defaultBlockTime not found in intentConfigs',
+          message: 'defaultBlockTime not found in fulfillmentEstimateConfig',
         }),
       )
-      throw new Error('defaultBlockTime not found in intentConfigs')
+      throw new Error('defaultBlockTime not found in fulfillmentEstimateConfig')
     }
   }
 

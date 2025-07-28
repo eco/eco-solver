@@ -1,20 +1,22 @@
-import { Network } from '@/common/alchemy/network'
-import { ClusterNode } from 'ioredis'
-import { Params as PinoParams } from 'nestjs-pino'
-import * as Redis from 'ioredis'
-import { Settings } from 'redlock'
-import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
-import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { AnalyticsConfig } from '@/analytics'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
-import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
-import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { ClusterNode } from 'ioredis'
 import { ConfigRegex } from '@eco-foundation/chains'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { JobsOptions, RepeatOptions } from 'bullmq'
+import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { Network } from '@/common/alchemy/network'
+import { Params as PinoParams } from 'nestjs-pino'
+import { Settings } from 'redlock'
 import { Strategy } from '@/liquidity-manager/types/types'
+import * as Redis from 'ioredis'
 
 // The config type that we store in json
 export type EcoConfigType = {
   port: number
+  analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType
@@ -80,6 +82,8 @@ export type EcoConfigType = {
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
+  squid: SquidConfig
+  CCTPV2: CCTPV2Config
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -119,6 +123,7 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    watchJobConfig: JobsOptions
   }
 }
 
@@ -155,6 +160,9 @@ export type IntentConfig = {
   isNativeETHSupported: boolean
   intentFundedRetries: number
   intentFundedRetryDelayMs: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -305,6 +313,8 @@ export type Solver = {
 
   // The average block time for the chain in seconds
   averageBlockTime: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  gasOverhead?: number
 }
 
 /**
@@ -378,7 +388,7 @@ export interface LiquidityManagerConfig {
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
-  swapSlippage?: number
+  swapSlippage: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
@@ -457,6 +467,18 @@ export interface CCTPConfig {
   }[]
 }
 
+export interface CCTPV2Config {
+  apiUrl: string
+  fastTransferEnabled?: boolean
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
 export interface WarpRoutesConfig {
   routes: {
     chains: {
@@ -492,4 +514,9 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface SquidConfig {
+  integratorId: string
+  baseUrl: string
 }

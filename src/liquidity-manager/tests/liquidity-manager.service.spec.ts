@@ -15,6 +15,7 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -34,6 +35,10 @@ describe('LiquidityManagerService', () => {
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
@@ -77,6 +82,7 @@ describe('LiquidityManagerService', () => {
       'crowd-liquidity-pool': ['CCTP'],
       'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
+    swapSlippage: 0.01,
   } as LiquidityManagerConfig
 
   afterEach(() => {

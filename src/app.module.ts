@@ -1,3 +1,4 @@
+import { AnalyticsModule } from '@/analytics/analytics.module'
 import { ApiModule } from '@/api/api.module'
 import { BalanceModule } from '@/balance/balance.module'
 import { ChainMonitorModule } from '@/chain-monitor/chain-monitor.module'
@@ -5,6 +6,7 @@ import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeModule } from '@/fee/fee.module'
 import { FlagsModule } from '@/flags/flags.module'
+import { getCurrentEnvironment } from '@/analytics/utils'
 import { HealthModule } from '@/health/health.module'
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { IntentModule } from '@/intent/intent.module'
@@ -26,6 +28,23 @@ import { WatchModule } from '@/watch/watch.module'
 @Module({
   imports: [
     ApiModule,
+    AnalyticsModule.withAsyncConfig({
+      useFactory: async (configService: EcoConfigService) => {
+        const analyticsConfig = configService.getAnalyticsConfig()
+
+        // Get the current environment for group identification
+        const environment = getCurrentEnvironment()
+
+        return {
+          ...analyticsConfig,
+          // Set environment-based group context for analytics
+          groups: {
+            environment: environment,
+          },
+        }
+      },
+      inject: [EcoConfigService],
+    }),
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),

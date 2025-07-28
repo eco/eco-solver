@@ -31,7 +31,7 @@ anvil --chain-id 31337 --block-time 1
 3. Install Account Abstraction Repository
 git clone https://github.com/eth-infinitism/account-abstraction.git
 cd account-abstraction
-yarn install
+pnpm install
 
 4. Build contracts with Foundry
 forge build

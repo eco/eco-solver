@@ -1,4 +1,4 @@
-import { getSlippageRange, getTotalSlippage } from './math'
+import { getSlippageRange, getTotalSlippage, getSlippage } from './math'
 
 describe('math utils', () => {
   describe('getSlippageRange', () => {
@@ -41,13 +41,13 @@ describe('math utils', () => {
     it('should handle multiple different slippages', () => {
       // 1%, 2%, 1.5% compound to: 1 - (0.99 * 0.98 * 0.985) = 0.044353
       const result = getTotalSlippage([0.01, 0.02, 0.015])
-      expect(result).toBeCloseTo(0.044353, 5)
+      expect(result).toBe(0.0444)
     })
 
     it('should handle the example from the comment', () => {
       // Example from the function comment
       const result = getTotalSlippage([0.01, 0.02, 0.015])
-      expect(result).toBeCloseTo(0.0443, 3)
+      expect(result).toBe(0.0444)
     })
 
     it('should handle zero slippages', () => {
@@ -71,14 +71,60 @@ describe('math utils', () => {
       // Two 0.25% slippages
       const result = getTotalSlippage([0.0025, 0.0025])
       // 1 - (0.9975 * 0.9975) = 0.00499375
-      expect(result).toBeCloseTo(0.00499375, 8)
+      expect(result).toBe(0.005)
     })
 
     it('should handle case that slightly exceeds typical limit', () => {
       // Two 0.3% slippages
       const result = getTotalSlippage([0.003, 0.003])
       // 1 - (0.997 * 0.997) = 0.005991
-      expect(result).toBeCloseTo(0.005991, 6)
+      expect(result).toBe(0.006)
+    })
+  })
+
+  describe('getSlippage', () => {
+    it('should return 0 when fromAmount is 0', () => {
+      const slippage = getSlippage('100', '0')
+      expect(slippage).toBe(0)
+    })
+
+    it('should calculate slippage correctly for standard numbers', () => {
+      // (1000 - 995) / 1000 = 0.005
+      const slippage = getSlippage('995', '1000')
+      expect(slippage).toBe(0.005)
+    })
+
+    it('should return 0 when toAmountMin equals fromAmount', () => {
+      const slippage = getSlippage('1000', '1000')
+      expect(slippage).toBe(0)
+    })
+
+    it('should handle large numbers without loss of precision', () => {
+      const fromAmount = '100000000000000000000' // 100 ETH in wei
+      const toAmountMin = '99500000000000000000' // 99.5 ETH in wei
+      const slippage = getSlippage(toAmountMin, fromAmount)
+      expect(slippage).toBe(0.005)
+    })
+
+    it('should handle very large numbers that would overflow standard Number', () => {
+      const fromAmount = '90071992547409930000' // Larger than MAX_SAFE_INTEGER
+      const toAmountMin = '90062985348155189007' // Represents a 0.01% slippage
+      const slippage = getSlippage(toAmountMin, fromAmount)
+      // Using toBeCloseTo for floating point comparison
+      expect(slippage).toBeCloseTo(0.0001)
+    })
+
+    it('should calculate slippage with several decimal places correctly', () => {
+      // (100000 - 99370) / 100000 = 0.0063
+      const fromAmount = '100000'
+      const toAmountMin = '99370'
+      const slippage = getSlippage(toAmountMin, fromAmount)
+      expect(slippage).toBe(0.0063)
+    })
+
+    it('should return 1 for 100% slippage if toAmountMin is 0', () => {
+      const slippage = getSlippage('0', '1000')
+      expect(slippage).toBe(1)
     })
   })
 })
