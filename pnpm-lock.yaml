@@ -159,8 +159,8 @@ importers:
         specifier: ^10.2.0
         version: 10.5.0
       posthog-node:
-        specifier: ^5.1.1
-        version: 5.5.1
+        specifier: ^5.6.0
+        version: 5.6.0
       redlock:
         specifier: ^5.0.0-beta.2
         version: 5.0.0-beta.2
@@ -4568,8 +4568,8 @@ packages:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
 
-  posthog-node@5.5.1:
-    resolution: {integrity: sha512-y2TBl6H27vEbXk7sqG8QISmYaUN/UcPOYYDAK0wtnXRG3ySb93mG//vri1zS2hZvYHbBv0Tz8sLpZRCq4/v99A==}
+  posthog-node@5.6.0:
+    resolution: {integrity: sha512-MVXxKmqAYp2cPBrN1YMhnhYsJYIu6yc6wumbHz1dbo67wZBf2WtMm67Uh+4VCrp07049qierWlxQqz1W5zGDeg==}
     engines: {node: '>=20'}
 
   prelude-ls@1.2.1:
@@ -12285,7 +12285,7 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  posthog-node@5.5.1: {}
+  posthog-node@5.6.0: {}
 
   prelude-ls@1.2.1: {}
 

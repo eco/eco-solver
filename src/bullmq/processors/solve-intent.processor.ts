@@ -107,7 +107,6 @@ export class SolveIntentProcessor extends WorkerHost {
 
       throw error
     }
-    }
   }
 
   @OnWorkerEvent('failed')

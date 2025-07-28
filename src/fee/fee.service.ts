@@ -1,4 +1,5 @@
-import { BalanceService, TokenFetchAnalysis } from '@/balance/services/balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
+import { TokenFetchAnalysis } from '@/balance/services/rpc-balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'

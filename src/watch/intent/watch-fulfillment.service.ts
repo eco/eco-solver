@@ -74,7 +74,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     )
 
     const sourceChains = this.getSupportedChains()
-    this.unwatch[solver.chainID] = client.watchContractEvent({
+    this.unwatch[solver.chainID] = [client.watchContractEvent({
       address: solver.inboxAddress,
       abi: InboxAbi,
       eventName: 'Fulfillment',
@@ -85,7 +85,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       },
       onLogs: this.addJob(solver),
       onError: (error) => this.onError(error, client, solver),
-    })
+    })]
   }
 
   addJob(solver?: Solver) {

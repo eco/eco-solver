@@ -32,12 +32,12 @@ import {
 } from '@/liquidity-manager/types/types'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenConfig } from '@/balance/types'
+import { TokenConfig } from '@/balance/types/balance.types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
-import { BalanceService } from '@/balance/balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
