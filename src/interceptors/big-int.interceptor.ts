@@ -5,10 +5,10 @@ import { map } from 'rxjs/operators'
 @Injectable()
 export class BigIntToStringInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(map((data) => this.transformBigInt(data)))
+    return next.handle().pipe(map((data) => BigIntToStringInterceptor.transformBigInt(data)))
   }
 
-  private transformBigInt(data: any): any {
+  static transformBigInt(data: any): any {
     if (data === null || data === undefined) return data
 
     if (typeof data === 'bigint') {
@@ -28,7 +28,7 @@ export class BigIntToStringInterceptor implements NestInterceptor {
     return data
   }
 
-  private isPlainObject(obj: any): obj is Record<string, any> {
+  private static isPlainObject(obj: any): obj is Record<string, any> {
     return Object.prototype.toString.call(obj) === '[object Object]'
   }
 }

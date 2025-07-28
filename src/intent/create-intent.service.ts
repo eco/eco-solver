@@ -1,29 +1,22 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
+import { deserialize, Serialize } from '@/common/utils/serialize'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { QUEUES } from '../common/redis/constants'
-import { JobsOptions, Queue } from 'bullmq'
-import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
+import { EcoResponse } from '@/common/eco-response'
+import { FlagService } from '../flags/flags.service'
 import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
-import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
-import {
-  CallDataInterface,
-  decodeCreateIntentLog,
-  IntentCreatedLog,
-  RewardTokensInterface,
-} from '../contracts'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { InjectModel } from '@nestjs/mongoose'
+import { InjectQueue } from '@nestjs/bullmq'
 import { IntentDataModel } from './schemas/intent-data.schema'
-import { FlagService } from '../flags/flags.service'
-import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
-import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
-import { EcoResponse } from '@/common/eco-response'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { JobsOptions, Queue } from 'bullmq'
+import { Model } from 'mongoose'
+import { QUEUES } from '../common/redis/constants'
+import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -148,85 +141,6 @@ export class CreateIntentService implements OnModuleInit {
 
       // Track intent creation failure
       this.ecoAnalytics.trackIntentCreationFailed(intent, intentWs, e)
-    }
-  }
-
-  async createIntentFromIntentInitiation(
-    quoteID: string,
-    funder: Hex,
-    route: RouteType,
-    reward: QuoteRewardDataModel,
-  ) {
-    try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
-      const intentHash = hashIntent({ route, reward }).intentHash
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `createIntentFromIntentInitiation`,
-          properties: {
-            intentHash,
-          },
-        }),
-      )
-
-      // Track gasless intent creation attempt with complete objects
-      this.ecoAnalytics.trackGaslessIntentCreationStarted(
-        intentHash,
-        quoteID,
-        funder,
-        route,
-        reward,
-      )
-
-      const intent = new IntentDataModel({
-        quoteID,
-        hash: intentHash,
-        salt,
-        source,
-        destination,
-        inbox,
-        routeTokens: routeTokens as RewardTokensInterface[],
-        calls: calls as CallDataInterface[],
-        creator,
-        prover,
-        deadline,
-        nativeValue,
-        rewardTokens,
-        logIndex: 0,
-        funder,
-      })
-
-      await this.intentModel.create({
-        // event: null,
-        intent,
-        receipt: null,
-        status: 'PENDING',
-      })
-
-      // Track successful gasless intent creation with complete context
-      this.ecoAnalytics.trackGaslessIntentCreated(
-        intentHash,
-        quoteID,
-        funder,
-        intent,
-        route,
-        reward,
-      )
-    } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in createIntentFromIntentInitiation`,
-          properties: {
-            quoteID,
-            error: ex.message,
-          },
-        }),
-      )
-
-      // Track gasless intent creation failure with complete context
-      this.ecoAnalytics.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
     }
   }
 
