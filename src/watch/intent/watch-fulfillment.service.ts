@@ -13,6 +13,8 @@ import { entries } from 'lodash'
 import { InboxAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { FulfillmentLog } from '@/contracts/inbox'
+import { EcoAnalyticsService } from '@/analytics'
+import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
  * This service subscribes to Inbox contracts for Fulfillment events. It subscribes on all
@@ -27,8 +29,9 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     @InjectQueue(QUEUES.INBOX.queue) protected readonly inboxQueue: Queue,
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
+    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(inboxQueue, publicClientService, ecoConfigService)
+    super(inboxQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -71,24 +74,27 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     )
 
     const sourceChains = this.getSupportedChains()
-    this.unwatch[solver.chainID] = [
-      client.watchContractEvent({
-        address: solver.inboxAddress,
-        abi: InboxAbi,
-        eventName: 'Fulfillment',
-        strict: true,
-        args: {
-          // restrict by acceptable chains, chain ids must be bigints
-          _sourceChainID: sourceChains,
-        },
-        onLogs: this.addJob(),
-        onError: (error) => this.onError(error, client, solver),
-      }),
-    ]
+    this.unwatch[solver.chainID] = client.watchContractEvent({
+      address: solver.inboxAddress,
+      abi: InboxAbi,
+      eventName: 'Fulfillment',
+      strict: true,
+      args: {
+        // restrict by acceptable chains, chain ids must be bigints
+        _sourceChainID: sourceChains,
+      },
+      onLogs: this.addJob(solver),
+      onError: (error) => this.onError(error, client, solver),
+    })
   }
 
-  addJob() {
+  addJob(solver?: Solver) {
     return async (logs: FulfillmentLog[]) => {
+      // Track batch of fulfillment events detected
+      if (logs.length > 0 && solver) {
+        this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
+      }
+
       for (const log of logs) {
         // bigint as it can't serialize to JSON
         const fulfillment = convertBigIntsToStrings(log)
@@ -106,11 +112,33 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
             },
           }),
         )
-        // add to processing queue
-        await this.inboxQueue.add(QUEUES.INBOX.jobs.fulfillment, fulfillment, {
-          jobId,
-          ...this.watchJobConfig,
-        })
+
+        try {
+          // add to processing queue
+          await this.inboxQueue.add(QUEUES.INBOX.jobs.fulfillment, fulfillment, {
+            jobId,
+            ...this.watchJobConfig,
+          })
+
+          // Track successful job addition
+          if (solver) {
+            this.ecoAnalytics.trackWatchFulfillmentJobQueued(fulfillment, jobId, solver)
+          }
+        } catch (error) {
+          // Track job queue failure with complete context
+          this.ecoAnalytics.trackWatchJobQueueError(
+            error,
+            ERROR_EVENTS.FULFILLMENT_JOB_QUEUE_FAILED,
+            {
+              fulfillment,
+              jobId,
+              solver,
+              transactionHash: fulfillment.transactionHash,
+              logIndex: fulfillment.logIndex,
+            },
+          )
+          throw error
+        }
       }
     }
   }

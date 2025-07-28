@@ -28,6 +28,7 @@ import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { BalanceService } from '@/balance/services/balance.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -43,6 +44,7 @@ export class FeeService implements OnModuleInit {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   onModuleInit() {

@@ -14,14 +14,15 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
-import { BalanceService } from '@/balance/services/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
   let liquidityProviderService: LiquidityProviderService
   let crowdLiquidityService: CrowdLiquidityService
   let kernelAccountClientService: KernelAccountClientService
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
 
@@ -29,11 +30,15 @@ describe('LiquidityManagerService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         LiquidityManagerService,
-        { provide: BalanceService, useValue: createMock<BalanceService>() },
+        { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
@@ -50,7 +55,7 @@ describe('LiquidityManagerService', () => {
       .useValue(createMock<FlowProducer>())
       .compile()
 
-    balanceService = chainMod.get(BalanceService)
+    balanceService = chainMod.get(RpcBalanceService)
     ecoConfigService = chainMod.get(EcoConfigService)
     crowdLiquidityService = chainMod.get(CrowdLiquidityService)
     liquidityManagerService = chainMod.get(LiquidityManagerService)

@@ -16,6 +16,7 @@ import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 jest.mock('viem', () => {
   return {
@@ -63,7 +64,8 @@ describe('WalletFulfillService', () => {
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: CrowdLiquidityService, useValue: createMock<EcoConfigService>() },
+        { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 

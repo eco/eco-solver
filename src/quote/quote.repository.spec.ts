@@ -7,6 +7,7 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('QuoteRepository', () => {
   let quoteRepository: QuoteRepository
@@ -35,16 +36,18 @@ describe('QuoteRepository', () => {
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
-    const $ = EcoTester.setupTestFor(QuoteRepository).withProviders([
-      {
-        provide: getModelToken(QuoteIntentModel.name),
-        useValue: mockQuoteIntentModel,
-      },
-      {
-        provide: EcoConfigService,
-        useValue: mockEcoConfigService,
-      },
-    ])
+    const $ = EcoTester.setupTestFor(QuoteRepository)
+      .withProviders([
+        {
+          provide: getModelToken(QuoteIntentModel.name),
+          useValue: mockQuoteIntentModel,
+        },
+        {
+          provide: EcoConfigService,
+          useValue: mockEcoConfigService,
+        },
+      ])
+      .withMocks([EcoAnalyticsService])
 
     quoteRepository = await $.init()
     quoteRepository.onModuleInit()
@@ -516,16 +519,18 @@ describe('QuoteRepository', () => {
         getQuotesConfig: () => ({}),
       }
 
-      const $Empty = EcoTester.setupTestFor(QuoteRepository).withProviders([
-        {
-          provide: getModelToken(QuoteIntentModel.name),
-          useValue: mockQuoteIntentModel,
-        },
-        {
-          provide: EcoConfigService,
-          useValue: mockEcoConfigServiceEmpty,
-        },
-      ])
+      const $Empty = EcoTester.setupTestFor(QuoteRepository)
+        .withProviders([
+          {
+            provide: getModelToken(QuoteIntentModel.name),
+            useValue: mockQuoteIntentModel,
+          },
+          {
+            provide: EcoConfigService,
+            useValue: mockEcoConfigServiceEmpty,
+          },
+        ])
+        .withMocks([EcoAnalyticsService])
 
       const emptyQuoteRepository = (await $Empty.init()) as QuoteRepository
       emptyQuoteRepository.onModuleInit()

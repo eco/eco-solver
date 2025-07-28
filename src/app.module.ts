@@ -16,6 +16,8 @@ import { IntentModule } from '@/intent/intent.module'
 import { SignModule } from '@/sign/sign.module'
 import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { AnalyticsModule } from '@/analytics/analytics.module'
+import { getCurrentEnvironment } from '@/analytics/utils'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
 import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
@@ -27,6 +29,23 @@ import { LiquidityManagerModule } from './liquidity-manager/liquidity-manager.mo
 @Module({
   imports: [
     ApiModule,
+    AnalyticsModule.withAsyncConfig({
+      useFactory: async (configService: EcoConfigService) => {
+        const analyticsConfig = configService.getAnalyticsConfig()
+
+        // Get the current environment for group identification
+        const environment = getCurrentEnvironment()
+
+        return {
+          ...analyticsConfig,
+          // Set environment-based group context for analytics
+          groups: {
+            environment: environment,
+          },
+        }
+      },
+      inject: [EcoConfigService],
+    }),
     BalanceModule,
     ChainMonitorModule,
     EcoConfigModule.withAWS(),

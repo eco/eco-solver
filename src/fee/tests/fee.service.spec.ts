@@ -12,6 +12,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
+import { EcoAnalyticsService } from '@/analytics'
 
 function getFeeConfig(): FeeConfigType {
   return {
@@ -50,6 +51,7 @@ describe('FeeService', () => {
         FeeService,
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 

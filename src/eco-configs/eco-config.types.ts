@@ -11,9 +11,11 @@ import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
+import { AnalyticsConfig } from '@/analytics'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType
@@ -80,6 +82,7 @@ export type EcoConfigType = {
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
   squid: SquidConfig
+  CCTPV2: CCTPV2Config
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -465,6 +468,18 @@ export interface CrowdLiquidityConfig {
 
 export interface CCTPConfig {
   apiUrl: string
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
+export interface CCTPV2Config {
+  apiUrl: string
+  fastTransferEnabled?: boolean
   chains: {
     chainId: number
     domain: number

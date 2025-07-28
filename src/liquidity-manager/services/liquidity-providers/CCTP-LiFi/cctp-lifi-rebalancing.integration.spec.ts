@@ -28,7 +28,9 @@ import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
-import { BalanceService } from '@/balance/services/balance.service'
+import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -74,7 +76,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let cctpLiFiProvider: CCTPLiFiProviderService
   let liFiService: DeepMocked<LiFiProviderService>
   let cctpService: DeepMocked<CCTPProviderService>
-  let balanceService: DeepMocked<BalanceService>
+  let balanceService: DeepMocked<RpcBalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   let flowProducer: DeepMocked<FlowProducer>
@@ -169,8 +171,12 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<SquidProviderService>(),
         },
         {
-          provide: BalanceService,
-          useValue: createMock<BalanceService>(),
+          provide: CCTPV2ProviderService,
+          useValue: createMock<CCTPV2ProviderService>(),
+        },
+        {
+          provide: RpcBalanceService,
+          useValue: createMock<RpcBalanceService>(),
         },
         {
           provide: EcoConfigService,
@@ -196,6 +202,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           provide: getModelToken(RebalanceModel.name),
           useValue: rebalanceModel,
         },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
       ],
     }).compile()
 
@@ -206,7 +216,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     liFiService = module.get(LiFiProviderService)
     cctpService = module.get(CCTPProviderService)
 
-    balanceService = module.get(BalanceService)
+    balanceService = module.get(RpcBalanceService)
     ecoConfigService = module.get(EcoConfigService)
     const crowdLiquidityService = module.get(CrowdLiquidityService)
 

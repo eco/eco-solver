@@ -23,6 +23,8 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { TokenConfig } from '@/balance/types/balance.types'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -34,6 +36,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: RpcBalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     // Initialize the asset cache manager
     this.assetCacheManager = new LiFiAssetCacheManager(this.ecoConfigService, this.logger)
@@ -70,6 +73,15 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         }),
       )
     } catch (error) {
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.LIFI_CACHE_INIT_ERROR,
+        error,
+        {
+          operation: 'asset_cache_initialization',
+          service: this.constructor.name,
+        },
+      )
+
       this.logger.error(
         EcoLogMessage.withError({
           error,
@@ -247,6 +259,22 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
         return [coreTokenQuote, rebalanceQuote]
       } catch (coreError) {
+        this.ecoAnalytics.trackError(
+          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.LIFI_CORE_TOKEN_ROUTE_ERROR,
+          coreError,
+          {
+            coreToken: coreToken.token,
+            coreChain: coreToken.chainID,
+            fromToken: tokenIn.config.address,
+            fromChain: tokenIn.chainId,
+            toToken: tokenOut.config.address,
+            toChain: tokenOut.chainId,
+            swapAmount,
+            operation: 'core_token_fallback',
+            service: this.constructor.name,
+          },
+        )
+
         this.logger.debug(
           EcoLogMessage.fromDefault({
             message: 'Failed to route through core token',

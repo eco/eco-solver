@@ -10,7 +10,9 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import * as uuid from 'uuid' // import as a namespace so we can spyOn later
+import { EcoAnalyticsService } from '@/analytics'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -52,7 +54,12 @@ describe('LiquidityProviderService', () => {
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
         { provide: SquidProviderService, useValue: createMock<SquidProviderService>() },
+        { provide: CCTPV2ProviderService, useValue: createMock<CCTPV2ProviderService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
       ],
     }).compile()
 

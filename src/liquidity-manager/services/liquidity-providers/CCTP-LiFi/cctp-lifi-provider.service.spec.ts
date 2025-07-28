@@ -8,6 +8,8 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
+import { EcoAnalyticsService } from '@/analytics'
+import { createMock } from '@golevelup/ts-jest'
 
 describe('CCTPLiFiProviderService', () => {
   let service: CCTPLiFiProviderService
@@ -127,6 +129,10 @@ describe('CCTPLiFiProviderService', () => {
         { provide: LiFiProviderService, useValue: mockLiFiService },
         { provide: CCTPProviderService, useValue: mockCCTPService },
         { provide: EcoConfigService, useValue: mockEcoConfigService },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
         {
           provide: getQueueToken(LiquidityManagerQueue.queueName),
           useValue: mockQueue,

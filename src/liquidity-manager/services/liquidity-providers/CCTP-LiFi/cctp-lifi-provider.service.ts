@@ -20,6 +20,8 @@ import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -33,6 +35,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     private readonly ecoConfigService: EcoConfigService,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
     this.config = this.ecoConfigService.getCCTPLiFiConfig()
@@ -246,6 +249,22 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       return cctpResult.txHash
     } catch (error) {
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.CCTP_LIFI_EXECUTION_ERROR,
+        error,
+        {
+          id: quote.id,
+          walletAddress,
+          sourceChain: quote.tokenIn.chainId,
+          destinationChain: quote.tokenOut.chainId,
+          amountIn: quote.amountIn.toString(),
+          amountOut: quote.amountOut.toString(),
+          steps: quote.context.steps,
+          operation: 'cctp_lifi_execution',
+          service: this.constructor.name,
+        },
+      )
+
       this.logger.error(
         EcoLogMessage.withErrorAndId({
           error,
@@ -314,6 +333,26 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         )
       }
     } catch (error) {
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.CCTP_LIFI_ROUTE_CONTEXT_ERROR,
+        error,
+        {
+          id,
+          tokenIn: {
+            address: tokenIn.config.address,
+            chainId: tokenIn.chainId,
+          },
+          tokenOut: {
+            address: tokenOut.config.address,
+            chainId: tokenOut.chainId,
+          },
+          swapAmount,
+          steps: steps.map((step) => step.type),
+          operation: 'build_route_context',
+          service: this.constructor.name,
+        },
+      )
+
       this.logger.error(
         EcoLogMessage.withErrorAndId({
           error,
@@ -485,6 +524,23 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       return txHash
     } catch (error) {
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.CCTP_LIFI_SOURCE_SWAP_ERROR,
+        error,
+        {
+          id: sourceSwapQuote.id,
+          walletAddress,
+          fromChain: sourceSwapQuote.fromChainId,
+          toChain: sourceSwapQuote.toChainId,
+          fromToken: sourceSwapQuote.fromToken.address,
+          toToken: sourceSwapQuote.toToken.address,
+          fromAmount: sourceSwapQuote.fromAmount,
+          toAmount: sourceSwapQuote.toAmount,
+          operation: 'source_swap_execution',
+          service: this.constructor.name,
+        },
+      )
+
       this.logger.error(
         EcoLogMessage.withErrorAndId({
           error,
@@ -582,6 +638,20 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       return result
     } catch (error) {
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.CCTP_LIFI_BRIDGE_ERROR,
+        error,
+        {
+          id: quote.id,
+          walletAddress,
+          sourceChain: quote.tokenIn.chainId,
+          destinationChain: quote.tokenOut.chainId,
+          cctpAmount: Number(quote.context.cctpTransfer.amount) / 1e6,
+          operation: 'cctp_bridge_execution',
+          service: this.constructor.name,
+        },
+      )
+
       this.logger.error(
         EcoLogMessage.withErrorAndId({
           error,
