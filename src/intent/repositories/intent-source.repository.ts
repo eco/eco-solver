@@ -8,12 +8,20 @@ export interface IntentFilter {
   status?: IntentSourceStatus | IntentSourceStatus[]
   createdAfter?: Date
   createdBefore?: Date
+  updatedAfter?: Date
+  updatedBefore?: Date
   routeToken?: string
   rewardToken?: string
   requireNonExpired?: boolean
   callTarget?: string
   requireTransferSelector?: boolean
   requireZeroCallValue?: boolean
+}
+
+interface DateRangeFilterParams {
+  queryKey: string
+  afterKey: string
+  beforeKey: string
 }
 
 @Injectable()
@@ -86,19 +94,22 @@ export class IntentSourceRepository {
     }
 
     // 3. Filter by creation time
-    this.addDateRangeFilter(filter, query)
+    this.addCreatedDateRangeFilter(filter, query)
 
-    // 4. Filter by route token
+    // 4. Filter by update time
+    this.addUpdatedDateRangeFilter(filter, query)
+
+    // 5. Filter by route token
     if (filter.routeToken) {
       query['intent.route.tokens.token'] = filter.routeToken
     }
 
-    // 5. Filter by reward token
+    // 6. Filter by reward token
     if (filter.rewardToken) {
       query['intent.reward.tokens.token'] = filter.rewardToken
     }
 
-    // 6. Filter by single transfer call
+    // 7. Filter by single transfer call
     this.addCallTargetsFilter(filter, query)
 
     const rawResults = await this.model.find(query)
@@ -120,17 +131,41 @@ export class IntentSourceRepository {
     return intents
   }
 
-  private addDateRangeFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
-    if (filter.createdAfter || filter.createdBefore) {
-      query.createdAt = {}
+  private addCreatedDateRangeFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
+    this._addDateRangeFilter(filter, query, {
+      queryKey: 'createdAt',
+      afterKey: 'createdAfter',
+      beforeKey: 'createdBefore',
+    })
+  }
 
-      if (filter.createdAfter) {
-        query.createdAt.$gte = filter.createdAfter
-      }
+  private addUpdatedDateRangeFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
+    this._addDateRangeFilter(filter, query, {
+      queryKey: 'updatedAt',
+      afterKey: 'updatedAfter',
+      beforeKey: 'updatedBefore',
+    })
+  }
 
-      if (filter.createdBefore) {
-        query.createdAt.$lte = filter.createdBefore
-      }
+  private _addDateRangeFilter(
+    filter: IntentFilter,
+    query: FilterQuery<IntentSourceModel>,
+    params: DateRangeFilterParams,
+  ) {
+    const { queryKey, afterKey, beforeKey } = params
+
+    if (!(filter[afterKey] || filter[beforeKey])) {
+      return
+    }
+
+    query[queryKey] = {}
+
+    if (filter[afterKey]) {
+      query[queryKey].$gte = filter[afterKey]
+    }
+
+    if (filter[beforeKey]) {
+      query[queryKey].$lte = filter[beforeKey]
     }
   }
 

@@ -137,44 +137,86 @@ describe('IntentSourceRepository', () => {
     expect(res).toHaveLength(1)
   })
 
-  it('filters by createdAfter', async () => {
-    const oneHourAgo = new Date(Date.now() - 3600_000)
-    const tenSecondsAgo = new Date(Date.now() - 10_000)
+  describe('Date Ranges', () => {
+    it('filters by createdAfter', async () => {
+      const oneHourAgo = new Date(Date.now() - 3600_000)
+      const tenSecondsAgo = new Date(Date.now() - 10_000)
 
-    const older = createTestingIntentModel()
-    const newer = createTestingIntentModel()
+      const older = createTestingIntentModel()
+      const newer = createTestingIntentModel()
 
-    Object.assign(older, { createdAt: oneHourAgo })
-    Object.assign(newer, { createdAt: tenSecondsAgo })
+      Object.assign(older, { createdAt: oneHourAgo })
+      Object.assign(newer, { createdAt: tenSecondsAgo })
 
-    await intentSourceRepository.insertMany([older, newer])
+      await intentSourceRepository.insertMany([older, newer])
 
-    const res = await intentSourceRepository.filterIntents({
-      createdAfter: new Date(Date.now() - 30_000),
+      const res = await intentSourceRepository.filterIntents({
+        createdAfter: new Date(Date.now() - 30_000),
+      })
+
+      expect(res).toHaveLength(1)
+      expect(res[0].createdAt!.getTime()).toBeGreaterThan(Date.now() - 30_000)
     })
 
-    expect(res).toHaveLength(1)
-    expect(res[0].createdAt!.getTime()).toBeGreaterThan(Date.now() - 30_000)
-  })
+    it('filters by createdBefore', async () => {
+      const oneHourAgo = new Date(Date.now() - 3600_000)
+      const tenSecondsAgo = new Date(Date.now() - 10_000)
 
-  it('filters by createdBefore', async () => {
-    const oneHourAgo = new Date(Date.now() - 3600_000)
-    const tenSecondsAgo = new Date(Date.now() - 10_000)
+      const older = createTestingIntentModel()
+      const newer = createTestingIntentModel()
 
-    const older = createTestingIntentModel()
-    const newer = createTestingIntentModel()
+      Object.assign(older, { createdAt: oneHourAgo })
+      Object.assign(newer, { createdAt: tenSecondsAgo })
 
-    Object.assign(older, { createdAt: oneHourAgo })
-    Object.assign(newer, { createdAt: tenSecondsAgo })
+      await intentSourceRepository.insertMany([older, newer])
 
-    await intentSourceRepository.insertMany([older, newer])
+      const res = await intentSourceRepository.filterIntents({
+        createdBefore: new Date(Date.now() - 30_000),
+      })
 
-    const res = await intentSourceRepository.filterIntents({
-      createdBefore: new Date(Date.now() - 30_000),
+      expect(res).toHaveLength(1)
+      expect(res[0].createdAt!.getTime()).toBeLessThan(Date.now() - 30_000)
     })
 
-    expect(res).toHaveLength(1)
-    expect(res[0].createdAt!.getTime()).toBeLessThan(Date.now() - 30_000)
+    it('filters by updatedAfter', async () => {
+      const oneHourAgo = new Date(Date.now() - 3600_000)
+      const tenSecondsAgo = new Date(Date.now() - 10_000)
+
+      const older = createTestingIntentModel()
+      const newer = createTestingIntentModel()
+
+      Object.assign(older, { updatedAt: oneHourAgo })
+      Object.assign(newer, { updatedAt: tenSecondsAgo })
+
+      await intentSourceRepository.insertMany([older, newer])
+
+      const res = await intentSourceRepository.filterIntents({
+        updatedAfter: new Date(Date.now() - 30_000),
+      })
+
+      expect(res).toHaveLength(1)
+      expect(res[0].updatedAt!.getTime()).toBeGreaterThan(Date.now() - 30_000)
+    })
+
+    it('filters by updatedBefore', async () => {
+      const oneHourAgo = new Date(Date.now() - 3600_000)
+      const tenSecondsAgo = new Date(Date.now() - 10_000)
+
+      const older = createTestingIntentModel()
+      const newer = createTestingIntentModel()
+
+      Object.assign(older, { updatedAt: oneHourAgo })
+      Object.assign(newer, { updatedAt: tenSecondsAgo })
+
+      await intentSourceRepository.insertMany([older, newer])
+
+      const res = await intentSourceRepository.filterIntents({
+        updatedBefore: new Date(Date.now() - 30_000),
+      })
+
+      expect(res).toHaveLength(1)
+      expect(res[0].updatedAt!.getTime()).toBeLessThan(Date.now() - 30_000)
+    })
   })
 
   it('filters by route token', async () => {
