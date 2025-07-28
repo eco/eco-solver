@@ -1,4 +1,6 @@
 const mockGetTransactionTargetData = jest.fn()
+const mockDeconvertNormalize = jest.fn()
+const mockConvertNormalize = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
 import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
@@ -29,13 +31,20 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import { Chain, PublicClient, Transport } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoError } from '@/common/errors/eco-error'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
     getTransactionTargetData: mockGetTransactionTargetData,
+  }
+})
+
+jest.mock('@/common/utils/normalize', () => {
+  return {
+    ...jest.requireActual('@/common/utils/normalize'),
+    deconvertNormalize: mockDeconvertNormalize,
+    convertNormalize: mockConvertNormalize,
   }
 })
 
@@ -124,6 +133,8 @@ describe('QuotesService', () => {
     mockLogLog.mockClear()
     mockLogError.mockClear()
     mockLogWarn.mockClear()
+    mockDeconvertNormalize.mockClear()
+    mockConvertNormalize.mockClear()
   })
 
   describe('on getQuote', () => {
@@ -354,8 +365,8 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
+        mockDeconvertNormalize.mockImplementation((amount) => {
+          return amount
         })
 
         jest
@@ -618,12 +629,14 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
+        mockDeconvertNormalize.mockImplementation((amount) => {
+          return amount
         })
-        feeService.convertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
-        })
+        mockConvertNormalize.mockImplementation((value, token) => ({
+          ...token,
+          balance: value,
+          decimals: 6,
+        }))
 
         const { response: quoteDataEntry } = await quoteService.generateReverseQuote({
           route: {},

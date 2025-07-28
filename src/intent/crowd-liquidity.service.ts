@@ -12,15 +12,7 @@ import {
 
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { privateKeyToAccount } from 'viem/accounts'
-import {
-  encodeAbiParameters,
-  Hex,
-  isAddressEqual,
-  pad,
-  parseUnits,
-  publicActions,
-  zeroAddress,
-} from 'viem'
+import { encodeAbiParameters, Hex, isAddressEqual, pad, publicActions, zeroAddress } from 'viem'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { getChainConfig } from '@/eco-configs/utils'
 import { CrowdLiquidityConfig } from '@/eco-configs/eco-config.types'
@@ -28,7 +20,6 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { getEthPrice } from '@/common/coingecko/api'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
@@ -69,7 +60,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    */
   async fulfill(intentModel: IntentSourceModel): Promise<Hex> {
     const startTime = Date.now()
-    const excessFee = 0n
 
     const totalRouteAmount = intentModel.intent.route.tokens.reduce(
       (acc, token) => acc + token.amount,
@@ -77,11 +67,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     )
 
     try {
-      const executionFee = await this.getExecutionFee(
-        intentModel.intent,
-        totalRouteAmount,
-        excessFee,
-      )
+      const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount)
 
       const isRewardEnough = await this.isRewardEnough(intentModel, totalRouteAmount, executionFee)
       if (!isRewardEnough) {
@@ -300,13 +286,12 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   ): Promise<boolean> {
     this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
 
-    const { route, reward } = intentModel.intent
+    const totalRewardAmount = intentModel.intent.reward.tokens.reduce(
+      (acc, token) => acc + token.amount,
+      0n,
+    )
 
-    const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
-
-    const minExcessFee = BigInt(this.config.minExcessFees[Number(route.destination)] ?? '0')
-
-    const minimumReward = totalRouteAmount + executionFee + minExcessFee
+    const minimumReward = totalRouteAmount + executionFee
     const isEnough = totalRewardAmount >= minimumReward
 
     if (!isEnough) {
@@ -317,7 +302,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
             totalRouteAmount: totalRouteAmount.toString(),
             totalRewardAmount: totalRewardAmount.toString(),
             minimumReward: minimumReward.toString(),
-            minExcessFee: minExcessFee.toString(),
+            executionFee: executionFee.toString(),
           },
         }),
       )
@@ -327,7 +312,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       totalRouteAmount: totalRouteAmount.toString(),
       totalRewardAmount: totalRewardAmount.toString(),
       executionFee: executionFee.toString(),
-      minExcessFee: minExcessFee.toString(),
       minimumReward: minimumReward.toString(),
     })
 
@@ -337,20 +321,18 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   public async getExecutionFee(
     intentModel: IntentDataModel,
     totalRouteAmount: bigint,
-    proverFee: bigint,
   ): Promise<bigint> {
     const destinationChainID = Number(intentModel.route.destination)
+
+    // Excess fee
+    const excessFee = BigInt(this.config.minExcessFees[destinationChainID] ?? '0')
+
+    // Bridging fee
     const poolAddr = this.getPoolAddress(destinationChainID)
-
-    const { ethPrice, bridgingFeeBps } = await this.getPoolFees(destinationChainID, poolAddr)
-
+    const { bridgingFeeBps } = await this.getPoolFees(destinationChainID, poolAddr)
     const bridgingFee = (totalRouteAmount * bridgingFeeBps.multiplier) / bridgingFeeBps.base
 
-    // Prover fee is ETH, so we get the ETH price to charge this prover fee in USD
-    const ethPriceInt = (parseUnits(ethPrice.toString(), 6) * proverFee) / BigInt(1e18)
-
-    // TODO: Assumes 6 decimal values
-    return ethPriceInt + bridgingFee
+    return bridgingFee + excessFee
   }
 
   @Cacheable()
@@ -362,15 +344,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     // This is a constant value in the contract that cannot be read from it.
     const bridgingFeeBpsBase = 100n
 
-    const bridgingFeeBpsRequest = publicClient.readContract({
+    const bridgingFeeBps = await publicClient.readContract({
       address: poolAddr,
       abi: stablePoolAbi,
       functionName: 'bridgingFeeBps',
     })
 
-    const [bridgingFeeBps, ethPrice] = await Promise.all([bridgingFeeBpsRequest, getEthPrice()])
-
-    return { bridgingFeeBps: { multiplier: bridgingFeeBps, base: bridgingFeeBpsBase }, ethPrice }
+    return { bridgingFeeBps: { multiplier: bridgingFeeBps, base: bridgingFeeBpsBase } }
   }
 
   getProverData(intentModel: IntentDataModel) {

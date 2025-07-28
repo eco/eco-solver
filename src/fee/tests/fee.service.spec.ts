@@ -1,10 +1,11 @@
 const mockGetTransactionTargetData = jest.fn()
 const mockIsERC20Target = jest.fn()
+const mockConvertNormalize = jest.fn()
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { getERC20Selector } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
+import { FeeService } from '@/fee/fee.service'
 import { NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
@@ -12,6 +13,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
 import { EcoAnalyticsService } from '@/analytics'
+import { BASE_DECIMALS } from '@/common/utils/normalize'
 
 function getFeeConfig(): FeeConfigType {
   return {
@@ -34,6 +36,14 @@ jest.mock('@/contracts', () => {
   return {
     ...jest.requireActual('@/contracts'),
     isERC20Target: mockIsERC20Target,
+  }
+})
+
+jest.mock('@/common/utils/normalize', () => {
+  const actual = jest.requireActual('@/common/utils/normalize')
+  return {
+    ...actual,
+    convertNormalize: mockConvertNormalize.mockImplementation(actual.convertNormalize),
   }
 })
 
@@ -70,6 +80,7 @@ describe('FeeService', () => {
     mockLogDebug.mockClear()
     mockLogLog.mockClear()
     mockLogError.mockClear()
+    mockConvertNormalize.mockClear()
   })
 
   const defaultFee: FeeConfigType<'linear'> = {
@@ -830,7 +841,6 @@ describe('FeeService', () => {
 
     it('should map rewards and convertNormalize the output', async () => {
       jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(erc20Rewards)
-      const convert = jest.spyOn(feeService, 'convertNormalize')
       expect(await feeService.getRewardsNormalized(quote as any)).toEqual({
         rewards: [
           {
@@ -847,7 +857,7 @@ describe('FeeService', () => {
           },
         ],
       })
-      expect(convert).toHaveBeenCalledTimes(2)
+      expect(mockConvertNormalize).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -993,7 +1003,6 @@ describe('FeeService', () => {
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-        const convert = jest.spyOn(feeService, 'convertNormalize')
         const error = QuoteError.SolverLacksLiquidity(
           solver.chainID,
           quote.route.calls[0].target,
@@ -1005,7 +1014,7 @@ describe('FeeService', () => {
           calls: [],
           error,
         })
-        expect(convert).toHaveBeenCalledTimes(0)
+        expect(mockConvertNormalize).toHaveBeenCalledTimes(0)
         expect(mockLogError).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledWith({
           msg: QuoteError.SolverLacksLiquidity.name,
@@ -1024,7 +1033,6 @@ describe('FeeService', () => {
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-        const convert = jest.spyOn(feeService, 'convertNormalize')
 
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [
@@ -1051,7 +1059,7 @@ describe('FeeService', () => {
           ],
           error: undefined,
         })
-        expect(convert).toHaveBeenCalledTimes(2)
+        expect(mockConvertNormalize).toHaveBeenCalledTimes(2)
       })
 
       it('should handle mixed functional and native calls correctly', async () => {
@@ -1281,7 +1289,6 @@ describe('FeeService', () => {
       }
     })
     it('should calculate the delta for surplus', async () => {
-      const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: 100_000_000n,
@@ -1291,12 +1298,11 @@ describe('FeeService', () => {
       }
       expect(normToken).toEqual(expectedNorm)
 
-      expect(convertNormalizeSpy).toHaveBeenCalledTimes(1)
-      expect(convertNormalizeSpy).toHaveBeenCalledWith(100_000_000n, expect.any(Object))
+      expect(mockConvertNormalize).toHaveBeenCalledTimes(1)
+      expect(mockConvertNormalize).toHaveBeenCalledWith(100_000_000n, expect.any(Object))
     })
 
     it('should calculate the delta for deficit', async () => {
-      const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       token.token.balance = 100_000_000n
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
@@ -1307,14 +1313,13 @@ describe('FeeService', () => {
       }
       expect(normToken).toEqual(expectedNorm)
 
-      expect(convertNormalizeSpy).toHaveBeenCalledTimes(1)
-      expect(convertNormalizeSpy).toHaveBeenCalledWith(-100_000_000n, expect.any(Object))
+      expect(mockConvertNormalize).toHaveBeenCalledTimes(1)
+      expect(mockConvertNormalize).toHaveBeenCalledWith(-100_000_000n, expect.any(Object))
     })
 
     it('should call correct normalization', async () => {
       token.token.decimals = 4
       token.token.balance = token.token.balance / 10n ** 2n
-      const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
       const normToken = feeService.calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: 100_000_000n, //300 - 200 = 100 base 6 decimals
@@ -1324,39 +1329,8 @@ describe('FeeService', () => {
       }
       expect(normToken).toEqual(expectedNorm)
 
-      expect(convertNormalizeSpy).toHaveBeenCalledTimes(1)
-      expect(convertNormalizeSpy).toHaveBeenCalledWith(1_000_000n, expect.any(Object)) // 100 base 4
-    })
-  })
-
-  describe('on convertNormalize', () => {
-    it('should normalize the output', async () => {
-      const orig = { chainID: 1n, address: '0x' as Hex, decimals: 6 }
-      expect(feeService.convertNormalize(100n, orig)).toEqual({ balance: 100n, ...orig })
-      const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.convertNormalize(100n, second)).toEqual({
-        balance: 10000n,
-        ...second,
-        decimals: 6,
-      })
-    })
-
-    it('should change the decimals to the normalized value', async () => {
-      const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.convertNormalize(100n, second)).toEqual({
-        balance: 10000n,
-        ...second,
-        decimals: 6,
-      })
-    })
-  })
-
-  describe('on deconvertNormalize', () => {
-    it('should denormalize the output', async () => {
-      const orig = { chainID: 1n, address: '0x' as Hex, decimals: 6 }
-      expect(feeService.deconvertNormalize(100n, orig)).toEqual({ balance: 100n, ...orig })
-      const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.deconvertNormalize(100n, second)).toEqual({ balance: 1n, ...second })
+      expect(mockConvertNormalize).toHaveBeenCalledTimes(1)
+      expect(mockConvertNormalize).toHaveBeenCalledWith(1_000_000n, expect.any(Object)) // 100 base 4
     })
   })
 

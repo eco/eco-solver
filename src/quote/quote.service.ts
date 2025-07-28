@@ -1,8 +1,9 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { convertNormalize, deconvertNormalize } from '@/common/utils/normalize'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
+import { TxValidationFn, ValidationService, validationsSucceeded } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
@@ -449,7 +450,7 @@ export class QuoteService implements OnModuleInit {
     )
 
     const { quoteIntent, isReverseQuote } = params
-    const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
+    // const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -464,12 +465,11 @@ export class QuoteService implements OnModuleInit {
 
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const flatFee = await this.estimateFlatFee(
-      gaslessIntentRequest.getSourceChainID!(),
-      quoteDataEntry!,
-    )
+    //
+    // const flatFee = await this.estimateFlatFee(
+    //   gaslessIntentRequest.getSourceChainID!(),
+    //   quoteDataEntry!,
+    // )
 
     return { response: quoteDataEntry }
   }
@@ -592,7 +592,7 @@ export class QuoteService implements OnModuleInit {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
+            tokenToFund.amount += deconvertNormalize(amount, deficit.delta)
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -620,9 +620,7 @@ export class QuoteService implements OnModuleInit {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += Mathb.abs(
-              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
-            )
+            tokenToFund.amount += Mathb.abs(deconvertNormalize(amount, deficit.delta))
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -698,14 +696,11 @@ export class QuoteService implements OnModuleInit {
 
       if (originalToken && originalCall) {
         // Get the original amount from the token in its normalized form
-        const originalNormalizedAmount = this.feeService.convertNormalize(
-          BigInt(originalToken.balance),
-          {
-            chainID: intent.route.destination,
-            address: deficit.delta.address,
-            decimals: deficit.token.decimals,
-          },
-        ).balance
+        const originalNormalizedAmount = convertNormalize(BigInt(originalToken.balance), {
+          chainID: intent.route.destination,
+          address: deficit.delta.address,
+          decimals: deficit.token.decimals,
+        }).balance
 
         // Calculate how much we can fill for this token
         // We cannot fill more than the original amount or the remaining amount to fill
@@ -713,11 +708,11 @@ export class QuoteService implements OnModuleInit {
 
         if (amountToFill > 0n) {
           // Convert back to original decimals
-          const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
+          const finalAmount = deconvertNormalize(amountToFill, {
             chainID: intent.route.destination,
             address: deficit.delta.address,
             decimals: deficit.token.decimals,
-          }).balance
+          })
 
           // Add to route tokens and calls
           routeTokens.push({
@@ -822,19 +817,13 @@ export class QuoteService implements OnModuleInit {
     const { route, reward } = quoteIntentModel
     const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
 
-    const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
-    const minExcessFee = BigInt(
-      crowdLiquidityConfig.minExcessFees[Number(route.destination)] ?? '0',
-    )
-
     const intentSourceModel = quoteIntentToIntentSource(quoteIntentModel)
     const executionFee = await this.crowdLiquidityService.getExecutionFee(
       intentSourceModel.intent,
       totalRouteAmount,
-      0n, // Prover fee is calculated inside getExecutionFee
     )
 
-    const requiredReward = totalRouteAmount + executionFee + minExcessFee
+    const requiredReward = totalRouteAmount + executionFee
 
     const rewardTokens: QuoteRewardTokensDTO[] = reward.tokens.map((t) => ({
       token: t.token,
