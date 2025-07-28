@@ -1003,7 +1003,7 @@ describe('FeeService', () => {
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-          const error = QuoteError.SolverLacksLiquidity(
+        const error = QuoteError.SolverLacksLiquidity(
           solver.chainID,
           quote.route.calls[0].target,
           transferAmount,
@@ -1033,7 +1033,7 @@ describe('FeeService', () => {
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-  
+
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [
             {

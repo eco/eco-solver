@@ -128,14 +128,7 @@ describe('CrowdLiquidityService', () => {
     it('should return false when reward is not enough', async () => {
       jest.spyOn(ecoConfigService, 'getCrowdLiquidity').mockReturnValue(baseConfig)
       service.onModuleInit()
-      await expect(service.isRewardEnough(intentModel, 10000n, 101n)).resolves.toBe(false)
-    })
-
-    it('should work correctly when no min excess fee is configured for the chain', async () => {
-      const config = { ...baseConfig, minExcessFees: {} }
-      jest.spyOn(ecoConfigService, 'getCrowdLiquidity').mockReturnValue(config)
-      service.onModuleInit()
-      await expect(service.isRewardEnough(intentModel, 10100n, 100n)).resolves.toBe(true)
+      await expect(service.isRewardEnough(intentModel, 10000n, 201n)).resolves.toBe(false)
     })
   })
 
