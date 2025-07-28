@@ -58,6 +58,7 @@ describe('QuotesService', () => {
   const mockLogLog = jest.fn()
   const mockLogError = jest.fn()
   const quoteTestUtils = new QuoteTestUtils()
+  const mockLogWarn = jest.fn()
 
   beforeEach(async () => {
     const quotesConfig = { intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'] }
@@ -105,6 +106,7 @@ describe('QuotesService', () => {
           useValue: createMock<CreateIntentService>(),
         },
         { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     }).compile()
 
@@ -126,6 +128,7 @@ describe('QuotesService', () => {
     quoteRepository['logger'].log = mockLogLog
     quoteRepository['logger'].error = mockLogError
     quoteRepository['quotesConfig'] = quotesConfig as QuotesConfig
+    quoteService['logger'].warn = mockLogWarn
   })
 
   afterEach(async () => {
@@ -134,6 +137,7 @@ describe('QuotesService', () => {
     mockLogDebug.mockClear()
     mockLogLog.mockClear()
     mockLogError.mockClear()
+    mockLogWarn.mockClear()
   })
 
   describe('on getQuote', () => {
@@ -336,7 +340,6 @@ describe('QuotesService', () => {
       const { error } = await quoteService.generateQuote({ route: {} } as any)
       expect(error).toEqual(InsufficientBalance(ask, totalRewards))
     })
-
     describe('on building quote', () => {
       beforeEach(() => {})
 
@@ -372,6 +375,9 @@ describe('QuotesService', () => {
           .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
           .mockReturnValue(expectedFulfillTimeSec || 15)
 
+        // Mock the getGasOverhead method
+        jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
+
         const { response: quoteDataEntry } = await quoteService.generateQuote({
           route: { tokens: [], calls: [] },
           reward: {},
@@ -383,6 +389,7 @@ describe('QuotesService', () => {
           rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),
           estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
+          gasOverhead: 145_000,
         })
       }
 
