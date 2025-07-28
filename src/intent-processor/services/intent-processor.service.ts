@@ -237,7 +237,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   }
 
   async addExecuteWithdrawalsJob(jobsData: ExecuteWithdrawsJobData): Promise<Job> {
-    jobsData.intentSourceAddr = this.getIntentSource()
+    jobsData.intentSourceAddr = this.getIntentSource()[0]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
