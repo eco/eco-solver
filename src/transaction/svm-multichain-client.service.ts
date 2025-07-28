@@ -1,11 +1,13 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Address as SvmAddress, createSolanaRpc, Rpc, SolanaRpcApi, RpcSubscriptions, createSolanaRpcSubscriptions, SolanaRpcSubscriptionsApi } from "@solana/kit";
+import { Connection, PublicKey } from '@solana/web3.js';
 import { EcoError } from '../common/errors/eco-error'
 
 export interface SvmChainConfig {
   rpc: Rpc<SolanaRpcApi>
   rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>
+  connection: Connection
   domainId: number
 }
 
@@ -36,6 +38,13 @@ export class SvmMultichainClientService implements OnModuleInit {
     return this.chainConfigs.get(domainId)!.rpcSubscriptions
   }
 
+  async getConnection(domainId: number): Promise<Connection> {
+    if (!this.isSupportedNetwork(domainId)) {
+      throw EcoError.AlchemyUnsupportedNetworkIDError(domainId)
+    }
+    return this.chainConfigs.get(domainId)!.connection
+  }
+
   getChainConfig(domainId: number): SvmChainConfig | undefined {
     return this.chainConfigs.get(domainId)
   }
@@ -47,6 +56,7 @@ export class SvmMultichainClientService implements OnModuleInit {
        const svmChainConfig: SvmChainConfig = {
          rpc: createSolanaRpc('https://solana.drpc.org/'),
          rpcSubscriptions: createSolanaRpcSubscriptions('wss://solana.drpc.org'),
+         connection: new Connection('https://solana.drpc.org/', 'confirmed'),
          domainId: 1399811150
        }
       
@@ -63,6 +73,6 @@ export class SvmMultichainClientService implements OnModuleInit {
 
   public getAddress(): SvmAddress {
     // TODO: hardcoded for now
-    return 'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh' as SvmAddress
+    return 'DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh' as SvmAddress
   }
 }

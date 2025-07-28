@@ -14,7 +14,8 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { getVMType, VMType } from '@/eco-configs/eco-config.types'
-import { Address as SvmAddress, RpcSubscriptions, SolanaRpcSubscriptionsApi } from '@solana/kit'
+import { Connection, PublicKey, Commitment } from '@solana/web3.js'
+import * as anchor from "@coral-xyz/anchor";
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -99,11 +100,13 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       }),
     )
 
-    const rpc: RpcSubscriptions<SolanaRpcSubscriptionsApi> = await this.svmClientService.getRpcSubscriptions(source.chainID);
+
+    const connection: Connection = await this.svmClientService.getConnection(source.chainID);
+
     const abortController = new AbortController()
     
-    // Use async iteration pattern for account notifications
-    this.trackAccountChanges(rpc, source, abortController.signal)
+    // Use web3.js account subscription
+    this.trackAccountChanges(connection, source, abortController.signal)
 
     // Store unsubscribe function
     this.unwatch[source.chainID] = () => {
@@ -111,57 +114,81 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     }
   }
 
-  private async trackAccountChanges(rpc: RpcSubscriptions<SolanaRpcSubscriptionsApi>, source: IntentSource, abortSignal: AbortSignal) {
+  private async trackAccountChanges(connection: Connection, source: IntentSource, abortSignal: AbortSignal) {
+    const portalIdl = require('src/solana/program/portal.json')
+    const coder       = new anchor.BorshCoder(portalIdl);              // understands the IDL
+    const parser      = new anchor.EventParser(new PublicKey(source.sourceAddress), coder); 
     try {
-      const accountNotifications = await rpc
-        .accountNotifications(source.sourceAddress as SvmAddress, { commitment: 'confirmed' })
-        .subscribe({ abortSignal })
+      const publicKey = new PublicKey(source.sourceAddress)
+      
+      const subscriptionId = connection.onLogs(
+        publicKey,
+        ({logs, signature}, context) => {
+          try { 
+            for (const ev of parser.parseLogs(logs)) { 
+              if (ev.name !== "IntentPublished") continue;
 
-      for await (const notification of accountNotifications) {
-        try {
-          const { slot } = notification.context
-          const accountInfo = notification.value
-          
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `SVM account change detected`,
-              properties: {
-                slot,
-                chainID: source.chainID,
+              const {
+                intent_hash,           // Uint8Array(32)
+                destination,          // anchor.BN
+                route,                // Uint8Array
+                reward,               // whatever `Reward` expands to in your IDL
+              } = ev.data;
+
+              this.logger.debug(
+                EcoLogMessage.fromDefault({
+                  message: `SVM Publish instruction detected`,
+                  properties: {
+                    slot: context.slot, 
+                    chainID: source.chainID,
+                    address: source.sourceAddress,
+                  },
+                }),
+              )
+
+              console.log("JUSTLOGGING: ev.data", ev);
+
+              const solanaLog = {
+                transactionHash: signature,
+                slot: context.slot,
+                sourceChainID: BigInt(source.chainID),
+                sourceNetwork: source.network,
+                args: {
+                  hash: `0x${Buffer.from(intent_hash[0]).toString('hex')}` as `0x${string}`,
+                },
+                data: ev.data,
+                topics: [],
                 address: source.sourceAddress,
-              },
-            }),
-          )
+              };
 
-          console.log("SVM accountInfo", accountInfo);
-          console.log("SVM notification", notification);
-
-          // Create synthetic log for SVM events
-          const svmLog: Log = {
-            address: source.sourceAddress as `0x${string}`,
-            blockHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
-            blockNumber: BigInt(slot),
-            data: accountInfo ? '0x' + Buffer.from(accountInfo.data).toString('hex') as `0x${string}` : '0x',
-            logIndex: 0,
-            removed: false,
-            topics: ['0x' + Buffer.from('IntentFunded').toString('hex').padStart(64, '0') as `0x${string}`],
-            transactionHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
-            transactionIndex: 0,
+              this.addJob(source)([solanaLog as any]).catch(error => {
+                this.logger.error(
+                  EcoLogMessage.fromDefault({
+                    message: `SVM job processing error`,
+                  }),
+                )
+              })
+            }
+          } catch (error) {
+            this.logger.error(
+              EcoLogMessage.fromDefault({
+                message: `SVM notification processing error`,
+                properties: {
+                  error: error.message,
+                  chainID: source.chainID,
+                },
+              }),
+            )
           }
+        },
+        'confirmed'
+      )
 
-          await this.addJob(source)([svmLog])
-        } catch (error) {
-          this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: `SVM notification processing error`,
-              properties: {
-                error: error.message,
-                chainID: source.chainID,
-              },
-            }),
-          )
-        }
-      }
+      // Handle abortion
+      abortSignal.addEventListener('abort', () => {
+        connection.removeOnLogsListener(subscriptionId)
+      })
+
     } catch (error) {
       if (!abortSignal.aborted) {
         this.logger.error(

@@ -171,12 +171,14 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
   private async processSolanaTransfer(accountInfo: any, solver: any) {
     try {
-      const transferEvent = {
+      let transferEvent = {
         sourceChainID: BigInt(solver.chainID),
         sourceNetwork: solver.network,
         accountInfo: accountInfo,
         timestamp: Date.now(),
       }
+
+      transferEvent = convertBigIntsToStrings(transferEvent)
 
       this.logger.debug(
         EcoLogMessage.fromDefault({

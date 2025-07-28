@@ -18,7 +18,7 @@ export class SvmBalanceService implements BalanceProvider {
   ) {}
 
   /**
-   * Fetches the balances of the solver's wallet for the given tokens on Solana
+ * Fetches the balances of the solver's wallet for the given tokens on Solana
    * @param chainID the chain id
    * @param tokenAddresses the tokens to fetch balances for (SPL token mint addresses)
    * @returns

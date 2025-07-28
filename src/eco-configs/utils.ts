@@ -45,7 +45,7 @@ export function getChainAddress(chainID: number, address: ChainAddress): ChainAd
   if (vm === VMType.EVM) {
     return getAddress(address as EvmAddress)
   } else 
-  return getChainConfig(chainID).IntentSource
+  return address
 }
 
 /**
@@ -58,8 +58,8 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
   if (id === '1399811150-pre') {
     return {
-      IntentSource: 'B8Z2Sv1zspyQbAa4VWGCbq88cyUfw5G1HKgsxQDM1uF7' as SvmAddress,
-      Inbox: 'B8Z2Sv1zspyQbAa4VWGCbq88cyUfw5G1HKgsxQDM1uF7' as SvmAddress,
+      IntentSource: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
+      Inbox: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
       HyperProver: '8bvpmgp9xbGngm9KmfX5poJer8dW4BJb7LaxuSmfCPZz' as SvmAddress,
       MetaProver: '0x0000000000000000000000000000000000000000'
     }

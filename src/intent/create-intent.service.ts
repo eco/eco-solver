@@ -15,6 +15,7 @@ import {
   decodeCreateIntentLog,
   IntentCreatedLog,
   RewardTokensInterface,
+  decodeSolanaIntentLogForCreateIntent,
 } from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
@@ -23,6 +24,7 @@ import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
+import { getVMType, VMType } from '@/eco-configs/eco-config.types'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -54,7 +56,7 @@ export class CreateIntentService implements OnModuleInit {
    * @returns
    */
   async createIntent(serializedIntentWs: Serialize<IntentCreatedLog>) {
-    const intentWs = deserialize(serializedIntentWs)
+    const intentWs = deserialize(serializedIntentWs);
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -66,7 +68,12 @@ export class CreateIntentService implements OnModuleInit {
       }),
     )
 
-    const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
+    let ei: any;
+    if (getVMType(Number(intentWs.sourceChainID)) === VMType.SVM) {
+      ei = decodeSolanaIntentLogForCreateIntent(intentWs)
+    } else {
+      ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
+    }
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
@@ -218,3 +225,4 @@ export class CreateIntentService implements OnModuleInit {
     return { response: intent }
   }
 }
+

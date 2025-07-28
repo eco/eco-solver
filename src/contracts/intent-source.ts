@@ -1,8 +1,9 @@
-import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify } from 'viem'
+import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify, decodeAbiParameters } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi, InboxAbi, RouteType, decodeRoute } from '@eco-foundation/routes-ts'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
+import { deserialize } from '@/common/utils/serialize'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<
@@ -52,6 +53,32 @@ export function decodeCreateIntentLog(data: Hex, topics: [signature: Hex, ...arg
     topics,
     data,
   })
+}
+
+// Helper function to create intent log structure for Solana
+export function decodeSolanaIntentLogForCreateIntent(log: any) {
+  
+  const routeBuffer = Buffer.from(log.data.route.data);
+  // decoding the EVM ABI-encoded route struct using decodeRoute from eco-foundation/routes-ts
+  const decodedRoute = decodeRoute(`0x${routeBuffer.toString('hex')}`);
+  
+  return {
+    args: {
+      hash: `0x${Buffer.from(log.data.intent_hash[0]).toString('hex')}` as `0x${string}`,
+      salt: decodedRoute.salt as `0x${string}`,
+      source: decodedRoute.source as bigint,
+      destination: decodedRoute.destination as bigint,
+      inbox: decodedRoute.inbox as `0x${string}`,
+      routeTokens: decodedRoute.tokens as readonly { token: `0x${string}`; amount: bigint }[],
+      calls: decodedRoute.calls as readonly { target: `0x${string}`; data: `0x${string}`; value: bigint }[],
+      creator: log.data.reward.creator as `0x${string}`, // base58 encoded TODO fix later
+      prover: log.data.reward.prover as `0x${string}`, // base58 encoded TODO fix later
+      deadline: BigInt(`0x${log.data.reward.deadline}`),
+      nativeValue: BigInt(`0x${log.data.reward.native_amount}`),
+      rewardTokens: log.data.reward.tokens, // Proper type
+    },
+    eventName: 'IntentCreated' as const,
+  };
 }
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields

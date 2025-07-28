@@ -65,7 +65,7 @@ export class ProofService implements OnModuleInit {
    */
   getProvers(proofType: ProofType): Hex[] {
     const proverAddresses = this.provers
-      .filter((prover) => prover.type === proofType)
+      .filter((prover) => prover.type === proofType && getVMType(prover.chainID) !== VMType.SVM)
       .map((prover) => getAddress(prover.address))
 
     return _.uniq(proverAddresses)

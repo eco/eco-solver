@@ -67,6 +67,50 @@ export class BalanceService implements OnApplicationBootstrap {
   }
 
   /**
+   * Updates the Solana balance based on account notifications
+   * @param solanaEvent - Event containing account info and chain details
+   */
+  updateSolanaBalance(solanaEvent: any) {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `updateSolanaBalance`,
+        properties: {
+          chainID: solanaEvent.sourceChainID,
+          timestamp: solanaEvent.timestamp,
+        },
+      }),
+    )
+
+    // For Solana, we track the SOL balance (lamports) from account notifications
+    // The account info contains the current lamports balance
+    if (solanaEvent.accountInfo?.value?.lamports) {
+      const lamports = BigInt(solanaEvent.accountInfo.value.lamports)
+      
+      // Use a special key for SOL balance tracking
+      const key = getDestinationNetworkAddressKey(
+        parseInt(solanaEvent.sourceChainID), 
+        'SOL' // Special identifier for native SOL
+      )
+      
+      const balanceObj = this.tokenBalances.get(key)
+      if (balanceObj) {
+        // Update to the current balance (not additive like ERC20 transfers)
+        balanceObj.balance = lamports
+        
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `Solana balance updated`,
+            properties: {
+              key,
+              newBalance: lamports.toString(),
+            },
+          }),
+        )
+      }
+    }
+  }
+
+  /**
    * Gets the tokens that are in the solver wallets
    * @returns List of tokens that are supported by the solver
    */
