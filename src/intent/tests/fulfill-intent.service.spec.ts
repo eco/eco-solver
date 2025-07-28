@@ -1,11 +1,14 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
+import { getQueueToken } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
 import { UtilsIntentService } from '../utils-intent.service'
 import { FulfillIntentService } from '../fulfill-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { QUEUES } from '@/common/redis/constants'
 
 describe('FulfillIntentService', () => {
   let fulfillIntentService: FulfillIntentService
@@ -13,6 +16,7 @@ describe('FulfillIntentService', () => {
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let walletFulfillService: DeepMocked<WalletFulfillService>
   let crowdLiquidityService: DeepMocked<CrowdLiquidityService>
+  let queue: DeepMocked<Queue>
 
   const address1 = '0x1111111111111111111111111111111111111111'
   const hash = '0xe42305a292d4df6805f686b2d575b01bfcef35f22675a82aacffacb2122b890f'
@@ -45,6 +49,7 @@ describe('FulfillIntentService', () => {
         { provide: WalletFulfillService, useValue: createMock<WalletFulfillService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        { provide: getQueueToken(QUEUES.SOURCE_INTENT.queue), useValue: createMock<Queue>() },
       ],
     }).compile()
 
@@ -53,11 +58,19 @@ describe('FulfillIntentService', () => {
     utilsIntentService = chainMod.get(UtilsIntentService)
     walletFulfillService = chainMod.get(WalletFulfillService)
     crowdLiquidityService = chainMod.get(CrowdLiquidityService)
+    queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
   })
 
   describe('on fulfill', () => {
     beforeEach(() => {
       jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue({ model, solver })
+      jest.spyOn(ecoConfigService, 'getRedis').mockReturnValue({
+        jobs: {
+          crowdLiquidityJobConfig: { attempts: 5 },
+          walletFulfillJobConfig: { attempts: 3 },
+        },
+      } as any)
+      jest.spyOn(crowdLiquidityService, 'isRouteSupported').mockReturnValue(true)
     })
 
     it('should throw if data can`t be destructured', async () => {
@@ -68,28 +81,102 @@ describe('FulfillIntentService', () => {
       await expect(() => fulfillIntentService.fulfill(hash)).rejects.toThrow(error)
     })
 
-    describe('Wallet Fulfills', () => {
+    describe('Crowd Liquidity Job Creation', () => {
       beforeEach(() => {
         jest
           .spyOn(ecoConfigService, 'getFulfill')
           .mockReturnValue({ type: 'crowd-liquidity' } as any)
       })
 
-      it('should fulfill using crowd liquidity if fulfill type is crowd-liquidity', async () => {
+      it('should create crowd liquidity job if fulfill type is crowd-liquidity and route is supported', async () => {
         await fulfillIntentService.fulfill(hash)
-        expect(crowdLiquidityService.fulfill).toHaveBeenCalled()
+        expect(queue.add).toHaveBeenCalledWith(
+          QUEUES.SOURCE_INTENT.jobs.fulfill_intent_crowd_liquidity,
+          hash,
+          expect.objectContaining({
+            jobId: expect.stringContaining('crowd-liquidity'),
+            attempts: 5,
+          })
+        )
+      })
+
+      it('should create wallet fulfill job if crowd liquidity route is not supported', async () => {
+        jest.spyOn(crowdLiquidityService, 'isRouteSupported').mockReturnValue(false)
+        
+        await fulfillIntentService.fulfill(hash)
+        expect(queue.add).toHaveBeenCalledWith(
+          QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet,
+          hash,
+          expect.objectContaining({
+            jobId: expect.stringContaining('wallet-fulfill'),
+            attempts: 3,
+          })
+        )
       })
     })
 
-    describe('Crowd Liquidity Fulfills', () => {
+    describe('Wallet Fulfill Job Creation', () => {
       beforeEach(() => {
         jest.spyOn(ecoConfigService, 'getFulfill').mockReturnValue({ type: undefined } as any)
       })
 
-      it('should fulfill using smart wallet account if fulfill type is undefined', async () => {
+      it('should create wallet fulfill job if fulfill type is undefined', async () => {
         await fulfillIntentService.fulfill(hash)
-        expect(walletFulfillService.fulfill).toHaveBeenCalled()
+        expect(queue.add).toHaveBeenCalledWith(
+          QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet,
+          hash,
+          expect.objectContaining({
+            jobId: expect.stringContaining('wallet-fulfill'),
+            attempts: 3,
+          })
+        )
       })
+    })
+  })
+
+  describe('fulfillWithCrowdLiquidity', () => {
+    beforeEach(() => {
+      jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue({ model, solver })
+    })
+
+    it('should call crowdLiquidityService.fulfill when data is valid', async () => {
+      const mockTxHash = '0x123abc' as any
+      jest.spyOn(crowdLiquidityService, 'fulfill').mockResolvedValue(mockTxHash)
+
+      const result = await fulfillIntentService.fulfillWithCrowdLiquidity(hash)
+      
+      expect(crowdLiquidityService.fulfill).toHaveBeenCalledWith(model)
+      expect(result).toBe(mockTxHash)
+    })
+
+    it('should throw error when data retrieval fails', async () => {
+      const error = new Error('data error')
+      utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ err: error })
+
+      await expect(() => fulfillIntentService.fulfillWithCrowdLiquidity(hash)).rejects.toThrow(error)
+    })
+  })
+
+  describe('fulfillWithWallet', () => {
+    beforeEach(() => {
+      jest.spyOn(utilsIntentService, 'getIntentProcessData').mockResolvedValue({ model, solver })
+    })
+
+    it('should call walletFulfillService.fulfill when data is valid', async () => {
+      const mockTxHash = '0x456def' as any
+      jest.spyOn(walletFulfillService, 'fulfill').mockResolvedValue(mockTxHash)
+
+      const result = await fulfillIntentService.fulfillWithWallet(hash)
+      
+      expect(walletFulfillService.fulfill).toHaveBeenCalledWith(model, solver)
+      expect(result).toBe(mockTxHash)
+    })
+
+    it('should throw error when data retrieval fails', async () => {
+      const error = new Error('data error')
+      utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ err: error })
+
+      await expect(() => fulfillIntentService.fulfillWithWallet(hash)).rejects.toThrow(error)
     })
   })
 })
