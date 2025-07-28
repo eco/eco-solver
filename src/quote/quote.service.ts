@@ -21,7 +21,7 @@ import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
 import { EcoResponse } from '@/common/eco-response'
-import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
+import { GasEstimationsConfig } from '@/eco-configs/eco-config.types'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
@@ -32,18 +32,16 @@ import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { IntentSourceModel, IntentSourceStatus } from '@/intent/schemas/intent-source.schema'
-
-const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
+import { getGaslessIntentRequest, quoteIntentToIntentSource } from '@/quote/utils/transformers'
 
 type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
+
 interface GenerateQuoteParams {
   quoteIntent: QuoteIntentDataInterface
   intentExecutionType: IntentExecutionType
@@ -58,9 +56,7 @@ interface GenerateQuoteParams {
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
 
-  private quotesConfig: QuotesConfig
   private gasEstimationsConfig: GasEstimationsConfig
-  private intentInitiationService: IntentInitiationService
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
@@ -68,17 +64,13 @@ export class QuoteService implements OnModuleInit {
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly fulfillmentEstimateService: FulfillmentEstimateService,
-    private readonly moduleRef: ModuleRef,
+    private readonly intentInitiationService: IntentInitiationService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
   ) {}
 
   onModuleInit() {
-    this.quotesConfig = this.ecoConfigService.getQuotesConfig()
     this.gasEstimationsConfig = this.ecoConfigService.getGasEstimationsConfig()
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
-      strict: false,
-    })
   }
 
   /**
@@ -215,7 +207,7 @@ export class QuoteService implements OnModuleInit {
           quoteIntent,
           intentExecutionType: IntentExecutionType.fromString(quoteIntent.intentExecutionType)!,
           isReverseQuote,
-          gaslessIntentRequest: this.getGaslessIntentRequest(quoteIntentDataDTO),
+          gaslessIntentRequest: getGaslessIntentRequest(quoteIntentDataDTO),
         })
 
       if (quoteError) {
@@ -278,17 +270,6 @@ export class QuoteService implements OnModuleInit {
     return { response: quoteDataDTO }
   }
 
-  private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
-    return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
-      salt: ZERO_SALT,
-      route: quoteIntentDataDTO.route,
-      reward: quoteIntentDataDTO.reward,
-      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
-    }
-  }
-
   /**
    * Stores the quote into the db
    * @param quoteIntentDataDTO the quote intent data
@@ -310,19 +291,12 @@ export class QuoteService implements OnModuleInit {
   }
 
   /**
-   * Fetch a quote from the db
-   * @param query the quote intent data
-   * @returns the quote or an error
-   */
-  async quoteExists(query: object): Promise<boolean> {
-    return this.quoteRepository.quoteExists(query)
-  }
-
-  /**
    * Validates that the quote intent data is valid.
    * Checks that there is a solver, that the assert validations pass,
    * and that the quote intent is feasible.
    * @param quoteIntentModel the model to validate
+   * @param txValidationFn
+   * @param quoteFeasibilityCheckFn
    * @returns an res 400, or undefined if the quote intent is valid
    */
   async validateQuoteIntentData(
@@ -459,8 +433,8 @@ export class QuoteService implements OnModuleInit {
 
   /**
    * Generates a quote for the gasless case.
-   * @param quoteIntentModel parameters for the quote
    * @returns the quote or an error
+   * @param params
    */
   async generateQuoteForGasless(
     params: GenerateQuoteParams,
@@ -474,7 +448,6 @@ export class QuoteService implements OnModuleInit {
       }),
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { quoteIntent, isReverseQuote } = params
     const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
 
@@ -539,7 +512,7 @@ export class QuoteService implements OnModuleInit {
       return { error: InternalQuoteError(new Error('CrowdLiquidity quoting is disabled')) }
     }
 
-    const intentSourceModel = this.quoteIntentToIntenSource(quoteIntent as QuoteIntentModel)
+    const intentSourceModel = quoteIntentToIntentSource(quoteIntent as QuoteIntentModel)
     if (!this.crowdLiquidityService.isRouteSupported(intentSourceModel)) {
       return { error: InternalQuoteError(new Error('Route not supported by CrowdLiquidity')) }
     }
@@ -843,23 +816,6 @@ export class QuoteService implements OnModuleInit {
     return this.quoteRepository.updateQuoteDb(quoteIntentModel, updateQuoteParams)
   }
 
-  private quoteIntentToIntenSource(quoteIntent: QuoteIntentModel): IntentSourceModel {
-    return {
-      intent: {
-        ...quoteIntent,
-        route: {
-          ...quoteIntent.route,
-          salt: ZERO_SALT,
-        },
-        hash: '0x', // Placeholder hash
-        funder: '0x', // Placeholder funder
-        logIndex: 0, // Placeholder logIndex
-      },
-      status: 'PENDING' as IntentSourceStatus,
-      receipt: {} as any,
-    } as IntentSourceModel
-  }
-
   private async _generateCrowdLiquidityQuote(
     quoteIntentModel: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
@@ -871,7 +827,7 @@ export class QuoteService implements OnModuleInit {
       crowdLiquidityConfig.minExcessFees[Number(route.destination)] ?? '0',
     )
 
-    const intentSourceModel = this.quoteIntentToIntenSource(quoteIntentModel)
+    const intentSourceModel = quoteIntentToIntentSource(quoteIntentModel)
     const executionFee = await this.crowdLiquidityService.getExecutionFee(
       intentSourceModel.intent,
       totalRouteAmount,

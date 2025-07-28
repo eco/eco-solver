@@ -3,6 +3,7 @@ import { QuoteService } from './quote.service'
 import { MongooseModule } from '@nestjs/mongoose'
 import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-intent.schema'
 import { IntentModule } from '@/intent/intent.module'
+import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { FeeModule } from '@/fee/fee.module'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
@@ -11,6 +12,7 @@ import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-es
   imports: [
     FeeModule,
     IntentModule,
+    IntentInitiationModule,
     FulfillmentEstimateModule,
     MongooseModule.forFeature([{ name: QuoteIntentModel.name, schema: QuoteIntentSchema }]),
   ],
