@@ -78,7 +78,7 @@ describe('CrowdLiquidityService', () => {
     beforeEach(() => {
       baseConfig = {
         minExcessFees: {
-          1: 100n,
+          1: '100',
         },
         litNetwork: 'cayenne' as LIT_NETWORKS_KEYS,
         capacityTokenOwnerPk: MOCK_ADDR_1,
@@ -145,7 +145,7 @@ describe('CrowdLiquidityService', () => {
     beforeEach(() => {
       baseConfig = {
         minExcessFees: {
-          1: 100n,
+          1: '100',
         },
         litNetwork: 'cayenne' as LIT_NETWORKS_KEYS,
         capacityTokenOwnerPk: MOCK_ADDR_1,
@@ -184,7 +184,7 @@ describe('CrowdLiquidityService', () => {
     beforeEach(() => {
       baseConfig = {
         minExcessFees: {
-          1: 100n,
+          1: '100',
         },
         litNetwork: 'cayenne' as LIT_NETWORKS_KEYS,
         capacityTokenOwnerPk: MOCK_ADDR_1,

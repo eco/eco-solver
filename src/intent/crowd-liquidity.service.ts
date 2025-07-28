@@ -304,7 +304,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
     const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
 
-    const minExcessFee = this.config.minExcessFees[Number(route.destination)] ?? 0n
+    const minExcessFee = BigInt(this.config.minExcessFees[Number(route.destination)] ?? '0')
 
     const minimumReward = totalRouteAmount + executionFee + minExcessFee
     const isEnough = totalRewardAmount >= minimumReward
