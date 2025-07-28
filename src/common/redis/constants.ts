@@ -7,6 +7,8 @@ export const QUEUES: Record<any, QueueInterface> = {
       validate_intent: 'validate_intent',
       feasable_intent: 'feasable_intent',
       fulfill_intent: 'fulfill_intent',
+      fulfill_intent_crowd_liquidity: 'fulfill_intent_crowd_liquidity',
+      fulfill_intent_wallet: 'fulfill_intent_wallet',
       retry_intent: 'retry_intent',
     },
   },

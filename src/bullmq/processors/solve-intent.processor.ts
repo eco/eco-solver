@@ -1,17 +1,21 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
-import { Job } from 'bullmq'
+import { Job, Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
+import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { InjectQueue } from '@nestjs/bullmq'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { getIntentJobId } from '@/common/utils/strings'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })
@@ -19,11 +23,14 @@ export class SolveIntentProcessor extends WorkerHost {
   private logger = new Logger(SolveIntentProcessor.name)
 
   constructor(
+    @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
     private readonly createIntentService: CreateIntentService,
     private readonly validateIntentService: ValidateIntentService,
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
+    private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly ecoConfigService: EcoConfigService,
   ) {
     super()
   }
@@ -70,6 +77,12 @@ export class SolveIntentProcessor extends WorkerHost {
         case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
           result = await this.fulfillIntentService.fulfill(job.data as Hex)
           break
+        case QUEUES.SOURCE_INTENT.jobs.fulfill_intent_crowd_liquidity:
+          result = await this.fulfillIntentService.fulfillWithCrowdLiquidity(job.data as Hex)
+          break
+        case QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet:
+          result = await this.fulfillIntentService.fulfillWithWallet(job.data as Hex)
+          break
         default:
           throw new Error(`Unknown job type: ${job.name}`)
       }
@@ -99,7 +112,7 @@ export class SolveIntentProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  onJobFailed(job: Job<any, any, string>, error: Error) {
+  async onJobFailed(job: Job<any, any, string>, error: Error) {
     this.logger.error(
       EcoLogMessage.fromDefault({
         message: `SolveIntentProcessor: Error processing job`,
@@ -109,5 +122,42 @@ export class SolveIntentProcessor extends WorkerHost {
         },
       }),
     )
+
+    // If crowd liquidity job failed after all retries, create a wallet fulfill job
+    if (
+      job.name === QUEUES.SOURCE_INTENT.jobs.fulfill_intent_crowd_liquidity &&
+      job.attemptsMade >= (job.opts.attempts || 1)
+    ) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Crowd liquidity fulfillment failed after all retries, creating wallet fulfill job`,
+          properties: {
+            intentHash: job.data,
+            attempts: job.attemptsMade,
+          },
+        }),
+      )
+
+      const intentHash = job.data as Hex
+      const data = await this.utilsIntentService.getIntentProcessData(intentHash)
+      const { model } = data ?? {}
+
+      if (model) {
+        const jobId = getIntentJobId('wallet-fulfill', intentHash, model.intent.logIndex)
+        const walletFulfillJobConfig = this.ecoConfigService.getRedis().jobs.walletFulfillJobConfig
+
+        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet, intentHash, {
+          jobId,
+          ...walletFulfillJobConfig,
+        })
+
+        this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.WALLET_FULFILLMENT_FALLBACK, {
+          intentHash,
+          model,
+          reason: 'crowd_liquidity_failed_all_retries',
+          attempts: job.attemptsMade,
+        })
+      }
+    }
   }
 }
