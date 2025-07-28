@@ -96,13 +96,13 @@ describe('FulfillIntentService', () => {
           expect.objectContaining({
             jobId: expect.stringContaining('crowd-liquidity'),
             attempts: 5,
-          })
+          }),
         )
       })
 
       it('should create wallet fulfill job if crowd liquidity route is not supported', async () => {
         jest.spyOn(crowdLiquidityService, 'isRouteSupported').mockReturnValue(false)
-        
+
         await fulfillIntentService.fulfill(hash)
         expect(queue.add).toHaveBeenCalledWith(
           QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet,
@@ -110,7 +110,7 @@ describe('FulfillIntentService', () => {
           expect.objectContaining({
             jobId: expect.stringContaining('wallet-fulfill'),
             attempts: 3,
-          })
+          }),
         )
       })
     })
@@ -128,7 +128,7 @@ describe('FulfillIntentService', () => {
           expect.objectContaining({
             jobId: expect.stringContaining('wallet-fulfill'),
             attempts: 3,
-          })
+          }),
         )
       })
     })
@@ -144,7 +144,7 @@ describe('FulfillIntentService', () => {
       jest.spyOn(crowdLiquidityService, 'fulfill').mockResolvedValue(mockTxHash)
 
       const result = await fulfillIntentService.fulfillWithCrowdLiquidity(hash)
-      
+
       expect(crowdLiquidityService.fulfill).toHaveBeenCalledWith(model)
       expect(result).toBe(mockTxHash)
     })
@@ -153,7 +153,9 @@ describe('FulfillIntentService', () => {
       const error = new Error('data error')
       utilsIntentService.getIntentProcessData = jest.fn().mockResolvedValue({ err: error })
 
-      await expect(() => fulfillIntentService.fulfillWithCrowdLiquidity(hash)).rejects.toThrow(error)
+      await expect(() => fulfillIntentService.fulfillWithCrowdLiquidity(hash)).rejects.toThrow(
+        error,
+      )
     })
   })
 
@@ -167,7 +169,7 @@ describe('FulfillIntentService', () => {
       jest.spyOn(walletFulfillService, 'fulfill').mockResolvedValue(mockTxHash)
 
       const result = await fulfillIntentService.fulfillWithWallet(hash)
-      
+
       expect(walletFulfillService.fulfill).toHaveBeenCalledWith(model, solver)
       expect(result).toBe(mockTxHash)
     })
