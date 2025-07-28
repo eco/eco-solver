@@ -161,6 +161,10 @@ describe('PublicNegativeIntentRebalanceService', () => {
     await dbTestUtils.dbClose()
   })
 
+  beforeEach(async () => {
+    await intentSourceRepository.deleteMany({})
+  })
+
   afterEach(async () => {
     jest.restoreAllMocks()
   })

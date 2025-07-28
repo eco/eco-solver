@@ -71,6 +71,16 @@ export class NegativeIntentAnalyzerService {
       const { response: analysisResult, error } = this.analyzeIntent(intentSource)
 
       if (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `isNegativeIntent: error`,
+            properties: {
+              intentHash: intentSource.intent.hash,
+              error: error.message || error,
+            },
+          }),
+        )
+
         return false
       }
 

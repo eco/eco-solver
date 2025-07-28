@@ -1,5 +1,5 @@
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { FilterQuery, Model } from 'mongoose'
+import { FilterQuery, HydratedDocument, Model } from 'mongoose'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentSourceModel, IntentSourceStatus } from '@/intent/schemas/intent-source.schema'
@@ -24,6 +24,8 @@ interface DateRangeFilterParams {
   beforeKey: string
 }
 
+type IntentSourceDocument = HydratedDocument<IntentSourceModel>
+
 @Injectable()
 export class IntentSourceRepository {
   private logger = new EcoLogger(IntentSourceRepository.name)
@@ -40,11 +42,13 @@ export class IntentSourceRepository {
   }
 
   async queryIntent(query: object, projection: object = {}): Promise<IntentSourceModel | null> {
-    return this.model.findOne(query, projection).lean()
+    const rawResult = await this.model.findOne(query, projection)
+    return rawResult ? this.fixIntentQueryResult(rawResult) : null
   }
 
   async queryIntents(query: object, projection: object = {}): Promise<IntentSourceModel[]> {
-    return this.model.find(query, projection).lean()
+    const rawResults = await this.model.find(query, projection)
+    return rawResults.map((doc) => this.fixIntentQueryResult(doc))
   }
 
   async update(
@@ -113,22 +117,23 @@ export class IntentSourceRepository {
     this.addCallTargetsFilter(filter, query)
 
     const rawResults = await this.model.find(query)
-
-    const intents: IntentSourceModel[] = rawResults.map((doc) => {
-      const intent = doc.toObject({ versionKey: false }) as IntentSourceModel
-
-      intent.intent.route.tokens.forEach((token) => {
-        token.amount = BigInt(token.amount.toString())
-      })
-
-      intent.intent.reward.tokens.forEach((token) => {
-        token.amount = BigInt(token.amount.toString())
-      })
-
-      return intent
-    })
+    const intents: IntentSourceModel[] = rawResults.map((doc) => this.fixIntentQueryResult(doc))
 
     return intents
+  }
+
+  private fixIntentQueryResult(doc: IntentSourceDocument): IntentSourceModel {
+    const intentSourceModel = doc.toObject({ versionKey: false }) as IntentSourceModel
+
+    intentSourceModel.intent.route.tokens.forEach((token) => {
+      token.amount = BigInt(token.amount.toString())
+    })
+
+    intentSourceModel.intent.reward.tokens.forEach((token) => {
+      token.amount = BigInt(token.amount.toString())
+    })
+
+    return intentSourceModel
   }
 
   private addCreatedDateRangeFilter(filter: IntentFilter, query: FilterQuery<IntentSourceModel>) {
