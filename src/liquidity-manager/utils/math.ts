@@ -40,7 +40,7 @@ export function getTotalSlippage(slippages: number[]): number {
     .map((s) => 1 - s) // Convert slippage to retained ratio
     .reduce((acc, ratio) => acc * ratio, 1) // Multiply all retained ratios
 
-  return 1 - totalRetained
+  return Number((1 - totalRetained).toFixed(4))
 }
 
 /**

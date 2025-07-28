@@ -30,6 +30,7 @@ import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EcoAnalyticsService } from '@/analytics'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
@@ -171,6 +172,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: SquidProviderService,
           useValue: createMock<SquidProviderService>(),
+        },
+        {
+          provide: CCTPV2ProviderService,
+          useValue: createMock<CCTPV2ProviderService>(),
         },
         {
           provide: BalanceService,

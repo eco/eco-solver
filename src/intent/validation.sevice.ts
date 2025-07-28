@@ -155,7 +155,7 @@ export class ValidationService implements OnModuleInit {
     switch (true) {
       case type.isHyperlane():
       case type.isMetalayer():
-        return this.checkProverWhitelisted(opts.destination, opts.prover)
+        return this.checkProverWhitelisted(opts.source, opts.prover)
       default:
         throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover)
     }
