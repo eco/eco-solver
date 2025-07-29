@@ -379,13 +379,19 @@ export class FeeService implements OnModuleInit {
     if (errorCalls || errorTokens || errorRewards) {
       return { error: errorCalls || errorTokens || errorRewards }
     }
+
+    // Filter srcDeficitDescending to only include tokens that have corresponding rewards
+    // This optimization prevents wasted processing of fundable tokens without available rewards
+    const filteredSrcDeficitDescending = _.intersectionBy(srcDeficitDescending, rewards, (item) =>
+      getAddress('token' in item ? item.token.address : item.address),
+    )
     return {
       calculated: {
         solver,
         rewards,
         tokens,
         calls,
-        srcDeficitDescending, //token liquidity with deficit first descending
+        srcDeficitDescending: filteredSrcDeficitDescending, //token liquidity with deficit first descending, filtered by available rewards
         destDeficitDescending,
       },
     }

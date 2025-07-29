@@ -15,6 +15,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
+import { BalanceService } from '@/balance/services/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 
 describe('LiquidityManagerService', () => {
@@ -31,6 +32,7 @@ describe('LiquidityManagerService', () => {
       providers: [
         LiquidityManagerService,
         { provide: RpcBalanceService, useValue: createMock<RpcBalanceService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
@@ -62,7 +64,6 @@ describe('LiquidityManagerService', () => {
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
-
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
     kernelAccountClientService['getClient'] = jest
       .fn()
@@ -117,20 +118,53 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10 }, balance: { balance: 100n } },
-        { config: { targetBalance: 100 }, balance: { balance: 100n } },
-        { config: { targetBalance: 200 }, balance: { balance: 100n } },
+        {
+          chainId: 1,
+          config: {
+            targetBalance: 10,
+            decimals: 18,
+            chainId: 1,
+            address: '0x1111111111111111111111111111111111111111',
+          },
+          balance: { balance: 100n, decimals: 18 },
+        },
+        {
+          chainId: 1,
+          config: {
+            targetBalance: 100,
+            decimals: 18,
+            chainId: 1,
+            address: '0x2222222222222222222222222222222222222222',
+          },
+          balance: { balance: 100n, decimals: 18 },
+        },
+        {
+          chainId: 1,
+          config: {
+            targetBalance: 200,
+            decimals: 18,
+            chainId: 1,
+            address: '0x3333333333333333333333333333333333333333',
+          },
+          balance: { balance: 100n, decimals: 18 },
+        },
       ]
 
       liquidityManagerService['config'] = mockConfig
+      ;(liquidityManagerService as any).tokensPerWallet = {
+        [zeroAddress]: mockTokens.map((t) => t.config),
+      }
 
-      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue(mockTokens as any)
+      // Get the injected BalanceService and mock its method
+      const injectedBalanceService = liquidityManagerService['balanceService']
+      injectedBalanceService.getAllTokenDataForAddress = jest.fn().mockResolvedValue(mockTokens)
 
       const result = await liquidityManagerService.analyzeTokens(zeroAddress)
 
       expect(result.items).toHaveLength(3)
-      expect(result.surplus.items).toHaveLength(1)
-      expect(result.deficit.items).toHaveLength(1)
+      expect(result.surplus.items).toHaveLength(0)
+      expect(result.inrange.items).toHaveLength(0)
+      expect(result.deficit.items).toHaveLength(3)
     })
   })
 

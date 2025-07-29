@@ -17,9 +17,9 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as dayjs from 'dayjs'
-import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
+import { encodeFunctionData, erc20Abi, formatEther, getAddress, Hex, parseGwei } from 'viem'
 import { FeeService } from '@/fee/fee.service'
-import { CalculateTokensType } from '@/fee/types'
+import { CalculateTokensType, DeficitDescending, NormalizedToken } from '@/fee/types'
 import { EcoResponse } from '@/common/eco-response'
 import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
@@ -528,9 +528,8 @@ export class QuoteService implements OnModuleInit {
    * 1. Converting the call and reward tokens to a standard reserve value for comparisons
    * 2. Adding a fee to the ask of the normalized call tokens
    * 3. Fulfilling the ask with the reward tokens starting with any deficit tokens the solver
-   * has on the source chain
-   * 4. If there are any remaining tokens, they are used to fulfill the solver token
-   * starting with the smallest delta(minBalance - balance) tokens
+   * has on the source chain, then handling tokens above target but below max
+   * 4. Uses efficient reward filtering and single-loop processing for optimal performance
    * @param quoteIntentModel the quote intent model
    * @returns the quote or an error 400 for insufficient reward to generate the quote
    */
@@ -542,19 +541,25 @@ export class QuoteService implements OnModuleInit {
       return { error: InternalQuoteError(error) }
     }
 
-    const { srcDeficitDescending: fundable, rewards } = calculated as CalculateTokensType
+    const { srcDeficitDescending: fundable, rewards: originalRewards } =
+      calculated as CalculateTokensType
+
+    // Validation
+    if (!fundable?.length || !originalRewards?.length) {
+      return { error: InternalQuoteError(new Error('Missing fundable tokens or rewards')) }
+    }
 
     const { totalFillNormalized, error: totalFillError } =
       await this.feeService.getTotalFill(quoteIntentModel)
     if (Boolean(totalFillError)) {
       return { error: totalFillError }
     }
-    const totalAsk = this.feeService.getAsk(totalFillNormalized, quoteIntentModel)
+    const totalAskNormalized = this.feeService.getAsk(totalFillNormalized, quoteIntentModel)
 
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `Generating quote`,
-        properties: serialize({ totalFillNormalized, totalAsk: totalAsk }),
+        properties: serialize({ totalFillNormalized, totalAsk: totalAskNormalized }),
       }),
     )
 
@@ -563,67 +568,77 @@ export class QuoteService implements OnModuleInit {
     if (Boolean(totalRewardsError)) {
       return { error: totalRewardsError }
     }
-    if (isInsufficient(totalAsk, totalRewardsNormalized)) {
-      return { error: InsufficientBalance(totalAsk, totalRewardsNormalized) }
+    if (isInsufficient(totalAskNormalized, totalRewardsNormalized)) {
+      return { error: InsufficientBalance(totalAskNormalized, totalRewardsNormalized) }
     }
+
+    // Create copies to avoid mutations and create efficient reward lookup map
+    const rewards = originalRewards.map((r) => ({ ...r }))
+    const rewardMap = new Map<string, NormalizedToken>()
+    rewards.forEach((reward) => {
+      rewardMap.set(getAddress(reward.address), reward)
+    })
+
+    // Create mutable copies of fundable tokens and sort by greatest deficit first
+    // Deficits are negative numbers - we want the most negative (greatest absolute deficit) first
+    // e.g., [-100n, -50n, 10n, 20n] puts the greatest deficit (-100n) first
+    const processableFundable = fundable
+      .map((f) => ({
+        ...f,
+        delta: { ...f.delta },
+      }))
+      .sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
+
+    const totalTokenAsk = totalAskNormalized.token
     let filled = 0n
-    const totalTokenAsk = totalAsk.token
     const quoteRecord: Record<Hex, RewardTokensInterface> = {}
-    for (const deficit of fundable) {
-      if (filled >= totalTokenAsk) {
-        break
+
+    // Helper function for consistent amount calculation
+    const addToQuoteRecord = (
+      address: Hex,
+      amount: bigint,
+      deficit: DeficitDescending,
+    ) => {
+      try {
+        if (!quoteRecord[address]) {
+          quoteRecord[address] = {
+            token: address,
+            amount: 0n,
+          }
+        }
+        const deconvertedAmount = this.feeService.deconvertNormalize(amount, deficit.delta).balance
+        quoteRecord[address].amount += Mathb.abs(deconvertedAmount)
+      } catch (error) {
+        throw new Error(`Failed to calculate amount for token ${address}: ${error}`)
       }
-      const left = totalTokenAsk - filled
-      //Only fill defits first pass
-      if (deficit.delta.balance < 0n) {
-        const reward = rewards.find((r) => r.address === deficit.delta.address)
-        if (reward) {
-          const amount = Mathb.min(
-            Mathb.min(Mathb.abs(deficit.delta.balance), reward.balance),
+    }
+
+    // Single loop: Handle deficits first (negative balances), then surplus (positive balances)
+    // Note: fundable is already filtered by calculateTokens to only include tokens with available rewards
+    for (const fundableToken of processableFundable) {
+      if (filled >= totalTokenAsk) break
+
+      const reward = rewardMap.get(getAddress(fundableToken.delta.address))!
+      if (reward.balance > 0n) {
+        const left = totalTokenAsk - filled
+
+        let amount: bigint
+        if (fundableToken.delta.balance < 0n) {
+          // Handle actual deficit: fill up to the deficit amount
+          amount = Mathb.min(
+            Mathb.min(Mathb.abs(fundableToken.delta.balance), reward.balance),
             left,
           )
-          if (amount > 0n) {
-            deficit.delta.balance += amount
-            reward.balance -= amount
-            filled += amount
-            //add to quote record
-            const tokenToFund = quoteRecord[deficit.delta.address] || {
-              token: deficit.delta.address,
-              amount: 0n,
-            }
-            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
-            quoteRecord[deficit.delta.address] = tokenToFund
-          }
+        } else {
+          // Handle surplus: use remaining reward balance
+          amount = Mathb.min(left, reward.balance)
         }
-      }
-    }
-    //resort fundable to reflect first round of fills
-    fundable.sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
 
-    //if remaining funds, for those with smallest deltas
-    if (filled < totalTokenAsk) {
-      for (const deficit of fundable) {
-        if (filled >= totalTokenAsk) {
-          break
-        }
-        const left = totalTokenAsk - filled
-        const reward = rewards.find((r) => r.address === deficit.delta.address)
-        if (reward) {
-          const amount = Mathb.min(left, reward.balance)
-          if (amount > 0n) {
-            deficit.delta.balance += amount
-            reward.balance -= amount
-            filled += amount
-            //add to quote record
-            const tokenToFund = quoteRecord[deficit.delta.address] || {
-              token: deficit.delta.address,
-              amount: 0n,
-            }
-            tokenToFund.amount += Mathb.abs(
-              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
-            )
-            quoteRecord[deficit.delta.address] = tokenToFund
-          }
+        if (amount > 0n) {
+          fundableToken.delta.balance += amount
+          reward.balance -= amount
+          filled += amount
+          addToQuoteRecord(fundableToken.delta.address, amount, fundableToken)
         }
       }
     }
@@ -638,7 +653,7 @@ export class QuoteService implements OnModuleInit {
         routeTokens: quoteIntentModel.route.tokens,
         routeCalls: quoteIntentModel.route.calls,
         rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
-        rewardNative: totalAsk.native,
+        rewardNative: totalAskNormalized.native,
         expiryTime: this.getQuoteExpiryTime(),
         estimatedFulfillTimeSec,
         gasOverhead,

@@ -792,7 +792,14 @@ describe('FeeService', () => {
       const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
         return BigInt(token.token.address) as any
       })
-      const rewards = { stuff: 'asdf' } as any
+      const rewards = [
+        {
+          chainID: 10n,
+          address: '0x3333333333333333333333333333333333333333' as Hex,
+          decimals: 6,
+          balance: 1000n,
+        },
+      ] as any
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ rewards } as any)
       const tokens = { stuff: '123' } as any
       const tok = jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ tokens } as any)
@@ -852,13 +859,16 @@ describe('FeeService', () => {
           delta: BigInt('0x5555555555555555555555555555555555555555'),
         },
       ]
+      // Only expect the first token since it's the only one with a reward
+      const expectedFilteredDeficitDescending = [deficitDescending[0]]
+
       expect(await feeService.calculateTokens(quote as any)).toEqual({
         calculated: {
           solver: mockSolver,
           rewards,
           tokens,
           calls,
-          srcDeficitDescending: deficitDescending,
+          srcDeficitDescending: expectedFilteredDeficitDescending,
           destDeficitDescending: deficitDescending,
         },
       })
@@ -866,6 +876,172 @@ describe('FeeService', () => {
       expect(rew).toHaveBeenCalledTimes(1)
       expect(tok).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
+    })
+
+    it('should filter srcDeficitDescending to only include tokens that have available rewards', async () => {
+      // Mock a quote with rewards that only cover some of the solver's target tokens
+      const quoteWithLimitedRewards = {
+        route: {
+          source: 10n,
+          destination: 11n,
+        },
+        reward: {
+          tokens: [
+            // Only one reward token available - should filter srcDeficitDescending
+            { token: '0x3333333333333333333333333333333333333333', amount: 1000n },
+          ],
+        },
+      } as any
+
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
+
+      const mockSolver = {
+        ...linearSolver,
+        chainID: 10,
+        targets: {
+          '0x3333333333333333333333333333333333333333': {
+            contractType: 'erc20',
+            minBalance: 100,
+            targetBalance: 500,
+          },
+          '0x4444444444444444444444444444444444444444': {
+            contractType: 'erc20',
+            minBalance: 200,
+            targetBalance: 600,
+          },
+          '0x5555555555555555555555555555555555555555': {
+            contractType: 'erc20',
+            minBalance: 300,
+            targetBalance: 700,
+          },
+        },
+      }
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(mockSolver)
+
+      const mockBalanceRecord = {
+        '0x3333333333333333333333333333333333333333': {
+          balance: 1000000000n,
+          blockNumber: '18500000',
+          blockHash: '0xabcdef',
+          decimals: 6,
+        },
+        '0x4444444444444444444444444444444444444444': {
+          balance: 2000000000n,
+          blockNumber: '18500000',
+          blockHash: '0xabcdef',
+          decimals: 6,
+        },
+        '0x5555555555555555555555555555555555555555': {
+          balance: 3000000000n,
+          blockNumber: '18500000',
+          blockHash: '0xabcdef',
+          decimals: 6,
+        },
+      }
+      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(mockBalanceRecord)
+      jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
+        return BigInt(token.token.address) as any
+      })
+
+      // Mock the other methods to return simple values
+      jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({
+        rewards: [
+          {
+            chainID: 10n,
+            address: '0x3333333333333333333333333333333333333333' as Hex,
+            decimals: 6,
+            balance: 1000n,
+          },
+        ],
+      } as any)
+      jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ tokens: [] } as any)
+      jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls: [] } as any)
+
+      const result = await feeService.calculateTokens(quoteWithLimitedRewards)
+
+      // EXPECTATION: srcDeficitDescending should only contain tokens that have corresponding rewards
+      // This test verifies that calculateTokens filters fundable tokens based on available rewards
+      expect(result.calculated?.srcDeficitDescending).toHaveLength(1)
+      expect(result.calculated?.srcDeficitDescending[0].token.address).toBe(
+        '0x3333333333333333333333333333333333333333',
+      )
+    })
+
+    it('should filter srcDeficitDescending with case-insensitive address matching', async () => {
+      // Test with mixed case addresses to ensure proper getAddress() normalization
+      const quoteWithMixedCaseAddresses = {
+        route: {
+          source: 10n,
+          destination: 11n,
+        },
+        reward: {
+          tokens: [
+            // Reward token with mixed case - should match regardless of case
+            { token: '0x3333333333333333333333333333333333333333', amount: 1000n },
+          ],
+        },
+      } as any
+
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
+
+      const mockSolver = {
+        ...linearSolver,
+        chainID: 10,
+        targets: {
+          // Target with different case than reward
+          '0x3333333333333333333333333333333333333333': {
+            contractType: 'erc20',
+            minBalance: 100,
+            targetBalance: 500,
+          },
+          '0x4444444444444444444444444444444444444444': {
+            contractType: 'erc20',
+            minBalance: 200,
+            targetBalance: 600,
+          },
+        },
+      }
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(mockSolver)
+
+      const mockBalanceRecord = {
+        '0x3333333333333333333333333333333333333333': {
+          balance: 1000000000n,
+          blockNumber: '18500000',
+          blockHash: '0xabcdef',
+          decimals: 6,
+        },
+        '0x4444444444444444444444444444444444444444': {
+          balance: 2000000000n,
+          blockNumber: '18500000',
+          blockHash: '0xabcdef',
+          decimals: 6,
+        },
+      }
+      jest.spyOn(balanceService, 'getTokenBalancesForSolver').mockResolvedValue(mockBalanceRecord)
+      jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
+        return BigInt(token.token.address) as any
+      })
+
+      jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({
+        rewards: [
+          {
+            chainID: 10n,
+            address: '0x3333333333333333333333333333333333333333' as Hex,
+            decimals: 6,
+            balance: 1000n,
+          },
+        ],
+      } as any)
+      jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ tokens: [] } as any)
+      jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls: [] } as any)
+
+      const result = await feeService.calculateTokens(quoteWithMixedCaseAddresses)
+
+      // Should properly match addresses regardless of case using getAddress() normalization
+      expect(result.calculated?.srcDeficitDescending).toHaveLength(1)
+      expect(result.calculated?.srcDeficitDescending[0].token.address).toBe(
+        '0x3333333333333333333333333333333333333333',
+      )
     })
   })
 

@@ -262,7 +262,13 @@ describe('QuotesService', () => {
     })
 
     it('should return infeasable if the quote is infeasable', async () => {
-      const error = QuoteError.SolverLacksLiquidity(1, '0x2', 4n, 3n, 2n)
+      const error = QuoteError.SolverLacksLiquidity(
+        1,
+        '0x2222222222222222222222222222222222222222',
+        4n,
+        3n,
+        2n,
+      )
       ecoConfigService.getSolver = jest.fn().mockReturnValue({})
       validationService.assertValidations = jest.fn().mockReturnValue(validValidations)
       feeService.isRouteFeasible = jest.fn().mockResolvedValue({ error })
@@ -309,7 +315,9 @@ describe('QuotesService', () => {
         solver: {},
         rewards: [{ balance: 10n }, { balance: 102n }],
         calls: [{ balance: 280n }, { balance: 102n }],
-        srcDeficitDescending: [],
+        srcDeficitDescending: [
+          { delta: { address: '0x1111111111111111111111111111111111111111' } },
+        ],
       } as any
       jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
       const ask = { token: calculated.calls.reduce((a, b) => a + b.balance, 0n), native: 10n }
@@ -382,95 +390,109 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [
-            { address: '0x1', balance: 100n },
-            { address: '0x2', balance: 200n },
+            { address: '0x1111111111111111111111111111111111111111', balance: 100n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 200n },
           ],
-          calls: [{ address: '0x3', balance: 50n, native: { amount: 0n } }],
+          calls: [
+            {
+              address: '0x3333333333333333333333333333333333333333',
+              balance: 50n,
+              native: { amount: 0n },
+            },
+          ],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: -50n }, address: '0x2' },
+            { delta: { balance: -100n, address: '0x1111111111111111111111111111111111111111' } },
+            { delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }])
+        await generateHelper(calculated, [
+          { token: '0x1111111111111111111111111111111111111111', amount: 50n },
+        ])
       })
 
       it('should fill deficit that has rewards to fill it', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x2', balance: 200n }],
+          rewards: [{ address: '0x2222222222222222222222222222222222222222', balance: 200n }],
           calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: -50n, address: '0x2' } },
+            // Only include tokens that have rewards (filtered by calculateTokens)
+            { delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+        await generateHelper(calculated, [
+          { token: '0x2222222222222222222222222222222222222222', amount: 50n },
+        ])
       })
 
       it('should fill surplus if no deficit', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x2', balance: 200n }],
+          rewards: [{ address: '0x2222222222222222222222222222222222222222', balance: 200n }],
           calls: [{ balance: 40n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: 100n, address: '0x1' } },
-            { delta: { balance: 200n, address: '0x2' } },
+            // Only include tokens that have rewards (filtered by calculateTokens)
+            { delta: { balance: 200n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 40n }])
+        await generateHelper(calculated, [
+          { token: '0x2222222222222222222222222222222222222222', amount: 40n },
+        ])
       })
 
       it('should fill partial deficits', async () => {
         const calculated = {
           solver: {},
           rewards: [
-            { address: '0x1', balance: 200n },
-            { address: '0x2', balance: 200n },
+            { address: '0x1111111111111111111111111111111111111111', balance: 200n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 200n },
           ],
           calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: -50n, address: '0x2' } },
+            { delta: { balance: -100n, address: '0x1111111111111111111111111111111111111111' } },
+            { delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
         await generateHelper(calculated, [
-          { token: '0x1', amount: 100n },
-          { token: '0x2', amount: 50n },
+          { token: '0x1111111111111111111111111111111111111111', amount: 100n },
+          { token: '0x2222222222222222222222222222222222222222', amount: 50n },
         ])
       })
 
       it('should fill surplus if deficit is not rewarded', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x2', balance: 200n }],
+          rewards: [{ address: '0x2222222222222222222222222222222222222222', balance: 200n }],
           calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: 100n, address: '0x2' } },
+            // Only include tokens that have rewards (filtered by calculateTokens)
+            { delta: { balance: 100n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+        await generateHelper(calculated, [
+          { token: '0x2222222222222222222222222222222222222222', amount: 150n },
+        ])
       })
 
       it('should fill deficit as much as it can and then surplus', async () => {
         const calculated = {
           solver: {},
           rewards: [
-            { address: '0x1', balance: 50n },
-            { address: '0x2', balance: 20n },
-            { address: '0x3', balance: 200n },
+            { address: '0x1111111111111111111111111111111111111111', balance: 50n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 20n },
+            { address: '0x3333333333333333333333333333333333333333', balance: 200n },
           ],
           calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: -50n, address: '0x2' } },
-            { delta: { balance: 100n, address: '0x3' } },
+            { delta: { balance: -100n, address: '0x1111111111111111111111111111111111111111' } },
+            { delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' } },
+            { delta: { balance: 100n, address: '0x3333333333333333333333333333333333333333' } },
           ],
         } as any
         await generateHelper(calculated, [
-          { token: '0x1', amount: 50n },
-          { token: '0x2', amount: 20n },
-          { token: '0x3', amount: 80n },
+          { token: '0x1111111111111111111111111111111111111111', amount: 50n },
+          { token: '0x2222222222222222222222222222222222222222', amount: 20n },
+          { token: '0x3333333333333333333333333333333333333333', amount: 80n },
         ])
       })
 
@@ -478,18 +500,18 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [
-            { address: '0x1', balance: 50n },
-            { address: '0x2', balance: 200n },
+            { address: '0x1111111111111111111111111111111111111111', balance: 50n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 200n },
           ],
           calls: [{ balance: 250n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: -50n, address: '0x2' } },
+            { delta: { balance: -100n, address: '0x1111111111111111111111111111111111111111' } },
+            { delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
         await generateHelper(calculated, [
-          { token: '0x1', amount: 50n },
-          { token: '0x2', amount: 200n },
+          { token: '0x1111111111111111111111111111111111111111', amount: 50n },
+          { token: '0x2222222222222222222222222222222222222222', amount: 50n },
         ])
       })
 
@@ -497,32 +519,37 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [
-            { address: '0x1', balance: 150n },
-            { address: '0x2', balance: 150n },
+            { address: '0x1111111111111111111111111111111111111111', balance: 150n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 150n },
           ],
           calls: [{ balance: 250n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: 10n, address: '0x1' } },
-            { delta: { balance: 20n, address: '0x2' } },
+            { delta: { balance: 10n, address: '0x1111111111111111111111111111111111111111' } },
+            { delta: { balance: 20n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
         await generateHelper(calculated, [
-          { token: '0x1', amount: 150n },
-          { token: '0x2', amount: 100n },
+          { token: '0x1111111111111111111111111111111111111111', amount: 150n },
+          { token: '0x2222222222222222222222222222222222222222', amount: 100n },
         ])
       })
 
       it('should calculate correct time for fulfillment', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x2', balance: 200n }],
+          rewards: [{ address: '0x2222222222222222222222222222222222222222', balance: 200n }],
           calls: [{ balance: 150n, native: { amount: 0n } }],
           srcDeficitDescending: [
-            { delta: { balance: -100n, address: '0x1' } },
-            { delta: { balance: -50n, address: '0x2' } },
+            // Only include tokens that have rewards (filtered by calculateTokens)
+            { delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }], 0n, 0)
+        await generateHelper(
+          calculated,
+          [{ token: '0x2222222222222222222222222222222222222222', amount: 50n }],
+          0n,
+          0,
+        )
       })
 
       it('should handle native gas token rewards correctly', async () => {
@@ -530,20 +557,20 @@ describe('QuotesService', () => {
         const calculated = {
           solver: {},
           rewards: [
-            { address: '0x1', balance: 100n },
-            { address: '0x2', balance: 200n },
+            { address: '0x1111111111111111111111111111111111111111', balance: 100n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 200n },
           ],
           calls: [{ balance: 150n, native: { amount: nativeGas } }],
           srcDeficitDescending: [
-            { delta: { balance: -50n, address: '0x1' } },
-            { delta: { balance: 100n, address: '0x2' } },
+            { delta: { balance: -50n, address: '0x1111111111111111111111111111111111111111' } },
+            { delta: { balance: 100n, address: '0x2222222222222222222222222222222222222222' } },
           ],
         } as any
         await generateHelper(
           calculated,
           [
-            { token: '0x1', amount: 100n },
-            { token: '0x2', amount: 50n },
+            { token: '0x1111111111111111111111111111111111111111', amount: 50n },
+            { token: '0x2222222222222222222222222222222222222222', amount: 100n },
           ],
           nativeGas,
         )
@@ -553,11 +580,17 @@ describe('QuotesService', () => {
         const nativeGas = 75n
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x1', balance: 50n }],
+          rewards: [{ address: '0x1111111111111111111111111111111111111111', balance: 50n }],
           calls: [{ balance: 50n, native: { amount: nativeGas } }],
-          srcDeficitDescending: [{ delta: { balance: -50n, address: '0x1' } }],
+          srcDeficitDescending: [
+            { delta: { balance: -50n, address: '0x1111111111111111111111111111111111111111' } },
+          ],
         } as any
-        await generateHelper(calculated, [{ token: '0x1', amount: 50n }], nativeGas)
+        await generateHelper(
+          calculated,
+          [{ token: '0x1111111111111111111111111111111111111111', amount: 50n }],
+          nativeGas,
+        )
       })
     })
   })
@@ -638,80 +671,128 @@ describe('QuotesService', () => {
       it('should subtract fees from tokens that solver needs least', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x1', balance: 50n }],
+          rewards: [{ address: '0x1111111111111111111111111111111111111111', balance: 50n }],
           tokens: [
-            { address: '0x2', balance: 100n },
-            { address: '0x3', balance: 200n },
+            { address: '0x2222222222222222222222222222222222222222', balance: 100n },
+            { address: '0x3333333333333333333333333333333333333333', balance: 200n },
           ],
           calls: [
-            { address: '0x2', balance: 100n, recipient: zeroAddress },
-            { address: '0x3', balance: 200n, recipient: zeroAddress },
+            {
+              address: '0x2222222222222222222222222222222222222222',
+              balance: 100n,
+              recipient: zeroAddress,
+            },
+            {
+              address: '0x3333333333333333333333333333333333333333',
+              balance: 200n,
+              recipient: zeroAddress,
+            },
           ],
           destDeficitDescending: [
             {
               delta: {
-                address: '0x2',
+                address: '0x2222222222222222222222222222222222222222',
                 balance: -100n,
               },
               token: {},
             },
             {
               delta: {
-                address: '0x3',
+                address: '0x3333333333333333333333333333333333333333',
                 balance: -50n,
               },
               token: {},
             },
           ],
         } as any
-        await generateReverseHelper(calculated, [{ token: '0x3', amount: 50n }])
+        await generateReverseHelper(calculated, [
+          { token: '0x3333333333333333333333333333333333333333', amount: 50n },
+        ])
       })
 
       it('should fill deficit that has a call to fill it', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x1', balance: 200n }],
-          tokens: [{ address: '0x2', balance: 200n }],
-          calls: [{ address: '0x2', balance: 200n, recipient: zeroAddress }],
+          rewards: [{ address: '0x1111111111111111111111111111111111111111', balance: 200n }],
+          tokens: [{ address: '0x2222222222222222222222222222222222222222', balance: 200n }],
+          calls: [
+            {
+              address: '0x2222222222222222222222222222222222222222',
+              balance: 200n,
+              recipient: zeroAddress,
+            },
+          ],
           destDeficitDescending: [
-            { delta: { balance: -100n, address: '0x2' }, token: {} },
-            { delta: { balance: -50n, address: '0x3' }, token: {} },
+            {
+              delta: { balance: -100n, address: '0x2222222222222222222222222222222222222222' },
+              token: {},
+            },
+            {
+              delta: { balance: -50n, address: '0x3333333333333333333333333333333333333333' },
+              token: {},
+            },
           ],
         } as any
 
-        await generateReverseHelper(calculated, [{ token: '0x2', amount: 200n }])
+        await generateReverseHelper(calculated, [
+          { token: '0x2222222222222222222222222222222222222222', amount: 200n },
+        ])
       })
 
       it('should handle native gas token in reverse quotes correctly', async () => {
         const nativeGas = 135n
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x1', balance: 100n }],
-          tokens: [{ address: '0x2', balance: 150n }],
+          rewards: [{ address: '0x1111111111111111111111111111111111111111', balance: 100n }],
+          tokens: [{ address: '0x2222222222222222222222222222222222222222', balance: 150n }],
           calls: [
             {
-              address: '0x2',
+              address: '0x2222222222222222222222222222222222222222',
               balance: 150n,
               recipient: zeroAddress,
               native: { amount: nativeGas },
             },
           ],
-          destDeficitDescending: [{ delta: { balance: -50n, address: '0x2' }, token: {} }],
+          destDeficitDescending: [
+            {
+              delta: { balance: -50n, address: '0x2222222222222222222222222222222222222222' },
+              token: {},
+            },
+          ],
         } as any
 
-        await generateReverseHelper(calculated, [{ token: '0x2', amount: 100n }], 200000000n)
+        await generateReverseHelper(
+          calculated,
+          [{ token: '0x2222222222222222222222222222222222222222', amount: 100n }],
+          200000000n,
+        )
       })
 
       it('should properly calculate rewardNative after fee deduction', async () => {
         const calculated = {
           solver: {},
-          rewards: [{ address: '0x1', balance: 50n }],
-          tokens: [{ address: '0x2', balance: 100n }],
-          calls: [{ address: '0x2', balance: 100n, recipient: zeroAddress }],
-          destDeficitDescending: [{ delta: { balance: -25n, address: '0x2' }, token: {} }],
+          rewards: [{ address: '0x1111111111111111111111111111111111111111', balance: 50n }],
+          tokens: [{ address: '0x2222222222222222222222222222222222222222', balance: 100n }],
+          calls: [
+            {
+              address: '0x2222222222222222222222222222222222222222',
+              balance: 100n,
+              recipient: zeroAddress,
+            },
+          ],
+          destDeficitDescending: [
+            {
+              delta: { balance: -25n, address: '0x2222222222222222222222222222222222222222' },
+              token: {},
+            },
+          ],
         } as any
 
-        await generateReverseHelper(calculated, [{ token: '0x2', amount: 50n }], 500000000n)
+        await generateReverseHelper(
+          calculated,
+          [{ token: '0x2222222222222222222222222222222222222222', amount: 50n }],
+          500000000n,
+        )
       })
     })
   })

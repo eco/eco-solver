@@ -74,7 +74,9 @@ export class SolveIntentProcessor extends WorkerHost {
           break
         case QUEUES.SOURCE_INTENT.jobs.withdrawal:
           //TODO update this to batching
-          result = await this.withdrawalService.processWithdrawal(job.data as Serialize<WithdrawalLog>)
+          result = await this.withdrawalService.processWithdrawal(
+            job.data as Serialize<WithdrawalLog>,
+          )
           break
         default:
           this.logger.error(

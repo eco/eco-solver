@@ -1,3 +1,4 @@
+import { EcoAnalyticsService } from '@/analytics'
 import { RpcBalanceService } from '@/balance/services/rpc-balance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -28,6 +29,7 @@ describe('RpcBalanceService', () => {
         RpcBalanceService,
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         { provide: CACHE_MANAGER, useValue: createMock<Cache>() },
       ],
     }).compile()

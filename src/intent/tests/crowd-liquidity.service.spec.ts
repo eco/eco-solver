@@ -11,6 +11,7 @@ import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('CrowdLiquidityService', () => {
   let service: CrowdLiquidityService
@@ -94,6 +95,10 @@ describe('CrowdLiquidityService', () => {
         {
           provide: UtilsIntentService,
           useValue: createMock<UtilsIntentService>(),
+        },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
         },
       ],
     }).compile()

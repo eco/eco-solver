@@ -87,7 +87,12 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         await this.utilsIntentService.updateIntentModel(model)
 
         const processingTime = Date.now() - startTime
-        this.ecoAnalytics.trackCrowdLiquidityFulfillmentSuccess(model, solver, transactionHash, processingTime)
+        this.ecoAnalytics.trackCrowdLiquidityFulfillmentSuccess(
+          model,
+          solver,
+          transactionHash,
+          processingTime,
+        )
         return transactionHash
       } catch (error) {
         // Set status to FAILED and store error as receipt
