@@ -594,11 +594,7 @@ export class QuoteService implements OnModuleInit {
     const quoteRecord: Record<Hex, RewardTokensInterface> = {}
 
     // Helper function for consistent amount calculation
-    const addToQuoteRecord = (
-      address: Hex,
-      amount: bigint,
-      deficit: DeficitDescending,
-    ) => {
+    const addToQuoteRecord = (address: Hex, amount: bigint, deficit: DeficitDescending) => {
       try {
         if (!quoteRecord[address]) {
           quoteRecord[address] = {
