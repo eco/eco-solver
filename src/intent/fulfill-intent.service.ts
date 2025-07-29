@@ -144,15 +144,7 @@ export class FulfillIntentService {
     }
 
     // Create wallet fulfillment job (either as primary choice or fallback)
-    const jobId = getIntentJobId('wallet-fulfill', intentHash, model.intent.logIndex)
-    const walletFulfillJobConfig = this.ecoConfigService.getRedis().jobs.walletFulfillJobConfig
-
-    this.logger.debug(`Creating wallet fulfillment job for ${intentHash} with jobId ${jobId}`)
-
-    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet, intentHash, {
-      jobId,
-      ...walletFulfillJobConfig,
-    })
+    await this.addWalletFulfillmentJob(intentHash, model.intent.logIndex)
   }
 
   /**
@@ -226,6 +218,26 @@ export class FulfillIntentService {
     })
 
     return result
+  }
+
+  /**
+   * Creates a wallet fulfillment job for the given intent.
+   * This method centralizes the logic for adding wallet fulfillment jobs to the queue.
+   *
+   * @param {Hex} intentHash - The unique hash identifier of the intent
+   * @param {number} logIndex - The log index of the intent
+   * @return {Promise<void>}
+   */
+  async addWalletFulfillmentJob(intentHash: Hex, logIndex: number): Promise<void> {
+    const jobId = getIntentJobId('wallet-fulfill', intentHash, logIndex)
+    const walletFulfillJobConfig = this.ecoConfigService.getRedis().jobs.walletFulfillJobConfig
+
+    this.logger.debug(`Creating wallet fulfillment job for ${intentHash} with jobId ${jobId}`)
+
+    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet, intentHash, {
+      jobId,
+      ...walletFulfillJobConfig,
+    })
   }
 
   /**

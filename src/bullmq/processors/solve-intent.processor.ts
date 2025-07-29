@@ -1,7 +1,7 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
-import { Job, Queue } from 'bullmq'
+import { Job } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
@@ -13,9 +13,6 @@ import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
-import { InjectQueue } from '@nestjs/bullmq'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { getIntentJobId } from '@/common/utils/strings'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })
@@ -23,14 +20,12 @@ export class SolveIntentProcessor extends WorkerHost {
   private logger = new Logger(SolveIntentProcessor.name)
 
   constructor(
-    @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
     private readonly createIntentService: CreateIntentService,
     private readonly validateIntentService: ValidateIntentService,
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-    private readonly ecoConfigService: EcoConfigService,
   ) {
     super()
   }
@@ -143,13 +138,7 @@ export class SolveIntentProcessor extends WorkerHost {
       const { model } = data ?? {}
 
       if (model) {
-        const jobId = getIntentJobId('wallet-fulfill', intentHash, model.intent.logIndex)
-        const walletFulfillJobConfig = this.ecoConfigService.getRedis().jobs.walletFulfillJobConfig
-
-        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent_wallet, intentHash, {
-          jobId,
-          ...walletFulfillJobConfig,
-        })
+        await this.fulfillIntentService.addWalletFulfillmentJob(intentHash, model.intent.logIndex)
 
         this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.WALLET_FULFILLMENT_FALLBACK, {
           intentHash,
