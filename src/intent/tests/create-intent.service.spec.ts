@@ -14,6 +14,7 @@ import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 
 jest.mock('../../contracts', () => {
   return {
@@ -27,6 +28,8 @@ describe('CreateIntentService', () => {
   let validSmartWalletService: DeepMocked<ValidSmartWalletService>
   let flagService: DeepMocked<FlagService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let negativeIntentAnalyzerService: NegativeIntentAnalyzerService
+  let intentSourceRepository: IntentSourceRepository
   let intentSourceModel: DeepMocked<Model<IntentSourceModel>>
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
@@ -36,7 +39,14 @@ describe('CreateIntentService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         CreateIntentService,
-        NegativeIntentAnalyzerService,
+        {
+          provide: NegativeIntentAnalyzerService,
+          useValue: createMock<NegativeIntentAnalyzerService>(),
+        },
+        {
+          provide: IntentSourceRepository,
+          useValue: createMock<IntentSourceRepository>(),
+        },
         { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
         { provide: FlagService, useValue: createMock<FlagService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
@@ -63,6 +73,11 @@ describe('CreateIntentService', () => {
     validSmartWalletService = chainMod.get(ValidSmartWalletService)
     flagService = chainMod.get(FlagService)
     ecoConfigService = chainMod.get(EcoConfigService)
+    intentSourceRepository = chainMod.get(IntentSourceRepository)
+
+    negativeIntentAnalyzerService = chainMod.get(NegativeIntentAnalyzerService)
+    jest.spyOn(negativeIntentAnalyzerService, 'isNegativeIntent').mockReturnValue(false)
+
     intentSourceModel = chainMod.get(getModelToken(IntentSourceModel.name))
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
 
@@ -158,7 +173,7 @@ describe('CreateIntentService', () => {
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
       const mockCreate = jest.fn()
-      intentSourceModel.create = mockCreate
+      intentSourceRepository.create = mockCreate
       await createIntentService.createIntent(mockEvent as any)
       expect(mockCreate).toHaveBeenCalledWith({
         event: mockEvent,
@@ -182,7 +197,7 @@ describe('CreateIntentService', () => {
       const mockFindOne = jest.fn().mockReturnValue(undefined)
       const mockQueueAdd = jest.fn()
       intentSourceModel.findOne = mockFindOne
-      intentSourceModel.create = jest.fn().mockReturnValue({ intent: mockIntent })
+      intentSourceRepository.create = jest.fn().mockReturnValue({ intent: mockIntent })
       queue.add = mockQueueAdd
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = jest.fn().mockReturnValue(false)
@@ -201,7 +216,7 @@ describe('CreateIntentService', () => {
       const mockFindOne = jest.fn().mockReturnValue(undefined)
       const mockQueueAdd = jest.fn()
       intentSourceModel.findOne = mockFindOne
-      intentSourceModel.create = jest.fn().mockReturnValue({ intent: mockIntent })
+      intentSourceRepository.create = jest.fn().mockReturnValue({ intent: mockIntent })
       queue.add = mockQueueAdd
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = jest.fn().mockReturnValue(true)

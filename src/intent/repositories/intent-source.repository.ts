@@ -51,6 +51,11 @@ export class IntentSourceRepository {
     return rawResults.map((doc) => this.fixIntentQueryResult(doc))
   }
 
+  async create(intent: IntentSourceModel): Promise<IntentSourceModel> {
+    const createdIntent = await this.model.create(intent)
+    return this.fixIntentQueryResult(createdIntent)
+  }
+
   async update(
     query: object,
     updates: object,

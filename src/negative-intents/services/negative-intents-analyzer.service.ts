@@ -6,6 +6,7 @@ import { EcoResponse } from '@/common/eco-response'
 import { Hex } from 'viem'
 import { Injectable } from '@nestjs/common'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { TargetCallDataModel } from '@/intent/schemas/intent-call-data.schema'
 import { TokenAmountDataModel } from '@/intent/schemas/intent-token-amount.schema'
 
@@ -42,7 +43,10 @@ export interface NegativeIntentAnalysisResult {
 export class NegativeIntentAnalyzerService {
   private logger = new EcoLogger(NegativeIntentAnalyzerService.name)
 
-  constructor(private readonly ecoConfigService: EcoConfigService) {}
+  constructor(
+    private readonly intentSourceRepository: IntentSourceRepository,
+    private readonly ecoConfigService: EcoConfigService,
+  ) {}
 
   /**
    * Computes slippage as a number between 0 and 1.
@@ -64,6 +68,16 @@ export class NegativeIntentAnalyzerService {
 
     const ratio = (rewardAmount * scale) / routeAmount
     return Number(scale - ratio) / Number(scale)
+  }
+
+  async isNegativeIntentHash(intentHash: string): Promise<boolean> {
+    const intentSource = await this.intentSourceRepository.getIntent(intentHash)
+
+    if (!intentSource) {
+      return false
+    }
+
+    return this.isNegativeIntent(intentSource)
   }
 
   isNegativeIntent(intentSource: IntentSourceModel): boolean {

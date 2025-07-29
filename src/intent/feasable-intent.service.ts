@@ -8,6 +8,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
 import { JobsOptions, Queue } from 'bullmq'
+import { ModuleRef } from '@nestjs/core'
+import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 import { QUEUES } from '../common/redis/constants'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { UtilsIntentService } from './utils-intent.service'
@@ -19,17 +21,24 @@ import { UtilsIntentService } from './utils-intent.service'
 export class FeasableIntentService implements OnModuleInit {
   private logger = new Logger(FeasableIntentService.name)
   private intentJobConfig: JobsOptions
+  private negativeIntentAnalyzerService: NegativeIntentAnalyzerService
+
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    this.negativeIntentAnalyzerService = this.moduleRef.get(NegativeIntentAnalyzerService, {
+      strict: false,
+    })
   }
+
   async feasableQuote(quoteIntent: QuoteIntentModel) {
     try {
       this.logger.debug(
@@ -48,7 +57,9 @@ export class FeasableIntentService implements OnModuleInit {
   }
 
   async feasableIntent(data: IntentProcessingJobData) {
-    const { intentHash, isNegativeIntent } = data
+    const { intentHash } = data
+
+    const isNegativeIntent = await this.isNegativeIntent(data)
 
     if (isNegativeIntent) {
       this.logger.debug(
@@ -62,6 +73,17 @@ export class FeasableIntentService implements OnModuleInit {
     }
 
     return this._feasableIntent(data)
+  }
+
+  async isNegativeIntent(data: IntentProcessingJobData): Promise<boolean> {
+    const { intentHash } = data
+    let isNegativeIntent = data.isNegativeIntent
+
+    if (!isNegativeIntent) {
+      isNegativeIntent = await this.negativeIntentAnalyzerService.isNegativeIntentHash(intentHash)
+    }
+
+    return isNegativeIntent
   }
 
   /**

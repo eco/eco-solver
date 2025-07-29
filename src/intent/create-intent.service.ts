@@ -20,6 +20,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { IntentSourceModel } from './schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { JobsOptions, Queue } from 'bullmq'
 import { Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
@@ -44,6 +45,7 @@ export class CreateIntentService implements OnModuleInit {
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
+    private readonly intentSourceRepository: IntentSourceRepository,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly moduleRef: ModuleRef,
@@ -110,10 +112,10 @@ export class CreateIntentService implements OnModuleInit {
         : true
 
       //create db record
-      const record = await this.intentModel.create({
+      const record = await this.intentSourceRepository.create({
         event: intentWs,
         intent: intent,
-        receipt: null,
+        receipt: null as any,
         status: validWallet ? 'PENDING' : 'NON-BEND-WALLET',
       })
 

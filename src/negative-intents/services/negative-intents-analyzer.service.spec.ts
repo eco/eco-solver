@@ -2,7 +2,8 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { IntentSourceModel, IntentSourceSchema } from '@/intent/schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 
 const logger = new EcoLogger('NegativeIntentAnalyzerServiceSpec')
@@ -67,8 +68,9 @@ describe('NegativeIntentAnalyzerService', () => {
 
   beforeAll(async () => {
     $ = EcoTester.setupTestFor(NegativeIntentAnalyzerService)
-      .withProviders([EcoConfigService])
+      .withProviders([EcoConfigService, IntentSourceRepository])
       .withMocks([])
+      .withSchemas([[IntentSourceModel.name, IntentSourceSchema]])
       .overridingProvider(EcoConfigService)
       .useFactory(() => new EcoConfigService([mockSource as any]))
 

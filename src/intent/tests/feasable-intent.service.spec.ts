@@ -13,12 +13,14 @@ import { Hex } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { QuoteError } from '@/quote/errors'
 import { EcoAnalyticsService } from '@/analytics'
+import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 
 describe('FeasableIntentService', () => {
   let feasableIntentService: FeasableIntentService
   let feeService: DeepMocked<FeeService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let negativeIntentAnalyzerService: NegativeIntentAnalyzerService
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -29,6 +31,10 @@ describe('FeasableIntentService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         FeasableIntentService,
+        {
+          provide: NegativeIntentAnalyzerService,
+          useValue: createMock<NegativeIntentAnalyzerService>(),
+        },
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
@@ -49,6 +55,7 @@ describe('FeasableIntentService', () => {
       .compile()
 
     feasableIntentService = chainMod.get(FeasableIntentService)
+    await feasableIntentService.onModuleInit()
     feeService = chainMod.get(FeeService)
     utilsIntentService = chainMod.get(UtilsIntentService)
     ecoConfigService = chainMod.get(EcoConfigService)
@@ -57,6 +64,8 @@ describe('FeasableIntentService', () => {
     feasableIntentService['logger'].debug = mockLogDebug
     feasableIntentService['logger'].log = mockLogLog
     feasableIntentService['logger'].error = mockLogError
+    negativeIntentAnalyzerService = chainMod.get(NegativeIntentAnalyzerService)
+    jest.spyOn(negativeIntentAnalyzerService, 'isNegativeIntentHash').mockResolvedValue(false)
   })
 
   const mockData = { model: { intent: { logIndex: 1, hash: '0x123' as Hex } }, solver: {} }
