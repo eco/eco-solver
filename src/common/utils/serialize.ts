@@ -29,16 +29,28 @@ function isSerializedBigInt(data: any): data is SerializedBigInt {
 function stringify(data: object | bigint) {
   return JSON.stringify(data, (key, value) => {
     if (typeof value === 'bigint') {
-      return { type: 'BigInt', hex: '0x' + value.toString(16) } as SerializedBigInt
+      // Handle negative bigints by storing sign separately
+      const isNegative = value < 0n
+      const absValue = isNegative ? -value : value
+      const hex = '0x' + absValue.toString(16)
+      return { type: 'BigInt', hex: isNegative ? '-' + hex : hex } as SerializedBigInt
     }
     return value
   })
 }
 
 export function deserialize<T extends object | string>(data: T): Deserialize<T> {
-  return JSON.parse(JSON.stringify(data), (_key, value) =>
-    value && isSerializedBigInt(value) ? BigInt(value.hex) : value,
-  )
+  return JSON.parse(JSON.stringify(data), (_key, value) => {
+    if (value && isSerializedBigInt(value)) {
+      // Handle negative bigints
+      if (value.hex.startsWith('-')) {
+        const positiveHex = value.hex.substring(1)
+        return -BigInt(positiveHex)
+      }
+      return BigInt(value.hex)
+    }
+    return value
+  })
 }
 
 export function serialize<T extends object | bigint>(data: T): Serialize<T> {
