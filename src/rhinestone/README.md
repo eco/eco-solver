@@ -57,6 +57,7 @@ When running in standalone mode, the following endpoints are available:
 The module supports two message types:
 
 1. **Ping** - Keep-alive messages
+
    ```json
    {
      "type": "Ping",
