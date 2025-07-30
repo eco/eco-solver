@@ -17,23 +17,26 @@ This document outlines our team's standardized Git workflow. The primary goals o
 
 ### 3\. Branching Strategy
 
-#### `main`
+#### Main (`main`)
 
 This is our primary, long-lived branch. All new feature development is ultimately merged into `main`. The `HEAD` of `main` reflects the state of the upcoming release.
 
-#### `feature/*`
-
-- **Purpose**: For developing new features.
-- **Branched from**: `main`
-- **Merged to**: `main`
-- **Example**: `feature/new-user-profile`
-
-#### `hotfix/vX.Y.Z`
+#### Hotfixes (`hotfix/vX.Y.Z`)
 
 - **Purpose**: To serve as a stable base for an urgent production fix. It isolates the fix from the `main` branch.
 - **Branched from**: A production version tag (e.g., `v1.5.0`).
 - **Merged to**: `main` (after the fix is deployed).
 - **Example**: `hotfix/v1.5.1`
+
+#### Development (`ED-****-short-descriptor`)
+
+- **Purpose**: For developing new features or bug fixes.
+- **Branched from**: `main` or `hotfix/vX.Y.Z`
+- **Merged to**: `main` or `hotfix/vX.Y.Z`
+- **Format**: Jira tiket id plus a short description
+- **Examples**: `ED-1234-my-new-feature` , `ED-5678-fix-login`
+
+> Aside from the main branch, the other formats are suggested naming conventions. There's no rule or process to enforce their use.
 
 ### 4\. Workflows
 
@@ -45,10 +48,10 @@ This is the standard day-to-day workflow for adding new functionality.
     ```bash
     git checkout main
     git pull
-    git checkout -b feature/my-new-feature
+    git checkout -b ED-1234-my-new-feature
     ```
 2.  Develop the feature and commit your changes.
-3.  Open a Pull Request from `feature/my-new-feature` to `main`.
+3.  Open a Pull Request from `ED-1234-my-new-feature` to `main`.
 4.  After the PR is reviewed and approved, merge it into `main`.
 
 #### B. Planned Release
@@ -73,7 +76,7 @@ This is the critical workflow for fixing a bug in the live production version. I
 
 **Scenario**: A critical bug is found in production version `v1.5.0`.
 
-1.  **Create a Hotfix Base Branch**: Create a new base branch from the exact production version tag.
+1.  **Create a Hotfix Base Branch**: Create a new base branch from the exact production version tag. This step is necessary so we can create a pull request on GitHub later.
 
     ```bash
     git checkout -b hotfix/v1.5.1 v1.5.0
@@ -82,13 +85,13 @@ This is the critical workflow for fixing a bug in the live production version. I
 2.  **Create a Working Branch**: Branch from the new hotfix base to perform the actual coding.
 
     ```bash
-    git checkout -b feature/critical-login-fix hotfix/v1.5.1
+    git checkout -b ED-5678-fix-login hotfix/v1.5.1
     ```
 
-3.  **Implement the Fix**: Make the necessary code changes and commits on the `feature/critical-login-fix` branch.
+3.  **Implement the Fix**: Make the necessary code changes and commits on the `ED-5678-fix-login` branch.
 
 4.  **Open PR \#1 (Validation)**: Open a Pull Request to merge the fix into the hotfix base branch. This allows for code review of the fix in a completely isolated environment.
-    - **From**: `feature/critical-login-fix`
+    - **From**: `ED-5678-fix-login`
     - **To**: `hotfix/v1.5.1`
 
 5.  **Merge PR \#1**: After approval, merge the PR. The `hotfix/v1.5.1` branch now contains the production code plus the validated fix.
