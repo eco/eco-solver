@@ -221,10 +221,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     const sortedSurplusTokens = getSortGroupByDiff(surplusTokens)
-    const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
 
-    if (!deficitToken?.analysis?.diff || deficitToken.analysis.diff > surplusTokensTotal) {
+    if (!deficitToken?.analysis?.diff) {
       // Not enough surplus tokens to rebalance
+      this.logger.error({
+        message: 'Deficit token analysis is missing diff',
+        properties: {
+          walletAddress,
+          deficitTokenAnalysis: deficitToken.analysis,
+        },
+      })
       return []
     }
 
