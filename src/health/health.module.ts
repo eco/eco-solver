@@ -8,7 +8,6 @@ import { BalanceHealthIndicator } from '@/health/indicators/balance.indicator'
 import { EcoRedisHealthIndicator } from '@/health/indicators/eco-redis.indicator'
 import { GitCommitHealthIndicator } from '@/health/indicators/git-commit.indicator'
 import { MongoDBHealthIndicator } from '@/health/indicators/mongodb.indicator'
-
 @Module({
   imports: [TransactionModule, RedisHealthModule, TerminusModule],
   controllers: [HealthController],

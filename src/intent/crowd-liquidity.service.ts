@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Hex, isAddressEqual, PublicClient } from 'viem'
@@ -12,17 +12,18 @@ import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { EcoAnalyticsService } from '@/analytics'
 import { LitActionService } from '@/lit-actions/lit-action.service'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
-  private logger = new Logger(CrowdLiquidityService.name)
   private config: CrowdLiquidityConfig
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly publicClient: MultichainPublicClientService,
     private readonly balanceService: BalanceService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly litActionService: LitActionService,
   ) {}
 
@@ -37,42 +38,61 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve the intent.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
-    // Unused variable
-    solver
+  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    const startTime = Date.now()
 
-    if (!this.isRewardEnough(model)) {
-      throw EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
+    try {
+      if (!this.isRewardEnough(model)) {
+        const error = EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
+        this.ecoAnalytics.trackCrowdLiquidityFulfillmentRewardNotEnough(model, solver, error)
+        throw error
+      }
+
+      if (!(await this.isPoolSolvent(model))) {
+        const error = EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
+        this.ecoAnalytics.trackCrowdLiquidityFulfillmentPoolNotSolvent(model, solver, error)
+        throw error
+      }
+
+      const result = await this._fulfill(model.intent)
+      const processingTime = Date.now() - startTime
+      this.ecoAnalytics.trackCrowdLiquidityFulfillmentSuccess(model, solver, result, processingTime)
+      return result
+    } catch (error) {
+      const processingTime = Date.now() - startTime
+      this.ecoAnalytics.trackCrowdLiquidityFulfillmentFailed(model, solver, error, processingTime)
+      throw error
     }
-
-    if (!this.isPoolSolvent(model)) {
-      throw EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
-    }
-
-    return this._fulfill(model.intent)
   }
 
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
-    const { kernel, pkp } = this.config
+    try {
+      const { kernel, pkp } = this.config
 
-    const publicClient = await this.publicClient.getClient(tokenIn.chainId)
+      const publicClient = await this.publicClient.getClient(tokenIn.chainId)
 
-    const [feeData, nonce] = await Promise.all([
-      this.getFeeData(publicClient),
-      publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
-    ])
+      const [feeData, nonce] = await Promise.all([
+        this.getFeeData(publicClient),
+        publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
+      ])
 
-    const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
+      const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
 
-    return this.litActionService.executeRebalanceCCTPAction(
-      tokenIn.chainId,
-      tokenOut.config.address,
-      tokenOut.chainId,
-      pkp.publicKey,
-      kernel.address,
-      transactionBase,
-      publicClient,
-    )
+      const result = await this.litActionService.executeRebalanceCCTPAction(
+        tokenIn.chainId,
+        tokenOut.config.address,
+        tokenOut.chainId,
+        pkp.publicKey,
+        kernel.address,
+        transactionBase,
+        publicClient,
+      )
+      this.ecoAnalytics.trackCrowdLiquidityRebalanceSuccess(tokenIn, tokenOut, result)
+      return result
+    } catch (error) {
+      this.ecoAnalytics.trackCrowdLiquidityRebalanceError(tokenIn, tokenOut, error)
+      throw error
+    }
   }
 
   /**
@@ -82,6 +102,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {boolean} - Returns true if the route is supported, otherwise false.
    */
   isRouteSupported(intentModel: IntentSourceModel): boolean {
+    this.ecoAnalytics.trackCrowdLiquidityRouteSupportCheck(intentModel)
+
     const { route, reward } = intentModel.intent
     const isSupportedReward = reward.tokens.every((item) => {
       return this.isSupportedToken(Number(route.source), item.token)
@@ -92,7 +114,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       return areSupportedTargetTokens && isSupportedAction
     })
 
-    return isSupportedReward && isSupportedRoute
+    const isSupported = isSupportedReward && isSupportedRoute
+    this.ecoAnalytics.trackCrowdLiquidityRouteSupportResult(intentModel, isSupported, {
+      isSupportedReward,
+      isSupportedRoute,
+    })
+
+    return isSupported
   }
 
   /**
@@ -103,6 +131,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {boolean} - Returns true if the reward meets the requirements for the intent type.
    */
   isRewardEnough(intentModel: IntentSourceModel): boolean {
+    this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
+
     const { route, reward } = intentModel.intent
     const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
     const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
@@ -115,8 +145,16 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
     // For normal intents, ensure minimum reward
     const minimumReward = (totalRouteAmount * BigInt(this.config.feePercentage * 1e6)) / BigInt(1e6)
+    const isEnough = totalRewardAmount >= minimumReward
 
-    return totalRewardAmount >= minimumReward
+    this.ecoAnalytics.trackCrowdLiquidityRewardCheckResult(intentModel, isEnough, {
+      totalRouteAmount: totalRouteAmount.toString(),
+      totalRewardAmount: totalRewardAmount.toString(),
+      minimumReward: minimumReward.toString(),
+      feePercentage: this.config.feePercentage,
+    })
+
+    return isEnough
   }
 
   /**
@@ -141,26 +179,39 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @return {Promise<boolean>} - A promise that resolves to true if the intent is solvent, otherwise false.
    */
   async isPoolSolvent(intentModel: IntentSourceModel) {
-    // Get supported tokens from intent
-    const routeTokens = this.getSupportedTokens().filter((token) => {
-      return intentModel.intent.route.tokens.some(
-        (rewardToken) =>
-          BigInt(token.chainId) === intentModel.intent.route.destination &&
-          isAddressEqual(token.address, rewardToken.token),
-      )
-    })
+    try {
+      // Get supported tokens from intent
+      const routeTokens = this.getSupportedTokens().filter((token) => {
+        return intentModel.intent.route.tokens.some(
+          (rewardToken) =>
+            BigInt(token.chainId) === intentModel.intent.route.destination &&
+            isAddressEqual(token.address, rewardToken.token),
+        )
+      })
 
-    const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
-      this.getPoolAddress(),
-      routeTokens,
-    )
-
-    return intentModel.intent.route.tokens.every((routeToken) => {
-      const token = routeTokensData.find((token) =>
-        isAddressEqual(token.config.address, routeToken.token),
+      const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
+        this.getPoolAddress(),
+        routeTokens,
       )
-      return token && token.balance.balance >= routeToken.amount
-    })
+
+      const isSolvent = intentModel.intent.route.tokens.every((routeToken) => {
+        const token = routeTokensData.find((token) =>
+          isAddressEqual(token.config.address, routeToken.token),
+        )
+        return token && token.balance.balance >= routeToken.amount
+      })
+
+      this.ecoAnalytics.trackCrowdLiquidityPoolSolvencyResult(intentModel, isSolvent, {
+        routeTokens: routeTokens.length,
+        routeTokensData: routeTokensData.length,
+        poolAddress: this.getPoolAddress(),
+      })
+
+      return isSolvent
+    } catch (error) {
+      this.ecoAnalytics.trackCrowdLiquidityPoolSolvencyError(intentModel, error)
+      throw error
+    }
   }
 
   /**

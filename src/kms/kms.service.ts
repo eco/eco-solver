@@ -2,10 +2,10 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { obscureCenter } from '@/common/utils/strings'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { Signer } from '@eco-foundation/eco-kms-core'
+import { KMSProviderAWS } from '@eco-foundation/eco-kms-provider-aws'
+import { KMSWallets } from '@eco-foundation/eco-kms-wallets'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Signer } from '@web3-kms-signer/core'
-import { KMSProviderAWS } from '@web3-kms-signer/kms-provider-aws'
-import { KMSWallets } from '@web3-kms-signer/kms-wallets'
 import { getAddress as viemGetAddress, Hex } from 'viem'
 
 /**

@@ -29,6 +29,8 @@ import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { EcoAnalyticsService } from '@/analytics'
 import { NegativeIntentRebalanceService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
@@ -177,6 +179,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<SquidProviderService>(),
         },
         {
+          provide: CCTPV2ProviderService,
+          useValue: createMock<CCTPV2ProviderService>(),
+        },
+        {
           provide: NegativeIntentRebalanceService,
           useValue: createMock<NegativeIntentRebalanceService>(),
         },
@@ -207,6 +213,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: rebalanceModel,
+        },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
         },
       ],
     }).compile()

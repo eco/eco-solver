@@ -9,6 +9,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { serialize } from '@/common/utils/serialize'
 import { IntentCreatedLog } from '@/contracts'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('WatchIntentService', () => {
   let watchIntentService: WatchCreateIntentService
@@ -34,6 +35,7 @@ describe('WatchIntentService', () => {
           useValue: createMock<MultichainPublicClientService>(),
         },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
       imports: [
         BullModule.registerQueue({

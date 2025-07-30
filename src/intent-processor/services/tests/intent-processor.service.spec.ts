@@ -173,6 +173,10 @@ describe('IntentProcessorService', () => {
       .spyOn(require('@/eco-configs/utils'), 'getChainConfig')
       .mockReturnValue({ HyperProver: '0x0000000000000000000000000000000000000010' })
 
+    // Setup default mocks for indexer service methods
+    indexerService.getNextBatchWithdrawals = jest.fn().mockResolvedValue([])
+    indexerService.getNextSendBatch = jest.fn().mockResolvedValue([])
+
     // Call onApplicationBootstrap to initialize config
     await service.onApplicationBootstrap()
   })
@@ -669,11 +673,15 @@ describe('IntentProcessorService', () => {
       // Mock data - single batch
       const data = {
         chainId: 1,
+        intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         proves: [
           {
             hash: '0x1111' as Hex,
             prover: '0xProver1' as Hex,
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
         ],
       }
@@ -718,21 +726,29 @@ describe('IntentProcessorService', () => {
       // Mock data - multiple batches with different prover-source combinations
       const data = {
         chainId: 1,
+        intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         proves: [
           {
             hash: '0x1111' as Hex,
             prover: '0xProver1' as Hex,
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
           {
             hash: '0x2222' as Hex,
             prover: '0xProver2' as Hex, // Different prover
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
           {
             hash: '0x3333' as Hex,
             prover: '0xProver1' as Hex,
             source: 3, // Different source
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
         ],
       }
@@ -936,12 +952,12 @@ describe('IntentProcessorService', () => {
   })
 
   describe('getIntentSource and getInbox', () => {
-    it('should return the intent source address', () => {
+    it('should return array of intent source addresses', () => {
       const result = service['getIntentSource']()
-      expect(result).toBe(mockIntentSource)
+      expect(result).toEqual([mockIntentSource])
     })
 
-    it('should throw error if multiple intent sources', () => {
+    it('should return array of unique intent sources when multiple provided', () => {
       // Mock multiple intent sources
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
         {
@@ -954,17 +970,16 @@ describe('IntentProcessorService', () => {
         },
         {
           sourceAddress: '0xSource2' as Hex,
-          inbox: '0xInbox1' as Hex,
-          network: Network.ETH_MAINNET,
-          chainID: 1,
-          tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex],
+          inbox: '0xInbox2' as Hex,
+          network: Network.ARB_MAINNET,
+          chainID: 42161,
+          tokens: ['0xToken2' as Hex],
+          provers: ['0xProver2' as Hex],
         },
       ])
 
-      expect(() => service['getIntentSource']()).toThrow(
-        'Implementation has to be refactor to support multiple intent source addresses.',
-      )
+      const result = service['getIntentSource']()
+      expect(result).toEqual(['0xSource1', '0xSource2'])
     })
 
     it('should return the inbox address', () => {

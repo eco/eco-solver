@@ -10,6 +10,8 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { EcoAnalyticsService } from '@/analytics'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 type QuoteQuery = FilterQuery<QuoteIntentModel>
 type QuoteUpdate = UpdateQuery<QuoteIntentModel>
@@ -25,6 +27,7 @@ export class QuoteRepository {
   constructor(
     @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   onModuleInit() {
@@ -71,6 +74,13 @@ export class QuoteRepository {
             },
           }),
         )
+
+        // Track database error
+        this.ecoAnalytics.trackError(ANALYTICS_EVENTS.QUOTE.DATABASE_STORE_ERROR, error, {
+          quoteIntentDataDTO,
+          intentExecutionType,
+          quoteIntentModel,
+        })
 
         errors.push(error)
         continue

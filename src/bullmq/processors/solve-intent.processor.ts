@@ -10,6 +10,8 @@ import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
+import { EcoAnalyticsService } from '@/analytics'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })
@@ -21,6 +23,7 @@ export class SolveIntentProcessor extends WorkerHost {
     private readonly validateIntentService: ValidateIntentService,
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     super()
   }
@@ -29,6 +32,8 @@ export class SolveIntentProcessor extends WorkerHost {
     job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
+    const startTime = Date.now()
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `SolveIntentProcessor: process`,
@@ -38,23 +43,58 @@ export class SolveIntentProcessor extends WorkerHost {
       }),
     )
 
-    switch (job.name) {
-      case QUEUES.SOURCE_INTENT.jobs.create_intent:
-        return await this.createIntentService.createIntent(job.data as Serialize<IntentCreatedLog>)
-      case QUEUES.SOURCE_INTENT.jobs.validate_intent:
-      case QUEUES.SOURCE_INTENT.jobs.retry_intent:
-        return await this.validateIntentService.validateIntent(job.data as Hex)
-      case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
-        return await this.feasableIntentService.feasableIntent(job.data as Hex)
-      case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
-        return await this.fulfillIntentService.fulfill(job.data as Hex)
-      default:
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `SolveIntentProcessor: Invalid job type ${job.name}`,
-          }),
-        )
-        return Promise.reject('Invalid job type')
+    // Track job start
+    this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.STARTED, {
+      jobName: job.name,
+      jobId: job.id,
+      jobData: job.data,
+      attemptNumber: job.attemptsMade,
+    })
+
+    try {
+      let result: any
+
+      switch (job.name) {
+        case QUEUES.SOURCE_INTENT.jobs.create_intent:
+          result = await this.createIntentService.createIntent(
+            job.data as Serialize<IntentCreatedLog>,
+          )
+          break
+        case QUEUES.SOURCE_INTENT.jobs.validate_intent:
+        case QUEUES.SOURCE_INTENT.jobs.retry_intent:
+          result = await this.validateIntentService.validateIntent(job.data as Hex)
+          break
+        case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
+          result = await this.feasableIntentService.feasableIntent(job.data as Hex)
+          break
+        case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
+          result = await this.fulfillIntentService.fulfill(job.data as Hex)
+          break
+        default:
+          throw new Error(`Unknown job type: ${job.name}`)
+      }
+
+      // Track job completion
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.COMPLETED, {
+        jobName: job.name,
+        jobId: job.id,
+        jobData: job.data,
+        result,
+        processingTimeMs: Date.now() - startTime,
+      })
+
+      return result
+    } catch (error) {
+      // Track job failure
+      this.ecoAnalytics.trackError(ANALYTICS_EVENTS.JOB.FAILED, error, {
+        jobName: job.name,
+        jobId: job.id,
+        jobData: job.data,
+        attemptNumber: job.attemptsMade,
+        processingTimeMs: Date.now() - startTime,
+      })
+
+      throw error
     }
   }
 

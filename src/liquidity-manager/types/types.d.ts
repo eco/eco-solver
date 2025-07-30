@@ -40,6 +40,15 @@ type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
 type SquidStrategyContext = SquidRoute
 
+interface CCTPV2StrategyContext {
+  transferType: 'standard' | 'fast'
+  fee: bigint
+  feeBps: number
+  minFinalityThreshold: number
+  messageHash?: Hex
+  messageBody?: Hex
+}
+
 // CCTPLiFi strategy context for tracking multi-step operations
 interface CCTPLiFiStrategyContext {
   sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → USDC
@@ -76,6 +85,7 @@ type Strategy =
   | 'Stargate'
   | 'Squid'
   | 'NegativeIntent'
+  | 'CCTPV2'
 
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
@@ -93,7 +103,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
               ? SquidStrategyContext
               : S extends 'NegativeIntent'
                 ? NegativeIntentStrategyContext
-                : never
+                : S extends 'CCTPV2'
+                  ? CCTPV2StrategyContext
+                  : never
 
 // Quote
 

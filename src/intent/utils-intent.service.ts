@@ -10,6 +10,7 @@ import { DecodeFunctionDataReturnType, Hex } from 'viem'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from '@/common/alchemy/network'
 import { ValidationChecks } from '@/intent/validation.sevice'
+import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * Data for a transaction target
@@ -47,6 +48,7 @@ export class UtilsIntentService {
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   /**
@@ -68,6 +70,8 @@ export class UtilsIntentService {
    * @returns
    */
   async updateInvalidIntentModel(model: IntentSourceModel, invalidCause: ValidationChecks) {
+    this.ecoAnalytics.trackIntentStatusUpdate(model, 'INVALID', invalidCause)
+
     model.status = 'INVALID'
     model.receipt = invalidCause as any
     return await this.updateIntentModel(model)
@@ -82,6 +86,8 @@ export class UtilsIntentService {
    * @returns
    */
   async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: Error) {
+    this.ecoAnalytics.trackIntentStatusUpdate(model, 'INFEASABLE', infeasable)
+
     model.status = 'INFEASABLE'
     model.receipt = infeasable as any
     return await this.updateIntentModel(model)
@@ -94,21 +100,29 @@ export class UtilsIntentService {
    * @param fulfillment the fulfillment log event
    */
   async updateOnFulfillment(fulfillment: FulfillmentLog) {
-    const model = await this.intentModel.findOne({
-      'intent.hash': fulfillment.args._hash,
-    })
-    if (model) {
-      model.status = 'SOLVED'
-      await this.intentModel.updateOne({ 'intent.hash': fulfillment.args._hash }, model)
-    } else {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `Intent not found for fulfillment ${fulfillment.args._hash}`,
-          properties: {
-            fulfillment,
-          },
-        }),
-      )
+    try {
+      const model = await this.intentModel.findOne({
+        'intent.hash': fulfillment.args._hash,
+      })
+
+      if (model) {
+        model.status = 'SOLVED'
+        await this.intentModel.updateOne({ 'intent.hash': fulfillment.args._hash }, model)
+        this.ecoAnalytics.trackFulfillmentProcessingSuccess(fulfillment, model)
+      } else {
+        this.ecoAnalytics.trackFulfillmentProcessingIntentNotFound(fulfillment)
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `Intent not found for fulfillment ${fulfillment.args._hash}`,
+            properties: {
+              fulfillment,
+            },
+          }),
+        )
+      }
+    } catch (error) {
+      this.ecoAnalytics.trackFulfillmentProcessingError(fulfillment, error)
+      throw error
     }
   }
 
@@ -124,19 +138,27 @@ export class UtilsIntentService {
       const model = await this.intentModel.findOne({
         'intent.hash': intentHash,
       })
+
       if (!model) {
-        return { model, solver: null, err: EcoError.IntentSourceDataNotFound(intentHash) }
+        const error = EcoError.IntentSourceDataNotFound(intentHash)
+        this.ecoAnalytics.trackIntentProcessDataRetrievalModelNotFound(intentHash, error)
+        return { model, solver: null, err: error }
       }
 
       const solver = await this.getSolver(model.intent.route.destination, {
         intentHash: intentHash,
         sourceNetwork: IntentSourceModel.getSource(model),
       })
+
       if (!solver) {
+        this.ecoAnalytics.trackIntentProcessDataRetrievalSolverNotFound(intentHash, model)
         return
       }
+
+      this.ecoAnalytics.trackIntentProcessDataRetrievalSuccess(intentHash, model, solver)
       return { model, solver }
     } catch (e) {
+      this.ecoAnalytics.trackIntentProcessDataRetrievalError(intentHash, e)
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `Error in getIntentProcessData ${intentHash}`,
@@ -153,6 +175,7 @@ export class UtilsIntentService {
   async getSolver(destination: bigint, opts?: any): Promise<Solver | undefined> {
     const solver = this.ecoConfigService.getSolver(destination)
     if (!solver) {
+      this.ecoAnalytics.trackSolverResolutionNotFound(destination, opts)
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `No solver found for chain ${destination}`,
@@ -163,6 +186,8 @@ export class UtilsIntentService {
       )
       return
     }
+
+    this.ecoAnalytics.trackSolverResolutionSuccess(destination, solver, opts)
     return solver
   }
 }

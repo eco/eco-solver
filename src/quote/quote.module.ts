@@ -6,7 +6,6 @@ import { IntentModule } from '@/intent/intent.module'
 import { FeeModule } from '@/fee/fee.module'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
-
 @Module({
   imports: [
     FeeModule,

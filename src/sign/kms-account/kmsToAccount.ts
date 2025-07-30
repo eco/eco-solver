@@ -1,8 +1,8 @@
 import { signKms } from '@/sign/kms-account/signKms'
 import { signKmsTransaction } from '@/sign/kms-account/signKmsTransaction'
 import { signKmsTypedData } from '@/sign/kms-account/signKmsTypedData'
-import { Signer } from '@web3-kms-signer/core'
-import { KMSWallets } from '@web3-kms-signer/kms-wallets'
+import { Signer } from '@eco-foundation/eco-kms-core'
+import { KMSWallets } from '@eco-foundation/eco-kms-wallets'
 import {
   CustomSource,
   getAddress,
