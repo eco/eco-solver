@@ -5,7 +5,7 @@ import { IntentModule } from '@/intent/intent.module'
 
 @Module({
   imports: [IntentFulfillmentQueue.init(), forwardRef(() => IntentModule)],
-  providers: [IntentFulfillmentProcessor],
-  exports: [IntentFulfillmentQueue.init()],
+  providers: [IntentFulfillmentProcessor, IntentFulfillmentQueue],
+  exports: [IntentFulfillmentQueue],
 })
 export class IntentFulfillmentModule {}

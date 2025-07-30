@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { InjectQueue } from '@nestjs/bullmq'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
@@ -8,10 +7,7 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
-import {
-  IntentFulfillmentQueue,
-  IntentFulfillmentQueueType,
-} from '@/intent-fulfillment/queues/intent-fulfillment.queue'
+import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 
 /**
  * Service class for getting configs for the app
@@ -19,16 +15,12 @@ import {
 @Injectable()
 export class FeasableIntentService {
   private logger = new Logger(FeasableIntentService.name)
-  private readonly intentFulfillmentQueue: IntentFulfillmentQueue
   constructor(
-    @InjectQueue(IntentFulfillmentQueue.queueName)
-    intentFulfillmentQueue: IntentFulfillmentQueueType,
+    private readonly intentFulfillmentQueue: IntentFulfillmentQueue,
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) {
-    this.intentFulfillmentQueue = new IntentFulfillmentQueue(intentFulfillmentQueue)
-  }
+  ) {}
 
   async feasableQuote(quoteIntent: QuoteIntentModel) {
     try {

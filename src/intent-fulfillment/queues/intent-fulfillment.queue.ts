@@ -1,6 +1,8 @@
 import { Queue } from 'bullmq'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { Hex } from 'viem/_types/types/misc'
+import { Injectable } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
 
 export enum IntentFulfillmentJobName {
   FULFILL_INTENT = 'FULFILL_INTENT',
@@ -16,12 +18,15 @@ export type IntentFulfillmentQueueType = Queue<
   unknown,
   IntentFulfillmentJobName
 >
-
+@Injectable()
 export class IntentFulfillmentQueue {
   public static readonly prefix = '{intent-fulfillment}'
   public static readonly queueName = 'IntentFulfillment'
 
-  constructor(private readonly queue: IntentFulfillmentQueueType) {}
+  constructor(
+    @InjectQueue(IntentFulfillmentQueue.queueName)
+    private readonly queue: IntentFulfillmentQueueType,
+  ) {}
 
   get name() {
     return this.queue.name
