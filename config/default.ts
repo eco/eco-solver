@@ -52,8 +52,8 @@ export default {
       },
       crowdLiquidityJobConfig: {
         removeOnComplete: false,
-        removeOnFail: false,
-        attempts: 5,
+        removeOnFail: true,
+        attempts: 3,
         backoff: {
           type: 'exponential',
           delay: 3_000,
