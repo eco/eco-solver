@@ -9,7 +9,7 @@ export class MockEcoConfigService {
   private config: Partial<EcoConfigType> = {
     rhinestone: {
       websocket: {
-        url: process.env.RHINESTONE_WS_URL || 'wss://orchestrator.rhinestone.wtf/bundles/events',
+        url: process.env.RHINESTONE_WS_URL || 'wss://v1.orchestrator.rhinestone.dev/ws/relayers',
       },
       api: {
         orchestratorUrl:
