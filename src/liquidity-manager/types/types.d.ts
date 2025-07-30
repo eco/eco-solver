@@ -3,6 +3,7 @@ import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'
 import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { Route as SquidRoute } from '@0xsquid/sdk'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -37,6 +38,16 @@ type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
 type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
+type SquidStrategyContext = SquidRoute
+
+interface CCTPV2StrategyContext {
+  transferType: 'standard' | 'fast'
+  fee: bigint
+  feeBps: number
+  minFinalityThreshold: number
+  messageHash?: Hex
+  messageBody?: Hex
+}
 
 // CCTPLiFi strategy context for tracking multi-step operations
 interface CCTPLiFiStrategyContext {
@@ -56,10 +67,18 @@ interface CCTPLiFiStrategyContext {
     totalGasUSD: number
     gasWarnings: string[]
   }
-  id: string
+  id?: string
 }
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute' | 'CCTPLiFi' | 'Relay' | 'Stargate'
+type Strategy =
+  | 'LiFi'
+  | 'CCTP'
+  | 'WarpRoute'
+  | 'CCTPLiFi'
+  | 'Relay'
+  | 'Stargate'
+  | 'Squid'
+  | 'CCTPV2'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -72,7 +91,11 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
           ? StargateStrategyContext
           : S extends 'CCTPLiFi'
             ? CCTPLiFiStrategyContext
-            : never
+            : S extends 'Squid'
+              ? SquidStrategyContext
+              : S extends 'CCTPV2'
+                ? CCTPV2StrategyContext
+                : never
 
 // Quote
 

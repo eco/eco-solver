@@ -10,6 +10,8 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
+import { EcoAnalyticsService } from '@/analytics'
+import { createMock } from '@golevelup/ts-jest'
 
 describe('CCTPLiFiProviderService', () => {
   let service: CCTPLiFiProviderService
@@ -126,6 +128,10 @@ describe('CCTPLiFiProviderService', () => {
         { provide: BalanceService, useValue: { fetchTokenBalance: jest.fn() } },
         { provide: EcoConfigService, useValue: mockEcoConfigService },
         {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
+        {
           provide: getQueueToken(LiquidityManagerQueue.queueName),
           useValue: mockQueue,
         },
@@ -231,12 +237,12 @@ describe('CCTPLiFiProviderService', () => {
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenIn, mockTokenOut, 100)
+      const quote = await service.getQuote(mockTokenIn, mockTokenOut, 100, 'test-id')
 
       expect(quote).toEqual({
         amountIn: parseUnits('100', 6),
         amountOut: parseUnits('45', 18),
-        id: expect.any(String),
+        id: 'test-id',
         slippage: expect.any(Number),
         tokenIn: mockTokenIn,
         tokenOut: mockTokenOut,
