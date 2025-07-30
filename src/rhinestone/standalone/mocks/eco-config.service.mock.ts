@@ -7,11 +7,23 @@ export class MockEcoConfigService {
   private logger = new Logger(MockEcoConfigService.name)
   private config: Partial<EcoConfigType> = {
     rhinestone: {
-      websocketUrl:
-        process.env.RHINESTONE_WS_URL || 'wss://orchestrator.rhinestone.wtf/bundles/events',
-      orchestratorUrl:
-        process.env.RHINESTONE_ORCHESTRATOR_URL || 'https://orchestrator.rhinestone.wtf',
-      orchestratorApiKey: process.env.RHINESTONE_API_KEY || 'test-api-key',
+      websocket: {
+        url: process.env.RHINESTONE_WS_URL || 'wss://orchestrator.rhinestone.wtf/bundles/events',
+      },
+      api: {
+        orchestratorUrl:
+          process.env.RHINESTONE_ORCHESTRATOR_URL || 'https://orchestrator.rhinestone.wtf',
+        orchestratorApiKey: process.env.RHINESTONE_API_KEY || 'test-api-key',
+      },
+      order: {
+        settlementLayer: 'ECO',
+      },
+      contracts: {
+        '10': {
+          router: '0x0000000000000000000000000000000000000000',
+          ecoAdapter: '0x0000000000000000000000000000000000000000',
+        },
+      },
     },
     logger: {
       usePino: false,

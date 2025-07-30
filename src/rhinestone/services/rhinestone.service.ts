@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { Hash } from 'viem'
+import { encodeFunctionData, erc20Abi, Hash } from 'viem'
 
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
@@ -17,6 +17,7 @@ import {
   RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
+import { IntentType } from '@eco-foundation/routes-ts'
 
 @Injectable()
 export class RhinestoneService implements OnModuleInit {
@@ -59,10 +60,10 @@ export class RhinestoneService implements OnModuleInit {
     this.logger.log(`Received RhinestoneRelayerActionV1: ${JSON.stringify(message)}`)
 
     // Throws if the message is invalid
-    await this.rhinestoneValidatorService.validateRelayerAction(message)
+    const { intent } = await this.rhinestoneValidatorService.validateRelayerAction(message)
 
     try {
-      const result = await this.executeRelayerAction(message)
+      const result = await this.executeRelayerAction(message, intent)
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Relayer action processed successfully',
@@ -95,9 +96,13 @@ export class RhinestoneService implements OnModuleInit {
   /**
    * Execute a relayer action's fill and claims in order
    * @param action The relayer action containing the fill details and claims
+   * @param intent
    * @returns Object containing all transaction hashes
    */
-  async executeRelayerAction(action: RhinestoneRelayerActionV1): Promise<{
+  async executeRelayerAction(
+    action: RhinestoneRelayerActionV1,
+    intent: IntentType,
+  ): Promise<{
     fillTxHash: Hash
     claimTxHashes: { id: number; txHash: Hash; beforeFill: boolean }[]
   }> {
@@ -172,7 +177,7 @@ export class RhinestoneService implements OnModuleInit {
         }),
       )
 
-      fillTxHash = await this.executeFillWithApproval(action.fill)
+      fillTxHash = await this.executeFillWithApproval(action.fill, intent)
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -346,36 +351,26 @@ export class RhinestoneService implements OnModuleInit {
   /**
    * Execute a fill transaction with approval
    * @param fill The fill action details
+   * @param intent
    * @returns The transaction hash
    */
-  private async executeFillWithApproval(fill: FillAction): Promise<Hash> {
+  private async executeFillWithApproval(fill: FillAction, intent: IntentType): Promise<Hash> {
     try {
-      // For now, we'll parse the fill data to determine if approval is needed
-      // This is a simplified implementation - in production, you'd want to
-      // properly decode the fill data to extract token addresses and amounts
-
       const transactions: ExecuteSmartWalletArg[] = []
 
-      // TODO: Parse fill.call.data to determine:
-      // 1. If this is an ERC20 transfer that needs approval
-      // 2. Extract token address, spender address, and amount
-      // For now, we'll just execute the fill directly
-      // In a real implementation, you would:
-      // - Decode the calldata to understand the operation
-      // - Check if it's an ERC20 transfer requiring approval
-      // - Create approval transaction if needed
-
-      // Example approval transaction (commented out until we can properly parse the fill data):
-      // const approvalTx: ExecuteSmartWalletArg = {
-      //   to: tokenAddress,
-      //   value: 0n,
-      //   data: encodeFunctionData({
-      //     abi: ERC20Abi,
-      //     functionName: 'approve',
-      //     args: [spenderAddress, amount],
-      //   }),
-      // }
-      // transactions.push(approvalTx)
+      // Construct approval transactions
+      intent.route.tokens.forEach(({ token, amount }) => {
+        const approvalTx: ExecuteSmartWalletArg = {
+          to: token,
+          value: 0n,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [fill.call.to, amount],
+          }),
+        }
+        transactions.push(approvalTx)
+      })
 
       // Add the fill transaction
       const fillTx: ExecuteSmartWalletArg = {

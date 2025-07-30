@@ -83,6 +83,7 @@ export type EcoConfigType = {
   cctpLiFi: CCTPLiFiConfig
   squid: SquidConfig
   CCTPV2: CCTPV2Config
+  rhinestone: RhinestoneConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -532,7 +533,7 @@ export interface RhinestoneConfig {
     settlementLayer: string
   }
   contracts: Record<
-    number,
+    string,
     {
       router: Hex
       ecoAdapter: Hex

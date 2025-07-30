@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Hex } from 'viem'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi, IntentType, hashIntent } from '@eco-foundation/routes-ts'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
@@ -13,7 +13,6 @@ import { getIntentJobId } from '@/common/utils/strings'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
@@ -23,6 +22,18 @@ import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
  */
 export type IntentValidations = ValidationChecks & {
   intentFunded: boolean
+}
+
+/**
+ * Parameters for the assertValidations method
+ */
+export interface AssertValidationsParams {
+  intent: IntentType
+  solver: Solver
+  intentSourceModel?: IntentSourceModel
+  flags?: {
+    skipIntentFunded?: boolean
+  }
 }
 
 /**
@@ -67,6 +78,37 @@ export class ValidateIntentService implements OnModuleInit {
   }
 
   /**
+   * Validates a full intent given the IntentType parameter
+   * @param intent the intent data to validate
+   * @returns true if the intent is valid, false otherwise
+   */
+  async validateFullIntent(intent: IntentType): Promise<boolean> {
+    const sourceChainId = Number(intent.route.source)
+    const solver = this.ecoConfigService.getSolver(sourceChainId)
+
+    if (!solver) {
+      const intentHash = 'hash' in intent ? (intent as any).hash : hashIntent(intent)
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `No solver found for source chain ${sourceChainId}`,
+          properties: {
+            intentHash,
+            sourceChainId,
+          },
+        }),
+      )
+      this.ecoAnalytics.trackIntentValidationFailed(
+        intentHash,
+        'no_solver_found',
+        'validateFullIntent',
+      )
+      return false
+    }
+
+    return this.assertValidations({ intent, solver })
+  }
+
+  /**
    * @param intentHash the hash of the intent to fulfill
    */
   async validateIntent(intentHash: Hex) {
@@ -93,7 +135,9 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    if (!(await this.assertValidations(model, solver))) {
+    if (
+      !(await this.assertValidations({ intent: model.intent, solver, intentSourceModel: model }))
+    ) {
       return false
     }
 
@@ -120,26 +164,36 @@ export class ValidateIntentService implements OnModuleInit {
   }
 
   /**
-   * Executes all the validations we have on the model and solver
+   * Executes all the validations we have on the intent and solver
    *
-   * @param model the source intent model
-   * @param solver the solver for the source chain
+   * @param params the validation parameters
    * @returns true if they all pass, false otherwise
    */
-  async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
+  async assertValidations(params: AssertValidationsParams): Promise<boolean> {
+    const { intent, solver, intentSourceModel, flags } = params
+
     const validations = (await this.validationService.assertValidations(
-      model.intent,
+      intent as any,
       solver,
     )) as IntentValidations
-    validations.intentFunded = await this.intentFunded(model)
+
+    // Only check intent funded if not skipped
+    if (!flags?.skipIntentFunded) {
+      validations.intentFunded = await this.intentFunded(intent)
+    } else {
+      validations.intentFunded = true // Default to true when skipped
+    }
 
     if (validationsFailed(validations)) {
-      await this.utilsIntentService.updateInvalidIntentModel(model, validations)
+      const intentHash = 'hash' in intent ? (intent as any).hash : hashIntent(intent)
+      if (intentSourceModel) {
+        await this.utilsIntentService.updateInvalidIntentModel(intentSourceModel, validations)
+      }
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: EcoError.IntentValidationFailed(model.intent.hash).message,
+          message: EcoError.IntentValidationFailed(intentHash).message,
           properties: {
-            model,
+            intent,
             validations,
           },
         }),
@@ -147,11 +201,11 @@ export class ValidateIntentService implements OnModuleInit {
 
       // Track validation failure with detailed reasons
       this.ecoAnalytics.trackIntentValidationFailed(
-        model.intent.hash,
+        intentHash,
         'validation_checks_failed',
         'assertValidations',
         {
-          model,
+          intent,
           solver,
           validationResults: validations,
           failedChecks: Object.entries(validations)
@@ -163,9 +217,10 @@ export class ValidateIntentService implements OnModuleInit {
     }
 
     // Track successful validation
+    const intentHash = 'hash' in intent ? (intent as any).hash : hashIntent(intent)
     this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.VALIDATION_CHECKS_PASSED, {
-      intentHash: model.intent.hash,
-      model,
+      intentHash,
+      intent,
       solver,
       validationResults: validations,
     })
@@ -177,11 +232,11 @@ export class ValidateIntentService implements OnModuleInit {
    * Makes on onchain read call to make sure that the intent was funded in the IntentSource
    * contract.
    * @Notice An event emitted is not enough to guarantee that the intent was funded
-   * @param model the source intent model
+   * @param intent the intent data
    * @returns
    */
-  async intentFunded(model: IntentSourceModel): Promise<boolean> {
-    const sourceChainID = Number(model.intent.route.source)
+  async intentFunded(intent: IntentType): Promise<boolean> {
+    const sourceChainID = Number(intent.route.source)
     const client = await this.multichainPublicClientService.getClient(sourceChainID)
     const intentSource = this.ecoConfigService.getIntentSource(sourceChainID)
     if (!intentSource) {
@@ -189,17 +244,18 @@ export class ValidateIntentService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: EcoError.IntentSourceNotFound(sourceChainID).message,
           properties: {
-            model,
+            intent,
           },
         }),
       )
 
       // Track intent source not found error
+      const intentHash = 'hash' in intent ? (intent as any).hash : hashIntent(intent)
       this.ecoAnalytics.trackError(
         ERROR_EVENTS.INTENT_FUNDING_CHECK_FAILED,
         EcoError.IntentSourceNotFound(sourceChainID),
         {
-          intentHash: model.intent.hash,
+          intentHash,
           reason: 'intent_source_not_found',
           sourceChainID,
         },
@@ -211,8 +267,9 @@ export class ValidateIntentService implements OnModuleInit {
     let isIntentFunded = false
 
     // Track funding check start
+    const intentHash = 'hash' in intent ? (intent as any).hash : hashIntent(intent)
     this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_STARTED, {
-      intentHash: model.intent.hash,
+      intentHash,
       sourceChainID,
       maxRetries: this.MAX_RETRIES,
       retryDelayMs: this.RETRY_DELAY_MS,
@@ -227,14 +284,14 @@ export class ValidateIntentService implements OnModuleInit {
           EcoLogMessage.fromDefault({
             message: `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
             properties: {
-              intentHash: model.intent.hash,
+              intentHash,
             },
           }),
         )
 
         // Track retry attempt
         this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_RETRY, {
-          intentHash: model.intent.hash,
+          intentHash,
           retryCount,
           maxRetries: this.MAX_RETRIES,
           sourceChainID,
@@ -246,7 +303,7 @@ export class ValidateIntentService implements OnModuleInit {
         address: intentSource.sourceAddress,
         abi: IntentSourceAbi,
         functionName: 'isIntentFunded',
-        args: [IntentDataModel.toChainIntent(model.intent)],
+        args: [intent],
       })
 
       retryCount++
@@ -255,7 +312,7 @@ export class ValidateIntentService implements OnModuleInit {
     // Track funding check result
     if (isIntentFunded) {
       this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FUNDING_VERIFIED, {
-        intentHash: model.intent.hash,
+        intentHash,
         sourceChainID,
         retryCount: retryCount - 1,
         funded: true,
@@ -265,7 +322,7 @@ export class ValidateIntentService implements OnModuleInit {
         ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_FAILED,
         new Error('intent_not_funded_after_retries'),
         {
-          intentHash: model.intent.hash,
+          intentHash,
           sourceChainID,
           retryCount: retryCount - 1,
           maxRetries: this.MAX_RETRIES,

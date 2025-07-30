@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
-import { Address, Hex, isAddressEqual } from 'viem'
+import { Address, encodePacked, Hex, isAddressEqual, keccak256 } from 'viem'
 import {
   ChainAction,
   ChainCall,
@@ -13,6 +13,8 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { toReward, toRoute } from '@/rhinestone/utils/intent-extractor'
 import { decodeClaim, decodeFill, decodeRouterCall } from '@/rhinestone/utils/decoder'
 import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
+import { hashIntent, hashRoute } from '@eco-foundation/routes-ts'
+import { ValidateIntentService } from '@/intent/validate-intent.service'
 
 @Injectable()
 export class RhinestoneValidatorService {
@@ -22,6 +24,7 @@ export class RhinestoneValidatorService {
 
   constructor(
     private readonly publicClient: MultichainPublicClientService,
+    private readonly validateIntentService: ValidateIntentService,
     private readonly rhinestoneConfigService: RhinestoneConfigService,
   ) {}
 
@@ -35,8 +38,35 @@ export class RhinestoneValidatorService {
 
     const [claim] = claims
 
-    this.validateFill(fill)
-    await this.validateClaim(claim)
+    // TODO: Validate intent source and destination are different
+
+    const decodedFill = this.validateFill(fill)
+    const { intent, fillData } = await this.validateClaim(claim)
+
+    const { intentHash: claimIntentHash } = hashIntent(intent)
+    const fillRouteHash = hashRoute(decodedFill.route)
+    const fillIntentHash = keccak256(
+      encodePacked(['bytes32', 'bytes32'], [fillRouteHash, decodedFill.rewardHash]),
+    )
+
+    if (fillIntentHash !== claimIntentHash) {
+      throw new EcoError('Intent hash for fill and claim do not match')
+    }
+
+    if (intent.route.source === intent.route.destination) {
+      throw new EcoError('Cannot execute same chain intetns')
+    }
+
+    if (fillData.order.targetChainId !== intent.route.destination) {
+      throw new EcoError('Intent destination does not match order target chainID')
+    }
+
+    const isValidIntent = await this.validateIntentService.validateFullIntent(intent)
+    if (!isValidIntent) {
+      throw new EcoError('Intent failed validations')
+    }
+
+    return { intent, fillData }
   }
 
   async getClaimHashOracle(chainId: bigint, ecoAdapterAddr: Hex) {

@@ -26,7 +26,7 @@ export class RhinestoneConfigService implements OnModuleInit {
   }
 
   getContracts(chainID: number) {
-    const contracts = this.config.contracts[chainID]
+    const contracts = this.config.contracts[chainID.toString()]
     if (!contracts) throw EcoError.RhinestoneChainNotDefined(chainID)
     return contracts
   }
