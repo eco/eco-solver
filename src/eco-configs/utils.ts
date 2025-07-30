@@ -40,8 +40,8 @@ export function isPreEnv(): boolean {
   )
 }
 
-export function getChainAddress(chainID: number, address: ChainAddress): ChainAddress {
-  const vm = getVMType(chainID)
+export function getChainAddress(chainID: number | bigint, address: ChainAddress): ChainAddress {
+  const vm = getVMType(Number(chainID))
   if (vm === VMType.EVM) {
     return getAddress(address as EvmAddress)
   } else 

@@ -2,9 +2,16 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
 import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
-import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
-import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { MultiChainRouteType, RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
+import { RewardDataModel, RewardDataModelSchema, MultiChainRewardType } from '@/intent/schemas/reward-data.schema'
+import { encodeIntent, hashIntent, IntentType, RouteType } from '@eco-foundation/routes-ts'
+import { getChainAddress } from '@/eco-configs/utils'
+
+// MultiChainIntentType extends IntentType but supports multi-chain reward addresses
+export interface MultiChainIntentType extends Omit<IntentType, 'reward' | 'route'> {
+  reward: MultiChainRewardType
+  route: MultiChainRouteType
+}
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -25,7 +32,7 @@ export interface CreateIntentDataModelParams {
 }
 
 @Schema({ timestamps: true })
-export class IntentDataModel implements IntentType {
+export class IntentDataModel implements MultiChainIntentType {
   @Prop({ required: false, type: String })
   quoteID?: string
 
@@ -94,8 +101,8 @@ export class IntentDataModel implements IntentType {
     )
 
     this.reward = new RewardDataModel(
-      getAddress(creator),
-      getAddress(prover),
+      getChainAddress(source, creator),
+      getChainAddress(source, prover),
       deadline,
       nativeValue,
       rewardTokens.map((token) => {

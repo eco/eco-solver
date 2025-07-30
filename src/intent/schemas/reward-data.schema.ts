@@ -5,13 +5,24 @@ import {
 import { encodeReward, hashReward, RewardType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { ChainAddress } from '@/eco-configs/eco-config.types'
+
+// MultiChainRewardType extends RewardType but overrides creator and prover to support multi-chain addresses
+export interface MultiChainRewardType extends Omit<RewardType, 'creator' | 'prover' | 'tokens'> {
+  creator: ChainAddress
+  prover: ChainAddress
+  tokens: {
+    token: ChainAddress
+    amount: bigint
+  }[]
+}
 
 @Schema({ timestamps: true })
-export class RewardDataModel implements RewardType {
+export class RewardDataModel {
   @Prop({ required: true, type: String })
-  creator: Hex
+  creator: ChainAddress
   @Prop({ required: true, type: String })
-  prover: Hex
+  prover: ChainAddress
   @Prop({ required: true, type: BigInt })
   deadline: bigint
   @Prop({ required: true, type: BigInt })
@@ -20,8 +31,8 @@ export class RewardDataModel implements RewardType {
   tokens: TokenAmountDataModel[]
 
   constructor(
-    creator: Hex,
-    prover: Hex,
+    creator: ChainAddress,
+    prover: ChainAddress,
     deadline: bigint,
     nativeValue: bigint,
     tokens: TokenAmountDataModel[],
@@ -33,7 +44,7 @@ export class RewardDataModel implements RewardType {
     this.tokens = tokens
   }
 
-  static getHash(intentDataModel: RewardDataModel) {
+  static getHash(rewardDataModel: RewardDataModel) {
     return hashReward(intentDataModel)
   }
 

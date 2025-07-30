@@ -146,8 +146,6 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
                 }),
               )
 
-              console.log("JUSTLOGGING: ev.data", ev);
-
               const solanaLog = {
                 transactionHash: signature,
                 slot: context.slot,

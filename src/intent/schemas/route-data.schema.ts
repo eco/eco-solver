@@ -6,9 +6,17 @@ import {
 import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { ChainAddress } from '@/eco-configs/eco-config.types'
+
+export interface MultiChainRouteType extends Omit<RouteType, 'tokens'> {
+  tokens: {
+    token: ChainAddress
+    amount: bigint
+  }[]
+}
 
 @Schema({ timestamps: true })
-export class RouteDataModel implements RouteType {
+export class RouteDataModel implements MultiChainRouteType {
   @Prop({ required: true, type: String })
   salt: Hex
   @Prop({ required: true, type: BigInt })

@@ -5,6 +5,7 @@ import { plainToInstance, Transform, Type } from 'class-transformer'
 import { RewardTokensInterface } from '@/contracts'
 import { RewardType } from '@eco-foundation/routes-ts'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
+import { MultiChainRewardType } from '@/intent/schemas/reward-data.schema'
 
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except
@@ -70,5 +71,5 @@ export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @ApiProperty()
   amount: bigint
 }
-type QuoteRewardType = RewardType
+type QuoteRewardType = MultiChainRewardType
 export type QuoteRewardDataType = QuoteRewardType
