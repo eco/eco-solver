@@ -5,6 +5,7 @@ import {
 } from '@/quote/schemas/quote-token.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { BigIntSchemaType } from '@/common/schemas/bigint-schema.type'
 
 @Schema({ timestamps: true })
 export class QuoteRewardDataModel implements QuoteRewardDataType {
@@ -12,9 +13,9 @@ export class QuoteRewardDataModel implements QuoteRewardDataType {
   creator: Hex
   @Prop({ required: true, type: String })
   prover: Hex
-  @Prop({ required: true, type: BigInt })
+  @Prop({ required: true, type: BigIntSchemaType })
   deadline: bigint
-  @Prop({ required: true, type: BigInt })
+  @Prop({ required: true, type: BigIntSchemaType })
   nativeValue: bigint
   @Prop({ required: true, type: [QuoteRewardTokenDataSchema] })
   tokens: QuoteRewardTokenDataModel[]

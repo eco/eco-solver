@@ -9,12 +9,13 @@ import {
 } from '@/quote/schemas/quote-call.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { BigIntSchemaType } from '@/common/schemas/bigint-schema.type'
 
 @Schema({ timestamps: true })
 export class QuoteRouteDataModel implements QuoteRouteDataInterface {
-  @Prop({ required: true, type: BigInt })
+  @Prop({ required: true, type: BigIntSchemaType })
   source: bigint
-  @Prop({ required: true, type: BigInt })
+  @Prop({ required: true, type: BigIntSchemaType })
   destination: bigint
   @Prop({ required: true, type: String })
   inbox: Hex

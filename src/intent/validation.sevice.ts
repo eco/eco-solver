@@ -17,7 +17,7 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
+import { isGreaterEqual, normalizeBalance, normalizeBalanceToBase } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceService } from '@/balance/balance.service'
@@ -285,7 +285,11 @@ export class ValidationService implements OnModuleInit {
     )
 
     // convert to a normalized total to use utils compare function
-    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+    const tokenN = normalizeBalanceToBase({
+      balance: BigInt(tokenBase6),
+      decimal: 6,
+    })
+    return isGreaterEqual({ token: tokenN.balance, native: nativeBase18 }, totalFillNormalized)
   }
 
   /**
