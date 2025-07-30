@@ -149,6 +149,19 @@ export const stablePoolAbi = [
   },
   {
     type: 'function',
+    name: 'SIGNER_ROLE',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'SOLVER_ROLE',
     inputs: [],
     outputs: [
@@ -216,6 +229,157 @@ export const stablePoolAbi = [
       },
     ],
     stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    name: 'claimRewards',
+    inputs: [
+      {
+        name: 'intentSource',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'intent',
+        type: 'tuple',
+        internalType: 'struct Intent',
+        components: [
+          {
+            name: 'route',
+            type: 'tuple',
+            internalType: 'struct Route',
+            components: [
+              {
+                name: 'salt',
+                type: 'bytes32',
+                internalType: 'bytes32',
+              },
+              {
+                name: 'source',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'destination',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'inbox',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'tokens',
+                type: 'tuple[]',
+                internalType: 'struct TokenAmount[]',
+                components: [
+                  {
+                    name: 'token',
+                    type: 'address',
+                    internalType: 'address',
+                  },
+                  {
+                    name: 'amount',
+                    type: 'uint256',
+                    internalType: 'uint256',
+                  },
+                ],
+              },
+              {
+                name: 'calls',
+                type: 'tuple[]',
+                internalType: 'struct Call[]',
+                components: [
+                  {
+                    name: 'target',
+                    type: 'address',
+                    internalType: 'address',
+                  },
+                  {
+                    name: 'data',
+                    type: 'bytes',
+                    internalType: 'bytes',
+                  },
+                  {
+                    name: 'value',
+                    type: 'uint256',
+                    internalType: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: 'reward',
+            type: 'tuple',
+            internalType: 'struct Reward',
+            components: [
+              {
+                name: 'creator',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'prover',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'deadline',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'nativeValue',
+                type: 'uint256',
+                internalType: 'uint256',
+              },
+              {
+                name: 'tokens',
+                type: 'tuple[]',
+                internalType: 'struct TokenAmount[]',
+                components: [
+                  {
+                    name: 'token',
+                    type: 'address',
+                    internalType: 'address',
+                  },
+                  {
+                    name: 'amount',
+                    type: 'uint256',
+                    internalType: 'uint256',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'claimant',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'fee',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [
+      {
+        name: 'vaultAddress',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -366,6 +530,11 @@ export const stablePoolAbi = [
     name: 'fulfillAndProve',
     inputs: [
       {
+        name: 'expectedIntentHash',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+      {
         name: 'route',
         type: 'tuple',
         internalType: 'struct Route',
@@ -437,19 +606,29 @@ export const stablePoolAbi = [
         internalType: 'bytes32',
       },
       {
+        name: 'intentSource',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'rewardVault',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'expectedHash',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'localProver',
+        name: 'vaultClaimant',
         type: 'address',
         internalType: 'address',
+      },
+      {
+        name: 'vaultAmount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'vaultFee',
+        type: 'uint256',
+        internalType: 'uint256',
       },
       {
         name: 'ttl',
@@ -457,7 +636,12 @@ export const stablePoolAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'data',
+        name: 'prover',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'proverData',
         type: 'bytes',
         internalType: 'bytes',
       },
@@ -930,6 +1114,19 @@ export const stablePoolAbi = [
   },
   {
     type: 'function',
+    name: 'setUSDC',
+    inputs: [
+      {
+        name: '_usdc',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'setWithdrawalFeeBps',
     inputs: [
       {
@@ -1042,157 +1239,6 @@ export const stablePoolAbi = [
     name: 'withdrawCollectedFees',
     inputs: [],
     outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'withdrawRewards',
-    inputs: [
-      {
-        name: 'intentSource',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'intent',
-        type: 'tuple',
-        internalType: 'struct Intent',
-        components: [
-          {
-            name: 'route',
-            type: 'tuple',
-            internalType: 'struct Route',
-            components: [
-              {
-                name: 'salt',
-                type: 'bytes32',
-                internalType: 'bytes32',
-              },
-              {
-                name: 'source',
-                type: 'uint256',
-                internalType: 'uint256',
-              },
-              {
-                name: 'destination',
-                type: 'uint256',
-                internalType: 'uint256',
-              },
-              {
-                name: 'inbox',
-                type: 'address',
-                internalType: 'address',
-              },
-              {
-                name: 'tokens',
-                type: 'tuple[]',
-                internalType: 'struct TokenAmount[]',
-                components: [
-                  {
-                    name: 'token',
-                    type: 'address',
-                    internalType: 'address',
-                  },
-                  {
-                    name: 'amount',
-                    type: 'uint256',
-                    internalType: 'uint256',
-                  },
-                ],
-              },
-              {
-                name: 'calls',
-                type: 'tuple[]',
-                internalType: 'struct Call[]',
-                components: [
-                  {
-                    name: 'target',
-                    type: 'address',
-                    internalType: 'address',
-                  },
-                  {
-                    name: 'data',
-                    type: 'bytes',
-                    internalType: 'bytes',
-                  },
-                  {
-                    name: 'value',
-                    type: 'uint256',
-                    internalType: 'uint256',
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            name: 'reward',
-            type: 'tuple',
-            internalType: 'struct Reward',
-            components: [
-              {
-                name: 'creator',
-                type: 'address',
-                internalType: 'address',
-              },
-              {
-                name: 'prover',
-                type: 'address',
-                internalType: 'address',
-              },
-              {
-                name: 'deadline',
-                type: 'uint256',
-                internalType: 'uint256',
-              },
-              {
-                name: 'nativeValue',
-                type: 'uint256',
-                internalType: 'uint256',
-              },
-              {
-                name: 'tokens',
-                type: 'tuple[]',
-                internalType: 'struct TokenAmount[]',
-                components: [
-                  {
-                    name: 'token',
-                    type: 'address',
-                    internalType: 'address',
-                  },
-                  {
-                    name: 'amount',
-                    type: 'uint256',
-                    internalType: 'uint256',
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        name: 'claimant',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'fee',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'vaultAddress',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
     stateMutability: 'nonpayable',
   },
   {
@@ -1454,6 +1500,43 @@ export const stablePoolAbi = [
   },
   {
     type: 'event',
+    name: 'IntentFulfilled',
+    inputs: [
+      {
+        name: 'intentHash',
+        type: 'bytes32',
+        indexed: true,
+        internalType: 'bytes32',
+      },
+      {
+        name: 'intentSource',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'vaultClaimant',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'vaultAmount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'vaultFee',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'LocalMetricsReported',
     inputs: [
       {
@@ -1622,6 +1705,31 @@ export const stablePoolAbi = [
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'RewardClaimed',
+    inputs: [
+      {
+        name: 'intentHash',
+        type: 'bytes32',
+        indexed: true,
+        internalType: 'bytes32',
+      },
+      {
+        name: 'rewardVault',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'claimant',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
       },
     ],
     anonymous: false,

@@ -252,7 +252,8 @@ export class LiquidityProviderService {
   }
 
   private getWalletSupportedStrategies(chainID: number, walletAddress: string): Strategy[] {
-    const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress(chainID)
+    const { stablePool: crowdLiquidityPoolAddress } =
+      this.crowdLiquidityService.getAddresses(chainID)
 
     const walletType =
       walletAddress === crowdLiquidityPoolAddress ? 'crowd-liquidity-pool' : 'eco-wallet'

@@ -33,14 +33,14 @@ export interface FulfillActionArgs {
 
 export interface FulfillActionResponse {
   signature: Hex
+  expectedIntentHash: Hex
+  intentSource: Hex
   rewardVault: Hex
-  routeHash: Hex
-  rewardHash: Hex
-  expectedHash: Hex
-  localProver: Hex
+  vaultClaimant: Hex
+  vaultAmount: string
+  vaultFee: string
   ttl: number
+  prover: Hex
+  proverData: Hex
   accessLiquidityHash: Hex
-  targetAmount: string
-  fee: string
-  executionFee: string
 }

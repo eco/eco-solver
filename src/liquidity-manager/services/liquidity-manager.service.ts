@@ -89,7 +89,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
-      const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress(opChainId)
+      const { stablePool: crowdLiquidityPoolAddress } =
+        this.crowdLiquidityService.getAddresses(opChainId)
       await this.liquidityManagerQueue.startCronJobs(
         this.config.intervalDuration,
         crowdLiquidityPoolAddress,

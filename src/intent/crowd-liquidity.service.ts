@@ -117,23 +117,28 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       )
 
       const proverFee = await this.getProverFee(intentModel.intent)
-      const { destination, messageData } = this.getProverData(intentModel.intent)
+      const { source, destination, messageData } = this.getProverData(intentModel.intent)
+      const { intentSource } = this.getAddresses(source)
 
       const walletClient = await this.walletClientService.getClient(destination)
       const publicClient = walletClient.extend(publicActions)
 
       const hash = await walletClient.writeContract({
-        address: this.getPoolAddress(destination),
+        address: this.getAddresses(destination).stablePool,
         abi: stablePoolAbi,
         functionName: 'fulfillAndProve',
         value: proverFee,
         args: [
+          intentHash,
           intent.route,
           rewardHash,
+          intentSource,
           poolData.rewardVault,
-          intentHash,
-          poolData.localProver,
+          poolData.vaultClaimant,
+          BigInt(poolData.vaultAmount),
+          BigInt(poolData.vaultFee),
           BigInt(poolData.ttl),
+          poolData.prover,
           messageData,
           poolData.signature,
         ],
@@ -190,7 +195,9 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         )
       })
 
-      const poolAddress = this.getPoolAddress(Number(intentModel.intent.route.destination))
+      const { stablePool: poolAddress } = this.getAddresses(
+        Number(intentModel.intent.route.destination),
+      )
 
       const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
         poolAddress,
@@ -234,12 +241,12 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * Get pool address by chain ID.
    * @param chainID Chain ID
    */
-  getPoolAddress(chainID: number): Hex {
-    const intentSource = this.configService.getIntentSource(chainID)
-    if (!intentSource) throw EcoError.IntentSourceNotFound(chainID)
-    if (!intentSource.stablePoolAddress)
-      throw new Error(`Stable pool not present on chain id ${chainID}`)
-    return intentSource.stablePoolAddress
+  getAddresses(chainID: number) {
+    const intentSourceConfig = this.configService.getIntentSource(chainID)
+    if (!intentSourceConfig) throw EcoError.IntentSourceNotFound(chainID)
+    const { stablePoolAddress: stablePool, sourceAddress: intentSource } = intentSourceConfig
+    if (!stablePool) throw new Error(`Stable pool not present on chain id ${chainID}`)
+    return { stablePool, intentSource }
   }
 
   /**
@@ -328,8 +335,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     const excessFee = BigInt(this.config.minExcessFees[destinationChainID] ?? '0')
 
     // Bridging fee
-    const poolAddr = this.getPoolAddress(destinationChainID)
-    const { bridgingFeeBps } = await this.getPoolFees(destinationChainID, poolAddr)
+    const { stablePool } = this.getAddresses(destinationChainID)
+    const { bridgingFeeBps } = await this.getPoolFees(destinationChainID, stablePool)
     const bridgingFee = (totalRouteAmount * bridgingFeeBps.multiplier) / bridgingFeeBps.base
 
     return bridgingFee + excessFee
@@ -363,7 +370,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     const destination = Number(intentModel.route.destination)
 
     const intentHash = intentModel.hash
-    const claimant = this.getPoolAddress(source)
+    const { stablePool: claimant } = this.getAddresses(source)
 
     const localProver = getChainConfig(destination).HyperProver
 
