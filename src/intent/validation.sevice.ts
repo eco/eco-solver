@@ -358,7 +358,7 @@ export class ValidationService implements OnModuleInit {
 
           // Validate native balance if native value required
           if (totalFulfillNativeValue > 0n) {
-            const hasSufficientNativeBalance = await this.checkNativeBalance(
+            const hasSufficientNativeBalance = await this.sufficientNativeBalance(
               walletAddress,
               destinationChain,
               totalFulfillNativeValue,
@@ -495,7 +495,7 @@ export class ValidationService implements OnModuleInit {
    * Checks if the solver has sufficient native balance
    * @private
    */
-  private async checkNativeBalance(
+  private async sufficientNativeBalance(
     walletAddr: Hex,
     destinationChain: number,
     requiredAmount: bigint,

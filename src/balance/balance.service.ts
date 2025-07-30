@@ -102,21 +102,6 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param chainID the chain id
    * @param walletAddress wallet address
    * @param tokenAddresses the tokens to fetch balances for
-   * @returns
-   */
-  async fetchCachedWalletTokenBalances(
-    chainID: number,
-    walletAddress: string,
-    tokenAddresses: Hex[],
-  ): Promise<Record<Hex, TokenBalance>> {
-    return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
-  }
-
-  /**
-   * Fetches the token balances of a wallet for the given token list.
-   * @param chainID the chain id
-   * @param walletAddress wallet address
-   * @param tokenAddresses the tokens to fetch balances for
    * @param cache Flag to enable or disable caching
    * @returns
    */
