@@ -7,10 +7,13 @@ import { EcoError } from '@/common/errors/eco-error'
 export class RhinestoneConfigService implements OnModuleInit {
   private config: RhinestoneConfig
 
-  constructor(private readonly ecoConfigService: EcoConfigService) {}
+  constructor(private readonly ecoConfigService: EcoConfigService) {
+    // Initialize config in constructor to ensure it's available when other services need it
+    this.config = this.ecoConfigService.getRhinestone()
+  }
 
   async onModuleInit() {
-    this.config = this.ecoConfigService.getRhinestone()
+    // Config is already initialized in constructor
   }
 
   getWebsocket() {

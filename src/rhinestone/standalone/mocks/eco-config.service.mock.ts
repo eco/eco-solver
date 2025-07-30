@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { Injectable, Logger } from '@nestjs/common'
 import { EcoConfigType } from '@/eco-configs/eco-config.types'
 import { Hex } from 'viem'
@@ -34,7 +35,7 @@ export class MockEcoConfigService {
       },
     },
     eth: {
-      privateKey: process.env.ETH_PRIVATE_KEY as Hex, // Default test private key
+      privateKey: process.env.ETH_PRIVATE_KEY as Hex,
       simpleAccount: {
         walletAddr: '0x0000000000000000000000000000000000000000' as Hex,
         signerPrivateKey: process.env.SIGNER_PRIVATE_KEY as Hex,
@@ -66,6 +67,13 @@ export class MockEcoConfigService {
   }
 
   constructor() {
+    // Validate required environment variables
+    if (!process.env.ETH_PRIVATE_KEY) {
+      throw new Error('ETH_PRIVATE_KEY environment variable is required')
+    }
+    if (!process.env.SIGNER_PRIVATE_KEY) {
+      throw new Error('SIGNER_PRIVATE_KEY environment variable is required')
+    }
     this.logger.log('MockEcoConfigService initialized')
   }
 

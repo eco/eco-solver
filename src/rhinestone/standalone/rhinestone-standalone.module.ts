@@ -6,12 +6,15 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MockEcoConfigService } from './mocks/eco-config.service.mock'
 import { RhinestoneService } from '@/rhinestone/services/rhinestone.service'
 import { RhinestoneApiService } from '@/rhinestone/services/rhinestone-api.service'
+import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { MockWalletClientService } from './mocks/wallet-client.service.mock'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { MockKernelAccountClientService } from './mocks/kernel-account-client.service.mock'
 import { SignerService } from '@/sign/signer.service'
 import { MockSignerService } from './mocks/signer.service.mock'
+import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
+import { MockRhinestoneValidatorService } from './mocks/rhinestone-validator.service.mock'
 
 @Module({
   imports: [EventEmitterModule.forRoot()],
@@ -33,6 +36,11 @@ import { MockSignerService } from './mocks/signer.service.mock'
       provide: SignerService,
       useClass: MockSignerService,
     },
+    {
+      provide: RhinestoneValidatorService,
+      useClass: MockRhinestoneValidatorService,
+    },
+    RhinestoneConfigService,
     RhinestoneApiService,
     RhinestoneWebsocketService,
     RhinestoneService,

@@ -30,6 +30,9 @@ export class MockWalletClientService {
   constructor() {
     // Use test private key from mock config
     const privateKey = process.env.SIGNER_PRIVATE_KEY as Hex
+    if (!privateKey) {
+      throw new Error('SIGNER_PRIVATE_KEY environment variable is required')
+    }
     this.account = privateKeyToAccount(privateKey)
     this.logger.log(`MockWalletClientService initialized with address: ${this.account.address}`)
   }

@@ -42,7 +42,7 @@ export class IntentDataModel implements IntentType {
   @Prop({ required: true })
   logIndex: number
 
-  @Prop({ required: false })
+  @Prop({ required: false, type: String })
   funder?: Hex
 
   constructor(params: CreateIntentDataModelParams) {

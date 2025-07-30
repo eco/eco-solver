@@ -8,9 +8,12 @@ export class MockSignerService {
   private readonly account: PrivateKeyAccount
 
   constructor() {
-    // Use test private key from environment or default
-    const privateKey = process.env.SIGNER_PRIVATE_KEY
-    this.account = privateKeyToAccount(privateKey as Hex)
+    // Use test private key from environment
+    const privateKey = process.env.SIGNER_PRIVATE_KEY as Hex
+    if (!privateKey) {
+      throw new Error('SIGNER_PRIVATE_KEY environment variable is required')
+    }
+    this.account = privateKeyToAccount(privateKey)
     this.logger.log(`MockSignerService initialized with address: ${this.account.address}`)
   }
 
