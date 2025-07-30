@@ -221,10 +221,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     const sortedSurplusTokens = getSortGroupByDiff(surplusTokens)
-    const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
 
-    if (!deficitToken?.analysis?.diff || deficitToken.analysis.diff > surplusTokensTotal) {
+    if (!deficitToken?.analysis?.diff) {
       // Not enough surplus tokens to rebalance
+      this.logger.error({
+        message: 'Deficit token analysis is missing diff',
+        properties: {
+          walletAddress,
+          deficitTokenAnalysis: deficitToken.analysis,
+        },
+      })
       return []
     }
 
@@ -321,16 +327,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
         // Use the fallback method that routes through core tokens
-        const quotes = await this.liquidityProviderManager.fallback(
+        const fallbackQuotes = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
           swapAmount,
         )
 
-        quotes.push(...quotes)
-        quotes.forEach((quote) => {
+        quotes.push(...fallbackQuotes)
+        for (const quote of fallbackQuotes) {
           currentBalance += quote.amountOut
-        })
+        }
       } catch (fallbackError) {
         this.ecoAnalytics.trackError(
           ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,

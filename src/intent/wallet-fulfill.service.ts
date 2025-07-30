@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import {
   Call,
   encodeAbiParameters,
@@ -32,13 +32,16 @@ import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
+import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
+import { ModuleRef } from '@nestjs/core'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
  */
 @Injectable()
-export class WalletFulfillService implements IFulfillService {
+export class WalletFulfillService implements IFulfillService, OnModuleInit {
   private logger = new Logger(WalletFulfillService.name)
+  private negativeIntentAnalyzerService: NegativeIntentAnalyzerService
 
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
@@ -47,7 +50,14 @@ export class WalletFulfillService implements IFulfillService {
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  onModuleInit() {
+    this.negativeIntentAnalyzerService = this.moduleRef.get(NegativeIntentAnalyzerService, {
+      strict: false,
+    })
+  }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -84,7 +94,7 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     try {
-      await this.finalFeasibilityCheck(model.intent)
+      await this.finalFeasibilityCheckForIntentSourceModel(model)
 
       const transactionHash = await kernelAccountClient.execute(transactions)
 
@@ -141,6 +151,18 @@ export class WalletFulfillService implements IFulfillService {
       // Update the db model
       await this.utilsIntentService.updateIntentModel(model)
     }
+  }
+
+  async finalFeasibilityCheckForIntentSourceModel(intentSourceModel: IntentSourceModel) {
+    const isNegativeIntent = await this.negativeIntentAnalyzerService.isNegativeIntentHash(
+      intentSourceModel.intent.hash,
+    )
+
+    if (isNegativeIntent) {
+      return
+    }
+
+    return this.finalFeasibilityCheck(intentSourceModel.intent)
   }
 
   /**

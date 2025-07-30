@@ -42,7 +42,7 @@ export class IntentSourceController {
   @Get('process')
   async fakeProcess() {
     const hash = '0xe42305a292d4df6805f686b2d575b01bfcef35f22675a82aacffacb2122b890f'
-    return await this.validateService.validateIntent(hash)
+    return await this.validateService.validateIntent({ intentHash: hash })
     //  await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.process_intent, hash, {
     //   jobId: hash,
     // })
