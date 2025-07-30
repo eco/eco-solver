@@ -17,6 +17,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
 
 jest.mock('viem', () => {
   return {
@@ -45,6 +46,7 @@ describe('WalletFulfillService', () => {
   const address3 = '0x3333333333333333333333333333333333333333'
 
   let fulfillIntentService: WalletFulfillService
+  let negativeIntentAnalyzerService: NegativeIntentAnalyzerService
   let accountClientService: DeepMocked<KernelAccountClientService>
   let proofService: DeepMocked<ProofService>
   let feeService: DeepMocked<FeeService>
@@ -59,6 +61,10 @@ describe('WalletFulfillService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         WalletFulfillService,
+        {
+          provide: NegativeIntentAnalyzerService,
+          useValue: createMock<NegativeIntentAnalyzerService>(),
+        },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: ProofService, useValue: createMock<ProofService>() },
         { provide: FeeService, useValue: createMock<FeeService>() },
@@ -70,6 +76,7 @@ describe('WalletFulfillService', () => {
     }).compile()
 
     fulfillIntentService = chainMod.get(WalletFulfillService)
+    fulfillIntentService.onModuleInit()
     accountClientService = chainMod.get(KernelAccountClientService)
     proofService = chainMod.get(ProofService)
     feeService = chainMod.get(FeeService)
@@ -82,7 +89,11 @@ describe('WalletFulfillService', () => {
 
     // make sure it returns something real
     fulfillIntentService['getHyperlaneFee'] = jest.fn().mockReturnValue(0n)
+
+    negativeIntentAnalyzerService = chainMod.get(NegativeIntentAnalyzerService)
+    jest.spyOn(negativeIntentAnalyzerService, 'isNegativeIntent').mockReturnValue(false)
   })
+
   const hash = address1
   const claimant = address2
   const solver = { inboxAddress: address1, chainID: 8453n } as any
@@ -141,9 +152,11 @@ describe('WalletFulfillService', () => {
         fulfillIntentService['getFulfillIntentTx'] = mockGetFulfillIntentTx
         fulfillIntentService['getTransactionsForTargets'] = jest.fn().mockReturnValue([])
         jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
-        jest.spyOn(fulfillIntentService, 'finalFeasibilityCheck').mockImplementation(async () => {
-          throw error
-        })
+        jest
+          .spyOn(fulfillIntentService, 'finalFeasibilityCheckForIntentSourceModel')
+          .mockImplementation(async () => {
+            throw error
+          })
 
         await expect(() => fulfillIntentService.fulfill(model, solver)).rejects.toThrow(error)
       })
