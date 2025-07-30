@@ -75,7 +75,7 @@ describe('SquidProviderService', () => {
         config: { address: '0xTokenOut' },
         balance: { decimals: 6 },
       } as any
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
 
       const mockRoute = {
         estimate: {
@@ -121,7 +121,7 @@ describe('SquidProviderService', () => {
       } as any
       mockSquidInstance.getRoute.mockRejectedValue(new Error('No route found'))
 
-      await expect(squidProviderService.getQuote(mockTokenIn, mockTokenOut, 100)).rejects.toThrow(
+      await expect(squidProviderService.getQuote(mockTokenIn, mockTokenOut, 100n)).rejects.toThrow(
         'No route found',
       )
     })

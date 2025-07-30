@@ -106,7 +106,7 @@ describe('CCTPV2ProviderService', () => {
           ]),
       })
 
-      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 10)
+      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 10n)
       expect(quotes).toHaveLength(1)
       expect(quotes[0].context.transferType).toBe('fast')
       expect(quotes[0].context.feeBps).toBe(10)
@@ -125,7 +125,7 @@ describe('CCTPV2ProviderService', () => {
           ]),
       })
 
-      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 10)
+      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 10n)
       expect(quotes).toHaveLength(1)
       expect(quotes[0].context.transferType).toBe('standard')
       expect(quotes[0].context.feeBps).toBe(0)
@@ -133,7 +133,7 @@ describe('CCTPV2ProviderService', () => {
 
     it('should return default standard quote if API fails', async () => {
       ;(fetch as jest.Mock).mockRejectedValue(new Error('API Down'))
-      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 10)
+      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 10n)
       expect(quotes).toHaveLength(1)
       expect(quotes[0].context.transferType).toBe('standard')
       expect(quotes[0].context.fee).toBe(0n)
@@ -146,7 +146,7 @@ describe('CCTPV2ProviderService', () => {
         chainId: 999,
       }
       console.log(unsupportedToken)
-      await expect(service.getQuote(mockTokenIn, unsupportedToken, 10)).rejects.toThrow(
+      await expect(service.getQuote(mockTokenIn, unsupportedToken, 10n)).rejects.toThrow(
         'Unsupported route for CCTP V2',
       )
     })

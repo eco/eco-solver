@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { formatUnits, parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -25,6 +24,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -95,10 +95,20 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     return 'LiFi' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the LiFi strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single LiFi rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
@@ -125,7 +135,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
       fromTokenAddress: tokenIn.config.address,
-      fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
+      fromAmount: swapAmountBased.toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
@@ -148,7 +158,17 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const route = this.selectRoute(result.routes)
 
     // This assumes tokens are 1:1
-    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.fromAmount)
+    const dstTokenMin = {
+      address: tokenOut.config.address,
+      decimals: tokenOut.balance.decimals,
+      balance: BigInt(route.toAmountMin),
+    }
+    const srcToken = {
+      address: tokenIn.config.address,
+      decimals: tokenIn.balance.decimals,
+      balance: BigInt(route.fromAmount),
+    }
+    const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
     return {
       amountIn: BigInt(route.fromAmount),
@@ -185,13 +205,13 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
    * Attempts to get a quote by routing through a core token when no direct route exists
    * @param tokenIn The source token
    * @param tokenOut The destination token
-   * @param swapAmount The amount to swap
+   * @param swapAmountBased The amount to swap in base units
    * @returns A quote for the route through a core token
    */
   async fallback(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote[]> {
     // Log that we're using the fallback method with core tokens
     this.logger.debug(
@@ -216,8 +236,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           address: coreToken.token,
           chainId: coreToken.chainID,
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         }
         const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
           this.walletAddress,
@@ -249,12 +269,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           }),
         )
 
-        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
-
-        const toAmountMin = parseFloat(
-          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
-        )
-
+        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmountBased)
+        const toAmountMin = BigInt(coreTokenQuote.context.toAmountMin)
         const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
 
         return [coreTokenQuote, rebalanceQuote]
@@ -269,7 +285,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
             fromChain: tokenIn.chainId,
             toToken: tokenOut.config.address,
             toChain: tokenOut.chainId,
-            swapAmount,
+            swapAmountBased,
             operation: 'core_token_fallback',
             service: this.constructor.name,
           },

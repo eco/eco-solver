@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex, parseUnits } from 'viem'
+import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -8,6 +8,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
@@ -33,10 +34,20 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     return 'Stargate' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the Stargate strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single Stargate rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
   ): Promise<RebalanceQuote<'Stargate'>> {
     // Convert chain IDs to Stargate chain keys
     const srcChainKey = await this.getChainKey(tokenIn.chainId)
@@ -46,7 +57,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       throw EcoError.RebalancingRouteNotFound()
     }
 
-    const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    const amountIn = swapAmountBased
 
     // Calculate the minimum amount out using the max slippage without losing precision
     const amountMin = this.calculateAmountMin(amountIn)
@@ -94,7 +105,17 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       // Select the best route (first one is usually the best)
       const route = this.selectRoute(routesData.routes)
 
-      const slippage = 1 - Number(route.dstAmountMin) / Number(route.srcAmount)
+      const dstTokenMin = {
+        address: tokenOut.config.address,
+        decimals: tokenOut.balance.decimals,
+        balance: BigInt(route.dstAmountMin),
+      }
+      const srcToken = {
+        address: tokenIn.config.address,
+        decimals: tokenIn.balance.decimals,
+        balance: BigInt(route.srcAmount),
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       return {
         amountIn: BigInt(route.srcAmount),

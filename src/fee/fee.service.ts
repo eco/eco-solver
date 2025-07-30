@@ -11,6 +11,7 @@ import {
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
 import {
+  BASE_DECIMALS,
   getFunctionCalls,
   getFunctionTargets,
   getNativeCalls,
@@ -26,11 +27,6 @@ import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { EcoAnalyticsService } from '@/analytics'
-
-/**
- * The base decimal number for erc20 tokens.
- */
-export const BASE_DECIMALS: number = 6
 
 @Injectable()
 export class FeeService implements OnModuleInit {

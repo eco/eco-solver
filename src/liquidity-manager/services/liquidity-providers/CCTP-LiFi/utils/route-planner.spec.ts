@@ -8,8 +8,8 @@ describe('CCTPLiFiRoutePlanner', () => {
     config: {
       address: address as Hex,
       chainId,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {

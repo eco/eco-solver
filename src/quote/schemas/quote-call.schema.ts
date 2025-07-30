@@ -1,6 +1,7 @@
 import { CallDataInterface } from '@/contracts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { BigIntSchemaType } from '@/common/schemas/bigint-schema.type'
 
 @Schema({ timestamps: true })
 export class QuoteRouteCallDataModel implements CallDataInterface {
@@ -8,7 +9,7 @@ export class QuoteRouteCallDataModel implements CallDataInterface {
   target: Hex
   @Prop({ required: true, type: String })
   data: Hex
-  @Prop({ required: true, type: BigInt })
+  @Prop({ required: true, type: BigIntSchemaType })
   value: bigint
 }
 

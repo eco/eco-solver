@@ -17,10 +17,10 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
+import { isGreaterEqual, normalizeBalance, normalizeBalanceToBase } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '../balance/balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -285,7 +285,11 @@ export class ValidationService implements OnModuleInit {
     )
 
     // convert to a normalized total to use utils compare function
-    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+    const tokenN = normalizeBalanceToBase({
+      balance: BigInt(tokenBase6),
+      decimal: 6,
+    })
+    return isGreaterEqual({ token: tokenN.balance, native: nativeBase18 }, totalFillNormalized)
   }
 
   /**
@@ -318,7 +322,23 @@ export class ValidationService implements OnModuleInit {
       // Check if solver has enough token balances
       for (const routeToken of intent.route.tokens) {
         const balance = tokenBalances[routeToken.token]
-        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        const target = solverTargets[routeToken.token]
+        if (balance === undefined || balance === null || !target) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Missing token data`,
+              properties: {
+                token: routeToken.token,
+                target: target,
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+        const minReqDollar = target.minBalance || 0
+
         // Normalize the balance to the token's decimals, configs have the minReq in dollar value
         const balanceMinReq = normalizeBalance(
           { balance: BigInt(minReqDollar), decimal: 0 },
