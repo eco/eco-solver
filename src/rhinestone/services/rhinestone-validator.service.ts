@@ -15,6 +15,7 @@ import {
   ChainCall,
   RhinestoneRelayerActionV1,
 } from '@/rhinestone/types/rhinestone-websocket.types'
+import { RhinestoneRouterRouteFn } from '@/rhinestone/types/rhinestone-contracts.types'
 
 @Injectable()
 export class RhinestoneValidatorService {
@@ -70,75 +71,17 @@ export class RhinestoneValidatorService {
     const chainID = chainAction.call.chainId
 
     const { decodedCall } = this.validateRouterCall(chainAction.call)
-
-    if (decodedCall.functionName !== 'routeFill') {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Fill: Invalid router call`,
-          properties: { functionName: decodedCall.functionName },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
-
-    const routeFillCalls = _.zipWith(
-      decodedCall.args[0],
-      decodedCall.args[1],
-      (solverContext: Address, adapterCalldata: Hex) => ({
-        solverContext,
-        adapterCalldata,
-      }),
-    )
-
-    if (routeFillCalls.length !== 1) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Fill: Invalid route call - Only one call allowed`,
-          properties: { calls: routeFillCalls.length },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
+    const { adapterCalldata } = this.extractRouteCall(decodedCall, 'routeFill')
 
     // TODO: We need to update the solverContext to the claimant
-
-    const { adapterCalldata } = routeFillCalls[0]
 
     const { type, selector } = decodeRouteFillCall(adapterCalldata)
 
     if (type !== 'adapterCall') {
-      throw new EcoError('Claim is not an adapter call')
+      throw new EcoError('Fill is not an adapter call')
     }
 
-    const contracts = this.rhinestoneConfigService.getContracts(chainAction.call.chainId)
-
-    const adapterAddr = await this.rhinestoneContractsService.getAdapter(
-      chainID,
-      router,
-      'fill',
-      selector,
-    )
-    const arbiterAddr = await this.rhinestoneContractsService.getArbiter(chainID, adapterAddr)
-
-    if (!isAddressEqual(contracts.ecoAdapter, adapterAddr)) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Claim: Invalid eco adapter address`,
-          properties: { expected: contracts.ecoAdapter, received: adapterAddr },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
-
-    if (!isAddressEqual(contracts.ecoArbiter, arbiterAddr)) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Claim: Invalid eco arbiter address`,
-          properties: { expected: contracts.ecoArbiter, received: arbiterAddr },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
+    await this.validateAdapterAndArbiter(chainID, router, 'fill', selector)
 
     const [fillData] = decodeAdapterFill(adapterCalldata)
 
@@ -158,43 +101,11 @@ export class RhinestoneValidatorService {
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
-    const contracts = this.rhinestoneConfigService.getContracts(chainAction.call.chainId)
-
     const chainID = chainAction.call.chainId
     const router = chainAction.call.to
 
     const { decodedCall } = this.validateRouterCall(chainAction.call)
-
-    if (decodedCall.functionName !== 'routeClaim') {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Claim: Invalid router call`,
-          properties: { functionName: decodedCall.functionName },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
-
-    const routeClaimCalls = _.zipWith(
-      decodedCall.args[0],
-      decodedCall.args[1],
-      (solverContext: Address, adapterCalldata: Hex) => ({
-        solverContext,
-        adapterCalldata,
-      }),
-    )
-
-    if (routeClaimCalls.length !== 1) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Claim: Invalid route call - Only one call allowed`,
-          properties: { calls: routeClaimCalls.length },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
-
-    const { adapterCalldata } = routeClaimCalls[0]
+    const { adapterCalldata } = this.extractRouteCall(decodedCall, 'routeClaim')
 
     const { type, selector } = decodeRouteFillCall(adapterCalldata)
 
@@ -202,33 +113,7 @@ export class RhinestoneValidatorService {
       throw new EcoError('Claim is not an adapter call')
     }
 
-    const adapterAddr = await this.rhinestoneContractsService.getAdapter(
-      chainID,
-      router,
-      'claim',
-      selector,
-    )
-    const arbiterAddr = await this.rhinestoneContractsService.getArbiter(chainID, adapterAddr)
-
-    if (!isAddressEqual(contracts.ecoAdapter, adapterAddr)) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Claim: Invalid eco adapter address`,
-          properties: { expected: contracts.ecoAdapter, received: adapterAddr },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
-
-    if (!isAddressEqual(contracts.ecoArbiter, arbiterAddr)) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Claim: Invalid eco arbiter address`,
-          properties: { expected: contracts.ecoArbiter, received: arbiterAddr },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
+    const { arbiterAddr } = await this.validateAdapterAndArbiter(chainID, router, 'claim', selector)
 
     const fillData = decodeAdapterClaim(adapterCalldata)
     const { order, claimHash } = fillData
@@ -254,7 +139,7 @@ export class RhinestoneValidatorService {
     if (!isAddressEqual(call.to, router)) {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Fill: Invalid router address`,
+          message: `Invalid router address`,
           properties: { expected: router, received: call.to },
         }),
       )
@@ -284,5 +169,85 @@ export class RhinestoneValidatorService {
       )
       throw EcoError.InvalidRouterCall
     }
+  }
+
+  private async validateAdapterAndArbiter(
+    chainId: number,
+    router: Address,
+    type: 'fill' | 'claim',
+    selector: Hex,
+  ): Promise<{ adapterAddr: Address; arbiterAddr: Address }> {
+    const contracts = this.rhinestoneConfigService.getContracts(chainId)
+
+    const adapterAddr = await this.rhinestoneContractsService.getAdapter(
+      chainId,
+      router,
+      type,
+      selector,
+    )
+    const arbiterAddr = await this.rhinestoneContractsService.getArbiter(chainId, adapterAddr)
+
+    if (!isAddressEqual(contracts.ecoAdapter, adapterAddr)) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Invalid eco adapter address`,
+          properties: { expected: contracts.ecoAdapter, received: adapterAddr },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    if (!isAddressEqual(contracts.ecoArbiter, arbiterAddr)) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Invalid eco arbiter address`,
+          properties: { expected: contracts.ecoArbiter, received: arbiterAddr },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    return { adapterAddr, arbiterAddr }
+  }
+
+  private extractRouteCall(
+    decodedCall: { functionName: string; args?: unknown } | RhinestoneRouterRouteFn,
+    functionName: 'routeFill' | 'routeClaim',
+  ): { solverContext: Address; adapterCalldata: Hex } {
+    const isRouteCall = (call: {
+      functionName: string
+      args?: unknown
+    }): call is RhinestoneRouterRouteFn => call.functionName === functionName
+
+    if (!isRouteCall(decodedCall)) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Invalid router call`,
+          properties: { functionName: decodedCall.functionName },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    const routeCalls = _.zipWith(
+      decodedCall.args[0] as Address[],
+      decodedCall.args[1] as Hex[],
+      (solverContext: Address, adapterCalldata: Hex) => ({
+        solverContext,
+        adapterCalldata,
+      }),
+    )
+
+    if (routeCalls.length !== 1) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Invalid route call - Only one call allowed`,
+          properties: { calls: routeCalls.length },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    return routeCalls[0]
   }
 }
