@@ -32,7 +32,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-    IntentModelWithHashInterface {}
+  IntentModelWithHashInterface { }
 
 /**
  * Type that holds all the possible validations that can fail
@@ -86,7 +86,7 @@ export class ValidationService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
@@ -270,7 +270,7 @@ export class ValidationService implements OnModuleInit {
       return false
     }
 
-    const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
+    const { token, native } = this.feeService.getFeeConfig({ intent }).limit
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -278,18 +278,12 @@ export class ValidationService implements OnModuleInit {
         properties: {
           tokenTotalFillNormalized: totalFillNormalized.token.toString(),
           nativeTotalFillNormalized: totalFillNormalized.native.toString(),
-          tokenBase6: tokenBase6.toString(),
-          nativeBase18: nativeBase18.toString(),
+          tokenBase6: token.toString(),
+          nativeBase18: native.toString(),
         },
       }),
     )
-
-    // convert to a normalized total to use utils compare function
-    const tokenN = normalizeBalanceToBase({
-      balance: BigInt(tokenBase6),
-      decimal: 6,
-    })
-    return isGreaterEqual({ token: tokenN.balance, native: nativeBase18 }, totalFillNormalized)
+    return isGreaterEqual({ token, native }, totalFillNormalized)
   }
 
   /**

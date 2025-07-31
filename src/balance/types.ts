@@ -11,6 +11,9 @@ export type TokenConfig = {
 
 export type TokenBalance = {
   address: Hex
-  decimals: number
+  decimals: {
+    original: number
+    current: number
+  },
   balance: bigint
 }

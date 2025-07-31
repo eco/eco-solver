@@ -1,4 +1,15 @@
-import { normalizeBalance, isInsufficient } from '@/fee/utils'
+import { 
+  normalizeBalance, 
+  isInsufficient, 
+  convertNormalize, 
+  convertNormScalar, 
+  convertNormScalarBase6, 
+  deconvertNormalize, 
+  getNormalizedMinBalance, 
+  calculateDelta 
+} from '@/fee/utils'
+import { TokenFetchAnalysis } from '@/balance/balance.service'
+import { Hex } from 'viem'
 
 describe('Utils Tests', () => {
   describe('normalizeBalance', () => {
@@ -124,6 +135,204 @@ describe('Utils Tests', () => {
       const ask = { token: 1000n, native: 0n }
       const reward = { token: 500n, native: 100n }
       expect(isInsufficient(ask, reward)).toBe(true)
+    })
+  })
+
+  describe('convertNormalize', () => {
+    it('should convert and normalize token to standard reserve value', () => {
+      const value = 100n
+      const token = { chainID: 1n, address: '0x123' as Hex, decimals: 6 }
+      const result = convertNormalize(value, token)
+      
+      expect(result).toEqual({
+        chainID: 1n,
+        address: '0x123',
+        decimals: 18,
+        balance: 100_000_000_000_000n, // 100 * 10^(18-6) = 100 * 10^12
+      })
+    })
+
+    it('should handle different decimal conversions', () => {
+      const value = 1000n
+      const token = { chainID: 10n, address: '0xabc' as Hex, decimals: 8 }
+      const result = convertNormalize(value, token)
+      
+      expect(result).toEqual({
+        chainID: 10n,
+        address: '0xabc',
+        decimals: 18,
+        balance: 10_000_000_000_000n, // 1000 * 10^(18-8) = 1000 * 10^10
+      })
+    })
+  })
+
+  describe('convertNormScalar', () => {
+    it('should convert value from one decimal representation to BASE_DECIMALS (18)', () => {
+      const value = 100n
+      const fromDecimals = 6
+      const result = convertNormScalar(value, fromDecimals)
+      
+      expect(result).toEqual(100_000_000_000_000n) // 100 * 10^(18-6)
+    })
+
+    it('should handle base 8 to base 18 conversion', () => {
+      const value = 1000n
+      const fromDecimals = 8
+      const result = convertNormScalar(value, fromDecimals)
+      
+      expect(result).toEqual(10_000_000_000_000n) // 1000 * 10^(18-8)
+    })
+  })
+
+  describe('convertNormScalarBase6', () => {
+    it('should convert value from base 6 to base 18', () => {
+      const value = 100n
+      const result = convertNormScalarBase6(value)
+      
+      expect(result).toEqual(100_000_000_000_000n) // 100 * 10^(18-6)
+    })
+
+    it('should handle large values', () => {
+      const value = 1_000_000n
+      const result = convertNormScalarBase6(value)
+      
+      expect(result).toEqual(1_000_000_000_000_000_000n) // 1_000_000 * 10^12
+    })
+  })
+
+  describe('deconvertNormalize', () => {
+    it('should deconvert and denormalize from BASE_DECIMALS to token decimals', () => {
+      const value = 100_000_000_000_000n // 100 in base 18
+      const token = { chainID: 1n, address: '0x123' as Hex, decimals: 6 }
+      const result = deconvertNormalize(value, token)
+      
+      expect(result).toEqual({
+        chainID: 1n,
+        address: '0x123',
+        decimals: 6,
+        balance: 100n, // 100_000_000_000_000n / 10^(18-6)
+      })
+    })
+
+    it('should handle different decimal conversions', () => {
+      const value = 10_000_000_000_000n // 1000 in base 18
+      const token = { chainID: 10n, address: '0xabc' as Hex, decimals: 8 }
+      const result = deconvertNormalize(value, token)
+      
+      expect(result).toEqual({
+        chainID: 10n,
+        address: '0xabc',
+        decimals: 8,
+        balance: 1000n, // 10_000_000_000_000n / 10^(18-8)
+      })
+    })
+  })
+
+  describe('getNormalizedMinBalance', () => {
+    it('should return normalized min balance for token', () => {
+      const tokenAnalysis: TokenFetchAnalysis = {
+        config: {
+          address: '0x123' as Hex,
+          chainId: 1,
+          minBalance: 200n,
+          targetBalance: 500n,
+          type: 'erc20',
+        },
+        token: {
+          address: '0x123' as Hex,
+          decimals: 6,
+          balance: 300_000_000n,
+        },
+        chainId: 1,
+      }
+      
+      const result = getNormalizedMinBalance(tokenAnalysis)
+      
+      // minBalance is 200 with decimal 0, converted to token decimals (6)
+      expect(result).toEqual(200_000_000n) // 200 * 10^6
+    })
+
+    it('should handle different token decimals', () => {
+      const tokenAnalysis: TokenFetchAnalysis = {
+        config: {
+          address: '0xabc' as Hex,
+          chainId: 10,
+          minBalance: 100n,
+          targetBalance: 300n,
+          type: 'erc20',
+        },
+        token: {
+          address: '0xabc' as Hex,
+          decimals: 8,
+          balance: 500_000_000_00n,
+        },
+        chainId: 10,
+      }
+      
+      const result = getNormalizedMinBalance(tokenAnalysis)
+      
+      // minBalance is 100 with decimal 0, converted to token decimals (8)
+      expect(result).toEqual(100_000_000_00n) // 100 * 10^8
+    })
+  })
+
+  describe('calculateDelta', () => {
+    it('should calculate delta as balance - minBalance', () => {
+      const tokenAnalysis: TokenFetchAnalysis = {
+        config: {
+          address: '0x123' as Hex,
+          chainId: 10,
+          minBalance: 200n,
+          targetBalance: 500n,
+          type: 'erc20',
+        },
+        token: {
+          address: '0x123' as Hex,
+          decimals: 6,
+          balance: 300_000_000n, // 300 in 6 decimals
+        },
+        chainId: 10,
+      }
+      
+      const result = calculateDelta(tokenAnalysis)
+      
+      // delta = 300_000_000n - 200_000_000n = 100_000_000n (100 in 6 decimals)
+      // converted to BASE_DECIMALS (18): 100 * 10^(18-6) = 100_000_000_000_000_000_000n
+      expect(result).toEqual({
+        chainID: 10n,
+        address: '0x123',
+        decimals: 18,
+        balance: 100_000_000_000_000_000_000n,
+      })
+    })
+
+    it('should handle deficit (negative delta)', () => {
+      const tokenAnalysis: TokenFetchAnalysis = {
+        config: {
+          address: '0xabc' as Hex,
+          chainId: 1,
+          minBalance: 300n,
+          targetBalance: 500n,
+          type: 'erc20',
+        },
+        token: {
+          address: '0xabc' as Hex,
+          decimals: 6,
+          balance: 200_000_000n, // 200 in 6 decimals
+        },
+        chainId: 1,
+      }
+      
+      const result = calculateDelta(tokenAnalysis)
+      
+      // delta = 200_000_000n - 300_000_000n = -100_000_000n (-100 in 6 decimals)
+      // converted to BASE_DECIMALS (18): -100 * 10^(18-6) = -100_000_000_000_000_000_000n
+      expect(result).toEqual({
+        chainID: 1n,
+        address: '0xabc',
+        decimals: 18,
+        balance: -100_000_000_000_000_000_000n,
+      })
     })
   })
 })

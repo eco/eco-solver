@@ -11,15 +11,16 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
-import { BASE_DECIMALS } from '@/fee/utils'
+import { BASE_DECIMALS, calculateDelta, convertNormalize, deconvertNormalize, getNormalizedMinBalance } from '@/fee/utils'
 import { normalizeBalance } from '../utils'
+import * as utils from '@/fee/utils'
 import { EcoAnalyticsService } from '@/analytics'
 
 function getFeeConfig(): FeeConfigType {
   return {
     limit: {
-      tokenBase6: 1000n * 10n ** 6n,
-      nativeBase18: 1n * 10n ** 18n,
+      token: 1000n * 10n ** 6n,
+      native: 1n * 10n ** 18n,
     },
     algorithm: 'linear',
   } as FeeConfigType
@@ -76,8 +77,8 @@ describe('FeeService', () => {
 
   const defaultFee: FeeConfigType<'linear'> = {
     limit: {
-      tokenBase6: 1000n * 10n ** 6n,
-      nativeBase18: 1000n * 10n ** 18n,
+      token: 1000n * 10n ** 6n,
+      native: 1000n * 10n ** 18n,
     },
     algorithm: 'linear',
     constants: {
@@ -685,7 +686,7 @@ describe('FeeService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
-      jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
+      const mockCalculateDelta = jest.spyOn(utils, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ error } as any)
       const tok = jest
         .spyOn(feeService, 'getTokensNormalized')
@@ -704,7 +705,7 @@ describe('FeeService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
-      jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
+      const mockCalculateDelta = jest.spyOn(utils, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
         .mockReturnValue({ rewards: [] } as any)
@@ -723,7 +724,7 @@ describe('FeeService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
-      jest.spyOn(feeService, 'calculateDelta').mockReturnValue(10n as any)
+      const mockCalculateDelta = jest.spyOn(utils, 'calculateDelta').mockReturnValue(10n as any)
       const rew = jest
         .spyOn(feeService, 'getRewardsNormalized')
         .mockReturnValue({ rewards: {} } as any)
@@ -741,7 +742,7 @@ describe('FeeService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
       jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(tokenAnalysis)
-      const cal = jest.spyOn(feeService, 'calculateDelta').mockImplementation((token) => {
+      const cal = jest.spyOn(utils, 'calculateDelta').mockImplementation((token) => {
         return BigInt(token.token.address) as any
       })
       const rewards = { stuff: 'asdf' } as any
@@ -764,6 +765,55 @@ describe('FeeService', () => {
         },
       })
       expect(cal).toHaveBeenCalledTimes(tokenAnalysis.length * 2)
+      expect(rew).toHaveBeenCalledTimes(1)
+      expect(tok).toHaveBeenCalledTimes(1)
+      expect(call).toHaveBeenCalledTimes(1)
+    })
+
+    it('should only return srcDeficitDescending tokens that are in the quote.reward.tokens array', async () => {
+      // Create a scenario where the solver has more tokens than what's in the reward.tokens array
+      const extendedTokenAnalysis = [
+        ...tokenAnalysis,
+        {
+          token: {
+            address: '0x4',  // This token is NOT in quote.reward.tokens
+          },
+        },
+        {
+          token: {
+            address: '0x5',  // This token is also NOT in quote.reward.tokens
+          },
+        },
+      ] as any
+
+      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([source, destination])
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(linearSolver)
+      jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(extendedTokenAnalysis)
+      const cal = jest.spyOn(utils, 'calculateDelta').mockImplementation((token) => {
+        return BigInt(token.token.address) as any
+      })
+      const rewards = { stuff: 'asdf' } as any
+      const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ rewards } as any)
+      const tokens = { stuff: '123' } as any
+      const tok = jest.spyOn(feeService, 'getTokensNormalized').mockResolvedValue({ tokens } as any)
+      const calls = { stuff: '123' } as any
+      const call = jest.spyOn(feeService, 'getCallsNormalized').mockReturnValue({ calls } as any)
+
+      const result = await feeService.calculateTokens(quote as any)
+
+      // Verify that srcDeficitDescending only contains tokens that are in quote.reward.tokens
+      // quote.reward.tokens contains: '0x4Fd9098af9ddcB41DA48A1d78F91F1398965addc' and '0x9D6AC51b972544251Fcc0F2902e633E3f9BD3f29'
+      // extendedTokenAnalysis contains: '0x1', '0x2', '0x3', '0x4', '0x5'
+      // None of the token addresses match, so srcDeficitDescending should be empty
+      expect(result.calculated?.srcDeficitDescending).toEqual([])
+
+      // destDeficitDescending should still contain all tokens from destination as it filters by destination.tokens, not reward.tokens
+      const expectedDestDeficitDescending = extendedTokenAnalysis.map((ta) => {
+        return { ...ta, delta: BigInt(ta.token.address) }
+      })
+      expect(result.calculated?.destDeficitDescending).toEqual(expectedDestDeficitDescending)
+
+      expect(cal).toHaveBeenCalledTimes(extendedTokenAnalysis.length) // Only called for destDeficitDescending since srcDeficitDescending is empty
       expect(rew).toHaveBeenCalledTimes(1)
       expect(tok).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
@@ -832,7 +882,7 @@ describe('FeeService', () => {
 
     it('should map rewards and convertNormalize the output', async () => {
       jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(erc20Rewards)
-      const convert = jest.spyOn(feeService, 'convertNormalize')
+      const convert = jest.spyOn(utils, 'convertNormalize')
       expect(await feeService.getRewardsNormalized(quote as any)).toEqual({
         rewards: [
           {
@@ -992,14 +1042,14 @@ describe('FeeService', () => {
       })
 
       it('should return an error if solver lacks liquidity in a call token', async () => {
-        const normMinBalance = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance = getNormalizedMinBalance(tokenAnalysis['0x1'])
         const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         callBalances['0x1'].balance = normTransfer.balance + normMinBalance - 1n
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-        const convert = jest.spyOn(feeService, 'convertNormalize')
+        const convert = jest.spyOn(utils, 'convertNormalize')
         const error = QuoteError.SolverLacksLiquidity(
           solver.chainID,
           '0x4',
@@ -1022,8 +1072,8 @@ describe('FeeService', () => {
       })
 
       it('should convert and normalize the erc20 calls', async () => {
-        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
-        const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
+        const normMinBalance1 = getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance4 = getNormalizedMinBalance(tokenAnalysis['0x4'])
         const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         callBalances['0x1'].balance = normTransfer.balance + normMinBalance1 + 1n
@@ -1031,7 +1081,7 @@ describe('FeeService', () => {
         jest.spyOn(balanceService, 'fetchTokenBalances').mockResolvedValue(callBalances)
         mockGetTransactionTargetData.mockReturnValue(txTargetData)
         mockIsERC20Target.mockReturnValue(true)
-        const convert = jest.spyOn(feeService, 'convertNormalize')
+        const convert = jest.spyOn(utils, 'convertNormalize')
 
         expect(await feeService.getCallsNormalized(quote as any)).toEqual({
           calls: [
@@ -1076,8 +1126,8 @@ describe('FeeService', () => {
           },
         }
 
-        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
-        const normMinBalance4 = feeService.getNormalizedMinBalance(tokenAnalysis['0x4'])
+        const normMinBalance1 = getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance4 = getNormalizedMinBalance(tokenAnalysis['0x4'])
         const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         callBalances['0x1'].balance = normTransfer.balance + normMinBalance1 + 1n
@@ -1191,7 +1241,7 @@ describe('FeeService', () => {
           },
         }
 
-        const normMinBalance1 = feeService.getNormalizedMinBalance(tokenAnalysis['0x1'])
+        const normMinBalance1 = getNormalizedMinBalance(tokenAnalysis['0x1'])
         const normTransfer = normalizeBalance(transferAmount, BASE_DECIMALS)
         jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue(solverWithTargets)
         callBalances['0x1'].balance = normTransfer.balance + normMinBalance1 + 1n
@@ -1290,8 +1340,8 @@ describe('FeeService', () => {
       }
     })
     it('should calculate the delta for surplus', async () => {
-      const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
-      const normToken = feeService.calculateDelta(token)
+      const convertNormalizeSpy = jest.spyOn(utils, 'convertNormalize')
+      const normToken = calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: 100_000_000_000_000_000_000n, // 100 dollars normalized to 18 decimals
         chainID: BigInt(token.chainId),
@@ -1305,9 +1355,9 @@ describe('FeeService', () => {
     })
 
     it('should calculate the delta for deficit', async () => {
-      const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
+      const convertNormalizeSpy = jest.spyOn(utils, 'convertNormalize')
       token.token.balance = 100_000_000n
-      const normToken = feeService.calculateDelta(token)
+      const normToken = calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: -100_000_000_000_000_000_000n, // -100 dollars normalized to 18 decimals
         chainID: BigInt(token.chainId),
@@ -1323,8 +1373,8 @@ describe('FeeService', () => {
     it('should call correct normalization', async () => {
       token.token.decimals = 4
       token.token.balance = token.token.balance / 10n ** 2n
-      const convertNormalizeSpy = jest.spyOn(feeService, 'convertNormalize')
-      const normToken = feeService.calculateDelta(token)
+      const convertNormalizeSpy = jest.spyOn(utils, 'convertNormalize')
+      const normToken = calculateDelta(token)
       const expectedNorm: NormalizedToken = {
         balance: 100_000_000_000_000_000_000n, // 100 dollars normalized to 18 decimals
         chainID: BigInt(token.chainId),
@@ -1342,14 +1392,14 @@ describe('FeeService', () => {
     it('should normalize the output', async () => {
       // Test with 6 decimals - should scale up to 18 decimals
       const orig = { chainID: 1n, address: '0x' as Hex, decimals: 6 }
-      expect(feeService.convertNormalize(100n, orig)).toEqual({
+      expect(convertNormalize(100n, orig)).toEqual({
         balance: 100_000_000_000_000n, // 100 * 10^(18-6) = 100 * 10^12
         ...orig,
         decimals: 18,
       })
       // Test with 4 decimals - should scale up to 18 decimals
       const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.convertNormalize(100n, second)).toEqual({
+      expect(convertNormalize(100n, second)).toEqual({
         balance: 10_000_000_000_000_000n, // 100 * 10^(18-4) = 100 * 10^14
         ...second,
         decimals: 18,
@@ -1359,7 +1409,7 @@ describe('FeeService', () => {
     it('should change the decimals to the normalized value', async () => {
       // Test with 8 decimals to add variety - should scale up to 18 decimals
       const token8Decimals = { chainID: 1n, address: '0x' as Hex, decimals: 8 }
-      expect(feeService.convertNormalize(100n, token8Decimals)).toEqual({
+      expect(convertNormalize(100n, token8Decimals)).toEqual({
         balance: 1_000_000_000_000n, // 100 * 10^(18-8) = 100 * 10^10
         ...token8Decimals,
         decimals: 18,
@@ -1371,13 +1421,13 @@ describe('FeeService', () => {
     it('should denormalize the output', async () => {
       // Test with 6 decimals - convert from 18 decimals back to 6 decimals
       const orig = { chainID: 1n, address: '0x' as Hex, decimals: 6 }
-      expect(feeService.deconvertNormalize(100_000_000_000_000n, orig)).toEqual({
+      expect(deconvertNormalize(100_000_000_000_000n, orig)).toEqual({
         balance: 100n, // 100_000_000_000_000n / 10^(18-6) = 100n
         ...orig,
       })
       // Test with 4 decimals - convert from 18 decimals back to 4 decimals
       const second = { chainID: 1n, address: '0x' as Hex, decimals: 4 }
-      expect(feeService.deconvertNormalize(100_000_000_000_000_000_000n, second)).toEqual({
+      expect(deconvertNormalize(100_000_000_000_000_000_000n, second)).toEqual({
         balance: 1000000n, // Actual value returned by function
         ...second,
       })

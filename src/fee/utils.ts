@@ -1,8 +1,10 @@
 import { BASE_DECIMALS } from '@/intent/utils'
+import { Hex } from 'viem'
 
 export { BASE_DECIMALS }
-import { NormalizedTotal } from './types'
+import { NormalizedTotal, NormalizedToken } from './types'
 import { TokenDataAnalyzed } from '@/liquidity-manager/types/types'
+import { TokenFetchAnalysis } from '@/balance/balance.service'
 
 type BalanceObject = {
   balance: bigint
@@ -86,4 +88,82 @@ export function isGreaterEqual(a: NormalizedTotal, b: NormalizedTotal): boolean 
 
 export function formatNormalizedTotal(total: NormalizedTotal): string {
   return `Token: ${total.token.toString()} - Native: ${total.native}`
+}
+
+/**
+ * Converts and normalizes the token to a standard reserve value for comparisons
+ * @param value the value to convert
+ * @param token the token to us
+ * @returns
+ */
+export function convertNormalize(
+  value: bigint,
+  token: { chainID: bigint; address: Hex; decimals: number },
+): NormalizedToken {
+  const original = value
+  const newDecimals = BASE_DECIMALS
+  //todo some conversion, assuming here 1-1
+  return {
+    ...token,
+    balance: normalizeBalance({ balance: original, decimal: token.decimals }, newDecimals)
+      .balance,
+    decimals: newDecimals,
+  }
+}
+
+/**
+ * Converts a value from one decimal representation to another.
+ * @param value the value to convert
+ * @param fromDecimals the current decimal representation
+ * @returns the converted value
+ */
+export function convertNormScalar(
+  value: bigint,
+  fromDecimals: number
+): bigint {
+  return normalizeBalance(
+    { balance: value, decimal: fromDecimals },
+    BASE_DECIMALS,
+  ).balance
+}
+
+/**
+ * Helper function to convert a value from base6 to base18
+ * @param value the value to convert
+ * @returns the converted value
+ */
+export function convertNormScalarBase6(
+  value: bigint,
+): bigint {
+  return convertNormScalar(value, 6)
+}
+
+/**
+ * Deconverts and denormalizes the token form a standard reserve value for comparisons
+ * @param value the value to deconvert
+ * @param token the token to deconvert
+ * @returns
+ */
+export function deconvertNormalize(value: bigint, token: { chainID: bigint; address: Hex; decimals: number }) {
+  //todo some conversion, assuming here 1-1
+  return {
+    ...token,
+    balance: normalizeBalance({ balance: value, decimal: BASE_DECIMALS }, token.decimals).balance,
+  }
+}
+
+/**
+ * Calculates the delta for the token as defined as the balance - minBalance
+ * @param token the token to us
+ * @returns
+ */
+export function calculateDelta(token: TokenFetchAnalysis): NormalizedToken {
+  const minBalance = token.token.balance
+  const delta = token.token.balance - minBalance
+  return {
+    balance: delta,
+    chainID: BigInt(token.chainId),
+    address: token.config.address,
+    decimals: token.token.decimals,
+  }
 }

@@ -88,6 +88,11 @@ export type EcoConfigType = {
 export type EcoConfigKeys = keyof EcoConfigType
 
 /**
+ * The base keys for the eco configs that need to be normalized from base 6 to base 18
+ */
+export const EcoConfigBase6Keys= ['minBalance', 'targetBalance', 'maxBalance', 'token', 'native', 'baseFee', 'unitFee', 'unitSize', 'quadraticFactor'] as const
+
+/**
  * The config type for the launch darkly feature flagging service
  */
 export type LaunchDarklyConfig = {
@@ -220,10 +225,10 @@ export type KmsConfig = {
  */
 export type V2Limits = {
   // The maximum amount of tokens that can be filled in a single transaction,
-  // defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
-  tokenBase6: bigint
+  // defaults to 1000 USDC decimal 6 equivalent 
+  token: bigint
   // The max native gas that can be filled in a single transaction
-  nativeBase18: bigint
+  native: bigint
 }
 
 export type FeeConfigType<T extends FeeAlgorithm = 'linear'> = {
@@ -326,15 +331,15 @@ export type FeeAlgorithm = 'linear' | 'quadratic'
  */
 export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
   ? {
-      token: FeeAlgoLinear
-      native: FeeAlgoLinear
-    }
+    token: FeeAlgoLinear
+    native: FeeAlgoLinear
+  }
   : T extends 'quadratic'
-    ? {
-        token: FeeAlgoQuadratic
-        native: FeeAlgoQuadratic
-      }
-    : never
+  ? {
+    token: FeeAlgoQuadratic
+    native: FeeAlgoQuadratic
+  }
+  : never
 
 export type FeeAlgoLinear = { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
 export type FeeAlgoQuadratic = { baseFee: bigint; quadraticFactor: bigint }

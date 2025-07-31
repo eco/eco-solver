@@ -15,7 +15,7 @@ import {
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
-import { getChainConfig } from './utils'
+import { getChainConfig, recursiveConfigNormalizer } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
@@ -66,7 +66,7 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() {}
+  async onModuleInit() { }
 
   // Initialize the configs
   initConfigs() {
@@ -78,6 +78,9 @@ export class EcoConfigService {
 
     // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
+
+    // Apply recursive config normalization to avoid default import config values
+    this.ecoConfig = recursiveConfigNormalizer(this.ecoConfig)
 
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)

@@ -7,9 +7,21 @@ import {
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
+  FeeAlgoLinear,
+  FeeAlgoQuadratic,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
-import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
+import {
+  isInsufficient,
+  normalizeBalance,
+  normalizeSum,
+  convertNormalize,
+  convertNormScalar,
+  convertNormScalarBase6,
+  deconvertNormalize,
+  getNormalizedMinBalance,
+  calculateDelta
+} from '@/fee/utils'
 import {
   BASE_DECIMALS,
   getFunctionCalls,
@@ -38,7 +50,7 @@ export class FeeService implements OnModuleInit {
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -290,16 +302,16 @@ export class FeeService implements OnModuleInit {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
     const srcDeficitDescending = srcBalance
-      .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
+      .filter((solverSrcChainTokens) => quote.reward.tokens.map((t) => t.token).includes(solverSrcChainTokens.token.address))
       .map((token) => {
         return {
           ...token,
           //calculates, converts and normalizes the delta
-          delta: this.calculateDelta(token),
+          delta: calculateDelta(token),
         }
       })
       //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
-      .sort((a, b) => -1 * Mathb.compare(a.delta.balance, b.delta.balance))
+      .sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
 
     //Get the tokens the solver accepts on the destination chain
     const destBalance = await this.balanceService.fetchTokenData(Number(destChainID))
@@ -312,7 +324,7 @@ export class FeeService implements OnModuleInit {
         return {
           ...token,
           //calculates, converts and normalizes the delta
-          delta: this.calculateDelta(token),
+          delta: calculateDelta(token),
         }
       })
       //Sort tokens with leading deficits than: inrange/surplus reordered in accending order
@@ -378,11 +390,12 @@ export class FeeService implements OnModuleInit {
         if (!token) {
           throw QuoteError.RewardTokenNotFound(tb.address)
         }
-        return this.convertNormalize(token.amount, {
+        return {
+          balance: token.amount,
           chainID: srcChainID,
           address: tb.address,
-          decimals: tb.decimals,
-        })
+          decimals: tb.decimals
+        }
       }),
     }
   }
@@ -422,11 +435,12 @@ export class FeeService implements OnModuleInit {
         if (!token) {
           throw QuoteError.RouteTokenNotFound(tb.address)
         }
-        return this.convertNormalize(token.amount, {
+        return {
+          balance: token.amount,
           chainID: destChainID,
           address: tb.address,
-          decimals: tb.decimals,
-        })
+          decimals: tb.decimals
+        }
       }),
     }
   }
@@ -516,9 +530,10 @@ export class FeeService implements OnModuleInit {
         if (!ttd?.decodedFunctionData?.args || ttd.decodedFunctionData.args.length < 2) {
           throw QuoteError.InvalidFunctionData(call.target)
         }
+
         const recipient = ttd.decodedFunctionData.args[0] as Hex
-        const transferAmount = ttd.decodedFunctionData.args[1] as bigint
-        const normMinBalance = this.getNormalizedMinBalance(callTarget)
+        const transferAmount = convertNormScalar(ttd.decodedFunctionData.args[1] as bigint, callTarget.token.decimals.original)
+        const normMinBalance = getNormalizedMinBalance(callTarget)
 
         if (
           !this.intentConfigs.skipBalanceCheck &&
@@ -546,11 +561,10 @@ export class FeeService implements OnModuleInit {
         }
 
         return {
-          ...this.convertNormalize(transferAmount, {
-            chainID: BigInt(solver.chainID),
-            address: call.target,
-            decimals: callTarget.token.decimals,
-          }),
+          balance: transferAmount,
+          chainID: BigInt(solver.chainID),
+          address: call.target,
+          decimals: callTarget.token.decimals,
           recipient,
           native: {
             amount: call.value,
@@ -580,72 +594,18 @@ export class FeeService implements OnModuleInit {
       balance: 0n,
       chainID: BigInt(chainID),
       address: zeroAddress,
-      decimals: 0,
+      decimals: {
+        original: 0,
+        current: 0,
+      },
     }))
   }
 
-  /**
-   * Calculates the delta for the token as defined as the balance - minBalance
-   * @param token the token to us
-   * @returns
-   */
-  calculateDelta(token: TokenFetchAnalysis) {
-    const minBalance = this.getNormalizedMinBalance(token)
-    const delta = token.token.balance - minBalance
-    return this.convertNormalize(delta, {
-      chainID: BigInt(token.chainId),
-      address: token.config.address,
-      decimals: token.token.decimals,
-    })
-  }
 
-  /**
-   * Returns the normalized min balance for the token. Assumes that the minBalance is
-   * set with a decimal of 0, ie in normal dollar units
-   * @param tokenAnalysis the token to use
-   * @returns
-   */
-  getNormalizedMinBalance(tokenAnalysis: TokenFetchAnalysis) {
-    return normalizeBalance(
-      { balance: BigInt(tokenAnalysis.config.minBalance), decimal: 0 },
-      tokenAnalysis.token.decimals,
-    ).balance
-  }
 
-  /**
-   * Converts and normalizes the token to a standard reserve value for comparisons
-   * @param value the value to convert
-   * @param token the token to us
-   * @returns
-   */
-  convertNormalize(
-    value: bigint,
-    token: { chainID: bigint; address: Hex; decimals: number },
-  ): NormalizedToken {
-    const original = value
-    const newDecimals = BASE_DECIMALS
-    //todo some conversion, assuming here 1-1
-    return {
-      ...token,
-      balance: normalizeBalance({ balance: original, decimal: token.decimals }, newDecimals)
-        .balance,
-      decimals: newDecimals,
-    }
-  }
 
-  /**
-   * Deconverts and denormalizes the token form a standard reserve value for comparisons
-   * @param value the value to deconvert
-   * @param token the token to deconvert
-   * @returns
-   */
-  deconvertNormalize(value: bigint, token: { chainID: bigint; address: Hex; decimals: number }) {
-    //todo some conversion, assuming here 1-1
-    return {
-      ...token,
-      balance: normalizeBalance({ balance: value, decimal: BASE_DECIMALS }, token.decimals).balance,
-    }
-  }
+
+
 
   private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
     const solverFee = this.getAskRouteDestinationSolver(route).fee

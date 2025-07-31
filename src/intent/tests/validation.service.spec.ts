@@ -413,8 +413,8 @@ describe('ValidationService', () => {
     describe('on validTransferLimit', () => {
       const defaultFee: FeeConfigType<'linear'> = {
         limit: {
-          tokenBase6: 1000n * 10n ** 6n,
-          nativeBase18: 1000n * 10n ** 18n,
+          token: 1000n * 10n ** 6n,
+          native: 1000n * 10n ** 18n,
         },
         algorithm: 'linear',
         constants: {
@@ -447,21 +447,21 @@ describe('ValidationService', () => {
         const mockFeeConfig = jest.fn().mockReturnValue(defaultFee)
         feeService.getFeeConfig = mockFeeConfig
         jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
-          totalFillNormalized: { token: defaultFee.limit.tokenBase6 + 1n, native: 0n },
+          totalFillNormalized: { token: defaultFee.limit.token + 1n, native: 0n },
         })
         expect(await validationService.validTransferLimit({} as any)).toBe(false)
         expect(mockFeeConfig).toHaveBeenCalledTimes(1)
 
         jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
-          totalFillNormalized: { token: 0n, native: defaultFee.limit.nativeBase18 + 1n },
+          totalFillNormalized: { token: 0n, native: defaultFee.limit.native + 1n },
         })
         expect(await validationService.validTransferLimit({} as any)).toBe(false)
         expect(mockFeeConfig).toHaveBeenCalledTimes(2)
 
         jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
           totalFillNormalized: {
-            token: defaultFee.limit.tokenBase6 + 1n,
-            native: defaultFee.limit.nativeBase18 + 1n,
+            token: defaultFee.limit.token + 1n,
+            native: defaultFee.limit.native + 1n,
           },
         })
         expect(await validationService.validTransferLimit({} as any)).toBe(false)
@@ -474,8 +474,8 @@ describe('ValidationService', () => {
 
         jest.spyOn(feeService, 'getTotalFill').mockResolvedValueOnce({
           totalFillNormalized: {
-            token: defaultFee.limit.tokenBase6,
-            native: defaultFee.limit.nativeBase18,
+            token: defaultFee.limit.token,
+            native: defaultFee.limit.native,
           },
         })
         expect(await validationService.validTransferLimit({} as any)).toBe(true)

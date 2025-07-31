@@ -33,7 +33,7 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
-import { isInsufficient } from '../fee/utils'
+import { isInsufficient, deconvertNormalize, convertNormalize } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
@@ -68,7 +68,7 @@ export class QuoteService implements OnModuleInit {
     private readonly fulfillmentEstimateService: FulfillmentEstimateService,
     private readonly moduleRef: ModuleRef,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
@@ -569,64 +569,35 @@ export class QuoteService implements OnModuleInit {
     let filled = 0n
     const totalTokenAsk = totalAsk.token
     const quoteRecord: Record<Hex, RewardTokensInterface> = {}
-    for (const deficit of fundable) {
+    for (const fund of fundable) {
       if (filled >= totalTokenAsk) {
         break
       }
       const left = totalTokenAsk - filled
-      //Only fill defits first pass
-      if (deficit.delta.balance < 0n) {
-        const reward = rewards.find((r) => r.address === deficit.delta.address)
-        if (reward) {
-          const amount = Mathb.min(
-            Mathb.min(Mathb.abs(deficit.delta.balance), reward.balance),
-            left,
-          )
-          if (amount > 0n) {
-            deficit.delta.balance += amount
-            reward.balance -= amount
-            filled += amount
-            //add to quote record
-            const tokenToFund = quoteRecord[deficit.delta.address] || {
-              token: deficit.delta.address,
-              amount: 0n,
-            }
-            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
-            quoteRecord[deficit.delta.address] = tokenToFund
+
+      const reward = rewards.find((r) => r.address === fund.delta.address)
+      if (reward) {
+        const amount = Mathb.min(
+          Mathb.min(Mathb.abs(fund.delta.balance), reward.balance),
+          left,
+        )
+        if (amount > 0n) {
+          fund.delta.balance += amount
+          reward.balance -= amount
+          filled += amount
+          //add to quote record
+          const tokenToFund = quoteRecord[fund.delta.address] || {
+            token: fund.delta.address,
+            amount: 0n,
           }
+          tokenToFund.amount += deconvertNormalize(amount, {...fund.token, chainID: BigInt(fund.config.chainId)}).balance
+          quoteRecord[fund.delta.address] = tokenToFund
         }
+
       }
     }
     //resort fundable to reflect first round of fills
     fundable.sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
-
-    //if remaining funds, for those with smallest deltas
-    if (filled < totalTokenAsk) {
-      for (const deficit of fundable) {
-        if (filled >= totalTokenAsk) {
-          break
-        }
-        const left = totalTokenAsk - filled
-        const reward = rewards.find((r) => r.address === deficit.delta.address)
-        if (reward) {
-          const amount = Mathb.min(left, reward.balance)
-          if (amount > 0n) {
-            deficit.delta.balance += amount
-            reward.balance -= amount
-            filled += amount
-            //add to quote record
-            const tokenToFund = quoteRecord[deficit.delta.address] || {
-              token: deficit.delta.address,
-              amount: 0n,
-            }
-            tokenToFund.amount += Mathb.abs(
-              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
-            )
-            quoteRecord[deficit.delta.address] = tokenToFund
-          }
-        }
-      }
-    }
 
     const estimatedFulfillTimeSec =
       this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
@@ -686,23 +657,23 @@ export class QuoteService implements OnModuleInit {
     fundable.sort((a, b) => Mathb.compare(b.delta.balance, a.delta.balance))
 
     // Fill tokens that the solver needs the least first, up to their original amount
-    for (const deficit of fundable) {
+    for (const fund of fundable) {
       if (remainingToFill <= 0n) {
         break
       }
 
       // Find the corresponding token in route.tokens and calls
-      const originalToken = tokens.find((token) => token.address === deficit.delta.address)
-      const originalCall = calls.find((call) => call.address === deficit.delta.address)
+      const originalToken = tokens.find((token) => token.address === fund.delta.address)
+      const originalCall = calls.find((call) => call.address === fund.delta.address)
 
       if (originalToken && originalCall) {
         // Get the original amount from the token in its normalized form
-        const originalNormalizedAmount = this.feeService.convertNormalize(
+        const originalNormalizedAmount = convertNormalize(
           BigInt(originalToken.balance),
           {
             chainID: intent.route.destination,
-            address: deficit.delta.address,
-            decimals: deficit.token.decimals,
+            address: fund.delta.address,
+            decimals: fund.token.decimals,
           },
         ).balance
 
@@ -712,10 +683,10 @@ export class QuoteService implements OnModuleInit {
 
         if (amountToFill > 0n) {
           // Convert back to original decimals
-          const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
+          const finalAmount = deconvertNormalize(amountToFill, {
             chainID: intent.route.destination,
-            address: deficit.delta.address,
-            decimals: deficit.token.decimals,
+            address: fund.delta.address,
+            decimals: fund.token.decimals,
           }).balance
 
           // Add to route tokens and calls
