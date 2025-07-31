@@ -19,6 +19,10 @@ import {
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
 import { IntentType } from '@eco-foundation/routes-ts'
 
+/**
+ * Main service for handling Rhinestone WebSocket events and executing transactions.
+ * Listens for relayer actions and executes fills and claims on-chain.
+ */
 @Injectable()
 export class RhinestoneService implements OnModuleInit {
   private readonly logger = new Logger(RhinestoneService.name)
@@ -31,30 +35,44 @@ export class RhinestoneService implements OnModuleInit {
     private readonly rhinestoneValidatorService: RhinestoneValidatorService,
   ) {}
 
+  /**
+   * Initialize the service by connecting to the WebSocket server
+   */
   async onModuleInit() {
     // Connect to the WebSocket server
     await this.rhinestoneWebsocketService.connect()
   }
 
-  // Listen for connection events
+  /**
+   * Handle WebSocket connection events
+   */
   @OnEvent(RHINESTONE_EVENTS.CONNECTED)
   handleConnection() {
     this.logger.log('Connected to Rhinestone WebSocket')
   }
 
-  // Listen for disconnection events
+  /**
+   * Handle WebSocket disconnection events
+   * @param payload Contains disconnection code and reason
+   */
   @OnEvent(RHINESTONE_EVENTS.DISCONNECTED)
   handleDisconnection(payload: { code: number; reason: string }) {
     this.logger.log(`Disconnected from Rhinestone WebSocket: ${payload.code} - ${payload.reason}`)
   }
 
-  // Listen for Ping messages
+  /**
+   * Handle incoming ping messages from the WebSocket server
+   * @param message The ping message
+   */
   @OnEvent(RHINESTONE_EVENTS.MESSAGE_PING)
   handlePingMessage(message: RhinestonePingMessage) {
     this.logger.log(`Received Ping message: ${JSON.stringify(message)}`)
   }
 
-  // Listen for Relayer Action V1 messages
+  /**
+   * Handle incoming relayer action messages, validate, and execute them
+   * @param message The relayer action containing fills and claims
+   */
   @OnEvent(RHINESTONE_EVENTS.RELAYER_ACTION_V1)
   async handleRelayerAction(message: RhinestoneRelayerActionV1) {
     this.logger.log(`Received RhinestoneRelayerActionV1`)
@@ -87,7 +105,10 @@ export class RhinestoneService implements OnModuleInit {
     }
   }
 
-  // Listen for errors
+  /**
+   * Handle WebSocket error events
+   * @param error The error that occurred
+   */
   @OnEvent(RHINESTONE_EVENTS.ERROR)
   handleError(error: Error) {
     this.logger.error(`WebSocket error: ${error.message}`)

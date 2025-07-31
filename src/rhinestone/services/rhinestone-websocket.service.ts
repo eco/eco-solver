@@ -11,6 +11,9 @@ import {
 } from '../types/rhinestone-websocket.types'
 import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 
+/**
+ * Configuration for the Rhinestone WebSocket connection
+ */
 export interface RhinestoneWebsocketConfig {
   url: string
   reconnect?: boolean
@@ -20,6 +23,10 @@ export interface RhinestoneWebsocketConfig {
   headers?: Record<string, string>
 }
 
+/**
+ * Service for managing WebSocket connections to the Rhinestone orchestrator.
+ * Handles connection lifecycle, message parsing, and automatic reconnection.
+ */
 @Injectable()
 export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RhinestoneWebsocketService.name)
@@ -45,15 +52,25 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     }
   }
 
+  /**
+   * Module initialization - service is ready but won't connect until explicitly called
+   */
   async onModuleInit() {
     // Service is ready but won't connect until explicitly called
     this.logger.log('RhinestoneWebsocketService initialized')
   }
 
+  /**
+   * Module cleanup - ensures WebSocket is properly disconnected
+   */
   async onModuleDestroy() {
     await this.disconnect()
   }
 
+  /**
+   * Establish WebSocket connection to the Rhinestone orchestrator
+   * @throws {Error} If connection fails
+   */
   async connect(): Promise<void> {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.logger.warn('WebSocket is already connected')
@@ -75,6 +92,11 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     }
   }
 
+  /**
+   * Send a message through the WebSocket connection
+   * @param message The message to send (will be stringified if not already a string)
+   * @throws {Error} If WebSocket is not connected
+   */
   async send(message: any): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket is not connected')
@@ -95,6 +117,9 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     })
   }
 
+  /**
+   * Disconnect the WebSocket connection and clean up resources
+   */
   async disconnect(): Promise<void> {
     this.isIntentionallyClosed = true
 
@@ -114,14 +139,25 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     }
   }
 
+  /**
+   * Check if WebSocket is currently connected
+   * @returns true if connected, false otherwise
+   */
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN
   }
 
+  /**
+   * Get the current WebSocket ready state
+   * @returns WebSocket ready state or null if not initialized
+   */
   getReadyState(): number | null {
     return this.ws ? this.ws.readyState : null
   }
 
+  /**
+   * Set up WebSocket event handlers for open, message, close, error, ping, and pong events
+   */
   private setupEventHandlers() {
     if (!this.ws) return
 
@@ -191,6 +227,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     })
   }
 
+  /**
+   * Parse incoming WebSocket message data
+   * @param data Raw WebSocket data
+   * @returns Parsed Rhinestone message
+   * @throws {Error} If message format is invalid
+   */
   private parseMessage(data: WebSocket.Data): RhinestoneMessage {
     let parsedData: any
 
@@ -210,6 +252,9 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     return parsedData
   }
 
+  /**
+   * Start periodic ping messages to keep connection alive
+   */
   private startPingInterval() {
     if (!this.config.pingInterval) return
 
@@ -221,6 +266,9 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     }, this.config.pingInterval)
   }
 
+  /**
+   * Stop the ping interval timer
+   */
   private stopPingInterval() {
     if (this.pingInterval) {
       clearInterval(this.pingInterval)
@@ -228,6 +276,9 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     }
   }
 
+  /**
+   * Attempt to reconnect to the WebSocket server after disconnection
+   */
   private attemptReconnect() {
     if (
       !this.config.maxReconnectAttempts ||

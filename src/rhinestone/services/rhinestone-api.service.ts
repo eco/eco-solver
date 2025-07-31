@@ -4,12 +4,18 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 import { RhinestoneConfig } from '@/eco-configs/eco-config.types'
 
+/**
+ * Fill preconfirmation event to be posted to the Rhinestone orchestrator
+ */
 export interface FillPreconfirmationEvent {
   type: 'FillPreconfirmation'
   chainId: number
   txHash: Hash
 }
 
+/**
+ * Response from the bundle events API endpoint
+ */
 export interface BundleEventsResponse {
   bundleId: string
   events: Array<{
@@ -19,6 +25,10 @@ export interface BundleEventsResponse {
   }>
 }
 
+/**
+ * Service for interacting with the Rhinestone orchestrator API.
+ * Handles posting fill preconfirmations and retrieving bundle events.
+ */
 @Injectable()
 export class RhinestoneApiService implements OnModuleInit {
   private readonly logger = new Logger(RhinestoneApiService.name)
@@ -26,6 +36,9 @@ export class RhinestoneApiService implements OnModuleInit {
 
   constructor(private readonly rhinestoneConfigService: RhinestoneConfigService) {}
 
+  /**
+   * Initialize the service by loading configuration
+   */
   onModuleInit() {
     this.config = this.rhinestoneConfigService.getAPI()
   }

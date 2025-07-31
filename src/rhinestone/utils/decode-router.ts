@@ -1,12 +1,17 @@
 import { Address, decodeFunctionData, Hex, parseAbi } from 'viem'
 
-// Function selectors
+/**
+ * Function selectors for router call types
+ */
 const SELECTORS = {
   singleCall: '0x8f5d232d', // singleCall(address,bytes)
   multiCall: '0xac9650d8', // multiCall((address,uint256,bytes)[])
   multiCallWithDrainToken: '0x3f579497', // multiCallWithDrainToken((address,uint256,bytes)[],uint256[2][],address)
 } as const
 
+/**
+ * ABI for multiCall function
+ */
 const MULTI_CALL_ABI = parseAbi([
   'function multiCall((address target, uint256 value, bytes callData)[] executions)',
 ])
@@ -15,7 +20,7 @@ const MULTI_CALL_ABI = parseAbi([
  * Decodes the calls that would be executed by the _routeFill function in RouterLogic.sol
  *
  * @param adapterCalldata - The calldata passed to _routeFill
- * @returns The decoded call information
+ * @returns The decoded call information with type, selector, and executions (if applicable)
  */
 export function decodeRouteFillCall(adapterCalldata: Hex) {
   // Extract the selector (first 4 bytes)

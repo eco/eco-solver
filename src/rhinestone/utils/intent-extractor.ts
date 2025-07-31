@@ -10,14 +10,19 @@ import {
 } from 'viem'
 import { RhinestoneOrder } from '@/rhinestone/types/rhinestone-contracts.types'
 
-// Import Order type from contract ABI using Viem's generics
-// This assumes you have the contract ABI available
+/**
+ * Type alias for Rhinestone Order
+ */
 export type Order = RhinestoneOrder
 
-// Constants
+/**
+ * Native token address constant (zero address)
+ */
 const NATIVE_TOKEN = zeroAddress
 
-// Execution type enum (matches SmartExecutionLib.Type)
+/**
+ * Execution type enum (matches SmartExecutionLib.Type)
+ */
 enum ExecutionType {
   Eip712Hash = 1,
   Calldata = 2,
@@ -25,20 +30,30 @@ enum ExecutionType {
   MultiCall = 4,
 }
 
-// Type for ERC7579 Execution
+/**
+ * Type for ERC7579 Execution
+ */
 type Execution = {
   target: Address
   value: bigint
   callData: Hex
 }
 
-// Helper function to convert uint256 to address (similar to IdLib.toAddress)
+/**
+ * Convert uint256 to address (similar to IdLib.toAddress)
+ * @param id The uint256 ID to convert
+ * @returns The address from the lower 160 bits
+ */
 function toAddress(id: bigint): Address {
   // Take the lower 160 bits of the uint256 to get the address
   return getAddress(`0x${id.toString(16).padStart(40, '0').slice(-40)}`)
 }
 
-// Helper function to decode qualifier data
+/**
+ * Decode qualifier data to extract inbox, prover, and id
+ * @param qualifier The hex-encoded qualifier data
+ * @returns Object containing inbox address, prover address, and id
+ */
 function decodeQualifier(qualifier: Hex) {
   const data = qualifier.slice(2) // Remove '0x'
   return {
@@ -48,13 +63,21 @@ function decodeQualifier(qualifier: Hex) {
   }
 }
 
-// Helper function to decode inbox from qualifier
+/**
+ * Extract inbox address from qualifier data
+ * @param qualifier The hex-encoded qualifier data
+ * @returns The inbox address
+ */
 function decodeInbox(qualifier: Hex): Address {
   const { inbox } = decodeQualifier(qualifier)
   return inbox
 }
 
-// Helper function to get execution type from Operation
+/**
+ * Determine execution type from operation data
+ * @param operation The operation containing data field
+ * @returns The execution type enum value
+ */
 function getExecutionType(operation: { data: Hex }): ExecutionType {
   if (operation.data.length === 0 || operation.data === '0x') {
     return ExecutionType.Eip712Hash
@@ -64,7 +87,11 @@ function getExecutionType(operation: { data: Hex }): ExecutionType {
   return typeByte as ExecutionType
 }
 
-// Helper function to decode ERC7579 batch execution
+/**
+ * Decode ERC7579 batch execution data
+ * @param data The hex-encoded batch execution data
+ * @returns Array of execution structs
+ */
 function decodeERC7579Batch(data: Hex): Execution[] {
   // Skip the first byte (type indicator)
   const dataWithoutType = `0x${data.slice(4)}` as Hex
@@ -92,7 +119,11 @@ function decodeERC7579Batch(data: Hex): Execution[] {
   )[0] as Execution[]
 }
 
-// Helper function to decode calldata execution
+/**
+ * Decode calldata execution to extract target and call data
+ * @param data The hex-encoded calldata execution
+ * @returns Object with target address and call data
+ */
 function decodeCalldata(data: Hex): { target: Address; callData: Hex } {
   // Skip the first byte (type indicator)
   const dataWithoutType = `0x${data.slice(4)}` as Hex
@@ -106,7 +137,14 @@ function decodeCalldata(data: Hex): { target: Address; callData: Hex } {
   return { target: getAddress(target), callData }
 }
 
-// Helper function to encode target executions
+/**
+ * Encode target executions based on operation type
+ * @param tokenLength Number of token transfer calls
+ * @param order The Rhinestone order
+ * @param claimHash Hash of the claim data
+ * @param claimHashOracle Address of the claim hash oracle
+ * @returns Array of encoded calls
+ */
 function encodeTargetExecutions(
   tokenLength: number,
   order: Order,

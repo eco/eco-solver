@@ -17,6 +17,10 @@ import {
 } from '@/rhinestone/types/rhinestone-websocket.types'
 import { RhinestoneRouterRouteFn } from '@/rhinestone/types/rhinestone-contracts.types'
 
+/**
+ * Service for validating Rhinestone relayer actions and their components.
+ * Ensures that fills and claims are valid and properly formatted.
+ */
 @Injectable()
 export class RhinestoneValidatorService {
   private readonly logger = new Logger(RhinestoneValidatorService.name)
@@ -27,6 +31,12 @@ export class RhinestoneValidatorService {
     private readonly rhinestoneContractsService: RhinestoneContractsService,
   ) {}
 
+  /**
+   * Validate a relayer action message including fill and claim validation
+   * @param message The relayer action message to validate
+   * @returns The validated intent and fill data
+   * @throws {EcoError} If validation fails
+   */
   async validateRelayerAction(message: RhinestoneRelayerActionV1) {
     const { fill, claims } = message
 
@@ -66,6 +76,12 @@ export class RhinestoneValidatorService {
     return { intent, fillData }
   }
 
+  /**
+   * Validate a fill action from a relayer message
+   * @param chainAction The chain action containing the fill
+   * @returns The decoded fill data
+   * @throws {EcoError} If fill validation fails
+   */
   private async validateFill(chainAction: ChainAction) {
     const router = chainAction.call.to
     const chainID = chainAction.call.chainId
@@ -88,6 +104,12 @@ export class RhinestoneValidatorService {
     return fillData
   }
 
+  /**
+   * Validate a claim action from a relayer message
+   * @param chainAction The chain action containing the claim
+   * @returns The extracted intent and fill data
+   * @throws {EcoError} If claim validation fails
+   */
   private async validateClaim(chainAction: ChainAction) {
     const isSettlementLayerValid =
       chainAction.settlementLayer === this.rhinestoneConfigService.getOrder().settlementLayer
@@ -131,6 +153,12 @@ export class RhinestoneValidatorService {
     return { intent, fillData }
   }
 
+  /**
+   * Validate that a call is to the correct router with zero value
+   * @param call The chain call to validate
+   * @returns The decoded router call
+   * @throws {EcoError} If router validation fails
+   */
   private validateRouterCall(call: ChainCall) {
     const { router } = this.rhinestoneConfigService.getContracts(call.chainId)
 
@@ -171,6 +199,15 @@ export class RhinestoneValidatorService {
     }
   }
 
+  /**
+   * Validate adapter and arbiter addresses match expected configuration
+   * @param chainId The chain ID to validate on
+   * @param router The router address
+   * @param type Whether validating fill or claim adapter
+   * @param selector The function selector
+   * @returns The validated adapter and arbiter addresses
+   * @throws {EcoError} If addresses don't match configuration
+   */
   private async validateAdapterAndArbiter(
     chainId: number,
     router: Address,
@@ -210,6 +247,13 @@ export class RhinestoneValidatorService {
     return { adapterAddr, arbiterAddr }
   }
 
+  /**
+   * Extract and validate a single route call from decoded router data
+   * @param decodedCall The decoded function call data
+   * @param functionName The expected function name (routeFill or routeClaim)
+   * @returns The solver context and adapter calldata
+   * @throws {EcoError} If not exactly one route call is found
+   */
   private extractRouteCall(
     decodedCall: { functionName: string; args?: unknown } | RhinestoneRouterRouteFn,
     functionName: 'routeFill' | 'routeClaim',
