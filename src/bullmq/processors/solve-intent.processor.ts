@@ -67,9 +67,6 @@ export class SolveIntentProcessor extends WorkerHost {
         case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
           result = await this.feasableIntentService.feasableIntent(job.data as Hex)
           break
-        case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
-          result = await this.fulfillIntentService.fulfill(job.data as Hex)
-          break
         default:
           throw new Error(`Unknown job type: ${job.name}`)
       }
