@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { CacheModule } from '@nestjs/cache-manager'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { IntentModule } from '@/intent/intent.module'
 import { EcoConfigModule } from '@/eco-configs/eco-config.module'
@@ -8,15 +9,29 @@ import { RhinestoneApiService } from '@/rhinestone/services/rhinestone-api.servi
 import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 import { RhinestoneWebsocketService } from '@/rhinestone/services/rhinestone-websocket.service'
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { RhinestoneContractsService } from '@/rhinestone/services/rhinestone-contracts.service'
+import { ONE_HOUR } from '@/common/time'
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), EcoConfigModule, TransactionModule, IntentModule],
+  imports: [
+    EcoConfigModule,
+    TransactionModule,
+    IntentModule,
+    EventEmitterModule.forRoot(),
+    CacheModule.registerAsync({
+      useFactory: async (configService: EcoConfigService) =>
+        configService.getRhinestone().cache ?? { ttl: ONE_HOUR },
+      inject: [EcoConfigService],
+    }),
+  ],
   providers: [
     RhinestoneService,
     RhinestoneApiService,
     RhinestoneConfigService,
     RhinestoneWebsocketService,
     RhinestoneValidatorService,
+    RhinestoneContractsService,
   ],
 })
 export class RhinestoneModule {}

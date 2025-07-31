@@ -16,11 +16,13 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
     descriptor.value = async function (...args: any[]) {
       const cacheManager: Cache = this.cacheManager // Injected service
       const configService: EcoConfigService = this.configService // Injected service
-      if (opts && !opts.ttl) {
-        opts.ttl = configService.getCache().ttl
-      } else {
-        opts = {
-          ttl: configService.getCache().ttl,
+      if (configService) {
+        if (opts && !opts.ttl) {
+          opts.ttl = configService.getCache().ttl
+        } else {
+          opts = {
+            ttl: configService.getCache().ttl,
+          }
         }
       }
 
@@ -28,7 +30,7 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
       const cacheKey = `${key}:${JSON.stringify(args)}` // Unique key for the cache
 
       // Determine whether to bypass cache
-      const forceRefresh = opts.bypassArgIndex ? args[opts.bypassArgIndex] === true : false
+      const forceRefresh = opts?.bypassArgIndex ? args[opts.bypassArgIndex] === true : false
 
       if (!forceRefresh) {
         const cachedData = await cacheManager.get(cacheKey)
@@ -39,7 +41,7 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
 
       // Call the original method to fetch fresh data
       const result = await originalMethod.apply(this, args)
-      await cacheManager.set(cacheKey, serializeWithBigInt(result), opts.ttl)
+      await cacheManager.set(cacheKey, serializeWithBigInt(result), opts?.ttl)
       return result
     }
 

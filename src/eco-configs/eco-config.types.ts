@@ -532,11 +532,15 @@ export interface RhinestoneConfig {
   order: {
     settlementLayer: string
   }
+  cache?: {
+    ttl: number
+  }
   contracts: Record<
     string,
     {
       router: Hex
       ecoAdapter: Hex
+      ecoArbiter: Hex
     }
   >
 }

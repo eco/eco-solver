@@ -57,7 +57,7 @@ export class RhinestoneService implements OnModuleInit {
   // Listen for Relayer Action V1 messages
   @OnEvent(RHINESTONE_EVENTS.RELAYER_ACTION_V1)
   async handleRelayerAction(message: RhinestoneRelayerActionV1) {
-    this.logger.log(`Received RhinestoneRelayerActionV1: ${JSON.stringify(message)}`)
+    this.logger.log(`Received RhinestoneRelayerActionV1`)
 
     // Throws if the message is invalid
     const { intent } = await this.rhinestoneValidatorService.validateRelayerAction(message)

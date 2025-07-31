@@ -39,25 +39,12 @@ function toAddress(id: bigint): Address {
 }
 
 // Helper function to decode qualifier data
-function decodeQualifier(qualifier: Hex): {
-  inbox: Address
-  prover: Address
-  id: Hex
-} {
-  // Decode the qualifier bytes according to EcoQualifierDataEncodingLib
-  const decoded = decodeAbiParameters(
-    [
-      { name: 'inbox', type: 'address' },
-      { name: 'prover', type: 'address' },
-      { name: 'id', type: 'bytes32' },
-    ],
-    qualifier,
-  )
-
+function decodeQualifier(qualifier: Hex) {
+  const data = qualifier.slice(2) // Remove '0x'
   return {
-    inbox: decoded[0] as Address,
-    prover: decoded[1] as Address,
-    id: decoded[2] as Hex,
+    inbox: ('0x' + data.slice(0, 40)) as Address,
+    prover: ('0x' + data.slice(40, 80)) as Address,
+    id: ('0x' + data.slice(80, 144)) as Hex,
   }
 }
 
@@ -192,14 +179,14 @@ function encodeTargetExecutions(
  * Converts a Rhinestone Order to an Eco Route
  * @param order The Rhinestone order containing intent details and token outputs
  * @param claimHash Hash of the claim data for cross-chain verification
- * @param currentChainId The current chain ID (source chain)
+ * @param chainID The current chain ID (source chain)
  * @param claimHashOracle Optional address of the claim hash oracle (defaults to CLAIMHASH_ORACLE)
  * @returns The constructed Eco Route ready for execution
  */
 export function toRoute(
   order: Order,
   claimHash: Hex,
-  currentChainId: bigint,
+  chainID: number,
   claimHashOracle: Address,
 ): RouteType {
   // Extract inbox address from qualifier
@@ -264,7 +251,7 @@ export function toRoute(
 
   return {
     salt: `0x${order.nonce.toString(16).padStart(64, '0')}` as `0x${string}`,
-    source: currentChainId,
+    source: BigInt(chainID),
     destination: order.targetChainId,
     inbox: inbox,
     tokens: tokens,

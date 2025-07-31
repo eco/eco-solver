@@ -21,8 +21,14 @@ export class MockEcoConfigService {
       },
       contracts: {
         '10': {
-          router: '0x0000000000000000000000000000000000000000',
-          ecoAdapter: '0x0000000000000000000000000000000000000000',
+          router: '0x000000000004598d17aad017bf0734a364c5588b',
+          ecoAdapter: '0xa0de4A8e033FBceC2BFa708FaD59e1587839b4Ca',
+          ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
+        },
+        '8453': {
+          router: '0x000000000004598d17aad017bf0734a364c5588b',
+          ecoAdapter: '0xa0de4A8e033FBceC2BFa708FaD59e1587839b4Ca',
+          ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
         },
       },
     },

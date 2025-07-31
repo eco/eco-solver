@@ -1,31 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
+import { hashIntent, hashRoute } from '@eco-foundation/routes-ts'
 import { Address, encodePacked, Hex, isAddressEqual, keccak256 } from 'viem'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { ValidateIntentService } from '@/intent/validate-intent.service'
+import { toReward, toRoute } from '@/rhinestone/utils/intent-extractor'
+import { decodeRouteFillCall } from '@/rhinestone/utils/decode-router'
+import { decodeAdapterClaim, decodeAdapterFill, decodeRouterCall } from '@/rhinestone/utils/decoder'
+import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
+import { RhinestoneContractsService } from '@/rhinestone/services/rhinestone-contracts.service'
 import {
   ChainAction,
   ChainCall,
   RhinestoneRelayerActionV1,
-} from '../types/rhinestone-websocket.types'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { ecoArbiterAbi } from '@/contracts/rhinestone/EcoArbiter'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { toReward, toRoute } from '@/rhinestone/utils/intent-extractor'
-import { decodeClaim, decodeFill, decodeRouterCall } from '@/rhinestone/utils/decoder'
-import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
-import { hashIntent, hashRoute } from '@eco-foundation/routes-ts'
-import { ValidateIntentService } from '@/intent/validate-intent.service'
+} from '@/rhinestone/types/rhinestone-websocket.types'
 
 @Injectable()
 export class RhinestoneValidatorService {
   private readonly logger = new Logger(RhinestoneValidatorService.name)
 
-  private readonly claimHashOracles = new Map<string, Hex>()
-
   constructor(
-    private readonly publicClient: MultichainPublicClientService,
     private readonly validateIntentService: ValidateIntentService,
     private readonly rhinestoneConfigService: RhinestoneConfigService,
+    private readonly rhinestoneContractsService: RhinestoneContractsService,
   ) {}
 
   async validateRelayerAction(message: RhinestoneRelayerActionV1) {
@@ -38,9 +36,7 @@ export class RhinestoneValidatorService {
 
     const [claim] = claims
 
-    // TODO: Validate intent source and destination are different
-
-    const decodedFill = this.validateFill(fill)
+    const decodedFill = await this.validateFill(fill)
     const { intent, fillData } = await this.validateClaim(claim)
 
     const { intentHash: claimIntentHash } = hashIntent(intent)
@@ -69,39 +65,13 @@ export class RhinestoneValidatorService {
     return { intent, fillData }
   }
 
-  async getClaimHashOracle(chainId: bigint, ecoAdapterAddr: Hex) {
-    const id = `${chainId}-${ecoAdapterAddr}`
-    if (this.claimHashOracles.has(id)) return this.claimHashOracles.get(id)!
-
-    const publicClient = await this.publicClient.getClient(Number(chainId))
-
-    const claimHashOracle = await publicClient.readContract({
-      abi: ecoArbiterAbi,
-      address: ecoAdapterAddr,
-      functionName: 'CLAIMHASH_ORACLE',
-    })
-
-    this.claimHashOracles.set(id, claimHashOracle)
-
-    return claimHashOracle
-  }
-
-  private validateFill(chainAction: ChainAction) {
-    const isSettlementLayerValid =
-      chainAction.settlementLayer === this.rhinestoneConfigService.getOrder().settlementLayer
-    if (!isSettlementLayerValid) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Fill: Invalid settlement layer`,
-          properties: { settlementLayer: chainAction.settlementLayer },
-        }),
-      )
-      throw EcoError.InvalidRhinestoneRelayerAction
-    }
+  private async validateFill(chainAction: ChainAction) {
+    const router = chainAction.call.to
+    const chainID = chainAction.call.chainId
 
     const { decodedCall } = this.validateRouterCall(chainAction.call)
 
-    if (decodedCall.functionName !== 'routeClaim') {
+    if (decodedCall.functionName !== 'routeFill') {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Fill: Invalid router call`,
@@ -114,13 +84,13 @@ export class RhinestoneValidatorService {
     const routeFillCalls = _.zipWith(
       decodedCall.args[0],
       decodedCall.args[1],
-      (target: Address, data: Hex) => ({
-        target,
-        data,
+      (solverContext: Address, adapterCalldata: Hex) => ({
+        solverContext,
+        adapterCalldata,
       }),
     )
 
-    if (routeFillCalls.length === 1) {
+    if (routeFillCalls.length !== 1) {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Fill: Invalid route call - Only one call allowed`,
@@ -130,21 +100,47 @@ export class RhinestoneValidatorService {
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
+    // TODO: We need to update the solverContext to the claimant
+
+    const { adapterCalldata } = routeFillCalls[0]
+
+    const { type, selector } = decodeRouteFillCall(adapterCalldata)
+
+    if (type !== 'adapterCall') {
+      throw new EcoError('Claim is not an adapter call')
+    }
+
     const contracts = this.rhinestoneConfigService.getContracts(chainAction.call.chainId)
 
-    const { target: ecoAdapterAddr, data: adapterData } = routeFillCalls[0]
+    const adapterAddr = await this.rhinestoneContractsService.getAdapter(
+      chainID,
+      router,
+      'fill',
+      selector,
+    )
+    const arbiterAddr = await this.rhinestoneContractsService.getArbiter(chainID, adapterAddr)
 
-    if (!isAddressEqual(contracts.ecoAdapter, ecoAdapterAddr)) {
+    if (!isAddressEqual(contracts.ecoAdapter, adapterAddr)) {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Fill: Invalid eco adapter address`,
-          properties: { expected: contracts.ecoAdapter, received: ecoAdapterAddr },
+          message: `Claim: Invalid eco adapter address`,
+          properties: { expected: contracts.ecoAdapter, received: adapterAddr },
         }),
       )
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
-    const [fillData] = decodeFill(adapterData)
+    if (!isAddressEqual(contracts.ecoArbiter, arbiterAddr)) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Claim: Invalid eco arbiter address`,
+          properties: { expected: contracts.ecoArbiter, received: arbiterAddr },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    const [fillData] = decodeAdapterFill(adapterCalldata)
 
     return fillData
   }
@@ -162,9 +158,14 @@ export class RhinestoneValidatorService {
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
+    const contracts = this.rhinestoneConfigService.getContracts(chainAction.call.chainId)
+
+    const chainID = chainAction.call.chainId
+    const router = chainAction.call.to
+
     const { decodedCall } = this.validateRouterCall(chainAction.call)
 
-    if (decodedCall.functionName !== 'routeFill') {
+    if (decodedCall.functionName !== 'routeClaim') {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Claim: Invalid router call`,
@@ -177,13 +178,13 @@ export class RhinestoneValidatorService {
     const routeClaimCalls = _.zipWith(
       decodedCall.args[0],
       decodedCall.args[1],
-      (target: Address, data: Hex) => ({
-        target,
-        data,
+      (solverContext: Address, adapterCalldata: Hex) => ({
+        solverContext,
+        adapterCalldata,
       }),
     )
 
-    if (routeClaimCalls.length === 1) {
+    if (routeClaimCalls.length !== 1) {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Claim: Invalid route call - Only one call allowed`,
@@ -193,27 +194,51 @@ export class RhinestoneValidatorService {
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
-    const contracts = this.rhinestoneConfigService.getContracts(chainAction.call.chainId)
+    const { adapterCalldata } = routeClaimCalls[0]
 
-    const { target: ecoAdapterAddr, data: adapterData } = routeClaimCalls[0]
+    const { type, selector } = decodeRouteFillCall(adapterCalldata)
 
-    if (!isAddressEqual(contracts.ecoAdapter, ecoAdapterAddr)) {
+    if (type !== 'adapterCall') {
+      throw new EcoError('Claim is not an adapter call')
+    }
+
+    const adapterAddr = await this.rhinestoneContractsService.getAdapter(
+      chainID,
+      router,
+      'claim',
+      selector,
+    )
+    const arbiterAddr = await this.rhinestoneContractsService.getArbiter(chainID, adapterAddr)
+
+    if (!isAddressEqual(contracts.ecoAdapter, adapterAddr)) {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Claim: Invalid eco adapter address`,
-          properties: { expected: contracts.ecoAdapter, received: ecoAdapterAddr },
+          properties: { expected: contracts.ecoAdapter, received: adapterAddr },
         }),
       )
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
-    const fillData = decodeClaim(adapterData)
+    if (!isAddressEqual(contracts.ecoArbiter, arbiterAddr)) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Claim: Invalid eco arbiter address`,
+          properties: { expected: contracts.ecoArbiter, received: arbiterAddr },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    const fillData = decodeAdapterClaim(adapterCalldata)
     const { order, claimHash } = fillData
 
-    const chainId = BigInt(chainAction.call.chainId)
-    const claimHashOracle = await this.getClaimHashOracle(chainId, ecoAdapterAddr)
+    const claimHashOracle = await this.rhinestoneContractsService.getClaimHashOracle(
+      chainID,
+      arbiterAddr,
+    )
 
-    const route = toRoute(order, claimHash, chainId, claimHashOracle)
+    const route = toRoute(order, claimHash, chainID, claimHashOracle)
     const reward = toReward(order)
 
     const intent = { route, reward }
@@ -224,14 +249,23 @@ export class RhinestoneValidatorService {
   private validateRouterCall(call: ChainCall) {
     const { router } = this.rhinestoneConfigService.getContracts(call.chainId)
 
-    const isRouterCalled = isAddressEqual(router, call.to)
     const isValueZero = BigInt(call.value) === 0n
 
-    if (!isRouterCalled || !isValueZero) {
+    if (!isAddressEqual(call.to, router)) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `Fill: Invalid router address`,
+          properties: { expected: router, received: call.to },
+        }),
+      )
+      throw EcoError.InvalidRhinestoneRelayerAction
+    }
+
+    if (!isValueZero) {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Failed to execute router call`,
-          properties: { isRouterCalled, isValueZero },
+          properties: { isValueZero },
         }),
       )
 

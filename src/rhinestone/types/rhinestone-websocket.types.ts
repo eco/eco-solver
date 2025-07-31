@@ -65,7 +65,7 @@ export type ChainCall = {
 
 export type ChainAction = {
   id: number
-  settlementLayer: string
+  settlementLayer?: string
   call: ChainCall
 }
 

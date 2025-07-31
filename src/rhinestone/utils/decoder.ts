@@ -7,12 +7,10 @@ export function decodeRouterCall(data: Hex) {
   return decodeFunctionData({ abi: rhinestoneRouterAbi, data })
 }
 
-export function decodeClaim(data: Hex) {
-  const claimRouterData = decodeRouterCall(data)
-
+export function decodeAdapterClaim(data: Hex) {
   const decoded = decodeFunctionData({
     abi: ecoAdapterAbi,
-    data: claimRouterData.args[1]![0] as Hex,
+    data,
   })
 
   if (decoded.functionName === 'eco_handleClaim') {
@@ -22,7 +20,7 @@ export function decodeClaim(data: Hex) {
   throw EcoError.InvalidDecodedFunctionData(decoded.functionName)
 }
 
-export function decodeFill(data: Hex) {
+export function decodeAdapterFill(data: Hex) {
   const decoded = decodeFunctionData({ abi: ecoAdapterAbi, data })
 
   if (decoded.functionName === 'eco_handleFill_ERC7579') {
