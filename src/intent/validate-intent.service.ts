@@ -91,7 +91,7 @@ export class ValidateIntentService implements OnModuleInit {
    * @returns true if the intent is valid, false otherwise
    */
   async validateFullIntent(intent: IntentType, flags?: AssertValidationsFlags): Promise<boolean> {
-    const sourceChainId = Number(intent.route.source)
+    const sourceChainId = Number(intent.route.destination)
     const solver = this.ecoConfigService.getSolver(sourceChainId)
 
     if (!solver) {

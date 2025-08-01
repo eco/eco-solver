@@ -127,7 +127,8 @@ export class ValidationService implements OnModuleInit {
     const supportedTargets = this.supportedTargets(intent, solver, flags?.useRouteTokens)
     const supportedTransaction =
       flags?.skipTransactionValidation || this.supportedTransaction(intent, solver, txValidationFn)
-    const validTransferLimit = flags?.skipLimitValidation || (await this.validTransferLimit(intent))
+    const validTransferLimit =
+      flags?.skipLimitValidation || (await this.validTransferLimit(intent, flags?.useRouteTokens))
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
@@ -270,10 +271,17 @@ export class ValidationService implements OnModuleInit {
   /**
    * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
    * @param intent the source intent model
+   * @param useRouteTokens if true, uses tokens from route.tokens; if false, uses function targets from calls
    * @returns  true if the transfer is within the bounds
    */
-  async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
-    const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
+  async validTransferLimit(
+    intent: ValidationIntentInterface,
+    useRouteTokens = false,
+  ): Promise<boolean> {
+    const { totalFillNormalized, error } = await this.feeService.getTotalFill(
+      intent,
+      useRouteTokens,
+    )
     if (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({

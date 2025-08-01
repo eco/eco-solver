@@ -1,4 +1,5 @@
 import { NormalizedTotal } from './types'
+import { encodeFunctionData, erc20Abi, zeroAddress } from 'viem'
 
 type BalanceObject = {
   balance: bigint
@@ -59,4 +60,16 @@ export function isGreaterEqual(a: NormalizedTotal, b: NormalizedTotal): boolean 
 
 export function formatNormalizedTotal(total: NormalizedTotal): string {
   return `Token: ${total.token.toString()} - Native: ${total.native}`
+}
+
+export function getTransferFromTokens(tokens: readonly { amount: bigint; token: `0x${string}` }[]) {
+  return tokens.map((token) => ({
+    target: token.token,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [zeroAddress, token.amount],
+    }),
+  }))
 }

@@ -4,9 +4,11 @@ import { RhinestoneService } from './rhinestone.service'
 import { RhinestoneRelayerActionV1 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from './rhinestone-validator.service'
 import { RhinestoneStandaloneModule } from '@/rhinestone/standalone/rhinestone-standalone.module'
+import { FeeService } from '@/fee/fee.service'
 
 describe('RhinestoneService', () => {
   let service: RhinestoneService
+  let feeService: FeeService
   let rhinestoneValidatorService: RhinestoneValidatorService
 
   beforeEach(async () => {
@@ -15,7 +17,10 @@ describe('RhinestoneService', () => {
     }).compile()
 
     service = module.get<RhinestoneService>(RhinestoneService)
+    feeService = module.get<FeeService>(FeeService)
     rhinestoneValidatorService = module.get<RhinestoneValidatorService>(RhinestoneValidatorService)
+
+    feeService.onModuleInit()
 
     // Mock logger methods
     jest.spyOn(service['logger'], 'log').mockImplementation()

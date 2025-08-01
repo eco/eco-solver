@@ -70,7 +70,6 @@ export class RhinestoneValidatorService {
 
     const isValidIntent = await this.validateIntentService.validateFullIntent(intent, {
       skipIntentFunded: true,
-      skipLimitValidation: true,
       skipTransactionValidation: true,
       useRouteTokens: true,
     })

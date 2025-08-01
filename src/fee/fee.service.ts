@@ -9,10 +9,10 @@ import {
   WhitelistFeeRecord,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
-import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
+import { getTransferFromTokens, isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
 import {
   getFunctionCalls,
-  getFunctionTargets,
+  getIntentTokens,
   getNativeCalls,
   getTransactionTargetData,
   isNativeIntent,
@@ -202,12 +202,14 @@ export class FeeService implements OnModuleInit {
    * Calculates the total normalized fill for the quote intent
    *
    * @param quote the quote intent
+   * @param useRouteTokens if true, uses tokens from route.tokens; if false, uses function targets from calls
    * @returns
    */
   async getTotalFill(
     quote: QuoteIntentDataInterface,
+    useRouteTokens = false,
   ): Promise<{ totalFillNormalized: NormalizedTotal; error?: Error }> {
-    const { calls, error } = await this.getCallsNormalized(quote)
+    const { calls, error } = await this.getCallsNormalized(quote, useRouteTokens)
     if (error) {
       return { totalFillNormalized: { token: 0n, native: 0n }, error }
     }
@@ -442,10 +444,13 @@ export class FeeService implements OnModuleInit {
    * Throws if there is not enough liquidity for the call
    *
    * @param quote the quote intent
-   * @param solver the solver for the quote intent
+   * @param useRouteTokens if true, uses tokens from route.tokens; if false, uses function targets from calls
    * @returns
    */
-  async getCallsNormalized(quote: QuoteIntentDataInterface): Promise<{
+  async getCallsNormalized(
+    quote: QuoteIntentDataInterface,
+    useRouteTokens = false,
+  ): Promise<{
     calls: NormalizedCall[]
     error: Error | undefined
   }> {
@@ -454,7 +459,7 @@ export class FeeService implements OnModuleInit {
       return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
     }
 
-    const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])
+    const functionTargets = getIntentTokens(quote, useRouteTokens)
 
     // Function targets can be an empty array for a quote that only has native calls.
     if (functionTargets.length === 0 && isNativeIntent(quote)) {
@@ -493,7 +498,9 @@ export class FeeService implements OnModuleInit {
     let calls: NormalizedCall[] = []
 
     try {
-      const functionalCalls = getFunctionCalls(quote.route.calls as CallDataInterface[])
+      const functionalCalls = useRouteTokens
+        ? getTransferFromTokens(quote.route.tokens)
+        : getFunctionCalls(quote.route.calls as CallDataInterface[])
 
       calls = functionalCalls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
