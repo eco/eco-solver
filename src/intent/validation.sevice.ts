@@ -20,7 +20,7 @@ import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '../balance/balance.service'
+import { BalanceService } from '@/balance/balance.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -76,11 +76,20 @@ export type ValidationType = {
 
 export type TxValidationFn = (tx: TransactionTargetData) => boolean
 
+/**
+ * Flags to skip specific validations
+ */
+export interface ValidationFlags {
+  skipLimitValidation?: boolean
+  skipTransactionValidation?: boolean
+}
+
 @Injectable()
 export class ValidationService implements OnModuleInit {
   private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
   private minEthBalanceWei: bigint
+
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
@@ -99,12 +108,14 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @param solver the solver for the source chain
    * @param txValidationFn
+   * @param flags
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
     txValidationFn: TxValidationFn = () => true,
+    flags?: ValidationFlags,
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       prover: intent.reward.prover,
@@ -113,8 +124,9 @@ export class ValidationService implements OnModuleInit {
     })
     const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
-    const supportedTransaction = this.supportedTransaction(intent, solver, txValidationFn)
-    const validTransferLimit = await this.validTransferLimit(intent)
+    const supportedTransaction =
+      flags?.skipTransactionValidation || this.supportedTransaction(intent, solver, txValidationFn)
+    const validTransferLimit = flags?.skipLimitValidation || (await this.validTransferLimit(intent))
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)

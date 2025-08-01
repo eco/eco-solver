@@ -1,116 +1,17 @@
+import 'dotenv/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { RhinestoneService } from './rhinestone.service'
-import {
-  RhinestoneMessageType,
-  RhinestoneRelayerActionV1,
-} from '../types/rhinestone-websocket.types'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { RhinestoneApiService } from './rhinestone-api.service'
-import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
+import { RhinestoneRelayerActionV1 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from './rhinestone-validator.service'
-import { RhinestoneConfigService } from './rhinestone-config.service'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { ValidateIntentService } from '@/intent/validate-intent.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Chain } from 'viem'
-import { RhinestoneContractsService } from '@/rhinestone/services/rhinestone-contracts.service'
-import { CacheModule } from '@nestjs/cache-manager'
+import { RhinestoneStandaloneModule } from '@/rhinestone/standalone/rhinestone-standalone.module'
 
 describe('RhinestoneService', () => {
   let service: RhinestoneService
   let rhinestoneValidatorService: RhinestoneValidatorService
 
   beforeEach(async () => {
-    const mockWalletClient = {
-      sendTransaction: jest.fn(),
-      chain: { id: 1 },
-    }
-
-    const mockKernelClient = {
-      execute: jest.fn(),
-    }
-
     const module: TestingModule = await Test.createTestingModule({
-      imports: [CacheModule.register()],
-      providers: [
-        RhinestoneService,
-        RhinestoneConfigService,
-        RhinestoneValidatorService,
-        RhinestoneContractsService,
-        MultichainPublicClientService,
-        {
-          provide: WalletClientDefaultSignerService,
-          useValue: {
-            getClient: jest.fn().mockResolvedValue(mockWalletClient),
-          },
-        },
-        {
-          provide: KernelAccountClientService,
-          useValue: {
-            getClient: jest.fn().mockResolvedValue(mockKernelClient),
-          },
-        },
-        {
-          provide: RhinestoneApiService,
-          useValue: {
-            postFillPreconfirmation: jest.fn().mockResolvedValue(undefined),
-          },
-        },
-        {
-          provide: RhinestoneWebsocketService,
-          useValue: {
-            connect: jest.fn(),
-          },
-        },
-        {
-          provide: ValidateIntentService,
-          useValue: {
-            validateFullIntent: jest.fn().mockResolvedValue(true),
-          },
-        },
-        {
-          provide: EcoConfigService,
-          useValue: {
-            getRhinestone: jest.fn().mockReturnValue({
-              websocket: {
-                url: 'wss://example.com',
-                reconnect: {
-                  auto: true,
-                  delay: 1000,
-                  maxRetries: 5,
-                },
-              },
-              api: {
-                url: 'https://example.com',
-                apiKey: 'test-key',
-              },
-              order: {
-                settlementLayer: 'ECO',
-              },
-              contracts: {
-                '10': {
-                  router: '0x000000000004598d17aad017bf0734a364c5588b',
-                  ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
-                  ecoAdapter: '0xa0de4A8e033FBceC2BFa708FaD59e1587839b4Ca',
-                },
-                '8453': {
-                  router: '0x000000000004598d17aad017bf0734a364c5588b',
-                  ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
-                  ecoAdapter: '0xa0de4A8e033FBceC2BFa708FaD59e1587839b4Ca',
-                },
-              },
-            }),
-            getRpcUrls: jest.fn().mockImplementation((chain: Chain) => ({
-              rpcUrls: [chain.rpcUrls.default.http[0]],
-              config: { isWebsocket: false },
-            })),
-            getEth: jest
-              .fn()
-              .mockReturnValue({ claimant: '0x000000000004598d17aad017bf0734a364c5588b' }),
-          },
-        },
-      ],
+      imports: [RhinestoneStandaloneModule],
     }).compile()
 
     service = module.get<RhinestoneService>(RhinestoneService)
@@ -124,7 +25,7 @@ describe('RhinestoneService', () => {
   })
 
   describe('handleRelayerAction', () => {
-    it('should handle RelayerActionV1 message successfully', async () => {
+    it('should handle RelayerActionV1 message without throwing', async () => {
       const message: RhinestoneRelayerActionV1 = {
         type: 'RelayerActionV1' as any,
         id: '4553030029990925175398279132779686295502294691564751005699155760834760671232',

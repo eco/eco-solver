@@ -1,7 +1,6 @@
-import 'dotenv/config'
 import { Injectable, Logger } from '@nestjs/common'
+import { Chain, Hex } from 'viem'
 import { EcoConfigType } from '@/eco-configs/eco-config.types'
-import { Hex } from 'viem'
 
 @Injectable()
 export class MockEcoConfigService {
@@ -31,6 +30,9 @@ export class MockEcoConfigService {
           ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
         },
       },
+    },
+    cache: {
+      ttl: 300,
     },
     logger: {
       usePino: false,
@@ -70,6 +72,136 @@ export class MockEcoConfigService {
       },
       keys: {},
     },
+    redis: {
+      connection: { host: 'localhost', port: 6379 },
+      options: {
+        single: {},
+        cluster: {},
+      },
+      jobs: {
+        intentJobConfig: {
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+        watchJobConfig: {
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      },
+    },
+    intentConfigs: {
+      defaultFee: {
+        limit: {
+          tokenBase6: BigInt(1000000000), // 1000 USDC
+          nativeBase18: BigInt('1000000000000000000'), // 1 ETH
+        },
+        algorithm: 'linear' as const,
+        constants: {
+          token: {
+            baseFee: BigInt(0),
+            tranche: {
+              unitFee: BigInt(0),
+              unitSize: BigInt(1000000), // 1 USDC
+            },
+          },
+          native: {
+            baseFee: BigInt(0),
+            tranche: {
+              unitFee: BigInt(0),
+              unitSize: BigInt('1000000000000000'), // 0.001 ETH
+            },
+          },
+        },
+      },
+      proofs: {
+        hyperlane_duration_seconds: 3600,
+        metalayer_duration_seconds: 3600,
+      },
+      isNativeETHSupported: true,
+      defaultGasOverhead: 50000,
+      intentFundedRetries: 3,
+      intentFundedRetryDelayMs: 1000,
+    },
+    solvers: {
+      10: {
+        inboxAddress: '0x0000000000000000000000000000000000000000' as Hex,
+        targets: {},
+        network: 'OPTIMISM' as any,
+        fee: {
+          limit: {
+            tokenBase6: BigInt(1000000000),
+            nativeBase18: BigInt('1000000000000000000'),
+          },
+          algorithm: 'linear' as const,
+          constants: {
+            token: {
+              baseFee: BigInt(0),
+              tranche: {
+                unitFee: BigInt(0),
+                unitSize: BigInt(1000000),
+              },
+            },
+            native: {
+              baseFee: BigInt(0),
+              tranche: {
+                unitFee: BigInt(0),
+                unitSize: BigInt('1000000000000000'),
+              },
+            },
+          },
+        },
+        chainID: 10,
+        averageBlockTime: 2,
+      },
+      8453: {
+        inboxAddress: '0x0000000000000000000000000000000000000000' as Hex,
+        targets: {},
+        network: 'BASE' as any,
+        fee: {
+          limit: {
+            tokenBase6: BigInt(1000000000),
+            nativeBase18: BigInt('1000000000000000000'),
+          },
+          algorithm: 'linear' as const,
+          constants: {
+            token: {
+              baseFee: BigInt(0),
+              tranche: {
+                unitFee: BigInt(0),
+                unitSize: BigInt(1000000),
+              },
+            },
+            native: {
+              baseFee: BigInt(0),
+              tranche: {
+                unitFee: BigInt(0),
+                unitSize: BigInt('1000000000000000'),
+              },
+            },
+          },
+        },
+        chainID: 8453,
+        averageBlockTime: 2,
+      },
+    },
+    intentSources: [
+      {
+        network: 'OPTIMISM' as any,
+        chainID: 10,
+        sourceAddress: '0x0000000000000000000000000000000000000000' as Hex,
+        inbox: '0x0000000000000000000000000000000000000000' as Hex,
+        tokens: [],
+        provers: ['0x0000000000000000000000000000000000000000' as Hex],
+      },
+      {
+        network: 'BASE' as any,
+        chainID: 8453,
+        sourceAddress: '0x0000000000000000000000000000000000000000' as Hex,
+        inbox: '0x0000000000000000000000000000000000000000' as Hex,
+        tokens: [],
+        provers: ['0x0000000000000000000000000000000000000000' as Hex],
+      },
+    ],
   }
 
   constructor() {
@@ -81,6 +213,20 @@ export class MockEcoConfigService {
       throw new Error('SIGNER_PRIVATE_KEY environment variable is required')
     }
     this.logger.log('MockEcoConfigService initialized')
+  }
+
+  // Static method to match the original
+  static getStaticConfig() {
+    return {
+      logger: {
+        usePino: false,
+        pinoConfig: {
+          pinoHttp: {
+            level: 'debug',
+          },
+        },
+      },
+    }
   }
 
   getRhinestone(): EcoConfigType['rhinestone'] {
@@ -110,14 +256,52 @@ export class MockEcoConfigService {
     return this.config.rpcs!
   }
 
-  // Static method to match the original
-  static getStaticConfig() {
+  getRedis() {
+    return this.config.redis!
+  }
+
+  getIntentConfigs() {
+    return this.config.intentConfigs!
+  }
+
+  getSolver(chainId: number) {
+    return this.config.solvers?.[chainId] || null
+  }
+
+  getIntentSource(chainId: number) {
+    return this.config.intentSources?.[chainId] || null
+  }
+
+  getRpcUrls(chain: Chain) {
     return {
-      logger: {
-        usePino: false,
-        pinoConfig: {
-          pinoHttp: {
-            level: 'debug',
+      rpcUrls: [chain.rpcUrls.default.http[0]],
+      config: this.config.rpcs!.config,
+    }
+  }
+
+  getSolvers() {
+    return this.config.solvers || {}
+  }
+
+  getIntentSources() {
+    return this.config.intentSources!
+  }
+
+  getCache() {
+    return this.config.cache!
+  }
+
+  getWhitelist() {
+    return {
+      solver: {
+        '10': {
+          fee: {
+            whitelistedIntents: [],
+          },
+        },
+        '8453': {
+          fee: {
+            whitelistedIntents: [],
           },
         },
       },

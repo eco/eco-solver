@@ -13,7 +13,12 @@ import { getIntentJobId } from '@/common/utils/strings'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
+import {
+  ValidationChecks,
+  ValidationFlags,
+  ValidationService,
+  validationsFailed,
+} from '@/intent/validation.sevice'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
 
@@ -24,6 +29,10 @@ export type IntentValidations = ValidationChecks & {
   intentFunded: boolean
 }
 
+export interface AssertValidationsFlags extends ValidationFlags {
+  skipIntentFunded?: boolean
+}
+
 /**
  * Parameters for the assertValidations method
  */
@@ -31,9 +40,7 @@ export interface AssertValidationsParams {
   intent: IntentType
   solver: Solver
   intentSourceModel?: IntentSourceModel
-  flags?: {
-    skipIntentFunded?: boolean
-  }
+  flags?: AssertValidationsFlags
 }
 
 /**
@@ -80,9 +87,10 @@ export class ValidateIntentService implements OnModuleInit {
   /**
    * Validates a full intent given the IntentType parameter
    * @param intent the intent data to validate
+   * @param flags
    * @returns true if the intent is valid, false otherwise
    */
-  async validateFullIntent(intent: IntentType): Promise<boolean> {
+  async validateFullIntent(intent: IntentType, flags?: AssertValidationsFlags): Promise<boolean> {
     const sourceChainId = Number(intent.route.source)
     const solver = this.ecoConfigService.getSolver(sourceChainId)
 
@@ -105,7 +113,7 @@ export class ValidateIntentService implements OnModuleInit {
       return false
     }
 
-    return this.assertValidations({ intent, solver })
+    return this.assertValidations({ intent, solver, flags })
   }
 
   /**
@@ -175,6 +183,8 @@ export class ValidateIntentService implements OnModuleInit {
     const validations = (await this.validationService.assertValidations(
       intent as any,
       solver,
+      undefined, // txValidationFn - use default
+      flags,
     )) as IntentValidations
 
     // Only check intent funded if not skipped

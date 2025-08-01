@@ -147,22 +147,25 @@ export class BalanceService implements OnApplicationBootstrap {
       }),
     )
 
-    const results = (await client.multicall({
-      contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] => [
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'balanceOf',
-          args: [walletAddress],
-        },
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'decimals',
-        },
-      ]),
+    const results = await client.multicall({
+      contracts: tokenAddresses.flatMap(
+        (tokenAddress) =>
+          [
+            {
+              abi: erc20Abi,
+              address: tokenAddress,
+              functionName: 'balanceOf',
+              args: [walletAddress],
+            },
+            {
+              abi: erc20Abi,
+              address: tokenAddress,
+              functionName: 'decimals',
+            },
+          ] as const,
+      ),
       allowFailure: false,
-    })) as MulticallReturnType
+    })
 
     const tokenBalances: Record<Hex, TokenBalance> = {}
 

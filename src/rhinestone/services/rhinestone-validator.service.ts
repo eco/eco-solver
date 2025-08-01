@@ -68,7 +68,10 @@ export class RhinestoneValidatorService {
       throw new EcoError('Intent destination does not match order target chainID')
     }
 
-    const isValidIntent = await this.validateIntentService.validateFullIntent(intent)
+    const isValidIntent = await this.validateIntentService.validateFullIntent(intent, {
+      skipTransactionValidation: true,
+      skipLimitValidation: true,
+    })
     if (!isValidIntent) {
       throw new EcoError('Intent failed validations')
     }

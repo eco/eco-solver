@@ -12,6 +12,26 @@ async function mockExecute(transactions: ExecuteSmartWalletArg[]): Promise<Hash>
 
 // Mock client object
 class MockKernelClient {
+  kernelAccount = {
+    address: '0x1234567890123456789012345678901234567890' as Hex,
+  }
+
+  async multicall({ contracts }: any) {
+    // Return mock results for each contract call
+    return contracts.map((contract: any) => {
+      if (contract.functionName === 'balanceOf') {
+        return BigInt('1000000000000000000') // 1 ETH worth
+      }
+      if (contract.functionName === 'decimals') {
+        return 6
+      }
+      if (contract.functionName === 'symbol') {
+        return 'MOCK'
+      }
+      return null
+    })
+  }
+
   async execute(transactions: ExecuteSmartWalletArg[]): Promise<Hash> {
     return mockExecute(transactions)
   }
