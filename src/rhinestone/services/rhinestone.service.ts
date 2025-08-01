@@ -224,37 +224,6 @@ export class RhinestoneService implements OnModuleInit {
       throw error
     }
 
-    // Post-fill preconfirmation to Rhinestone API
-    try {
-      await this.rhinestoneApi.postFillPreconfirmation(
-        action.id,
-        action.fill.call.chainId,
-        fillTxHash,
-      )
-
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Fill preconfirmation posted for action ${action.id}`,
-          properties: {
-            actionId: action.id,
-            txHash: fillTxHash,
-          },
-        }),
-      )
-    } catch (error) {
-      // Log error but don't fail the transaction
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Failed to post fill preconfirmation`,
-          properties: {
-            actionId: action.id,
-            txHash: fillTxHash,
-            error: error.message,
-          },
-        }),
-      )
-    }
-
     // Step 3: Execute remaining claims (beforeFill = false)
     const afterFillClaims = action.claims.filter((claim) => !claim.beforeFill)
     for (const claim of afterFillClaims) {

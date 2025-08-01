@@ -98,6 +98,15 @@ export class RhinestoneApiService implements OnModuleInit {
       logContext?: Record<string, any>
     },
   ): Promise<T> {
+    if (!this.config?.orchestratorUrl) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Missing orchestrator Url',
+        }),
+      )
+      throw new Error('Missing orchestrator Url')
+    }
+
     const url = `${this.config.orchestratorUrl}${endpoint}`
     const { method, body, logContext = {} } = options
 

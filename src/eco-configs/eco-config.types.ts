@@ -525,9 +525,9 @@ export interface RhinestoneConfig {
   websocket: {
     url: string
   }
-  api: {
+  api?: {
     orchestratorUrl: string
-    orchestratorApiKey: string
+    orchestratorApiKey?: string
   }
   order: {
     settlementLayer: string

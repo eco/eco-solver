@@ -307,4 +307,12 @@ export default {
   squid: {
     baseUrl: 'https://v2.api.squidrouter.com',
   },
+  rhinestone: {
+    websocket: {
+      url: 'wss://v1.orchestrator.rhinestone.dev/ws/relayers',
+    },
+    order: {
+      settlementLayer: 'ECO',
+    },
+  },
 }
