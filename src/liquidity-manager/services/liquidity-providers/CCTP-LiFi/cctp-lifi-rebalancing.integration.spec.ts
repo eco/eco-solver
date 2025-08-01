@@ -32,6 +32,7 @@ import { StargateProviderService } from '@/liquidity-manager/services/liquidity-
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { serialize } from '@/common/utils/serialize'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -516,7 +517,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       await liquidityManagerService.executeRebalancing({
         walletAddress,
         network: '1',
-        rebalance: { quotes: quotes } as any,
+        rebalance: { quotes: serialize(quotes), token: {} as any },
       })
 
       // Verify execution calls
@@ -1260,7 +1261,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         liquidityManagerService.executeRebalancing({
           walletAddress,
           network: '1',
-          rebalance: { quotes } as any,
+          rebalance: { quotes: serialize(quotes) } as any,
         }),
       ).rejects.toThrow('Transaction failed')
 
