@@ -10,7 +10,8 @@ import { ERROR_EVENTS } from '@/analytics/events.constants'
 import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 
 /**
- * Service class for getting configs for the app
+ * Service responsible for validating intent feasibility and managing the intent processing pipeline.
+ * Determines if an intent can be profitably executed by the solver and queues feasible intents for fulfillment.
  */
 @Injectable()
 export class FeasableIntentService {

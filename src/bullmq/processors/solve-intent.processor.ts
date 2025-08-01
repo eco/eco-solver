@@ -7,6 +7,7 @@ import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
+import { WithdrawalService } from '@/intent/withdrawal.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
@@ -23,6 +24,7 @@ export class SolveIntentProcessor extends WorkerHost {
     private readonly validateIntentService: ValidateIntentService,
     private readonly feasableIntentService: FeasableIntentService,
     private readonly fulfillIntentService: FulfillIntentService,
+    private readonly withdrawalService: WithdrawalService,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     super()
@@ -68,6 +70,11 @@ export class SolveIntentProcessor extends WorkerHost {
           result = await this.feasableIntentService.feasableIntent(job.data as Hex)
           break
         default:
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: `SolveIntentProcessor: Invalid job type ${job.name}`,
+            }),
+          )
           throw new Error(`Unknown job type: ${job.name}`)
       }
 

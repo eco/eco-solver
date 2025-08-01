@@ -138,6 +138,13 @@ export type IntervalConfig = {
       opts: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
     }
   }
+  balanceRpcUpdate: {
+    repeatOpts: Omit<RepeatOptions, 'key'>
+    jobTemplate: {
+      name?: string
+      data?: object
+    }
+  }
   defaults: {
     repeatOpts: Omit<RepeatOptions, 'key'>
     jobTemplate?: {
@@ -311,6 +318,9 @@ export type Solver = {
   fee: FeeConfigType
   chainID: number
 
+  // The maximum amount of gas tokens that we want to hold in the solver's wallet for the chain
+  nativeMax: bigint
+
   // The average block time for the chain in seconds
   averageBlockTime: number
   // Gas overhead is the intent creation gas cost for the source chain
@@ -348,6 +358,7 @@ export interface TargetContract {
   selectors: string[]
   minBalance: number
   targetBalance: number
+  maxBalance: number
 }
 
 /**

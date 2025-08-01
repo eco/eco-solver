@@ -1,8 +1,8 @@
 const mockgetChainConfig = jest.fn()
 import { DeepMocked, createMock } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
-import { EcoConfigService } from '../eco-config.service'
-import { AwsConfigService } from '../aws-config.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { AwsConfigService } from '@/eco-configs/aws-config.service'
 
 jest.mock('../utils', () => {
   return {
@@ -15,6 +15,11 @@ describe('Eco Config Helper Tests', () => {
   let ecoConfigService: EcoConfigService
   let awsConfigService: DeepMocked<AwsConfigService>
   let mockLog: jest.Mock
+
+  const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
+  const mockLogDebug = jest.fn()
+  const mockLogError = jest.fn()
   const awsConfig = {
     aws: { faceAws: 'asdf', region: 'not-a-region' },
     rpcs: { keys: { '0x1234': '0x1234' } },
@@ -38,6 +43,18 @@ describe('Eco Config Helper Tests', () => {
 
     ecoConfigService = configMod.get<EcoConfigService>(EcoConfigService)
     mockLog = jest.fn()
+
+    ecoConfigService['logger'].log = mockLogLog
+    ecoConfigService['logger'].warn = mockLogWarn
+    ecoConfigService['logger'].debug = mockLogDebug
+    ecoConfigService['logger'].error = mockLogError
+  })
+
+  afterEach(() => {
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogDebug.mockClear()
+    mockLogError.mockClear()
   })
 
   it.skip('should merge configs correctly', async () => {

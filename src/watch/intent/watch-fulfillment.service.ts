@@ -3,7 +3,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
-import { getIntentJobId } from '@/common/utils/strings'
+import { getWatchJobId } from '@/common/utils/strings'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -74,18 +74,20 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     )
 
     const sourceChains = this.getSupportedChains()
-    this.unwatch[solver.chainID] = client.watchContractEvent({
-      address: solver.inboxAddress,
-      abi: InboxAbi,
-      eventName: 'Fulfillment',
-      strict: true,
-      args: {
-        // restrict by acceptable chains, chain ids must be bigints
-        _sourceChainID: sourceChains,
-      },
-      onLogs: this.addJob(solver),
-      onError: (error) => this.onError(error, client, solver),
-    })
+    this.unwatch[solver.chainID] = [
+      client.watchContractEvent({
+        address: solver.inboxAddress,
+        abi: InboxAbi,
+        eventName: 'Fulfillment',
+        strict: true,
+        args: {
+          // restrict by acceptable chains, chain ids must be bigints
+          _sourceChainID: sourceChains,
+        },
+        onLogs: this.addJob(solver),
+        onError: (error) => this.onError(error, client, solver),
+      }),
+    ]
   }
 
   addJob(solver?: Solver) {
@@ -98,7 +100,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       for (const log of logs) {
         // bigint as it can't serialize to JSON
         const fulfillment = convertBigIntsToStrings(log)
-        const jobId = getIntentJobId(
+        const jobId = getWatchJobId(
           'watch-fulfillement',
           fulfillment.args._hash ?? zeroHash,
           fulfillment.logIndex ?? 0,
