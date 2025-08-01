@@ -815,15 +815,19 @@ export class QuoteService implements OnModuleInit {
     quoteIntentModel: QuoteIntentModel,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
     const { route, reward } = quoteIntentModel
-    const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
+    const { totalFillNormalized, error: totalFillError } =
+      await this.feeService.getTotalFill(quoteIntentModel)
+    if (Boolean(totalFillError)) {
+      return { error: totalFillError }
+    }
 
     const intentSourceModel = quoteIntentToIntentSource(quoteIntentModel)
     const executionFee = await this.crowdLiquidityService.getExecutionFee(
       intentSourceModel.intent,
-      totalRouteAmount,
+      totalFillNormalized.token,
     )
 
-    const requiredReward = totalRouteAmount + executionFee
+    const requiredReward = totalFillNormalized.token + executionFee
 
     const rewardTokens: QuoteRewardTokensDTO[] = reward.tokens.map((t) => ({
       token: t.token,
