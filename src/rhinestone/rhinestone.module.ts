@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common'
 import { CacheModule } from '@nestjs/cache-manager'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { IntentModule } from '@/intent/intent.module'
-import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { RhinestoneService } from '@/rhinestone/services/rhinestone.service'
 import { RhinestoneApiService } from '@/rhinestone/services/rhinestone-api.service'
@@ -15,7 +14,6 @@ import { ONE_HOUR } from '@/common/time'
 
 @Module({
   imports: [
-    EcoConfigModule,
     TransactionModule,
     IntentModule,
     EventEmitterModule.forRoot(),
