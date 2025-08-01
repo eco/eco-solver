@@ -18,6 +18,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { NegativeIntentRebalanceService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -36,6 +37,7 @@ export class LiquidityProviderService {
     private readonly ecoAnalytics: EcoAnalyticsService,
     protected readonly squidProviderService: SquidProviderService,
     protected readonly cctpv2ProviderService: CCTPV2ProviderService,
+    protected readonly rebalancingProviderService: NegativeIntentRebalanceService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
@@ -247,6 +249,8 @@ export class LiquidityProviderService {
         return this.squidProviderService
       case 'CCTPV2':
         return this.cctpv2ProviderService
+      case 'NegativeIntent':
+        return this.rebalancingProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }

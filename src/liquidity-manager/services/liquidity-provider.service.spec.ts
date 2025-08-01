@@ -13,6 +13,7 @@ import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 import { EcoAnalyticsService } from '@/analytics'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { NegativeIntentRebalanceService } from '@/liquidity-manager/services/liquidity-providers/negative-intents/negative-intent-rebalance.service' // import as a namespace so we can spyOn later
 
 const walletAddr = '0xWalletAddress'
 
@@ -26,6 +27,7 @@ describe('LiquidityProviderService', () => {
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
   let squidProviderService: SquidProviderService
+  let negativeIntentRebalanceService: NegativeIntentRebalanceService
 
   beforeAll(() => {
     jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
@@ -41,6 +43,10 @@ describe('LiquidityProviderService', () => {
         { provide: RelayProviderService, useValue: createMock<RelayProviderService>() },
         { provide: StargateProviderService, useValue: createMock<StargateProviderService>() },
         { provide: WarpRouteProviderService, useValue: createMock<WarpRouteProviderService>() },
+        {
+          provide: NegativeIntentRebalanceService,
+          useValue: createMock<NegativeIntentRebalanceService>(),
+        },
         {
           provide: EcoConfigService,
           useValue: {
@@ -66,6 +72,9 @@ describe('LiquidityProviderService', () => {
     warpRouteProviderService = module.get<WarpRouteProviderService>(WarpRouteProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     cctpLiFiProviderService = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
+    negativeIntentRebalanceService = module.get<NegativeIntentRebalanceService>(
+      NegativeIntentRebalanceService,
+    )
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     squidProviderService = module.get<SquidProviderService>(SquidProviderService)
 
@@ -114,6 +123,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(negativeIntentRebalanceService, 'getQuote').mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
         walletAddr,

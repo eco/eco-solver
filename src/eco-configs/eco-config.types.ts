@@ -401,6 +401,13 @@ export interface LiquidityManagerConfig {
   walletStrategies: {
     [walletName: string]: Strategy[]
   }
+
+  negativeIntents: {
+    // Percentage loss that fulfillers accept when rebalancing (e.g., 0.05 for 5%)
+    rebalancingPercentage: number
+    // Deadline duration of created negative intents
+    deadlineDuration: number
+  }
 }
 
 export interface LiFiConfigType {
@@ -437,13 +444,14 @@ export interface HyperlaneConfig {
 
 export interface CrowdLiquidityConfig {
   litNetwork: LIT_NETWORKS_KEYS
-  capacityTokenId: string
+  capacityTokenId?: string
   capacityTokenOwnerPk: string
   defaultTargetBalance: number
   feePercentage: number
   actions: {
     fulfill: string
     rebalance: string
+    negativeIntentRebalance?: string
   }
   kernel: {
     address: string

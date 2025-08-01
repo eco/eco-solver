@@ -70,6 +70,12 @@ interface CCTPLiFiStrategyContext {
   id?: string
 }
 
+// Rebalancing strategy context
+interface NegativeIntentStrategyContext {
+  intentHash: Hex
+  rebalancingPercentage: number
+}
+
 type Strategy =
   | 'LiFi'
   | 'CCTP'
@@ -78,7 +84,9 @@ type Strategy =
   | 'Relay'
   | 'Stargate'
   | 'Squid'
+  | 'NegativeIntent'
   | 'CCTPV2'
+
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -93,9 +101,11 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
             ? CCTPLiFiStrategyContext
             : S extends 'Squid'
               ? SquidStrategyContext
-              : S extends 'CCTPV2'
-                ? CCTPV2StrategyContext
-                : never
+              : S extends 'NegativeIntent'
+                ? NegativeIntentStrategyContext
+                : S extends 'CCTPV2'
+                  ? CCTPV2StrategyContext
+                  : never
 
 // Quote
 
