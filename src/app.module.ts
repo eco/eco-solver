@@ -25,6 +25,7 @@ import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.mo
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
 import { BalanceModule } from '@/balance/balance.module'
 import { LiquidityManagerModule } from './liquidity-manager/liquidity-manager.module'
+import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { LiquidityManagerModule } from './liquidity-manager/liquidity-manager.mo
     LiquidityManagerModule,
     WatchModule,
     IntentProcessorModule,
+    IntentFulfillmentModule,
     ...getPino(),
   ],
   controllers: [],

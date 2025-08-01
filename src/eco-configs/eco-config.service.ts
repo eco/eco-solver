@@ -318,6 +318,10 @@ export class EcoConfigService {
     return this.get('squid')
   }
 
+  getEverclear(): EcoConfigType['everclear'] {
+    return this.get('everclear')
+  }
+
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string[]> {
     const entries = ChainsSupported.map(

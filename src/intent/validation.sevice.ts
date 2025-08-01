@@ -22,6 +22,7 @@ import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
+import { Mathb } from '@/utils/bigint'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -330,6 +331,23 @@ export class ValidationService implements OnModuleInit {
   }
 
   async validSourceTokenMax(intent: ValidationIntentInterface, solver: Solver): Promise<boolean> {
+    const { totalFillNormalized, error: totalFillError } =
+      await this.feeService.getTotalFill(intent)
+
+    if (totalFillError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `validSourceTokenMax: Error getting getTotalFill`,
+          properties: {
+            error: totalFillError.message,
+            intentHash: intent.hash,
+            sourceChain: intent.route.source,
+          },
+        }),
+      )
+      return false
+    }
+    const ask = this.feeService.getAsk(totalFillNormalized, intent)
     for (const rewardToken of intent.reward.tokens) {
       const targetConfig = solver.targets[rewardToken.token as string]
       if (!targetConfig || !targetConfig.maxBalance) {
@@ -360,33 +378,27 @@ export class ValidationService implements OnModuleInit {
       const currentBalance = balanceResult.balance
       const decimals = balanceResult.decimals
 
-      // Calculate projected balance after receiving the reward amount
-      // On source chain, solver receives reward tokens from user
-      const projectedBalance = currentBalance + rewardToken.amount
+      // Get the deltaMax, which is the maximum allowed balance minus the current balance || 0n
+      const deltaMax = Mathb.max(
+        normalizeBalance({ balance: BigInt(targetConfig.maxBalance), decimal: 0 }, decimals)
+          .balance - currentBalance,
+        0n,
+      )
 
-      // Normalize maxBalance (stored as dollar units(decimal = 0), convert to token units)
-      const normalizedMaxBalance = normalizeBalance(
-        { balance: BigInt(targetConfig.maxBalance), decimal: 0 },
-        decimals,
-      ).balance
-
-      // Check if projected balance would exceed maxBalance
-      if (projectedBalance > normalizedMaxBalance) {
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `validSourceMax: Reward would exceed maxBalance`,
-            properties: {
-              rewardToken: rewardToken.token,
-              currentBalance: currentBalance.toString(),
-              rewardAmount: rewardToken.amount.toString(),
-              projectedBalance: projectedBalance.toString(),
-              maxBalance: normalizedMaxBalance.toString(),
-              intentHash: intent.hash,
-            },
-          }),
-        )
-        return false
-      }
+      ask.token -= deltaMax
+    }
+    if (ask.token > 0n) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `validSourceTokenMax: Max balance exceeded for source chain`,
+          properties: {
+            totalRewardsNormalized: ask.token.toString(),
+            intentHash: intent.hash,
+            sourceChain: intent.route.source,
+          },
+        }),
+      )
+      return false
     }
     return true
   }

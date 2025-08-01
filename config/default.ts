@@ -316,4 +316,8 @@ export default {
   squid: {
     baseUrl: 'https://v2.api.squidrouter.com',
   },
+
+  everclear: {
+    baseUrl: 'https://api.everclear.org',
+  },
 }

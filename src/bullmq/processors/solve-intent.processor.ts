@@ -9,7 +9,7 @@ import { CreateIntentService } from '@/intent/create-intent.service'
 import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { WithdrawalService } from '@/intent/withdrawal.service'
 import { Hex } from 'viem'
-import { IntentCreatedLog, WithdrawalLog } from '@/contracts'
+import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
@@ -68,15 +68,6 @@ export class SolveIntentProcessor extends WorkerHost {
           break
         case QUEUES.SOURCE_INTENT.jobs.feasable_intent:
           result = await this.feasableIntentService.feasableIntent(job.data as Hex)
-          break
-        case QUEUES.SOURCE_INTENT.jobs.fulfill_intent:
-          result = await this.fulfillIntentService.fulfill(job.data as Hex)
-          break
-        case QUEUES.SOURCE_INTENT.jobs.withdrawal:
-          //TODO update this to batching
-          result = await this.withdrawalService.processWithdrawal(
-            job.data as Serialize<WithdrawalLog>,
-          )
           break
         default:
           this.logger.error(

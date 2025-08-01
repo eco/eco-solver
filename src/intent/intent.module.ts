@@ -1,15 +1,14 @@
-import { Module } from '@nestjs/common'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
-import { QUEUES } from '@/common/redis/constants'
-import { IntentSourceModel, IntentSourceSchema } from '@/intent/schemas/intent-source.schema'
-import { WithdrawalModel, WithdrawalSchema } from '@/intent/schemas/withdrawal.schema'
-import { ValidateIntentService } from '@/intent/validate-intent.service'
-import { FeasableIntentService } from '@/intent/feasable-intent.service'
-import { CreateIntentService } from '@/intent/create-intent.service'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
-import { FulfillIntentService } from '@/intent/fulfill-intent.service'
-import { ProverModule } from '@/prover/prover.module'
-import { TransactionModule } from '@/transaction/transaction.module'
+import { forwardRef, Module } from '@nestjs/common'
+import { initBullMQ } from '../bullmq/bullmq.helper'
+import { QUEUES } from '../common/redis/constants'
+import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
+import { ValidateIntentService } from './validate-intent.service'
+import { FeasableIntentService } from './feasable-intent.service'
+import { CreateIntentService } from './create-intent.service'
+import { UtilsIntentService } from './utils-intent.service'
+import { FulfillIntentService } from './fulfill-intent.service'
+import { ProverModule } from '../prover/prover.module'
+import { TransactionModule } from '../transaction/transaction.module'
 import { MongooseModule } from '@nestjs/mongoose'
 import { SolverModule } from '@/solver/solver.module'
 import { FlagsModule } from '@/flags/flags.module'
@@ -21,6 +20,9 @@ import { WithdrawalService } from '@/intent/withdrawal.service'
 import { WithdrawalRepository } from '@/intent/repositories/withdrawal.repository'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { BalanceModule } from '@/balance/balance.module'
+import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
+import { WithdrawalModel, WithdrawalSchema } from '@/intent/schemas/withdrawal.schema'
+
 @Module({
   imports: [
     BalanceModule,
@@ -34,6 +36,7 @@ import { BalanceModule } from '@/balance/balance.module'
     SolverModule,
     TransactionModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
+    forwardRef(() => IntentFulfillmentModule),
   ],
   providers: [
     CreateIntentService,

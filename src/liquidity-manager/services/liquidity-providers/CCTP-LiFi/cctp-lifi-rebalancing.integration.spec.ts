@@ -18,6 +18,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 // Types & Models
 import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
@@ -179,6 +180,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: RpcBalanceService,
           useValue: createMock<RpcBalanceService>(),
+        },
+        {
+          provide: EverclearProviderService,
+          useValue: createMock<EverclearProviderService>(),
         },
         {
           provide: BalanceService,

@@ -122,7 +122,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
 
-    const quote = this.getRemoteTransferQuote(tokenIn, tokenOut, amount)
+    const quote = this.getRemoteTransferQuote(tokenIn, tokenOut, amount, id)
 
     this.logger.debug(
       EcoLogMessage.withId({
@@ -547,21 +547,21 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           chainId: candidateToken.chainId,
           token: candidateToken.token,
         })
-        const [tokenData] = await this.balanceService.getAllTokenDataForAddress(
-          client.kernelAccountAddress,
-          [tokenConfig],
-        )
+        const tokenOut: TokenData = {
+          chainId: candidateToken.chainId,
+          config: tokenConfig,
+          balance: {
+            address: candidateToken.token,
+            decimals: 0, // Placeholder. This is not used for LiFi quotes.
+            balance: 0n, // Placeholder. This is not used for LiFi quotes.
+          },
+        }
 
-        const liFiQuote = await this.liFiProviderService.getQuote(
-          tokenIn,
-          tokenData,
-          swapAmount,
-          id,
-        )
+        const liFiQuote = await this.liFiProviderService.getQuote(tokenIn, tokenOut, swapAmount, id)
 
         const outputAmount = BigInt(liFiQuote.context.toAmountMin)
         if (outputAmount > bestAmountOut) {
-          bestResult = { tokenData, quote: liFiQuote, outputAmount }
+          bestResult = { tokenData: tokenOut, quote: liFiQuote, outputAmount }
           bestAmountOut = outputAmount
           this.logger.debug(
             EcoLogMessage.withId({
@@ -656,7 +656,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       [collateralTokenConfig],
     )
 
-    const remoteTransferQuote = this.getRemoteTransferQuote(tokenIn, collateralTokenData, amount)
+    const remoteTransferQuote = this.getRemoteTransferQuote(
+      tokenIn,
+      collateralTokenData,
+      amount,
+      id,
+    )
 
     // Simulate balance after remote transfer so subsequent LiFi quote has the right context
     collateralTokenData.balance.balance += amount
@@ -723,6 +728,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           tokenIn,
           intermediateTokenData,
           amount,
+          id,
         )
         return [remoteTransferQuote, liFiQuote]
       } catch (error: any) {
@@ -785,6 +791,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       bestLiFiResult.tokenData,
       tokenOut,
       bestLiFiResult.outputAmount,
+      id,
     )
 
     return [bestLiFiResult.quote, remoteTransferQuote]
@@ -833,6 +840,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       bestLiFiResult.tokenData,
       tokenOut,
       bestLiFiResult.outputAmount,
+      id,
     )
 
     return [bestLiFiResult.quote, remoteTransferQuote]
