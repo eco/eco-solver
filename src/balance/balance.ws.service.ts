@@ -78,25 +78,29 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
         //add network to the event
         transferEvent.sourceNetwork = network
 
-        //bigint as it cant serialize to json
-        transferEvent = convertBigIntsToStrings(transferEvent)
+        // bigint as it cant serialize to json
+        const serializedTransferEvent = convertBigIntsToStrings(transferEvent)
         this.logger.debug(
           EcoLogMessage.fromDefault({
             message: `ws: balance transfer`,
             properties: {
-              transferEvent: transferEvent,
+              transferEvent: serializedTransferEvent,
             },
           }),
         )
         //add to processing queue
-        return this.ethQueue.add(QUEUES.ETH_SOCKET.jobs.erc20_balance_socket, transferEvent, {
-          jobId: getIntentJobId(
-            'websocket',
-            transferEvent.transactionHash ?? zeroHash,
-            transferEvent.logIndex ?? 0,
-          ),
-          ...this.intentJobConfig,
-        })
+        return this.ethQueue.add(
+          QUEUES.ETH_SOCKET.jobs.erc20_balance_socket,
+          serializedTransferEvent,
+          {
+            jobId: getIntentJobId(
+              'websocket',
+              serializedTransferEvent.transactionHash ?? zeroHash,
+              serializedTransferEvent.logIndex ?? 0,
+            ),
+            ...this.intentJobConfig,
+          },
+        )
       })
       await Promise.all(logTasks)
     }

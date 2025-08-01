@@ -63,7 +63,7 @@ describe('LiquidityManagerService', () => {
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
 
-    crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
+    crowdLiquidityService['getAddresses'] = jest.fn().mockReturnValue(zeroAddress)
     kernelAccountClientService['getClient'] = jest
       .fn()
       .mockReturnValue({ kernelAccount: { address: zeroAddress } })

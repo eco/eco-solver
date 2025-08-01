@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY } from '@lit-protocol/constants'
@@ -11,26 +12,28 @@ import {
 
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { privateKeyToAccount } from 'viem/accounts'
-import {
-  Hex,
-  isAddressEqual,
-  parseSignature,
-  PublicClient,
-  serializeTransaction,
-  TransactionSerializableEIP1559,
-} from 'viem'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { encodeAbiParameters, Hex, isAddressEqual, pad, publicActions, zeroAddress } from 'viem'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
-import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
+import { getChainConfig } from '@/eco-configs/utils'
+import { CrowdLiquidityConfig } from '@/eco-configs/eco-config.types'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
+import { Cacheable } from '@/decorators/cacheable.decorator'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { EcoAnalyticsService } from '@/analytics'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { stablePoolAbi } from '@/contracts/StablePool'
+import { hashIntent, IMessageBridgeProverAbi, IntentType } from '@eco-foundation/routes-ts'
+import {
+  FulfillActionArgs,
+  FulfillActionResponse,
+} from '@/intent/interfaces/fulfill-action-response.interface'
+import { convertBigIntsToStrings } from '@/common/viem/utils'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -38,133 +41,126 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   private config: CrowdLiquidityConfig
 
   constructor(
-    private readonly ecoConfigService: EcoConfigService,
-    private readonly publicClient: MultichainPublicClientService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly walletClientService: WalletClientDefaultSignerService,
   ) {}
 
   onModuleInit() {
-    this.config = this.ecoConfigService.getCrowdLiquidity()
+    this.config = this.configService.getCrowdLiquidity()
   }
 
   /**
    * Executes the process to fulfill an intent based on the provided model and solver.
    *
-   * @param {IntentSourceModel} model - The source model containing the intent and related chain information.
-   * @param {Solver} solver - The solver instance used to resolve the intent.
+   * @param {IntentSourceModel} intentModel - The source model containing the intent and related chain information.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  async fulfill(intentModel: IntentSourceModel): Promise<Hex> {
     const startTime = Date.now()
 
+    const totalRouteAmount = intentModel.intent.route.tokens.reduce(
+      (acc, token) => acc + token.amount,
+      0n,
+    )
+
     try {
-      if (!this.isRewardEnough(model)) {
-        const error = EcoError.CrowdLiquidityRewardNotEnough(model.intent.hash)
-        this.ecoAnalytics.trackCrowdLiquidityFulfillmentRewardNotEnough(model, solver, error)
+      const executionFee = await this.getExecutionFee(intentModel.intent, totalRouteAmount)
+
+      const isRewardEnough = await this.isRewardEnough(intentModel, totalRouteAmount, executionFee)
+      if (!isRewardEnough) {
+        const error = EcoError.CrowdLiquidityRewardNotEnough(intentModel.intent.hash)
+        this.ecoAnalytics.trackCrowdLiquidityFulfillmentRewardNotEnough(intentModel, error)
         throw error
       }
 
-      if (!(await this.isPoolSolvent(model))) {
-        const error = EcoError.CrowdLiquidityPoolNotSolvent(model.intent.hash)
-        this.ecoAnalytics.trackCrowdLiquidityFulfillmentPoolNotSolvent(model, solver, error)
+      const isPoolSolvent = await this.isPoolSolvent(intentModel)
+      if (!isPoolSolvent) {
+        const error = EcoError.CrowdLiquidityPoolNotSolvent(intentModel.intent.hash)
+        this.ecoAnalytics.trackCrowdLiquidityFulfillmentPoolNotSolvent(intentModel, error)
         throw error
       }
 
-      const result = await this._fulfill(model.intent)
+      const { pkp, actions } = this.config
+
+      // Serialize intent
+      const intent = this.getIntentType(intentModel.intent)
+
+      // Convert all bigints to strings
+      const serializedStringIntent = convertBigIntsToStrings(intent)
+      const serializedIntent: FulfillActionArgs['intent'] = {
+        route: {
+          ...serializedStringIntent.route,
+          source: Number(serializedStringIntent.route.source),
+          destination: Number(serializedStringIntent.route.destination),
+        },
+        reward: {
+          ...serializedStringIntent.reward,
+          deadline: Number(serializedStringIntent.reward.deadline),
+        },
+      }
+
+      const poolData = await this.callLitAction<FulfillActionArgs, FulfillActionResponse>(
+        actions.fulfill,
+        { intent: serializedIntent, publicKey: pkp.publicKey },
+      )
+
+      const { rewardHash, intentHash } = hashIntent(intent)
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Crowd liquidity: Pool data',
+          properties: { poolData, intentHash },
+        }),
+      )
+
+      const proverFee = await this.getProverFee(intentModel.intent)
+      const { source, destination, messageData } = this.getProverData(intentModel.intent)
+      const { intentSource } = this.getAddresses(source)
+
+      const walletClient = await this.walletClientService.getClient(destination)
+      const publicClient = walletClient.extend(publicActions)
+
+      const hash = await walletClient.writeContract({
+        address: this.getAddresses(destination).stablePool,
+        abi: stablePoolAbi,
+        functionName: 'fulfillAndProve',
+        value: proverFee,
+        args: [
+          intentHash,
+          intent.route,
+          rewardHash,
+          intentSource,
+          poolData.rewardVault,
+          poolData.vaultClaimant,
+          BigInt(poolData.vaultAmount),
+          BigInt(poolData.vaultFee),
+          BigInt(poolData.ttl),
+          poolData.prover,
+          messageData,
+          poolData.signature,
+        ],
+      })
+
+      await publicClient.waitForTransactionReceipt({ hash })
+
       const processingTime = Date.now() - startTime
-      this.ecoAnalytics.trackCrowdLiquidityFulfillmentSuccess(model, solver, result, processingTime)
-      return result
+      this.ecoAnalytics.trackCrowdLiquidityFulfillmentSuccess(intentModel, hash, processingTime)
+
+      return hash
     } catch (error) {
       const processingTime = Date.now() - startTime
-      this.ecoAnalytics.trackCrowdLiquidityFulfillmentFailed(model, solver, error, processingTime)
+      this.ecoAnalytics.trackCrowdLiquidityFulfillmentFailed(intentModel, error, processingTime)
       throw error
     }
   }
 
-  async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
-    try {
-      const { kernel, pkp, actions } = this.config
-
-      const publicClient = await this.publicClient.getClient(tokenIn.chainId)
-
-      const [feeData, nonce] = await Promise.all([
-        this.getFeeData(publicClient),
-        publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
-      ])
-
-      const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
-
-      const params = {
-        chainId: tokenIn.chainId,
-        tokenAddress: tokenOut.config.address,
-        tokenChainId: tokenOut.chainId,
-        publicKey: pkp.publicKey,
-        kernelAddress: kernel.address,
-        transaction: transactionBase,
-      }
-
-      const result = await this.callLitAction(actions.rebalance, publicClient, params)
-      this.ecoAnalytics.trackCrowdLiquidityRebalanceSuccess(tokenIn, tokenOut, result)
-      return result
-    } catch (error) {
-      this.ecoAnalytics.trackCrowdLiquidityRebalanceError(tokenIn, tokenOut, error)
-      throw error
-    }
-  }
-
-  /**
-   * Determines if a given route.
-   *
-   * @param {IntentSourceModel} intentModel - The model containing intent data, including route information.
-   * @return {boolean} - Returns true if the route is supported, otherwise false.
-   */
-  isRouteSupported(intentModel: IntentSourceModel): boolean {
-    this.ecoAnalytics.trackCrowdLiquidityRouteSupportCheck(intentModel)
-
-    const { route, reward } = intentModel.intent
-    const isSupportedReward = reward.tokens.every((item) => {
-      return this.isSupportedToken(Number(route.source), item.token)
-    })
-    const isSupportedRoute = route.calls.every((call) => {
-      const areSupportedTargetTokens = this.isSupportedToken(Number(route.destination), call.target)
-      const isSupportedAction = this.isSupportedAction(call.data)
-      return areSupportedTargetTokens && isSupportedAction
-    })
-
-    const isSupported = isSupportedReward && isSupportedRoute
-    this.ecoAnalytics.trackCrowdLiquidityRouteSupportResult(intentModel, isSupported, {
-      isSupportedReward,
-      isSupportedRoute,
-    })
-
-    return isSupported
-  }
-
-  /**
-   * Determines if the reward provided in the intent model is sufficient based on the route amount and the fee percentage.
-   *
-   * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
-   * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
-   */
-  isRewardEnough(intentModel: IntentSourceModel): boolean {
-    this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
-
-    const { route, reward } = intentModel.intent
-    const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
-    const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
-
-    const minimumReward = (totalRouteAmount * BigInt(this.config.feePercentage * 1e6)) / BigInt(1e6)
-    const isEnough = totalRewardAmount >= minimumReward
-
-    this.ecoAnalytics.trackCrowdLiquidityRewardCheckResult(intentModel, isEnough, {
-      totalRouteAmount: totalRouteAmount.toString(),
-      totalRewardAmount: totalRewardAmount.toString(),
-      minimumReward: minimumReward.toString(),
-      feePercentage: this.config.feePercentage,
-    })
-
-    return isEnough
+  // eslint-disable-next-line
+  async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData): Promise<Hex> {
+    // This rebalancing route should be disabled in the AWS config for now. It's TBD whether we'll continue supporting it; we'll probably replace it with the negative intents.
+    throw new Error('Unimplemented')
   }
 
   /**
@@ -178,7 +174,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       .filter((token) => this.isSupportedToken(token.chainId, token.address))
       .map((token) => ({
         ...token,
-        targetBalance: this.getTokenTargetBalance(token.chainId, token.address),
+        targetBalance: this.config.defaultTargetBalance,
       }))
   }
 
@@ -188,7 +184,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {IntentSourceModel} intentModel - The intent model containing route information and token requirements.
    * @return {Promise<boolean>} - A promise that resolves to true if the intent is solvent, otherwise false.
    */
-  async isPoolSolvent(intentModel: IntentSourceModel) {
+  async isPoolSolvent(intentModel: IntentSourceModel): Promise<boolean> {
     try {
       // Get supported tokens from intent
       const routeTokens = this.getSupportedTokens().filter((token) => {
@@ -199,8 +195,12 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         )
       })
 
+      const { stablePool: poolAddress } = this.getAddresses(
+        Number(intentModel.intent.route.destination),
+      )
+
       const routeTokensData: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
-        this.getPoolAddress(),
+        poolAddress,
         routeTokens,
       )
 
@@ -212,9 +212,9 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       })
 
       this.ecoAnalytics.trackCrowdLiquidityPoolSolvencyResult(intentModel, isSolvent, {
+        poolAddress,
         routeTokens: routeTokens.length,
         routeTokensData: routeTokensData.length,
-        poolAddress: this.getPoolAddress(),
       })
 
       return isSolvent
@@ -238,89 +238,168 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   }
 
   /**
-   * Checks if a token with the specified chain ID and address is supported.
-   *
-   * @param {number} chainId - The chain ID of the token to check.
-   * @param {Hex} address - The address of the token to check.
-   * @return {boolean} Returns true if the token is supported; otherwise, false.
+   * Get pool address by chain ID.
+   * @param chainID Chain ID
    */
-  // eslint-disable-next-line
-  getTokenTargetBalance(chainId: number, address: Hex): number {
-    return this.config.defaultTargetBalance
+  getAddresses(chainID: number) {
+    const intentSourceConfig = this.configService.getIntentSource(chainID)
+    if (!intentSourceConfig) throw EcoError.IntentSourceNotFound(chainID)
+    const { stablePoolAddress: stablePool, sourceAddress: intentSource } = intentSourceConfig
+    if (!stablePool) throw new Error(`Stable pool not present on chain id ${chainID}`)
+    return { stablePool, intentSource }
   }
 
   /**
-   * Retrieves the pool address from the configuration.
+   * Determines if a given route.
    *
-   * @return {string} The address of the pool as specified in the configuration.
+   * @param {IntentSourceModel} intentModel - The model containing intent data, including route information.
+   * @return {boolean} - Returns true if the route is supported, otherwise false.
    */
-  getPoolAddress(): Hex {
-    return this.config.kernel.address as Hex
+  isRouteSupported(intentModel: IntentSourceModel): boolean {
+    this.ecoAnalytics.trackCrowdLiquidityRouteSupportCheck(intentModel)
+
+    const { route, reward } = intentModel.intent
+    const isSupportedReward = reward.tokens.every((item) => {
+      return this.isSupportedToken(Number(route.source), item.token)
+    })
+    const isSupportedRoute = route.calls.every((call) => {
+      const areSupportedTargetTokens = this.isSupportedToken(Number(route.destination), call.target)
+      const isSupportedAction = this.isSupportedAction(call.data)
+      return areSupportedTargetTokens && isSupportedAction
+    })
+
+    const isSupported = isSupportedReward && isSupportedRoute
+
+    this.ecoAnalytics.trackCrowdLiquidityRouteSupportResult(intentModel, isSupported, {
+      isSupportedReward,
+      isSupportedRoute,
+    })
+
+    return isSupported
   }
 
-  private async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
-    const { kernel, pkp, actions } = this.config
+  /**
+   * Determines if the reward provided in the intent model is sufficient based on the route amount and the fee percentage.
+   *
+   * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
+   * @param totalRouteAmount
+   * @param executionFee
+   * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
+   */
+  async isRewardEnough(
+    intentModel: IntentSourceModel,
+    totalRouteAmount: bigint,
+    executionFee: bigint,
+  ): Promise<boolean> {
+    this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
 
-    const publicClient = await this.publicClient.getClient(Number(intentModel.route.destination))
+    const totalRewardAmount = intentModel.intent.reward.tokens.reduce(
+      (acc, token) => acc + token.amount,
+      0n,
+    )
 
-    const [feeData, nonce] = await Promise.all([
-      this.getFeeData(publicClient),
-      publicClient.getTransactionCount({ address: pkp.ethAddress as Hex }),
-    ])
+    const minimumReward = totalRouteAmount + executionFee
+    const isEnough = totalRewardAmount >= minimumReward
 
-    const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
-
-    // Serialize intent
-    const intent = {
-      route: {
-        salt: intentModel.route.salt,
-        source: Number(intentModel.route.source),
-        destination: Number(intentModel.route.destination),
-        inbox: intentModel.route.inbox,
-        calls: intentModel.route.calls.map((call) => ({
-          target: call.target,
-          data: call.data,
-          value: call.value.toString(),
-        })),
-        tokens: intentModel.route.tokens.map((t) => ({
-          token: t.token,
-          amount: t.amount.toString(),
-        })),
-      },
-      reward: {
-        creator: intentModel.reward.creator,
-        prover: intentModel.reward.prover,
-        deadline: intentModel.reward.deadline.toString(),
-        nativeValue: intentModel.reward.nativeValue.toString(),
-        tokens: intentModel.reward.tokens.map((t) => ({
-          token: t.token,
-          amount: t.amount.toString(),
-        })),
-      },
+    if (!isEnough) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Reward not enough for intent',
+          properties: {
+            totalRouteAmount: totalRouteAmount.toString(),
+            totalRewardAmount: totalRewardAmount.toString(),
+            minimumReward: minimumReward.toString(),
+            executionFee: executionFee.toString(),
+          },
+        }),
+      )
     }
 
-    const params = {
-      intent,
-      publicKey: pkp.publicKey,
-      kernelAddress: kernel.address,
-      transaction: transactionBase,
-    }
+    this.ecoAnalytics.trackCrowdLiquidityRewardCheckResult(intentModel, isEnough, {
+      totalRouteAmount: totalRouteAmount.toString(),
+      totalRewardAmount: totalRewardAmount.toString(),
+      executionFee: executionFee.toString(),
+      minimumReward: minimumReward.toString(),
+    })
 
-    return this.callLitAction(actions.fulfill, publicClient, params)
+    return isEnough
   }
 
-  private async callLitAction(
-    ipfsId: string,
-    publicClient: PublicClient,
-    params: LitActionSdkParams['jsParams'],
-  ): Promise<Hex> {
+  public async getExecutionFee(
+    intentModel: IntentDataModel,
+    totalRouteAmount: bigint,
+  ): Promise<bigint> {
+    const destinationChainID = Number(intentModel.route.destination)
+
+    // Excess fee
+    const excessFee = BigInt(this.config.minExcessFees[destinationChainID] ?? '0')
+
+    // Bridging fee
+    const { stablePool } = this.getAddresses(destinationChainID)
+    const { bridgingFeeBps } = await this.getPoolFees(destinationChainID, stablePool)
+    const bridgingFee = (totalRouteAmount * bridgingFeeBps.multiplier) / bridgingFeeBps.base
+
+    return bridgingFee + excessFee
+  }
+
+  @Cacheable()
+  protected async getPoolFees(chainID: number, poolAddr: Hex) {
+    const walletClient = await this.walletClientService.getClient(chainID)
+    const publicClient = walletClient.extend(publicActions)
+
+    // The contract uses BPS as an integer to represent percentage where `50` equals 0.5%
+    // This is a constant value in the contract that cannot be read from it.
+    const bridgingFeeBpsBase = 100n
+
+    const bridgingFeeBps = await publicClient.readContract({
+      address: poolAddr,
+      abi: stablePoolAbi,
+      functionName: 'bridgingFeeBps',
+    })
+
+    return { bridgingFeeBps: { multiplier: bridgingFeeBps, base: bridgingFeeBpsBase } }
+  }
+
+  getProverData(intentModel: IntentDataModel) {
+    const messageData = encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+      [pad(intentModel.reward.prover), '0x', zeroAddress],
+    )
+
+    const source = Number(intentModel.route.source)
+    const destination = Number(intentModel.route.destination)
+
+    const intentHash = intentModel.hash
+    const { stablePool: claimant } = this.getAddresses(source)
+
+    const localProver = getChainConfig(destination).HyperProver
+
+    return { messageData, intentHash, localProver, claimant, source, destination }
+  }
+
+  protected async getProverFee(intentModel: IntentDataModel) {
+    const { source, destination, localProver, intentHash, claimant, messageData } =
+      this.getProverData(intentModel)
+
+    const walletClient = await this.walletClientService.getClient(destination)
+    const publicClient = walletClient.extend(publicActions)
+
+    return publicClient.readContract({
+      address: localProver,
+      abi: IMessageBridgeProverAbi,
+      functionName: 'fetchFee',
+      args: [BigInt(source), [intentHash], [claimant], messageData],
+    })
+  }
+
+  private async callLitAction<
+    Params extends LitActionSdkParams['jsParams'],
+    Response extends { signature: string } = { signature: string },
+  >(ipfsId: string, params: Params): Promise<Response> {
     try {
-      const { capacityTokenId, capacityTokenOwnerPk, pkp, litNetwork } = this.config
+      const { capacityTokenOwnerPk, pkp, litNetwork } = this.config
 
-      const litNodeClient = new LitNodeClient({
-        litNetwork,
-        debug: false,
-      })
+      const litNodeClient = new LitNodeClient({ litNetwork, debug: false })
       await litNodeClient.connect()
 
       // ================ Create capacity delegation AuthSig ================
@@ -330,7 +409,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       const { capacityDelegationAuthSig } = await litNodeClient.createCapacityDelegationAuthSig({
         uses: '1',
         dAppOwnerWallet: capacityTokenOwner,
-        capacityTokenId: capacityTokenId,
       })
 
       // ================ Get session sigs ================
@@ -367,7 +445,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
       await litNodeClient.disconnect()
 
-      // ================ Execute Transaction ================
+      // ================ Process response ================
 
       if (typeof litRes.response === 'string') {
         this.logger.error(
@@ -382,41 +460,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         throw error
       }
 
-      const response = litRes.response as {
-        type: number
-        maxPriorityFeePerGas: string
-        maxFeePerGas: string
-        nonce: number
-        gasLimit: number
-        value: {
-          type: 'BigNumber'
-          hex: string
-        }
-        from: string
-        to: string
-        data: string
-        chainId: number
-      }
+      const result = {
+        ...litRes.response,
+        signature: litRes.signatures.sig.signature as string,
+      } as Response
 
-      const unsignedTransaction: TransactionSerializableEIP1559 = {
-        type: 'eip1559',
-        chainId: response.chainId,
-        nonce: response.nonce,
-        to: response.to as Hex,
-        value: BigInt(response.value.hex ?? response.value ?? 0),
-        data: response.data as Hex,
-        gas: BigInt(response.gasLimit),
-        maxFeePerGas: BigInt(response.maxFeePerGas),
-        maxPriorityFeePerGas: BigInt(response.maxPriorityFeePerGas),
-      }
-
-      const serializedTransaction = serializeTransaction(
-        unsignedTransaction,
-        parseSignature(litRes.signatures.sig.signature),
-      )
-
-      const result = await publicClient.sendRawTransaction({ serializedTransaction })
       this.ecoAnalytics.trackCrowdLiquidityLitActionSuccess(ipfsId, params, result)
+
       return result
     } catch (error) {
       this.ecoAnalytics.trackCrowdLiquidityLitActionError(ipfsId, params, error)
@@ -447,17 +497,33 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     }
   }
 
-  private async getFeeData(publicClient: PublicClient) {
-    const [block, maxPriorityFeePerGas] = await Promise.all([
-      publicClient.getBlock(),
-      publicClient.estimateMaxPriorityFeePerGas(),
-    ])
-    const maxFeePerGas = block.baseFeePerGas! * 2n + maxPriorityFeePerGas
-
+  private getIntentType(intentModel: IntentDataModel): IntentType {
     return {
-      type: 2,
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-      maxFeePerGas: maxFeePerGas.toString(),
+      route: {
+        salt: intentModel.route.salt,
+        inbox: intentModel.route.inbox,
+        source: intentModel.route.source,
+        destination: intentModel.route.destination,
+        calls: intentModel.route.calls.map((call) => ({
+          target: call.target,
+          data: call.data,
+          value: call.value,
+        })),
+        tokens: intentModel.route.tokens.map((t) => ({
+          token: t.token,
+          amount: t.amount,
+        })),
+      },
+      reward: {
+        creator: intentModel.reward.creator,
+        prover: intentModel.reward.prover,
+        deadline: intentModel.reward.deadline,
+        nativeValue: intentModel.reward.nativeValue,
+        tokens: intentModel.reward.tokens.map((t) => ({
+          token: t.token,
+          amount: t.amount,
+        })),
+      },
     }
   }
 }
