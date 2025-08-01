@@ -16,6 +16,7 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-pr
     StargateProviderService,
     SquidProviderService,
     CCTPV2ProviderService,
+    EverclearProviderService,
   ],
   exports: [LiquidityManagerService],
 })
