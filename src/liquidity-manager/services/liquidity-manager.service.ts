@@ -9,7 +9,6 @@ import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
   analyzeTokenGroup,
-  getGroupTotal,
   getSortGroupByDiff,
 } from '@/liquidity-manager/utils/token'
 import {
