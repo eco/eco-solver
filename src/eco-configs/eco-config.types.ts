@@ -122,6 +122,8 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    crowdLiquidityJobConfig: JobsOptions
+    walletFulfillJobConfig: JobsOptions
     watchJobConfig: JobsOptions
   }
 }

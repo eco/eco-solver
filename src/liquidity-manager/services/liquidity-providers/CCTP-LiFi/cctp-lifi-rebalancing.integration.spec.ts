@@ -228,7 +228,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     ecoConfigService.getFulfill.mockReturnValue({ type: 'solver' } as any)
 
     // Mock crowd liquidity service to properly determine wallet type
-    ;(crowdLiquidityService.getPoolAddress as jest.Mock).mockReturnValue('0xcrowdliquiditypool')
+    ;(crowdLiquidityService.getAddresses as jest.Mock).mockReturnValue('0xcrowdliquiditypool')
 
     // Mock logger
     jest.spyOn(Logger.prototype, 'log').mockImplementation()

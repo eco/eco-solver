@@ -50,6 +50,24 @@ export default {
           delay: 2_000,
         },
       },
+      crowdLiquidityJobConfig: {
+        removeOnComplete: false,
+        removeOnFail: true,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 3_000,
+        },
+      },
+      walletFulfillJobConfig: {
+        removeOnComplete: false,
+        removeOnFail: false,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2_000,
+        },
+      },
       watchJobConfig: {
         removeOnComplete: true,
         removeOnFail: false,
