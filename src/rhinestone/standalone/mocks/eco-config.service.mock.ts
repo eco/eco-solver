@@ -125,7 +125,14 @@ export class MockEcoConfigService {
     solvers: {
       10: {
         inboxAddress: '0x0000000000000000000000000000000000000000' as Hex,
-        targets: {},
+        targets: {
+          '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913': {
+            contractType: 'erc20' as any,
+            selectors: ['0xa9059cbb'],
+            minBalance: 0,
+            targetBalance: 0,
+          },
+        },
         network: 'OPTIMISM' as any,
         fee: {
           limit: {

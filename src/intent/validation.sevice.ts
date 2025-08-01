@@ -5,7 +5,7 @@ import { FeeService } from '@/fee/fee.service'
 import {
   equivalentNativeGas,
   getFunctionCalls,
-  getFunctionTargets,
+  getIntentTokens,
   getNativeFulfill,
   getTransactionTargetData,
   isNativeETH,
@@ -82,6 +82,7 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 export interface ValidationFlags {
   skipLimitValidation?: boolean
   skipTransactionValidation?: boolean
+  useRouteTokens?: boolean
 }
 
 @Injectable()
@@ -123,7 +124,7 @@ export class ValidationService implements OnModuleInit {
       destination: Number(intent.route.destination),
     })
     const supportedNative = this.supportedNative(intent)
-    const supportedTargets = this.supportedTargets(intent, solver)
+    const supportedTargets = this.supportedTargets(intent, solver, flags?.useRouteTokens)
     const supportedTransaction =
       flags?.skipTransactionValidation || this.supportedTransaction(intent, solver, txValidationFn)
     const validTransferLimit = flags?.skipLimitValidation || (await this.validTransferLimit(intent))
@@ -209,10 +210,15 @@ export class ValidationService implements OnModuleInit {
    *
    * @param intent the intent model
    * @param solver the solver for the intent
+   * @param useRouteTokens if true, uses tokens from intent.route.tokens; if false, uses function targets
    * @returns
    */
-  supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
-    const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
+  supportedTargets(
+    intent: ValidationIntentInterface,
+    solver: Solver,
+    useRouteTokens?: boolean,
+  ): boolean {
+    const intentFunctionTargets = getIntentTokens(intent, !!useRouteTokens)
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
     const targetsSupported = difference(intentFunctionTargets, solverTargets).length == 0

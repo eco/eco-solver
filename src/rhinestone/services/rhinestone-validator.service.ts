@@ -72,6 +72,7 @@ export class RhinestoneValidatorService {
       skipIntentFunded: true,
       skipLimitValidation: true,
       skipTransactionValidation: true,
+      useRouteTokens: true,
     })
     if (!isValidIntent) {
       throw new EcoError('Intent failed validations')

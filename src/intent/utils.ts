@@ -4,7 +4,7 @@ import { CallDataInterface, getERCAbi } from '@/contracts'
 import { Solver, TargetContract } from '@/eco-configs/eco-config.types'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
-import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
+import { Address, decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
 import { mainnet } from 'viem/chains'
 import { ValidationIntentInterface } from './validation.sevice'
 import { Logger } from '@nestjs/common'
@@ -168,6 +168,22 @@ export function getNativeFulfill(calls: readonly CallDataInterface[]): bigint {
  */
 export function getFunctionTargets(calls: CallDataInterface[]) {
   return getFunctionCalls(calls).map((call) => call.target)
+}
+
+/**
+ * Returns either the tokens from the intent or the function targets based on the useRouteTokens flag
+ * @param intent the intent containing route and tokens
+ * @param useRouteTokens if true, returns tokens from intent.route.tokens; if false, returns function targets
+ * @returns array of token addresses
+ */
+export function getIntentTokens(
+  intent: { route: { tokens: readonly { token: string }[]; calls: readonly CallDataInterface[] } },
+  useRouteTokens: boolean,
+): Address[] {
+  if (useRouteTokens) {
+    return intent.route.tokens.map((t) => t.token as Address)
+  }
+  return getFunctionTargets(intent.route.calls as CallDataInterface[]) as Address[]
 }
 
 export function isNativeETH(intent: ValidationIntentInterface): boolean {
