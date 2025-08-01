@@ -3,7 +3,6 @@ import { EventEmitterModule } from '@nestjs/event-emitter'
 import { CacheModule } from '@nestjs/cache-manager'
 import { BullModule } from '@nestjs/bullmq'
 import { RhinestoneWebsocketService } from '../services/rhinestone-websocket.service'
-import { RhinestoneTestController } from './rhinestone-test.controller'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MockEcoConfigService } from './mocks/eco-config.service.mock'
 import { RhinestoneService } from '@/rhinestone/services/rhinestone.service'
@@ -47,7 +46,6 @@ import { QUEUES } from '@/common/redis/constants'
       name: QUEUES.SOURCE_INTENT.queue,
     }),
   ],
-  controllers: [RhinestoneTestController],
   providers: [
     {
       provide: EcoConfigService,

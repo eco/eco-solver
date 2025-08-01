@@ -69,8 +69,9 @@ export class RhinestoneValidatorService {
     }
 
     const isValidIntent = await this.validateIntentService.validateFullIntent(intent, {
-      skipTransactionValidation: true,
+      skipIntentFunded: true,
       skipLimitValidation: true,
+      skipTransactionValidation: true,
     })
     if (!isValidIntent) {
       throw new EcoError('Intent failed validations')

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { ProofType } from '@/contracts'
 
 @Injectable()
 export class MockProofService {
@@ -10,5 +11,13 @@ export class MockProofService {
 
   isProverSupported(prover: string): boolean {
     return true
+  }
+
+  isIntentExpirationWithinProofMinimumDate() {
+    return true
+  }
+
+  getProverType() {
+    return ProofType.HYPERLANE
   }
 }

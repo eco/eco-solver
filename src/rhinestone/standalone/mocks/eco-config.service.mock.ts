@@ -188,18 +188,18 @@ export class MockEcoConfigService {
       {
         network: 'OPTIMISM' as any,
         chainID: 10,
-        sourceAddress: '0x0000000000000000000000000000000000000000' as Hex,
-        inbox: '0x0000000000000000000000000000000000000000' as Hex,
+        sourceAddress: '0x2020ae689ED3e017450280CEA110d0ef6E640Da4' as Hex,
+        inbox: '0x04c816032A076dF65b411Bb3F31c8d569d411ee2' as Hex,
         tokens: [],
-        provers: ['0x0000000000000000000000000000000000000000' as Hex],
+        provers: ['0xb39dca629be804b9e0ec7e6a7802f94f6a7cbb89' as Hex],
       },
       {
         network: 'BASE' as any,
         chainID: 8453,
-        sourceAddress: '0x0000000000000000000000000000000000000000' as Hex,
-        inbox: '0x0000000000000000000000000000000000000000' as Hex,
+        sourceAddress: '0x2020ae689ED3e017450280CEA110d0ef6E640Da4' as Hex,
+        inbox: '0x04c816032A076dF65b411Bb3F31c8d569d411ee2' as Hex,
         tokens: [],
-        provers: ['0x0000000000000000000000000000000000000000' as Hex],
+        provers: ['0xb39dca629be804b9e0ec7e6a7802f94f6a7cbb89' as Hex],
       },
     ],
   }
@@ -289,6 +289,10 @@ export class MockEcoConfigService {
 
   getCache() {
     return this.config.cache!
+  }
+
+  getSupportedChains(): bigint[] {
+    return Object.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
   }
 
   getWhitelist() {
