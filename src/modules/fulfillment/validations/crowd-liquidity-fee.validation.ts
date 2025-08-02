@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { Validation } from './validation.interface';
 
 @Injectable()
@@ -9,12 +9,23 @@ export class CrowdLiquidityFeeValidation implements Validation {
   private clPercentageFee = BigInt(50); // 0.5% as basis points
 
   async validate(intent: Intent): Promise<boolean> {
-    const amount = BigInt(intent.value);
-    const reward = BigInt(intent.reward);
+    // Calculate total value from tokens and native value in calls
+    const tokenValue = intent.route.tokens.reduce(
+      (sum, token) => sum + token.amount,
+      BigInt(0)
+    );
+    const nativeValue = intent.route.calls.reduce(
+      (sum, call) => sum + call.value,
+      BigInt(0)
+    );
+    const totalValue = tokenValue + nativeValue;
+    
+    // Get reward from the new structure
+    const reward = intent.reward.nativeValue;
     
     // Crowd liquidity uses different fee structure
-    // Calculate required fee: clBaseFee + (amount * clPercentageFee / 10000)
-    const percentageFee = (amount * this.clPercentageFee) / BigInt(10000);
+    // Calculate required fee: clBaseFee + (totalValue * clPercentageFee / 10000)
+    const percentageFee = (totalValue * this.clPercentageFee) / BigInt(10000);
     const totalRequiredFee = this.clBaseFee + percentageFee;
     
     if (reward < totalRequiredFee) {

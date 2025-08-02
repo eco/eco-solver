@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { Validation } from './validation.interface';
 
 @Injectable()
@@ -12,20 +12,40 @@ export class RouteAmountLimitValidation implements Validation {
   ]);
 
   async validate(intent: Intent): Promise<boolean> {
-    const amount = BigInt(intent.value);
+    // Create route key from source and destination chain IDs
+    const routeKey = `${intent.route.source}-${intent.route.destination}`;
     
-    if (amount <= 0n) {
-      throw new Error('Intent amount must be greater than 0');
+    // Calculate total value being transferred
+    let totalValue = 0n;
+    
+    // Add native value from reward
+    if (intent.reward.nativeValue) {
+      totalValue += intent.reward.nativeValue;
+    }
+    
+    // Add token values
+    if (intent.route.tokens && intent.route.tokens.length > 0) {
+      for (const token of intent.route.tokens) {
+        totalValue += token.amount;
+      }
+    }
+    
+    // Add call values
+    if (intent.route.calls && intent.route.calls.length > 0) {
+      for (const call of intent.route.calls) {
+        totalValue += call.value;
+      }
+    }
+    
+    if (totalValue <= 0n) {
+      throw new Error('Total intent value must be greater than 0');
     }
 
-    // Create route key from source and target chain IDs
-    const routeKey = `${intent.source.chainId}-${intent.target.chainId}`;
-    
     // TODO: Get actual route limit from configuration
-    const limit = this.routeLimits.get(routeKey) || BigInt(10) * BigInt(10 ** 18); // Default 10 ETH
+    const limit = this.routeLimits.get(routeKey) || 10n * 10n ** 18n; // Default 10 ETH
     
-    if (amount > limit) {
-      throw new Error(`Amount ${amount} exceeds route limit ${limit} for route ${routeKey}`);
+    if (totalValue > limit) {
+      throw new Error(`Total value ${totalValue} exceeds route limit ${limit} for route ${routeKey}`);
     }
 
     return true;

@@ -1,22 +1,32 @@
+import { Address, Hex } from 'viem';
+
 export interface Intent {
   intentId: string;
-  source: {
-    chainId: string | number;
-    address: string;
-    txHash?: string;
+  reward: {
+    prover: Address;
+    creator: Address;
+    deadline: bigint;
+    nativeValue: bigint;
+    tokens: {
+      amount: bigint;
+      token: Address;
+    }[];
   };
-  target: {
-    chainId: string | number;
-    address: string;
-    txHash?: string;
+  route: {
+    source: bigint;
+    destination: bigint;
+    salt: Hex;
+    inbox: Address;
+    calls: {
+      data: Hex;
+      target: Address;
+      value: bigint;
+    }[];
+    tokens: {
+      amount: bigint;
+      token: Address;
+    }[];
   };
-  solver: string;
-  user: string;
-  data: string;
-  value: string;
-  reward: string;
-  deadline: number;
-  timestamp: number;
   status: IntentStatus;
   metadata?: {
     strategyType?: string;

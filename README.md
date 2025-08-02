@@ -7,10 +7,12 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 - **Multi-Chain Support**: EVM (Ethereum, Polygon, etc.) and Solana
 - **Modular Architecture**: Clean separation of concerns with NestJS modules
 - **Queue-Based Processing**: Reliable intent processing with BullMQ and Redis
+- **Multiple Fulfillment Strategies**: Standard, CrowdLiquidity, NativeIntents, NegativeIntents, and Rhinestone
+- **Pluggable Validation Framework**: Reusable validation classes with immutable configurations
 - **Type-Safe Configuration**: Schema-driven configuration with Zod validation
 - **AWS Integration**: Secure secrets management with AWS Secrets Manager
 - **Docker Ready**: Full containerization support for easy deployment
-- **Extensible Design**: Easy to add new chains and fulfillment strategies
+- **Extensible Design**: Easy to add new chains, fulfillment strategies, and validations
 
 ## 📋 Prerequisites
 
@@ -76,7 +78,7 @@ src/
 ├── common/                 # Shared abstractions and interfaces
 │   ├── abstractions/      # Base classes for chain listeners and executors
 │   ├── constants/         # Application constants
-│   └── interfaces/        # TypeScript interfaces
+│   └── interfaces/        # TypeScript interfaces (including Intent)
 ├── config/                # Configuration and validation
 │   ├── config.schema.ts   # Zod schema for configuration
 │   └── configuration.ts   # Configuration factory
@@ -86,17 +88,60 @@ src/
     ├── queue/            # Queue management with BullMQ
     ├── on-chain-listener/# Blockchain event listeners
     ├── fulfillment/      # Intent validation and fulfillment logic
-    └── execution/        # Transaction execution on target chains
+    │   ├── strategies/   # Multiple fulfillment strategies
+    │   └── validations/  # Pluggable validation framework
+    ├── execution/        # Transaction execution on target chains
+    └── prover/           # Route validation with multiple prover types
 ```
 
 ### Processing Flow
 
 1. **Listen**: On-chain listeners monitor blockchain events for new intents
 2. **Store**: Intents are persisted to MongoDB for tracking
-3. **Queue**: Valid intents are added to the fulfillment queue
-4. **Validate**: Fulfillment service validates intents against strategies
-5. **Execute**: Execution service performs transactions on target chains
+3. **Queue**: Valid intents are added to the fulfillment queue with strategy selection
+4. **Validate**: Selected strategy validates intents using its immutable validation set
+5. **Execute**: Strategy-specific execution logic performs transactions on target chains
 6. **Update**: Intent status is updated throughout the process
+
+### Intent Structure
+
+The system uses a structured Intent format with Viem types:
+
+```typescript
+interface Intent {
+  intentId: string;
+  reward: {
+    prover: Address;
+    creator: Address;
+    deadline: bigint;
+    nativeValue: bigint;
+    tokens: {
+      amount: bigint;
+      token: Address;
+    }[];
+  };
+  route: {
+    source: bigint;        // Source chain ID
+    destination: bigint;   // Destination chain ID
+    salt: Hex;
+    inbox: Address;
+    calls: {
+      data: Hex;
+      target: Address;
+      value: bigint;
+    }[];
+    tokens: {
+      amount: bigint;
+      token: Address;
+    }[];
+  };
+  status: IntentStatus;
+  metadata?: {
+    strategyType?: string;
+    // Additional strategy-specific flags
+  };
+}
+```
 
 ## ⚙️ Configuration
 

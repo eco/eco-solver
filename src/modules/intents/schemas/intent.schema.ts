@@ -13,52 +13,61 @@ export class Intent {
 
   @Prop({
     type: {
-      chainId: { type: MongooseSchema.Types.Mixed, required: true },
-      address: { type: String, required: true },
-      txHash: { type: String, required: false },
+      prover: { type: String, required: true },
+      creator: { type: String, required: true },
+      deadline: { type: String, required: true }, // Store bigint as string
+      nativeValue: { type: String, required: true }, // Store bigint as string
+      tokens: [{
+        amount: { type: String, required: true }, // Store bigint as string
+        token: { type: String, required: true },
+      }],
     },
     required: true,
   })
-  source: {
-    chainId: string | number;
-    address: string;
-    txHash?: string;
+  reward: {
+    prover: string;
+    creator: string;
+    deadline: string;
+    nativeValue: string;
+    tokens: {
+      amount: string;
+      token: string;
+    }[];
   };
 
   @Prop({
     type: {
-      chainId: { type: MongooseSchema.Types.Mixed, required: true },
-      address: { type: String, required: true },
-      txHash: { type: String, required: false },
+      source: { type: String, required: true }, // Store bigint as string
+      destination: { type: String, required: true }, // Store bigint as string
+      salt: { type: String, required: true },
+      inbox: { type: String, required: true },
+      calls: [{
+        data: { type: String, required: true },
+        target: { type: String, required: true },
+        value: { type: String, required: true }, // Store bigint as string
+      }],
+      tokens: [{
+        amount: { type: String, required: true }, // Store bigint as string
+        token: { type: String, required: true },
+      }],
     },
     required: true,
   })
-  target: {
-    chainId: string | number;
-    address: string;
-    txHash?: string;
+  route: {
+    source: string;
+    destination: string;
+    salt: string;
+    inbox: string;
+    calls: {
+      data: string;
+      target: string;
+      value: string;
+    }[];
+    tokens: {
+      amount: string;
+      token: string;
+    }[];
   };
-
-  @Prop({ required: true })
-  solver: string;
-
-  @Prop({ required: true })
-  user: string;
-
-  @Prop({ required: true })
-  data: string;
-
-  @Prop({ required: true })
-  value: string;
-
-  @Prop({ required: true })
-  reward: string;
-
-  @Prop({ required: true })
-  deadline: number;
-
-  @Prop({ required: true })
-  timestamp: number;
 
   @Prop({
     required: true,
@@ -74,6 +83,6 @@ export class Intent {
 
 export const IntentSchema = SchemaFactory.createForClass(Intent);
 
-IntentSchema.index({ 'source.chainId': 1, status: 1 });
-IntentSchema.index({ 'target.chainId': 1, status: 1 });
-IntentSchema.index({ solver: 1, status: 1 });
+IntentSchema.index({ 'route.source': 1, status: 1 });
+IntentSchema.index({ 'route.destination': 1, status: 1 });
+IntentSchema.index({ 'reward.creator': 1, status: 1 });

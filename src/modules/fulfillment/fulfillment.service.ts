@@ -1,29 +1,20 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { ProverService } from '@/modules/prover/prover.service';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { FulfillmentStrategy } from './strategies/fulfillment-strategy.abstract';
-import { Validation } from './validations/validation.interface';
-import { StandardFulfillmentStrategy } from './strategies/standard-fulfillment.strategy';
-import { CrowdLiquidityFulfillmentStrategy } from './strategies/crowd-liquidity-fulfillment.strategy';
-import { NativeIntentsFulfillmentStrategy } from './strategies/native-intents-fulfillment.strategy';
-import { NegativeIntentsFulfillmentStrategy } from './strategies/negative-intents-fulfillment.strategy';
-import { RhinestoneFulfillmentStrategy } from './strategies/rhinestone-fulfillment.strategy';
+import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { StandardFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { NativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { NegativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { RhinestoneFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 
 @Injectable()
 export class FulfillmentService {
   private strategies: Map<string, FulfillmentStrategy> = new Map();
 
   constructor(
-    private evmConfigService: EvmConfigService,
-    private solanaConfigService: SolanaConfigService,
     private intentsService: IntentsService,
-    @Inject(QUEUE_SERVICE) private queueService: QueueService,
-    private proverService: ProverService,
     // Inject all strategies
     private standardStrategy: StandardFulfillmentStrategy,
     private crowdLiquidityStrategy: CrowdLiquidityFulfillmentStrategy,
@@ -32,11 +23,11 @@ export class FulfillmentService {
     private rhinestoneStrategy: RhinestoneFulfillmentStrategy,
   ) {
     // Register strategies by name
-    this.strategies.set('standard', this.standardStrategy);
-    this.strategies.set('crowd-liquidity', this.crowdLiquidityStrategy);
-    this.strategies.set('native-intents', this.nativeIntentsStrategy);
-    this.strategies.set('negative-intents', this.negativeIntentsStrategy);
-    this.strategies.set('rhinestone', this.rhinestoneStrategy);
+    this.strategies.set(this.standardStrategy.name, this.standardStrategy);
+    this.strategies.set(this.crowdLiquidityStrategy.name, this.crowdLiquidityStrategy);
+    this.strategies.set(this.nativeIntentsStrategy.name, this.nativeIntentsStrategy);
+    this.strategies.set(this.negativeIntentsStrategy.name, this.negativeIntentsStrategy);
+    this.strategies.set(this.rhinestoneStrategy.name, this.rhinestoneStrategy);
   }
 
   async processIntent(intent: Intent, strategyName: string): Promise<void> {
@@ -80,15 +71,5 @@ export class FulfillmentService {
         metadata: { error: error.message },
       });
     }
-  }
-
-
-  private getWalletAddressForChain(chainId: string | number): string {
-    if (typeof chainId === 'number') {
-      return this.evmConfigService.walletAddress;
-    } else if (chainId === 'solana-mainnet') {
-      return this.solanaConfigService.walletAddress;
-    }
-    throw new Error(`Unsupported chain: ${chainId}`);
   }
 }

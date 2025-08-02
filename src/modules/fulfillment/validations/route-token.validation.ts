@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { Validation } from './validation.interface';
 
 @Injectable()
@@ -10,20 +10,33 @@ export class RouteTokenValidation implements Validation {
   ]);
 
   async validate(intent: Intent): Promise<boolean> {
-    // TODO: Implement route and reward token validation
-    // This should check if the route tokens (source and target) are supported
-    // and if the reward token is supported
-    
-    // For now, we'll do basic validation
-    if (!intent.source?.address || !intent.target?.address) {
-      throw new Error('Intent must have source and target addresses');
+    // Validate route tokens
+    if (intent.route.tokens && intent.route.tokens.length > 0) {
+      for (const token of intent.route.tokens) {
+        if (!token.token || token.token === '0x0000000000000000000000000000000000000000') {
+          throw new Error('Invalid token address');
+        }
+        
+        // TODO: Check if token is supported (when supportedTokens is populated)
+        // if (this.supportedTokens.size > 0 && !this.supportedTokens.has(token.token)) {
+        //   throw new Error(`Token ${token.token} is not supported`);
+        // }
+      }
     }
-
-    // TODO: Add actual token validation
-    // 1. Extract token addresses from intent data
-    // 2. Check if source token is supported
-    // 3. Check if target token is supported
-    // 4. Check if reward token is supported
+    
+    // Validate reward tokens
+    if (intent.reward.tokens && intent.reward.tokens.length > 0) {
+      for (const token of intent.reward.tokens) {
+        if (!token.token || token.token === '0x0000000000000000000000000000000000000000') {
+          throw new Error('Invalid reward token address');
+        }
+        
+        // TODO: Check if reward token is supported
+        // if (this.supportedTokens.size > 0 && !this.supportedTokens.has(token.token)) {
+        //   throw new Error(`Reward token ${token.token} is not supported`);
+        // }
+      }
+    }
     
     return true;
   }

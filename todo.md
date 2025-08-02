@@ -1,78 +1,27 @@
-# Todo List - Update Relative Imports to @ Alias
+# Todo List - Update Validation Files for New Intent Structure
 
 ## Tasks
 
-1. ✅ Update imports in common/abstractions files
-2. ✅ Update imports in modules/config files  
-3. ✅ Update imports in modules/intents files
-4. ✅ Update imports in modules/queue files
-5. ✅ Update imports in modules/fulfillment files
-6. ✅ Update imports in modules/execution files
-7. ✅ Update imports in modules/on-chain-listener files
-8. ✅ Update imports in root files (main.ts, app.module.ts)
-9. ✅ Add review section with summary of changes
+1. [ ] Update route-token.validation.ts to use new Intent structure
+2. [ ] Update route-calls.validation.ts to use new Intent structure  
+3. [ ] Update route-amount-limit.validation.ts to use new Intent structure
+4. [ ] Update prover-support.validation.ts to use new Intent structure
+5. [ ] Update executor-balance.validation.ts to use new Intent structure
+6. [ ] Update standard-fee.validation.ts to use new Intent structure
+7. [ ] Update crowd-liquidity-fee.validation.ts to use new Intent structure
+8. [ ] Update native-fee.validation.ts to use new Intent structure
 
-## Review
+## Key Changes Required
+1. Import Intent from '@/common/interfaces/intent.interface' instead of modules path
+2. Use intent.route.source/destination instead of intent.source.chainId/target.chainId
+3. Use intent.route.tokens[].amount for token amounts
+4. Use intent.route.calls[].value for call values
+5. Use intent.reward.nativeValue for reward value
+6. Use intent.reward.deadline instead of intent.deadline
+7. Handle bigint types properly throughout
 
-### Summary of Changes
-
-I successfully updated all TypeScript files in the src directory to use the '@' alias instead of relative imports. This involved updating 32 files across all modules.
-
-### Changes by Module:
-
-1. **common/abstractions** (3 files):
-   - base-chain-listener.abstract.ts
-   - base-chain-executor.abstract.ts
-   - base-fulfillment.abstract.ts
-
-2. **modules/config** (8 files):
-   - config.module.ts
-   - All service files (app, database, redis, evm, solana, queue)
-
-3. **modules/intents** (3 files):
-   - intents.module.ts
-   - intents.service.ts
-   - schemas/intent.schema.ts
-
-4. **modules/queue** (2 files):
-   - queue.module.ts
-   - queue.service.ts
-
-5. **modules/fulfillment** (8 files):
-   - fulfillment.module.ts
-   - fulfillment.service.ts
-   - fulfillment.processor.ts
-   - strategies/basic-validation.strategy.ts
-   - strategies/validation-strategy.interface.ts
-   - fulfillments/storage.fulfillment.ts
-
-6. **modules/execution** (6 files):
-   - execution.module.ts
-   - execution.service.ts
-   - execution.processor.ts
-   - executors/evm.executor.ts
-   - executors/solana.executor.ts
-
-7. **modules/on-chain-listener** (5 files):
-   - on-chain-listener.module.ts
-   - on-chain-listener.service.ts
-   - listeners/evm.listener.ts
-   - listeners/solana.listener.ts
-
-8. **Root files** (2 files):
-   - main.ts
-   - app.module.ts
-
-### Import Pattern Changes:
-- `../../../common/interfaces/intent.interface` → `@/common/interfaces/intent.interface`
-- `../../modules/config/services` → `@/modules/config/services`
-- `./schemas/intent.schema` → `@/modules/intents/schemas/intent.schema`
-- `../config/config.module` → `@/modules/config/config.module`
-
-### Benefits:
-- More maintainable codebase with absolute imports
-- Easier to move files without breaking imports
-- Clearer import paths that show the actual location from src root
-- Consistent import style across the entire codebase
-
-All relative imports have been successfully converted to use the '@' alias, making the codebase more maintainable and the imports more readable.
+## Notes
+- The new Intent interface uses nested objects for better organization
+- Chain IDs are now bigint type in route.source and route.destination
+- Token and call information is now in arrays within the route object
+- Reward information is in a separate reward object with prover, creator, deadline, and value details
