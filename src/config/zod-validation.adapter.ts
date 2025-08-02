@@ -13,10 +13,10 @@ export function createZodValidationAdapter(schema: z.ZodSchema) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         // Convert Zod errors to a format similar to Joi
-        const errorMessages = error.errors
-          .map((err) => {
-            const path = err.path.join('.');
-            return `${path}: ${err.message}`;
+        const errorMessages = error.issues
+          .map((issue) => {
+            const path = issue.path.join('.');
+            return `${path}: ${issue.message}`;
           })
           .join(', ');
 
@@ -25,15 +25,4 @@ export function createZodValidationAdapter(schema: z.ZodSchema) {
       throw error;
     }
   };
-}
-
-/**
- * Transform environment variables for Zod validation
- * This function is a pass-through since the configuration factory
- * already handles the transformation to the proper nested structure
- */
-export function transformEnvVarsForValidation(config: Record<string, any>): Record<string, any> {
-  // The configuration factory already provides the proper nested structure
-  // so we just return it as-is for validation
-  return config;
 }

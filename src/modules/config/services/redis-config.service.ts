@@ -1,21 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
-import { RedisConfig } from '@/modules/config/interfaces';
+import { RedisSchema } from '@/config/config.schema';
+
+type RedisConfig = z.infer<typeof RedisSchema>;
 
 @Injectable()
-export class RedisConfigService implements RedisConfig {
+export class RedisConfigService {
   constructor(private configService: ConfigService) {}
 
-  get host(): string {
+  get host(): RedisConfig['host'] {
     return this.configService.get<string>('redis.host');
   }
 
-  get port(): number {
+  get port(): RedisConfig['port'] {
     return this.configService.get<number>('redis.port');
   }
 
-  get password(): string | undefined {
+  get password(): RedisConfig['password'] {
     return this.configService.get<string>('redis.password');
   }
 }

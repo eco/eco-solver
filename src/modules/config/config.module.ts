@@ -3,10 +3,7 @@ import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config'
 
 import { ConfigSchema } from '@/config/config.schema';
 import { configurationFactory } from '@/config/configuration-factory';
-import {
-  createZodValidationAdapter,
-  transformEnvVarsForValidation,
-} from '@/config/zod-validation.adapter';
+import { createZodValidationAdapter } from '@/config/zod-validation.adapter';
 import {
   AppConfigService,
   AwsConfigService,
@@ -35,12 +32,7 @@ const configProviders = [
     NestConfigModule.forRoot({
       isGlobal: false,
       load: [configurationFactory],
-      validate: (config: Record<string, any>) => {
-        // Transform environment variables to proper types
-        const transformed = transformEnvVarsForValidation(config);
-        // Validate using Zod schema
-        return createZodValidationAdapter(ConfigSchema)(transformed);
-      },
+      validate: createZodValidationAdapter(ConfigSchema),
     }),
   ],
   providers: [ConfigService, ...configProviders],

@@ -1,29 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
-import { SolanaConfig } from '@/modules/config/interfaces';
+import { SolanaSchema } from '@/config/config.schema';
+
+type SolanaConfig = z.infer<typeof SolanaSchema>;
 
 @Injectable()
-export class SolanaConfigService implements SolanaConfig {
+export class SolanaConfigService {
   constructor(private configService: ConfigService) {}
 
-  get rpcUrl(): string {
+  get rpcUrl(): SolanaConfig['rpcUrl'] {
     return this.configService.get<string>('solana.rpcUrl');
   }
 
-  get wsUrl(): string {
+  get wsUrl(): SolanaConfig['wsUrl'] {
     return this.configService.get<string>('solana.wsUrl');
   }
 
-  get secretKey(): string {
+  get secretKey(): SolanaConfig['secretKey'] {
     return this.configService.get<string>('solana.secretKey');
   }
 
-  get walletAddress(): string {
+  get walletAddress(): SolanaConfig['walletAddress'] {
     return this.configService.get<string>('solana.walletAddress');
   }
 
-  get programId(): string {
+  get programId(): SolanaConfig['programId'] {
     return this.configService.get<string>('solana.programId');
   }
 }

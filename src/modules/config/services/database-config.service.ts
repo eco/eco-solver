@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
-import { DatabaseConfig } from '@/modules/config/interfaces';
+import { MongoDBSchema } from '@/config/config.schema';
+
+type DatabaseConfig = z.infer<typeof MongoDBSchema>;
 
 @Injectable()
-export class DatabaseConfigService implements DatabaseConfig {
+export class DatabaseConfigService {
   constructor(private configService: ConfigService) {}
 
-  get uri(): string {
+  get uri(): DatabaseConfig['uri'] {
     return this.configService.get<string>('mongodb.uri');
   }
 }

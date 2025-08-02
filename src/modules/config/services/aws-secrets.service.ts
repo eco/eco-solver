@@ -6,10 +6,12 @@ import {
   SecretsManagerClientConfig,
 } from '@aws-sdk/client-secrets-manager';
 import { merge } from 'lodash';
+import { z } from 'zod';
 
-import { ConfigSchema } from '@/config/config.schema';
-import { AwsConfig } from '@/modules/config/interfaces';
+import { AwsSchema, ConfigSchema } from '@/config/config.schema';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
+
+type AwsConfig = z.infer<typeof AwsSchema>;
 
 @Injectable()
 export class AwsSecretsService {

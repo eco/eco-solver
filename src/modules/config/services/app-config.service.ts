@@ -1,17 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
-import { AppConfig } from '@/modules/config/interfaces';
+import { ConfigSchema } from '@/config/config.schema';
+
+type AppConfig = Pick<z.infer<typeof ConfigSchema>, 'port' | 'env'>;
 
 @Injectable()
-export class AppConfigService implements AppConfig {
+export class AppConfigService {
   constructor(private configService: ConfigService) {}
 
-  get port(): number {
+  get port(): AppConfig['port'] {
     return this.configService.get<number>('port');
   }
 
-  get env(): string {
+  get env(): AppConfig['env'] {
     return this.configService.get<string>('env');
   }
 }

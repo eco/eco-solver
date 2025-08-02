@@ -1,29 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
-import { AwsConfig } from '@/modules/config/interfaces';
+import { AwsSchema } from '@/config/config.schema';
+
+type AwsConfig = z.infer<typeof AwsSchema>;
 
 @Injectable()
-export class AwsConfigService implements AwsConfig {
+export class AwsConfigService {
   constructor(private configService: ConfigService) {}
 
-  get region(): string {
+  get region(): AwsConfig['region'] {
     return this.configService.get<string>('aws.region');
   }
 
-  get secretName(): string {
+  get secretName(): AwsConfig['secretName'] {
     return this.configService.get<string>('aws.secretName');
   }
 
-  get useAwsSecrets(): boolean {
+  get useAwsSecrets(): AwsConfig['useAwsSecrets'] {
     return this.configService.get<boolean>('aws.useAwsSecrets');
   }
 
-  get accessKeyId(): string | undefined {
+  get accessKeyId(): AwsConfig['accessKeyId'] {
     return this.configService.get<string>('aws.accessKeyId');
   }
 
-  get secretAccessKey(): string | undefined {
+  get secretAccessKey(): AwsConfig['secretAccessKey'] {
     return this.configService.get<string>('aws.secretAccessKey');
   }
 }

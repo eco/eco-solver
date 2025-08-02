@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
-import { QueueConfig } from '@/modules/config/interfaces';
+import { QueueSchema } from '@/config/config.schema';
+
+type QueueConfig = z.infer<typeof QueueSchema>;
 
 @Injectable()
-export class QueueConfigService implements QueueConfig {
+export class QueueConfigService {
   constructor(private configService: ConfigService) {}
 
   get defaultJobOptions() {
@@ -17,15 +20,15 @@ export class QueueConfigService implements QueueConfig {
     };
   }
 
-  get concurrency(): number {
+  get concurrency(): QueueConfig['concurrency'] {
     return this.configService.get<number>('queue.concurrency');
   }
 
-  get maxRetriesPerRequest(): number | undefined {
+  get maxRetriesPerRequest(): QueueConfig['maxRetriesPerRequest'] {
     return this.configService.get<number>('queue.maxRetriesPerRequest');
   }
 
-  get retryDelayMs(): number | undefined {
+  get retryDelayMs(): QueueConfig['retryDelayMs'] {
     return this.configService.get<number>('queue.retryDelayMs');
   }
 }
