@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
+import { Injectable } from '@nestjs/common';
+
 import { Queue } from 'bullmq';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 
 @Injectable()
@@ -20,12 +22,9 @@ export class QueueService {
     });
   }
 
-  async addIntentToExecutionQueue(
-    intent: Intent,
-    walletAddress: string,
-  ): Promise<void> {
+  async addIntentToExecutionQueue(intent: Intent, walletAddress: string): Promise<void> {
     const queueName = `wallet-${walletAddress}-${intent.targetChainId}`;
-    
+
     await this.executionQueue.add(
       queueName,
       { intent, walletAddress },
@@ -40,10 +39,8 @@ export class QueueService {
   }
 
   async getQueueStatus(queueName: string): Promise<any> {
-    const queue = queueName === 'fulfillment' 
-      ? this.fulfillmentQueue 
-      : this.executionQueue;
-      
+    const queue = queueName === 'fulfillment' ? this.fulfillmentQueue : this.executionQueue;
+
     const [waiting, active, completed, failed] = await Promise.all([
       queue.getWaitingCount(),
       queue.getActiveCount(),

@@ -1,14 +1,15 @@
-import { Module, Global } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
+
 import configuration from '@/config/configuration';
 import { validationSchema } from '@/config/validation';
-import { 
-  DatabaseConfigService,
-  RedisConfigService,
-  EvmConfigService,
-  SolanaConfigService,
-  QueueConfigService,
+import {
   AppConfigService,
+  DatabaseConfigService,
+  EvmConfigService,
+  QueueConfigService,
+  RedisConfigService,
+  SolanaConfigService,
 } from '@/modules/config/services';
 
 const configProviders = [

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
 import { QueueConfig } from '@/modules/config/interfaces';
 
 @Injectable()

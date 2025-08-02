@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { BaseFulfillment, FulfillmentResult } from '@/common/abstractions/base-fulfillment.abstract';
-import { EvmConfigService } from '@/modules/config/services';
+
+import {
+  BaseFulfillment,
+  FulfillmentResult,
+} from '@/common/abstractions/base-fulfillment.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { EvmConfigService } from '@/modules/config/services';
 
 @Injectable()
 export class StorageFulfillment extends BaseFulfillment {
@@ -51,10 +55,7 @@ export class StorageFulfillment extends BaseFulfillment {
   }
 
   private getSupportedChains(): (string | number)[] {
-    return [
-      this.evmConfigService.chainId,
-      'solana-mainnet',
-    ];
+    return [this.evmConfigService.chainId, 'solana-mainnet'];
   }
 
   private async checkBalance(intent: Intent): Promise<boolean> {

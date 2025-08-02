@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 
 export interface FulfillmentResult {

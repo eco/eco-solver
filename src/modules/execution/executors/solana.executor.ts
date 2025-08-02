@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
+
 import {
   Connection,
-  PublicKey,
   Keypair,
-  Transaction,
-  SystemProgram,
+  PublicKey,
   sendAndConfirmTransaction,
-  LAMPORTS_PER_SOL,
+  SystemProgram,
+  Transaction,
 } from '@solana/web3.js';
-import { BaseChainExecutor, ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+
+import {
+  BaseChainExecutor,
+  ExecutionResult,
+} from '@/common/abstractions/base-chain-executor.abstract';
 import { SolanaChainConfig } from '@/common/interfaces/chain-config.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -33,11 +37,9 @@ export class SolanaExecutor extends BaseChainExecutor {
 
   private initializeConnection() {
     const solanaConfig = this.config as SolanaChainConfig;
-    
+
     this.connection = new Connection(solanaConfig.rpcUrl, 'confirmed');
-    this.keypair = Keypair.fromSecretKey(
-      Uint8Array.from(solanaConfig.secretKey)
-    );
+    this.keypair = Keypair.fromSecretKey(Uint8Array.from(solanaConfig.secretKey));
     this.programId = new PublicKey(solanaConfig.programId);
   }
 
@@ -50,7 +52,7 @@ export class SolanaExecutor extends BaseChainExecutor {
           fromPubkey: this.keypair.publicKey,
           toPubkey: new PublicKey(intent.target),
           lamports: Number(intent.value),
-        })
+        }),
       );
 
       // Add program instruction here for actual intent fulfillment
@@ -62,7 +64,7 @@ export class SolanaExecutor extends BaseChainExecutor {
         [this.keypair],
         {
           commitment: 'confirmed',
-        }
+        },
       );
 
       return {
@@ -87,8 +89,10 @@ export class SolanaExecutor extends BaseChainExecutor {
   async isTransactionConfirmed(txHash: string): Promise<boolean> {
     try {
       const status = await this.connection.getSignatureStatus(txHash);
-      return status.value?.confirmationStatus === 'confirmed' || 
-             status.value?.confirmationStatus === 'finalized';
+      return (
+        status.value?.confirmationStatus === 'confirmed' ||
+        status.value?.confirmationStatus === 'finalized'
+      );
     } catch {
       return false;
     }

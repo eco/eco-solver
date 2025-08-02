@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+
 import { Document } from 'mongoose';
+
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 
 export type IntentDocument = Intent & Document;
@@ -42,11 +44,11 @@ export class Intent {
   @Prop({ required: true })
   timestamp: number;
 
-  @Prop({ 
-    required: true, 
-    enum: IntentStatus, 
+  @Prop({
+    required: true,
+    enum: IntentStatus,
     default: IntentStatus.PENDING,
-    index: true
+    index: true,
   })
   status: IntentStatus;
 

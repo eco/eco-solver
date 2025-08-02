@@ -1,7 +1,9 @@
 import { WorkerHost } from '@nestjs/bullmq';
+
 import { Job } from 'bullmq';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+
 import { Intent } from '@/common/interfaces/intent.interface';
+import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 export class FulfillmentProcessor extends WorkerHost {
   constructor(private fulfillmentService: FulfillmentService) {

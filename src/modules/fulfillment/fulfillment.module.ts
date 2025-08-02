@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
 import { BullMQModule } from '@nestjs/bullmq';
+import { Module } from '@nestjs/common';
+
 import { ConfigModule } from '@/modules/config/config.module';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { FulfillmentProcessor } from '@/modules/fulfillment/fulfillment.processor';
-import { BasicValidationStrategy } from '@/modules/fulfillment/strategies/basic-validation.strategy';
+import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { StorageFulfillment } from '@/modules/fulfillment/fulfillments/storage.fulfillment';
+import { BasicValidationStrategy } from '@/modules/fulfillment/strategies/basic-validation.strategy';
 import { IntentsModule } from '@/modules/intents/intents.module';
 import { QueueModule } from '@/modules/queue/queue.module';
 

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ValidationStrategy } from '@/modules/fulfillment/strategies/validation-strategy.interface';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { ValidationStrategy } from '@/modules/fulfillment/strategies/validation-strategy.interface';
 
 @Injectable()
 export class BasicValidationStrategy implements ValidationStrategy {
@@ -32,7 +33,7 @@ export class BasicValidationStrategy implements ValidationStrategy {
       }
 
       // Additional validation logic can be added here
-      
+
       return true;
     } catch (error) {
       console.error(`Validation error for intent ${intent.intentId}:`, error);

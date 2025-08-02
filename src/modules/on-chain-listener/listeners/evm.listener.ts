@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { createPublicClient, createWalletClient, http, webSocket, parseAbiItem, Log } from 'viem';
-import { mainnet } from 'viem/chains';
+
+import { createPublicClient, createWalletClient, http, Log, parseAbiItem, webSocket } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { mainnet } from 'viem/chains';
+
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 const INTENT_CREATED_EVENT = parseAbiItem(
-  'event IntentCreated(bytes32 indexed intentId, address indexed user, address solver, address source, address target, bytes data, uint256 value, uint256 reward, uint256 deadline)'
+  'event IntentCreated(bytes32 indexed intentId, address indexed user, address solver, address source, address target, bytes data, uint256 value, uint256 reward, uint256 deadline)',
 );
 
 @Injectable()
@@ -33,16 +35,16 @@ export class EvmListener extends BaseChainListener {
 
   async start(): Promise<void> {
     const evmConfig = this.config as EvmChainConfig;
-    
+
     this.publicClient = createPublicClient({
       chain: mainnet,
-      transport: evmConfig.websocketUrl 
+      transport: evmConfig.websocketUrl
         ? webSocket(evmConfig.websocketUrl)
         : http(evmConfig.rpcUrl),
     });
 
     const account = privateKeyToAccount(evmConfig.privateKey as `0x${string}`);
-    
+
     this.walletClient = createWalletClient({
       account,
       chain: mainnet,
@@ -53,7 +55,7 @@ export class EvmListener extends BaseChainListener {
       address: evmConfig.intentSourceAddress as `0x${string}`,
       event: INTENT_CREATED_EVENT,
       onLogs: (logs: Log[]) => {
-        logs.forEach(log => this.handleIntentCreatedEvent(log));
+        logs.forEach((log) => this.handleIntentCreatedEvent(log));
       },
     });
 
@@ -74,7 +76,7 @@ export class EvmListener extends BaseChainListener {
   protected parseIntentFromEvent(event: any): Intent {
     const { args, transactionHash } = event;
     const evmConfig = this.config as EvmChainConfig;
-    
+
     return {
       intentId: args.intentId,
       sourceChainId: evmConfig.chainId,

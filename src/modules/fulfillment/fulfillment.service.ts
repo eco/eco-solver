@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
+
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { StorageFulfillment } from '@/modules/fulfillment/fulfillments/storage.fulfillment';
+import { BasicValidationStrategy } from '@/modules/fulfillment/strategies/basic-validation.strategy';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { QueueService } from '@/modules/queue/queue.service';
-import { BasicValidationStrategy } from '@/modules/fulfillment/strategies/basic-validation.strategy';
-import { StorageFulfillment } from '@/modules/fulfillment/fulfillments/storage.fulfillment';
 
 @Injectable()
 export class FulfillmentService {
@@ -19,45 +20,33 @@ export class FulfillmentService {
 
   async processIntent(intent: Intent): Promise<void> {
     try {
-      await this.intentsService.updateStatus(
-        intent.intentId,
-        IntentStatus.VALIDATING
-      );
+      await this.intentsService.updateStatus(intent.intentId, IntentStatus.VALIDATING);
 
       const isValid = await this.validationStrategy.validate(intent);
       if (!isValid) {
-        await this.intentsService.updateStatus(
-          intent.intentId,
-          IntentStatus.FAILED,
-          { metadata: { reason: 'Validation failed' } }
-        );
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
+          metadata: { reason: 'Validation failed' },
+        });
         return;
       }
 
       const fulfillmentResult = await this.storageFulfillment.canFulfill(intent);
       if (!fulfillmentResult.shouldExecute) {
-        await this.intentsService.updateStatus(
-          intent.intentId,
-          IntentStatus.FAILED,
-          { metadata: { reason: fulfillmentResult.reason } }
-        );
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
+          metadata: { reason: fulfillmentResult.reason },
+        });
         return;
       }
 
       const walletAddress = this.getWalletAddressForChain(intent.targetChainId);
       await this.queueService.addIntentToExecutionQueue(intent, walletAddress);
-      
-      await this.intentsService.updateStatus(
-        intent.intentId,
-        IntentStatus.EXECUTING
-      );
+
+      await this.intentsService.updateStatus(intent.intentId, IntentStatus.EXECUTING);
     } catch (error) {
       console.error(`Error processing intent ${intent.intentId}:`, error);
-      await this.intentsService.updateStatus(
-        intent.intentId,
-        IntentStatus.FAILED,
-        { metadata: { error: error.message } }
-      );
+      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
+        metadata: { error: error.message },
+      });
     }
   }
 

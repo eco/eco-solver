@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+
 import { Model } from 'mongoose';
-import { Intent, IntentDocument } from '@/modules/intents/schemas/intent.schema';
+
 import { IntentStatus } from '@/common/interfaces/intent.interface';
+import { Intent, IntentDocument } from '@/modules/intents/schemas/intent.schema';
 
 @Injectable()
 export class IntentsService {
-  constructor(
-    @InjectModel(Intent.name) private intentModel: Model<IntentDocument>,
-  ) {}
+  constructor(@InjectModel(Intent.name) private intentModel: Model<IntentDocument>) {}
 
   async create(intentData: Partial<Intent>): Promise<Intent> {
     const intent = new this.intentModel(intentData);
@@ -29,11 +29,7 @@ export class IntentsService {
     additionalData?: Partial<Intent>,
   ): Promise<Intent | null> {
     return this.intentModel
-      .findOneAndUpdate(
-        { intentId },
-        { status, ...additionalData },
-        { new: true },
-      )
+      .findOneAndUpdate({ intentId }, { status, ...additionalData }, { new: true })
       .exec();
   }
 

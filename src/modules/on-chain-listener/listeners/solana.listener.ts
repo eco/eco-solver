@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Connection, PublicKey, Keypair } from '@solana/web3.js';
+
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { SolanaChainConfig } from '@/common/interfaces/chain-config.interface';
+import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -27,24 +29,19 @@ export class SolanaListener extends BaseChainListener {
 
   async start(): Promise<void> {
     const solanaConfig = this.config as SolanaChainConfig;
-    
-    this.connection = new Connection(
-      solanaConfig.rpcUrl,
-      {
-        wsEndpoint: solanaConfig.websocketUrl,
-        commitment: 'confirmed',
-      }
-    );
+
+    this.connection = new Connection(solanaConfig.rpcUrl, {
+      wsEndpoint: solanaConfig.websocketUrl,
+      commitment: 'confirmed',
+    });
 
     this.programId = new PublicKey(solanaConfig.programId);
-    this.keypair = Keypair.fromSecretKey(
-      Uint8Array.from(solanaConfig.secretKey)
-    );
+    this.keypair = Keypair.fromSecretKey(Uint8Array.from(solanaConfig.secretKey));
 
     this.subscriptionId = this.connection.onLogs(
       this.programId,
       (logs) => this.handleProgramLogs(logs),
-      'confirmed'
+      'confirmed',
     );
 
     console.log(`Solana listener started for program ${solanaConfig.programId}`);
@@ -65,7 +62,7 @@ export class SolanaListener extends BaseChainListener {
     // Parse Solana program logs to extract intent data
     // This is a simplified example - actual implementation would depend on program structure
     const intentData = this.parseIntentFromLogs(event.logs);
-    
+
     return {
       intentId: intentData.intentId,
       sourceChainId: 'solana-mainnet',
@@ -98,8 +95,8 @@ export class SolanaListener extends BaseChainListener {
   }
 
   private isIntentCreatedLog(logs: any): boolean {
-    return logs.logs.some((log: string) => 
-      log.includes('IntentCreated') || log.includes('intent_created')
+    return logs.logs.some(
+      (log: string) => log.includes('IntentCreated') || log.includes('intent_created'),
     );
   }
 
@@ -107,8 +104,8 @@ export class SolanaListener extends BaseChainListener {
     // Parse logs to extract intent data
     // This is a placeholder - actual implementation depends on program log format
     const intentData: any = {};
-    
-    logs.forEach(log => {
+
+    logs.forEach((log) => {
       if (log.includes('intentId:')) {
         intentData.intentId = log.split('intentId:')[1].trim();
       }

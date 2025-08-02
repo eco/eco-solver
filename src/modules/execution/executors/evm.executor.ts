@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { createWalletClient, createPublicClient, http, parseAbi } from 'viem';
-import { mainnet } from 'viem/chains';
+
+import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { BaseChainExecutor, ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { mainnet } from 'viem/chains';
+
+import {
+  BaseChainExecutor,
+  ExecutionResult,
+} from '@/common/abstractions/base-chain-executor.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 const INBOX_ABI = parseAbi([
@@ -31,14 +36,14 @@ export class EvmExecutor extends BaseChainExecutor {
 
   private initializeClients() {
     const evmConfig = this.config as EvmChainConfig;
-    
+
     this.publicClient = createPublicClient({
       chain: mainnet,
       transport: http(evmConfig.rpcUrl),
     });
 
     const account = privateKeyToAccount(evmConfig.privateKey as `0x${string}`);
-    
+
     this.walletClient = createWalletClient({
       account,
       chain: mainnet,
@@ -49,7 +54,7 @@ export class EvmExecutor extends BaseChainExecutor {
   async execute(intent: Intent): Promise<ExecutionResult> {
     try {
       const evmConfig = this.config as EvmChainConfig;
-      
+
       const { request } = await this.publicClient.simulateContract({
         address: evmConfig.inboxAddress as `0x${string}`,
         abi: INBOX_ABI,
@@ -60,8 +65,8 @@ export class EvmExecutor extends BaseChainExecutor {
       });
 
       const hash = await this.walletClient.writeContract(request);
-      
-      const receipt = await this.publicClient.waitForTransactionReceipt({ 
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 2,
       });
@@ -85,8 +90,8 @@ export class EvmExecutor extends BaseChainExecutor {
 
   async isTransactionConfirmed(txHash: string): Promise<boolean> {
     try {
-      const receipt = await this.publicClient.getTransactionReceipt({ 
-        hash: txHash as `0x${string}` 
+      const receipt = await this.publicClient.getTransactionReceipt({
+        hash: txHash as `0x${string}`,
       });
       return receipt.status === 'success';
     } catch {

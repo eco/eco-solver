@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { ChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 
