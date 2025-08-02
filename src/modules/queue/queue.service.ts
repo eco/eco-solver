@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 
 @Injectable()
 export class QueueService {
@@ -12,8 +13,13 @@ export class QueueService {
     @InjectQueue('wallet-execution') private executionQueue: Queue,
   ) {}
 
-  async addIntentToFulfillmentQueue(intent: Intent): Promise<void> {
-    await this.fulfillmentQueue.add('process-intent', intent, {
+  async addIntentToFulfillmentQueue(intent: Intent, strategy: string = 'standard'): Promise<void> {
+    const jobData: FulfillmentJobData = {
+      intent,
+      strategy,
+    };
+    
+    await this.fulfillmentQueue.add('process-intent', jobData, {
       attempts: 3,
       backoff: {
         type: 'exponential',

@@ -18,6 +18,14 @@ export interface Intent {
   deadline: number;
   timestamp: number;
   status: IntentStatus;
+  metadata?: {
+    strategyType?: string;
+    useSmartAccount?: boolean;
+    isNegativeIntent?: boolean;
+    isNativeToken?: boolean;
+    useCrowdLiquidity?: boolean;
+    [key: string]: any;
+  };
 }
 
 export enum IntentStatus {

@@ -54,11 +54,39 @@ export class OnChainListenerService implements OnModuleInit, OnModuleDestroy {
       }
 
       const savedIntent = await this.intentsService.create(intent);
-      await this.queueService.addIntentToFulfillmentQueue(savedIntent);
+      const strategy = this.determineStrategy(savedIntent);
+      await this.queueService.addIntentToFulfillmentQueue(savedIntent, strategy);
 
-      console.log(`New intent ${intent.intentId} added to fulfillment queue`);
+      console.log(`New intent ${intent.intentId} added to fulfillment queue with strategy: ${strategy}`);
     } catch (error) {
       console.error(`Error handling intent ${intent.intentId}:`, error);
     }
+  }
+
+  private determineStrategy(intent: Intent): string {
+    // Check intent metadata for explicit strategy
+    if (intent.metadata?.strategyType) {
+      return intent.metadata.strategyType;
+    }
+
+    // Check for specific conditions that determine the strategy
+    if (intent.metadata?.useSmartAccount === true) {
+      return 'rhinestone';
+    }
+
+    if (intent.metadata?.isNegativeIntent === true) {
+      return 'negative-intents';
+    }
+
+    if (intent.metadata?.isNativeToken === true) {
+      return 'native-intents';
+    }
+
+    if (intent.metadata?.useCrowdLiquidity === true) {
+      return 'crowd-liquidity';
+    }
+
+    // Default to standard strategy
+    return 'standard';
   }
 }
