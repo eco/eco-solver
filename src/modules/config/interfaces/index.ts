@@ -43,3 +43,11 @@ export interface AppConfig {
   port: number;
   env: string;
 }
+
+export interface AwsConfig {
+  region: string;
+  secretName: string;
+  useAwsSecrets: boolean;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+}

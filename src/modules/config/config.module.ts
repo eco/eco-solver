@@ -1,16 +1,22 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 
-import configuration from '@/config/configuration';
-import { validationSchema } from '@/config/validation';
+import { ConfigSchema } from '@/config/config.schema';
+import { configurationFactory } from '@/config/configuration-factory';
+import {
+  createZodValidationAdapter,
+  transformEnvVarsForValidation,
+} from '@/config/zod-validation.adapter';
 import {
   AppConfigService,
+  AwsConfigService,
   DatabaseConfigService,
   EvmConfigService,
   QueueConfigService,
   RedisConfigService,
   SolanaConfigService,
 } from '@/modules/config/services';
+import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 
 const configProviders = [
   DatabaseConfigService,
@@ -19,6 +25,8 @@ const configProviders = [
   SolanaConfigService,
   QueueConfigService,
   AppConfigService,
+  AwsConfigService,
+  AwsSecretsService,
 ];
 
 @Global()
@@ -26,8 +34,13 @@ const configProviders = [
   imports: [
     NestConfigModule.forRoot({
       isGlobal: false,
-      load: [configuration],
-      validationSchema,
+      load: [configurationFactory],
+      validate: (config: Record<string, any>) => {
+        // Transform environment variables to proper types
+        const transformed = transformEnvVarsForValidation(config);
+        // Validate using Zod schema
+        return createZodValidationAdapter(ConfigSchema)(transformed);
+      },
     }),
   ],
   providers: [ConfigService, ...configProviders],

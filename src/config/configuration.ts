@@ -38,6 +38,14 @@ export const configuration = () => ({
     maxRetriesPerRequest: parseInt(process.env.QUEUE_MAX_RETRIES_PER_REQUEST, 10),
     retryDelayMs: parseInt(process.env.QUEUE_RETRY_DELAY_MS, 10),
   },
+
+  aws: {
+    region: process.env.AWS_REGION || 'us-east-1',
+    secretName: process.env.AWS_SECRET_NAME || 'blockchain-intent-solver-secrets',
+    useAwsSecrets: process.env.USE_AWS_SECRETS === 'true',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
 });
 
 export default configuration;
