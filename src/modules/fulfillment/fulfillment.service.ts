@@ -5,6 +5,7 @@ import { EvmConfigService, SolanaConfigService } from '@/modules/config/services
 import { StorageFulfillment } from '@/modules/fulfillment/fulfillments/storage.fulfillment';
 import { BasicValidationStrategy } from '@/modules/fulfillment/strategies/basic-validation.strategy';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { ProverService } from '@/modules/prover/prover.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
 @Injectable()
@@ -16,11 +17,21 @@ export class FulfillmentService {
     private queueService: QueueService,
     private validationStrategy: BasicValidationStrategy,
     private storageFulfillment: StorageFulfillment,
+    private proverService: ProverService,
   ) {}
 
   async processIntent(intent: Intent): Promise<void> {
     try {
       await this.intentsService.updateStatus(intent.intentId, IntentStatus.VALIDATING);
+
+      // Validate the route with provers first
+      const proverResult = await this.proverService.validateIntentRoute(intent);
+      if (!proverResult.isValid) {
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
+          metadata: { reason: `Route validation failed: ${proverResult.reason}` },
+        });
+        return;
+      }
 
       const isValid = await this.validationStrategy.validate(intent);
       if (!isValid) {
@@ -38,7 +49,7 @@ export class FulfillmentService {
         return;
       }
 
-      const walletAddress = this.getWalletAddressForChain(intent.targetChainId);
+      const walletAddress = this.getWalletAddressForChain(intent.target.chainId);
       await this.queueService.addIntentToExecutionQueue(intent, walletAddress);
 
       await this.intentsService.updateStatus(intent.intentId, IntentStatus.EXECUTING);

@@ -20,7 +20,7 @@ export class BasicValidationStrategy implements ValidationStrategy {
       }
 
       // Check if solver address matches configured address
-      const expectedSolver = this.getSolverAddressForChain(intent.sourceChainId);
+      const expectedSolver = this.getSolverAddressForChain(intent.source.chainId);
       if (intent.solver.toLowerCase() !== expectedSolver.toLowerCase()) {
         console.log(`Intent ${intent.intentId} solver mismatch`);
         return false;

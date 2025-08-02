@@ -17,10 +17,10 @@ export class StorageFulfillment extends BaseFulfillment {
     try {
       // Check if we support the target chain
       const supportedChains = this.getSupportedChains();
-      if (!supportedChains.includes(intent.targetChainId)) {
+      if (!supportedChains.includes(intent.target.chainId)) {
         return {
           shouldExecute: false,
-          reason: `Target chain ${intent.targetChainId} not supported`,
+          reason: `Target chain ${intent.target.chainId} not supported`,
         };
       }
 
@@ -48,7 +48,7 @@ export class StorageFulfillment extends BaseFulfillment {
     // Prepare data specific to storage fulfillment
     return {
       intentId: intent.intentId,
-      target: intent.target,
+      target: intent.target.address,
       data: intent.data,
       value: intent.value,
     };

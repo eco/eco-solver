@@ -1,4 +1,4 @@
-import { BullMQModule } from '@nestjs/bullmq';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
@@ -20,7 +20,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
       }),
       inject: [DatabaseConfigService],
     }),
-    BullMQModule.forRootAsync({
+    BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (redisConfig: RedisConfigService) => ({
         connection: {

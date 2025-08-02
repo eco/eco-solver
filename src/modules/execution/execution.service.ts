@@ -28,16 +28,19 @@ export class ExecutionService {
 
   async executeIntent(intent: Intent): Promise<void> {
     try {
-      const executor = this.executors.get(intent.targetChainId);
+      const executor = this.executors.get(intent.target.chainId);
       if (!executor) {
-        throw new Error(`No executor for chain ${intent.targetChainId}`);
+        throw new Error(`No executor for chain ${intent.target.chainId}`);
       }
 
       const result = await executor.execute(intent);
 
       if (result.success) {
         await this.intentsService.updateStatus(intent.intentId, IntentStatus.FULFILLED, {
-          fulfillmentTxHash: result.txHash,
+          target: {
+            ...intent.target,
+            txHash: result.txHash,
+          },
         });
         console.log(`Intent ${intent.intentId} fulfilled: ${result.txHash}`);
       } else {

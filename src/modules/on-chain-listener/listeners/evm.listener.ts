@@ -79,19 +79,23 @@ export class EvmListener extends BaseChainListener {
 
     return {
       intentId: args.intentId,
-      sourceChainId: evmConfig.chainId,
-      targetChainId: evmConfig.chainId, // Assuming same chain for now
+      source: {
+        chainId: evmConfig.chainId,
+        address: args.source,
+        txHash: transactionHash,
+      },
+      target: {
+        chainId: evmConfig.chainId, // Assuming same chain for now
+        address: args.target,
+      },
       solver: args.solver,
       user: args.user,
-      source: args.source,
-      target: args.target,
       data: args.data,
       value: args.value.toString(),
       reward: args.reward.toString(),
       deadline: Number(args.deadline),
       timestamp: Math.floor(Date.now() / 1000),
       status: IntentStatus.PENDING,
-      txHash: transactionHash,
     };
   }
 

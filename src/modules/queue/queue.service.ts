@@ -23,7 +23,7 @@ export class QueueService {
   }
 
   async addIntentToExecutionQueue(intent: Intent, walletAddress: string): Promise<void> {
-    const queueName = `wallet-${walletAddress}-${intent.targetChainId}`;
+    const queueName = `wallet-${walletAddress}-${intent.target.chainId}`;
 
     await this.executionQueue.add(
       queueName,

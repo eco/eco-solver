@@ -50,7 +50,7 @@ export class SolanaExecutor extends BaseChainExecutor {
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: this.keypair.publicKey,
-          toPubkey: new PublicKey(intent.target),
+          toPubkey: new PublicKey(intent.target.address),
           lamports: Number(intent.value),
         }),
       );

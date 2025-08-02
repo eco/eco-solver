@@ -65,6 +65,18 @@ export const ConfigSchema = z.object({
     accessKeyId: z.string().optional(),
     secretAccessKey: z.string().optional(),
   }),
+
+  provers: z.array(
+    z.object({
+      type: z.enum(['hyper', 'metalayer']),
+      chainConfigs: z.array(
+        z.object({
+          chainId: z.union([z.string(), z.number()]),
+          contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+        }),
+      ),
+    }),
+  ).default([]),
 });
 
 // Export the inferred TypeScript type
@@ -77,3 +89,4 @@ export const EvmSchema = ConfigSchema.shape.evm;
 export const SolanaSchema = ConfigSchema.shape.solana;
 export const QueueSchema = ConfigSchema.shape.queue;
 export const AwsSchema = ConfigSchema.shape.aws;
+export const ProversSchema = ConfigSchema.shape.provers;

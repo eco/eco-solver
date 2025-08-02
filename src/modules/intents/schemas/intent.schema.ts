@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 
@@ -11,23 +11,39 @@ export class Intent {
   @Prop({ required: true, unique: true, index: true })
   intentId: string;
 
-  @Prop({ required: true })
-  sourceChainId: string;
+  @Prop({
+    type: {
+      chainId: { type: MongooseSchema.Types.Mixed, required: true },
+      address: { type: String, required: true },
+      txHash: { type: String, required: false },
+    },
+    required: true,
+  })
+  source: {
+    chainId: string | number;
+    address: string;
+    txHash?: string;
+  };
 
-  @Prop({ required: true })
-  targetChainId: string;
+  @Prop({
+    type: {
+      chainId: { type: MongooseSchema.Types.Mixed, required: true },
+      address: { type: String, required: true },
+      txHash: { type: String, required: false },
+    },
+    required: true,
+  })
+  target: {
+    chainId: string | number;
+    address: string;
+    txHash?: string;
+  };
 
   @Prop({ required: true })
   solver: string;
 
   @Prop({ required: true })
   user: string;
-
-  @Prop({ required: true })
-  source: string;
-
-  @Prop({ required: true })
-  target: string;
 
   @Prop({ required: true })
   data: string;
@@ -52,18 +68,12 @@ export class Intent {
   })
   status: IntentStatus;
 
-  @Prop()
-  txHash?: string;
-
-  @Prop()
-  fulfillmentTxHash?: string;
-
   @Prop({ type: Object })
   metadata?: any;
 }
 
 export const IntentSchema = SchemaFactory.createForClass(Intent);
 
-IntentSchema.index({ sourceChainId: 1, status: 1 });
-IntentSchema.index({ targetChainId: 1, status: 1 });
+IntentSchema.index({ 'source.chainId': 1, status: 1 });
+IntentSchema.index({ 'target.chainId': 1, status: 1 });
 IntentSchema.index({ solver: 1, status: 1 });

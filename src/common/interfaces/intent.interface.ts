@@ -1,19 +1,23 @@
 export interface Intent {
   intentId: string;
-  sourceChainId: string | number;
-  targetChainId: string | number;
+  source: {
+    chainId: string | number;
+    address: string;
+    txHash?: string;
+  };
+  target: {
+    chainId: string | number;
+    address: string;
+    txHash?: string;
+  };
   solver: string;
   user: string;
-  source: string;
-  target: string;
   data: string;
   value: string;
   reward: string;
   deadline: number;
   timestamp: number;
   status: IntentStatus;
-  txHash?: string;
-  fulfillmentTxHash?: string;
 }
 
 export enum IntentStatus {

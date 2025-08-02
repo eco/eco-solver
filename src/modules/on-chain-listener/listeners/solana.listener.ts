@@ -65,19 +65,23 @@ export class SolanaListener extends BaseChainListener {
 
     return {
       intentId: intentData.intentId,
-      sourceChainId: 'solana-mainnet',
-      targetChainId: intentData.targetChainId || 'solana-mainnet',
+      source: {
+        chainId: 'solana-mainnet',
+        address: intentData.source,
+        txHash: event.signature,
+      },
+      target: {
+        chainId: intentData.targetChainId || 'solana-mainnet',
+        address: intentData.target,
+      },
       solver: intentData.solver,
       user: intentData.user,
-      source: intentData.source,
-      target: intentData.target,
       data: intentData.data,
       value: intentData.value,
       reward: intentData.reward,
       deadline: intentData.deadline,
       timestamp: Math.floor(Date.now() / 1000),
       status: IntentStatus.PENDING,
-      txHash: event.signature,
     };
   }
 

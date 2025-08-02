@@ -59,7 +59,7 @@ export class EvmExecutor extends BaseChainExecutor {
         address: evmConfig.inboxAddress as `0x${string}`,
         abi: INBOX_ABI,
         functionName: 'fulfillStorage',
-        args: [intent.intentId, intent.target, intent.data],
+        args: [intent.intentId, intent.target.address, intent.data],
         value: BigInt(intent.value),
         account: this.walletClient.account,
       });

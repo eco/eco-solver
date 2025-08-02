@@ -15,6 +15,6 @@ export class AppConfigService {
   }
 
   get env(): AppConfig['env'] {
-    return this.configService.get<string>('env');
+    return this.configService.get<AppConfig['env']>('env');
   }
 }

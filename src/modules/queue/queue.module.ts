@@ -1,4 +1,4 @@
-import { BullMQModule } from '@nestjs/bullmq';
+import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 
 import { QueueService } from '@/modules/queue/queue.service';
@@ -6,7 +6,7 @@ import { QueueService } from '@/modules/queue/queue.service';
 @Global()
 @Module({
   imports: [
-    BullMQModule.registerQueue(
+    BullModule.registerQueue(
       {
         name: 'intent-fulfillment',
       },
@@ -16,6 +16,6 @@ import { QueueService } from '@/modules/queue/queue.service';
     ),
   ],
   providers: [QueueService],
-  exports: [QueueService, BullMQModule],
+  exports: [QueueService, BullModule],
 })
 export class QueueModule {}

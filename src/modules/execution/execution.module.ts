@@ -1,4 +1,4 @@
-import { BullMQModule } from '@nestjs/bullmq';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
@@ -12,7 +12,7 @@ import { IntentsModule } from '@/modules/intents/intents.module';
   imports: [
     ConfigModule,
     IntentsModule,
-    BullMQModule.registerQueue({
+    BullModule.registerQueue({
       name: 'wallet-execution',
     }),
   ],
