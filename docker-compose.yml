@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: intent-solver
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - intent-solver-network
+
+  mongodb:
+    image: mongo:7
+    container_name: intent-solver-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - intent-solver-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: intent-solver-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - intent-solver-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  intent-solver-network:
+    driver: bridge
