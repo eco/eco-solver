@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
-import { Validation } from '../validations/validation.interface';
+
+import { Intent } from '@/common/interfaces/intent.interface';
+import { Validation } from '@/modules/fulfillment/validations';
 
 @Injectable()
 export abstract class FulfillmentStrategy {
@@ -8,12 +9,6 @@ export abstract class FulfillmentStrategy {
    * Strategy name for identification
    */
   abstract readonly name: string;
-
-  /**
-   * Get the validations for this strategy
-   * Each strategy must define its own immutable set of validations
-   */
-  protected abstract getValidations(): ReadonlyArray<Validation>;
 
   /**
    * Validate the intent using all configured validations
@@ -44,4 +39,10 @@ export abstract class FulfillmentStrategy {
    * @returns true if this strategy can handle the intent
    */
   abstract canHandle(intent: Intent): boolean;
+
+  /**
+   * Get the validations for this strategy
+   * Each strategy must define its own immutable set of validations
+   */
+  protected abstract getValidations(): ReadonlyArray<Validation>;
 }

@@ -1,20 +1,22 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
 import { ExecutionService } from '@/modules/execution/execution.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { Validation } from '../validations/validation.interface';
-import { FundingValidation } from '../validations/funding.validation';
-import { RouteTokenValidation } from '../validations/route-token.validation';
-import { RouteCallsValidation } from '../validations/route-calls.validation';
-import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
-import { ExpirationValidation } from '../validations/expiration.validation';
-import { ChainSupportValidation } from '../validations/chain-support.validation';
-import { ProverSupportValidation } from '../validations/prover-support.validation';
-import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
-import { NativeFeeValidation } from '../validations/native-fee.validation';
+import {
+  ChainSupportValidation,
+  ExecutorBalanceValidation,
+  ExpirationValidation,
+  FundingValidation,
+  NativeFeeValidation,
+  ProverSupportValidation,
+  RouteAmountLimitValidation,
+  RouteCallsValidation,
+  RouteTokenValidation,
+  Validation,
+} from '@/modules/fulfillment/validations';
+import { Intent } from '@/common/interfaces/intent.interface';
 
 @Injectable()
 export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
@@ -50,24 +52,22 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  protected getValidations(): ReadonlyArray<Validation> {
-    return this.validations;
-  }
-
   canHandle(intent: Intent): boolean {
     // Negative intents strategy handles intents that involve debt or negative balances
-    return intent.metadata?.strategyType === 'negative-intents' ||
-           intent.metadata?.isNegativeIntent === true;
+    return (
+      intent.metadata?.strategyType === 'negative-intents' ||
+      intent.metadata?.isNegativeIntent === true
+    );
   }
 
   async execute(intent: Intent): Promise<void> {
     // Negative intents fulfillment uses both EVM and SVM executors
-    const targetChainId = Number(intent.target.chainId);
-    
+    const targetChainId = Number(intent.route.destination);
+
     // Determine which executor to use based on chain type
     const isEvmChain = this.isEvmChain(targetChainId);
     const executorType = isEvmChain ? 'evm' : 'svm';
-    
+
     // Add to execution queue with negative-intents-specific execution data
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
@@ -78,9 +78,9 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
         executorType, // Can be either EVM or SVM
         executionData: {
           type: 'negative-intents',
-          amount: intent.value,
+          amount: intent.reward.nativeValue,
           reward: intent.reward,
-          deadline: intent.deadline,
+          deadline: intent.reward.deadline,
           isNegativeIntent: true,
           // TODO: Add negative intent specific parameters
           // debtAmount: intent.metadata?.debtAmount,
@@ -96,6 +96,10 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
         },
       },
     );
+  }
+
+  protected getValidations(): ReadonlyArray<Validation> {
+    return this.validations;
   }
 
   private isEvmChain(chainId: number): boolean {

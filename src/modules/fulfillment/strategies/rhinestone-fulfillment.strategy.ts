@@ -1,19 +1,21 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
 import { ExecutionService } from '@/modules/execution/execution.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { Validation } from '../validations/validation.interface';
-import { FundingValidation } from '../validations/funding.validation';
-import { RouteTokenValidation } from '../validations/route-token.validation';
-import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
-import { ExpirationValidation } from '../validations/expiration.validation';
-import { ChainSupportValidation } from '../validations/chain-support.validation';
-import { ProverSupportValidation } from '../validations/prover-support.validation';
-import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
-import { StandardFeeValidation } from '../validations/standard-fee.validation';
+import {
+  ChainSupportValidation,
+  ExecutorBalanceValidation,
+  ExpirationValidation,
+  FundingValidation,
+  ProverSupportValidation,
+  RouteAmountLimitValidation,
+  RouteTokenValidation,
+  StandardFeeValidation,
+  Validation,
+} from '@/modules/fulfillment/validations';
+import { Intent } from '@/common/interfaces/intent.interface';
 
 @Injectable()
 export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
@@ -49,20 +51,17 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  protected getValidations(): ReadonlyArray<Validation> {
-    return this.validations;
-  }
-
   canHandle(intent: Intent): boolean {
     // Rhinestone strategy handles intents for smart account abstraction
-    return intent.metadata?.strategyType === 'rhinestone' ||
-           intent.metadata?.useSmartAccount === true;
+    return (
+      intent.metadata?.strategyType === 'rhinestone' || intent.metadata?.useSmartAccount === true
+    );
   }
 
   async execute(intent: Intent): Promise<void> {
     // Rhinestone fulfillment uses only EVM executor with custom execution flow
-    const targetChainId = Number(intent.target.chainId);
-    
+    const targetChainId = Number(intent.route.destination);
+
     // Add to execution queue with Rhinestone-specific execution data
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
@@ -73,9 +72,9 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
         executorType: 'evm', // Rhinestone only uses EVM executor
         executionData: {
           type: 'rhinestone',
-          amount: intent.value,
+          amount: intent.reward.nativeValue,
           reward: intent.reward,
-          deadline: intent.deadline,
+          deadline: intent.reward.deadline,
           useSmartAccount: true,
           // TODO: Add Rhinestone-specific parameters
           // smartAccountAddress: intent.metadata?.smartAccountAddress,
@@ -94,4 +93,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     );
   }
 
+  protected getValidations(): ReadonlyArray<Validation> {
+    return this.validations;
+  }
 }

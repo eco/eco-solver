@@ -1,20 +1,22 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
 import { ExecutionService } from '@/modules/execution/execution.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { Validation } from '../validations/validation.interface';
-import { FundingValidation } from '../validations/funding.validation';
-import { RouteTokenValidation } from '../validations/route-token.validation';
-import { RouteCallsValidation } from '../validations/route-calls.validation';
-import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
-import { ExpirationValidation } from '../validations/expiration.validation';
-import { ChainSupportValidation } from '../validations/chain-support.validation';
-import { ProverSupportValidation } from '../validations/prover-support.validation';
-import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
-import { CrowdLiquidityFeeValidation } from '../validations/crowd-liquidity-fee.validation';
+import { Intent } from '@/common/interfaces/intent.interface';
+import {
+  Validation,
+  FundingValidation,
+  RouteTokenValidation,
+  RouteCallsValidation,
+  RouteAmountLimitValidation,
+  ExpirationValidation,
+  ChainSupportValidation,
+  ProverSupportValidation,
+  ExecutorBalanceValidation,
+  CrowdLiquidityFeeValidation,
+} from '@/modules/fulfillment/validations';
 
 @Injectable()
 export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
@@ -50,20 +52,18 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  protected getValidations(): ReadonlyArray<Validation> {
-    return this.validations;
-  }
-
   canHandle(intent: Intent): boolean {
     // Crowd liquidity strategy handles intents marked for CL execution
-    return intent.metadata?.strategyType === 'crowd-liquidity' ||
-           intent.metadata?.useCrowdLiquidity === true;
+    return (
+      intent.metadata?.strategyType === 'crowd-liquidity' ||
+      intent.metadata?.useCrowdLiquidity === true
+    );
   }
 
   async execute(intent: Intent): Promise<void> {
     // Crowd liquidity fulfillment only uses the CL executor
-    const targetChainId = Number(intent.target.chainId);
-    
+    const targetChainId = Number(intent.route.destination);
+
     // Add to execution queue with CL-specific execution data
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
@@ -74,9 +74,9 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
         executorType: 'crowd-liquidity', // Force CL executor
         executionData: {
           type: 'crowd-liquidity',
-          amount: intent.value,
           reward: intent.reward,
-          deadline: intent.deadline,
+          amount: intent.reward.nativeValue,
+          deadline: intent.reward.deadline,
           // TODO: Add CL-specific parameters
           // poolId: intent.metadata?.poolId,
           // liquidityProviders: intent.metadata?.liquidityProviders,
@@ -90,5 +90,9 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
         },
       },
     );
+  }
+
+  protected getValidations(): ReadonlyArray<Validation> {
+    return this.validations;
   }
 }

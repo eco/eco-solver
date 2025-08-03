@@ -1,20 +1,22 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
 import { ExecutionService } from '@/modules/execution/execution.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { Validation } from '../validations/validation.interface';
-import { FundingValidation } from '../validations/funding.validation';
-import { RouteTokenValidation } from '../validations/route-token.validation';
-import { RouteCallsValidation } from '../validations/route-calls.validation';
-import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
-import { ExpirationValidation } from '../validations/expiration.validation';
-import { ChainSupportValidation } from '../validations/chain-support.validation';
-import { ProverSupportValidation } from '../validations/prover-support.validation';
-import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
-import { StandardFeeValidation } from '../validations/standard-fee.validation';
+import { Intent } from '@/common/interfaces/intent.interface';
+import {
+  ChainSupportValidation,
+  ExecutorBalanceValidation,
+  ExpirationValidation,
+  FundingValidation,
+  ProverSupportValidation,
+  RouteAmountLimitValidation,
+  RouteCallsValidation,
+  RouteTokenValidation,
+  StandardFeeValidation,
+  Validation,
+} from '@/modules/fulfillment/validations';
 
 @Injectable()
 export class StandardFulfillmentStrategy extends FulfillmentStrategy {
@@ -50,10 +52,6 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  protected getValidations(): ReadonlyArray<Validation> {
-    return this.validations;
-  }
-
   canHandle(intent: Intent): boolean {
     // Standard strategy handles intents without special metadata
     // This is the default strategy for regular cross-chain intents
@@ -62,8 +60,8 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Standard fulfillment uses appropriate executor based on target chain
-    const targetChainId = Number(intent.target.chainId);
-    
+    const targetChainId = Number(intent.route.destination);
+
     // Add to execution queue with standard execution data
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
@@ -74,9 +72,9 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
         executionData: {
           // TODO: Add specific execution data based on intent requirements
           type: 'standard',
-          amount: intent.value,
+          amount: intent.reward.nativeValue,
           reward: intent.reward,
-          deadline: intent.deadline,
+          deadline: intent.reward.deadline,
         },
       },
       {
@@ -87,5 +85,9 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
         },
       },
     );
+  }
+
+  protected getValidations(): ReadonlyArray<Validation> {
+    return this.validations;
   }
 }
