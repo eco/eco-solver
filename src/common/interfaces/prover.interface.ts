@@ -26,7 +26,9 @@ export interface ProverConfig {
   chainConfigs: ProverChainConfig[];
 }
 
-export enum ProverType {
-  HYPER = 'hyper',
-  METALAYER = 'metalayer',
-}
+export const ProverType = {
+  HYPER: 'hyper',
+  METALAYER: 'metalayer',
+} as const;
+
+export const ProverTypes = Object.values(ProverType);

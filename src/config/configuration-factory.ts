@@ -12,9 +12,9 @@ import {
   redisConfig,
   solanaConfig,
 } from '@/config/schemas';
+import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
-import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
 
 /**
  * Configuration factory that transforms environment variables to configuration

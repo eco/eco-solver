@@ -1,8 +1,9 @@
+import { EcoChainIdsEnv, EcoProtocolAddresses } from '@eco-foundation/routes-ts';
+import { zeroAddress } from 'viem';
+
+import { ProverType } from '@/common/interfaces/prover.interface';
 import { DeepPartial } from '@/common/types';
 import { Config } from '@/config/config.schema';
-import { EcoChainIdsEnv, EcoProtocolAddresses } from '@eco-foundation/routes-ts';
-
-export { EcoProtocolAddresses } from '@eco-foundation/routes-ts';
 
 export function getEcoNpmPackageConfig(config: DeepPartial<Config>): DeepPartial<Config> {
   return {
@@ -16,11 +17,17 @@ export function getEcoNpmPackageConfig(config: DeepPartial<Config>): DeepPartial
         const addresses = EcoProtocolAddresses[chainId as EcoChainIdsEnv];
         if (!addresses) return network;
 
-        const { Inbox, IntentSource } = addresses;
+        const { Inbox, IntentSource, MetaProver, HyperProver } = addresses;
+
+        const provers = { ...network.provers };
+
+        if (HyperProver !== zeroAddress) provers[ProverType.HYPER] = HyperProver;
+        if (MetaProver !== zeroAddress) provers[ProverType.METALAYER] = MetaProver;
 
         return {
           intentSourceAddress: IntentSource,
           inboxAddress: Inbox,
+          provers,
           ...network,
         };
       }),
