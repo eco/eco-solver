@@ -41,27 +41,6 @@ export type FulfillmentStrategiesConfig = z.infer<typeof FulfillmentStrategiesSc
 
 /**
  * Fulfillment configuration factory using registerAs
- * Provides default values from Zod schema
+ * Returns empty object - env vars handled in configurationFactory
  */
-export const fulfillmentConfig = registerAs('fulfillment', () => {
-  return FulfillmentSchema.parse({
-    defaultStrategy: process.env.FULFILLMENT_DEFAULT_STRATEGY,
-    strategies: {
-      standard: {
-        enabled: process.env.FULFILLMENT_STRATEGIES_STANDARD_ENABLED === 'false' ? false : undefined,
-      },
-      crowdLiquidity: {
-        enabled: process.env.FULFILLMENT_STRATEGIES_CROWD_LIQUIDITY_ENABLED === 'false' ? false : undefined,
-      },
-      nativeIntents: {
-        enabled: process.env.FULFILLMENT_STRATEGIES_NATIVE_INTENTS_ENABLED === 'false' ? false : undefined,
-      },
-      negativeIntents: {
-        enabled: process.env.FULFILLMENT_STRATEGIES_NEGATIVE_INTENTS_ENABLED === 'false' ? false : undefined,
-      },
-      rhinestone: {
-        enabled: process.env.FULFILLMENT_STRATEGIES_RHINESTONE_ENABLED === 'false' ? false : undefined,
-      },
-    },
-  });
-});
+export const fulfillmentConfig = registerAs('fulfillment', () => ({}));

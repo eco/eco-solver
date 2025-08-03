@@ -14,12 +14,6 @@ export type RedisConfig = z.infer<typeof RedisSchema>;
 
 /**
  * Redis configuration factory using registerAs
- * Provides default values from Zod schema
+ * Returns empty object - env vars handled in configurationFactory
  */
-export const redisConfig = registerAs('redis', () => {
-  return RedisSchema.parse({
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : undefined,
-    password: process.env.REDIS_PASSWORD,
-  });
-});
+export const redisConfig = registerAs('redis', () => ({}));

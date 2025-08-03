@@ -11,6 +11,19 @@ import {
   SolanaSchema,
 } from '@/config/schemas';
 
+// Re-export individual schemas for use in config services
+export {
+  AwsSchema,
+  BaseSchema,
+  EvmSchema,
+  FulfillmentSchema,
+  MongoDBSchema,
+  ProversSchema,
+  QueueSchema,
+  RedisSchema,
+  SolanaSchema,
+} from '@/config/schemas';
+
 /**
  * Zod schema for the application configuration
  * This schema defines the structure, types, and validation rules for all configuration

@@ -13,11 +13,6 @@ export type BaseConfig = z.infer<typeof BaseSchema>;
 
 /**
  * Base configuration factory using registerAs
- * Provides default values from Zod schema
+ * Returns empty object - env vars handled in configurationFactory
  */
-export const baseConfig = registerAs('base', () => {
-  return BaseSchema.parse({
-    env: process.env.NODE_ENV,
-    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
-  });
-});
+export const baseConfig = registerAs('base', () => ({}));

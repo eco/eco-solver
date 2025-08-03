@@ -5,11 +5,9 @@ import {
   SecretsManagerClient,
   SecretsManagerClientConfig,
 } from '@aws-sdk/client-secrets-manager';
-import { merge } from 'lodash';
 import { z } from 'zod';
 
-import { AwsSchema, ConfigSchema } from '@/config/config.schema';
-import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
+import { AwsSchema } from '@/config/config.schema';
 
 type AwsConfig = z.infer<typeof AwsSchema>;
 
@@ -70,18 +68,5 @@ export class AwsSecretsService {
       this.logger.error(`Failed to fetch secrets from AWS Secrets Manager: ${error.message}`);
       throw error;
     }
-  }
-
-  /**
-   * Merges AWS secrets with existing configuration using deep merge
-   * AWS secrets take precedence over environment variables
-   */
-  mergeSecrets(baseConfig: Record<string, any>, secrets: Record<string, any>): Record<string, any> {
-    // Transform flat secrets to nested configuration structure using schema
-    const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
-
-    // Deep merge with AWS secrets taking precedence
-    // merge() modifies the first argument, so we pass an empty object
-    return merge({}, baseConfig, nestedSecrets);
   }
 }

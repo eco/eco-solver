@@ -16,10 +16,6 @@ export type MongoDBConfig = z.infer<typeof MongoDBSchema>;
 
 /**
  * MongoDB configuration factory using registerAs
- * Provides default values from Zod schema
+ * Returns empty object - env vars handled in configurationFactory
  */
-export const mongodbConfig = registerAs('mongodb', () => {
-  return MongoDBSchema.parse({
-    uri: process.env.MONGODB_URI,
-  });
-});
+export const mongodbConfig = registerAs('mongodb', () => ({}));

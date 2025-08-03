@@ -1,23 +1,24 @@
 import { ConfigSchema } from '@/config/config.schema';
-import { 
-  awsConfig, 
-  baseConfig, 
-  evmConfig, 
-  fulfillmentConfig, 
-  mongodbConfig, 
-  proversConfig, 
-  queueConfig, 
-  redisConfig, 
-  solanaConfig 
+import {
+  awsConfig,
+  baseConfig,
+  evmConfig,
+  fulfillmentConfig,
+  mongodbConfig,
+  proversConfig,
+  queueConfig,
+  redisConfig,
+  solanaConfig,
 } from '@/config/schemas';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
+import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
+import { merge } from 'lodash';
 
 /**
- * Configuration factory that combines all registered configurations
+ * Configuration factory that transforms environment variables to configuration
  * and optionally merges AWS secrets
  */
 export const configurationFactory = async () => {
-  // Build the base configuration from all registered configs
   const baseConfiguration = {
     ...baseConfig(),
     mongodb: mongodbConfig(),
@@ -30,27 +31,32 @@ export const configurationFactory = async () => {
     fulfillment: fulfillmentConfig(),
   };
 
+  // Transform all environment variables to nested configuration
+  const envConfiguration = transformEnvVarsToConfig(process.env, ConfigSchema);
+
+  // Parse with Zod to apply defaults and validation
+  const parsedConfig = ConfigSchema.parse(envConfiguration);
+
   const awsSecretsService = new AwsSecretsService();
 
-  // If AWS Secrets Manager is not enabled, return the base configuration
-  if (!baseConfiguration.aws.useAwsSecrets) {
-    return baseConfiguration;
+  // If AWS Secrets Manager is not enabled, return the parsed configuration
+  if (!parsedConfig.aws.useAwsSecrets) {
+    return merge({}, baseConfiguration, envConfiguration);
   }
 
   try {
     // Fetch secrets from AWS
-    const secrets = await awsSecretsService.getSecrets(baseConfiguration.aws);
+    const secrets = await awsSecretsService.getSecrets(parsedConfig.aws);
 
-    // Merge secrets with base configuration
-    const mergedConfig = awsSecretsService.mergeSecrets(baseConfiguration, secrets);
+    // Transform flat secrets to nested configuration structure using schema
+    const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
 
-    // Validate the merged configuration with Zod
-    const validatedConfig = ConfigSchema.parse(mergedConfig);
+    const awsConfiguration = ConfigSchema.parse(nestedSecrets);
 
-    return validatedConfig;
+    return merge({}, baseConfiguration, envConfiguration, awsConfiguration);
   } catch (error) {
     console.error('Failed to load AWS secrets, falling back to environment variables:', error);
-    // Return base configuration if AWS Secrets Manager fails
-    return baseConfiguration;
+    // Return parsed configuration if AWS Secrets Manager fails
+    return parsedConfig;
   }
 };

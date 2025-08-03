@@ -3,17 +3,6 @@ import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config'
 
 import { ConfigSchema } from '@/config/config.schema';
 import { configurationFactory } from '@/config/configuration-factory';
-import { 
-  awsConfig, 
-  baseConfig, 
-  evmConfig, 
-  fulfillmentConfig, 
-  mongodbConfig, 
-  proversConfig, 
-  queueConfig, 
-  redisConfig, 
-  solanaConfig 
-} from '@/config/schemas';
 import { createZodValidationAdapter } from '@/config/zod-validation.adapter';
 import {
   AppConfigService,
@@ -45,17 +34,7 @@ const configProviders = [
     NestConfigModule.forRoot({
       isGlobal: false,
       load: [
-        // Load individual registered configurations
-        baseConfig,
-        mongodbConfig,
-        redisConfig,
-        evmConfig,
-        solanaConfig,
-        queueConfig,
-        awsConfig,
-        proversConfig,
-        fulfillmentConfig,
-        // Load the combined configuration factory for AWS secrets handling
+        // Load the configuration factory that handles all env vars and AWS secrets
         configurationFactory,
       ],
       validate: createZodValidationAdapter(ConfigSchema),
