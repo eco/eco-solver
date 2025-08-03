@@ -27,6 +27,10 @@ export class EvmConfigService {
     return Array.from(this._networks.keys());
   }
 
+  get privateKey(): string {
+    return this.configService.get<string>('evm.privateKey')!;
+  }
+
   getNetwork(chainId: number): NetworkConfig | undefined {
     return this._networks.get(chainId);
   }

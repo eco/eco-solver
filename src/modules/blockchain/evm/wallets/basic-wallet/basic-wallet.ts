@@ -1,4 +1,4 @@
-import { Address, encodeFunctionData, Hash } from 'viem';
+import { Address, encodeFunctionData, Hash, PublicClient, WalletClient } from 'viem';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import {
@@ -7,9 +7,17 @@ import {
   WriteContractsOptions,
 } from '@/common/interfaces/evm-wallet.interface';
 
-import { MULTICALL3_ABI } from '../constants/multicall3.constants';
+import { MULTICALL3_ABI } from '../../constants/multicall3.constants';
 
 export class BasicWallet extends BaseEvmWallet {
+  protected publicClient: PublicClient;
+  protected walletClient: WalletClient;
+
+  constructor(publicClient: PublicClient, walletClient: WalletClient) {
+    super();
+    this.publicClient = publicClient;
+    this.walletClient = walletClient;
+  }
   async getAddress(): Promise<Address> {
     if (!this.walletClient.account) {
       throw new Error('Wallet client account not found');

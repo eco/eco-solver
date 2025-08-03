@@ -2,6 +2,7 @@ import { registerAs } from '@nestjs/config';
 
 import { z } from 'zod';
 
+import { ProverTypes } from '@/common/interfaces/prover.interface';
 import { DeepPartial } from '@/common/types';
 
 /**
@@ -70,7 +71,7 @@ const EvmTokenSchema = z.object({
  */
 const EvmFeeLogicSchema = z.object({
   baseFlatFee: z.string(), // Using string for bigint compatibility (in wei)
-  scalarBps: z.number().int().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+  scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
 });
 
 /**
@@ -83,6 +84,7 @@ const EvmNetworkSchema = z.object({
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(EvmTokenSchema).default([]),
   feeLogic: EvmFeeLogicSchema,
+  provers: z.record(z.enum(ProverTypes), z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
 });
 
 /**
@@ -90,6 +92,7 @@ const EvmNetworkSchema = z.object({
  */
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
+  privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
 });
 
 export type EvmConfig = z.infer<typeof EvmSchema>;
