@@ -68,7 +68,7 @@ export class SolanaListener extends BaseChainListener {
     const intentData = this.parseIntentFromLogs(event.logs);
 
     return {
-      intentId: intentData.intentId,
+      intentHash: intentData.intentId,
       reward: {
         prover: intentData.prover as `0x${string}`,
         creator: intentData.creator as `0x${string}`,

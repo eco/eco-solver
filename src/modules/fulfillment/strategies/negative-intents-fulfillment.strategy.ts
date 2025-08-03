@@ -75,7 +75,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
       {
-        intentId: intent.intentId,
+        intentId: intent.intentHash,
         strategy: this.name,
         targetChainId,
         executorType, // Can be either EVM or SVM

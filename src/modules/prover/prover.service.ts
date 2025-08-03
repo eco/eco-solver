@@ -58,7 +58,7 @@ export class ProverService implements OnModuleInit {
         chainId: Number(intent.route.destination),
         contract: intent.route.inbox,
       },
-      intentId: intent.intentId,
+      intentId: intent.intentHash,
     };
 
     // Find the appropriate prover based on the contract addresses

@@ -47,7 +47,7 @@ export class StorageFulfillment extends BaseFulfillment {
   async prepareFulfillmentData(intent: Intent): Promise<any> {
     // Prepare data specific to storage fulfillment
     return {
-      intentId: intent.intentId,
+      intentId: intent.intentHash,
       target: intent.route.inbox,
       data: '0x', // TODO: Determine correct data
       value: intent.reward.nativeValue,

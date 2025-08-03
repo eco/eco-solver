@@ -43,7 +43,7 @@ export class EvmExecutorService extends BaseChainExecutor {
         address: network.inboxAddress as `0x${string}`,
         abi: INBOX_ABI,
         functionName: 'fulfillStorage',
-        args: [intent.intentId, intent.route.inbox, '0x'], // TODO: Determine what data should be passed
+        args: [intent.intentHash, intent.route.inbox, '0x'], // TODO: Determine what data should be passed
         value: intent.reward.nativeValue,
       });
 

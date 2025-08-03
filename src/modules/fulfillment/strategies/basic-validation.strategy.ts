@@ -11,7 +11,7 @@ export class BasicValidationStrategy implements ValidationStrategy {
     try {
       // Check deadline
       if (intent.reward.deadline <= Math.floor(Date.now() / 1000)) {
-        console.log(`Intent ${intent.intentId} has expired`);
+        console.log(`Intent ${intent.intentHash} has expired`);
         return false;
       }
 
@@ -19,7 +19,7 @@ export class BasicValidationStrategy implements ValidationStrategy {
 
       return true;
     } catch (error) {
-      console.error(`Validation error for intent ${intent.intentId}:`, error);
+      console.error(`Validation error for intent ${intent.intentHash}:`, error);
       return false;
     }
   }

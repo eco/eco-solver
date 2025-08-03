@@ -89,8 +89,6 @@ export class EvmTransportService implements OnModuleInit {
       const wsConfig: WebSocketTransportConfig = {
         key: 'webSocket',
         name: 'WebSocket JSON-RPC',
-        request: {} as any, // Will be set by webSocket function
-        type: 'webSocket',
       };
 
       // Apply WebSocket options if provided

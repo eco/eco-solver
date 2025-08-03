@@ -4,7 +4,7 @@ import { Intent as IntentSchema } from '@/modules/intents/schemas/intent.schema'
 export class IntentConverter {
   static toSchema(intent: IntentInterface): Partial<IntentSchema> {
     return {
-      intentId: intent.intentId,
+      intentId: intent.intentHash,
       reward: {
         prover: intent.reward.prover,
         creator: intent.reward.creator,
@@ -36,7 +36,7 @@ export class IntentConverter {
 
   static toInterface(schema: IntentSchema): IntentInterface {
     return {
-      intentId: schema.intentId,
+      intentHash: schema.intentId,
       reward: {
         prover: schema.reward.prover as `0x${string}`,
         creator: schema.reward.creator as `0x${string}`,

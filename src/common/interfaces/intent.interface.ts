@@ -1,33 +1,39 @@
 import { Address, Hex } from 'viem';
 
 export interface Intent {
-  intentId: string;
-  reward: {
+  intentHash: string;
+  reward: Readonly<{
     prover: Address;
     creator: Address;
     deadline: bigint;
     nativeValue: bigint;
-    tokens: {
-      amount: bigint;
-      token: Address;
-    }[];
-  };
-  route: {
+    tokens: Readonly<
+      {
+        amount: bigint;
+        token: Address;
+      }[]
+    >;
+  }>;
+  route: Readonly<{
     source: bigint;
     destination: bigint;
     salt: Hex;
     inbox: Address;
-    calls: {
-      data: Hex;
-      target: Address;
-      value: bigint;
-    }[];
-    tokens: {
-      amount: bigint;
-      token: Address;
-    }[];
-  };
-  status: IntentStatus;
+    calls: Readonly<
+      {
+        data: Hex;
+        target: Address;
+        value: bigint;
+      }[]
+    >;
+    tokens: Readonly<
+      {
+        amount: bigint;
+        token: Address;
+      }[]
+    >;
+  }>;
+  status?: IntentStatus;
 }
 
 export enum IntentStatus {

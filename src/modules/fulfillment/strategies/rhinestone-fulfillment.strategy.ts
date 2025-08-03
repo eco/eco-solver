@@ -70,7 +70,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
       {
-        intentId: intent.intentId,
+        intentId: intent.intentHash,
         strategy: this.name,
         targetChainId,
         executorType: 'evm', // Rhinestone only uses EVM executor

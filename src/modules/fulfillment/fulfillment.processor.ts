@@ -16,7 +16,7 @@ export class FulfillmentProcessor extends WorkerHost {
   async process(job: Job<FulfillmentJobData>) {
     if (job.name === 'process-intent') {
       console.log(
-        `Processing intent ${job.data.intent.intentId} with strategy ${job.data.strategy}`,
+        `Processing intent ${job.data.intent.intentHash} with strategy ${job.data.strategy}`,
       );
       await this.fulfillmentService.processIntent(job.data.intent, job.data.strategy);
     }

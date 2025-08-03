@@ -17,7 +17,7 @@ export class BlockchainProcessor extends WorkerHost {
 
   async process(job: Job<BlockchainJobData>) {
     const { intent, walletAddress } = job.data;
-    console.log(`Executing intent ${intent.intentId} for wallet ${walletAddress}`);
+    console.log(`Executing intent ${intent.intentHash} for wallet ${walletAddress}`);
     await this.blockchainService.executeIntent(intent, walletAddress);
   }
 }

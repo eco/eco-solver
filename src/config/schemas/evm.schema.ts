@@ -77,8 +77,7 @@ const EvmFeeLogicSchema = z.object({
  */
 const EvmNetworkSchema = z.object({
   chainId: z.number().int().positive(),
-  rpc: EvmRpcSchema,
-  ws: EvmWsSchema.optional(),
+  rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   intentSourceAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(EvmTokenSchema).default([]),

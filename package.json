@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.859.0",
-    "@eco-foundation/routes-ts": "^1.0.0",
+    "@eco-foundation/routes-ts": "^2.8.14",
     "@nestjs/bullmq": "^10.1.1",
     "@nestjs/common": "^10.3.8",
     "@nestjs/config": "^3.2.2",
