@@ -1,4 +1,5 @@
 import { merge } from 'lodash';
+
 import { AwsSchema, ConfigSchema } from '@/config/config.schema';
 import {
   awsConfig,

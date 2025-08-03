@@ -7,6 +7,7 @@ import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 
 import { BasicWallet } from '../wallets/basic-wallet';
 import { KernelWallet, KernelWalletConfig } from '../wallets/kernel-wallet';
+
 import { EvmTransportService } from './evm-transport.service';
 
 export interface WalletConfig {
@@ -22,13 +23,17 @@ export class EvmWalletManager {
   private wallets: Map<number, Map<string, IEvmWallet>> = new Map();
   private defaultWalletId: string | null = null;
 
-  initialize(walletConfigs: WalletConfig[], transportService: EvmTransportService, chainId: number) {
+  initialize(
+    walletConfigs: WalletConfig[],
+    transportService: EvmTransportService,
+    chainId: number,
+  ) {
     if (!this.wallets.has(chainId)) {
       this.wallets.set(chainId, new Map());
     }
 
     const chainWallets = this.wallets.get(chainId)!;
-    
+
     for (const config of walletConfigs) {
       const wallet = this.createWallet(config, transportService, chainId);
       chainWallets.set(config.id, wallet);
@@ -39,13 +44,17 @@ export class EvmWalletManager {
     }
   }
 
-  private createWallet(config: WalletConfig, transportService: EvmTransportService, chainId: number): IEvmWallet {
+  private createWallet(
+    config: WalletConfig,
+    transportService: EvmTransportService,
+    chainId: number,
+  ): IEvmWallet {
     const publicClient = transportService.getPublicClient(chainId) as any;
 
     const account = privateKeyToAccount(config.privateKey);
     const transport = transportService.getTransport(chainId);
     const chain = transportService.getViemChain(chainId);
-    
+
     const walletClient = createWalletClient({
       account,
       chain,

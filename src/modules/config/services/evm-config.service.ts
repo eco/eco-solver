@@ -93,16 +93,12 @@ export class EvmConfigService {
 
   isTokenSupported(chainId: number, tokenAddress: string): boolean {
     const tokens = this.getSupportedTokens(chainId);
-    return tokens.some(
-      (token) => token.address.toLowerCase() === tokenAddress.toLowerCase(),
-    );
+    return tokens.some((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
   }
 
   getTokenConfig(chainId: number, tokenAddress: string): TokenConfig | undefined {
     const tokens = this.getSupportedTokens(chainId);
-    return tokens.find(
-      (token) => token.address.toLowerCase() === tokenAddress.toLowerCase(),
-    );
+    return tokens.find((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
   }
 
   getFeeLogic(chainId: number): FeeLogic {

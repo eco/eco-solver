@@ -4,15 +4,15 @@ import {
   Chain,
   createPublicClient,
   extractChain,
+  fallback,
   http,
-  HttpTransportConfig,
   Transport,
   webSocket,
-  WebSocketTransportConfig,
 } from 'viem';
 import * as chains from 'viem/chains';
 
 import { EvmConfigService } from '@/modules/config/services';
+import { EvmRpcSchema, EvmWsSchema } from '@/config/schemas';
 
 interface ChainTransport {
   chain: Chain;
@@ -80,47 +80,25 @@ export class EvmTransportService implements OnModuleInit {
     });
 
     // Get transport options
-    const rpcOptions = network.rpc.options;
-    const wsOptions = network.ws?.options;
+    const rpc = EvmRpcSchema.safeParse(network.rpc);
+    const wsOptions = EvmWsSchema.safeParse(network.rpc);
 
     // Create transport - prefer WebSocket if available for better performance with event listening
     let transport: Transport;
-    if (network.ws?.urls && network.ws.urls.length > 0) {
-      const wsConfig: WebSocketTransportConfig = {
-        key: 'webSocket',
-        name: 'WebSocket JSON-RPC',
-      };
-
-      // Apply WebSocket options if provided
-      if (wsOptions) {
-        if (wsOptions.timeout !== undefined) {
-          wsConfig.timeout = wsOptions.timeout;
-        }
-        // Note: keepAlive and reconnect options would need custom handling
-        // as Viem's webSocket transport doesn't directly support them
+    if (wsOptions.success) {
+      const { urls, options } = wsOptions.data;
+      if (urls.length > 1) {
+        transport = fallback(urls.map((url) => webSocket(url, options)));
+      } else {
+        transport = webSocket(urls[0], options);
       }
-
-      transport = webSocket(network.ws.urls[0], wsConfig);
-    } else {
-      const httpConfig: HttpTransportConfig = {};
-
-      // Apply HTTP options if provided
-      if (rpcOptions) {
-        if (rpcOptions.batch !== undefined) {
-          httpConfig.batch = rpcOptions.batch;
-        }
-        if (rpcOptions.timeout !== undefined) {
-          httpConfig.timeout = rpcOptions.timeout;
-        }
-        if (rpcOptions.retryCount !== undefined) {
-          httpConfig.retryCount = rpcOptions.retryCount;
-        }
-        if (rpcOptions.retryDelay !== undefined) {
-          httpConfig.retryDelay = rpcOptions.retryDelay;
-        }
+    } else if (rpc.success) {
+      const { urls, options } = rpc.data;
+      if (urls.length > 1) {
+        transport = fallback(urls.map((url) => http(url, options)));
+      } else {
+        transport = http(urls[0], options);
       }
-
-      transport = http(network.rpc.urls[0], httpConfig);
     }
 
     this.chainTransports.set(chainId, {

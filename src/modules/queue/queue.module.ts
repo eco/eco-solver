@@ -1,8 +1,8 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 
-import { QueueService } from '@/modules/queue/queue.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueService } from '@/modules/queue/queue.service';
 
 @Global()
 @Module({

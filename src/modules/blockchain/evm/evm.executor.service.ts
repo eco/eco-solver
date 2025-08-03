@@ -9,8 +9,8 @@ import {
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
-import { EvmWalletManager } from './services/evm-wallet-manager.service';
 import { EvmTransportService } from './services/evm-transport.service';
+import { EvmWalletManager } from './services/evm-wallet-manager.service';
 
 const INBOX_ABI = parseAbi([
   'function fulfillStorage(bytes32 intentId, address target, bytes calldata data) external payable',

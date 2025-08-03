@@ -1,4 +1,5 @@
 import { registerAs } from '@nestjs/config';
+
 import { z } from 'zod';
 
 import { DeepPartial } from '@/common/types';
@@ -6,7 +7,7 @@ import { DeepPartial } from '@/common/types';
 /**
  * EVM network RPC configuration schema
  */
-const EvmRpcSchema = z.object({
+export const EvmRpcSchema = z.object({
   urls: z.array(z.string().url()),
   options: z
     .object({
@@ -30,7 +31,7 @@ const EvmRpcSchema = z.object({
 /**
  * EVM network WebSocket configuration schema
  */
-const EvmWsSchema = z.object({
+export const EvmWsSchema = z.object({
   urls: z.array(
     z
       .string()

@@ -1,11 +1,13 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+
+import { Address } from 'viem';
+
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { EvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 import { EvmTransportService } from '../services/evm-transport.service';
-import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
-import { Address } from 'viem';
 
 @Injectable()
 export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy {

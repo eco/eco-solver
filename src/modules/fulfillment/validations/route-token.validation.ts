@@ -23,7 +23,10 @@ export class RouteTokenValidation implements Validation {
         }
 
         // Check if token is supported when there are restrictions
-        if (hasTokenRestrictions && !this.evmConfigService.isTokenSupported(destinationChainId, token.token)) {
+        if (
+          hasTokenRestrictions &&
+          !this.evmConfigService.isTokenSupported(destinationChainId, token.token)
+        ) {
           throw new Error(`Token ${token.token} is not supported on chain ${destinationChainId}`);
         }
 
@@ -51,7 +54,10 @@ export class RouteTokenValidation implements Validation {
         }
 
         // Check if reward token is supported when there are restrictions
-        if (hasTokenRestrictions && !this.evmConfigService.isTokenSupported(sourceChainId, token.token)) {
+        if (
+          hasTokenRestrictions &&
+          !this.evmConfigService.isTokenSupported(sourceChainId, token.token)
+        ) {
           throw new Error(`Reward token ${token.token} is not supported on chain ${sourceChainId}`);
         }
       }

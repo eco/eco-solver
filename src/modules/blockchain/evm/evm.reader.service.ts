@@ -22,7 +22,11 @@ export class EvmReaderService {
     return client.getBalance({ address });
   }
 
-  async getTokenBalance(tokenAddress: Address, walletAddress: Address, chainId: number): Promise<bigint> {
+  async getTokenBalance(
+    tokenAddress: Address,
+    walletAddress: Address,
+    chainId: number,
+  ): Promise<bigint> {
     const abi = [
       {
         inputs: [{ name: 'account', type: 'address' }],

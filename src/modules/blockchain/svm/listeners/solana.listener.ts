@@ -81,11 +81,13 @@ export class SolanaListener extends BaseChainListener {
         destination: BigInt(intentData.targetChainId || '999999999'),
         salt: '0x' as `0x${string}`,
         inbox: intentData.target as `0x${string}`,
-        calls: [{
-          data: (intentData.data || '0x') as `0x${string}`,
-          target: intentData.target as `0x${string}`,
-          value: BigInt(intentData.value || 0),
-        }],
+        calls: [
+          {
+            data: (intentData.data || '0x') as `0x${string}`,
+            target: intentData.target as `0x${string}`,
+            value: BigInt(intentData.value || 0),
+          },
+        ],
         tokens: [],
       },
       status: IntentStatus.PENDING,

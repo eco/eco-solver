@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module, forwardRef } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { ConfigModule } from '@/modules/config/config.module';
