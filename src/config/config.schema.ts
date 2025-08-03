@@ -40,7 +40,7 @@ export const ConfigSchema = z
     provers: ProversSchema,
     fulfillment: FulfillmentSchema,
   })
-  .extend(BaseSchema);
+  .extend(BaseSchema.shape);
 
 // Export the inferred TypeScript type
 export type Config = z.infer<typeof ConfigSchema>;

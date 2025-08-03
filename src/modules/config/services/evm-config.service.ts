@@ -23,14 +23,6 @@ export class EvmConfigService {
     return Array.from(this._networks.values());
   }
 
-  get privateKey(): EvmConfig['privateKey'] {
-    return this.configService.get<string>('evm.privateKey');
-  }
-
-  get walletAddress(): EvmConfig['walletAddress'] {
-    return this.configService.get<string>('evm.walletAddress');
-  }
-
   get supportedChainIds(): number[] {
     return Array.from(this._networks.keys());
   }

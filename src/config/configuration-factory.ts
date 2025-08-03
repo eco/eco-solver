@@ -14,6 +14,7 @@ import {
 } from '@/config/schemas';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
+import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
 
 /**
  * Configuration factory that transforms environment variables to configuration
@@ -21,7 +22,7 @@ import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transfor
  */
 export const configurationFactory = async () => {
   const baseConfiguration = {
-    ...baseConfig(),
+    ...(await baseConfig()),
     mongodb: await mongodbConfig(),
     redis: await redisConfig(),
     evm: await evmConfig(),
@@ -42,23 +43,24 @@ export const configurationFactory = async () => {
   const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);
 
   if (useAwsSecrets) {
-    try {
-      const awsSecretsService = new AwsSecretsService();
+    const awsSecretsService = new AwsSecretsService();
 
-      const awsConfig = AwsSchema.parse(mergedConfig.aws);
+    const awsConfig = AwsSchema.parse(mergedConfig.aws);
 
-      // Fetch secrets from AWS using the merged config
-      const secrets = await awsSecretsService.getSecrets(awsConfig);
+    // Fetch secrets from AWS using the merged config
+    const secrets = await awsSecretsService.getSecrets(awsConfig);
 
-      // Transform flat secrets to nested configuration structure using schema
-      const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
+    // Transform flat secrets to nested configuration structure using schema
+    const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
 
-      // Merge AWS secrets into the configuration
-      mergedConfig = merge({}, mergedConfig, nestedSecrets);
-    } catch (error) {
-      console.error('Failed to load AWS secrets:', error);
-      throw error;
-    }
+    // Merge AWS secrets into the configuration
+    mergedConfig = merge({}, mergedConfig, nestedSecrets);
+  }
+
+  if (!mergedConfig.skipEcoPackageConfig) {
+    const npmPackageConfig = getEcoNpmPackageConfig(mergedConfig);
+
+    mergedConfig = merge({}, mergedConfig, npmPackageConfig);
   }
 
   // Parse and validate the complete merged configuration

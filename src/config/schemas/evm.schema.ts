@@ -89,11 +89,6 @@ const EvmNetworkSchema = z.object({
  * EVM configuration schema
  */
 export const EvmSchema = z.object({
-  privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
-  walletAddress: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .optional(),
   networks: z.array(EvmNetworkSchema).default([]),
 });
 

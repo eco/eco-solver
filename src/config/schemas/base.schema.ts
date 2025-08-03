@@ -8,8 +8,9 @@ import { DeepPartial } from '@/common/types';
  * Base environment configuration schema
  */
 export const BaseSchema = z.object({
-  env: z.enum(['development', 'production', 'test']).default('development'),
+  env: z.enum(['development', 'production', 'preproduction']).default('development'),
   port: z.number().int().positive().default(3000),
+  skipEcoPackageConfig: z.boolean().optional(),
 });
 
 export type BaseConfig = z.infer<typeof BaseSchema>;
