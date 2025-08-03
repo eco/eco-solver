@@ -4,7 +4,6 @@ import { createPublicClient, createWalletClient, Hex, PublicClient, WalletClient
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
-import { BasicWalletConfig } from '@/config/schemas';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { EvmTransportService } from '../../services/evm-transport.service';

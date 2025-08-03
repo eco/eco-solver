@@ -14,14 +14,11 @@ export interface KernelWalletConfig {
 
 export class KernelWallet extends BaseEvmWallet {
   protected publicClient: PublicClient;
-  protected walletClient: WalletClient;
   private kernelAddress: Address;
-  private moduleAddress?: Address;
 
-  constructor(publicClient: PublicClient, walletClient: WalletClient, config: KernelWalletConfig) {
+  constructor(publicClient: PublicClient, config: KernelWalletConfig) {
     super();
     this.publicClient = publicClient;
-    this.walletClient = walletClient;
     this.kernelAddress = config.kernelAddress;
     this.moduleAddress = config.moduleAddress;
   }

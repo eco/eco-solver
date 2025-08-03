@@ -84,19 +84,22 @@ const BasicWalletConfigSchema = z.object({
     .optional(),
 });
 
+const KmsSignerConfigSchema = z.object({
+  type: z.literal('kms'),
+  region: z.string(),
+  keyID: z.string(),
+});
+
+const EOASignerConfigSchema = z.object({
+  type: z.literal('eoa'),
+  privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+});
+
 /**
  * Kernel wallet configuration schema
  */
 const KernelWalletConfigSchema = z.object({
-  privateKey: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{64}$/)
-    .optional(),
-  kernelAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-  moduleAddress: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .optional(),
+  signer: z.union([KmsSignerConfigSchema, EOASignerConfigSchema]),
 });
 
 /**

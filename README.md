@@ -188,6 +188,46 @@ AWS_REGION=us-east-1
 AWS_SECRET_NAME=blockchain-intent-solver-secrets
 ```
 
+## 💼 Wallet System
+
+The EVM module supports multiple wallet types through a modular architecture:
+
+### Supported Wallet Types
+
+1. **BasicWallet** - Standard EOA (Externally Owned Account)
+   - Uses private keys for transaction signing
+   - Supports batch operations via multicall3
+   - Default wallet type if none specified
+
+2. **KernelWallet** - Smart Account implementation
+   - Supports multiple signer types (EOA, KMS)
+   - Advanced features like session keys and modules
+   - Batch operations via smart contract
+
+### Wallet Configuration
+
+```bash
+# Basic wallet (uses global private key by default)
+EVM_WALLETS_BASIC_PRIVATE_KEY=0x...  # Optional: override global key
+
+# Kernel wallet with EOA signer
+EVM_WALLETS_KERNEL_SIGNER_TYPE=eoa
+EVM_WALLETS_KERNEL_SIGNER_PRIVATE_KEY=0x...
+
+# Kernel wallet with AWS KMS signer
+EVM_WALLETS_KERNEL_SIGNER_TYPE=kms
+EVM_WALLETS_KERNEL_SIGNER_REGION=us-east-1
+EVM_WALLETS_KERNEL_SIGNER_KEY_ID=...
+```
+
+### Module Architecture
+
+Each wallet type is encapsulated in its own NestJS module:
+- `BasicWalletModule` - Provides BasicWalletFactory
+- `KernelWalletModule` - Provides KernelWalletFactory
+
+Wallet factories only require a `chainId` to create instances, retrieving all configuration internally.
+
 ## 🔧 Development
 
 ### Code Style
