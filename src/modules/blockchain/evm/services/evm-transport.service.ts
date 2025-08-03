@@ -1,6 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { Chain, createPublicClient, extractChain, http, Transport, webSocket } from 'viem';
+import {
+  Chain,
+  createPublicClient,
+  extractChain,
+  http,
+  HttpTransportConfig,
+  Transport,
+  webSocket,
+  WebSocketTransportConfig,
+} from 'viem';
 import * as chains from 'viem/chains';
 
 import { EvmConfigService } from '@/modules/config/services';
@@ -11,14 +20,19 @@ interface ChainTransport {
 }
 
 @Injectable()
-export class EvmTransportService {
+export class EvmTransportService implements OnModuleInit {
   private chainTransports: Map<number, ChainTransport> = new Map();
   private allChains: Chain[];
 
   constructor(private evmConfigService: EvmConfigService) {
     this.allChains = Object.values(chains) as Chain[];
-    // Initialize transport for the default configured chain
-    this.initializeChainTransport(this.evmConfigService.chainId);
+  }
+
+  onModuleInit(): void {
+    // Initialize transports for all configured chains
+    for (const network of this.evmConfigService.networks) {
+      this.initializeChainTransport(network.chainId);
+    }
   }
 
   getTransport(chainId: number) {
@@ -54,8 +68,10 @@ export class EvmTransportService {
       return;
     }
 
-    const rpcUrl = this.evmConfigService.rpcUrl;
-    const wsUrl = this.evmConfigService.wsUrl;
+    const network = this.evmConfigService.getNetwork(chainId);
+    if (!network) {
+      throw new Error(`No network configuration found for chainId: ${chainId}`);
+    }
 
     // Extract the chain configuration from viem/chains
     const chain = extractChain({
@@ -63,8 +79,51 @@ export class EvmTransportService {
       id: chainId,
     });
 
+    // Get transport options
+    const rpcOptions = network.rpc.options;
+    const wsOptions = network.ws?.options;
+
     // Create transport - prefer WebSocket if available for better performance with event listening
-    const transport = wsUrl ? webSocket(wsUrl) : http(rpcUrl);
+    let transport: Transport;
+    if (network.ws?.urls && network.ws.urls.length > 0) {
+      const wsConfig: WebSocketTransportConfig = {
+        key: 'webSocket',
+        name: 'WebSocket JSON-RPC',
+        request: {} as any, // Will be set by webSocket function
+        type: 'webSocket',
+      };
+
+      // Apply WebSocket options if provided
+      if (wsOptions) {
+        if (wsOptions.timeout !== undefined) {
+          wsConfig.timeout = wsOptions.timeout;
+        }
+        // Note: keepAlive and reconnect options would need custom handling
+        // as Viem's webSocket transport doesn't directly support them
+      }
+
+      transport = webSocket(network.ws.urls[0], wsConfig);
+    } else {
+      const httpConfig: HttpTransportConfig = {};
+
+      // Apply HTTP options if provided
+      if (rpcOptions) {
+        if (rpcOptions.batch !== undefined) {
+          httpConfig.batch = rpcOptions.batch;
+        }
+        if (rpcOptions.timeout !== undefined) {
+          httpConfig.timeout = rpcOptions.timeout;
+        }
+        if (rpcOptions.retryCount !== undefined) {
+          httpConfig.retryCount = rpcOptions.retryCount;
+        }
+        if (rpcOptions.retryDelay !== undefined) {
+          httpConfig.retryDelay = rpcOptions.retryDelay;
+        }
+      }
+
+      transport = http(network.rpc.urls[0], httpConfig);
+    }
 
     this.chainTransports.set(chainId, {
       chain,

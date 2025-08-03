@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { EvmConfigService } from '@/modules/config/services';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class StandardFeeValidation implements Validation {
-  // TODO: Inject configuration service for fee parameters
-  private baseFee = 1000000n; // 0.001 ETH in wei as example
-  private scalarFee = 100n; // 1% as basis points
+  constructor(private evmConfigService: EvmConfigService) {}
 
   async validate(intent: Intent): Promise<boolean> {
+    // Get fee logic for the destination chain
+    const feeLogic = this.evmConfigService.getFeeLogic(Number(intent.route.destination));
+    const baseFee = BigInt(feeLogic.baseFlatFee);
+    const scalarBps = BigInt(feeLogic.scalarBps);
+
     // Calculate total value being transferred
     let totalValue = 0n;
 
@@ -33,14 +37,14 @@ export class StandardFeeValidation implements Validation {
       totalValue = intent.reward.nativeValue;
     }
 
-    // Calculate required fee: baseFee + (totalValue * scalarFee / 10000)
-    const scaledFee = (totalValue * this.scalarFee) / 10000n;
-    const totalRequiredFee = this.baseFee + scaledFee;
+    // Calculate required fee: baseFee + (totalValue * scalarBps / 10000)
+    const scaledFee = (totalValue * scalarBps) / 10000n;
+    const totalRequiredFee = baseFee + scaledFee;
 
     // Check if reward native value covers the fee
     if (intent.reward.nativeValue < totalRequiredFee) {
       throw new Error(
-        `Reward native value ${intent.reward.nativeValue} is less than required fee ${totalRequiredFee} (base: ${this.baseFee}, scalar: ${scaledFee})`,
+        `Reward native value ${intent.reward.nativeValue} is less than required fee ${totalRequiredFee} (base: ${baseFee}, scalar: ${scaledFee})`,
       );
     }
 

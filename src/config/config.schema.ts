@@ -22,19 +22,80 @@ export const ConfigSchema = z.object({
   }),
 
   evm: z.object({
-    rpcUrl: z.string().url(),
-    wsUrl: z
-      .string()
-      .url()
-      .or(z.string().regex(/^wss?:/)),
-    chainId: z.number().int().positive(),
     privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
     walletAddress: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/)
       .optional(),
-    intentSourceAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-    inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+    defaultChainId: z.number().int().positive(),
+    networks: z
+      .array(
+        z.object({
+          chainId: z.number().int().positive(),
+          rpc: z.object({
+            urls: z.array(z.string().url()),
+            options: z
+              .object({
+                batch: z
+                  .union([
+                    z.boolean(),
+                    z.object({
+                      multicall: z.boolean().optional(),
+                      batchSize: z.number().int().positive().optional(),
+                      wait: z.number().int().positive().optional(),
+                    }),
+                  ])
+                  .optional(),
+                timeout: z.number().int().positive().optional(),
+                retryCount: z.number().int().min(0).optional(),
+                retryDelay: z.number().int().positive().optional(),
+              })
+              .optional(),
+          }),
+          ws: z
+            .object({
+              urls: z.array(
+                z
+                  .string()
+                  .url()
+                  .or(z.string().regex(/^wss?:/)),
+              ),
+              options: z
+                .object({
+                  timeout: z.number().int().positive().optional(),
+                  keepAlive: z.boolean().optional(),
+                  reconnect: z
+                    .union([
+                      z.boolean(),
+                      z.object({
+                        auto: z.boolean().optional(),
+                        delay: z.number().int().positive().optional(),
+                        maxAttempts: z.number().int().positive().optional(),
+                      }),
+                    ])
+                    .optional(),
+                })
+                .optional(),
+            })
+            .optional(),
+          intentSourceAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+          inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+          tokens: z
+            .array(
+              z.object({
+                address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+                decimals: z.number().int().min(0).max(18),
+                limit: z.string(), // Using string for bigint compatibility
+              }),
+            )
+            .default([]),
+          feeLogic: z.object({
+            baseFlatFee: z.string(), // Using string for bigint compatibility (in wei)
+            scalarBps: z.number().int().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+          }),
+        }),
+      )
+      .default([]),
   }),
 
   solana: z.object({
