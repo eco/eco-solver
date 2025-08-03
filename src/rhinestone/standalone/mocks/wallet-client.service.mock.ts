@@ -30,9 +30,6 @@ export class MockWalletClientService {
   constructor() {
     // Use test private key from mock config
     const privateKey = process.env.SIGNER_PRIVATE_KEY as Hex
-    if (!privateKey) {
-      throw new Error('SIGNER_PRIVATE_KEY environment variable is required')
-    }
     this.account = privateKeyToAccount(privateKey)
     this.logger.log(`MockWalletClientService initialized with address: ${this.account.address}`)
   }
@@ -40,15 +37,34 @@ export class MockWalletClientService {
   async getClient(chainId: number): Promise<WalletClient> {
     if (!this.walletClients.has(chainId)) {
       const chain = SUPPORTED_CHAINS[chainId] || mainnet
-      const transport = http(process.env[`RPC_URL_${chainId}`])
-
-      const client = createWalletClient({
+      
+      // Create a mock wallet client
+      const mockClient = {
         account: this.account,
         chain,
-        transport,
-      })
+        transport: { type: 'http' },
+        sendTransaction: async (args: any) => {
+          this.logger.log(`Mock sendTransaction called with:`, args)
+          // Return a mock transaction hash
+          return `0x${Buffer.from(`mock-tx-${Date.now()}`).toString('hex').padEnd(64, '0')}` as Hash
+        },
+        writeContract: async (args: any) => {
+          this.logger.log(`Mock writeContract called with:`, args)
+          return `0x${Buffer.from(`mock-write-${Date.now()}`).toString('hex').padEnd(64, '0')}` as Hash
+        },
+        deployContract: async (args: any) => {
+          this.logger.log(`Mock deployContract called with:`, args)
+          return `0x${Buffer.from(`mock-deploy-${Date.now()}`).toString('hex').padEnd(64, '0')}` as Hash
+        },
+        signMessage: async (args: any) => {
+          return '0x' + 'a'.repeat(130) as Hex // Mock signature
+        },
+        signTypedData: async (args: any) => {
+          return '0x' + 'b'.repeat(130) as Hex // Mock signature
+        },
+      } as any
 
-      this.walletClients.set(chainId, client)
+      this.walletClients.set(chainId, mockClient)
     }
 
     return this.walletClients.get(chainId)!

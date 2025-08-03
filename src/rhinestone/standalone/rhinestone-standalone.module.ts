@@ -9,18 +9,15 @@ import { RhinestoneService } from '@/rhinestone/services/rhinestone.service'
 import { RhinestoneApiService } from '@/rhinestone/services/rhinestone-api.service'
 import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { MockWalletClientService } from './mocks/wallet-client.service.mock'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { MockKernelAccountClientService } from './mocks/kernel-account-client.service.mock'
 import { SignerService } from '@/sign/signer.service'
-import { MockSignerService } from './mocks/signer.service.mock'
+import { SignerKmsService } from '@/sign/signer-kms.service'
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
 import { RhinestoneContractsService } from '@/rhinestone/services/rhinestone-contracts.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { MockMultichainPublicClientService } from './mocks/multichain-public-client.service.mock'
 import { EcoAnalyticsService } from '@/analytics'
 import { MockEcoAnalyticsService } from './mocks/eco-analytics.service.mock'
 import { FeeService } from '@/fee/fee.service'
@@ -29,6 +26,7 @@ import { MockProofService } from './mocks/proof.service.mock'
 import { BalanceService } from '@/balance/balance.service'
 import { MockIntentModel } from './mocks/intent-model.mock'
 import { QUEUES } from '@/common/redis/constants'
+import { KmsService } from '@/kms/kms.service'
 
 @Module({
   imports: [
@@ -52,22 +50,6 @@ import { QUEUES } from '@/common/redis/constants'
       useClass: MockEcoConfigService,
     },
     {
-      provide: WalletClientDefaultSignerService,
-      useClass: MockWalletClientService,
-    },
-    {
-      provide: KernelAccountClientService,
-      useClass: MockKernelAccountClientService,
-    },
-    {
-      provide: SignerService,
-      useClass: MockSignerService,
-    },
-    {
-      provide: MultichainPublicClientService,
-      useClass: MockMultichainPublicClientService,
-    },
-    {
       provide: EcoAnalyticsService,
       useClass: MockEcoAnalyticsService,
     },
@@ -79,6 +61,12 @@ import { QUEUES } from '@/common/redis/constants'
       provide: 'IntentSourceModelModel',
       useClass: MockIntentModel,
     },
+    KmsService,
+    SignerKmsService,
+    SignerService,
+    WalletClientDefaultSignerService,
+    KernelAccountClientService,
+    MultichainPublicClientService,
     FeeService,
     BalanceService,
     RhinestoneValidatorService,

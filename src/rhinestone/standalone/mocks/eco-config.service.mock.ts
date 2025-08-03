@@ -66,6 +66,13 @@ export class MockEcoConfigService {
       },
       pollingInterval: 1000,
     },
+    safe: {
+      owner: '0x982E148216E3Aa6B38f9D901eF578B5c06DD7502',
+    },
+    kms: {
+      region: 'us-east-2',
+      keyID: 'fc27d855-c326-4252-b422-3b717ff1f85e',
+    },
     rpcs: {
       config: {
         webSockets: false,
@@ -277,6 +284,14 @@ export class MockEcoConfigService {
 
   getIntentSource(chainId: number) {
     return this.config.intentSources?.[chainId] || null
+  }
+
+  getKmsConfig() {
+    return this.config.kms
+  }
+
+  getSafe() {
+    return this.config.safe
   }
 
   getRpcUrls(chain: Chain) {

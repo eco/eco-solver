@@ -5,10 +5,14 @@ import { RhinestoneRelayerActionV1 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from './rhinestone-validator.service'
 import { RhinestoneStandaloneModule } from '@/rhinestone/standalone/rhinestone-standalone.module'
 import { FeeService } from '@/fee/fee.service'
+import { KmsService } from '@/kms/kms.service'
+import { SignerKmsService } from '@/sign/signer-kms.service'
 
 describe('RhinestoneService', () => {
   let service: RhinestoneService
   let feeService: FeeService
+  let kmsService: KmsService
+  let signerKmsService: SignerKmsService
   let rhinestoneValidatorService: RhinestoneValidatorService
 
   beforeEach(async () => {
@@ -18,9 +22,13 @@ describe('RhinestoneService', () => {
 
     service = module.get<RhinestoneService>(RhinestoneService)
     feeService = module.get<FeeService>(FeeService)
+    kmsService = module.get<KmsService>(KmsService)
+    signerKmsService = module.get<SignerKmsService>(SignerKmsService)
     rhinestoneValidatorService = module.get<RhinestoneValidatorService>(RhinestoneValidatorService)
 
     feeService.onModuleInit()
+    await kmsService.onModuleInit()
+    await signerKmsService.onModuleInit()
 
     // Mock logger methods
     jest.spyOn(service['logger'], 'log').mockImplementation()
