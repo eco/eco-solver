@@ -3,6 +3,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainService } from '@/modules/blockchain/blockchain.service';
 import {
+  FULFILLMENT_STRATEGY_NAMES,
+  FulfillmentStrategyName,
+} from '@/modules/fulfillment/types/strategy-name.type';
+import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
@@ -21,7 +25,7 @@ import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
-  readonly name = 'rhinestone';
+  readonly name: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.RHINESTONE;
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(

@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { BlockchainService } from '@/modules/blockchain/blockchain.service';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { BlockchainService } from '@/modules/blockchain/blockchain.service';
+import {
+  FULFILLMENT_STRATEGY_NAMES,
+  FulfillmentStrategyName,
+} from '@/modules/fulfillment/types/strategy-name.type';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -21,7 +25,7 @@ import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
-  readonly name = 'native-intents';
+  readonly name: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS;
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
@@ -62,7 +66,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     // Check if the intent has no token transfers, only native value
     const hasTokenTransfers = intent.route.tokens.length > 0 || intent.reward.tokens.length > 0;
     const hasNativeValue = intent.reward.nativeValue > 0n;
-    
+
     return !hasTokenTransfers && hasNativeValue;
   }
 

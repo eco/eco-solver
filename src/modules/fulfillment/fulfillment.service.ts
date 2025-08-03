@@ -9,6 +9,7 @@ import {
   RhinestoneFulfillmentStrategy,
   StandardFulfillmentStrategy,
 } from '@/modules/fulfillment/strategies';
+import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
@@ -16,7 +17,7 @@ import { QueueService } from '@/modules/queue/interfaces/queue-service.interface
 
 @Injectable()
 export class FulfillmentService {
-  private strategies: Map<string, FulfillmentStrategy> = new Map();
+  private strategies: Map<FulfillmentStrategyName, FulfillmentStrategy> = new Map();
 
   constructor(
     private intentsService: IntentsService,
@@ -36,7 +37,7 @@ export class FulfillmentService {
     this.strategies.set(this.rhinestoneStrategy.name, this.rhinestoneStrategy);
   }
 
-  async submitIntent(intent: Intent, strategy: string): Promise<Intent> {
+  async submitIntent(intent: Intent, strategy: FulfillmentStrategyName): Promise<Intent> {
     try {
       // Check if intent already exists
       const existingIntent = await this.intentsService.findById(intent.intentHash);
@@ -63,7 +64,7 @@ export class FulfillmentService {
     }
   }
 
-  async processIntent(intent: Intent, strategyName: string): Promise<void> {
+  async processIntent(intent: Intent, strategyName: FulfillmentStrategyName): Promise<void> {
     try {
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.VALIDATING);
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { Validation } from '@/modules/fulfillment/validations';
 
 @Injectable()
@@ -8,7 +9,7 @@ export abstract class FulfillmentStrategy {
   /**
    * Strategy name for identification
    */
-  abstract readonly name: string;
+  abstract readonly name: FulfillmentStrategyName;
 
   /**
    * Validate the intent using all configured validations

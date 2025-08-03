@@ -5,6 +5,10 @@ import { Queue } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
+import {
+  FULFILLMENT_STRATEGY_NAMES,
+  FulfillmentStrategyName,
+} from '@/modules/fulfillment/types/strategy-name.type';
 import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
@@ -14,7 +18,10 @@ export class QueueService implements IQueueService {
     @InjectQueue('blockchain-execution') private executionQueue: Queue,
   ) {}
 
-  async addIntentToFulfillmentQueue(intent: Intent, strategy: string = 'standard'): Promise<void> {
+  async addIntentToFulfillmentQueue(
+    intent: Intent,
+    strategy: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.STANDARD,
+  ): Promise<void> {
     const jobData: FulfillmentJobData = {
       intent,
       strategy,

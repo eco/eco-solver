@@ -1,10 +1,11 @@
-import { PublicClient } from 'viem';
 import { IntentSourceAbi } from '@eco-foundation/routes-ts';
+import { PublicClient } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 export class ChainListener extends BaseChainListener {
   private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
@@ -48,7 +49,7 @@ export class ChainListener extends BaseChainListener {
             },
           };
 
-          this.fulfillmentService.processIntent(intent, 'standard');
+          this.fulfillmentService.processIntent(intent, FULFILLMENT_STRATEGY_NAMES.STANDARD);
         });
       },
     });

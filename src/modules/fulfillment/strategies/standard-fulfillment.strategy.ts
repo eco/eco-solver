@@ -3,6 +3,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainService } from '@/modules/blockchain/blockchain.service';
 import {
+  FULFILLMENT_STRATEGY_NAMES,
+  FulfillmentStrategyName,
+} from '@/modules/fulfillment/types/strategy-name.type';
+import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
@@ -22,7 +26,7 @@ import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class StandardFulfillmentStrategy extends FulfillmentStrategy {
-  readonly name = 'standard';
+  readonly name: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.STANDARD;
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
