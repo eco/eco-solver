@@ -1,4 +1,5 @@
-import { ConfigSchema } from '@/config/config.schema';
+import { merge } from 'lodash';
+import { AwsSchema, ConfigSchema } from '@/config/config.schema';
 import {
   awsConfig,
   baseConfig,
@@ -12,7 +13,6 @@ import {
 } from '@/config/schemas';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
-import { merge } from 'lodash';
 
 /**
  * Configuration factory that transforms environment variables to configuration
@@ -21,42 +21,45 @@ import { merge } from 'lodash';
 export const configurationFactory = async () => {
   const baseConfiguration = {
     ...baseConfig(),
-    mongodb: mongodbConfig(),
-    redis: redisConfig(),
-    evm: evmConfig(),
-    solana: solanaConfig(),
-    queue: queueConfig(),
-    aws: awsConfig(),
-    provers: proversConfig(),
-    fulfillment: fulfillmentConfig(),
+    mongodb: await mongodbConfig(),
+    redis: await redisConfig(),
+    evm: await evmConfig(),
+    solana: await solanaConfig(),
+    queue: await queueConfig(),
+    aws: await awsConfig(),
+    provers: await proversConfig(),
+    fulfillment: await fulfillmentConfig(),
   };
 
   // Transform all environment variables to nested configuration
   const envConfiguration = transformEnvVarsToConfig(process.env, ConfigSchema);
 
-  // Parse with Zod to apply defaults and validation
-  const parsedConfig = ConfigSchema.parse(envConfiguration);
+  // Merge base defaults with environment configuration
+  let mergedConfig = merge({}, baseConfiguration, envConfiguration);
 
-  const awsSecretsService = new AwsSecretsService();
+  // Check if AWS secrets should be loaded
+  const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);
 
-  // If AWS Secrets Manager is not enabled, return the parsed configuration
-  if (!parsedConfig.aws.useAwsSecrets) {
-    return merge({}, baseConfiguration, envConfiguration);
+  if (useAwsSecrets) {
+    try {
+      const awsSecretsService = new AwsSecretsService();
+
+      const awsConfig = AwsSchema.parse(mergedConfig.aws);
+
+      // Fetch secrets from AWS using the merged config
+      const secrets = await awsSecretsService.getSecrets(awsConfig);
+
+      // Transform flat secrets to nested configuration structure using schema
+      const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
+
+      // Merge AWS secrets into the configuration
+      mergedConfig = merge({}, mergedConfig, nestedSecrets);
+    } catch (error) {
+      console.error('Failed to load AWS secrets:', error);
+      throw error;
+    }
   }
 
-  try {
-    // Fetch secrets from AWS
-    const secrets = await awsSecretsService.getSecrets(parsedConfig.aws);
-
-    // Transform flat secrets to nested configuration structure using schema
-    const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
-
-    const awsConfiguration = ConfigSchema.parse(nestedSecrets);
-
-    return merge({}, baseConfiguration, envConfiguration, awsConfiguration);
-  } catch (error) {
-    console.error('Failed to load AWS secrets, falling back to environment variables:', error);
-    // Return parsed configuration if AWS Secrets Manager fails
-    return parsedConfig;
-  }
+  // Parse and validate the complete merged configuration
+  return ConfigSchema.parse(mergedConfig);
 };

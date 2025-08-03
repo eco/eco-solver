@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * Base environment configuration schema
  */
@@ -15,4 +17,4 @@ export type BaseConfig = z.infer<typeof BaseSchema>;
  * Base configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const baseConfig = registerAs('base', () => ({}));
+export const baseConfig = registerAs<DeepPartial<BaseConfig>>('base', () => ({}));

@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * Solana configuration schema
  */
@@ -22,4 +24,4 @@ export type SolanaConfig = z.infer<typeof SolanaSchema>;
  * Solana configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const solanaConfig = registerAs('solana', () => ({}));
+export const solanaConfig = registerAs<DeepPartial<SolanaConfig>>('solana', () => ({}));

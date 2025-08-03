@@ -1,13 +1,14 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * AWS configuration schema
  */
 export const AwsSchema = z.object({
-  region: z.string().default('us-east-1'),
-  secretName: z.string().default('blockchain-intent-solver-secrets'),
-  useAwsSecrets: z.boolean().default(false),
+  region: z.string(),
+  secretName: z.string(),
   accessKeyId: z.string().optional(),
   secretAccessKey: z.string().optional(),
 });
@@ -18,4 +19,4 @@ export type AwsConfig = z.infer<typeof AwsSchema>;
  * AWS configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const awsConfig = registerAs('aws', () => ({}));
+export const awsConfig = registerAs<DeepPartial<AwsConfig>>('aws', () => ({}));

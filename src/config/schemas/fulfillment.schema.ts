@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * Fulfillment strategy configuration schema
  */
@@ -43,4 +45,4 @@ export type FulfillmentStrategiesConfig = z.infer<typeof FulfillmentStrategiesSc
  * Fulfillment configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const fulfillmentConfig = registerAs('fulfillment', () => ({}));
+export const fulfillmentConfig = registerAs<DeepPartial<FulfillmentConfig>>('fulfillment', () => ({}));

@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * Prover chain configuration schema
  */
@@ -30,4 +32,4 @@ export type ProversConfig = z.infer<typeof ProversSchema>;
  * Provers configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const proversConfig = registerAs('provers', () => ({}));
+export const proversConfig = registerAs<DeepPartial<ProversConfig>>('provers', () => []);

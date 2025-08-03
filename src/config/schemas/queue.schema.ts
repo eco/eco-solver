@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * Queue configuration schema
  */
@@ -19,4 +21,4 @@ export type QueueConfig = z.infer<typeof QueueSchema>;
  * Queue configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const queueConfig = registerAs('queue', () => ({}));
+export const queueConfig = registerAs<DeepPartial<QueueConfig>>('queue', () => ({}));

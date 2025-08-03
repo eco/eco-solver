@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { DeepPartial } from '@/common/types';
+
 /**
  * EVM network RPC configuration schema
  */
@@ -104,4 +106,4 @@ export type EvmFeeLogicConfig = z.infer<typeof EvmFeeLogicSchema>;
  * EVM configuration factory using registerAs
  * Returns empty object - env vars handled in configurationFactory
  */
-export const evmConfig = registerAs('evm', () => ({}));
+export const evmConfig = registerAs<DeepPartial<EvmConfig>>('evm', () => ({}));
