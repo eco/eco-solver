@@ -1,20 +1,23 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
-import { ExecutionService } from '@/modules/execution/execution.service';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { BlockchainService } from '@/modules/blockchain/blockchain.service';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { Validation } from '../validations/validation.interface';
-import { FundingValidation } from '../validations/funding.validation';
-import { RouteTokenValidation } from '../validations/route-token.validation';
-import { RouteCallsValidation } from '../validations/route-calls.validation';
-import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
-import { ExpirationValidation } from '../validations/expiration.validation';
+import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+
 import { ChainSupportValidation } from '../validations/chain-support.validation';
-import { ProverSupportValidation } from '../validations/prover-support.validation';
 import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
+import { ExpirationValidation } from '../validations/expiration.validation';
+import { FundingValidation } from '../validations/funding.validation';
 import { NativeFeeValidation } from '../validations/native-fee.validation';
+import { ProverSupportValidation } from '../validations/prover-support.validation';
+import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
+import { RouteCallsValidation } from '../validations/route-calls.validation';
+import { RouteTokenValidation } from '../validations/route-token.validation';
+import { Validation } from '../validations/validation.interface';
+
+import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
@@ -22,7 +25,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
-    private readonly executionService: ExecutionService,
+    private readonly blockchainService: BlockchainService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for native intents strategy
     private readonly fundingValidation: FundingValidation,
@@ -56,14 +59,15 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
   canHandle(intent: Intent): boolean {
     // Native intents strategy handles intents that use native tokens (ETH, SOL, etc.)
-    return intent.metadata?.strategyType === 'native-intents' ||
-           intent.metadata?.isNativeToken === true;
+    return (
+      intent.metadata?.strategyType === 'native-intents' || intent.metadata?.isNativeToken === true
+    );
   }
 
   async execute(intent: Intent): Promise<void> {
     // Native intents fulfillment uses EVM executor for native token handling
-    const targetChainId = Number(intent.target.chainId);
-    
+    const targetChainId = Number(intent.route.destination);
+
     // Add to execution queue with native-specific execution data
     await this.queueService.addJob(
       QueueNames.INTENT_EXECUTION,
@@ -74,9 +78,9 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
         executorType: 'evm', // Native intents use EVM executor
         executionData: {
           type: 'native-intents',
-          amount: intent.value,
-          reward: intent.reward,
-          deadline: intent.deadline,
+          amount: intent.reward.nativeValue,
+          reward: intent.reward.nativeValue,
+          deadline: intent.reward.deadline,
           isNativeToken: true,
           // TODO: Add native token specific parameters
           // nativeTokenSymbol: intent.metadata?.nativeTokenSymbol,

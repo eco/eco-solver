@@ -5,12 +5,13 @@ import { Queue } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
+import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
-export class QueueService {
+export class QueueService implements IQueueService {
   constructor(
     @InjectQueue('intent-fulfillment') private fulfillmentQueue: Queue,
-    @InjectQueue('wallet-execution') private executionQueue: Queue,
+    @InjectQueue('blockchain-execution') private executionQueue: Queue,
   ) {}
 
   async addIntentToFulfillmentQueue(intent: Intent, strategy: string = 'standard'): Promise<void> {
@@ -18,7 +19,7 @@ export class QueueService {
       intent,
       strategy,
     };
-    
+
     await this.fulfillmentQueue.add('process-intent', jobData, {
       attempts: 3,
       backoff: {
@@ -29,7 +30,7 @@ export class QueueService {
   }
 
   async addIntentToExecutionQueue(intent: Intent, walletAddress: string): Promise<void> {
-    const queueName = `wallet-${walletAddress}-${intent.target.chainId}`;
+    const queueName = `wallet-${walletAddress}-${intent.route.destination}`;
 
     await this.executionQueue.add(
       queueName,
@@ -55,5 +56,10 @@ export class QueueService {
     ]);
 
     return { waiting, active, completed, failed };
+  }
+
+  async addJob(queueName: string, data: any, options?: any): Promise<void> {
+    const queue = queueName === 'intent-fulfillment' ? this.fulfillmentQueue : this.executionQueue;
+    await queue.add(queueName, data, options);
   }
 }

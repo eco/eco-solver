@@ -20,5 +20,8 @@ export abstract class BaseEvmWallet implements IEvmWallet {
   abstract readContract(params: ReadContractParams): Promise<any>;
   abstract readContracts(params: ReadContractParams[]): Promise<any[]>;
   abstract writeContract(params: WriteContractParams): Promise<`0x${string}`>;
-  abstract writeContracts(params: WriteContractParams[], options?: WriteContractsOptions): Promise<`0x${string}`[]>;
+  abstract writeContracts(
+    params: WriteContractParams[],
+    options?: WriteContractsOptions,
+  ): Promise<`0x${string}`[]>;
 }

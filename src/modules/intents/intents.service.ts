@@ -3,15 +3,17 @@ import { InjectModel } from '@nestjs/mongoose';
 
 import { Model } from 'mongoose';
 
-import { IntentStatus } from '@/common/interfaces/intent.interface';
+import { Intent as IntentInterface, IntentStatus } from '@/common/interfaces/intent.interface';
 import { Intent, IntentDocument } from '@/modules/intents/schemas/intent.schema';
+import { IntentConverter } from '@/modules/intents/utils/intent-converter';
 
 @Injectable()
 export class IntentsService {
   constructor(@InjectModel(Intent.name) private intentModel: Model<IntentDocument>) {}
 
-  async create(intentData: Partial<Intent>): Promise<Intent> {
-    const intent = new this.intentModel(intentData);
+  async create(intentData: IntentInterface): Promise<Intent> {
+    const schemaData = IntentConverter.toSchema(intentData);
+    const intent = new this.intentModel(schemaData);
     return intent.save();
   }
 

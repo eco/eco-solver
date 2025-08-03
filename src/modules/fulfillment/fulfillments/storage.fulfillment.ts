@@ -17,10 +17,10 @@ export class StorageFulfillment extends BaseFulfillment {
     try {
       // Check if we support the target chain
       const supportedChains = this.getSupportedChains();
-      if (!supportedChains.includes(intent.target.chainId)) {
+      if (!supportedChains.includes(Number(intent.route.destination))) {
         return {
           shouldExecute: false,
-          reason: `Target chain ${intent.target.chainId} not supported`,
+          reason: `Target chain ${intent.route.destination} not supported`,
         };
       }
 
@@ -48,9 +48,9 @@ export class StorageFulfillment extends BaseFulfillment {
     // Prepare data specific to storage fulfillment
     return {
       intentId: intent.intentId,
-      target: intent.target.address,
-      data: intent.data,
-      value: intent.value,
+      target: intent.route.inbox,
+      data: '0x', // TODO: Determine correct data
+      value: intent.reward.nativeValue,
     };
   }
 
@@ -61,7 +61,7 @@ export class StorageFulfillment extends BaseFulfillment {
   private async checkBalance(intent: Intent): Promise<boolean> {
     // Simplified balance check
     // In production, this would check actual on-chain balances
-    const requiredAmount = BigInt(intent.value) + BigInt(intent.reward);
+    const requiredAmount = intent.reward.nativeValue;
     return requiredAmount > 0n; // Placeholder
   }
 }

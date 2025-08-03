@@ -21,7 +21,9 @@ describe('Schema Transformer', () => {
     });
 
     it('should handle array indices', () => {
-      expect(pathToEnvVar(['evm', 'network', '10', 'rpcUrls', '0'])).toBe('EVM_NETWORK_10_RPC_URLS_0');
+      expect(pathToEnvVar(['evm', 'network', '10', 'rpcUrls', '0'])).toBe(
+        'EVM_NETWORK_10_RPC_URLS_0',
+      );
     });
   });
 
@@ -40,7 +42,13 @@ describe('Schema Transformer', () => {
     });
 
     it('should handle array indices', () => {
-      expect(envVarToPath('EVM_NETWORK_10_RPC_URLS_0')).toEqual(['evm', 'network', '10', 'rpcUrls', '0']);
+      expect(envVarToPath('EVM_NETWORK_10_RPC_URLS_0')).toEqual([
+        'evm',
+        'network',
+        '10',
+        'rpcUrls',
+        '0',
+      ]);
     });
   });
 
@@ -95,15 +103,21 @@ describe('Schema Transformer', () => {
     it('should handle type conversions', () => {
       const TestSchema = z.object({
         port: z.number(),
-        redis: z.object({
-          port: z.number(),
-        }).optional(),
-        queue: z.object({
-          concurrency: z.number(),
-        }).optional(),
-        aws: z.object({
-          useAwsSecrets: z.boolean(),
-        }).optional(),
+        redis: z
+          .object({
+            port: z.number(),
+          })
+          .optional(),
+        queue: z
+          .object({
+            concurrency: z.number(),
+          })
+          .optional(),
+        aws: z
+          .object({
+            useAwsSecrets: z.boolean(),
+          })
+          .optional(),
       });
 
       const envVars = {
@@ -123,12 +137,16 @@ describe('Schema Transformer', () => {
 
     it('should handle optional values', () => {
       const TestSchema = z.object({
-        redis: z.object({
-          password: z.string().optional(),
-        }).optional(),
-        evm: z.object({
-          walletAddress: z.string().optional(),
-        }).optional(),
+        redis: z
+          .object({
+            password: z.string().optional(),
+          })
+          .optional(),
+        evm: z
+          .object({
+            walletAddress: z.string().optional(),
+          })
+          .optional(),
       });
 
       const envVars = {
@@ -151,10 +169,12 @@ describe('Schema Transformer', () => {
           }),
         }),
         database: z.object({
-          connections: z.array(z.object({
-            url: z.string(),
-            poolSize: z.number(),
-          })),
+          connections: z.array(
+            z.object({
+              url: z.string(),
+              poolSize: z.number(),
+            }),
+          ),
         }),
       });
 
@@ -190,15 +210,20 @@ describe('Schema Transformer', () => {
       const TestSchema = z.object({
         evm: z.object({
           // network is an array
-          network: z.array(z.object({
-            chainId: z.number(),
-            rpcUrl: z.string(),
-          })),
+          network: z.array(
+            z.object({
+              chainId: z.number(),
+              rpcUrl: z.string(),
+            }),
+          ),
           // chainConfig is an object with numeric keys
-          chainConfig: z.record(z.string(), z.object({
-            rpcUrl: z.string(),
-            wsUrl: z.string().optional(),
-          })),
+          chainConfig: z.record(
+            z.string(),
+            z.object({
+              rpcUrl: z.string(),
+              wsUrl: z.string().optional(),
+            }),
+          ),
         }),
       });
 

@@ -6,7 +6,8 @@ import {
   WriteContractParams,
   WriteContractsOptions,
 } from '@/common/interfaces/evm-wallet.interface';
-import { MULTICALL3_ABI } from '@/modules/execution/constants/multicall3.constants';
+
+import { MULTICALL3_ABI } from '../constants/multicall3.constants';
 
 export class BasicWallet extends BaseEvmWallet {
   async getAddress(): Promise<Address> {

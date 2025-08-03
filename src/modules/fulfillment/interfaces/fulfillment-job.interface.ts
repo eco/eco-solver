@@ -1,4 +1,4 @@
-import { Intent } from '@/modules/intents/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 
 export interface FulfillmentJobData {
   intent: Intent;

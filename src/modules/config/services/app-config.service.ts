@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
 import { z } from 'zod';
 
 import { ConfigSchema } from '@/config/config.schema';

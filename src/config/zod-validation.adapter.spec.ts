@@ -12,9 +12,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { port: 3000, host: 'localhost' };
-      
+
       const result = validator(config);
-      
+
       expect(result).toEqual(config);
     });
 
@@ -34,9 +34,9 @@ describe('createZodValidationAdapter', () => {
         server: { port: 3000, host: 'localhost' },
         database: { url: 'postgresql://localhost:5432/db' },
       };
-      
+
       const result = validator(config);
-      
+
       expect(result).toEqual(config);
     });
 
@@ -48,9 +48,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = {};
-      
+
       const result = validator(config);
-      
+
       expect(result).toEqual({
         port: 3000,
         env: 'development',
@@ -65,9 +65,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { required: 'value' };
-      
+
       const result = validator(config);
-      
+
       expect(result).toEqual({ required: 'value' });
     });
   });
@@ -80,9 +80,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { port: 'not-a-number' };
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: port: Invalid input: expected number, received string'
+        'Configuration validation error: port: Invalid input: expected number, received string',
       );
     });
 
@@ -93,9 +93,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = {};
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: required: Invalid input: expected string, received undefined'
+        'Configuration validation error: required: Invalid input: expected string, received undefined',
       );
     });
 
@@ -106,9 +106,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { env: 'invalid' };
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: env: Invalid option: expected one of "development"|"production"'
+        'Configuration validation error: env: Invalid option: expected one of "development"|"production"',
       );
     });
 
@@ -127,9 +127,9 @@ describe('createZodValidationAdapter', () => {
         // missing host
         database: { url: 'not-a-url' },
       };
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: port: Invalid input: expected number, received string, host: Invalid input: expected string, received undefined, database.url: Invalid URL'
+        'Configuration validation error: port: Invalid input: expected number, received string, host: Invalid input: expected string, received undefined, database.url: Invalid URL',
       );
     });
 
@@ -154,9 +154,9 @@ describe('createZodValidationAdapter', () => {
           },
         },
       };
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: level1.level2.level3.value: Invalid input: expected number, received string'
+        'Configuration validation error: level1.level2.level3.value: Invalid input: expected number, received string',
       );
     });
 
@@ -167,9 +167,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { privateKey: 'invalid-key' };
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: privateKey: Invalid'
+        'Configuration validation error: privateKey: Invalid',
       );
     });
 
@@ -180,9 +180,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { ports: [3000, 'invalid', 5000] };
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: ports.1: Invalid input: expected number, received string'
+        'Configuration validation error: ports.1: Invalid input: expected number, received string',
       );
     });
   });
@@ -194,7 +194,7 @@ describe('createZodValidationAdapter', () => {
       });
 
       const validator = createZodValidationAdapter(schema);
-      
+
       // Mock schema.parse to throw a non-Zod error
       const originalParse = schema.parse;
       schema.parse = jest.fn().mockImplementation(() => {
@@ -212,9 +212,9 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = 123 as any; // number instead of string
-      
+
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: : Invalid input: expected string, received number'
+        'Configuration validation error: : Invalid input: expected string, received number',
       );
     });
   });
@@ -226,7 +226,7 @@ describe('createZodValidationAdapter', () => {
       });
 
       const validator = createZodValidationAdapter(schema);
-      
+
       expect(validator({ value: 'string' })).toEqual({ value: 'string' });
       expect(validator({ value: 123 })).toEqual({ value: 123 });
     });
@@ -238,26 +238,28 @@ describe('createZodValidationAdapter', () => {
 
       const validator = createZodValidationAdapter(schema);
       const config = { port: '3000' };
-      
+
       const result = validator(config);
-      
+
       expect(result).toEqual({ port: 3000 });
     });
 
     it('should handle refine validations', () => {
-      const schema = z.object({
-        password: z.string(),
-        confirmPassword: z.string(),
-      }).refine((data) => data.password === data.confirmPassword, {
-        message: "Passwords don't match",
-        path: ['confirmPassword'],
-      });
+      const schema = z
+        .object({
+          password: z.string(),
+          confirmPassword: z.string(),
+        })
+        .refine((data) => data.password === data.confirmPassword, {
+          message: "Passwords don't match",
+          path: ['confirmPassword'],
+        });
 
       const validator = createZodValidationAdapter(schema);
       const config = { password: 'secret', confirmPassword: 'different' };
-      
+
       expect(() => validator(config)).toThrow(
-        "Configuration validation error: confirmPassword: Passwords don't match"
+        "Configuration validation error: confirmPassword: Passwords don't match",
       );
     });
   });

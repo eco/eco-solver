@@ -4,8 +4,9 @@ import { Address, createPublicClient, createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
-import { BasicWallet } from '@/modules/execution/wallets/basic-wallet';
-import { KernelWallet, KernelWalletConfig } from '@/modules/execution/wallets/kernel-wallet';
+
+import { BasicWallet } from '../wallets/basic-wallet';
+import { KernelWallet, KernelWalletConfig } from '../wallets/kernel-wallet';
 
 export interface WalletConfig {
   id: string;

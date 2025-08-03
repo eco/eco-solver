@@ -1,4 +1,4 @@
-import { Address, Hash, PublicClient, WalletClient, encodeFunctionData } from 'viem';
+import { Address, encodeFunctionData, Hash, PublicClient, WalletClient } from 'viem';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import {
@@ -16,11 +16,7 @@ export class KernelWallet extends BaseEvmWallet {
   private kernelAddress: Address;
   private moduleAddress?: Address;
 
-  constructor(
-    publicClient: PublicClient,
-    walletClient: WalletClient,
-    config: KernelWalletConfig,
-  ) {
+  constructor(publicClient: PublicClient, walletClient: WalletClient, config: KernelWalletConfig) {
     super(publicClient, walletClient);
     this.kernelAddress = config.kernelAddress;
     this.moduleAddress = config.moduleAddress;
@@ -87,7 +83,10 @@ export class KernelWallet extends BaseEvmWallet {
     return this.walletClient.writeContract(request);
   }
 
-  async writeContracts(params: WriteContractParams[], options?: WriteContractsOptions): Promise<Hash[]> {
+  async writeContracts(
+    params: WriteContractParams[],
+    options?: WriteContractsOptions,
+  ): Promise<Hash[]> {
     if (!this.walletClient.account) {
       throw new Error('Wallet client account not found');
     }

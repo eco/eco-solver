@@ -3,6 +3,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentConverter } from '@/modules/intents/utils/intent-converter';
 import { EvmListener } from '@/modules/on-chain-listener/listeners/evm.listener';
 import { SolanaListener } from '@/modules/on-chain-listener/listeners/solana.listener';
 import { QueueService } from '@/modules/queue/queue.service';
@@ -54,10 +55,13 @@ export class OnChainListenerService implements OnModuleInit, OnModuleDestroy {
       }
 
       const savedIntent = await this.intentsService.create(intent);
-      const strategy = this.determineStrategy(savedIntent);
-      await this.queueService.addIntentToFulfillmentQueue(savedIntent, strategy);
+      const interfaceIntent = IntentConverter.toInterface(savedIntent);
+      const strategy = this.determineStrategy(interfaceIntent);
+      await this.queueService.addIntentToFulfillmentQueue(interfaceIntent, strategy);
 
-      console.log(`New intent ${intent.intentId} added to fulfillment queue with strategy: ${strategy}`);
+      console.log(
+        `New intent ${intent.intentId} added to fulfillment queue with strategy: ${strategy}`,
+      );
     } catch (error) {
       console.error(`Error handling intent ${intent.intentId}:`, error);
     }

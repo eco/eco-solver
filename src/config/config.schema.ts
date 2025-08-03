@@ -66,17 +66,19 @@ export const ConfigSchema = z.object({
     secretAccessKey: z.string().optional(),
   }),
 
-  provers: z.array(
-    z.object({
-      type: z.enum(['hyper', 'metalayer']),
-      chainConfigs: z.array(
-        z.object({
-          chainId: z.union([z.string(), z.number()]),
-          contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-        }),
-      ),
-    }),
-  ).default([]),
+  provers: z
+    .array(
+      z.object({
+        type: z.enum(['hyper', 'metalayer']),
+        chainConfigs: z.array(
+          z.object({
+            chainId: z.union([z.string(), z.number()]),
+            contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+          }),
+        ),
+      }),
+    )
+    .default([]),
 });
 
 // Export the inferred TypeScript type

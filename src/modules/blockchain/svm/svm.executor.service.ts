@@ -18,7 +18,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
-export class SolanaExecutor extends BaseChainExecutor {
+export class SvmExecutorService extends BaseChainExecutor {
   private connection: Connection;
   private keypair: Keypair;
   private programId: PublicKey;
@@ -50,8 +50,8 @@ export class SolanaExecutor extends BaseChainExecutor {
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: this.keypair.publicKey,
-          toPubkey: new PublicKey(intent.target.address),
-          lamports: Number(intent.value),
+          toPubkey: new PublicKey(intent.route.inbox),
+          lamports: Number(intent.reward.nativeValue),
         }),
       );
 

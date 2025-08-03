@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { z } from 'zod';
 
 import { ProversSchema } from '@/config/config.schema';
-import { ConfigService } from '@nestjs/config';
 
 type ProverConfig = z.infer<typeof ProversSchema>;
 
@@ -17,7 +17,7 @@ export class ProverConfigService {
 
   getProverConfig(type: string) {
     const provers = this.provers;
-    return provers.find(prover => prover.type === type);
+    return provers.find((prover) => prover.type === type);
   }
 
   getChainConfig(type: string, chainId: string | number) {
@@ -25,8 +25,6 @@ export class ProverConfigService {
     if (!proverConfig) return null;
 
     const chainKey = String(chainId);
-    return proverConfig.chainConfigs.find(
-      config => String(config.chainId) === chainKey
-    );
+    return proverConfig.chainConfigs.find((config) => String(config.chainId) === chainKey);
   }
 }

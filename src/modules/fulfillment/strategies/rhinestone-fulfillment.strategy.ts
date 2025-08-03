@@ -1,9 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { ExecutionService } from '@/modules/execution/execution.service';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
+
+import { Intent } from '@/common/interfaces/intent.interface';
+import { BlockchainService } from '@/modules/blockchain/blockchain.service';
 import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
@@ -15,7 +13,11 @@ import {
   StandardFeeValidation,
   Validation,
 } from '@/modules/fulfillment/validations';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
+import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+
+import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
@@ -23,7 +25,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
-    private readonly executionService: ExecutionService,
+    private readonly blockchainService: BlockchainService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for rhinestone strategy (excluding route calls)
     private readonly fundingValidation: FundingValidation,

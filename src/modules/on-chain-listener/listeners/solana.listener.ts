@@ -65,23 +65,30 @@ export class SolanaListener extends BaseChainListener {
 
     return {
       intentId: intentData.intentId,
-      source: {
-        chainId: 'solana-mainnet',
-        address: intentData.source,
-        txHash: event.signature,
+      reward: {
+        prover: intentData.prover as `0x${string}`,
+        creator: intentData.creator as `0x${string}`,
+        deadline: BigInt(intentData.deadline || 0),
+        nativeValue: BigInt(intentData.reward || 0),
+        tokens: [],
       },
-      target: {
-        chainId: intentData.targetChainId || 'solana-mainnet',
-        address: intentData.target,
+      route: {
+        source: BigInt('999999999'), // Solana chain ID placeholder
+        destination: BigInt(intentData.targetChainId || '999999999'),
+        salt: '0x' as `0x${string}`,
+        inbox: intentData.target as `0x${string}`,
+        calls: [{
+          data: (intentData.data || '0x') as `0x${string}`,
+          target: intentData.target as `0x${string}`,
+          value: BigInt(intentData.value || 0),
+        }],
+        tokens: [],
       },
-      solver: intentData.solver,
-      user: intentData.user,
-      data: intentData.data,
-      value: intentData.value,
-      reward: intentData.reward,
-      deadline: intentData.deadline,
-      timestamp: Math.floor(Date.now() / 1000),
       status: IntentStatus.PENDING,
+      metadata: {
+        solanaSignature: event.signature,
+        timestamp: Math.floor(Date.now() / 1000),
+      },
     };
   }
 
@@ -118,8 +125,8 @@ export class SolanaListener extends BaseChainListener {
 
     return {
       intentId: intentData.intentId || '',
-      solver: intentData.solver || '',
-      user: intentData.user || '',
+      prover: intentData.prover || '',
+      creator: intentData.creator || '',
       source: intentData.source || '',
       target: intentData.target || '',
       data: intentData.data || '0x',

@@ -10,14 +10,15 @@ import {
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
-import { EvmWalletManager } from '@/modules/execution/services/evm-wallet-manager.service';
+
+import { EvmWalletManager } from './services/evm-wallet-manager.service';
 
 const INBOX_ABI = parseAbi([
   'function fulfillStorage(bytes32 intentId, address target, bytes calldata data) external payable',
 ]);
 
 @Injectable()
-export class EvmExecutor extends BaseChainExecutor {
+export class EvmExecutorService extends BaseChainExecutor {
   private publicClient: any;
   private walletManager: EvmWalletManager;
 
@@ -69,8 +70,8 @@ export class EvmExecutor extends BaseChainExecutor {
         address: evmConfig.inboxAddress as `0x${string}`,
         abi: INBOX_ABI,
         functionName: 'fulfillStorage',
-        args: [intent.intentId, intent.target.address, intent.data],
-        value: BigInt(intent.value),
+        args: [intent.intentId, intent.route.inbox, '0x'], // TODO: Determine what data should be passed
+        value: intent.reward.nativeValue,
       });
 
       const receipt = await this.publicClient.waitForTransactionReceipt({

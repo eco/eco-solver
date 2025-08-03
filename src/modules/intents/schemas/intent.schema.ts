@@ -17,10 +17,12 @@ export class Intent {
       creator: { type: String, required: true },
       deadline: { type: String, required: true }, // Store bigint as string
       nativeValue: { type: String, required: true }, // Store bigint as string
-      tokens: [{
-        amount: { type: String, required: true }, // Store bigint as string
-        token: { type: String, required: true },
-      }],
+      tokens: [
+        {
+          amount: { type: String, required: true }, // Store bigint as string
+          token: { type: String, required: true },
+        },
+      ],
     },
     required: true,
   })
@@ -41,15 +43,19 @@ export class Intent {
       destination: { type: String, required: true }, // Store bigint as string
       salt: { type: String, required: true },
       inbox: { type: String, required: true },
-      calls: [{
-        data: { type: String, required: true },
-        target: { type: String, required: true },
-        value: { type: String, required: true }, // Store bigint as string
-      }],
-      tokens: [{
-        amount: { type: String, required: true }, // Store bigint as string
-        token: { type: String, required: true },
-      }],
+      calls: [
+        {
+          data: { type: String, required: true },
+          target: { type: String, required: true },
+          value: { type: String, required: true }, // Store bigint as string
+        },
+      ],
+      tokens: [
+        {
+          amount: { type: String, required: true }, // Store bigint as string
+          token: { type: String, required: true },
+        },
+      ],
     },
     required: true,
   })

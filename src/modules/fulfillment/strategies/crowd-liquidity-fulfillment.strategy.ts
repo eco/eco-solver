@@ -1,22 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
-import { ExecutionService } from '@/modules/execution/execution.service';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
+
 import { Intent } from '@/common/interfaces/intent.interface';
+import { BlockchainService } from '@/modules/blockchain/blockchain.service';
 import {
-  Validation,
-  FundingValidation,
-  RouteTokenValidation,
-  RouteCallsValidation,
-  RouteAmountLimitValidation,
-  ExpirationValidation,
   ChainSupportValidation,
-  ProverSupportValidation,
-  ExecutorBalanceValidation,
   CrowdLiquidityFeeValidation,
+  ExecutorBalanceValidation,
+  ExpirationValidation,
+  FundingValidation,
+  ProverSupportValidation,
+  RouteAmountLimitValidation,
+  RouteCallsValidation,
+  RouteTokenValidation,
+  Validation,
 } from '@/modules/fulfillment/validations';
+import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
+import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+
+import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
@@ -24,7 +26,7 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
-    private readonly executionService: ExecutionService,
+    private readonly blockchainService: BlockchainService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for crowd liquidity strategy
     private readonly fundingValidation: FundingValidation,

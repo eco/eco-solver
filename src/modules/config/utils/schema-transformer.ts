@@ -27,18 +27,18 @@ export function pathToEnvVar(path: string[]): string {
 export function envVarToPath(envVar: string): string[] {
   // Special cases that don't follow the standard pattern
   const specialCases: Record<string, string[]> = {
-    'USE_AWS_SECRETS': ['aws', 'useAwsSecrets'],
-    'NODE_ENV': ['env'],
-    'PORT': ['port'],
+    USE_AWS_SECRETS: ['aws', 'useAwsSecrets'],
+    NODE_ENV: ['env'],
+    PORT: ['port'],
   };
-  
+
   if (specialCases[envVar]) {
     return specialCases[envVar];
   }
-  
-  const parts = envVar.split('_').map(p => p.toLowerCase());
+
+  const parts = envVar.split('_').map((p) => p.toLowerCase());
   const result: string[] = [];
-  
+
   // Define patterns with their lengths and combined forms
   const patterns: Array<{ parts: string[]; combined: string }> = [
     // Three-part patterns
@@ -66,10 +66,10 @@ export function envVarToPath(envVar: string): string[] {
     { parts: ['backoff', 'delay'], combined: 'backoffDelay' },
     { parts: ['pool', 'size'], combined: 'poolSize' },
   ];
-  
+
   // Sort patterns by length (descending) to match longer patterns first
   patterns.sort((a, b) => b.parts.length - a.parts.length);
-  
+
   let i = 0;
   while (i < parts.length) {
     // Check if it's a number (array index)
@@ -78,7 +78,7 @@ export function envVarToPath(envVar: string): string[] {
       i++;
       continue;
     }
-    
+
     // Try to match patterns
     let matched = false;
     for (const pattern of patterns) {
@@ -92,13 +92,13 @@ export function envVarToPath(envVar: string): string[] {
         }
       }
     }
-    
+
     if (!matched) {
       result.push(parts[i]);
       i++;
     }
   }
-  
+
   return result;
 }
 
@@ -157,7 +157,7 @@ export function transformEnvVarsToConfig(
     }
 
     const path = envVarToPath(envVar);
-    
+
     // Find matching schema path
     const schemaPath = findMatchingSchemaPath(path, schemaPaths);
     if (schemaPath) {
@@ -199,11 +199,11 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
         // Get the array element schema
         const arraySchema = schemaPath.schema as z.ZodArray<any>;
         let elementSchema: z.ZodTypeAny = arraySchema.element;
-        
+
         // If there are more segments after the array index, navigate deeper
         if (nextSegmentIndex + 1 < envPath.length) {
           const remainingPath = envPath.slice(nextSegmentIndex + 1);
-          
+
           // Navigate through the object schema to find the final property schema
           for (const segment of remainingPath) {
             if (elementSchema instanceof z.ZodObject) {
@@ -220,11 +220,11 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
             }
           }
         }
-        
+
         return { path: envPath, schema: elementSchema };
       }
     }
-    
+
     // Check for record paths (objects with dynamic keys)
     // For example, envPath ['evm', 'chainConfig', '8453', 'rpcUrl']
     // should match schema path ['evm', 'chainConfig'] if it's a record
@@ -238,11 +238,11 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
         // Get the record value schema
         const recordSchema = schemaPath.schema as z.ZodRecord;
         let valueSchema: z.ZodTypeAny = recordSchema._def.valueType as z.ZodTypeAny;
-        
+
         // If there are more segments after the record key, navigate deeper
         if (nextSegmentIndex + 1 < envPath.length) {
           const remainingPath = envPath.slice(nextSegmentIndex + 1);
-          
+
           // Navigate through the object schema to find the final property schema
           for (const segment of remainingPath) {
             if (valueSchema instanceof z.ZodObject) {
@@ -259,7 +259,7 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
             }
           }
         }
-        
+
         return { path: envPath, schema: valueSchema };
       }
     }
@@ -316,7 +316,12 @@ function transformValue(value: string, schema: z.ZodTypeAny): any {
 /**
  * Sets a value in a nested object structure
  */
-function setNestedValue(obj: Record<string, any>, path: string[], value: any, schemaPaths?: SchemaPath[]): void {
+function setNestedValue(
+  obj: Record<string, any>,
+  path: string[],
+  value: any,
+  schemaPaths?: SchemaPath[],
+): void {
   let current = obj;
 
   for (let i = 0; i < path.length - 1; i++) {
@@ -327,20 +332,21 @@ function setNestedValue(obj: Record<string, any>, path: string[], value: any, sc
     if (/^\d+$/.test(nextKey)) {
       // Determine if this should be an array or object based on schema
       let shouldBeArray = true;
-      
+
       if (schemaPaths) {
         // Find the schema for the current path up to this point
         const currentPath = path.slice(0, i + 1);
         const schemaPath = schemaPaths.find(
-          sp => sp.path.length === currentPath.length && 
-                sp.path.every((segment, idx) => segment === currentPath[idx])
+          (sp) =>
+            sp.path.length === currentPath.length &&
+            sp.path.every((segment, idx) => segment === currentPath[idx]),
         );
-        
+
         if (schemaPath && schemaPath.schema instanceof z.ZodRecord) {
           shouldBeArray = false;
         }
       }
-      
+
       if (shouldBeArray) {
         // Handle as array
         if (!current[key]) {

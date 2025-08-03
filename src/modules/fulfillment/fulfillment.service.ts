@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { IntentsService } from '@/modules/intents/intents.service';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { StandardFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { NativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { NegativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { RhinestoneFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { IntentsService } from '@/modules/intents/intents.service';
 
 @Injectable()
 export class FulfillmentService {

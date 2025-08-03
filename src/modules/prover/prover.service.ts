@@ -1,7 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ProverChainConfig, ProverConfig, ProverResult, ProverRoute, ProverType } from '@/common/interfaces/prover.interface';
+import {
+  ProverChainConfig,
+  ProverConfig,
+  ProverResult,
+  ProverRoute,
+  ProverType,
+} from '@/common/interfaces/prover.interface';
 import { ProverConfigService } from '@/modules/prover/prover-config.service';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
@@ -23,7 +29,7 @@ export class ProverService implements OnModuleInit {
 
   private initializeProvers(): void {
     const proverConfigs = this.proverConfigService.provers;
-    
+
     proverConfigs.forEach((config) => {
       switch (config.type) {
         case ProverType.HYPER:
@@ -45,19 +51,19 @@ export class ProverService implements OnModuleInit {
   async validateIntentRoute(intent: Intent): Promise<ProverResult> {
     const route: ProverRoute = {
       source: {
-        chainId: intent.source.chainId,
-        contract: intent.source.address,
+        chainId: Number(intent.route.source),
+        contract: intent.reward.prover, // Using prover address as source contract
       },
       target: {
-        chainId: intent.target.chainId,
-        contract: intent.target.address,
+        chainId: Number(intent.route.destination),
+        contract: intent.route.inbox,
       },
       intentId: intent.intentId,
     };
 
     // Find the appropriate prover based on the contract addresses
     const prover = this.findProverForRoute(route);
-    
+
     if (!prover) {
       return {
         isValid: false,
@@ -80,7 +86,9 @@ export class ProverService implements OnModuleInit {
         sourceContract.toLowerCase() === route.source.contract.toLowerCase() &&
         targetContract.toLowerCase() === route.target.contract.toLowerCase()
       ) {
-        this.logger.debug(`Found prover ${type} for route ${route.source.chainId} -> ${route.target.chainId}`);
+        this.logger.debug(
+          `Found prover ${type} for route ${route.source.chainId} -> ${route.target.chainId}`,
+        );
         return prover;
       }
     }

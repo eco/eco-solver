@@ -79,23 +79,30 @@ export class EvmListener extends BaseChainListener {
 
     return {
       intentId: args.intentId,
-      source: {
-        chainId: evmConfig.chainId,
-        address: args.source,
-        txHash: transactionHash,
+      reward: {
+        prover: args.prover || args.solver as `0x${string}`,
+        creator: args.creator || args.user as `0x${string}`,
+        deadline: BigInt(args.deadline || 0),
+        nativeValue: BigInt(args.reward || 0),
+        tokens: [], // TODO: Parse token rewards if any
       },
-      target: {
-        chainId: evmConfig.chainId, // Assuming same chain for now
-        address: args.target,
+      route: {
+        source: BigInt(evmConfig.chainId),
+        destination: BigInt(args.targetChainId || evmConfig.chainId),
+        salt: (args.salt || '0x0') as `0x${string}`,
+        inbox: args.inbox || args.target as `0x${string}`,
+        calls: [{
+          data: (args.data || '0x') as `0x${string}`,
+          target: args.target as `0x${string}`,
+          value: BigInt(args.value || 0),
+        }],
+        tokens: [], // TODO: Parse route tokens if any
       },
-      solver: args.solver,
-      user: args.user,
-      data: args.data,
-      value: args.value.toString(),
-      reward: args.reward.toString(),
-      deadline: Number(args.deadline),
-      timestamp: Math.floor(Date.now() / 1000),
       status: IntentStatus.PENDING,
+      metadata: {
+        evmTxHash: transactionHash,
+        timestamp: Math.floor(Date.now() / 1000),
+      },
     };
   }
 

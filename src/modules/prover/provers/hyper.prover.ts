@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
-import { ProverChainConfig, ProverResult, ProverRoute, ProverType } from '@/common/interfaces/prover.interface';
+import {
+  ProverChainConfig,
+  ProverResult,
+  ProverRoute,
+  ProverType,
+} from '@/common/interfaces/prover.interface';
 
 @Injectable()
 export class HyperProver extends BaseProver {
@@ -11,7 +16,7 @@ export class HyperProver extends BaseProver {
 
   configure(chainConfigs: ProverChainConfig[]): void {
     this.chainConfigs.clear();
-    chainConfigs.forEach(config => {
+    chainConfigs.forEach((config) => {
       const chainKey = String(config.chainId);
       this.chainConfigs.set(chainKey, config.contractAddress);
     });

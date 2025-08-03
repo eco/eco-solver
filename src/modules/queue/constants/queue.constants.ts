@@ -1,0 +1,1 @@
+export const QUEUE_SERVICE = 'QUEUE_SERVICE';

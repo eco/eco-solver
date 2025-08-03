@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+
 import { Intent } from '@/common/interfaces/intent.interface';
+
 import { Validation } from './validation.interface';
 
 @Injectable()

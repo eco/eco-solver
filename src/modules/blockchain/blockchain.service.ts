@@ -3,19 +3,20 @@ import { Injectable } from '@nestjs/common';
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
-import { EvmExecutor } from '@/modules/execution/executors/evm.executor';
-import { SolanaExecutor } from '@/modules/execution/executors/solana.executor';
 import { IntentsService } from '@/modules/intents/intents.service';
 
+import { EvmExecutorService } from './evm/evm.executor.service';
+import { SvmExecutorService } from './svm/svm.executor.service';
+
 @Injectable()
-export class ExecutionService {
+export class BlockchainService {
   private executors: Map<string | number, BaseChainExecutor> = new Map();
 
   constructor(
     private evmConfigService: EvmConfigService,
     private intentsService: IntentsService,
-    private evmExecutor: EvmExecutor,
-    private solanaExecutor: SolanaExecutor,
+    private evmExecutor: EvmExecutorService,
+    private svmExecutor: SvmExecutorService,
   ) {
     this.initializeExecutors();
   }
@@ -23,22 +24,22 @@ export class ExecutionService {
   private initializeExecutors() {
     const evmChainId = this.evmConfigService.chainId;
     this.executors.set(evmChainId, this.evmExecutor);
-    this.executors.set('solana-mainnet', this.solanaExecutor);
+    this.executors.set('solana-mainnet', this.svmExecutor);
   }
 
   async executeIntent(intent: Intent, walletId?: string): Promise<void> {
     try {
-      const executor = this.executors.get(intent.target.chainId);
+      const executor = this.executors.get(Number(intent.route.destination));
       if (!executor) {
-        throw new Error(`No executor for chain ${intent.target.chainId}`);
+        throw new Error(`No executor for chain ${intent.route.destination}`);
       }
 
       const result = await executor.execute(intent, walletId);
 
       if (result.success) {
         await this.intentsService.updateStatus(intent.intentId, IntentStatus.FULFILLED, {
-          target: {
-            ...intent.target,
+          metadata: {
+            ...intent.metadata,
             txHash: result.txHash,
           },
         });
