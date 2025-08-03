@@ -75,6 +75,39 @@ const EvmFeeLogicSchema = z.object({
 });
 
 /**
+ * Basic wallet configuration schema
+ */
+const BasicWalletConfigSchema = z.object({
+  privateKey: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{64}$/)
+    .optional(),
+});
+
+/**
+ * Kernel wallet configuration schema
+ */
+const KernelWalletConfigSchema = z.object({
+  privateKey: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{64}$/)
+    .optional(),
+  kernelAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  moduleAddress: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/)
+    .optional(),
+});
+
+/**
+ * Wallets configuration schema - object with wallet type as keys
+ */
+const WalletsSchema = z.object({
+  basic: BasicWalletConfigSchema.optional(),
+  kernel: KernelWalletConfigSchema.optional(),
+});
+
+/**
  * EVM network configuration schema
  */
 const EvmNetworkSchema = z.object({
@@ -93,12 +126,18 @@ const EvmNetworkSchema = z.object({
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
   privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  wallets: WalletsSchema.default({
+    basic: {},
+  }),
 });
 
 export type EvmConfig = z.infer<typeof EvmSchema>;
 export type EvmNetworkConfig = z.infer<typeof EvmNetworkSchema>;
 export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
 export type EvmFeeLogicConfig = z.infer<typeof EvmFeeLogicSchema>;
+export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
+export type BasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
+export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 
 /**
  * EVM configuration factory using registerAs

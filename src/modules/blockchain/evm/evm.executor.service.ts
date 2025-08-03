@@ -18,16 +18,12 @@ const INBOX_ABI = parseAbi([
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
-  private walletManager: EvmWalletManager;
-
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
-    walletManager: EvmWalletManager,
+    private walletManager: EvmWalletManager,
   ) {
     super();
-    this.walletManager = walletManager;
-    this.initializeWalletManager();
   }
 
   async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
@@ -35,7 +31,9 @@ export class EvmExecutorService extends BaseChainExecutor {
       // Get the destination chain ID from the intent
       const chainId = Number(intent.route.destination);
       const network = this.evmConfigService.getNetworkOrThrow(chainId);
-      const wallet = this.walletManager.getWallet(walletId, chainId);
+      // Map walletId to wallet type - for backward compatibility
+      const walletType = walletId as 'basic' | 'kernel' | undefined;
+      const wallet = this.walletManager.getWallet(walletType, chainId);
       const publicClient = this.transportService.getPublicClient(chainId);
 
       const hash = await wallet.writeContract({
@@ -78,23 +76,6 @@ export class EvmExecutorService extends BaseChainExecutor {
       return receipt.status === 'success';
     } catch {
       return false;
-    }
-  }
-
-  private initializeWalletManager() {
-    // Initialize wallet manager with a default basic wallet for all supported chains
-    for (const chainId of this.evmConfigService.supportedChainIds) {
-      this.walletManager.initialize(
-        [
-          {
-            id: 'default',
-            type: 'basic',
-            privateKey: this.evmConfigService.privateKey as `0x${string}`,
-          },
-        ],
-        this.transportService,
-        chainId,
-      );
     }
   }
 }

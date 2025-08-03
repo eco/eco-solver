@@ -9,6 +9,7 @@ type EvmConfig = z.infer<typeof EvmSchema>;
 type NetworkConfig = EvmConfig['networks'][number];
 type TokenConfig = NetworkConfig['tokens'][number];
 type FeeLogic = NetworkConfig['feeLogic'];
+type WalletsConfig = EvmConfig['wallets'];
 
 @Injectable()
 export class EvmConfigService {
@@ -29,6 +30,18 @@ export class EvmConfigService {
 
   get privateKey(): string {
     return this.configService.get<string>('evm.privateKey')!;
+  }
+
+  get wallets(): WalletsConfig {
+    return this.configService.get<WalletsConfig>('evm.wallets', {});
+  }
+
+  getBasicWalletConfig() {
+    return this.wallets.basic;
+  }
+
+  getKernelWalletConfig() {
+    return this.wallets.kernel;
   }
 
   getNetwork(chainId: number): NetworkConfig | undefined {
