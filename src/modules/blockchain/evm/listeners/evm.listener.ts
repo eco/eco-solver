@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
-import { createPublicClient, createWalletClient, http, Log, parseAbiItem, webSocket } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { mainnet } from 'viem/chains';
+import { Log, parseAbiItem } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+
+import { EvmTransportService } from '../services/evm-transport.service';
 
 const INTENT_CREATED_EVENT = parseAbiItem(
   'event IntentCreated(bytes32 indexed intentId, address indexed user, address solver, address source, address target, bytes data, uint256 value, uint256 reward, uint256 deadline)',
@@ -17,12 +17,12 @@ const INTENT_CREATED_EVENT = parseAbiItem(
 @Injectable()
 export class EvmListener extends BaseChainListener {
   private publicClient: any;
-  private walletClient: any;
   private unsubscribe: any;
   private intentCallback: (intent: Intent) => Promise<void>;
 
   constructor(
     private evmConfigService: EvmConfigService,
+    private transportService: EvmTransportService,
     fulfillmentService: FulfillmentService,
   ) {
     const config: EvmChainConfig = {
@@ -40,20 +40,7 @@ export class EvmListener extends BaseChainListener {
   async start(): Promise<void> {
     const evmConfig = this.config as EvmChainConfig;
 
-    this.publicClient = createPublicClient({
-      chain: mainnet,
-      transport: evmConfig.websocketUrl
-        ? webSocket(evmConfig.websocketUrl)
-        : http(evmConfig.rpcUrl),
-    });
-
-    const account = privateKeyToAccount(evmConfig.privateKey as `0x${string}`);
-
-    this.walletClient = createWalletClient({
-      account,
-      chain: mainnet,
-      transport: http(evmConfig.rpcUrl),
-    });
+    this.publicClient = this.transportService.getPublicClient(evmConfig.chainId);
 
     this.unsubscribe = await this.publicClient.watchEvent({
       address: evmConfig.intentSourceAddress as `0x${string}`,
@@ -84,8 +71,8 @@ export class EvmListener extends BaseChainListener {
     return {
       intentId: args.intentId,
       reward: {
-        prover: args.prover || args.solver as `0x${string}`,
-        creator: args.creator || args.user as `0x${string}`,
+        prover: args.prover || (args.solver as `0x${string}`),
+        creator: args.creator || (args.user as `0x${string}`),
         deadline: BigInt(args.deadline || 0),
         nativeValue: BigInt(args.reward || 0),
         tokens: [], // TODO: Parse token rewards if any
@@ -94,12 +81,14 @@ export class EvmListener extends BaseChainListener {
         source: BigInt(evmConfig.chainId),
         destination: BigInt(args.targetChainId || evmConfig.chainId),
         salt: (args.salt || '0x0') as `0x${string}`,
-        inbox: args.inbox || args.target as `0x${string}`,
-        calls: [{
-          data: (args.data || '0x') as `0x${string}`,
-          target: args.target as `0x${string}`,
-          value: BigInt(args.value || 0),
-        }],
+        inbox: args.inbox || (args.target as `0x${string}`),
+        calls: [
+          {
+            data: (args.data || '0x') as `0x${string}`,
+            target: args.target as `0x${string}`,
+            value: BigInt(args.value || 0),
+          },
+        ],
         tokens: [], // TODO: Parse route tokens if any
       },
       status: IntentStatus.PENDING,

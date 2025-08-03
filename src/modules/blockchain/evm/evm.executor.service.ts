@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { createPublicClient, http, parseAbi } from 'viem';
-import { mainnet } from 'viem/chains';
+import { parseAbi } from 'viem';
 
 import {
   BaseChainExecutor,
@@ -12,6 +11,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { EvmWalletManager } from './services/evm-wallet-manager.service';
+import { EvmTransportService } from './services/evm-transport.service';
 
 const INBOX_ABI = parseAbi([
   'function fulfillStorage(bytes32 intentId, address target, bytes calldata data) external payable',
@@ -24,6 +24,7 @@ export class EvmExecutorService extends BaseChainExecutor {
 
   constructor(
     private evmConfigService: EvmConfigService,
+    private transportService: EvmTransportService,
     walletManager: EvmWalletManager,
   ) {
     const config: EvmChainConfig = {
@@ -42,10 +43,7 @@ export class EvmExecutorService extends BaseChainExecutor {
   private initializeClients() {
     const evmConfig = this.config as EvmChainConfig;
 
-    this.publicClient = createPublicClient({
-      chain: mainnet,
-      transport: http(evmConfig.rpcUrl),
-    });
+    this.publicClient = this.transportService.getPublicClient(evmConfig.chainId);
 
     // Initialize wallet manager with a default basic wallet
     this.walletManager.initialize(
@@ -56,8 +54,8 @@ export class EvmExecutorService extends BaseChainExecutor {
           privateKey: evmConfig.privateKey as `0x${string}`,
         },
       ],
-      evmConfig.rpcUrl,
-      mainnet,
+      this.transportService,
+      evmConfig.chainId,
     );
   }
 

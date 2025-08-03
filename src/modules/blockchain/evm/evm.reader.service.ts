@@ -1,27 +1,29 @@
 import { Injectable } from '@nestjs/common';
 
-import { Address, createPublicClient, http } from 'viem';
+import { Address } from 'viem';
 
 import { EvmConfigService } from '@/modules/config/services';
 
+import { EvmTransportService } from './services/evm-transport.service';
+
 @Injectable()
 export class EvmReaderService {
-  private client: any;
+  private chainId: number;
 
-  constructor(private evmConfigService: EvmConfigService) {
-    this.initializeClient();
+  constructor(
+    private transportService: EvmTransportService,
+    private evmConfigService: EvmConfigService,
+  ) {
+    this.chainId = this.evmConfigService.chainId;
   }
 
-  private initializeClient() {
-    const rpcUrl = this.evmConfigService.rpcUrl;
-
-    this.client = createPublicClient({
-      transport: http(rpcUrl),
-    });
+  private getClient() {
+    return this.transportService.getPublicClient(this.chainId);
   }
 
   async getBalance(address: Address): Promise<bigint> {
-    return this.client.getBalance({ address });
+    const client = this.getClient();
+    return client.getBalance({ address });
   }
 
   async getTokenBalance(tokenAddress: Address, walletAddress: Address): Promise<bigint> {
@@ -35,7 +37,8 @@ export class EvmReaderService {
       },
     ];
 
-    const balance = await this.client.readContract({
+    const client = this.getClient();
+    const balance = await client.readContract({
       address: tokenAddress,
       abi,
       functionName: 'balanceOf',
@@ -46,7 +49,8 @@ export class EvmReaderService {
   }
 
   async getBlockNumber(): Promise<bigint> {
-    return this.client.getBlockNumber();
+    const client = this.getClient();
+    return client.getBlockNumber();
   }
 
   async readContract(params: {
@@ -55,13 +59,15 @@ export class EvmReaderService {
     functionName: string;
     args?: any[];
   }): Promise<any> {
-    return this.client.readContract({
+    const client = this.getClient();
+    return client.readContract({
       ...params,
       args: params.args || [],
     });
   }
 
   async multicall(params: { contracts: any[] }): Promise<any[]> {
-    return this.client.multicall(params);
+    const client = this.getClient();
+    return client.multicall(params);
   }
 }
