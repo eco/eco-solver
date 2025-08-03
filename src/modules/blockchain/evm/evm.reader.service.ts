@@ -8,25 +8,21 @@ import { EvmTransportService } from './services/evm-transport.service';
 
 @Injectable()
 export class EvmReaderService {
-  private chainId: number;
-
   constructor(
     private transportService: EvmTransportService,
     private evmConfigService: EvmConfigService,
-  ) {
-    this.chainId = this.evmConfigService.chainId;
+  ) {}
+
+  private getClient(chainId: number) {
+    return this.transportService.getPublicClient(chainId);
   }
 
-  private getClient() {
-    return this.transportService.getPublicClient(this.chainId);
-  }
-
-  async getBalance(address: Address): Promise<bigint> {
-    const client = this.getClient();
+  async getBalance(address: Address, chainId: number): Promise<bigint> {
+    const client = this.getClient(chainId);
     return client.getBalance({ address });
   }
 
-  async getTokenBalance(tokenAddress: Address, walletAddress: Address): Promise<bigint> {
+  async getTokenBalance(tokenAddress: Address, walletAddress: Address, chainId: number): Promise<bigint> {
     const abi = [
       {
         inputs: [{ name: 'account', type: 'address' }],
@@ -37,7 +33,7 @@ export class EvmReaderService {
       },
     ];
 
-    const client = this.getClient();
+    const client = this.getClient(chainId);
     const balance = await client.readContract({
       address: tokenAddress,
       abi,

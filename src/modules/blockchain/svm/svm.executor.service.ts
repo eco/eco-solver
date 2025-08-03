@@ -80,13 +80,15 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  async getBalance(address: string): Promise<bigint> {
+  async getBalance(address: string, chainId: number): Promise<bigint> {
+    // Solana doesn't use numeric chain IDs, so we ignore the parameter
     const publicKey = new PublicKey(address);
     const balance = await this.connection.getBalance(publicKey);
     return BigInt(balance);
   }
 
-  async isTransactionConfirmed(txHash: string): Promise<boolean> {
+  async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
+    // Solana doesn't use numeric chain IDs, so we ignore the parameter
     try {
       const status = await this.connection.getSignatureStatus(txHash);
       return (

@@ -27,7 +27,6 @@ export const ConfigSchema = z.object({
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/)
       .optional(),
-    defaultChainId: z.number().int().positive(),
     networks: z
       .array(
         z.object({

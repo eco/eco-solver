@@ -19,7 +19,6 @@ const INBOX_ABI = parseAbi([
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
-  private publicClient: any;
   private walletManager: EvmWalletManager;
 
   constructor(
@@ -27,52 +26,46 @@ export class EvmExecutorService extends BaseChainExecutor {
     private transportService: EvmTransportService,
     walletManager: EvmWalletManager,
   ) {
-    const config: EvmChainConfig = {
-      chainType: 'EVM',
-      chainId: evmConfigService.chainId,
-      rpcUrl: evmConfigService.rpcUrl,
-      privateKey: evmConfigService.privateKey,
-      intentSourceAddress: evmConfigService.intentSourceAddress,
-      inboxAddress: evmConfigService.inboxAddress,
-    };
-    super(config);
+    // We don't pass a config to the base class as we handle multiple chains
+    super(null as any);
     this.walletManager = walletManager;
-    this.initializeClients();
+    this.initializeWalletManager();
   }
 
-  private initializeClients() {
-    const evmConfig = this.config as EvmChainConfig;
-
-    this.publicClient = this.transportService.getPublicClient(evmConfig.chainId);
-
-    // Initialize wallet manager with a default basic wallet
-    this.walletManager.initialize(
-      [
-        {
-          id: 'default',
-          type: 'basic',
-          privateKey: evmConfig.privateKey as `0x${string}`,
-        },
-      ],
-      this.transportService,
-      evmConfig.chainId,
-    );
+  private initializeWalletManager() {
+    // Initialize wallet manager with a default basic wallet for all supported chains
+    for (const chainId of this.evmConfigService.supportedChainIds) {
+      this.walletManager.initialize(
+        [
+          {
+            id: 'default',
+            type: 'basic',
+            privateKey: this.evmConfigService.privateKey as `0x${string}`,
+          },
+        ],
+        this.transportService,
+        chainId,
+      );
+    }
   }
 
   async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
     try {
-      const evmConfig = this.config as EvmChainConfig;
-      const wallet = this.walletManager.getWallet(walletId);
+      // Get the destination chain ID from the intent
+      const chainId = Number(intent.route.destination);
+      const network = this.evmConfigService.getNetworkOrThrow(chainId);
+      const wallet = this.walletManager.getWallet(walletId, chainId);
+      const publicClient = this.transportService.getPublicClient(chainId);
 
       const hash = await wallet.writeContract({
-        address: evmConfig.inboxAddress as `0x${string}`,
+        address: network.inboxAddress as `0x${string}`,
         abi: INBOX_ABI,
         functionName: 'fulfillStorage',
         args: [intent.intentId, intent.route.inbox, '0x'], // TODO: Determine what data should be passed
         value: intent.reward.nativeValue,
       });
 
-      const receipt = await this.publicClient.waitForTransactionReceipt({
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 2,
       });
@@ -90,13 +83,15 @@ export class EvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  async getBalance(address: string): Promise<bigint> {
-    return this.publicClient.getBalance({ address: address as `0x${string}` });
+  async getBalance(address: string, chainId: number): Promise<bigint> {
+    const publicClient = this.transportService.getPublicClient(chainId);
+    return publicClient.getBalance({ address: address as `0x${string}` });
   }
 
-  async isTransactionConfirmed(txHash: string): Promise<boolean> {
+  async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
     try {
-      const receipt = await this.publicClient.getTransactionReceipt({
+      const publicClient = this.transportService.getPublicClient(chainId);
+      const receipt = await publicClient.getTransactionReceipt({
         hash: txHash as `0x${string}`,
       });
       return receipt.status === 'success';

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Log, parseAbiItem } from 'viem';
 
@@ -14,26 +14,15 @@ const INTENT_CREATED_EVENT = parseAbiItem(
   'event IntentCreated(bytes32 indexed intentId, address indexed user, address solver, address source, address target, bytes data, uint256 value, uint256 reward, uint256 deadline)',
 );
 
-@Injectable()
-export class EvmListener extends BaseChainListener {
+class ChainListener extends BaseChainListener {
   private publicClient: any;
   private unsubscribe: any;
-  private intentCallback: (intent: Intent) => Promise<void>;
 
   constructor(
-    private evmConfigService: EvmConfigService,
+    config: EvmChainConfig,
     private transportService: EvmTransportService,
     fulfillmentService: FulfillmentService,
   ) {
-    const config: EvmChainConfig = {
-      chainType: 'EVM',
-      chainId: evmConfigService.chainId,
-      rpcUrl: evmConfigService.rpcUrl,
-      websocketUrl: evmConfigService.wsUrl,
-      privateKey: evmConfigService.privateKey,
-      intentSourceAddress: evmConfigService.intentSourceAddress,
-      inboxAddress: evmConfigService.inboxAddress,
-    };
     super(config, fulfillmentService);
   }
 
@@ -57,15 +46,15 @@ export class EvmListener extends BaseChainListener {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
-    console.log('EVM listener stopped');
+    console.log(`EVM listener stopped for chain ${this.config.chainId}`);
   }
 
   onIntent(callback: (intent: Intent) => Promise<void>): void {
-    this.intentCallback = callback;
+    // This is handled by the base class
   }
 
   protected parseIntentFromEvent(event: any): Intent {
-    const { args, transactionHash } = event;
+    const { args } = event;
     const evmConfig = this.config as EvmChainConfig;
 
     return {
@@ -98,11 +87,60 @@ export class EvmListener extends BaseChainListener {
   private async handleIntentCreatedEvent(log: Log) {
     try {
       const intent = this.parseIntentFromEvent(log);
-      if (this.intentCallback) {
-        await this.intentCallback(intent);
-      }
+      // The base class handles the submission to fulfillment service
+      await this.handleIntent(intent);
     } catch (error) {
       console.error('Error handling intent created event:', error);
     }
+  }
+}
+
+@Injectable()
+export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy {
+  private listeners: Map<number, ChainListener> = new Map();
+
+  constructor(
+    private evmConfigService: EvmConfigService,
+    private transportService: EvmTransportService,
+    private fulfillmentService: FulfillmentService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    // Create and start a listener for each configured network
+    for (const network of this.evmConfigService.networks) {
+      const config: EvmChainConfig = {
+        chainType: 'EVM',
+        chainId: network.chainId,
+        rpcUrl: network.rpc.urls[0],
+        websocketUrl: network.ws?.urls?.[0],
+        privateKey: this.evmConfigService.privateKey,
+        intentSourceAddress: network.intentSourceAddress,
+        inboxAddress: network.inboxAddress,
+      };
+
+      const listener = new ChainListener(
+        config,
+        this.transportService,
+        this.fulfillmentService,
+      );
+
+      await listener.start();
+      this.listeners.set(network.chainId, listener);
+    }
+
+    console.log(
+      `Started ${this.listeners.size} EVM listeners for chains: ${Array.from(
+        this.listeners.keys(),
+      ).join(', ')}`,
+    );
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    // Stop all listeners
+    const stopPromises = Array.from(this.listeners.values()).map((listener) =>
+      listener.stop(),
+    );
+    await Promise.all(stopPromises);
+    this.listeners.clear();
   }
 }

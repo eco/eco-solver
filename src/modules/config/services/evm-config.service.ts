@@ -36,10 +36,6 @@ export class EvmConfigService {
     return this.configService.get<string>('evm.walletAddress');
   }
 
-  get defaultChainId(): EvmConfig['defaultChainId'] {
-    return this.configService.get<number>('evm.defaultChainId');
-  }
-
   get networks(): NetworkConfig[] {
     return Array.from(this._networks.values());
   }
@@ -112,27 +108,5 @@ export class EvmConfigService {
   getFeeLogic(chainId: number): FeeLogic {
     const network = this.getNetworkOrThrow(chainId);
     return network.feeLogic;
-  }
-
-  // Backward compatibility getters for default chain
-  get rpcUrl(): string {
-    return this.getRpcUrls(this.defaultChainId)[0];
-  }
-
-  get wsUrl(): string | undefined {
-    const wsUrls = this.getWsUrls(this.defaultChainId);
-    return wsUrls?.[0];
-  }
-
-  get chainId(): number {
-    return this.defaultChainId;
-  }
-
-  get intentSourceAddress(): string {
-    return this.getIntentSourceAddress(this.defaultChainId);
-  }
-
-  get inboxAddress(): string {
-    return this.getInboxAddress(this.defaultChainId);
   }
 }
