@@ -3,7 +3,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Intent } from '@/common/interfaces/intent.interface';
 import {
   ProverChainConfig,
-  ProverConfig,
   ProverResult,
   ProverRoute,
   ProverType,

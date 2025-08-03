@@ -14,20 +14,20 @@ export class ExecutorBalanceValidation implements Validation {
     // This should verify that the executor has enough funds to execute the fulfillment
     // on the destination chain
 
-    const destinationChainId = Number(intent.route.destination);
+    const _destinationChainId = Number(intent.route.destination);
 
     // Calculate total required amount
-    let totalRequired = 0n;
+    let _totalRequired = 0n;
 
     // Add native value if any
     if (intent.reward.nativeValue) {
-      totalRequired += intent.reward.nativeValue;
+      _totalRequired += intent.reward.nativeValue;
     }
 
     // Add call values
     if (intent.route.calls && intent.route.calls.length > 0) {
       for (const call of intent.route.calls) {
-        totalRequired += call.value;
+        _totalRequired += call.value;
       }
     }
 

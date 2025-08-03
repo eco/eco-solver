@@ -25,8 +25,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     private transportService: EvmTransportService,
     walletManager: EvmWalletManager,
   ) {
-    // We don't pass a config to the base class as we handle multiple chains
-    super(null as any);
+    super();
     this.walletManager = walletManager;
     this.initializeWalletManager();
   }

@@ -58,7 +58,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  canHandle(intent: Intent): boolean {
+  canHandle(_intent: Intent): boolean {
     // Standard strategy is the default and can handle all intents
     // Other strategies should be more specific in their canHandle logic
     return true;

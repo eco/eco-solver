@@ -11,8 +11,8 @@ import {
 } from 'viem';
 import * as chains from 'viem/chains';
 
-import { EvmConfigService } from '@/modules/config/services';
 import { EvmRpcSchema, EvmWsSchema } from '@/config/schemas';
+import { EvmConfigService } from '@/modules/config/services';
 
 interface ChainTransport {
   chain: Chain;

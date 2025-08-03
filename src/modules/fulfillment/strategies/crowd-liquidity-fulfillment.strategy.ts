@@ -58,7 +58,7 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  canHandle(intent: Intent): boolean {
+  canHandle(_intent: Intent): boolean {
     // Crowd liquidity strategy currently requires explicit configuration
     // In the future, could analyze intent properties like:
     // - Large token amounts that might benefit from liquidity pools

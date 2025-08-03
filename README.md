@@ -4,7 +4,7 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 
 ## 🚀 Features
 
-- **Multi-Chain Support**: EVM (Ethereum, Polygon, etc.) and Solana
+- **Multi-Chain Support**: Multiple EVM networks (Ethereum, Polygon, etc.) and Solana
 - **Modular Architecture**: Clean separation of concerns with NestJS modules
 - **Queue-Based Processing**: Reliable intent processing with BullMQ and Redis
 - **Multiple Fulfillment Strategies**: Standard, CrowdLiquidity, NativeIntents, NegativeIntents, and Rhinestone
@@ -163,11 +163,14 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 
 # EVM Configuration
-EVM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/your-key
-EVM_CHAIN_ID=1
 EVM_PRIVATE_KEY=0x...
-EVM_INTENT_SOURCE_ADDRESS=0x...
-EVM_INBOX_ADDRESS=0x...
+# Network configuration (arrays)
+EVM_NETWORKS_0_CHAIN_ID=1
+EVM_NETWORKS_0_RPC_URLS_0=https://eth-mainnet.g.alchemy.com/v2/your-key
+EVM_NETWORKS_0_INTENT_SOURCE_ADDRESS=0x...
+EVM_NETWORKS_0_INBOX_ADDRESS=0x...
+EVM_NETWORKS_0_FEE_LOGIC_BASE_FLAT_FEE=1000000000000000
+EVM_NETWORKS_0_FEE_LOGIC_SCALAR_BPS=100
 
 # Solana Configuration
 SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
@@ -180,7 +183,7 @@ FULFILLMENT_STRATEGIES_STANDARD_ENABLED=true
 FULFILLMENT_STRATEGIES_CROWD_LIQUIDITY_ENABLED=true
 
 # AWS Secrets Manager (optional)
-USE_AWS_SECRETS=false
+# Note: AWS secrets are enabled automatically when AWS_SECRET_NAME is provided
 AWS_REGION=us-east-1
 AWS_SECRET_NAME=blockchain-intent-solver-secrets
 ```
@@ -213,9 +216,10 @@ pnpm run test:e2e
    export class MyChainListener extends BaseChainListener {
      constructor(
        private myChainConfig: MyChainConfigService,
-       fulfillmentService: FulfillmentService,
+       private fulfillmentService: FulfillmentService,
+       private fulfillmentConfigService: FulfillmentConfigService,
      ) {
-       super(config, fulfillmentService);
+       super();
      }
      // Implement abstract methods
    }

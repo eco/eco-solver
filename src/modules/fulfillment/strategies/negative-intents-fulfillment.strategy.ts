@@ -58,7 +58,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  canHandle(intent: Intent): boolean {
+  canHandle(_intent: Intent): boolean {
     // Negative intents strategy for debt or negative balance scenarios
     // Currently requires explicit configuration
     // In the future, could detect negative intent patterns from:

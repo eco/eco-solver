@@ -3,9 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { SolanaChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { SolanaConfigService } from '@/modules/config/services';
+import { FulfillmentConfigService, SolanaConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 @Injectable()
@@ -13,34 +12,26 @@ export class SolanaListener extends BaseChainListener {
   private connection: Connection;
   private programId: PublicKey;
   private subscriptionId: number;
-  private intentCallback: (intent: Intent) => Promise<void>;
   private keypair: Keypair;
 
   constructor(
     private solanaConfigService: SolanaConfigService,
-    fulfillmentService: FulfillmentService,
+    private fulfillmentService: FulfillmentService,
+    private fulfillmentConfigService: FulfillmentConfigService,
   ) {
-    const config: SolanaChainConfig = {
-      chainType: 'SVM',
-      chainId: 'solana-mainnet',
-      rpcUrl: solanaConfigService.rpcUrl,
-      websocketUrl: solanaConfigService.wsUrl,
-      secretKey: JSON.parse(solanaConfigService.secretKey),
-      programId: solanaConfigService.programId,
-    };
-    super(config, fulfillmentService);
+    super();
   }
 
   async start(): Promise<void> {
-    const solanaConfig = this.config as SolanaChainConfig;
-
-    this.connection = new Connection(solanaConfig.rpcUrl, {
-      wsEndpoint: solanaConfig.websocketUrl,
+    this.connection = new Connection(this.solanaConfigService.rpcUrl, {
+      wsEndpoint: this.solanaConfigService.wsUrl,
       commitment: 'confirmed',
     });
 
-    this.programId = new PublicKey(solanaConfig.programId);
-    this.keypair = Keypair.fromSecretKey(Uint8Array.from(solanaConfig.secretKey));
+    this.programId = new PublicKey(this.solanaConfigService.programId);
+    this.keypair = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),
+    );
 
     this.subscriptionId = this.connection.onLogs(
       this.programId,
@@ -48,7 +39,7 @@ export class SolanaListener extends BaseChainListener {
       'confirmed',
     );
 
-    console.log(`Solana listener started for program ${solanaConfig.programId}`);
+    console.log(`Solana listener started for program ${this.solanaConfigService.programId}`);
   }
 
   async stop(): Promise<void> {
@@ -56,10 +47,6 @@ export class SolanaListener extends BaseChainListener {
       await this.connection.removeOnLogsListener(this.subscriptionId);
     }
     console.log('Solana listener stopped');
-  }
-
-  onIntent(callback: (intent: Intent) => Promise<void>): void {
-    this.intentCallback = callback;
   }
 
   protected parseIntentFromEvent(event: any): Intent {
@@ -98,9 +85,8 @@ export class SolanaListener extends BaseChainListener {
     try {
       if (this.isIntentCreatedLog(logs)) {
         const intent = this.parseIntentFromEvent(logs);
-        if (this.intentCallback) {
-          await this.intentCallback(intent);
-        }
+        const defaultStrategy = this.fulfillmentConfigService.defaultStrategy;
+        await this.fulfillmentService.submitIntent(intent, defaultStrategy);
       }
     } catch (error) {
       console.error('Error handling Solana program logs:', error);

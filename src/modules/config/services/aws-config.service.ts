@@ -19,8 +19,8 @@ export class AwsConfigService {
     return this.configService.get<string>('aws.secretName');
   }
 
-  get useAwsSecrets(): AwsConfig['useAwsSecrets'] {
-    return this.configService.get<boolean>('aws.useAwsSecrets');
+  get useAwsSecrets(): boolean {
+    return Boolean(this.secretName);
   }
 
   get accessKeyId(): AwsConfig['accessKeyId'] {

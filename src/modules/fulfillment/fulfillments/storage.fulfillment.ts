@@ -55,7 +55,8 @@ export class StorageFulfillment extends BaseFulfillment {
   }
 
   private getSupportedChains(): (string | number)[] {
-    return [this.evmConfigService.chainId, 'solana-mainnet'];
+    const evmChainIds = this.evmConfigService.supportedChainIds;
+    return [...evmChainIds, 'solana-mainnet'];
   }
 
   private async checkBalance(intent: Intent): Promise<boolean> {

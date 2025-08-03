@@ -78,7 +78,7 @@ export class BasicWallet extends BaseEvmWallet {
       }
 
       // Get multicall3 address from chain configuration
-      const chain = await this.publicClient.getChainId();
+      const _chain = await this.publicClient.getChainId();
       const chainConfig = this.publicClient.chain;
 
       if (!chainConfig?.contracts?.multicall3?.address) {

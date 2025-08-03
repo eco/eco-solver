@@ -57,7 +57,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     ]);
   }
 
-  canHandle(intent: Intent): boolean {
+  canHandle(_intent: Intent): boolean {
     // Rhinestone strategy for smart account abstraction
     // Currently requires explicit configuration
     // In the future, could detect smart account requirements from:

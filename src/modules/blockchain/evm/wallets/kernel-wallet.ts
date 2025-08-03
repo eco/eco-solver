@@ -86,7 +86,7 @@ export class KernelWallet extends BaseEvmWallet {
 
   async writeContracts(
     params: WriteContractParams[],
-    options?: WriteContractsOptions,
+    _options?: WriteContractsOptions,
   ): Promise<Hash[]> {
     if (!this.walletClient.account) {
       throw new Error('Wallet client account not found');

@@ -48,26 +48,30 @@ export class EvmReaderService {
     return balance as bigint;
   }
 
-  async getBlockNumber(): Promise<bigint> {
-    const client = this.getClient();
+  async getBlockNumber(chainId: number): Promise<bigint> {
+    const client = this.getClient(chainId);
     return client.getBlockNumber();
   }
 
-  async readContract(params: {
-    address: Address;
-    abi: any;
-    functionName: string;
-    args?: any[];
-  }): Promise<any> {
-    const client = this.getClient();
+  async readContract(
+    chainId: number,
+    params: {
+      address: Address;
+      abi: any;
+      functionName: string;
+      args?: any[];
+    },
+  ): Promise<any> {
+    const client = this.getClient(chainId);
     return client.readContract({
       ...params,
       args: params.args || [],
     });
   }
 
-  async multicall(params: { contracts: any[] }): Promise<any[]> {
-    const client = this.getClient();
-    return client.multicall(params);
+  async multicall(chainId: number, params: { contracts: any[] }): Promise<any[]> {
+    const client = this.getClient(chainId);
+    const result = await client.multicall(params as any);
+    return result as any[];
   }
 }

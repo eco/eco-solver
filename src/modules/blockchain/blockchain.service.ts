@@ -22,8 +22,13 @@ export class BlockchainService {
   }
 
   private initializeExecutors() {
-    const evmChainId = this.evmConfigService.chainId;
-    this.executors.set(evmChainId, this.evmExecutor);
+    // Register EVM executor for all supported chains
+    const evmChainIds = this.evmConfigService.supportedChainIds;
+    for (const chainId of evmChainIds) {
+      this.executors.set(chainId, this.evmExecutor);
+    }
+
+    // Register SVM executor
     this.executors.set('solana-mainnet', this.svmExecutor);
   }
 

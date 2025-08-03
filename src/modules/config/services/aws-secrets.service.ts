@@ -17,7 +17,7 @@ export class AwsSecretsService {
   private secretsCache: Record<string, any> = {};
 
   async getSecrets(awsConfig: AwsConfig): Promise<Record<string, any>> {
-    if (!awsConfig.useAwsSecrets) {
+    if (!awsConfig.secretName) {
       this.logger.log('AWS Secrets Manager is disabled');
       return {};
     }

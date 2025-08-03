@@ -23,7 +23,7 @@ export class SvmReaderService {
     return BigInt(balance);
   }
 
-  async getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint> {
+  async getTokenBalance(_tokenAddress: string, _walletAddress: string): Promise<bigint> {
     // This would require @solana/spl-token package
     // For now, returning a placeholder
     throw new Error('Token balance reading not yet implemented for Solana');

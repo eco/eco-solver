@@ -13,7 +13,6 @@ import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
-import { SolanaChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
 
@@ -24,26 +23,19 @@ export class SvmExecutorService extends BaseChainExecutor {
   private programId: PublicKey;
 
   constructor(private solanaConfigService: SolanaConfigService) {
-    const config: SolanaChainConfig = {
-      chainType: 'SVM',
-      chainId: 'solana-mainnet',
-      rpcUrl: solanaConfigService.rpcUrl,
-      secretKey: JSON.parse(solanaConfigService.secretKey),
-      programId: solanaConfigService.programId,
-    };
-    super(config);
+    super();
     this.initializeConnection();
   }
 
   private initializeConnection() {
-    const solanaConfig = this.config as SolanaChainConfig;
-
-    this.connection = new Connection(solanaConfig.rpcUrl, 'confirmed');
-    this.keypair = Keypair.fromSecretKey(Uint8Array.from(solanaConfig.secretKey));
-    this.programId = new PublicKey(solanaConfig.programId);
+    this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
+    this.keypair = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),
+    );
+    this.programId = new PublicKey(this.solanaConfigService.programId);
   }
 
-  async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
+  async execute(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
     try {
       // Create a simple transfer transaction as an example
       // In production, this would call the actual program instruction
@@ -80,14 +72,14 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  async getBalance(address: string, chainId: number): Promise<bigint> {
+  async getBalance(address: string, _chainId: number): Promise<bigint> {
     // Solana doesn't use numeric chain IDs, so we ignore the parameter
     const publicKey = new PublicKey(address);
     const balance = await this.connection.getBalance(publicKey);
     return BigInt(balance);
   }
 
-  async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
+  async isTransactionConfirmed(txHash: string, _chainId: number): Promise<boolean> {
     // Solana doesn't use numeric chain IDs, so we ignore the parameter
     try {
       const status = await this.connection.getSignatureStatus(txHash);

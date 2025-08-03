@@ -7,25 +7,20 @@ import { EvmSchema } from '@/config/config.schema';
 
 type EvmConfig = z.infer<typeof EvmSchema>;
 type NetworkConfig = EvmConfig['networks'][number];
-type RpcOptions = NetworkConfig['rpc']['options'];
-type WsOptions = NonNullable<NetworkConfig['ws']>['options'];
 type TokenConfig = NetworkConfig['tokens'][number];
 type FeeLogic = NetworkConfig['feeLogic'];
 
 @Injectable()
 export class EvmConfigService {
-  private _networks: Map<number, NetworkConfig>;
-
   constructor(private configService: ConfigService) {
     this._networks = new Map();
     this.initializeNetworks();
   }
 
-  private initializeNetworks(): void {
-    const networks = this.configService.get<NetworkConfig[]>('evm.networks', []);
-    for (const network of networks) {
-      this._networks.set(network.chainId, network);
-    }
+  private _networks: Map<number, NetworkConfig>;
+
+  get networks(): NetworkConfig[] {
+    return Array.from(this._networks.values());
   }
 
   get privateKey(): EvmConfig['privateKey'] {
@@ -34,10 +29,6 @@ export class EvmConfigService {
 
   get walletAddress(): EvmConfig['walletAddress'] {
     return this.configService.get<string>('evm.walletAddress');
-  }
-
-  get networks(): NetworkConfig[] {
-    return Array.from(this._networks.values());
   }
 
   get supportedChainIds(): number[] {
@@ -56,34 +47,9 @@ export class EvmConfigService {
     return network;
   }
 
-  getRpcUrls(chainId: number): string[] {
+  getRpc(chainId: number) {
     const network = this.getNetworkOrThrow(chainId);
-    return network.rpc.urls;
-  }
-
-  getRpcOptions(chainId: number): RpcOptions | undefined {
-    const network = this.getNetworkOrThrow(chainId);
-    return network.rpc.options;
-  }
-
-  getWsUrls(chainId: number): string[] | undefined {
-    const network = this.getNetworkOrThrow(chainId);
-    return network.ws?.urls;
-  }
-
-  getWsOptions(chainId: number): WsOptions | undefined {
-    const network = this.getNetworkOrThrow(chainId);
-    return network.ws?.options;
-  }
-
-  getIntentSourceAddress(chainId: number): string {
-    const network = this.getNetworkOrThrow(chainId);
-    return network.intentSourceAddress;
-  }
-
-  getInboxAddress(chainId: number): string {
-    const network = this.getNetworkOrThrow(chainId);
-    return network.inboxAddress;
+    return network.rpc;
   }
 
   getSupportedTokens(chainId: number): TokenConfig[] {
@@ -104,5 +70,12 @@ export class EvmConfigService {
   getFeeLogic(chainId: number): FeeLogic {
     const network = this.getNetworkOrThrow(chainId);
     return network.feeLogic;
+  }
+
+  private initializeNetworks(): void {
+    const networks = this.configService.get<NetworkConfig[]>('evm.networks', []);
+    for (const network of networks) {
+      this._networks.set(network.chainId, network);
+    }
   }
 }
