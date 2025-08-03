@@ -54,10 +54,12 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   canHandle(intent: Intent): boolean {
-    // Rhinestone strategy handles intents for smart account abstraction
-    return (
-      intent.metadata?.strategyType === 'rhinestone' || intent.metadata?.useSmartAccount === true
-    );
+    // Rhinestone strategy for smart account abstraction
+    // Currently requires explicit configuration
+    // In the future, could detect smart account requirements from:
+    // - Specific call patterns that require account abstraction
+    // - Target addresses that are known smart accounts
+    return false; // Only enabled via configuration
   }
 
   async execute(intent: Intent): Promise<void> {
@@ -78,11 +80,6 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
           reward: intent.reward,
           deadline: intent.reward.deadline,
           useSmartAccount: true,
-          // TODO: Add Rhinestone-specific parameters
-          // smartAccountAddress: intent.metadata?.smartAccountAddress,
-          // moduleAddress: intent.metadata?.moduleAddress,
-          // userOperation: intent.metadata?.userOperation,
-          // paymasterData: intent.metadata?.paymasterData,
         },
       },
       {

@@ -37,24 +37,15 @@ export class BlockchainService {
       const result = await executor.execute(intent, walletId);
 
       if (result.success) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FULFILLED, {
-          metadata: {
-            ...intent.metadata,
-            txHash: result.txHash,
-          },
-        });
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FULFILLED);
         console.log(`Intent ${intent.intentId} fulfilled: ${result.txHash}`);
       } else {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
-          metadata: { error: result.error },
-        });
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
         console.error(`Intent ${intent.intentId} failed: ${result.error}`);
       }
     } catch (error) {
       console.error(`Error executing intent ${intent.intentId}:`, error);
-      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
-        metadata: { error: error.message },
-      });
+      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
     }
   }
 }

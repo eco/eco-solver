@@ -87,12 +87,11 @@ src/
     ├── intents/          # Intent persistence and management
     ├── queue/            # Queue management with BullMQ
     ├── blockchain/       # Blockchain integration module
-    │   ├── services/     # Core blockchain services (includes listeners)
     │   ├── evm/          # EVM-specific implementation
-    │   │   ├── listeners/# EVM blockchain event listeners
+    │   │   ├── listeners/# EVM blockchain event listeners (self-initializing)
     │   │   └── wallets/  # EVM wallet implementations
     │   └── svm/          # Solana-specific implementation
-    │       └── listeners/# Solana blockchain event listeners
+    │       └── listeners/# Solana blockchain event listeners (self-initializing)
     ├── fulfillment/      # Intent validation and fulfillment logic
     │   ├── strategies/   # Multiple fulfillment strategies
     │   └── validations/  # Pluggable validation framework
@@ -101,12 +100,13 @@ src/
 
 ### Processing Flow
 
-1. **Listen**: Blockchain module listeners monitor chain events for new intents
-2. **Store**: Intents are persisted to MongoDB for tracking
-3. **Queue**: Valid intents are added to the fulfillment queue with strategy selection
-4. **Validate**: Selected strategy validates intents using its immutable validation set
-5. **Execute**: Strategy-specific execution logic performs transactions on target chains
-6. **Update**: Intent status is updated throughout the process
+1. **Listen**: Blockchain listeners (self-initializing) monitor chain events for new intents
+2. **Submit**: Listeners call FulfillmentService.submitIntent() for centralized processing
+3. **Store**: FulfillmentService persists intents to MongoDB
+4. **Queue**: FulfillmentService determines strategy and adds to fulfillment queue
+5. **Validate**: Selected strategy validates intents using its immutable validation set
+6. **Execute**: Strategy-specific execution logic performs transactions on target chains
+7. **Update**: Intent status is updated throughout the process
 
 ### Intent Structure
 
@@ -141,10 +141,6 @@ interface Intent {
     }[];
   };
   status: IntentStatus;
-  metadata?: {
-    strategyType?: string;
-    // Additional strategy-specific flags
-  };
 }
 ```
 
@@ -178,6 +174,11 @@ SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
 SOLANA_SECRET_KEY=[...]
 SOLANA_PROGRAM_ID=...
 
+# Fulfillment Configuration
+FULFILLMENT_DEFAULT_STRATEGY=standard
+FULFILLMENT_STRATEGIES_STANDARD_ENABLED=true
+FULFILLMENT_STRATEGIES_CROWD_LIQUIDITY_ENABLED=true
+
 # AWS Secrets Manager (optional)
 USE_AWS_SECRETS=false
 AWS_REGION=us-east-1
@@ -210,6 +211,12 @@ pnpm run test:e2e
 1. Create a new listener extending `BaseChainListener`:
    ```typescript
    export class MyChainListener extends BaseChainListener {
+     constructor(
+       private myChainConfig: MyChainConfigService,
+       fulfillmentService: FulfillmentService,
+     ) {
+       super(config, fulfillmentService);
+     }
      // Implement abstract methods
    }
    ```
@@ -221,7 +228,7 @@ pnpm run test:e2e
    }
    ```
 
-3. Register in respective modules and add configuration
+3. Register in blockchain module with FulfillmentModule import (use forwardRef if needed)
 
 ### Adding New Configuration
 

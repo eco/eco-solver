@@ -28,14 +28,6 @@ export interface Intent {
     }[];
   };
   status: IntentStatus;
-  metadata?: {
-    strategyType?: string;
-    useSmartAccount?: boolean;
-    isNegativeIntent?: boolean;
-    isNativeToken?: boolean;
-    useCrowdLiquidity?: boolean;
-    [key: string]: any;
-  };
 }
 
 export enum IntentStatus {

@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { ConfigModule } from '@/modules/config/config.module';
@@ -34,7 +34,7 @@ import { StandardFeeValidation } from './validations/standard-fee.validation';
     IntentsModule,
     QueueModule,
     ProverModule,
-    BlockchainModule,
+    forwardRef(() => BlockchainModule),
     BullModule.registerQueue({
       name: 'intent-fulfillment',
     }),

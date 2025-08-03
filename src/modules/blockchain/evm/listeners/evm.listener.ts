@@ -8,8 +8,7 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
-import { IntentsService } from '@/modules/intents/intents.service';
-import { QueueService } from '@/modules/queue/queue.service';
+import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 const INTENT_CREATED_EVENT = parseAbiItem(
   'event IntentCreated(bytes32 indexed intentId, address indexed user, address solver, address source, address target, bytes data, uint256 value, uint256 reward, uint256 deadline)',
@@ -24,8 +23,7 @@ export class EvmListener extends BaseChainListener {
 
   constructor(
     private evmConfigService: EvmConfigService,
-    intentsService: IntentsService,
-    queueService: QueueService,
+    fulfillmentService: FulfillmentService,
   ) {
     const config: EvmChainConfig = {
       chainType: 'EVM',
@@ -36,7 +34,7 @@ export class EvmListener extends BaseChainListener {
       intentSourceAddress: evmConfigService.intentSourceAddress,
       inboxAddress: evmConfigService.inboxAddress,
     };
-    super(config, intentsService, queueService);
+    super(config, fulfillmentService);
   }
 
   async start(): Promise<void> {
@@ -105,10 +103,6 @@ export class EvmListener extends BaseChainListener {
         tokens: [], // TODO: Parse route tokens if any
       },
       status: IntentStatus.PENDING,
-      metadata: {
-        evmTxHash: transactionHash,
-        timestamp: Math.floor(Date.now() / 1000),
-      },
     };
   }
 

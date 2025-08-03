@@ -1,8 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
-import { IntentsModule } from '@/modules/intents/intents.module';
-import { QueueModule } from '@/modules/queue/queue.module';
+import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 
 import { EvmWalletManager } from './services/evm-wallet-manager.service';
 import { EvmExecutorService } from './evm.executor.service';
@@ -10,7 +9,7 @@ import { EvmReaderService } from './evm.reader.service';
 import { EvmListener } from './listeners/evm.listener';
 
 @Module({
-  imports: [ConfigModule, IntentsModule, QueueModule],
+  imports: [ConfigModule, forwardRef(() => FulfillmentModule)],
   providers: [EvmExecutorService, EvmReaderService, EvmWalletManager, EvmListener],
   exports: [EvmExecutorService, EvmReaderService, EvmListener],
 })

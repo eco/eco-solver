@@ -58,10 +58,12 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   canHandle(intent: Intent): boolean {
-    // Native intents strategy handles intents that use native tokens (ETH, SOL, etc.)
-    return (
-      intent.metadata?.strategyType === 'native-intents' || intent.metadata?.isNativeToken === true
-    );
+    // Native intents strategy handles intents that only involve native tokens
+    // Check if the intent has no token transfers, only native value
+    const hasTokenTransfers = intent.route.tokens.length > 0 || intent.reward.tokens.length > 0;
+    const hasNativeValue = intent.reward.nativeValue > 0n;
+    
+    return !hasTokenTransfers && hasNativeValue;
   }
 
   async execute(intent: Intent): Promise<void> {
@@ -82,9 +84,6 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
           reward: intent.reward.nativeValue,
           deadline: intent.reward.deadline,
           isNativeToken: true,
-          // TODO: Add native token specific parameters
-          // nativeTokenSymbol: intent.metadata?.nativeTokenSymbol,
-          // gasLimit: intent.metadata?.gasLimit,
         },
       },
       {

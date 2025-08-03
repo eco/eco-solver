@@ -82,9 +82,6 @@ export class Intent {
     index: true,
   })
   status: IntentStatus;
-
-  @Prop({ type: Object })
-  metadata?: any;
 }
 
 export const IntentSchema = SchemaFactory.createForClass(Intent);

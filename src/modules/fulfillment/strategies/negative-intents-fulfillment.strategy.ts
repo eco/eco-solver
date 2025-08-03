@@ -55,11 +55,12 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   canHandle(intent: Intent): boolean {
-    // Negative intents strategy handles intents that involve debt or negative balances
-    return (
-      intent.metadata?.strategyType === 'negative-intents' ||
-      intent.metadata?.isNegativeIntent === true
-    );
+    // Negative intents strategy for debt or negative balance scenarios
+    // Currently requires explicit configuration
+    // In the future, could detect negative intent patterns from:
+    // - Specific protocol interactions that represent debt
+    // - Call data patterns that indicate borrowing/lending
+    return false; // Only enabled via configuration
   }
 
   async execute(intent: Intent): Promise<void> {
@@ -84,10 +85,6 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
           reward: intent.reward,
           deadline: intent.reward.deadline,
           isNegativeIntent: true,
-          // TODO: Add negative intent specific parameters
-          // debtAmount: intent.metadata?.debtAmount,
-          // collateralRequired: intent.metadata?.collateralRequired,
-          // liquidationThreshold: intent.metadata?.liquidationThreshold,
         },
       },
       {

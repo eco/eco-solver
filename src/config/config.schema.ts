@@ -79,6 +79,37 @@ export const ConfigSchema = z.object({
       }),
     )
     .default([]),
+
+  fulfillment: z.object({
+    defaultStrategy: z
+      .enum(['standard', 'crowd-liquidity', 'native-intents', 'negative-intents', 'rhinestone'])
+      .default('standard'),
+    strategies: z
+      .object({
+        standard: z.object({
+          enabled: z.boolean().default(true),
+        }),
+        crowdLiquidity: z.object({
+          enabled: z.boolean().default(true),
+        }),
+        nativeIntents: z.object({
+          enabled: z.boolean().default(true),
+        }),
+        negativeIntents: z.object({
+          enabled: z.boolean().default(true),
+        }),
+        rhinestone: z.object({
+          enabled: z.boolean().default(true),
+        }),
+      })
+      .default({
+        standard: { enabled: true },
+        crowdLiquidity: { enabled: true },
+        nativeIntents: { enabled: true },
+        negativeIntents: { enabled: true },
+        rhinestone: { enabled: true },
+      }),
+  }),
 });
 
 // Export the inferred TypeScript type
@@ -92,3 +123,4 @@ export const SolanaSchema = ConfigSchema.shape.solana;
 export const QueueSchema = ConfigSchema.shape.queue;
 export const AwsSchema = ConfigSchema.shape.aws;
 export const ProversSchema = ConfigSchema.shape.provers;
+export const FulfillmentSchema = ConfigSchema.shape.fulfillment;

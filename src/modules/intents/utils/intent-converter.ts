@@ -31,7 +31,6 @@ export class IntentConverter {
         })),
       },
       status: intent.status,
-      metadata: intent.metadata,
     };
   }
 
@@ -64,7 +63,6 @@ export class IntentConverter {
         })),
       },
       status: schema.status,
-      metadata: schema.metadata,
     };
   }
 }

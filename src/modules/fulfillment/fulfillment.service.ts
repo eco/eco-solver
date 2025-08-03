@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { StandardFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
@@ -8,6 +9,9 @@ import { NativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategi
 import { NegativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { RhinestoneFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentConverter } from '@/modules/intents/utils/intent-converter';
+import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
 export class FulfillmentService {
@@ -15,6 +19,8 @@ export class FulfillmentService {
 
   constructor(
     private intentsService: IntentsService,
+    private fulfillmentConfigService: FulfillmentConfigService,
+    @Inject(QUEUE_SERVICE) private queueService: QueueService,
     // Inject all strategies
     private standardStrategy: StandardFulfillmentStrategy,
     private crowdLiquidityStrategy: CrowdLiquidityFulfillmentStrategy,
@@ -30,6 +36,47 @@ export class FulfillmentService {
     this.strategies.set(this.rhinestoneStrategy.name, this.rhinestoneStrategy);
   }
 
+  async submitIntent(intent: Intent): Promise<Intent> {
+    try {
+      // Check if intent already exists
+      const existingIntent = await this.intentsService.findById(intent.intentId);
+      if (existingIntent) {
+        console.log(`Intent ${intent.intentId} already exists`);
+        return IntentConverter.toInterface(existingIntent);
+      }
+
+      // Save the intent
+      const savedIntent = await this.intentsService.create(intent);
+      const interfaceIntent = IntentConverter.toInterface(savedIntent);
+      
+      // Determine the strategy
+      const strategy = this.determineStrategy(interfaceIntent);
+      
+      // Add to fulfillment queue
+      await this.queueService.addIntentToFulfillmentQueue(interfaceIntent, strategy);
+      
+      console.log(
+        `New intent ${intent.intentId} added to fulfillment queue with strategy: ${strategy}`,
+      );
+      
+      return interfaceIntent;
+    } catch (error) {
+      console.error(`Error submitting intent ${intent.intentId}:`, error);
+      throw error;
+    }
+  }
+
+  private determineStrategy(intent: Intent): string {
+    // For now, use the default strategy from configuration
+    // In the future, we could analyze intent properties to determine strategy
+    // For example:
+    // - Check if intent involves only native tokens -> 'native-intents'
+    // - Check if intent requires smart account features -> 'rhinestone'
+    // - Check if intent has specific route patterns -> 'crowd-liquidity'
+    
+    return this.fulfillmentConfigService.defaultStrategy;
+  }
+
   async processIntent(intent: Intent, strategyName: string): Promise<void> {
     try {
       await this.intentsService.updateStatus(intent.intentId, IntentStatus.VALIDATING);
@@ -37,17 +84,15 @@ export class FulfillmentService {
       // Get the strategy by name
       const strategy = this.strategies.get(strategyName);
       if (!strategy) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
-          metadata: { reason: `Unknown fulfillment strategy: ${strategyName}` },
-        });
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        console.error(`Unknown fulfillment strategy: ${strategyName}`);
         return;
       }
 
       // Verify the strategy can handle this intent
       if (!strategy.canHandle(intent)) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
-          metadata: { reason: `Strategy ${strategyName} cannot handle this intent` },
-        });
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        console.error(`Strategy ${strategyName} cannot handle this intent`);
         return;
       }
 
@@ -55,9 +100,8 @@ export class FulfillmentService {
       try {
         await strategy.validate(intent);
       } catch (validationError) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
-          metadata: { reason: validationError.message },
-        });
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        console.error(`Validation failed for intent ${intent.intentId}:`, validationError.message);
         return;
       }
 
@@ -67,9 +111,7 @@ export class FulfillmentService {
       await this.intentsService.updateStatus(intent.intentId, IntentStatus.EXECUTING);
     } catch (error) {
       console.error(`Error processing intent ${intent.intentId}:`, error);
-      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED, {
-        metadata: { error: error.message },
-      });
+      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
     }
   }
 }

@@ -55,9 +55,9 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   canHandle(intent: Intent): boolean {
-    // Standard strategy handles intents without special metadata
-    // This is the default strategy for regular cross-chain intents
-    return !intent.metadata?.strategyType || intent.metadata.strategyType === 'standard';
+    // Standard strategy is the default and can handle all intents
+    // Other strategies should be more specific in their canHandle logic
+    return true;
   }
 
   async execute(intent: Intent): Promise<void> {

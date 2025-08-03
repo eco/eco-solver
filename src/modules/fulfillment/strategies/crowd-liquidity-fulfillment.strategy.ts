@@ -55,11 +55,11 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   canHandle(intent: Intent): boolean {
-    // Crowd liquidity strategy handles intents marked for CL execution
-    return (
-      intent.metadata?.strategyType === 'crowd-liquidity' ||
-      intent.metadata?.useCrowdLiquidity === true
-    );
+    // Crowd liquidity strategy currently requires explicit configuration
+    // In the future, could analyze intent properties like:
+    // - Large token amounts that might benefit from liquidity pools
+    // - Cross-chain routes that have known liquidity constraints
+    return false; // Only enabled via configuration
   }
 
   async execute(intent: Intent): Promise<void> {
@@ -79,9 +79,6 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
           reward: intent.reward,
           amount: intent.reward.nativeValue,
           deadline: intent.reward.deadline,
-          // TODO: Add CL-specific parameters
-          // poolId: intent.metadata?.poolId,
-          // liquidityProviders: intent.metadata?.liquidityProviders,
         },
       },
       {
