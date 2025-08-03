@@ -6,7 +6,6 @@ import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
-import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
@@ -30,23 +29,6 @@ export class EvmExecutorService extends BaseChainExecutor {
     super(null as any);
     this.walletManager = walletManager;
     this.initializeWalletManager();
-  }
-
-  private initializeWalletManager() {
-    // Initialize wallet manager with a default basic wallet for all supported chains
-    for (const chainId of this.evmConfigService.supportedChainIds) {
-      this.walletManager.initialize(
-        [
-          {
-            id: 'default',
-            type: 'basic',
-            privateKey: this.evmConfigService.privateKey as `0x${string}`,
-          },
-        ],
-        this.transportService,
-        chainId,
-      );
-    }
   }
 
   async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
@@ -97,6 +79,23 @@ export class EvmExecutorService extends BaseChainExecutor {
       return receipt.status === 'success';
     } catch {
       return false;
+    }
+  }
+
+  private initializeWalletManager() {
+    // Initialize wallet manager with a default basic wallet for all supported chains
+    for (const chainId of this.evmConfigService.supportedChainIds) {
+      this.walletManager.initialize(
+        [
+          {
+            id: 'default',
+            type: 'basic',
+            privateKey: this.evmConfigService.privateKey as `0x${string}`,
+          },
+        ],
+        this.transportService,
+        chainId,
+      );
     }
   }
 }

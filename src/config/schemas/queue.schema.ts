@@ -1,0 +1,15 @@
+import { z } from 'zod';
+
+/**
+ * Queue configuration schema
+ */
+export const QueueSchema = z.object({
+  concurrency: z.number().int().min(1).default(5),
+  attempts: z.number().int().min(0).default(3),
+  backoffType: z.string().default('exponential'),
+  backoffDelay: z.number().int().min(0).default(5000),
+  maxRetriesPerRequest: z.number().int().min(0).optional(),
+  retryDelayMs: z.number().int().min(0).optional(),
+});
+
+export type QueueConfig = z.infer<typeof QueueSchema>;

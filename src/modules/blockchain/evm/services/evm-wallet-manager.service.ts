@@ -88,8 +88,4 @@ export class EvmWalletManager {
     const wallet = this.getWallet(walletId, chainId);
     return wallet.getAddress();
   }
-
-  listWalletIds(): string[] {
-    return Array.from(this.wallets.keys());
-  }
 }
