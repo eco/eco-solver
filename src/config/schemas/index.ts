@@ -8,3 +8,14 @@ export * from './prover.schema';
 export * from './queue.schema';
 export * from './redis.schema';
 export * from './solana.schema';
+
+// Export all registered configurations for use in ConfigModule
+export { awsConfig } from './aws.schema';
+export { baseConfig } from './base.schema';
+export { evmConfig } from './evm.schema';
+export { fulfillmentConfig } from './fulfillment.schema';
+export { mongodbConfig } from './mongodb.schema';
+export { proversConfig } from './prover.schema';
+export { queueConfig } from './queue.schema';
+export { redisConfig } from './redis.schema';
+export { solanaConfig } from './solana.schema';

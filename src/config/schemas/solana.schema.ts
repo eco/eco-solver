@@ -1,3 +1,4 @@
+import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
 /**
@@ -16,3 +17,17 @@ export const SolanaSchema = z.object({
 });
 
 export type SolanaConfig = z.infer<typeof SolanaSchema>;
+
+/**
+ * Solana configuration factory using registerAs
+ * Provides default values from Zod schema
+ */
+export const solanaConfig = registerAs('solana', () => {
+  return SolanaSchema.parse({
+    rpcUrl: process.env.SOLANA_RPC_URL,
+    wsUrl: process.env.SOLANA_WEBSOCKET_URL,
+    secretKey: process.env.SOLANA_SECRET_KEY,
+    walletAddress: process.env.SOLANA_WALLET_ADDRESS,
+    programId: process.env.SOLANA_PROGRAM_ID,
+  });
+});
