@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
-import { Address, createPublicClient, http, PublicClient } from 'viem';
+import { Address, createPublicClient, http } from 'viem';
 
 import { EvmConfigService } from '@/modules/config/services';
 
 @Injectable()
 export class EvmReaderService {
-  private client: PublicClient;
+  private client: any;
 
   constructor(private evmConfigService: EvmConfigService) {
     this.initializeClient();

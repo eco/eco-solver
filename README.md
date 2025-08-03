@@ -86,17 +86,22 @@ src/
     ├── config/           # Configuration module with typed services
     ├── intents/          # Intent persistence and management
     ├── queue/            # Queue management with BullMQ
-    ├── on-chain-listener/# Blockchain event listeners
+    ├── blockchain/       # Blockchain integration module
+    │   ├── services/     # Core blockchain services (includes listeners)
+    │   ├── evm/          # EVM-specific implementation
+    │   │   ├── listeners/# EVM blockchain event listeners
+    │   │   └── wallets/  # EVM wallet implementations
+    │   └── svm/          # Solana-specific implementation
+    │       └── listeners/# Solana blockchain event listeners
     ├── fulfillment/      # Intent validation and fulfillment logic
     │   ├── strategies/   # Multiple fulfillment strategies
     │   └── validations/  # Pluggable validation framework
-    ├── execution/        # Transaction execution on target chains
     └── prover/           # Route validation with multiple prover types
 ```
 
 ### Processing Flow
 
-1. **Listen**: On-chain listeners monitor blockchain events for new intents
+1. **Listen**: Blockchain module listeners monitor chain events for new intents
 2. **Store**: Intents are persisted to MongoDB for tracking
 3. **Queue**: Valid intents are added to the fulfillment queue with strategy selection
 4. **Validate**: Selected strategy validates intents using its immutable validation set

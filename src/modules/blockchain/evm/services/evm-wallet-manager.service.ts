@@ -35,7 +35,7 @@ export class EvmWalletManager {
     const publicClient = createPublicClient({
       chain,
       transport: http(rpcUrl),
-    });
+    }) as any;
 
     const account = privateKeyToAccount(config.privateKey);
     const walletClient = createWalletClient({

@@ -6,6 +6,8 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { SolanaChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
+import { IntentsService } from '@/modules/intents/intents.service';
+import { QueueService } from '@/modules/queue/queue.service';
 
 @Injectable()
 export class SolanaListener extends BaseChainListener {
@@ -15,7 +17,11 @@ export class SolanaListener extends BaseChainListener {
   private intentCallback: (intent: Intent) => Promise<void>;
   private keypair: Keypair;
 
-  constructor(private solanaConfigService: SolanaConfigService) {
+  constructor(
+    private solanaConfigService: SolanaConfigService,
+    intentsService: IntentsService,
+    queueService: QueueService,
+  ) {
     const config: SolanaChainConfig = {
       chainType: 'SVM',
       chainId: 'solana-mainnet',
@@ -24,7 +30,7 @@ export class SolanaListener extends BaseChainListener {
       secretKey: JSON.parse(solanaConfigService.secretKey),
       programId: solanaConfigService.programId,
     };
-    super(config);
+    super(config, intentsService, queueService);
   }
 
   async start(): Promise<void> {

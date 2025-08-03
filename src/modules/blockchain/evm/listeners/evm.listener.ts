@@ -8,6 +8,8 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { IntentsService } from '@/modules/intents/intents.service';
+import { QueueService } from '@/modules/queue/queue.service';
 
 const INTENT_CREATED_EVENT = parseAbiItem(
   'event IntentCreated(bytes32 indexed intentId, address indexed user, address solver, address source, address target, bytes data, uint256 value, uint256 reward, uint256 deadline)',
@@ -20,7 +22,11 @@ export class EvmListener extends BaseChainListener {
   private unsubscribe: any;
   private intentCallback: (intent: Intent) => Promise<void>;
 
-  constructor(private evmConfigService: EvmConfigService) {
+  constructor(
+    private evmConfigService: EvmConfigService,
+    intentsService: IntentsService,
+    queueService: QueueService,
+  ) {
     const config: EvmChainConfig = {
       chainType: 'EVM',
       chainId: evmConfigService.chainId,
@@ -30,7 +36,7 @@ export class EvmListener extends BaseChainListener {
       intentSourceAddress: evmConfigService.intentSourceAddress,
       inboxAddress: evmConfigService.inboxAddress,
     };
-    super(config);
+    super(config, intentsService, queueService);
   }
 
   async start(): Promise<void> {

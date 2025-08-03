@@ -7,7 +7,6 @@ import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService, RedisConfigService } from '@/modules/config/services';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
-import { OnChainListenerModule } from '@/modules/on-chain-listener/on-chain-listener.module';
 import { QueueModule } from '@/modules/queue/queue.module';
 
 @Module({
@@ -33,7 +32,6 @@ import { QueueModule } from '@/modules/queue/queue.module';
     }),
     QueueModule,
     IntentsModule,
-    OnChainListenerModule,
     FulfillmentModule,
     BlockchainModule,
   ],

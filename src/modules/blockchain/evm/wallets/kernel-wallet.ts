@@ -40,10 +40,11 @@ export class KernelWallet extends BaseEvmWallet {
       address: param.address,
       abi: param.abi,
       functionName: param.functionName,
-      args: param.args,
+      args: param.args || [],
     }));
 
-    return this.publicClient.multicall({ contracts });
+    const results = await (this.publicClient as any).multicall({ contracts });
+    return results.map((result: any) => result.result);
   }
 
   async writeContract(params: WriteContractParams): Promise<Hash> {
