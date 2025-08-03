@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { createPublicClient, http, parseAbi } from 'viem';
 import { mainnet } from 'viem/chains';
 
 import {
@@ -11,6 +10,7 @@ import {
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { EvmWalletManager } from '@/modules/execution/services/evm-wallet-manager.service';
 
 const INBOX_ABI = parseAbi([
   'function fulfillStorage(bytes32 intentId, address target, bytes calldata data) external payable',
@@ -18,10 +18,13 @@ const INBOX_ABI = parseAbi([
 
 @Injectable()
 export class EvmExecutor extends BaseChainExecutor {
-  private walletClient: any;
   private publicClient: any;
+  private walletManager: EvmWalletManager;
 
-  constructor(private evmConfigService: EvmConfigService) {
+  constructor(
+    private evmConfigService: EvmConfigService,
+    walletManager: EvmWalletManager,
+  ) {
     const config: EvmChainConfig = {
       chainType: 'EVM',
       chainId: evmConfigService.chainId,
@@ -31,6 +34,7 @@ export class EvmExecutor extends BaseChainExecutor {
       inboxAddress: evmConfigService.inboxAddress,
     };
     super(config);
+    this.walletManager = walletManager;
     this.initializeClients();
   }
 
@@ -42,29 +46,32 @@ export class EvmExecutor extends BaseChainExecutor {
       transport: http(evmConfig.rpcUrl),
     });
 
-    const account = privateKeyToAccount(evmConfig.privateKey as `0x${string}`);
-
-    this.walletClient = createWalletClient({
-      account,
-      chain: mainnet,
-      transport: http(evmConfig.rpcUrl),
-    });
+    // Initialize wallet manager with a default basic wallet
+    this.walletManager.initialize(
+      [
+        {
+          id: 'default',
+          type: 'basic',
+          privateKey: evmConfig.privateKey as `0x${string}`,
+        },
+      ],
+      evmConfig.rpcUrl,
+      mainnet,
+    );
   }
 
-  async execute(intent: Intent): Promise<ExecutionResult> {
+  async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
     try {
       const evmConfig = this.config as EvmChainConfig;
+      const wallet = this.walletManager.getWallet(walletId);
 
-      const { request } = await this.publicClient.simulateContract({
+      const hash = await wallet.writeContract({
         address: evmConfig.inboxAddress as `0x${string}`,
         abi: INBOX_ABI,
         functionName: 'fulfillStorage',
         args: [intent.intentId, intent.target.address, intent.data],
         value: BigInt(intent.value),
-        account: this.walletClient.account,
       });
-
-      const hash = await this.walletClient.writeContract(request);
 
       const receipt = await this.publicClient.waitForTransactionReceipt({
         hash,

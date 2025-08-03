@@ -17,7 +17,7 @@ export abstract class BaseChainExecutor {
     this.config = config;
   }
 
-  abstract execute(intent: Intent): Promise<ExecutionResult>;
+  abstract execute(intent: Intent, walletId?: string): Promise<ExecutionResult>;
   abstract getBalance(address: string): Promise<bigint>;
   abstract isTransactionConfirmed(txHash: string): Promise<boolean>;
 }

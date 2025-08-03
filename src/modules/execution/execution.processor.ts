@@ -18,6 +18,6 @@ export class ExecutionProcessor extends WorkerHost {
   async process(job: Job<ExecutionJobData>) {
     const { intent, walletAddress } = job.data;
     console.log(`Executing intent ${intent.intentId} for wallet ${walletAddress}`);
-    await this.executionService.executeIntent(intent);
+    await this.executionService.executeIntent(intent, walletAddress);
   }
 }

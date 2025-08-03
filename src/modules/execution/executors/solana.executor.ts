@@ -43,7 +43,7 @@ export class SolanaExecutor extends BaseChainExecutor {
     this.programId = new PublicKey(solanaConfig.programId);
   }
 
-  async execute(intent: Intent): Promise<ExecutionResult> {
+  async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
     try {
       // Create a simple transfer transaction as an example
       // In production, this would call the actual program instruction

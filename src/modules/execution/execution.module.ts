@@ -6,6 +6,7 @@ import { ExecutionProcessor } from '@/modules/execution/execution.processor';
 import { ExecutionService } from '@/modules/execution/execution.service';
 import { EvmExecutor } from '@/modules/execution/executors/evm.executor';
 import { SolanaExecutor } from '@/modules/execution/executors/solana.executor';
+import { EvmWalletManager } from '@/modules/execution/services/evm-wallet-manager.service';
 import { IntentsModule } from '@/modules/intents/intents.module';
 
 @Module({
@@ -16,7 +17,7 @@ import { IntentsModule } from '@/modules/intents/intents.module';
       name: 'wallet-execution',
     }),
   ],
-  providers: [ExecutionService, ExecutionProcessor, EvmExecutor, SolanaExecutor],
+  providers: [ExecutionService, ExecutionProcessor, EvmExecutor, SolanaExecutor, EvmWalletManager],
   exports: [ExecutionService],
 })
 export class ExecutionModule {}

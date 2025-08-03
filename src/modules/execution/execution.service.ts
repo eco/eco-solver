@@ -26,14 +26,14 @@ export class ExecutionService {
     this.executors.set('solana-mainnet', this.solanaExecutor);
   }
 
-  async executeIntent(intent: Intent): Promise<void> {
+  async executeIntent(intent: Intent, walletId?: string): Promise<void> {
     try {
       const executor = this.executors.get(intent.target.chainId);
       if (!executor) {
         throw new Error(`No executor for chain ${intent.target.chainId}`);
       }
 
-      const result = await executor.execute(intent);
+      const result = await executor.execute(intent, walletId);
 
       if (result.success) {
         await this.intentsService.updateStatus(intent.intentId, IntentStatus.FULFILLED, {
