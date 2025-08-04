@@ -19,6 +19,7 @@ import {
   ExecutorBalanceValidation,
   ExpirationValidation,
   FundingValidation,
+  IntentFundedValidation,
   NativeFeeValidation,
   ProverSupportValidation,
   RouteAmountLimitValidation,
@@ -50,6 +51,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
     RhinestoneFulfillmentStrategy,
     // Validations
     FundingValidation,
+    IntentFundedValidation,
     RouteTokenValidation,
     RouteCallsValidation,
     RouteAmountLimitValidation,

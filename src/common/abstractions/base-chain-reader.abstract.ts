@@ -1,5 +1,7 @@
 import { Logger } from '@nestjs/common';
 
+import { Intent } from '@/common/interfaces/intent.interface';
+
 export abstract class BaseChainReader {
   protected abstract readonly logger: Logger;
 
@@ -8,4 +10,6 @@ export abstract class BaseChainReader {
   abstract getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint>;
 
   abstract isAddressValid(address: string): boolean;
+
+  abstract isIntentFunded(intent: Intent): Promise<boolean>;
 }

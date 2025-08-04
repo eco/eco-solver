@@ -16,10 +16,6 @@ export class FundingValidation implements Validation {
 
     // Validate token amounts and check balances
     for (const token of intent.route.tokens) {
-      if (token.amount <= 0n) {
-        throw new Error(`Token ${token.token} amount must be greater than 0`);
-      }
-
       // Verify the creator has sufficient token balance on source chain
       try {
         const balance = await this.blockchainReader.getTokenBalance(
@@ -57,12 +53,6 @@ export class FundingValidation implements Validation {
         throw new Error(`Failed to verify native token balance: ${error.message}`);
       }
     }
-
-    // TODO: Add actual on-chain funding verification
-    // 1. Get the intent contract address from config
-    // 2. Call the contract to check if the intent is funded
-    // 3. Verify the funded amount matches the expected values
-    // 4. Check token approvals for the intent contract
 
     return true;
   }

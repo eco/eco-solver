@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { EvmReaderService } from './evm/evm.reader.service';
@@ -109,6 +110,20 @@ export class BlockchainReaderService {
       return false;
     }
     return reader.isAddressValid(address);
+  }
+
+  /**
+   * Check if an intent is funded on a specific chain
+   * @param chainId The chain ID
+   * @param intent The intent to check
+   * @returns true if the intent is funded
+   */
+  async isIntentFunded(chainId: string | number | bigint, intent: Intent): Promise<boolean> {
+    const reader = this.getReaderForChain(chainId);
+    if (!reader) {
+      throw new Error(`No reader available for chain ${chainId}`);
+    }
+    return reader.isIntentFunded(intent);
   }
 
   /**

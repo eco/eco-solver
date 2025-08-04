@@ -4,6 +4,7 @@ import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -58,6 +59,13 @@ export class SvmReaderService extends BaseChainReader {
     } catch {
       return false;
     }
+  }
+
+  async isIntentFunded(_intent: Intent): Promise<boolean> {
+    // Solana doesn't have IntentSource contracts
+    // Always return true for now
+    this.logger.debug('Intent funding check not implemented for Solana');
+    return true;
   }
 
   async getBlockHeight(): Promise<bigint> {

@@ -11,6 +11,7 @@ import {
   ExecutorBalanceValidation,
   ExpirationValidation,
   FundingValidation,
+  IntentFundedValidation,
   NativeFeeValidation,
   ProverSupportValidation,
   RouteAmountLimitValidation,
@@ -34,6 +35,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for negative intents strategy
     private readonly fundingValidation: FundingValidation,
+    private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
@@ -47,6 +49,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.fundingValidation,
+      this.intentFundedValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
       this.routeAmountLimitValidation,

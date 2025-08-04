@@ -14,6 +14,7 @@ import { ChainSupportValidation } from '../validations/chain-support.validation'
 import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
 import { ExpirationValidation } from '../validations/expiration.validation';
 import { FundingValidation } from '../validations/funding.validation';
+import { IntentFundedValidation } from '../validations/intent-funded.validation';
 import { NativeFeeValidation } from '../validations/native-fee.validation';
 import { ProverSupportValidation } from '../validations/prover-support.validation';
 import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
@@ -33,6 +34,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for native intents strategy
     private readonly fundingValidation: FundingValidation,
+    private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
@@ -46,6 +48,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.fundingValidation,
+      this.intentFundedValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
       this.routeAmountLimitValidation,
