@@ -1,14 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
+import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 
+import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
-export class SvmReaderService {
+export class SvmReaderService extends BaseChainReader {
+  protected readonly logger = new Logger(SvmReaderService.name);
   private connection: Connection;
 
   constructor(private solanaConfigService: SolanaConfigService) {
+    super();
     this.initializeConnection();
   }
 
@@ -23,10 +27,37 @@ export class SvmReaderService {
     return BigInt(balance);
   }
 
-  async getTokenBalance(_tokenAddress: string, _walletAddress: string): Promise<bigint> {
-    // This would require @solana/spl-token package
-    // For now, returning a placeholder
-    throw new Error('Token balance reading not yet implemented for Solana');
+  async getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint> {
+    try {
+      const walletPublicKey = new PublicKey(walletAddress);
+      const tokenMintPublicKey = new PublicKey(tokenAddress);
+
+      // Get the associated token address for the wallet
+      const associatedTokenAddress = getAssociatedTokenAddressSync(
+        tokenMintPublicKey,
+        walletPublicKey,
+      );
+
+      // Get the token account info
+      const tokenAccount = await getAccount(this.connection, associatedTokenAddress);
+
+      return BigInt(tokenAccount.amount.toString());
+    } catch (error) {
+      // If the associated token account doesn't exist, return 0
+      if (error.message?.includes('could not find account')) {
+        return BigInt(0);
+      }
+      throw error;
+    }
+  }
+
+  isAddressValid(address: string): boolean {
+    try {
+      new PublicKey(address);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async getBlockHeight(): Promise<bigint> {
