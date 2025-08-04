@@ -1,6 +1,6 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { ChainAddress, Solver } from '@/eco-configs/eco-config.types'
 import { FeeService } from '@/fee/fee.service'
 import {
   equivalentNativeGas,
@@ -141,7 +141,7 @@ export class ValidationService implements OnModuleInit {
    * @param {Hex} opts.prover - The prover to validate against the intent sources.
    * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
-  supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
+  supportedProver(opts: { source: number; destination: number; prover: ChainAddress }): boolean {
     const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
     if (!isWhitelisted) return false
@@ -161,7 +161,7 @@ export class ValidationService implements OnModuleInit {
     }
   }
 
-  checkProverWhitelisted(chainID: number, prover: Hex): boolean {
+  checkProverWhitelisted(chainID: number, prover: ChainAddress): boolean {
     return this.ecoConfigService
       .getIntentSources()
       .some(

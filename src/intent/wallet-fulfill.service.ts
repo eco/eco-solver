@@ -239,6 +239,10 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
 
+    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+      throw new Error('Fulfill not yet supported for solana');
+    }
+
     // Hyper Prover
     const isHyperlane = this.proofService.isHyperlaneProver(
       Number(model.intent.route.source),
@@ -297,11 +301,20 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
+    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+      console.log("JUSTLOGGING: fullfill called for solana", model.intent.route)
+      return {
+        to: inboxAddress,
+        data: '0x',
+        value: 0n,
+      }
+    }
+
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
       functionName: 'fulfill',
       args: [
-        model.intent.route,
+        model.intent.route as any, // TODO: fix this
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
@@ -323,9 +336,13 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
+    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+      throw new Error('Hyperprover not yet supported for solana')
+    }
+
     const messageData = encodeAbiParameters(
       [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-      [pad(model.intent.reward.prover), '0x', zeroAddress],
+      [pad(model.intent.reward.prover as `0x${string}`), '0x', zeroAddress], // TODO: fix this
     )
 
     const fee = await this.getProverFee(model, claimant, hyperProverAddr as `0x${string}`, messageData)
@@ -334,7 +351,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
       args: [
-        model.intent.route,
+        model.intent.route as any, // TODO: fix this
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
@@ -367,13 +384,17 @@ export class WalletFulfillService implements IFulfillService {
       Number(model.intent.route.destination),
     )
 
+    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+      throw new Error('Metalayer prover not supported for solana')
+    }
+
     if (!metalayerProverAddr) {
       throw new Error('Metalayer prover address not found in chain config')
     }
 
     const messageData = encodeAbiParameters(
       [{ type: 'bytes32' }],
-      [pad(model.intent.reward.prover)],
+      [pad(model.intent.reward.prover as `0x${string}`)], // TODO: fix this
     )
 
     // Metalayer may use the same fee structure as Hyperlane
@@ -383,7 +404,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
       args: [
-        model.intent.route,
+        model.intent.route as any, // TODO: fix this  
         RewardDataModel.getHash(model.intent.reward),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,

@@ -56,14 +56,14 @@ export function getChainAddress(chainID: number | bigint, address: ChainAddress)
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
-  if (id === '1399811150-pre') {
-    return {
-      IntentSource: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
-      Inbox: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
-      HyperProver: '8bvpmgp9xbGngm9KmfX5poJer8dW4BJb7LaxuSmfCPZz' as SvmAddress,
-      MetaProver: '0x0000000000000000000000000000000000000000'
-    }
-  }
+  // if (id === '1399811150-pre') {
+  //   return {
+  //     IntentSource: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
+  //     Inbox: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
+  //     HyperProver: '8bvpmgp9xbGngm9KmfX5poJer8dW4BJb7LaxuSmfCPZz' as SvmAddress,
+  //     MetaProver: '0x0000000000000000000000000000000000000000'
+  //   }
+  // }
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)

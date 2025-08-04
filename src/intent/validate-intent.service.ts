@@ -1,8 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex } from 'viem'
+import { Address as EvmAddress, Hex } from 'viem'
+import { PublicKey, Connection } from '@solana/web3.js'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { checkIntentFunding, SolanaReward } from './check-funded-solana'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
@@ -177,12 +179,47 @@ export class ValidateIntentService implements OnModuleInit {
       }
 
       // Check if the intent is funded
-      isIntentFunded = await client.readContract({
-        address: intentSource.sourceAddress as `0x${string}`,
-        abi: IntentSourceAbi,
-        functionName: 'isIntentFunded',
-        args: [IntentDataModel.toChainIntent(model.intent)],
-      })
+      if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+        console.log("JUSTLOGGING: intentFunded called for solana", model.intent.route)
+        // Solana intent funding check
+        try {
+          const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
+          
+          // Convert intent model to SolanaReward format
+          const solanaReward: SolanaReward = {
+            deadline: Number(model.intent.reward.deadline),
+            creator: model.intent.reward.creator,
+            prover: model.intent.reward.prover,
+            native_amount: Number(model.intent.reward.nativeValue),
+            tokens: model.intent.reward.rewardTokens.map(token => ({
+              token: token.token,
+              amount: Number(token.amount)
+            }))
+          };
+
+          // Get route hash from intent
+          const routeHash = new Uint8Array(Buffer.from(model.intent.route.hash.replace('0x', ''), 'hex'));
+          
+          isIntentFunded = await checkIntentFunding(
+            connection,
+            Number(model.intent.route.destination),
+            routeHash,
+            solanaReward
+          );
+        } catch (error) {
+          this.logger.error(`Error checking Solana intent funding: ${error}`);
+          isIntentFunded = false;
+        }
+      } else {
+        isIntentFunded = await client.readContract({
+          address: intentSource.sourceAddress as `0x${string}`,
+          abi: IntentSourceAbi,
+          functionName: 'isIntentFunded',
+          args: [IntentDataModel.toChainIntent(model.intent) as any], // TODO: fix this
+        })
+      }
+
+      
 
       retryCount++
     } while (!isIntentFunded && retryCount <= this.MAX_RETRIES)

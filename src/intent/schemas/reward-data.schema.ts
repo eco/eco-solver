@@ -2,7 +2,7 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeReward, hashReward, RewardType } from '@eco-foundation/routes-ts'
+import { encodeReward, hashReward, RewardType, VmType, Address } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 import { ChainAddress } from '@/eco-configs/eco-config.types'
@@ -18,38 +18,45 @@ export interface MultiChainRewardType extends Omit<RewardType, 'creator' | 'prov
 }
 
 @Schema({ timestamps: true })
-export class RewardDataModel {
+export class RewardDataModel<TVM extends VmType = VmType> implements RewardType<TVM> {
   @Prop({ required: true, type: String })
-  creator: ChainAddress
+  vm: TVM
   @Prop({ required: true, type: String })
-  prover: ChainAddress
+  creator: Address<TVM>
+  @Prop({ required: true, type: String })
+  prover: Address<TVM>
   @Prop({ required: true, type: BigInt })
   deadline: bigint
   @Prop({ required: true, type: BigInt })
-  nativeValue: bigint
+  nativeAmount: bigint
   @Prop({ required: true, type: [TokenAmountDataSchema] })
-  tokens: TokenAmountDataModel[]
+  tokens: readonly {
+    token: Address<TVM>
+    amount: bigint
+  }[]
 
   constructor(
-    creator: ChainAddress,
-    prover: ChainAddress,
+    vm: TVM,
+    creator: Address<TVM>,
+    prover: Address<TVM>,
     deadline: bigint,
-    nativeValue: bigint,
-    tokens: TokenAmountDataModel[],
+    nativeAmount: bigint,
+    tokens: readonly { token: Address<TVM>; amount: bigint }[],
   ) {
+    this.vm = vm
     this.creator = creator
     this.prover = prover
     this.deadline = deadline
-    this.nativeValue = nativeValue
+    this.nativeAmount = nativeAmount
     this.tokens = tokens
   }
 
-  static getHash(rewardDataModel: RewardDataModel) {
-    return hashReward(intentDataModel)
+  static getHash<TVM extends VmType>(vm: TVM, rewardDataModel: RewardDataModel<TVM>) {
+    return hashReward(rewardDataModel)
   }
 
-  static encode(intentDataModel: RewardDataModel) {
-    return encodeReward(intentDataModel)
+  static encode<TVM extends VmType>(rewardDataModel: RewardDataModel<TVM>) {
+    return encodeReward(rewardDataModel)
   }
 }
 

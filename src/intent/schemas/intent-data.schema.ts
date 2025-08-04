@@ -124,11 +124,17 @@ export class IntentDataModel implements MultiChainIntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    return hashIntent(intentDataModel)
+    if (intentDataModel.route.source === 1399811150n || intentDataModel.route.destination === 1399811150n) {
+      console.log("JUSTLOGGING: intent.getHash()", intentDataModel)
+    }
+    return hashIntent(intentDataModel as any) // this should panic
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    return encodeIntent(intentDataModel)
+    if (intentDataModel.route.source === 1399811150n || intentDataModel.route.destination === 1399811150n) {
+      console.log("JUSTLOGGING: intent.encode()", intentDataModel)
+    }
+    return encodeIntent(intentDataModel as any) // this should panic
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
@@ -150,7 +156,7 @@ export class IntentDataModel implements MultiChainIntentType {
     })
   }
 
-  static toChainIntent(intent: IntentDataModel): IntentType {
+  static toChainIntent(intent: IntentDataModel): MultiChainIntentType {
     return {
       route: intent.route,
       reward: intent.reward,
