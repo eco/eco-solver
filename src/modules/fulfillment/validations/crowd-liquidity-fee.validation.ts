@@ -19,12 +19,12 @@ export class CrowdLiquidityFeeValidation implements Validation {
     const reward = intent.reward.nativeValue;
 
     // Crowd liquidity uses different fee structure
-    // Calculate required fee: clBaseFee + (totalValue * clPercentageFee / 10000)
+    // Calculate required fee: clBaseFee + (totalValue * clBpsFee / 10000)
     const clFeeConfig = this.fulfillmentConfigService.crowdLiquidityFee;
     const clBaseFee = clFeeConfig?.baseFee ?? BigInt(500000);
-    const clPercentageFee = clFeeConfig?.percentageFee ?? BigInt(50);
+    const clBpsFee = clFeeConfig?.bpsFee ?? BigInt(50);
 
-    const percentageFee = (totalValue * clPercentageFee) / BigInt(10000);
+    const percentageFee = (totalValue * clBpsFee) / BigInt(10000);
     const totalRequiredFee = clBaseFee + percentageFee;
 
     if (reward < totalRequiredFee) {

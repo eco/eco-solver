@@ -27,10 +27,7 @@ export class EvmReaderService extends BaseChainReader {
     return client.getBalance({ address: address as Address });
   }
 
-  async getTokenBalance(
-    tokenAddress: string,
-    walletAddress: string,
-  ): Promise<bigint> {
+  async getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint> {
     if (!this.chainId) {
       throw new Error('Chain ID not set. Call setChainId() first.');
     }

@@ -5,10 +5,7 @@ export abstract class BaseChainReader {
 
   abstract getBalance(address: string): Promise<bigint>;
 
-  abstract getTokenBalance(
-    tokenAddress: string,
-    walletAddress: string,
-  ): Promise<bigint>;
+  abstract getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint>;
 
   abstract isAddressValid(address: string): boolean;
 }

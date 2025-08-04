@@ -4,11 +4,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@/modules/config/config.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
 
-import { BlockchainExecutorService } from './blockchain-executor.service';
-import { BlockchainProcessor } from './blockchain.processor';
-import { BlockchainReaderService } from './blockchain-reader.service';
 import { EvmModule } from './evm/evm.module';
 import { SvmModule } from './svm/svm.module';
+import { BlockchainProcessor } from './blockchain.processor';
+import { BlockchainExecutorService } from './blockchain-executor.service';
+import { BlockchainReaderService } from './blockchain-reader.service';
 
 @Module({
   imports: [
