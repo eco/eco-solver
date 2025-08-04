@@ -45,15 +45,20 @@ export class QueueService implements IQueueService {
     const jobData: ExecutionJobData = {
       strategy,
       intent,
+      chainId: intent.route.destination,
     };
 
-    await this.executionQueue.add(QueueNames.INTENT_EXECUTION, jobData, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000,
+    await this.executionQueue.add(
+      `${QueueNames.INTENT_EXECUTION}-chain-${intent.route.destination}`,
+      jobData,
+      {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
       },
-    });
+    );
   }
 
   async getQueueStatus(queueName: string): Promise<any> {

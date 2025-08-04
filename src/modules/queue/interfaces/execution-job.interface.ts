@@ -4,4 +4,5 @@ import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-na
 export interface ExecutionJobData {
   strategy: FulfillmentStrategyName;
   intent: Intent;
+  chainId: bigint;
 }
