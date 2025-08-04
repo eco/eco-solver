@@ -20,7 +20,6 @@ import {
   Validation,
 } from '@/modules/fulfillment/validations';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
@@ -72,45 +71,10 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Negative intents fulfillment uses both EVM and SVM executors
-    const targetChainId = Number(intent.route.destination);
-
-    // Determine which executor to use based on chain type
-    const isEvmChain = this.isEvmChain(targetChainId);
-    const executorType = isEvmChain ? 'evm' : 'svm';
-
-    // Add to execution queue with negative-intents-specific execution data
-    await this.queueService.addJob(
-      QueueNames.INTENT_EXECUTION,
-      {
-        intentId: intent.intentHash,
-        strategy: this.name,
-        targetChainId,
-        executorType, // Can be either EVM or SVM
-        executionData: {
-          type: 'negative-intents',
-          amount: intent.reward.nativeValue,
-          reward: intent.reward,
-          deadline: intent.reward.deadline,
-          isNegativeIntent: true,
-        },
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      },
-    );
+    await this.queueService.addIntentToExecutionQueue(intent, this.name);
   }
 
   protected getValidations(): ReadonlyArray<Validation> {
     return this.validations;
-  }
-
-  private isEvmChain(chainId: number): boolean {
-    // TODO: Get this from configuration
-    const evmChains = [1, 10, 137, 42161, 8453]; // Mainnet, Optimism, Polygon, Arbitrum, Base
-    return evmChains.includes(chainId);
   }
 }

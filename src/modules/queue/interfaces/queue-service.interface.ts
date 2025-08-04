@@ -3,7 +3,7 @@ import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-na
 
 export interface QueueService {
   addIntentToFulfillmentQueue(intent: Intent, strategy?: FulfillmentStrategyName): Promise<void>;
-  addIntentToExecutionQueue(intent: Intent, walletAddress: string): Promise<void>;
+  addIntentToExecutionQueue(intent: Intent, strategy: FulfillmentStrategyName): Promise<void>;
   getQueueStatus(queueName: string): Promise<any>;
   addJob(queueName: string, data: any, options?: any): Promise<void>;
 }

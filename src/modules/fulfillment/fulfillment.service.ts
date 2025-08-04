@@ -50,7 +50,7 @@ export class FulfillmentService {
       const savedIntent = await this.intentsService.create(intent);
       const interfaceIntent = IntentConverter.toInterface(savedIntent);
 
-      // Add to fulfillment queue
+      // Add to the fulfillment queue
       await this.queueService.addIntentToFulfillmentQueue(interfaceIntent, strategy);
 
       console.log(

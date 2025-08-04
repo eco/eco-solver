@@ -20,7 +20,6 @@ import {
   Validation,
 } from '@/modules/fulfillment/validations';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
@@ -68,32 +67,8 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   async execute(intent: Intent): Promise<void> {
-    // Standard fulfillment uses appropriate executor based on target chain
-    const targetChainId = Number(intent.route.destination);
-
     // Add to execution queue with standard execution data
-    await this.queueService.addJob(
-      QueueNames.INTENT_EXECUTION,
-      {
-        intentId: intent.intentHash,
-        strategy: this.name,
-        targetChainId,
-        executionData: {
-          // TODO: Add specific execution data based on intent requirements
-          type: 'standard',
-          amount: intent.reward.nativeValue,
-          reward: intent.reward,
-          deadline: intent.reward.deadline,
-        },
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      },
-    );
+    await this.queueService.addIntentToExecutionQueue(intent, this.name);
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

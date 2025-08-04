@@ -7,7 +7,6 @@ import {
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { ChainSupportValidation } from '../validations/chain-support.validation';
@@ -75,31 +74,6 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Native intents fulfillment uses EVM executor for native token handling
-    const targetChainId = Number(intent.route.destination);
-
-    // Add to execution queue with native-specific execution data
-    await this.queueService.addJob(
-      QueueNames.INTENT_EXECUTION,
-      {
-        intentId: intent.intentHash,
-        strategy: this.name,
-        targetChainId,
-        executorType: 'evm', // Native intents use EVM executor
-        executionData: {
-          type: 'native-intents',
-          amount: intent.reward.nativeValue,
-          reward: intent.reward.nativeValue,
-          deadline: intent.reward.deadline,
-          isNativeToken: true,
-        },
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      },
-    );
+    await this.queueService.addIntentToExecutionQueue(intent, this.name);
   }
 }

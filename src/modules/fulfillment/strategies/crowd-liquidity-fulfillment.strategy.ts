@@ -20,7 +20,6 @@ import {
   Validation,
 } from '@/modules/fulfillment/validations';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
@@ -71,31 +70,7 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Crowd liquidity fulfillment only uses the CL executor
-    const targetChainId = Number(intent.route.destination);
-
-    // Add to execution queue with CL-specific execution data
-    await this.queueService.addJob(
-      QueueNames.INTENT_EXECUTION,
-      {
-        intentId: intent.intentHash,
-        strategy: this.name,
-        targetChainId,
-        executorType: 'crowd-liquidity', // Force CL executor
-        executionData: {
-          type: 'crowd-liquidity',
-          reward: intent.reward,
-          amount: intent.reward.nativeValue,
-          deadline: intent.reward.deadline,
-        },
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      },
-    );
+    await this.queueService.addIntentToExecutionQueue(intent, this.name);
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

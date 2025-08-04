@@ -19,7 +19,6 @@ import {
   Validation,
 } from '@/modules/fulfillment/validations';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
@@ -71,32 +70,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Rhinestone fulfillment uses only EVM executor with custom execution flow
-    const targetChainId = Number(intent.route.destination);
-
-    // Add to execution queue with Rhinestone-specific execution data
-    await this.queueService.addJob(
-      QueueNames.INTENT_EXECUTION,
-      {
-        intentId: intent.intentHash,
-        strategy: this.name,
-        targetChainId,
-        executorType: 'evm', // Rhinestone only uses EVM executor
-        executionData: {
-          type: 'rhinestone',
-          amount: intent.reward.nativeValue,
-          reward: intent.reward,
-          deadline: intent.reward.deadline,
-          useSmartAccount: true,
-        },
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      },
-    );
+    await this.queueService.addIntentToExecutionQueue(intent, this.name);
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

@@ -9,6 +9,8 @@ import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
+import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
@@ -36,20 +38,22 @@ export class QueueService implements IQueueService {
     });
   }
 
-  async addIntentToExecutionQueue(intent: Intent, walletAddress: string): Promise<void> {
-    const queueName = `wallet-${walletAddress}-${intent.route.destination}`;
+  async addIntentToExecutionQueue(
+    intent: Intent,
+    strategy: FulfillmentStrategyName,
+  ): Promise<void> {
+    const jobData: ExecutionJobData = {
+      strategy,
+      intent,
+    };
 
-    await this.executionQueue.add(
-      queueName,
-      { intent, walletAddress },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
+    await this.executionQueue.add(QueueNames.INTENT_EXECUTION, jobData, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
       },
-    );
+    });
   }
 
   async getQueueStatus(queueName: string): Promise<any> {
