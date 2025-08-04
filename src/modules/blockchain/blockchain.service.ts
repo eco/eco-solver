@@ -32,9 +32,39 @@ export class BlockchainService {
     this.executors.set('solana-mainnet', this.svmExecutor);
   }
 
+  /**
+   * Get all supported chain IDs
+   * @returns Array of supported chain IDs (numbers for EVM, strings for non-EVM)
+   */
+  getSupportedChains(): Array<string | number> {
+    return Array.from(this.executors.keys());
+  }
+
+  /**
+   * Check if a chain is supported
+   * @param chainId The chain ID to check
+   * @returns true if the chain is supported
+   */
+  isChainSupported(chainId: string | number | bigint): boolean {
+    // Convert bigint to number for EVM chains
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return this.executors.has(normalizedChainId);
+  }
+
+  /**
+   * Get the executor for a specific chain
+   * @param chainId The chain ID
+   * @returns The executor for the chain, or undefined if not supported
+   */
+  getExecutorForChain(chainId: string | number | bigint): BaseChainExecutor | undefined {
+    // Convert bigint to number for EVM chains
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return this.executors.get(normalizedChainId);
+  }
+
   async executeIntent(intent: Intent, walletId?: string): Promise<void> {
     try {
-      const executor = this.executors.get(Number(intent.route.destination));
+      const executor = this.getExecutorForChain(intent.route.destination);
       if (!executor) {
         throw new Error(`No executor for chain ${intent.route.destination}`);
       }

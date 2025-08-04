@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
+import { Address, decodeFunctionData, erc20Abi, isAddressEqual } from 'viem';
+
 import { Intent } from '@/common/interfaces/intent.interface';
+import { EvmConfigService } from '@/modules/config/services';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class RouteCallsValidation implements Validation {
-  // TODO: Inject configuration service to get supported route calls
-  private blockedTargets: Set<string> = new Set([
-    // Add blocked target addresses here
-  ]);
+  constructor(private evmConfigService: EvmConfigService) {}
 
   async validate(intent: Intent): Promise<boolean> {
     // Validate route calls
@@ -18,34 +18,28 @@ export class RouteCallsValidation implements Validation {
       return true;
     }
 
+    const tokens = this.evmConfigService.getSupportedTokens(intent.route.destination);
+
     for (const call of intent.route.calls) {
-      // Validate call has required fields
-      if (!call.target) {
-        throw new Error('Route call must have a target address');
-      }
+      const isTokenCall = tokens.some((token) =>
+        isAddressEqual(token.address as Address, call.target),
+      );
 
-      if (!call.data) {
-        throw new Error('Route call must have data');
-      }
+      if (isTokenCall) return false;
 
-      if (call.value === undefined || call.value === null) {
-        throw new Error('Route call must have a value field');
-      }
+      try {
+        const fn = decodeFunctionData({
+          abi: erc20Abi,
+          data: call.data,
+        });
 
-      // Check if target is blocked
-      if (this.blockedTargets.has(call.target.toLowerCase())) {
-        throw new Error(`Target address ${call.target} is blocked`);
+        if (fn.functionName !== 'transfer') {
+          return false;
+        }
+      } catch (error) {
+        // Invalid ERC20 call data
+        return false;
       }
-
-      // Validate target is not zero address
-      if (call.target === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Cannot call zero address');
-      }
-
-      // TODO: Add more sophisticated validation:
-      // 1. Decode call data to validate function signatures
-      // 2. Check against whitelist of allowed functions
-      // 3. Validate parameters are within acceptable ranges
     }
 
     return true;

@@ -4,10 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 
 import { FulfillmentSchema } from '@/config/config.schema';
-import {
-  FULFILLMENT_STRATEGY_NAMES,
-  FulfillmentStrategyName,
-} from '@/modules/fulfillment/types/strategy-name.type';
 
 type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
 
@@ -21,29 +17,41 @@ export class FulfillmentConfigService {
     );
   }
 
-  get strategies(): FulfillmentConfig['strategies'] {
-    return this.configService.get<FulfillmentConfig['strategies']>('fulfillment.strategies');
-  }
-
-  isStrategyEnabled(strategy: FulfillmentStrategyName): boolean {
-    const strategies = this.strategies;
-    switch (strategy) {
-      case FULFILLMENT_STRATEGY_NAMES.STANDARD:
-        return strategies?.standard?.enabled ?? true;
-      case FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY:
-        return strategies?.crowdLiquidity?.enabled ?? true;
-      case FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS:
-        return strategies?.nativeIntents?.enabled ?? true;
-      case FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS:
-        return strategies?.negativeIntents?.enabled ?? true;
-      case FULFILLMENT_STRATEGY_NAMES.RHINESTONE:
-        return strategies?.rhinestone?.enabled ?? true;
-      default:
-        return false;
-    }
-  }
-
   get fulfillmentConfig(): FulfillmentConfig {
     return this.configService.get<FulfillmentConfig>('fulfillment');
+  }
+
+  get validations(): FulfillmentConfig['validations'] {
+    return this.configService.get<FulfillmentConfig['validations']>('fulfillment.validations');
+  }
+
+  get routeLimits(): FulfillmentConfig['validations']['routeLimits'] {
+    return this.configService.get<FulfillmentConfig['validations']['routeLimits']>(
+      'fulfillment.validations.routeLimits',
+    );
+  }
+
+  get nativeFee(): FulfillmentConfig['validations']['nativeFee'] {
+    return this.configService.get<FulfillmentConfig['validations']['nativeFee']>(
+      'fulfillment.validations.nativeFee',
+    );
+  }
+
+  get crowdLiquidityFee(): FulfillmentConfig['validations']['crowdLiquidityFee'] {
+    return this.configService.get<FulfillmentConfig['validations']['crowdLiquidityFee']>(
+      'fulfillment.validations.crowdLiquidityFee',
+    );
+  }
+
+  get deadlineDuration(): FulfillmentConfig['deadlineDuration'] {
+    return this.configService.get<FulfillmentConfig['deadlineDuration']>(
+      'fulfillment.deadlineDuration',
+    );
+  }
+
+  getRouteLimitForChain(chainId: bigint): bigint {
+    const routeLimits = this.routeLimits;
+    const specificLimit = routeLimits?.routes?.find((route) => route.chainId === chainId);
+    return specificLimit?.limit ?? routeLimits?.default ?? 10000000000000000000n;
   }
 }

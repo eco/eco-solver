@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class CrowdLiquidityFeeValidation implements Validation {
-  // TODO: Inject configuration service for CL-specific fee parameters
-  private clBaseFee = BigInt(500000); // 0.0005 ETH in wei as example
-  private clPercentageFee = BigInt(50); // 0.5% as basis points
+  constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
   async validate(intent: Intent): Promise<boolean> {
     // Calculate total value from tokens and native value in calls
@@ -21,12 +20,16 @@ export class CrowdLiquidityFeeValidation implements Validation {
 
     // Crowd liquidity uses different fee structure
     // Calculate required fee: clBaseFee + (totalValue * clPercentageFee / 10000)
-    const percentageFee = (totalValue * this.clPercentageFee) / BigInt(10000);
-    const totalRequiredFee = this.clBaseFee + percentageFee;
+    const clFeeConfig = this.fulfillmentConfigService.crowdLiquidityFee;
+    const clBaseFee = clFeeConfig?.baseFee ?? BigInt(500000);
+    const clPercentageFee = clFeeConfig?.percentageFee ?? BigInt(50);
+
+    const percentageFee = (totalValue * clPercentageFee) / BigInt(10000);
+    const totalRequiredFee = clBaseFee + percentageFee;
 
     if (reward < totalRequiredFee) {
       throw new Error(
-        `Reward ${reward} is less than required CL fee ${totalRequiredFee} (base: ${this.clBaseFee}, percentage: ${percentageFee})`,
+        `Reward ${reward} is less than required CL fee ${totalRequiredFee} (base: ${clBaseFee}, percentage: ${percentageFee})`,
       );
     }
 

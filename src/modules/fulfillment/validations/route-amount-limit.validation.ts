@@ -1,17 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class RouteAmountLimitValidation implements Validation {
-  // TODO: Inject configuration service to get route amount limits
-  private routeLimits: Map<string, bigint> = new Map([
-    // Add route-specific limits here
-    // Key: routeId (e.g., "1-10" for mainnet to optimism)
-    // Value: max amount in wei
-  ]);
+  constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
   async validate(intent: Intent): Promise<boolean> {
     // Create route key from source and destination chain IDs
@@ -43,8 +39,8 @@ export class RouteAmountLimitValidation implements Validation {
       throw new Error('Total intent value must be greater than 0');
     }
 
-    // TODO: Get actual route limit from configuration
-    const limit = this.routeLimits.get(routeKey) || 10n * 10n ** 18n; // Default 10 ETH
+    // Get route limit from configuration
+    const limit = this.fulfillmentConfigService.getRouteLimitForChain(intent.route.destination);
 
     if (totalValue > limit) {
       throw new Error(

@@ -54,8 +54,8 @@ export class EvmConfigService {
     return network.rpc;
   }
 
-  getSupportedTokens(chainId: number): EvmTokenConfig[] {
-    const network = this.getChain(chainId);
+  getSupportedTokens(chainId: number | bigint): EvmTokenConfig[] {
+    const network = this.getChain(Number(chainId));
     return network.tokens;
   }
 
@@ -64,9 +64,15 @@ export class EvmConfigService {
     return tokens.some((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
   }
 
-  getTokenConfig(chainId: number, tokenAddress: string): EvmTokenConfig | undefined {
+  getTokenConfig(chainId: number, tokenAddress: string): EvmTokenConfig {
     const tokens = this.getSupportedTokens(chainId);
-    return tokens.find((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
+    const tokenConfig = tokens.find(
+      (token) => token.address.toLowerCase() === tokenAddress.toLowerCase(),
+    );
+    if (!tokenConfig) {
+      throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
+    }
+    return tokenConfig;
   }
 
   getFeeLogic(chainId: number): EvmFeeLogicConfig {

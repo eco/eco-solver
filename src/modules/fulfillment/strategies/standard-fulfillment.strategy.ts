@@ -32,7 +32,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   constructor(
     private readonly blockchainService: BlockchainService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
-    // Inject all validations needed for standard strategy
+    // Inject all validations needed for a standard strategy
     private readonly fundingValidation: FundingValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,

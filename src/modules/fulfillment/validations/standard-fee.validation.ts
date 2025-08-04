@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
+import { Address } from 'viem';
+
 import { Intent } from '@/common/interfaces/intent.interface';
+import { normalize } from '@/common/tokens/normalize';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { Validation } from './validation.interface';
@@ -13,41 +16,31 @@ export class StandardFeeValidation implements Validation {
     // Get fee logic for the destination chain
     const feeLogic = this.evmConfigService.getFeeLogic(Number(intent.route.destination));
     const baseFee = BigInt(feeLogic.baseFlatFee);
-    const scalarBps = BigInt(feeLogic.scalarBps);
 
     // Calculate total value being transferred
-    let totalValue = 0n;
-
-    // Add token values
-    if (intent.route.tokens && intent.route.tokens.length > 0) {
-      for (const token of intent.route.tokens) {
-        totalValue += token.amount;
-      }
-    }
-
-    // Add call values
-    if (intent.route.calls && intent.route.calls.length > 0) {
-      for (const call of intent.route.calls) {
-        totalValue += call.value;
-      }
-    }
-
-    // Use native value as a fallback if no other value
-    if (totalValue === 0n && intent.reward.nativeValue) {
-      totalValue = intent.reward.nativeValue;
-    }
+    const totalReward = this.sum(intent.route.source, intent.reward.tokens);
+    const totalValue = this.sum(intent.route.destination, intent.route.tokens);
 
     // Calculate required fee: baseFee + (totalValue * scalarBps / 10000)
-    const scaledFee = (totalValue * scalarBps) / 10000n;
+    const base = 10000;
+    const scalarBpsInt = BigInt(Math.floor(feeLogic.scalarBps * base));
+    const scaledFee = (totalValue * scalarBpsInt) / BigInt(base * 10000);
     const totalRequiredFee = baseFee + scaledFee;
 
-    // Check if reward native value covers the fee
-    if (intent.reward.nativeValue < totalRequiredFee) {
+    // Check if the reward native value covers the fee
+    if (totalReward < totalRequiredFee) {
       throw new Error(
-        `Reward native value ${intent.reward.nativeValue} is less than required fee ${totalRequiredFee} (base: ${baseFee}, scalar: ${scaledFee})`,
+        `Reward native value ${totalReward} is less than required fee ${totalRequiredFee} (base: ${baseFee}, scalar: ${scaledFee})`,
       );
     }
 
     return true;
+  }
+
+  private sum(chainId: bigint, tokens: Readonly<{ amount: bigint; token: Address }[]>): bigint {
+    return tokens.reduce((acc, token) => {
+      const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), token.token);
+      return acc + normalize(token.amount, decimals);
+    }, 0n);
   }
 }
