@@ -94,9 +94,7 @@ describe('createZodValidationAdapter', () => {
       const validator = createZodValidationAdapter(schema);
       const config = {};
 
-      expect(() => validator(config)).toThrow(
-        'Configuration validation error: required: Required',
-      );
+      expect(() => validator(config)).toThrow('Configuration validation error: required: Required');
     });
 
     it('should throw error for invalid enum values', () => {
@@ -108,7 +106,7 @@ describe('createZodValidationAdapter', () => {
       const config = { env: 'invalid' };
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: env: Invalid enum value. Expected \'development\' | \'production\', received \'invalid\'',
+        "Configuration validation error: env: Invalid enum value. Expected 'development' | 'production', received 'invalid'",
       );
     });
 

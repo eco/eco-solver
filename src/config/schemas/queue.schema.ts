@@ -9,6 +9,7 @@ import { DeepPartial } from '@/common/types';
  */
 export const QueueSchema = z.object({
   concurrency: z.number().int().min(1).default(5),
+  executionConcurrency: z.number().int().min(1).default(10),
   attempts: z.number().int().min(0).default(3),
   backoffType: z.string().default('exponential'),
   backoffDelay: z.number().int().min(0).default(5000),
