@@ -25,6 +25,7 @@ import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
+import { getChainAddress } from '@/eco-configs/utils'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -71,7 +72,7 @@ export class FeeService implements OnModuleInit {
       const specialFee = this.whitelist[intent.reward.creator]
 
       if (specialFee) {
-        const chainFee = specialFee[Number(intent.route.source)]
+        const chainFee = specialFee[Number(intent.source)] // TODO: where is this source?
         // return a fee that is a merge of the default fee, the special fee and the chain fee
         // merges left to right with the rightmost object taking precedence. In this
         // case that is the user and chain specific fee
@@ -125,7 +126,7 @@ export class FeeService implements OnModuleInit {
 
         break
       default:
-        throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
+        throw QuoteError.InvalidSolverAlgorithm(intent.destination, solverFee.algorithm)
     }
     return fee
   }
@@ -238,7 +239,7 @@ export class FeeService implements OnModuleInit {
     const rewardSum = rewards.reduce((acc, reward) => {
       return acc + reward.balance
     }, 0n)
-    return { totalRewardsNormalized: { token: rewardSum, native: quote.reward.nativeValue } }
+    return { totalRewardsNormalized: { token: rewardSum, native: quote.reward.nativeAmount } }
   }
 
   /**
@@ -252,8 +253,8 @@ export class FeeService implements OnModuleInit {
     error?: Error
   }> {
     const route = quote.route
-    const srcChainID = route.source
-    const destChainID = route.destination
+    const srcChainID = quote.source
+    const destChainID = quote.destination
 
     const source = this.ecoConfigService
       .getIntentSources()
@@ -289,7 +290,7 @@ export class FeeService implements OnModuleInit {
     //Get the tokens the solver accepts on the source chain
     const srcBalance = await this.balanceService.fetchTokenData(Number(srcChainID))
     if (!srcBalance) {
-      throw QuoteError.FetchingCallTokensFailed(quote.route.source)
+      throw QuoteError.FetchingCallTokensFailed(quote.source)
     }
     const srcDeficitDescending = srcBalance
       .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
@@ -306,7 +307,7 @@ export class FeeService implements OnModuleInit {
     //Get the tokens the solver accepts on the destination chain
     const destBalance = await this.balanceService.fetchTokenData(Number(destChainID))
     if (!destBalance) {
-      throw QuoteError.FetchingCallTokensFailed(quote.route.destination)
+      throw QuoteError.FetchingCallTokensFailed(quote.destination)
     }
     const destDeficitDescending = destBalance
       .filter((tokenAnalysis) => destination.tokens.includes(tokenAnalysis.token.address))
@@ -347,7 +348,7 @@ export class FeeService implements OnModuleInit {
   async getRewardsNormalized(
     quote: QuoteIntentDataInterface,
   ): Promise<{ rewards: NormalizedToken[]; error?: Error }> {
-    const srcChainID = quote.route.source
+    const srcChainID = quote.source
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == srcChainID)
@@ -392,7 +393,7 @@ export class FeeService implements OnModuleInit {
   async getTokensNormalized(
     quote: QuoteIntentDataInterface,
   ): Promise<{ tokens: NormalizedToken[]; error?: Error }> {
-    const destChainID = quote.route.destination
+    const destChainID = quote.destination
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == destChainID)
@@ -420,7 +421,7 @@ export class FeeService implements OnModuleInit {
 
     return {
       tokens: Object.values(erc20Rewards).map((tb) => {
-        const token = quote.route.tokens.find((route) => getAddress(route.token) === tb.address)
+        const token = quote.route.tokens.find((route) => getChainAddress(quote.destination, route.token) === tb.address)
         if (!token) {
           throw QuoteError.RouteTokenNotFound(tb.address as Hex)
         }
@@ -447,9 +448,9 @@ export class FeeService implements OnModuleInit {
     calls: NormalizedCall[]
     error: Error | undefined
   }> {
-    const solver = this.ecoConfigService.getSolver(quote.route.destination)
+    const solver = this.ecoConfigService.getSolver(quote.destination)
     if (!solver) {
-      return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
+      return { calls: [], error: QuoteError.NoSolverForDestination(quote.destination) }
     }
 
     const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])

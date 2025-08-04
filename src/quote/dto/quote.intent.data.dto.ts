@@ -50,6 +50,8 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
 export interface QuoteIntentDataInterface {
   // The dApp ID of the intent, optional so schema can be shared for onchain intents and offchain quotes
   dAppID?: string
+  source: bigint
+  destination: bigint
   route: QuoteRouteDataInterface
   reward: QuoteRewardDataType
 }

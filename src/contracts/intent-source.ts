@@ -1,7 +1,7 @@
 import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify, decodeAbiParameters } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
-import { IntentSourceAbi, InboxAbi, RouteType, decodeRoute } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi, decodeRoute, VmType } from '@eco-foundation/routes-ts'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
 import { deserialize } from '@/common/utils/serialize'
 
@@ -60,15 +60,15 @@ export function decodeSolanaIntentLogForCreateIntent(log: any) {
   
   const routeBuffer = Buffer.from(log.data.route.data);
   // decoding the EVM ABI-encoded route struct using decodeRoute from eco-foundation/routes-ts
-  const decodedRoute = decodeRoute(`0x${routeBuffer.toString('hex')}`);
+  const decodedRoute = decodeRoute(VmType.EVM, `0x${routeBuffer.toString('hex')}`);
   
   return {
     args: {
       hash: `0x${Buffer.from(log.data.intent_hash[0]).toString('hex')}` as `0x${string}`,
       salt: decodedRoute.salt as `0x${string}`,
-      source: decodedRoute.source as bigint,
-      destination: decodedRoute.destination as bigint,
-      inbox: decodedRoute.inbox as `0x${string}`,
+      source: 1399811150n, // legacy field
+      destination: log.data.destination as bigint,
+      inbox: decodedRoute.portal as `0x${string}`,
       routeTokens: decodedRoute.tokens as readonly { token: `0x${string}`; amount: bigint }[],
       calls: decodedRoute.calls as readonly { target: `0x${string}`; data: `0x${string}`; value: bigint }[],
       creator: log.data.reward.creator as `0x${string}`, // base58 encoded TODO fix later

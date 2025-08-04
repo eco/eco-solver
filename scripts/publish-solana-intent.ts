@@ -7,7 +7,7 @@ const { Connection, Keypair, PublicKey, SystemProgram } = web3
 import * as crypto from 'crypto'
 import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData } from 'viem'
-import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute } from '@eco-foundation/routes-ts'
+import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute, VmType } from '@eco-foundation/routes-ts'
 import config from '../config/solana'
 
 // Load environment variables from .env file
@@ -249,11 +249,11 @@ async function publishSolanaIntent() {
       throw new Error(`No inbox address found for chain ID ${destinationChainId}`);
     }
     
-    const routeData: RouteType = {
+    const routeData: RouteType<VmType.EVM> = {
+        vm: VmType.EVM,
         salt: `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`,
-        source: BigInt(config.intentSources[0].chainID), // Source chain ID
-        destination: BigInt(intent.destination),
-        inbox: inboxAddress as `0x${string}`,
+        deadline: BigInt(route.deadline),
+        portal: inboxAddress as `0x${string}`,
         tokens: route.tokens.map(token => ({
           token: config.intentSources[1].tokens[0] as `0x${string}`, // Use destination chain token (Optimism USDC)
           amount: BigInt(token.amount)
