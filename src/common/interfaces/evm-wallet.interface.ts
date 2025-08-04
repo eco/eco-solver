@@ -1,4 +1,4 @@
-import { Address, Hash } from 'viem';
+import { Address, Hash, Hex } from 'viem';
 
 export interface ReadContractParams {
   address: Address;
@@ -7,22 +7,19 @@ export interface ReadContractParams {
   args?: any[];
 }
 
-export interface WriteContractParams {
-  address: Address;
-  abi: any;
-  functionName: string;
-  args?: any[];
+export interface Call {
+  to: Address;
   value?: bigint;
+  data?: Hex;
 }
 
 export interface WriteContractsOptions {
   keepSender?: boolean; // If false (default), use multicall3 to batch transactions
+  skipWait?: boolean;
 }
 
 export interface IEvmWallet {
   getAddress(): Promise<Address>;
-  readContract(params: ReadContractParams): Promise<any>;
-  readContracts(params: ReadContractParams[]): Promise<any[]>;
-  writeContract(params: WriteContractParams): Promise<Hash>;
-  writeContracts(params: WriteContractParams[], options?: WriteContractsOptions): Promise<Hash[]>;
+  writeContract(params: Call): Promise<Hash>;
+  writeContracts(params: Call[], options?: WriteContractsOptions): Promise<Hash[]>;
 }

@@ -4,6 +4,7 @@ import { createPublicClient, createWalletClient, Hex, PublicClient, WalletClient
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
+import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { EvmTransportService } from '../../services/evm-transport.service';
@@ -11,13 +12,15 @@ import { EvmTransportService } from '../../services/evm-transport.service';
 import { BasicWallet } from './basic-wallet';
 
 @Injectable()
-export class BasicWalletFactory {
+export class BasicWalletFactory implements IWalletFactory {
+  readonly name = 'basic';
+
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
   ) {}
 
-  createWallet(chainId: number): IEvmWallet {
+  async createWallet(chainId: number): Promise<IEvmWallet> {
     // Get the transport and chain from the transport service
     const transport = this.transportService.getTransport(chainId);
     const chain = this.transportService.getViemChain(chainId);

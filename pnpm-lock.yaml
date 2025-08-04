@@ -59,9 +59,6 @@ importers:
       mongoose:
         specifier: ^8.4.0
         version: 8.17.0
-      permissionless:
-        specifier: ^0.2.52
-        version: 0.2.52(ox@0.6.9(typescript@5.4.5)(zod@3.23.8))(viem@2.28.1(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)(zod@3.23.8))
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -2889,15 +2886,6 @@ packages:
   path-type@4.0.0:
     resolution: {integrity: sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==}
     engines: {node: '>=8'}
-
-  permissionless@0.2.52:
-    resolution: {integrity: sha512-Al6isaG4Q4rWfn8wjDRQqO1BxmG1gNtfnJe6ftOgpp5hkIxbQZLdH+Ez0ONM2GyGvSIQZH3Wxoo50JuOusqV6g==}
-    peerDependencies:
-      ox: ^0.6.7
-      viem: ^2.28.1
-    peerDependenciesMeta:
-      ox:
-        optional: true
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -7262,12 +7250,6 @@ snapshots:
   path-to-regexp@3.3.0: {}
 
   path-type@4.0.0: {}
-
-  permissionless@0.2.52(ox@0.6.9(typescript@5.4.5)(zod@3.23.8))(viem@2.28.1(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)(zod@3.23.8)):
-    dependencies:
-      viem: 2.28.1(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)(zod@3.23.8)
-    optionalDependencies:
-      ox: 0.6.9(typescript@5.4.5)(zod@3.23.8)
 
   picocolors@1.1.1: {}
 

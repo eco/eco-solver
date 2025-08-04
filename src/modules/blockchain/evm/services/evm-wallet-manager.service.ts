@@ -3,12 +3,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
+import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 import { KernelWalletFactory } from '../wallets/kernel-wallet';
 
-type WalletType = 'basic' | 'kernel';
+export type WalletType = 'basic' | 'kernel';
 
 @Injectable()
 export class EvmWalletManager implements OnModuleInit {
@@ -16,48 +17,45 @@ export class EvmWalletManager implements OnModuleInit {
   // Map of chainId -> walletType -> wallet
   private wallets: Map<number, Map<WalletType, IEvmWallet>> = new Map();
   private defaultWalletType: WalletType = 'basic';
+  private readonly walletFactories: IWalletFactory[];
 
   constructor(
     private evmConfigService: EvmConfigService,
     private basicWalletFactory: BasicWalletFactory,
     private kernelWalletFactory: KernelWalletFactory,
-  ) {}
+  ) {
+    this.walletFactories = [this.basicWalletFactory, this.kernelWalletFactory];
+  }
 
-  onModuleInit() {
+  async onModuleInit() {
     this.logger.log('Initializing EVM wallets from configuration');
 
     // Initialize wallets for each supported chain
-    for (const chainId of this.evmConfigService.supportedChainIds) {
-      this.initializeWalletsForChain(chainId);
-    }
+    const initRequests = this.evmConfigService.supportedChainIds.map((chainId) =>
+      this.initializeWalletsForChain(chainId),
+    );
+
+    await Promise.all(initRequests);
   }
 
-  private initializeWalletsForChain(chainId: number) {
+  private async initializeWalletsForChain(chainId: number) {
     if (!this.wallets.has(chainId)) {
       this.wallets.set(chainId, new Map());
     }
 
     const chainWallets = this.wallets.get(chainId)!;
 
-    // Initialize a basic wallet if configured
-    try {
-      const wallet = this.basicWalletFactory.createWallet(chainId);
-      chainWallets.set('basic', wallet);
-      this.logger.debug(`Initialized basic wallet for chain ${chainId}`);
-    } catch (error) {
-      this.logger.error(`Failed to initialize basic wallet for chain ${chainId}: ${error.message}`);
-      throw error;
-    }
-
-    try {
-      const wallet = this.kernelWalletFactory.createWallet(chainId);
-      chainWallets.set('kernel', wallet);
-      this.logger.debug(`Initialized kernel wallet for chain ${chainId}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to initialize kernel wallet for chain ${chainId}: ${error.message}`,
-      );
-      throw error;
+    for (const walletFactory of this.walletFactories) {
+      try {
+        const wallet = await walletFactory.createWallet(chainId);
+        chainWallets.set(walletFactory.name, wallet);
+        this.logger.debug(`Initialized ${walletFactory.name} wallet for chain ${chainId}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to initialize ${walletFactory} for chain ${chainId}: ${error.message}`,
+        );
+        throw error;
+      }
     }
   }
 

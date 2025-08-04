@@ -1,9 +1,9 @@
-import { Address, encodeFunctionData, Hash, PublicClient, WalletClient } from 'viem';
+import { Address, Hash, PublicClient, WalletClient } from 'viem';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import {
+  Call,
   ReadContractParams,
-  WriteContractParams,
   WriteContractsOptions,
 } from '@/common/interfaces/evm-wallet.interface';
 
@@ -18,6 +18,7 @@ export class BasicWallet extends BaseEvmWallet {
     this.publicClient = publicClient;
     this.walletClient = walletClient;
   }
+
   async getAddress(): Promise<Address> {
     if (!this.walletClient.account) {
       throw new Error('Wallet client account not found');
@@ -46,35 +47,24 @@ export class BasicWallet extends BaseEvmWallet {
     return results.map((result: any) => result.result);
   }
 
-  async writeContract(params: WriteContractParams): Promise<Hash> {
+  async writeContract(call: Call): Promise<Hash> {
     if (!this.walletClient.account) {
       throw new Error('Wallet client account not found');
     }
 
-    const { request } = await this.publicClient.simulateContract({
-      address: params.address,
-      abi: params.abi,
-      functionName: params.functionName,
-      args: params.args,
-      value: params.value,
-      account: this.walletClient.account,
-    });
-
-    return this.walletClient.writeContract(request);
+    return this.walletClient.sendTransaction(call as any);
   }
 
-  async writeContracts(
-    params: WriteContractParams[],
-    options?: WriteContractsOptions,
-  ): Promise<Hash[]> {
+  async writeContracts(calls: Call[], options?: WriteContractsOptions): Promise<Hash[]> {
     const keepSender = options?.keepSender ?? false;
 
     if (keepSender) {
       // Execute transactions sequentially, keeping original sender
       const hashes: Hash[] = [];
 
-      for (const param of params) {
-        const hash = await this.writeContract(param);
+      for (const call of calls) {
+        const hash = await this.writeContract(call);
+        if (!options.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
         hashes.push(hash);
       }
 
@@ -86,7 +76,6 @@ export class BasicWallet extends BaseEvmWallet {
       }
 
       // Get multicall3 address from chain configuration
-      const _chain = await this.publicClient.getChainId();
       const chainConfig = this.publicClient.chain;
 
       if (!chainConfig?.contracts?.multicall3?.address) {
@@ -96,29 +85,26 @@ export class BasicWallet extends BaseEvmWallet {
       const multicall3Address = chainConfig.contracts.multicall3.address;
 
       // Always use aggregate3Value for flexibility with value transfers
-      const calls = params.map((param) => ({
-        target: param.address,
+      const multicallCalls = calls.map((call) => ({
         allowFailure: false,
-        value: param.value || 0n,
-        callData: encodeFunctionData({
-          abi: param.abi,
-          functionName: param.functionName,
-          args: param.args,
-        }),
+        target: call.to,
+        value: call.value || 0n,
+        callData: call.data,
       }));
 
-      const totalValue = params.reduce((sum, p) => sum + (p.value || 0n), 0n);
+      const totalValue = multicallCalls.reduce((sum, p) => sum + (p.value || 0n), 0n);
 
       const { request } = await this.publicClient.simulateContract({
         address: multicall3Address,
         abi: MULTICALL3_ABI,
         functionName: 'aggregate3Value',
-        args: [calls],
+        args: [multicallCalls],
         value: totalValue,
         account: this.walletClient.account,
       });
 
       const hash = await this.walletClient.writeContract(request);
+      if (!options.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
       return [hash];
     }
   }
