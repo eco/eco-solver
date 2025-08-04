@@ -503,3 +503,163 @@ For issues and questions:
 - Check existing issues in the repository
 - Review documentation thoroughly
 - Create a new issue with detailed information
+
+## 🔄 Module Interaction Diagram
+
+The following diagram illustrates how the different modules interact with each other in the intent processing flow:
+
+```mermaid
+graph TB
+    subgraph "External Systems"
+        EVM[EVM Blockchains]
+        SOL[Solana Blockchain]
+        AWS[AWS Secrets Manager]
+        REDIS[(Redis)]
+        MONGO[(MongoDB)]
+    end
+
+    subgraph "Config Module"
+        CS[Config Services]
+        CS --> AWS
+    end
+
+    subgraph "Blockchain Module"
+        subgraph "EVM Module"
+            EVML[EVM Listener]
+            EVME[EVM Executor]
+            EVMR[EVM Reader]
+            EVMW[EVM Wallets]
+        end
+        subgraph "SVM Module"
+            SVML[SVM Listener]
+            SVME[SVM Executor]
+            SVMR[SVM Reader]
+        end
+        BES[BlockchainExecutorService]
+        BRS[BlockchainReaderService]
+        BP[BlockchainProcessor]
+    end
+
+    subgraph "Fulfillment Module"
+        FS[FulfillmentService]
+        FP[FulfillmentProcessor]
+        subgraph "Strategies"
+            STD[Standard Strategy]
+            CL[CrowdLiquidity Strategy]
+            NI[NativeIntents Strategy]
+            NEG[NegativeIntents Strategy]
+            RH[Rhinestone Strategy]
+        end
+        subgraph "Validations"
+            VAL[Validation Framework]
+        end
+    end
+
+    subgraph "Queue Module"
+        QS[QueueService]
+        FQ[Fulfillment Queue]
+        EQ[Execution Queue]
+    end
+
+    subgraph "Intents Module"
+        IS[IntentsService]
+    end
+
+    subgraph "Prover Module"
+        PS[ProverService]
+        HP[HyperProver]
+        MP[MetalayerProver]
+    end
+
+    %% External connections
+    EVM -.->|Events| EVML
+    SOL -.->|Events| SVML
+    QS --> REDIS
+    IS --> MONGO
+
+    %% Config dependencies
+    EVML --> CS
+    SVML --> CS
+    FS --> CS
+    PS --> CS
+    QS --> CS
+    IS --> CS
+
+    %% Listener flow
+    EVML -->|submitIntent| FS
+    SVML -->|submitIntent| FS
+
+    %% Fulfillment flow
+    FS -->|persist| IS
+    FS -->|queue| QS
+    QS -->|add to| FQ
+    FQ -->|process| FP
+    FP -->|validate| STD
+    FP -->|validate| CL
+    FP -->|validate| NI
+    FP -->|validate| NEG
+    FP -->|validate| RH
+
+    %% Strategy validations
+    STD --> VAL
+    CL --> VAL
+    NI --> VAL
+    NEG --> VAL
+    RH --> VAL
+    VAL --> BRS
+    VAL --> PS
+
+    %% Execution flow
+    STD -->|queue execution| QS
+    CL -->|queue execution| QS
+    NI -->|queue execution| QS
+    NEG -->|queue execution| QS
+    RH -->|queue execution| QS
+    QS -->|add to| EQ
+    EQ -->|process| BP
+    BP --> BES
+
+    %% Blockchain service interactions
+    BES --> EVME
+    BES --> SVME
+    BRS --> EVMR
+    BRS --> SVMR
+    EVME --> EVMW
+    EVME -->|execute| EVM
+    SVME -->|execute| SOL
+
+    %% Prover interactions
+    PS --> HP
+    PS --> MP
+
+    %% Status updates
+    BP -->|update status| IS
+    FP -->|update status| IS
+
+    classDef external fill:#f9f,stroke:#333,stroke-width:2px
+    classDef config fill:#9cf,stroke:#333,stroke-width:2px
+    classDef blockchain fill:#fcf,stroke:#333,stroke-width:2px
+    classDef fulfillment fill:#cfc,stroke:#333,stroke-width:2px
+    classDef queue fill:#ffc,stroke:#333,stroke-width:2px
+    classDef storage fill:#ccf,stroke:#333,stroke-width:2px
+    classDef prover fill:#fcc,stroke:#333,stroke-width:2px
+
+    class EVM,SOL,AWS,REDIS,MONGO external
+    class CS config
+    class EVML,EVME,EVMR,EVMW,SVML,SVME,SVMR,BES,BRS,BP blockchain
+    class FS,FP,STD,CL,NI,NEG,RH,VAL fulfillment
+    class QS,FQ,EQ queue
+    class IS storage
+    class PS,HP,MP prover
+```
+
+### Key Interaction Patterns:
+
+1. **Event Detection**: Blockchain listeners (EVM/SVM) monitor on-chain events and submit intents to the FulfillmentService
+2. **Centralized Processing**: All intents flow through FulfillmentService for consistent handling
+3. **Strategy Selection**: FulfillmentService determines the appropriate strategy based on configuration
+4. **Validation Flow**: Each strategy uses its own set of validations, which may interact with BlockchainReaderService and ProverService
+5. **Queue Management**: QueueService manages both fulfillment and execution queues with Redis backing
+6. **Execution**: BlockchainProcessor delegates to BlockchainExecutorService, which uses chain-specific executors
+7. **Configuration**: All modules depend on Config Module for typed configuration access
+8. **Persistence**: IntentsService manages all database operations for intent storage and status updates
