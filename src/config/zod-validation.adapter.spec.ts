@@ -82,7 +82,7 @@ describe('createZodValidationAdapter', () => {
       const config = { port: 'not-a-number' };
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: port: Invalid input: expected number, received string',
+        'Configuration validation error: port: Expected number, received string',
       );
     });
 
@@ -95,7 +95,7 @@ describe('createZodValidationAdapter', () => {
       const config = {};
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: required: Invalid input: expected string, received undefined',
+        'Configuration validation error: required: Required',
       );
     });
 
@@ -108,7 +108,7 @@ describe('createZodValidationAdapter', () => {
       const config = { env: 'invalid' };
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: env: Invalid option: expected one of "development"|"production"',
+        'Configuration validation error: env: Invalid enum value. Expected \'development\' | \'production\', received \'invalid\'',
       );
     });
 
@@ -129,7 +129,7 @@ describe('createZodValidationAdapter', () => {
       };
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: port: Invalid input: expected number, received string, host: Invalid input: expected string, received undefined, database.url: Invalid URL',
+        'Configuration validation error: port: Expected number, received string, host: Required, database.url: Invalid url',
       );
     });
 
@@ -156,7 +156,7 @@ describe('createZodValidationAdapter', () => {
       };
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: level1.level2.level3.value: Invalid input: expected number, received string',
+        'Configuration validation error: level1.level2.level3.value: Expected number, received string',
       );
     });
 
@@ -182,7 +182,7 @@ describe('createZodValidationAdapter', () => {
       const config = { ports: [3000, 'invalid', 5000] };
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: ports.1: Invalid input: expected number, received string',
+        'Configuration validation error: ports.1: Expected number, received string',
       );
     });
   });
@@ -214,7 +214,7 @@ describe('createZodValidationAdapter', () => {
       const config = 123 as any; // number instead of string
 
       expect(() => validator(config)).toThrow(
-        'Configuration validation error: : Invalid input: expected string, received number',
+        'Configuration validation error: : Expected string, received number',
       );
     });
   });
