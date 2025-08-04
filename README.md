@@ -260,6 +260,8 @@ Each fulfillment strategy defines its own immutable set of validations that are 
 
 ### Testing
 
+Tests are organized in `tests` folders within each module directory, keeping tests close to the code they test.
+
 ```bash
 # Unit tests
 pnpm run test
@@ -269,6 +271,19 @@ pnpm run test:cov
 
 # E2E tests
 pnpm run test:e2e
+```
+
+**Test Structure Example:**
+```
+src/modules/fulfillment/
+├── strategies/
+│   ├── tests/                    # Strategy tests
+│   │   └── *.spec.ts
+│   └── *.strategy.ts
+└── validations/
+    ├── tests/                    # Validation tests
+    │   └── *.spec.ts
+    └── *.validation.ts
 ```
 
 ### Adding a New Chain

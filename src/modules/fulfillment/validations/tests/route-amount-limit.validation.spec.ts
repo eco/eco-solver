@@ -4,8 +4,8 @@ import { Address } from 'viem';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
-import { RouteAmountLimitValidation } from './route-amount-limit.validation';
-import { createMockIntent } from './test-helpers';
+import { RouteAmountLimitValidation } from '../route-amount-limit.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('RouteAmountLimitValidation', () => {
   let validation: RouteAmountLimitValidation;

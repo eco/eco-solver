@@ -4,8 +4,8 @@ import { Address } from 'viem';
 
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 
-import { RouteCallsValidation } from './route-calls.validation';
-import { createMockIntent } from './test-helpers';
+import { RouteCallsValidation } from '../route-calls.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('RouteCallsValidation', () => {
   let validation: RouteCallsValidation;

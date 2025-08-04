@@ -9,8 +9,8 @@ jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 
-import { ChainSupportValidation } from './chain-support.validation';
-import { createMockIntent } from './test-helpers';
+import { ChainSupportValidation } from '../chain-support.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('ChainSupportValidation', () => {
   let validation: ChainSupportValidation;

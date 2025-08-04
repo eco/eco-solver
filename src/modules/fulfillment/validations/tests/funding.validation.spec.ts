@@ -4,8 +4,8 @@ import { Address } from 'viem';
 
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 
-import { FundingValidation } from './funding.validation';
-import { createMockIntent } from './test-helpers';
+import { FundingValidation } from '../funding.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('FundingValidation', () => {
   let validation: FundingValidation;

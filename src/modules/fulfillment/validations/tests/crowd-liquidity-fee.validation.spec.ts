@@ -19,8 +19,8 @@ jest.mock('@/modules/config/services/fulfillment-config.service', () => ({
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
-import { CrowdLiquidityFeeValidation } from './crowd-liquidity-fee.validation';
-import { createMockIntent } from './test-helpers';
+import { CrowdLiquidityFeeValidation } from '../crowd-liquidity-fee.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('CrowdLiquidityFeeValidation', () => {
   let validation: CrowdLiquidityFeeValidation;

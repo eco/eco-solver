@@ -12,8 +12,8 @@ jest.mock('@/modules/config/services/evm-config.service', () => ({
 
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 
-import { StandardFeeValidation } from './standard-fee.validation';
-import { createMockIntent } from './test-helpers';
+import { StandardFeeValidation } from '../standard-fee.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;

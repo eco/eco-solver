@@ -4,8 +4,8 @@ import { Address } from 'viem';
 
 import { ProverService } from '@/modules/prover/prover.service';
 
-import { ProverSupportValidation } from './prover-support.validation';
-import { createMockIntent } from './test-helpers';
+import { ProverSupportValidation } from '../prover-support.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('ProverSupportValidation', () => {
   let validation: ProverSupportValidation;

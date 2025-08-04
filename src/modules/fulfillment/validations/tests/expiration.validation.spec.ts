@@ -4,8 +4,8 @@ import { Address } from 'viem';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
-import { ExpirationValidation } from './expiration.validation';
-import { createMockIntent } from './test-helpers';
+import { ExpirationValidation } from '../expiration.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('ExpirationValidation', () => {
   let validation: ExpirationValidation;

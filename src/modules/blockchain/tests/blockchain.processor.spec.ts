@@ -4,7 +4,7 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 
 // Mock all dependencies before importing the processor
-jest.mock('./blockchain-executor.service');
+jest.mock('../blockchain-executor.service');
 jest.mock('@/modules/config/services/queue-config.service');
 
 describe('BlockchainProcessor', () => {

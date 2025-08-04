@@ -9,8 +9,8 @@ jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 
-import { ExecutorBalanceValidation } from './executor-balance.validation';
-import { createMockIntent } from './test-helpers';
+import { ExecutorBalanceValidation } from '../executor-balance.validation';
+import { createMockIntent } from '../test-helpers';
 
 describe('ExecutorBalanceValidation', () => {
   let validation: ExecutorBalanceValidation;
