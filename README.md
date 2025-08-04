@@ -419,8 +419,8 @@ See [Configuration Guide](src/modules/config/README.md) for details.
 ### Docker Deployment
 
 ```bash
-# Build the image
-docker build -t blockchain-intent-solver .
+# Build the image (Dockerfile is in docker/ directory)
+docker build -t blockchain-intent-solver -f docker/Dockerfile .
 
 # Run with docker-compose
 docker-compose up -d
@@ -430,7 +430,6 @@ docker-compose up -d
 
 The application is designed to run in containerized environments:
 - Stateless design allows horizontal scaling
-- Health checks available at `/health`
 - Graceful shutdown handling
 - Environment-based configuration
 
@@ -448,12 +447,12 @@ The application is designed to run in containerized environments:
 ## 📚 Documentation
 
 - [Configuration Guide](src/modules/config/README.md) - Detailed configuration documentation
-- [CLAUDE.md](../../../CLAUDE.md) - Project guidelines and conventions
+- [CLAUDE.md](../CLAUDE.md) - Project guidelines and conventions
 - [API Documentation](docs/api.md) - Coming soon
 
 ## 🤝 Contributing
 
-1. Follow the coding standards in [CLAUDE.md](../../../CLAUDE.md)
+1. Follow the coding standards in [CLAUDE.md](../CLAUDE.md)
 2. Write tests for new features
 3. Update documentation as needed
 4. Submit PR with clear description
