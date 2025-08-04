@@ -6,17 +6,6 @@ import { encodeReward, hashReward, RewardType, VmType, Address } from '@eco-foun
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 import { ChainAddress } from '@/eco-configs/eco-config.types'
-
-// MultiChainRewardType extends RewardType but overrides creator and prover to support multi-chain addresses
-export interface MultiChainRewardType extends Omit<RewardType, 'creator' | 'prover' | 'tokens'> {
-  creator: ChainAddress
-  prover: ChainAddress
-  tokens: {
-    token: ChainAddress
-    amount: bigint
-  }[]
-}
-
 @Schema({ timestamps: true })
 export class RewardDataModel<TVM extends VmType = VmType> implements RewardType<TVM> {
   @Prop({ required: true, type: String })
