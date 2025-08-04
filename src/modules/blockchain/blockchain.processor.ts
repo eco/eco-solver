@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject } from '@nestjs/common';
+import { Inject, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
@@ -10,14 +10,17 @@ import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.inter
 @Processor('blockchain-execution', {
   concurrency: 10, // Will be overridden by constructor
 })
-export class BlockchainProcessor extends WorkerHost {
+export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
   private chainLocks: Map<string, Promise<void>> = new Map();
   constructor(
     private blockchainService: BlockchainExecutorService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
   ) {
     super();
-    // Set concurrency from configuration
+  }
+
+  onModuleInit() {
+    // Set concurrency from configuration after worker is initialized
     if (this.worker) {
       this.worker.concurrency = this.queueConfig.executionConcurrency;
     }

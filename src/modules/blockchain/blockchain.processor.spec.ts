@@ -1,24 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
-
 import { Job } from 'bullmq';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 
-import { BlockchainExecutorService } from './blockchain-executor.service';
 import { BlockchainProcessor } from './blockchain.processor';
+import { BlockchainExecutorService } from './blockchain-executor.service';
 
 describe('BlockchainProcessor', () => {
   let processor: BlockchainProcessor;
   let blockchainService: jest.Mocked<BlockchainExecutorService>;
-  let queueConfig: jest.Mocked<QueueConfigService>;
 
   const createMockIntent = (intentHash: string, chainId: bigint): Intent => ({
     intentHash,
-    intentId: intentHash,
-    sourceChainId: 1n,
-    createdAt: new Date(),
     status: IntentStatus.PENDING,
     reward: {
       prover: '0x0000000000000000000000000000000000000001' as any,
@@ -37,28 +30,18 @@ describe('BlockchainProcessor', () => {
     },
   });
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BlockchainProcessor,
-        {
-          provide: BlockchainExecutorService,
-          useValue: {
-            executeIntent: jest.fn().mockResolvedValue(undefined),
-          },
-        },
-        {
-          provide: QueueConfigService,
-          useValue: {
-            executionConcurrency: 10,
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Create mock services
+    blockchainService = {
+      executeIntent: jest.fn().mockResolvedValue(undefined),
+    } as any;
 
-    processor = module.get<BlockchainProcessor>(BlockchainProcessor);
-    blockchainService = module.get(BlockchainExecutorService);
-    queueConfig = module.get(QueueConfigService);
+    const queueConfig = {
+      executionConcurrency: 10,
+    } as any;
+
+    // Create processor instance directly
+    processor = new BlockchainProcessor(blockchainService, queueConfig);
   });
 
   afterEach(() => {
@@ -140,5 +123,53 @@ describe('BlockchainProcessor', () => {
     // Process should throw the error
     await expect(processor.process(job)).rejects.toThrow('Execution failed');
     expect(blockchainService.executeIntent).toHaveBeenCalledWith(intent);
+  });
+
+  it('should clean up chain locks after processing', async () => {
+    const intent = createMockIntent('intent1', 1n);
+
+    const job: Job<ExecutionJobData> = {
+      data: { intent, strategy: 'standard', chainId: 1n },
+    } as any;
+
+    // Process a job
+    await processor.process(job);
+
+    // Chain lock should be cleaned up
+    expect((processor as any).chainLocks.size).toBe(0);
+  });
+
+  it('should handle concurrent jobs for the same chain with proper locking', async () => {
+    const intent1 = createMockIntent('intent1', 1n);
+    const intent2 = createMockIntent('intent2', 1n);
+
+    let isFirstExecuting = false;
+    let secondStartedWhileFirstExecuting = false;
+
+    blockchainService.executeIntent.mockImplementation(async (intent: Intent) => {
+      if (intent.intentHash === 'intent1') {
+        isFirstExecuting = true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        isFirstExecuting = false;
+      } else if (intent.intentHash === 'intent2') {
+        if (isFirstExecuting) {
+          secondStartedWhileFirstExecuting = true;
+        }
+      }
+    });
+
+    const job1: Job<ExecutionJobData> = {
+      data: { intent: intent1, strategy: 'standard', chainId: 1n },
+    } as any;
+    const job2: Job<ExecutionJobData> = {
+      data: { intent: intent2, strategy: 'standard', chainId: 1n },
+    } as any;
+
+    // Process jobs concurrently
+    await Promise.all([processor.process(job1), processor.process(job2)]);
+
+    // Second job should NOT have started while first was executing
+    expect(secondStartedWhileFirstExecuting).toBe(false);
+    expect(blockchainService.executeIntent).toHaveBeenCalledTimes(2);
   });
 });
