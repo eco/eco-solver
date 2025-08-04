@@ -10,7 +10,7 @@ export interface ExecutionResult {
 
 @Injectable()
 export abstract class BaseChainExecutor {
-  abstract execute(intent: Intent, walletId?: string): Promise<ExecutionResult>;
+  abstract fulfill(intent: Intent, walletId?: string): Promise<ExecutionResult>;
   abstract getBalance(address: string, chainId: number): Promise<bigint>;
   abstract isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean>;
 }

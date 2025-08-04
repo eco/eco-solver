@@ -1,14 +1,24 @@
 import { Injectable } from '@nestjs/common';
 
-import { ProverResult, ProverRoute } from '@/common/interfaces/prover.interface';
+import { Address, Hex } from 'viem';
+
+import { Intent } from '@/common/interfaces/intent.interface';
+import { EvmConfigService } from '@/modules/config/services';
 
 @Injectable()
 export abstract class BaseProver {
   abstract readonly type: string;
 
-  abstract validateRoute(route: ProverRoute): Promise<ProverResult>;
+  constructor(protected readonly evmConfigService: EvmConfigService) {}
 
-  abstract getContractAddress(chainId: string | number): string | undefined;
+  abstract getMessageData(intent: Intent): Promise<Hex>;
 
-  abstract isSupported(chainId: string | number): boolean;
+  getContractAddress(chainId: number): Address | undefined {
+    const chainConfig = this.evmConfigService.getChain(chainId);
+    return chainConfig?.provers[this.type];
+  }
+
+  isSupported(chainId: number): boolean {
+    return Boolean(this.getContractAddress(chainId));
+  }
 }

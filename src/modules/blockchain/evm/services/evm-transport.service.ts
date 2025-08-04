@@ -68,10 +68,7 @@ export class EvmTransportService implements OnModuleInit {
       return;
     }
 
-    const network = this.evmConfigService.getNetwork(chainId);
-    if (!network) {
-      throw new Error(`No network configuration found for chainId: ${chainId}`);
-    }
+    const network = this.evmConfigService.getChain(chainId);
 
     // Extract the chain configuration from viem/chains
     const chain = extractChain({

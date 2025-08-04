@@ -7,7 +7,6 @@ import {
   evmConfig,
   fulfillmentConfig,
   mongodbConfig,
-  proversConfig,
   queueConfig,
   redisConfig,
   solanaConfig,
@@ -29,7 +28,6 @@ export const configurationFactory = async () => {
     solana: await solanaConfig(),
     queue: await queueConfig(),
     aws: await awsConfig(),
-    provers: await proversConfig(),
     fulfillment: await fulfillmentConfig(),
   };
 

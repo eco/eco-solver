@@ -119,7 +119,10 @@ const EvmNetworkSchema = z.object({
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(EvmTokenSchema).default([]),
   feeLogic: EvmFeeLogicSchema,
-  provers: z.record(z.enum(['hyper', 'metalayer'] as const), z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
+  provers: z.record(
+    z.enum(['hyper', 'metalayer'] as const),
+    z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  ),
 });
 
 /**

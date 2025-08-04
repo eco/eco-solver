@@ -1,15 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
-import { EvmSchema } from '@/config/config.schema';
-
-type EvmConfig = z.infer<typeof EvmSchema>;
-type NetworkConfig = EvmConfig['networks'][number];
-type TokenConfig = NetworkConfig['tokens'][number];
-type FeeLogic = NetworkConfig['feeLogic'];
-type WalletsConfig = EvmConfig['wallets'];
+import {
+  EvmFeeLogicConfig,
+  EvmNetworkConfig,
+  EvmTokenConfig,
+  EvmWalletsConfig,
+} from '@/config/schemas';
 
 @Injectable()
 export class EvmConfigService {
@@ -18,9 +15,9 @@ export class EvmConfigService {
     this.initializeNetworks();
   }
 
-  private _networks: Map<number, NetworkConfig>;
+  private _networks: Map<number, EvmNetworkConfig>;
 
-  get networks(): NetworkConfig[] {
+  get networks(): EvmNetworkConfig[] {
     return Array.from(this._networks.values());
   }
 
@@ -32,8 +29,8 @@ export class EvmConfigService {
     return this.configService.get<string>('evm.privateKey')!;
   }
 
-  get wallets(): WalletsConfig {
-    return this.configService.get<WalletsConfig>('evm.wallets', {});
+  get wallets(): EvmWalletsConfig {
+    return this.configService.get<EvmWalletsConfig>('evm.wallets', {});
   }
 
   getBasicWalletConfig() {
@@ -44,12 +41,8 @@ export class EvmConfigService {
     return this.wallets.kernel;
   }
 
-  getNetwork(chainId: number): NetworkConfig | undefined {
-    return this._networks.get(chainId);
-  }
-
-  getNetworkOrThrow(chainId: number): NetworkConfig {
-    const network = this.getNetwork(chainId);
+  getChain(chainId: number): EvmNetworkConfig {
+    const network = this._networks.get(chainId);
     if (!network) {
       throw new Error(`Network configuration not found for chainId: ${chainId}`);
     }
@@ -57,12 +50,12 @@ export class EvmConfigService {
   }
 
   getRpc(chainId: number) {
-    const network = this.getNetworkOrThrow(chainId);
+    const network = this.getChain(chainId);
     return network.rpc;
   }
 
-  getSupportedTokens(chainId: number): TokenConfig[] {
-    const network = this.getNetworkOrThrow(chainId);
+  getSupportedTokens(chainId: number): EvmTokenConfig[] {
+    const network = this.getChain(chainId);
     return network.tokens;
   }
 
@@ -71,18 +64,18 @@ export class EvmConfigService {
     return tokens.some((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
   }
 
-  getTokenConfig(chainId: number, tokenAddress: string): TokenConfig | undefined {
+  getTokenConfig(chainId: number, tokenAddress: string): EvmTokenConfig | undefined {
     const tokens = this.getSupportedTokens(chainId);
     return tokens.find((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
   }
 
-  getFeeLogic(chainId: number): FeeLogic {
-    const network = this.getNetworkOrThrow(chainId);
+  getFeeLogic(chainId: number): EvmFeeLogicConfig {
+    const network = this.getChain(chainId);
     return network.feeLogic;
   }
 
   private initializeNetworks(): void {
-    const networks = this.configService.get<NetworkConfig[]>('evm.networks', []);
+    const networks = this.configService.get<EvmNetworkConfig[]>('evm.networks', []);
     for (const network of networks) {
       this._networks.set(network.chainId, network);
     }

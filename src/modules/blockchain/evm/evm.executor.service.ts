@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import { parseAbi } from 'viem';
+import { hashIntent, InboxAbi } from '@eco-foundation/routes-ts';
+import { Address, encodeFunctionData } from 'viem';
 
 import {
   BaseChainExecutor,
@@ -8,13 +9,10 @@ import {
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { ProverService } from '@/modules/prover/prover.service';
 
 import { EvmTransportService } from './services/evm-transport.service';
 import { EvmWalletManager } from './services/evm-wallet-manager.service';
-
-const INBOX_ABI = parseAbi([
-  'function fulfillStorage(bytes32 intentId, address target, bytes calldata data) external payable',
-]);
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
@@ -22,28 +20,41 @@ export class EvmExecutorService extends BaseChainExecutor {
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
     private walletManager: EvmWalletManager,
+    private proverService: ProverService,
   ) {
     super();
   }
 
-  async execute(intent: Intent, walletId?: string): Promise<ExecutionResult> {
+  async fulfill(intent: Intent, claimant: Address): Promise<ExecutionResult> {
     try {
       // Get the destination chain ID from the intent
-      const chainId = Number(intent.route.destination);
-      const network = this.evmConfigService.getNetworkOrThrow(chainId);
+      const sourceChainId = Number(intent.route.source);
+      const destinationChainId = Number(intent.route.destination);
+
+      const network = this.evmConfigService.getChain(destinationChainId);
       // Map walletId to wallet type - for backward compatibility
-      const walletType = walletId as 'basic' | 'kernel' | undefined;
-      const wallet = this.walletManager.getWallet(walletType, chainId);
-      const publicClient = this.transportService.getPublicClient(chainId);
+      const wallet = this.walletManager.getWallet('kernel', destinationChainId);
+
+      const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
+      if (!prover) {
+        throw new Error('Prover not found.');
+      }
+
+      const proverAddr = prover.getContractAddress(destinationChainId);
+      const proverMessageData = await prover.getMessageData(intent);
+
+      const { intentHash, rewardHash } = hashIntent(intent);
 
       const hash = await wallet.writeContract({
-        address: network.inboxAddress as `0x${string}`,
-        abi: INBOX_ABI,
-        functionName: 'fulfillStorage',
-        args: [intent.intentHash, intent.route.inbox, '0x'], // TODO: Determine what data should be passed
-        value: intent.reward.nativeValue,
+        to: network.inboxAddress as `0x${string}`,
+        data: encodeFunctionData({
+          abi: InboxAbi,
+          functionName: 'fulfillAndProve',
+          args: [intent.route, rewardHash, claimant, intentHash, proverAddr, proverMessageData],
+        }),
       });
 
+      const publicClient = this.transportService.getPublicClient(destinationChainId);
       const receipt = await publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 2,

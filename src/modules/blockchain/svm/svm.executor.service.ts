@@ -35,7 +35,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     this.programId = new PublicKey(this.solanaConfigService.programId);
   }
 
-  async execute(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
+  async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
     try {
       // Create a simple transfer transaction as an example
       // In production, this would call the actual program instruction

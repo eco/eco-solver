@@ -6,7 +6,6 @@ import {
   EvmSchema,
   FulfillmentSchema,
   MongoDBSchema,
-  ProversSchema,
   QueueSchema,
   RedisSchema,
   SolanaSchema,
@@ -19,7 +18,6 @@ export {
   EvmSchema,
   FulfillmentSchema,
   MongoDBSchema,
-  ProversSchema,
   QueueSchema,
   RedisSchema,
   SolanaSchema,
@@ -37,7 +35,6 @@ export const ConfigSchema = z
     solana: SolanaSchema,
     queue: QueueSchema,
     aws: AwsSchema,
-    provers: ProversSchema,
     fulfillment: FulfillmentSchema,
   })
   .extend(BaseSchema.shape);

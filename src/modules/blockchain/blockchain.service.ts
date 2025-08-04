@@ -39,7 +39,7 @@ export class BlockchainService {
         throw new Error(`No executor for chain ${intent.route.destination}`);
       }
 
-      const result = await executor.execute(intent, walletId);
+      const result = await executor.fulfill(intent, walletId);
 
       if (result.success) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);

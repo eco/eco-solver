@@ -1,13 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
+import { Address, isAddressEqual } from 'viem';
+
 import { Intent } from '@/common/interfaces/intent.interface';
-import {
-  ProverChainConfig,
-  ProverResult,
-  ProverRoute,
-  ProverType,
-} from '@/common/interfaces/prover.interface';
-import { ProverConfigService } from '@/modules/prover/prover-config.service';
+import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
 
@@ -17,7 +13,6 @@ export class ProverService implements OnModuleInit {
   private readonly provers: Map<string, HyperProver | MetalayerProver> = new Map();
 
   constructor(
-    private proverConfigService: ProverConfigService,
     private hyperProver: HyperProver,
     private metalayerProver: MetalayerProver,
   ) {}
@@ -26,42 +21,12 @@ export class ProverService implements OnModuleInit {
     this.initializeProvers();
   }
 
-  private initializeProvers(): void {
-    const proverConfigs = this.proverConfigService.provers;
-
-    proverConfigs.forEach((config) => {
-      switch (config.type) {
-        case ProverType.HYPER:
-          this.hyperProver.configure(config.chainConfigs as ProverChainConfig[]);
-          this.provers.set(ProverType.HYPER, this.hyperProver);
-          break;
-        case ProverType.METALAYER:
-          this.metalayerProver.configure(config.chainConfigs as ProverChainConfig[]);
-          this.provers.set(ProverType.METALAYER, this.metalayerProver);
-          break;
-        default:
-          this.logger.warn(`Unknown prover type: ${config.type}`);
-      }
-    });
-
-    this.logger.log(`Initialized ${this.provers.size} provers`);
-  }
-
   async validateIntentRoute(intent: Intent): Promise<ProverResult> {
-    const route: ProverRoute = {
-      source: {
-        chainId: Number(intent.route.source),
-        contract: intent.reward.prover, // Using prover address as source contract
-      },
-      target: {
-        chainId: Number(intent.route.destination),
-        contract: intent.route.inbox,
-      },
-      intentId: intent.intentHash,
-    };
-
     // Find the appropriate prover based on the contract addresses
-    const prover = this.findProverForRoute(route);
+    const prover = this.findProverForRoute(
+      Number(intent.route.source),
+      Number(intent.route.destination),
+    );
 
     if (!prover) {
       return {
@@ -70,38 +35,42 @@ export class ProverService implements OnModuleInit {
       };
     }
 
-    return prover.validateRoute(route);
+    return { isValid: true };
   }
 
-  private findProverForRoute(route: ProverRoute): HyperProver | MetalayerProver | null {
+  getProver(chainId: number, address: Address) {
+    for (const prover of this.provers.values()) {
+      const proverAddr = prover.getContractAddress(chainId);
+
+      if (proverAddr && isAddressEqual(proverAddr, address)) {
+        return prover;
+      }
+    }
+    return null;
+  }
+
+  private initializeProvers(): void {
+    this.provers.set(ProverType.HYPER, this.hyperProver);
+    this.provers.set(ProverType.METALAYER, this.metalayerProver);
+
+    this.logger.log(`Initialized ${this.provers.size} provers`);
+  }
+
+  private findProverForRoute(
+    source: number,
+    destination: number,
+  ): HyperProver | MetalayerProver | null {
     // Check each prover to see if it supports both chains and has matching contracts
     for (const [type, prover] of this.provers) {
-      const sourceContract = prover.getContractAddress(route.source.chainId);
-      const targetContract = prover.getContractAddress(route.target.chainId);
+      const sourceContract = prover.isSupported(source);
+      const destinationContract = prover.isSupported(destination);
 
-      if (
-        sourceContract &&
-        targetContract &&
-        sourceContract.toLowerCase() === route.source.contract.toLowerCase() &&
-        targetContract.toLowerCase() === route.target.contract.toLowerCase()
-      ) {
-        this.logger.debug(
-          `Found prover ${type} for route ${route.source.chainId} -> ${route.target.chainId}`,
-        );
+      if (sourceContract && destinationContract) {
+        this.logger.debug(`Found prover ${type} for route ${source} -> ${destination}`);
         return prover;
       }
     }
 
-    return null;
-  }
-
-  getProverForChainAndContract(chainId: string | number, contractAddress: string): string | null {
-    for (const [type, prover] of this.provers) {
-      const configuredAddress = prover.getContractAddress(chainId);
-      if (configuredAddress && configuredAddress.toLowerCase() === contractAddress.toLowerCase()) {
-        return type;
-      }
-    }
     return null;
   }
 }
