@@ -3,7 +3,7 @@ import { WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { BlockchainService } from '@/modules/blockchain/blockchain.service';
+import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 
 interface BlockchainJobData {
   intent: Intent;
@@ -11,7 +11,7 @@ interface BlockchainJobData {
 }
 
 export class BlockchainProcessor extends WorkerHost {
-  constructor(private blockchainService: BlockchainService) {
+  constructor(private blockchainService: BlockchainExecutorService) {
     super();
   }
 

@@ -7,7 +7,7 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { EvmModule } from './evm/evm.module';
 import { SvmModule } from './svm/svm.module';
 import { BlockchainProcessor } from './blockchain.processor';
-import { BlockchainService } from './blockchain.service';
+import { BlockchainExecutorService } from './blockchain-executor.service';
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { BlockchainService } from './blockchain.service';
     EvmModule,
     SvmModule,
   ],
-  providers: [BlockchainService, BlockchainProcessor],
-  exports: [BlockchainService],
+  providers: [BlockchainExecutorService, BlockchainProcessor],
+  exports: [BlockchainExecutorService],
 })
 export class BlockchainModule {}

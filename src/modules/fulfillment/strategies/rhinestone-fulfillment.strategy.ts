@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { BlockchainService } from '@/modules/blockchain/blockchain.service';
+import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
@@ -29,7 +29,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
-    private readonly blockchainService: BlockchainService,
+    private readonly blockchainService: BlockchainExecutorService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for rhinestone strategy (excluding route calls)
     private readonly fundingValidation: FundingValidation,

@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { BlockchainService } from '@/modules/blockchain/blockchain.service';
+import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class ExecutorBalanceValidation implements Validation {
-  constructor(private readonly blockchainService: BlockchainService) {}
+  constructor(private readonly blockchainService: BlockchainExecutorService) {}
 
   async validate(intent: Intent): Promise<boolean> {
     // TODO: Implement executor balance check

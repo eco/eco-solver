@@ -9,7 +9,7 @@ import { EvmExecutorService } from './evm/evm.executor.service';
 import { SvmExecutorService } from './svm/svm.executor.service';
 
 @Injectable()
-export class BlockchainService {
+export class BlockchainExecutorService {
   private executors: Map<string | number, BaseChainExecutor> = new Map();
 
   constructor(
