@@ -1,6 +1,6 @@
 import { merge } from 'lodash';
 
-import { AwsSchema, ConfigSchema } from '@/config/config.schema';
+import { AwsSchema, BaseSchema, ConfigSchema } from '@/config/config.schema';
 import {
   awsConfig,
   baseConfig,
@@ -12,12 +12,13 @@ import {
   solanaConfig,
 } from '@/config/schemas';
 import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
+import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
 
 /**
  * Configuration factory that transforms environment variables to configuration
- * and optionally merges AWS secrets
+ * and optionally merges AWS secrets and YAML configuration
  */
 export const configurationFactory = async () => {
   const baseConfiguration = {
@@ -34,8 +35,15 @@ export const configurationFactory = async () => {
   // Transform all environment variables to nested configuration
   const envConfiguration = transformEnvVarsToConfig(process.env, ConfigSchema);
 
-  // Merge base defaults with environment configuration
+  // First merge to get the configFiles path from env vars if specified
   let mergedConfig = merge({}, baseConfiguration, envConfiguration);
+
+  // Load YAML configuration if files are specified
+  const { configFiles } = BaseSchema.parse(mergedConfig);
+  const yamlConfiguration = loadYamlConfig(configFiles);
+
+  // Merge in order: base defaults, YAML config, then environment vars
+  mergedConfig = merge({}, baseConfiguration, yamlConfiguration, envConfiguration);
 
   // Check if AWS secrets should be loaded
   const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);

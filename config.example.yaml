@@ -1,0 +1,105 @@
+# Example configuration file for blockchain-intent-solver
+# Copy this file to config.yaml or config.yml and modify as needed
+# Environment variables will override values in this file
+
+# Base configuration
+env: development
+port: 3000
+
+# MongoDB configuration
+mongodb:
+  uri: mongodb://localhost:27017/blockchain-intent-solver
+
+# Redis configuration
+redis:
+  host: localhost
+  port: 6379
+  # password: your-redis-password  # Uncomment if using authentication
+
+# Queue configuration
+queue:
+  defaultJobOptions:
+    attempts: 3
+    backoff:
+      type: exponential
+      delay: 1000
+
+# AWS configuration (optional)
+# aws:
+#   region: us-east-1
+#   secretName: my-secret-name
+#   accessKeyId: your-access-key  # Better to use IAM roles or env vars
+#   secretAccessKey: your-secret  # Better to use IAM roles or env vars
+
+# Fulfillment configuration
+fulfillment:
+  defaultStrategy: standard
+  strategies:
+    standard:
+      enabled: true
+    crowdLiquidity:
+      enabled: false
+    nativeIntents:
+      enabled: false
+    negativeIntents:
+      enabled: false
+    rhinestone:
+      enabled: false
+
+# EVM configuration
+evm:
+  wallets:
+    basic:
+      # privateKey: 0x...  # Never commit private keys! Use env vars or AWS secrets
+    # kernel:
+    #   signer:
+    #     type: eoa
+    #     privateKey: 0x...  # Never commit private keys!
+
+  # Example network configurations
+  networks:
+    - chainId: 1
+      name: Ethereum Mainnet
+      rpcUrls:
+        - https://eth.llamarpc.com
+      intentSource:
+        address: '0x0000000000000000000000000000000000000000'
+      listeners:
+        - enabled: true
+          startBlock: 0
+          pollingInterval: 12000
+
+    - chainId: 10
+      name: Optimism
+      rpcUrls:
+        - https://mainnet.optimism.io
+      intentSource:
+        address: '0x0000000000000000000000000000000000000000'
+      listeners:
+        - enabled: true
+          startBlock: 0
+          pollingInterval: 2000
+
+# Solana configuration
+solana:
+  network: mainnet-beta
+  rpcUrl: https://api.mainnet-beta.solana.com
+  # walletPrivateKey: base58-encoded-key  # Never commit! Use env vars
+  # programId: YourProgramIdHere
+  listeners:
+    - enabled: false
+      pollingInterval: 1000
+
+# Prover configuration
+provers:
+  - type: hyper
+    chainConfigs:
+      - chainId: 1
+        contractAddress: '0x0000000000000000000000000000000000000000'
+      - chainId: 10
+        contractAddress: '0x0000000000000000000000000000000000000000'
+
+  # - type: metalayer
+  #   chainConfigs:
+  #     - chainId: 1
+  #       contractAddress: "0x0000000000000000000000000000000000000000"
