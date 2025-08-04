@@ -145,6 +145,101 @@ interface Intent {
 }
 ```
 
+## 📦 Module Documentation
+
+### Blockchain Module (`/modules/blockchain/`)
+**Purpose**: Handles all blockchain interactions across multiple chains (EVM and Solana)
+
+**Key Services**:
+- **BlockchainExecutorService**: Main service for executing blockchain transactions across different chains
+- **BlockchainReaderService**: Unified interface for reading blockchain data (balances, token info, contract states)
+- **BlockchainProcessor**: Queue processor that handles blockchain execution jobs
+
+**Sub-modules**:
+- **EVM Module**: Complete EVM blockchain support including:
+  - Multiple network configurations (Ethereum, Polygon, etc.)
+  - Self-initializing event listeners for monitoring IntentSource contracts
+  - Wallet system with BasicWallet (EOA) and KernelWallet (smart accounts)
+  - Transport service for RPC connections
+  - Support for batch operations via multicall3
+  
+- **SVM Module**: Solana blockchain support including:
+  - Solana-specific executor and reader implementations
+  - Event listener for monitoring Solana programs
+  - SPL token support
+
+### Config Module (`/modules/config/`)
+**Purpose**: Centralized, type-safe configuration management with AWS Secrets Manager integration
+
+**Features**:
+- Schema-driven configuration using Zod for validation
+- Automatic environment variable mapping
+- AWS Secrets Manager integration for secure credential storage
+- Individual configuration services for each domain (App, AWS, Database, EVM, Solana, etc.)
+- Deep merging of AWS secrets with local configuration
+
+**Configuration Services**:
+- `AppConfigService`: General application settings
+- `EvmConfigService`: EVM networks and wallet configurations
+- `SolanaConfigService`: Solana network settings
+- `FulfillmentConfigService`: Strategy configurations
+- `QueueConfigService`: Queue and worker settings
+- `DatabaseConfigService`: MongoDB connection
+- `RedisConfigService`: Redis connection
+
+### Fulfillment Module (`/modules/fulfillment/`)
+**Purpose**: Core business logic for intent validation and fulfillment
+
+**Components**:
+- **FulfillmentService**: Main entry point for intent submission (used by all blockchain listeners)
+- **FulfillmentProcessor**: Queue processor for validating intents
+- **Strategy System**: Pluggable strategies for different fulfillment types:
+  - `StandardFulfillmentStrategy`: Default fulfillment logic
+  - `CrowdLiquidityFulfillmentStrategy`: Uses crowd-sourced liquidity
+  - `NativeIntentsFulfillmentStrategy`: Handles native token transfers
+  - `NegativeIntentsFulfillmentStrategy`: Processes reverse intents
+  - `RhinestoneFulfillmentStrategy`: Smart account integration
+
+**Validation Framework**: 
+Each strategy uses an immutable set of validations including funding checks, route validation, expiration, chain support, and prover validation. All strategies include on-chain funding verification via IntentFundedValidation.
+
+### Intents Module (`/modules/intents/`)
+**Purpose**: Manages intent persistence and database operations
+
+**Features**:
+- MongoDB schema for intent storage with BigInt support
+- CRUD operations for intent management
+- Intent status tracking throughout the fulfillment lifecycle
+- Conversion utilities for handling different data formats
+
+### Prover Module (`/modules/prover/`)
+**Purpose**: Validates intent routes between chains using cryptographic proofs
+
+**Components**:
+- **ProverService**: Main service that manages multiple prover implementations
+- **Prover Types**:
+  - `HyperProver`: For HyperLane-based route validation
+  - `MetalayerProver`: For Metalayer protocol validation
+- Chain-specific contract configurations for each prover type
+
+### Queue Module (`/modules/queue/`)
+**Purpose**: Manages asynchronous job processing with reliability and scalability
+
+**Features**:
+- BullMQ integration with Redis backend
+- Two main queues:
+  - `intent-fulfillment`: For intent validation processing
+  - `blockchain-execution`: For executing validated intents
+- Standardized job interfaces for consistency
+- Automatic retry with exponential backoff
+- Centralized queue operations through QueueService
+
+**Queue Flow**:
+1. Intent submitted to fulfillment queue with strategy name
+2. FulfillmentProcessor validates using strategy's validation set
+3. Valid intents queued to execution queue
+4. BlockchainProcessor executes on target chain
+
 ## ⚙️ Configuration
 
 The application uses a schema-driven configuration system. See [Configuration Guide](src/modules/config/README.md) for detailed documentation.
