@@ -9,6 +9,7 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 - **Queue-Based Processing**: Reliable intent processing with BullMQ and Redis
 - **Multiple Fulfillment Strategies**: Standard, CrowdLiquidity, NativeIntents, NegativeIntents, and Rhinestone
 - **Pluggable Validation Framework**: Reusable validation classes with immutable configurations
+- **On-Chain Funding Verification**: Validates intents are funded on the IntentSource contract before processing
 - **Type-Safe Configuration**: Schema-driven configuration with Zod validation
 - **AWS Integration**: Secure secrets management with AWS Secrets Manager
 - **Docker Ready**: Full containerization support for easy deployment
@@ -227,6 +228,27 @@ Each wallet type is encapsulated in its own NestJS module:
 - `KernelWalletModule` - Provides KernelWalletFactory
 
 Wallet factories only require a `chainId` to create instances, retrieving all configuration internally.
+
+## 🛡️ Validation Framework
+
+The system includes a comprehensive validation framework that ensures intents are properly validated before execution:
+
+### Available Validations
+
+1. **IntentFundedValidation** - Verifies the intent is funded on the IntentSource contract
+2. **FundingValidation** - Checks creator has sufficient token/native balances
+3. **RouteTokenValidation** - Validates token addresses in the route
+4. **RouteCallsValidation** - Validates call targets and data
+5. **RouteAmountLimitValidation** - Enforces route-specific amount limits
+6. **ExpirationValidation** - Ensures deadline hasn't passed
+7. **ChainSupportValidation** - Verifies source and destination chains are supported
+8. **ProverSupportValidation** - Validates the route with configured provers
+9. **ExecutorBalanceValidation** - Ensures executor has sufficient funds
+10. **Fee Validations** - Strategy-specific fee requirements (Standard, CrowdLiquidity, Native)
+
+### Validation Execution
+
+Each fulfillment strategy defines its own immutable set of validations that are executed sequentially before processing an intent. All strategies include the `IntentFundedValidation` to ensure on-chain funding verification.
 
 ## 🔧 Development
 
