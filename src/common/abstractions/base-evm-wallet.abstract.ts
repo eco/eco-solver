@@ -1,5 +1,3 @@
-import { PublicClient, WalletClient } from 'viem';
-
 import {
   IEvmWallet,
   ReadContractParams,
@@ -8,9 +6,6 @@ import {
 } from '@/common/interfaces/evm-wallet.interface';
 
 export abstract class BaseEvmWallet implements IEvmWallet {
-  protected abstract publicClient: PublicClient;
-  protected abstract walletClient: WalletClient;
-
   abstract getAddress(): Promise<`0x${string}`>;
 
   abstract readContract(params: ReadContractParams): Promise<any>;

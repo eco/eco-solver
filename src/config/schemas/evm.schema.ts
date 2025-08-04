@@ -2,7 +2,6 @@ import { registerAs } from '@nestjs/config';
 
 import { z } from 'zod';
 
-import { ProverTypes } from '@/common/interfaces/prover.interface';
 import { DeepPartial } from '@/common/types';
 
 /**
@@ -120,7 +119,7 @@ const EvmNetworkSchema = z.object({
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(EvmTokenSchema).default([]),
   feeLogic: EvmFeeLogicSchema,
-  provers: z.record(z.enum(ProverTypes), z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
+  provers: z.record(z.enum(['hyper', 'metalayer'] as const), z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
 });
 
 /**
