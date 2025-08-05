@@ -63,7 +63,7 @@ describe('FulfillIntentJobManager', () => {
       const manager = new FulfillIntentJobManager()
       await manager.process(job, mockProcessor as any)
 
-      expect(mockFulfillIntentService.fulfill).toHaveBeenCalledWith(jobData.intentHash)
+      expect(mockFulfillIntentService.fulfill).toHaveBeenCalledWith({ intentHash: jobData.intentHash })
     })
   })
 

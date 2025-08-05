@@ -62,7 +62,7 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
         }),
       )
 
-      await processor.fulfillIntentService.fulfill(jobData.intentHash)
+      await processor.fulfillIntentService.fulfill({ intentHash: jobData.intentHash })
 
       processor.logger.debug(
         EcoLogMessage.fromDefault({
