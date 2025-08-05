@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
+
 import { EvmTransportService } from '../../services/evm-transport.service';
 
 import { KernelWalletFactory } from './kernel-wallet.factory';

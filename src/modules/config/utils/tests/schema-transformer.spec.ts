@@ -50,6 +50,29 @@ describe('Schema Transformer', () => {
         '0',
       ]);
     });
+
+    it('should handle nested wallet configuration keys', () => {
+      expect(envVarToPath('EVM_WALLETS_KERNEL_SIGNER_PRIVATE_KEY')).toEqual([
+        'evm',
+        'wallets',
+        'kernel',
+        'signer',
+        'privateKey',
+      ]);
+      expect(envVarToPath('EVM_WALLETS_KERNEL_SIGNER_TYPE')).toEqual([
+        'evm',
+        'wallets',
+        'kernel',
+        'signer',
+        'type',
+      ]);
+      expect(envVarToPath('EVM_WALLETS_BASIC_PRIVATE_KEY')).toEqual([
+        'evm',
+        'wallets',
+        'basic',
+        'privateKey',
+      ]);
+    });
   });
 
   describe('transformEnvVarsToConfig', () => {
@@ -250,6 +273,66 @@ describe('Schema Transformer', () => {
             '8453': {
               rpcUrl: 'https://base-config.com',
               wsUrl: 'wss://base-config.com',
+            },
+          },
+        },
+      });
+    });
+
+    it('should handle wallet configuration with nested union types', () => {
+      // Define wallet schemas similar to actual EVM schema
+      const BasicWalletSchema = z.object({
+        privateKey: z
+          .string()
+          .regex(/^0x[a-fA-F0-9]{64}$/)
+          .optional(),
+      });
+
+      const EOASignerSchema = z.object({
+        type: z.literal('eoa'),
+        privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+      });
+
+      const KmsSignerSchema = z.object({
+        type: z.literal('kms'),
+        region: z.string(),
+        keyId: z.string(),
+      });
+
+      const KernelWalletSchema = z.object({
+        signer: z.union([KmsSignerSchema, EOASignerSchema]),
+      });
+
+      const TestSchema = z.object({
+        evm: z.object({
+          wallets: z.object({
+            basic: BasicWalletSchema,
+            kernel: KernelWalletSchema,
+          }),
+        }),
+      });
+
+      const PK = '0x' + '0'.repeat(64);
+
+      const envVars = {
+        EVM_WALLETS_BASIC_PRIVATE_KEY: PK,
+        EVM_WALLETS_KERNEL_SIGNER_TYPE: 'eoa',
+        EVM_WALLETS_KERNEL_SIGNER_PRIVATE_KEY: PK,
+      };
+
+      const result = transformEnvVarsToConfig(envVars, TestSchema);
+
+      expect(result).toEqual({
+        evm: {
+          wallets: {
+            basic: {
+              privateKey: PK,
+            },
+            kernel: {
+              signer: {
+                type: 'eoa',
+                privateKey: PK,
+              },
             },
           },
         },

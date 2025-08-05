@@ -132,6 +132,10 @@ export function traverseSchema(schema: z.ZodTypeAny, currentPath: string[] = [])
   } else if (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault) {
     // Unwrap optional/default and continue traversing
     paths.push(...traverseSchema(schema._def.innerType as z.ZodTypeAny, currentPath));
+  } else if (schema instanceof z.ZodUnion) {
+    // For unions, we need to handle this specially
+    // Add the union schema itself so it can be matched
+    paths.push({ path: currentPath, schema });
   } else {
     // Leaf node - add the path
     paths.push({ path: currentPath, schema });
@@ -182,6 +186,49 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
 
   if (directMatch) {
     return directMatch;
+  }
+
+  // Check if we have a partial match to a union
+  // For example, if envPath is ['evm', 'wallets', 'kernel', 'signer', 'privateKey']
+  // and we have a union at ['evm', 'wallets', 'kernel', 'signer']
+  for (const schemaPath of schemaPaths) {
+    if (
+      schemaPath.schema instanceof z.ZodUnion &&
+      envPath.length > schemaPath.path.length &&
+      schemaPath.path.every((segment, i) => segment === envPath[i])
+    ) {
+      // We found a union in the path, now check if any union option has the remaining properties
+      const remainingPath = envPath.slice(schemaPath.path.length);
+      const unionOptions = (schemaPath.schema as z.ZodUnion<any>).options;
+      
+      // Try to find which union option matches
+      for (const option of unionOptions) {
+        if (option instanceof z.ZodObject) {
+          // Navigate through the object to find the property
+          let currentSchema: z.ZodTypeAny = option;
+          let found = true;
+          
+          for (const segment of remainingPath) {
+            if (currentSchema instanceof z.ZodObject) {
+              const shape = currentSchema.shape;
+              if (shape && shape[segment]) {
+                currentSchema = shape[segment] as z.ZodTypeAny;
+              } else {
+                found = false;
+                break;
+              }
+            } else {
+              found = false;
+              break;
+            }
+          }
+          
+          if (found) {
+            return { path: envPath, schema: currentSchema };
+          }
+        }
+      }
+    }
   }
 
   // Check for array paths
@@ -275,6 +322,12 @@ function transformValue(value: string, schema: z.ZodTypeAny): any {
   // Handle wrapped types
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault) {
     return transformValue(value, schema._def.innerType as z.ZodTypeAny);
+  }
+
+  // Handle unions - for unions, just return the value as-is
+  // The actual validation will happen when the schema is parsed
+  if (schema instanceof z.ZodUnion) {
+    return value;
   }
 
   // Handle different schema types

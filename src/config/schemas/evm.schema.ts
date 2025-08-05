@@ -32,12 +32,7 @@ export const EvmRpcSchema = z.object({
  * EVM network WebSocket configuration schema
  */
 export const EvmWsSchema = z.object({
-  urls: z.array(
-    z
-      .string()
-      .url()
-      .or(z.string().regex(/^wss?:/)),
-  ),
+  urls: z.array(z.string().regex(/^wss?:/)),
   options: z
     .object({
       timeout: z.number().int().positive().optional(),
@@ -73,10 +68,12 @@ const EvmFeeSchema = z.object({
     flatFee: z.string(), // Using string for bigint compatibility (in wei)
     scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
   }),
-  native: z.object({
-    flatFee: z.string(), // Using string for bigint compatibility (in wei)
-    scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
-  }),
+  native: z
+    .object({
+      flatFee: z.string(), // Using string for bigint compatibility (in wei)
+      scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+    })
+    .optional(),
 });
 
 /**
@@ -111,8 +108,8 @@ const KernelWalletConfigSchema = z.object({
  * Wallets configuration schema - object with wallet type as keys
  */
 const WalletsSchema = z.object({
-  basic: BasicWalletConfigSchema.optional(),
-  kernel: KernelWalletConfigSchema.optional(),
+  basic: BasicWalletConfigSchema,
+  kernel: KernelWalletConfigSchema,
 });
 
 /**

@@ -1,5 +1,7 @@
-import { IntentSourceAbi } from '@eco-foundation/routes-ts';
+import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { IntentSourceAbi } from '@eco-foundation/routes-ts';
 import { PublicClient } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
@@ -8,6 +10,7 @@ import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-trans
 
 export class ChainListener extends BaseChainListener {
   private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
+  private logger: Logger;
 
   constructor(
     private readonly config: EvmChainConfig,
@@ -15,12 +18,17 @@ export class ChainListener extends BaseChainListener {
     private readonly eventEmitter: EventEmitter2,
   ) {
     super();
+    this.logger = new Logger(`${ChainListener.name}:${config.chainId}`);
   }
 
   async start(): Promise<void> {
     const evmConfig = this.config as EvmChainConfig;
 
     const publicClient = this.transportService.getPublicClient(evmConfig.chainId);
+
+    this.logger.log(
+      `Listening for IntentCreated events, intent source: ${evmConfig.intentSourceAddress}`,
+    );
 
     this.unsubscribe = publicClient.watchContractEvent({
       abi: IntentSourceAbi,

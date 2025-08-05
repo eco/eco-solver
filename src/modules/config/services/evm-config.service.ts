@@ -25,10 +25,6 @@ export class EvmConfigService {
     return Array.from(this._networks.keys());
   }
 
-  get privateKey(): string {
-    return this.configService.get<string>('evm.privateKey')!;
-  }
-
   get wallets(): EvmWalletsConfig {
     return this.configService.get<EvmWalletsConfig>('evm.wallets', {});
   }

@@ -29,18 +29,18 @@ export class KernelWallet extends BaseEvmWallet {
 
   constructor(
     private readonly chainId: number,
-    private readonly config: KernelWalletConfig,
+    private readonly kernelWalletConfig: KernelWalletConfig,
     private readonly transportService: EvmTransportService,
   ) {
     super();
 
-    if (config.signer.type !== 'eoa') {
+    if (kernelWalletConfig.signer.type !== 'eoa') {
       throw new Error('Signer must be a eoa');
     }
 
     const chain = this.transportService.getViemChain(chainId);
     const transport = this.transportService.getTransport(chainId);
-    const signer = privateKeyToAccount(config.signer.privateKey as Hex);
+    const signer = privateKeyToAccount(kernelWalletConfig.signer.privateKey as Hex);
 
     const signerWalletClient = createWalletClient({
       account: signer,

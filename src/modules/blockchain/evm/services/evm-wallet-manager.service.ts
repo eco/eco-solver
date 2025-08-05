@@ -52,7 +52,7 @@ export class EvmWalletManager implements OnModuleInit {
         this.logger.debug(`Initialized ${walletFactory.name} wallet for chain ${chainId}`);
       } catch (error) {
         this.logger.error(
-          `Failed to initialize ${walletFactory} for chain ${chainId}: ${error.message}`,
+          `Failed to initialize ${walletFactory.name} for chain ${chainId}: ${error.message}`,
         );
         throw error;
       }

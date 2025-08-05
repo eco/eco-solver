@@ -12,12 +12,7 @@ import { EvmExecutorService } from './evm.executor.service';
 import { EvmReaderService } from './evm.reader.service';
 
 @Module({
-  imports: [
-    ConfigModule,
-    ProverModule,
-    BasicWalletModule,
-    KernelWalletModule,
-  ],
+  imports: [ConfigModule, ProverModule, BasicWalletModule, KernelWalletModule],
   providers: [
     EvmTransportService,
     EvmExecutorService,
