@@ -601,46 +601,32 @@ export class EcoAnalyticsService {
 
   // ========== CROWD LIQUIDITY SERVICE TRACKING ==========
 
-  trackCrowdLiquidityFulfillmentSuccess(
-    model: any,
-    solver: any,
-    result: any,
-    processingTime: number,
-  ) {
+  trackCrowdLiquidityFulfillmentSuccess(model: any, result: any, processingTime: number) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_SUCCESS, {
       model,
-      solver,
       result,
       processingTimeMs: processingTime,
     })
   }
 
-  trackCrowdLiquidityFulfillmentFailed(
-    model: any,
-    solver: any,
-    error: any,
-    processingTime: number,
-  ) {
+  trackCrowdLiquidityFulfillmentFailed(model: any, error: any, processingTime: number) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_FAILED, {
       model,
-      solver,
       error,
       processingTimeMs: processingTime,
     })
   }
 
-  trackCrowdLiquidityFulfillmentRewardNotEnough(model: any, solver: any, error: any) {
+  trackCrowdLiquidityFulfillmentRewardNotEnough(model: any, error: any) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_REWARD_NOT_ENOUGH, {
       model,
-      solver,
       error,
     })
   }
 
-  trackCrowdLiquidityFulfillmentPoolNotSolvent(model: any, solver: any, error: any) {
+  trackCrowdLiquidityFulfillmentPoolNotSolvent(model: any, error: any) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_POOL_NOT_SOLVENT, {
       model,
-      solver,
       error,
     })
   }
