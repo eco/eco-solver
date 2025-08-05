@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { CacheModule } from '@nestjs/cache-manager'
 import { MongooseModule } from '@nestjs/mongoose'
 import { BalanceModule } from '@/balance/balance.module'
 import { IntentModule } from '@/intent/intent.module'
@@ -20,6 +21,7 @@ import { EverclearProviderService } from '@/liquidity-manager/services/liquidity
 
 @Module({
   imports: [
+    CacheModule.register(),
     BalanceModule,
     IntentModule,
     TransactionModule,
