@@ -132,12 +132,20 @@ describe('EcoCronJobManager', () => {
     addSpy.mockRejectedValueOnce(new Error('Job already exists'))
 
     // First call - job is added
-    const result1 = await ecoCronJobManager['checkAndEmitDeduped'](mockQueue, walletAddress, jobTemplate)
+    const result1 = await ecoCronJobManager['checkAndEmitDeduped'](
+      mockQueue,
+      walletAddress,
+      jobTemplate,
+    )
     expect(result1.response).toBeDefined()
     expect(result1.error).toBeUndefined()
 
     // Second call - deduped
-    const result2 = await ecoCronJobManager['checkAndEmitDeduped'](mockQueue, walletAddress, jobTemplate)
+    const result2 = await ecoCronJobManager['checkAndEmitDeduped'](
+      mockQueue,
+      walletAddress,
+      jobTemplate,
+    )
     expect(result2.response).toBeUndefined()
     expect(result2.error?.message).toMatch(/already exists/i)
 
