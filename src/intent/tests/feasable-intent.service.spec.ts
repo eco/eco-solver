@@ -50,10 +50,8 @@ describe('FeasableIntentService', () => {
         },
         { provide: IntentFulfillmentQueue, useValue: fulfillmentQueue },
       ],
-      imports: [
-      ],
-    })
-      .compile()
+      imports: [],
+    }).compile()
 
     service = chainMod.get(FeasableIntentService)
     await service.onModuleInit()
