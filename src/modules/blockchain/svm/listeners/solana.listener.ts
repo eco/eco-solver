@@ -23,6 +23,11 @@ export class SolanaListener extends BaseChainListener {
   }
 
   async start(): Promise<void> {
+    if (!this.solanaConfigService.isConfigured()) {
+      this.logger.log('Solana not configured, skipping listener initialization');
+      return;
+    }
+
     this.connection = new Connection(this.solanaConfigService.rpcUrl, {
       wsEndpoint: this.solanaConfigService.wsUrl,
       commitment: 'confirmed',
@@ -43,7 +48,7 @@ export class SolanaListener extends BaseChainListener {
   }
 
   async stop(): Promise<void> {
-    if (this.subscriptionId) {
+    if (this.subscriptionId && this.connection) {
       await this.connection.removeOnLogsListener(this.subscriptionId);
     }
     console.log('Solana listener stopped');

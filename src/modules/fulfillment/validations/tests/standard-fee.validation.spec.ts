@@ -43,8 +43,14 @@ describe('StandardFeeValidation', () => {
     const mockIntent = createMockIntent();
 
     const mockFeeLogic = {
-      flatFee: '10000000000000000', // 0.01 ETH
-      scalarBps: 1, // 1% = 100 bps, but scalarBps uses decimals (1 = 100 bps)
+      tokens: {
+        flatFee: '10000000000000000', // 0.01 ETH
+        scalarBps: 1, // 1% = 100 bps, but scalarBps uses decimals (1 = 100 bps)
+      },
+      native: {
+        flatFee: '10000000000000000', // 0.01 ETH
+        scalarBps: 1, // 1% = 100 bps, but scalarBps uses decimals (1 = 100 bps)
+      },
     };
 
     beforeEach(() => {
@@ -252,8 +258,14 @@ describe('StandardFeeValidation', () => {
     describe('different fee configurations', () => {
       it('should handle zero base fee', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '0',
-          scalarBps: 2, // 2% = 200 bps
+          tokens: {
+            flatFee: '0',
+            scalarBps: 2, // 2% = 200 bps
+          },
+          native: {
+            flatFee: '0',
+            scalarBps: 2, // 2% = 200 bps
+          },
         });
 
         const intentWithTokens = createMockIntent({
@@ -290,8 +302,14 @@ describe('StandardFeeValidation', () => {
 
       it('should handle zero percentage fee', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '50000000000000000', // 0.05 ETH
-          scalarBps: 0,
+          tokens: {
+            flatFee: '50000000000000000', // 0.05 ETH
+            scalarBps: 0,
+          },
+          native: {
+            flatFee: '50000000000000000', // 0.05 ETH
+            scalarBps: 0,
+          },
         });
 
         const intentWithTokens = createMockIntent({
@@ -319,8 +337,14 @@ describe('StandardFeeValidation', () => {
 
       it('should handle both zero fees', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '0',
-          scalarBps: 0,
+          tokens: {
+            flatFee: '0',
+            scalarBps: 0,
+          },
+          native: {
+            flatFee: '0',
+            scalarBps: 0,
+          },
         });
 
         const zeroRewardIntent = createMockIntent({
@@ -337,8 +361,14 @@ describe('StandardFeeValidation', () => {
 
       it('should handle high percentage fees', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '0',
-          scalarBps: 50, // 50% = 5000 bps
+          tokens: {
+            flatFee: '0',
+            scalarBps: 50, // 50% = 5000 bps
+          },
+          native: {
+            flatFee: '0',
+            scalarBps: 50, // 50% = 5000 bps
+          },
         });
 
         const highFeeIntent = createMockIntent({
@@ -396,8 +426,14 @@ describe('StandardFeeValidation', () => {
         });
 
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '10000000000000000000', // 10 ETH
-          scalarBps: 1, // 1% = 100 bps
+          tokens: {
+            flatFee: '10000000000000000000', // 10 ETH
+            scalarBps: 1, // 1% = 100 bps
+          },
+          native: {
+            flatFee: '10000000000000000000', // 10 ETH
+            scalarBps: 1, // 1% = 100 bps
+          },
         });
 
         // Route tokens value: 5000 ETH
@@ -425,8 +461,14 @@ describe('StandardFeeValidation', () => {
         });
 
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '0',
-          scalarBps: 0,
+          tokens: {
+            flatFee: '0',
+            scalarBps: 0,
+          },
+          native: {
+            flatFee: '0',
+            scalarBps: 0,
+          },
         });
 
         const result = await validation.validate(zeroIntent);
@@ -457,8 +499,14 @@ describe('StandardFeeValidation', () => {
         });
 
         evmConfigService.getFeeLogic.mockReturnValue({
-          flatFee: '10000000000000000', // 0.01 ETH
-          scalarBps: 1, // 1% = 100 bps
+          tokens: {
+            flatFee: '10000000000000000', // 0.01 ETH
+            scalarBps: 1, // 1% = 100 bps
+          },
+          native: {
+            flatFee: '10000000000000000', // 0.01 ETH
+            scalarBps: 1, // 1% = 100 bps
+          },
         });
 
         // Route value: 333333333333333

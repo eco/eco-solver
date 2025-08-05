@@ -14,7 +14,9 @@ export class SvmReaderService extends BaseChainReader {
 
   constructor(private solanaConfigService: SolanaConfigService) {
     super();
-    this.initializeConnection();
+    if (this.solanaConfigService.isConfigured()) {
+      this.initializeConnection();
+    }
   }
 
   private initializeConnection() {

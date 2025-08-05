@@ -345,6 +345,27 @@ The system includes a comprehensive validation framework that ensures intents ar
 
 Each fulfillment strategy defines its own immutable set of validations that are executed sequentially before processing an intent. All strategies include the `IntentFundedValidation` to ensure on-chain funding verification.
 
+### Configurable Validation Parameters
+
+The validation framework supports configurable parameters for different validation types:
+
+```bash
+# Route amount limits
+FULFILLMENT_VALIDATIONS_ROUTE_LIMITS_DEFAULT=10000000000000000000  # 10 ETH in wei
+FULFILLMENT_VALIDATIONS_ROUTE_LIMITS_ROUTES_0_CHAIN_ID=1
+FULFILLMENT_VALIDATIONS_ROUTE_LIMITS_ROUTES_0_LIMIT=5000000000000000000  # 5 ETH for chain 1
+
+# Native intent fee parameters
+FULFILLMENT_VALIDATIONS_NATIVE_FEE_BASE_FEE=2000000  # Base fee in gwei
+FULFILLMENT_VALIDATIONS_NATIVE_FEE_PERCENTAGE_FEE=75  # 0.75% in basis points
+
+# Crowd liquidity fee parameters
+FULFILLMENT_VALIDATIONS_CROWD_LIQUIDITY_FEE_BASE_FEE=500000  # Base fee in gwei
+FULFILLMENT_VALIDATIONS_CROWD_LIQUIDITY_FEE_PERCENTAGE_FEE=50  # 0.5% in basis points
+```
+
+These parameters allow fine-tuning of validation thresholds and fees without code changes.
+
 ## 🔧 Development
 
 ### Code Style
@@ -378,8 +399,12 @@ src/modules/fulfillment/
 └── validations/
     ├── tests/                    # Validation tests
     │   └── *.spec.ts
+    ├── test-helpers.ts           # Shared test utilities
     └── *.validation.ts
 ```
+
+**Test Utilities:**
+The validation tests use a centralized `createMockIntent` helper function from `test-helpers.ts` for creating consistent mock intent objects. This improves maintainability and ensures all tests use properly structured intent data.
 
 ### Adding a New Chain
 

@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
+import { ProverModule } from '@/modules/prover/prover.module';
 
 import { EvmListenersManagerService } from './listeners/evm-listeners-manager.service';
 import { EvmTransportService } from './services/evm-transport.service';
@@ -15,6 +16,7 @@ import { EvmReaderService } from './evm.reader.service';
   imports: [
     ConfigModule,
     forwardRef(() => FulfillmentModule),
+    ProverModule,
     BasicWalletModule,
     KernelWalletModule,
   ],

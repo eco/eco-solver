@@ -24,7 +24,9 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   constructor(private solanaConfigService: SolanaConfigService) {
     super();
-    this.initializeConnection();
+    if (this.solanaConfigService.isConfigured()) {
+      this.initializeConnection();
+    }
   }
 
   private initializeConnection() {

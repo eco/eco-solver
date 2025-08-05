@@ -30,4 +30,10 @@ export class SolanaConfigService {
   get programId(): SolanaConfig['programId'] {
     return this.configService.get<string>('solana.programId');
   }
+
+  isConfigured(): boolean {
+    // Check if essential Solana configuration is present
+    const config = this.configService.get('solana');
+    return !!(config && config.rpcUrl && config.secretKey && config.programId);
+  }
 }
