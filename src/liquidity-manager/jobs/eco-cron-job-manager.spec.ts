@@ -89,7 +89,7 @@ describe('EcoCronJobManager', () => {
     expect(addMock).toHaveBeenCalledWith(
       jobName,
       { wallet: walletAddress },
-      expect.objectContaining({ jobId: `${jobIDPrefix}-${walletAddress}` })
+      expect.objectContaining({ jobId: `${jobIDPrefix}-${walletAddress}` }),
     )
   })
 
@@ -112,7 +112,7 @@ describe('EcoCronJobManager', () => {
     expect(jobTemplate).toEqual({
       name: jobName,
       data: { wallet: walletAddress },
-      opts: expect.objectContaining({ removeOnComplete: true, removeOnFail: true })
+      opts: expect.objectContaining({ removeOnComplete: true, removeOnFail: true }),
     })
   })
 
@@ -141,9 +141,7 @@ describe('EcoCronJobManager', () => {
   })
 
   it('should not add duplicate jobs when jobId matches an active one', async () => {
-    const redisContainer = await new GenericContainer('redis')
-      .withExposedPorts(6379)
-      .start()
+    const redisContainer = await new GenericContainer('redis').withExposedPorts(6379).start()
 
     const queue = new Queue('test-queue', {
       connection: {
