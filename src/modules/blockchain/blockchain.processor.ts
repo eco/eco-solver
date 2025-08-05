@@ -6,6 +6,7 @@ import { Job } from 'bullmq';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
+import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Processor('blockchain-execution', {
   concurrency: 10, // Will be overridden by constructor
@@ -26,8 +27,9 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     }
   }
 
-  async process(job: Job<ExecutionJobData>) {
-    const { intent, strategy, chainId } = job.data;
+  async process(job: Job<string>) {
+    const jobData = QueueSerializer.deserialize<ExecutionJobData>(job.data);
+    const { intent, strategy, chainId } = jobData;
     const chainKey = chainId.toString();
 
     console.log(

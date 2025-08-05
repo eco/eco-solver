@@ -4,6 +4,7 @@ import { Processor } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 
@@ -13,12 +14,13 @@ export class FulfillmentProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<FulfillmentJobData>) {
+  async process(job: Job<string>) {
     if (job.name === 'process-intent') {
+      const jobData = QueueSerializer.deserialize<FulfillmentJobData>(job.data);
       console.log(
-        `Processing intent ${job.data.intent.intentHash} with strategy ${job.data.strategy}`,
+        `Processing intent ${jobData.intent.intentHash} with strategy ${jobData.strategy}`,
       );
-      await this.fulfillmentService.processIntent(job.data.intent, job.data.strategy);
+      await this.fulfillmentService.processIntent(jobData.intent, jobData.strategy);
     }
   }
 }

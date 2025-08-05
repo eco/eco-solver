@@ -12,6 +12,7 @@ import {
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Injectable()
 export class QueueService implements IQueueService {
@@ -29,7 +30,9 @@ export class QueueService implements IQueueService {
       strategy,
     };
 
-    await this.fulfillmentQueue.add('process-intent', jobData, {
+    const serializedData = QueueSerializer.serialize(jobData);
+
+    await this.fulfillmentQueue.add('process-intent', serializedData, {
       attempts: 3,
       backoff: {
         type: 'exponential',
@@ -48,9 +51,11 @@ export class QueueService implements IQueueService {
       chainId: intent.route.destination,
     };
 
+    const serializedData = QueueSerializer.serialize(jobData);
+
     await this.executionQueue.add(
       `${QueueNames.INTENT_EXECUTION}-chain-${intent.route.destination}`,
-      jobData,
+      serializedData,
       {
         attempts: 3,
         backoff: {
@@ -76,6 +81,7 @@ export class QueueService implements IQueueService {
 
   async addJob(queueName: string, data: any, options?: any): Promise<void> {
     const queue = queueName === 'intent-fulfillment' ? this.fulfillmentQueue : this.executionQueue;
-    await queue.add(queueName, data, options);
+    const serializedData = QueueSerializer.serialize(data);
+    await queue.add(queueName, serializedData, options);
   }
 }
