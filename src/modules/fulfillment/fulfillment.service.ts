@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import {
@@ -103,5 +104,11 @@ export class FulfillmentService {
       console.error(`Error processing intent ${intent.intentHash}:`, error);
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
     }
+  }
+
+  @OnEvent('intent.discovered')
+  async handleIntentDiscovered(payload: { intent: Intent; strategy: FulfillmentStrategyName }) {
+    const { intent, strategy } = payload;
+    await this.submitIntent(intent, strategy);
   }
 }

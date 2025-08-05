@@ -18,18 +18,12 @@ import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
 export class SvmExecutorService extends BaseChainExecutor {
-  private connection: Connection;
-  private keypair: Keypair;
-  private programId: PublicKey;
+  private readonly connection: Connection;
+  private readonly keypair: Keypair;
+  private readonly programId: PublicKey;
 
   constructor(private solanaConfigService: SolanaConfigService) {
     super();
-    if (this.solanaConfigService.isConfigured()) {
-      this.initializeConnection();
-    }
-  }
-
-  private initializeConnection() {
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
     this.keypair = Keypair.fromSecretKey(
       Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),
@@ -38,6 +32,9 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
+    if (!this.connection || !this.keypair || !this.programId) {
+      throw new Error('Solana executor not initialized - missing configuration');
+    }
     try {
       // Create a simple transfer transaction as an example
       // In production, this would call the actual program instruction

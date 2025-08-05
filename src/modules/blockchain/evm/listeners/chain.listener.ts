@@ -1,11 +1,10 @@
 import { IntentSourceAbi } from '@eco-foundation/routes-ts';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PublicClient } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 export class ChainListener extends BaseChainListener {
   private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
@@ -13,7 +12,7 @@ export class ChainListener extends BaseChainListener {
   constructor(
     private readonly config: EvmChainConfig,
     private readonly transportService: EvmTransportService,
-    private readonly fulfillmentService: FulfillmentService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -49,7 +48,7 @@ export class ChainListener extends BaseChainListener {
             },
           };
 
-          this.fulfillmentService.processIntent(intent, FULFILLMENT_STRATEGY_NAMES.STANDARD);
+          this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
         });
       },
     });

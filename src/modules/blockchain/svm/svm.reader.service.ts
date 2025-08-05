@@ -10,27 +10,27 @@ import { SolanaConfigService } from '@/modules/config/services';
 @Injectable()
 export class SvmReaderService extends BaseChainReader {
   protected readonly logger = new Logger(SvmReaderService.name);
-  private connection: Connection;
+  private readonly connection: Connection;
 
   constructor(private solanaConfigService: SolanaConfigService) {
     super();
-    if (this.solanaConfigService.isConfigured()) {
-      this.initializeConnection();
-    }
-  }
-
-  private initializeConnection() {
     const rpcUrl = this.solanaConfigService.rpcUrl;
     this.connection = new Connection(rpcUrl, 'confirmed');
   }
 
   async getBalance(address: string): Promise<bigint> {
+    if (!this.connection) {
+      throw new Error('Solana connection not initialized');
+    }
     const publicKey = new PublicKey(address);
     const balance = await this.connection.getBalance(publicKey);
     return BigInt(balance);
   }
 
   async getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint> {
+    if (!this.connection) {
+      throw new Error('Solana connection not initialized');
+    }
     try {
       const walletPublicKey = new PublicKey(walletAddress);
       const tokenMintPublicKey = new PublicKey(tokenAddress);
@@ -71,16 +71,25 @@ export class SvmReaderService extends BaseChainReader {
   }
 
   async getBlockHeight(): Promise<bigint> {
+    if (!this.connection) {
+      throw new Error('Solana connection not initialized');
+    }
     const blockHeight = await this.connection.getBlockHeight();
     return BigInt(blockHeight);
   }
 
   async getAccountInfo(address: string): Promise<any> {
+    if (!this.connection) {
+      throw new Error('Solana connection not initialized');
+    }
     const publicKey = new PublicKey(address);
     return this.connection.getAccountInfo(publicKey);
   }
 
   async getTransaction(signature: string): Promise<any> {
+    if (!this.connection) {
+      throw new Error('Solana connection not initialized');
+    }
     return this.connection.getTransaction(signature, {
       maxSupportedTransactionVersion: 0,
     });

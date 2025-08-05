@@ -86,4 +86,10 @@ export class EvmConfigService {
       this._networks.set(network.chainId, network);
     }
   }
+
+  isConfigured(): boolean {
+    // Check if EVM configuration exists with at least one network
+    const evmConfig = this.configService.get('evm');
+    return !!(evmConfig && this._networks.size > 0);
+  }
 }

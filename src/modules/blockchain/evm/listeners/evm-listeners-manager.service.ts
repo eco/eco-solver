@@ -1,11 +1,11 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Address } from 'viem';
 
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { EvmConfigService } from '@/modules/config/services';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 import { EvmTransportService } from '../services/evm-transport.service';
 
@@ -16,7 +16,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
-    private fulfillmentService: FulfillmentService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -29,7 +29,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         intentSourceAddress: network.intentSourceAddress as Address,
       };
 
-      const listener = new ChainListener(config, this.transportService, this.fulfillmentService);
+      const listener = new ChainListener(config, this.transportService, this.eventEmitter);
 
       await listener.start();
       this.listeners.set(network.chainId, listener);

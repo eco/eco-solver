@@ -1,14 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { FulfillmentConfigService, SolanaConfigService } from '@/modules/config/services';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 @Injectable()
 export class SolanaListener extends BaseChainListener {
+  private readonly logger = new Logger(SolanaListener.name);
   private connection: Connection;
   private programId: PublicKey;
   private subscriptionId: number;
@@ -16,18 +17,13 @@ export class SolanaListener extends BaseChainListener {
 
   constructor(
     private solanaConfigService: SolanaConfigService,
-    private fulfillmentService: FulfillmentService,
+    private eventEmitter: EventEmitter2,
     private fulfillmentConfigService: FulfillmentConfigService,
   ) {
     super();
   }
 
   async start(): Promise<void> {
-    if (!this.solanaConfigService.isConfigured()) {
-      this.logger.log('Solana not configured, skipping listener initialization');
-      return;
-    }
-
     this.connection = new Connection(this.solanaConfigService.rpcUrl, {
       wsEndpoint: this.solanaConfigService.wsUrl,
       commitment: 'confirmed',
@@ -91,7 +87,7 @@ export class SolanaListener extends BaseChainListener {
       if (this.isIntentCreatedLog(logs)) {
         const intent = this.parseIntentFromEvent(logs);
         const defaultStrategy = this.fulfillmentConfigService.defaultStrategy;
-        await this.fulfillmentService.submitIntent(intent, defaultStrategy);
+        this.eventEmitter.emit('intent.discovered', { intent, strategy: defaultStrategy });
       }
     } catch (error) {
       console.error('Error handling Solana program logs:', error);

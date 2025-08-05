@@ -1,5 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
@@ -12,6 +13,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
 @Module({
   imports: [
     ConfigModule,
+    EventEmitterModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (databaseConfig: DatabaseConfigService) => ({
@@ -32,8 +34,8 @@ import { QueueModule } from '@/modules/queue/queue.module';
     }),
     QueueModule,
     IntentsModule,
+    BlockchainModule.forRootAsync(),
     FulfillmentModule,
-    BlockchainModule,
   ],
 })
 export class AppModule {}

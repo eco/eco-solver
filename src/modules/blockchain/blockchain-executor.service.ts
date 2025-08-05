@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { EvmConfigService } from '@/modules/config/services';
+import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 
 import { EvmExecutorService } from './evm/evm.executor.service';
@@ -14,22 +14,28 @@ export class BlockchainExecutorService {
 
   constructor(
     private evmConfigService: EvmConfigService,
+    private solanaConfigService: SolanaConfigService,
     private intentsService: IntentsService,
-    private evmExecutor: EvmExecutorService,
-    private svmExecutor: SvmExecutorService,
+    @Optional() private evmExecutor?: EvmExecutorService,
+    @Optional() private svmExecutor?: SvmExecutorService,
   ) {
     this.initializeExecutors();
   }
 
   private initializeExecutors() {
-    // Register EVM executor for all supported chains
-    const evmChainIds = this.evmConfigService.supportedChainIds;
-    for (const chainId of evmChainIds) {
-      this.executors.set(chainId, this.evmExecutor);
+    // Register EVM executor only if available and configured
+    if (this.evmExecutor && this.evmConfigService.isConfigured()) {
+      const evmChainIds = this.evmConfigService.supportedChainIds;
+      for (const chainId of evmChainIds) {
+        this.executors.set(chainId, this.evmExecutor);
+      }
     }
 
-    // Register SVM executor
-    this.executors.set('solana-mainnet', this.svmExecutor);
+    // Register SVM executor only if available and configured
+    if (this.svmExecutor && this.solanaConfigService.isConfigured()) {
+      this.executors.set('solana-mainnet', this.svmExecutor);
+      this.executors.set('solana-devnet', this.svmExecutor);
+    }
   }
 
   /**

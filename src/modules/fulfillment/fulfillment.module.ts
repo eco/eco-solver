@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { ConfigModule } from '@/modules/config/config.module';
@@ -37,7 +37,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
     IntentsModule,
     QueueModule,
     ProverModule,
-    forwardRef(() => BlockchainModule),
+    BlockchainModule.forRootAsync(),
   ],
   providers: [
     // Core services
