@@ -6,6 +6,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 import { getTotalSlippage } from '@/liquidity-manager/utils/math'
 import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -36,6 +37,7 @@ export class LiquidityProviderService {
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
     protected readonly cctpv2ProviderService: CCTPV2ProviderService,
     protected readonly squidProviderService: SquidProviderService,
+    protected readonly everclearProviderService: EverclearProviderService,
     protected readonly publicNegativeIntentRebalanceService: PublicNegativeIntentRebalanceService,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
@@ -249,6 +251,8 @@ export class LiquidityProviderService {
         return this.squidProviderService
       case 'CCTPV2':
         return this.cctpv2ProviderService
+      case 'Everclear':
+        return this.everclearProviderService
       case 'PublicNegativeIntent':
         return this.publicNegativeIntentRebalanceService
     }

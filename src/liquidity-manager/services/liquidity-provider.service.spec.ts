@@ -5,6 +5,7 @@ import { createMock } from '@golevelup/ts-jest'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { PublicNegativeIntentRebalanceService } from '@/negative-intents/services/public-negative-intent-rebalance.service'
@@ -27,6 +28,7 @@ describe('LiquidityProviderService', () => {
   let ecoConfigService: EcoConfigService
   let cctpLiFiProviderService: CCTPLiFiProviderService
   let squidProviderService: SquidProviderService
+  let everclearProviderService: EverclearProviderService
   let publicNegativeIntentRebalanceService: PublicNegativeIntentRebalanceService
 
   beforeAll(() => {
@@ -61,6 +63,7 @@ describe('LiquidityProviderService', () => {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
         },
+        { provide: EverclearProviderService, useValue: createMock<EverclearProviderService>() },
       ],
     }).compile()
 
@@ -74,6 +77,7 @@ describe('LiquidityProviderService', () => {
     cctpLiFiProviderService = module.get<CCTPLiFiProviderService>(CCTPLiFiProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     squidProviderService = module.get<SquidProviderService>(SquidProviderService)
+    everclearProviderService = module.get<EverclearProviderService>(EverclearProviderService)
     publicNegativeIntentRebalanceService = module.get<PublicNegativeIntentRebalanceService>(
       PublicNegativeIntentRebalanceService,
     )
@@ -123,6 +127,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest.spyOn(everclearProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest
         .spyOn(publicNegativeIntentRebalanceService, 'getQuote')
         .mockResolvedValue(mockQuote as any)

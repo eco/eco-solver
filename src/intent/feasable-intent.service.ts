@@ -1,16 +1,14 @@
 import { EcoAnalyticsService } from '@/analytics'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
 import { FeeService } from '@/fee/fee.service'
 import { getIntentJobId } from '../common/utils/strings'
+import { Hex } from 'viem'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { InjectQueue } from '@nestjs/bullmq'
 import { IntentProcessingJobData } from '@/intent/interfaces/intent-processing-job-data.interface'
-import { JobsOptions, Queue } from 'bullmq'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { ModuleRef } from '@nestjs/core'
 import { NegativeIntentAnalyzerService } from '@/negative-intents/services/negative-intents-analyzer.service'
-import { QUEUES } from '../common/redis/constants'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { UtilsIntentService } from './utils-intent.service'
 
@@ -20,20 +18,17 @@ import { UtilsIntentService } from './utils-intent.service'
 @Injectable()
 export class FeasableIntentService implements OnModuleInit {
   private logger = new Logger(FeasableIntentService.name)
-  private intentJobConfig: JobsOptions
   private negativeIntentAnalyzerService: NegativeIntentAnalyzerService
 
   constructor(
-    @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
+    private readonly intentFulfillmentQueue: IntentFulfillmentQueue,
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
-    private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
   async onModuleInit() {
-    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
     this.negativeIntentAnalyzerService = this.moduleRef.get(NegativeIntentAnalyzerService, {
       strict: false,
     })
@@ -56,9 +51,14 @@ export class FeasableIntentService implements OnModuleInit {
     }
   }
 
+  /**
+   * Validates that the execution of the intent is feasible. This means that the solver can execute
+   * the transaction and that transaction cost is profitable to the solver.
+   * @param data the intent processing job data containing the intent hash and other necessary information
+   * @returns
+   */
   async feasableIntent(data: IntentProcessingJobData) {
     const { intentHash } = data
-
     const isNegativeIntent = await this.isNegativeIntent(data)
 
     if (isNegativeIntent) {
@@ -68,7 +68,14 @@ export class FeasableIntentService implements OnModuleInit {
         }),
       )
 
-      await this.addFulfillJob(data)
+      const model = await this.getIntentSourceModel(intentHash)
+
+      if (!model) {
+        return
+      }
+
+      const chainID = Number(model.intent.route.destination)
+      await this.addFulfillJob(data, chainID)
       return true
     }
 
@@ -103,22 +110,9 @@ export class FeasableIntentService implements OnModuleInit {
     // Track feasibility check start
     this.ecoAnalytics.trackIntentFeasibilityCheckStarted(intentHash)
 
-    const data = await this.utilsIntentService.getIntentProcessData(intentHash)
-    const { model, solver, err } = data ?? {}
-    if (!model || !solver) {
-      // Track feasibility check failed due to missing data
-      this.ecoAnalytics.trackError(
-        ERROR_EVENTS.INTENT_FEASIBILITY_CHECK_FAILED,
-        err || new Error('missing_model_or_solver'),
-        {
-          intentHash,
-          reason: 'missing_model_or_solver',
-          stage: 'data_retrieval',
-        },
-      )
-      if (err) {
-        throw err
-      }
+    const model = await this.getIntentSourceModel(intentHash)
+
+    if (!model) {
       return
     }
 
@@ -134,16 +128,13 @@ export class FeasableIntentService implements OnModuleInit {
         },
       }),
     )
+
     if (!error) {
       //add to processing queue
-      await this.intentQueue.add(
-        QUEUES.SOURCE_INTENT.jobs.fulfill_intent,
-        intentProcessingJobData,
-        {
-          jobId,
-          ...this.intentJobConfig,
-        },
-      )
+      await this.intentFulfillmentQueue.addFulfillIntentJob({
+        intentHash,
+        chainId: Number(model.intent.route.destination),
+      })
 
       // Track feasible intent queued for fulfillment
       this.ecoAnalytics.trackIntentFeasibleAndQueued(intentHash, jobId, model)
@@ -155,9 +146,9 @@ export class FeasableIntentService implements OnModuleInit {
     }
   }
 
-  private async addFulfillJob(data: IntentProcessingJobData, logIndex: number = 0) {
+  private async addFulfillJob(data: IntentProcessingJobData, chainID: number) {
     const { intentHash } = data
-    const jobId = getIntentJobId('feasable', intentHash, logIndex)
+    const jobId = getIntentJobId('feasable', intentHash, chainID)
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `FeasableIntent intent ${intentHash}`,
@@ -169,9 +160,33 @@ export class FeasableIntentService implements OnModuleInit {
     )
 
     // Add to processing queue
-    await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.fulfill_intent, data, {
-      jobId,
-      ...this.intentJobConfig,
+    await this.intentFulfillmentQueue.addFulfillIntentJob({
+      intentHash,
+      chainId: chainID,
     })
+  }
+
+  private async getIntentSourceModel(intentHash: Hex): Promise<IntentSourceModel | undefined> {
+    const data = await this.utilsIntentService.getIntentProcessData(intentHash)
+    const { model, solver, err } = data ?? {}
+
+    if (!model || !solver) {
+      // Track feasibility check failed due to missing data
+      this.ecoAnalytics.trackError(
+        ERROR_EVENTS.INTENT_FEASIBILITY_CHECK_FAILED,
+        err || new Error('missing_model_or_solver'),
+        {
+          intentHash,
+          reason: 'missing_model_or_solver',
+          stage: 'data_retrieval',
+        },
+      )
+      if (err) {
+        throw err
+      }
+      return undefined
+    }
+
+    return model
   }
 }
