@@ -3,28 +3,26 @@ import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager
 import { GenericContainer } from 'testcontainers'
 import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
-
-jest.useFakeTimers()
+import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 
 describe('EcoCronJobManager', () => {
-  let queue: Queue
-  let cron: EcoCronJobManager
-  const jobName = 'test-job'
-  const jobIDPrefix = 'prefix'
-  const interval = 5000
+  let mockQueue: Queue
+  let ecoCronJobManager: EcoCronJobManager
+  const jobName = LiquidityManagerJobName.CHECK_BALANCES
   const walletAddress = '0xabc123'
+  const jobIDPrefix = `check-balances-${walletAddress}`
 
   beforeEach(() => {
-    queue = createMock<Queue>()
+    mockQueue = createMock<Queue>()
 
     // Override the readonly `.name` property
-    Object.defineProperty(queue, 'name', {
+    Object.defineProperty(mockQueue, 'name', {
       value: 'mock-queue',
       writable: false, // this mirrors the readonly type
       configurable: true, // allows redefinition in tests
     })
 
-    cron = new EcoCronJobManager(jobName, jobIDPrefix)
+    ecoCronJobManager = new EcoCronJobManager(jobName, jobIDPrefix)
   })
 
   afterEach(() => {
@@ -33,20 +31,15 @@ describe('EcoCronJobManager', () => {
   })
 
   it('should start and schedule checkAndEmitDeduped loop', async () => {
-    const addMock = jest.spyOn(queue, 'add').mockResolvedValue({ id: 'mock-job-id' } as Job)
+    const addMock = jest.spyOn(mockQueue, 'add').mockResolvedValue({ id: 'mock-job-id' } as Job)
 
-    // jest.useFakeTimers()
-    const immediateSpy = jest.spyOn(global, 'setImmediate')
+    await ecoCronJobManager.start(mockQueue, 50, walletAddress) // shorter interval for test
 
-    await cron.start(queue, interval, walletAddress)
+    await new Promise((resolve) => setTimeout(resolve, 100)) // let loop tick at least once
+    ecoCronJobManager.stop()
 
-    // Fast-forward timers to trigger the loop once
-    jest.runOnlyPendingTimers()
-    await Promise.resolve() // allow pending promises to resolve
-
-    expect(immediateSpy).toHaveBeenCalled()
     expect(addMock).toHaveBeenCalledWith(
-      jobName, // should match this.jobName in cron
+      jobName,
       { wallet: walletAddress },
       expect.objectContaining({
         jobId: expect.stringContaining(walletAddress),
@@ -54,53 +47,64 @@ describe('EcoCronJobManager', () => {
         removeOnFail: true,
       }),
     )
-
-    jest.useRealTimers()
   })
 
   it('should skip start() if already started', async () => {
-    const spy = jest.spyOn(queue, 'add')
-    cron['started'] = true
+    const spy = jest.spyOn(mockQueue, 'add')
+    ecoCronJobManager['started'] = true
 
-    await cron.start(queue, interval, walletAddress)
+    await ecoCronJobManager.start(mockQueue, 5000, walletAddress)
 
     expect(spy).not.toHaveBeenCalled()
   })
 
   it('should stop the loop with stop()', async () => {
-    cron['started'] = true
-    cron['stopRequested'] = false
+    ecoCronJobManager['started'] = true
+    ecoCronJobManager['stopRequested'] = false
 
-    cron.stop()
+    ecoCronJobManager.stop()
 
-    expect(cron['stopRequested']).toBe(true)
+    expect(ecoCronJobManager['stopRequested']).toBe(true)
   })
 
   it('checkAndEmitDeduped should add job with correct parameters', async () => {
-    const addMock = jest.spyOn(queue, 'add').mockResolvedValue({ id: 'job-123' } as Job)
+    const redisContainer = await new GenericContainer('redis').withExposedPorts(6379).start()
 
-    const result = await cron['checkAndEmitDeduped'](
+    const queue = new Queue('test-queue', {
+      connection: {
+        host: redisContainer.getHost(),
+        port: redisContainer.getMappedPort(6379),
+      },
+    })
+
+    const { response: job, error } = await ecoCronJobManager['checkAndEmitDeduped'](
       queue,
       walletAddress,
-      cron['createJobTemplate'](walletAddress),
+      ecoCronJobManager['createJobTemplate'](walletAddress),
     )
 
-    expect(result.response).toBeDefined()
-    expect(addMock).toHaveBeenCalledWith(
-      jobName,
-      { wallet: walletAddress },
-      expect.objectContaining({ jobId: `${jobIDPrefix}-${walletAddress}` }),
+    expect(error).toBeUndefined()
+    expect(job).toBeDefined()
+
+    expect(job).toEqual(
+      expect.objectContaining({
+        name: jobName,
+        id: ecoCronJobManager['jobIDPrefix'],
+      }),
     )
+
+    await queue.close()
+    await redisContainer.stop()
   })
 
   it('checkAndEmitDeduped should handle errors gracefully', async () => {
     const error = new Error('add failed')
-    jest.spyOn(queue, 'add').mockRejectedValue(error)
+    jest.spyOn(mockQueue, 'add').mockRejectedValue(error)
 
-    const result = await cron['checkAndEmitDeduped'](
-      queue,
+    const result = await ecoCronJobManager['checkAndEmitDeduped'](
+      mockQueue,
       walletAddress,
-      cron['createJobTemplate'](walletAddress),
+      ecoCronJobManager['createJobTemplate'](walletAddress),
     )
 
     expect(result.error).toBe(error)
@@ -108,7 +112,7 @@ describe('EcoCronJobManager', () => {
   })
 
   it('createJobTemplate should return expected structure', () => {
-    const jobTemplate = cron['createJobTemplate'](walletAddress)
+    const jobTemplate = ecoCronJobManager['createJobTemplate'](walletAddress)
     expect(jobTemplate).toEqual({
       name: jobName,
       data: { wallet: walletAddress },
@@ -117,23 +121,23 @@ describe('EcoCronJobManager', () => {
   })
 
   it('should not enqueue duplicate jobs due to BullMQ deduplication', async () => {
-    const jobTemplate = cron['createJobTemplate'](walletAddress)
+    const jobTemplate = ecoCronJobManager['createJobTemplate'](walletAddress)
 
     // First call returns a fake job (normal flow)
-    const addSpy = jest.spyOn(queue, 'add').mockResolvedValueOnce({
-      id: `${cron['jobIDPrefix']}-${walletAddress}`,
+    const addSpy = jest.spyOn(mockQueue, 'add').mockResolvedValueOnce({
+      id: `${ecoCronJobManager['jobIDPrefix']}-${walletAddress}`,
     } as unknown as Job)
 
     // Second call simulates BullMQ rejecting due to deduplication
     addSpy.mockRejectedValueOnce(new Error('Job already exists'))
 
     // First call - job is added
-    const result1 = await cron['checkAndEmitDeduped'](queue, walletAddress, jobTemplate)
+    const result1 = await ecoCronJobManager['checkAndEmitDeduped'](mockQueue, walletAddress, jobTemplate)
     expect(result1.response).toBeDefined()
     expect(result1.error).toBeUndefined()
 
     // Second call - deduped
-    const result2 = await cron['checkAndEmitDeduped'](queue, walletAddress, jobTemplate)
+    const result2 = await ecoCronJobManager['checkAndEmitDeduped'](mockQueue, walletAddress, jobTemplate)
     expect(result2.response).toBeUndefined()
     expect(result2.error?.message).toMatch(/already exists/i)
 
@@ -175,5 +179,6 @@ describe('EcoCronJobManager', () => {
     expect(jobs).toHaveLength(1) // Only one job added
 
     await queue.close()
+    await redisContainer.stop()
   })
 })

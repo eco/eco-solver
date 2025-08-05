@@ -104,7 +104,7 @@ export class EcoCronJobManager {
       const { name: jobName, data: jobData, opts: jobOpts } = jobTemplate
 
       const job = await queue.add(jobName, jobData, {
-        jobId: `${this.jobIDPrefix}-${walletAddress}`,
+        jobId: `${this.jobIDPrefix}`,
         ...jobOpts,
       })
 
