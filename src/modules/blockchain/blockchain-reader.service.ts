@@ -4,8 +4,8 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 
-import { EvmReaderService } from './evm/evm.reader.service';
-import { SvmReaderService } from './svm/svm.reader.service';
+import { EvmReaderService } from './evm/services/evm.reader.service';
+import { SvmReaderService } from './svm/services/svm.reader.service';
 
 @Injectable()
 export class BlockchainReaderService {
@@ -19,25 +19,6 @@ export class BlockchainReaderService {
     @Optional() private svmReader?: SvmReaderService,
   ) {
     this.initializeReaders();
-  }
-
-  private initializeReaders() {
-    // Register EVM reader only if available and configured
-    if (this.evmReader && this.evmConfigService.isConfigured()) {
-      const evmChainIds = this.evmConfigService.supportedChainIds;
-      for (const chainId of evmChainIds) {
-        // Create a new instance for each chain with chainId set
-        const reader = Object.create(this.evmReader);
-        reader.setChainId(chainId);
-        this.readers.set(chainId, reader);
-      }
-    }
-
-    // Register SVM reader only if available and configured
-    if (this.svmReader && this.solanaConfigService.isConfigured()) {
-      this.readers.set('solana-mainnet', this.svmReader);
-      this.readers.set('solana-devnet', this.svmReader);
-    }
   }
 
   /**
@@ -131,26 +112,22 @@ export class BlockchainReaderService {
     return reader.isIntentFunded(intent);
   }
 
-  /**
-   * Determine chain ID from token address format
-   * @param tokenAddress The token address
-   * @returns The chain ID if determinable, null otherwise
-   */
-  getChainIdFromAddress(tokenAddress: string): string | number | null {
-    // Check if it's a valid EVM address
-    if (this.evmReader && this.evmReader.isAddressValid(tokenAddress)) {
-      // For EVM, we can't determine chain from address alone
-      // Would need additional context
-      return null;
+  private initializeReaders() {
+    // Register EVM reader only if available and configured
+    if (this.evmReader && this.evmConfigService.isConfigured()) {
+      const evmChainIds = this.evmConfigService.supportedChainIds;
+      for (const chainId of evmChainIds) {
+        // Create a new instance for each chain with chainId set
+        const reader = Object.create(this.evmReader);
+        reader.setChainId(chainId);
+        this.readers.set(chainId, reader);
+      }
     }
 
-    // Check if it's a valid Solana address
-    if (this.svmReader && this.svmReader.isAddressValid(tokenAddress)) {
-      // For Solana, we default to mainnet
-      // Could be enhanced to detect devnet/testnet
-      return 'solana-mainnet';
+    // Register SVM reader only if available and configured
+    if (this.svmReader && this.solanaConfigService.isConfigured()) {
+      this.readers.set('solana-mainnet', this.svmReader);
+      this.readers.set('solana-devnet', this.svmReader);
     }
-
-    return null;
   }
 }

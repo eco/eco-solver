@@ -1,23 +1,11 @@
 import { Test } from '@nestjs/testing';
 
-// Mock the dependencies before any imports
-jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
-  BlockchainExecutorService: jest.fn().mockImplementation(() => ({})),
-}));
-
-jest.mock('@/modules/queue/queue.service', () => ({
-  QueueService: jest.fn().mockImplementation(() => ({
-    addIntentToExecutionQueue: jest.fn(),
-  })),
-}));
-
-import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { NativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   NativeFeeValidation,
   ProverSupportValidation,
@@ -29,15 +17,17 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
-import { NativeIntentsFulfillmentStrategy } from '../native-intents-fulfillment.strategy';
+jest.mock('@/modules/queue/queue.service', () => ({
+  QueueService: jest.fn().mockImplementation(() => ({
+    addIntentToExecutionQueue: jest.fn(),
+  })),
+}));
 
 describe('NativeIntentsFulfillmentStrategy', () => {
   let strategy: NativeIntentsFulfillmentStrategy;
-  let blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
-  let fundingValidation: jest.Mocked<FundingValidation>;
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
@@ -53,7 +43,6 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     jest.clearAllMocks();
 
     // Create mock services
-    const mockBlockchainExecutorService = {};
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
@@ -64,7 +53,6 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       constructor: { name },
     });
 
-    fundingValidation = createMockValidation('FundingValidation') as any;
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
@@ -79,16 +67,8 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       providers: [
         NativeIntentsFulfillmentStrategy,
         {
-          provide: BlockchainExecutorService,
-          useValue: mockBlockchainExecutorService,
-        },
-        {
           provide: QUEUE_SERVICE,
           useValue: mockQueueService,
-        },
-        {
-          provide: FundingValidation,
-          useValue: fundingValidation,
         },
         {
           provide: IntentFundedValidation,
@@ -130,7 +110,6 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<NativeIntentsFulfillmentStrategy>(NativeIntentsFulfillmentStrategy);
-    blockchainExecutorService = module.get(BlockchainExecutorService);
     queueService = module.get(QUEUE_SERVICE);
   });
 
@@ -146,22 +125,23 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
       expect(validations).toHaveLength(10);
-      expect(validations[0]).toBe(fundingValidation);
-      expect(validations[1]).toBe(intentFundedValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      expect(validations[3]).toBe(routeCallsValidation);
-      expect(validations[4]).toBe(routeAmountLimitValidation);
-      expect(validations[5]).toBe(expirationValidation);
-      expect(validations[6]).toBe(chainSupportValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(nativeFeeValidation);
+      expect(validations[0]).toBe(intentFundedValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[2]).toBe(routeCallsValidation);
+      expect(validations[3]).toBe(routeAmountLimitValidation);
+      expect(validations[4]).toBe(expirationValidation);
+      expect(validations[5]).toBe(chainSupportValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(nativeFeeValidation);
     });
 
     it('should use NativeFeeValidation instead of StandardFeeValidation', () => {
       const validations = (strategy as any).getValidations();
       expect(validations[9]).toBe(nativeFeeValidation);
-      expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(false);
+      expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
+        false,
+      );
     });
 
     it('should have immutable validations array', () => {
@@ -284,20 +264,18 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(mockIntent);
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
 
       // Verify each validation was called exactly once
       [
-        fundingValidation,
         intentFundedValidation,
         routeTokenValidation,
         routeCallsValidation,
@@ -323,7 +301,6 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       );
 
       // Verify validations were called in order until failure
-      expect(fundingValidation.validate).toHaveBeenCalledTimes(1);
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
@@ -348,14 +325,12 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       const mockIntent = createMockIntent();
 
       // Make an early validation fail
-      fundingValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
         'Validation failed: FundingValidation',
       );
 
       // Verify only first validation was called
-      expect(fundingValidation.validate).toHaveBeenCalledTimes(1);
       expect(intentFundedValidation.validate).not.toHaveBeenCalled();
       expect(nativeFeeValidation.validate).not.toHaveBeenCalled();
     });
@@ -367,10 +342,11 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
       await strategy.execute(mockIntent);
 
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith(
-        mockIntent,
-        FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS,
-      );
+      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        strategy: FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS,
+        intent: mockIntent,
+        chainId: mockIntent.route.destination,
+      });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
     });
 
@@ -385,17 +361,17 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
     it('should handle native-only intent configurations', async () => {
       const intents = [
-        createMockIntent({ 
+        createMockIntent({
           reward: { nativeValue: BigInt(1000000000000000000) } as any,
           route: { tokens: [] } as any,
         }),
         createMockIntent({
-          reward: { 
+          reward: {
             nativeValue: BigInt(500000000000000000), // 0.5 ETH
             tokens: [],
           } as any,
         }),
-        createMockIntent({ 
+        createMockIntent({
           status: 'VALIDATED' as any,
           reward: { nativeValue: BigInt(2000000000000000000) } as any,
         }),
@@ -407,11 +383,11 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-          index + 1,
+        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          strategy: FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS,
           intent,
-          FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS,
-        );
+          chainId: intent.route.destination,
+        });
       });
     });
   });
@@ -428,7 +404,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     it('should include native fee validation', () => {
       const validations = (strategy as any).getValidations();
       const lastValidation = validations[validations.length - 1];
-      
+
       expect(lastValidation).toBe(nativeFeeValidation);
     });
   });

@@ -10,7 +10,6 @@ import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   ProverSupportValidation,
   RouteAmountLimitValidation,
@@ -33,7 +32,6 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     private readonly blockchainService: BlockchainExecutorService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for a standard strategy
-    private readonly fundingValidation: FundingValidation,
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
@@ -47,7 +45,6 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     super();
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
-      this.fundingValidation,
       this.intentFundedValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
@@ -68,7 +65,11 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Add to execution queue with standard execution data
-    await this.queueService.addIntentToExecutionQueue(intent, this.name);
+    await this.queueService.addIntentToExecutionQueue({
+      strategy: this.name,
+      intent,
+      chainId: intent.route.destination,
+    });
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

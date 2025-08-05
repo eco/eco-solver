@@ -10,7 +10,6 @@ import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   NativeFeeValidation,
   ProverSupportValidation,
@@ -33,7 +32,6 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     private readonly blockchainService: BlockchainExecutorService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for negative intents strategy
-    private readonly fundingValidation: FundingValidation,
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
@@ -47,7 +45,6 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     super();
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
-      this.fundingValidation,
       this.intentFundedValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
@@ -71,7 +68,11 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Negative intents fulfillment uses both EVM and SVM executors
-    await this.queueService.addIntentToExecutionQueue(intent, this.name);
+    await this.queueService.addIntentToExecutionQueue({
+      strategy: this.name,
+      intent,
+      chainId: intent.route.destination,
+    });
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

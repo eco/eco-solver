@@ -55,7 +55,7 @@ describe('ChainSupportValidation', () => {
 
     describe('source chain not supported', () => {
       it('should throw error when source chain is not supported', async () => {
-        blockchainExecutorService.isChainSupported.mockReturnValueOnce(false); // source chain not supported
+        blockchainExecutorService.isChainSupported.mockReturnValueOnce(false); // source chain isn't supported
 
         await expect(validation.validate(mockIntent)).rejects.toThrow(
           'Source chain 1 is not supported',

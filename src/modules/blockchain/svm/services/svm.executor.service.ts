@@ -8,6 +8,7 @@ import {
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
+import { Address } from 'viem';
 
 import {
   BaseChainExecutor,
@@ -76,6 +77,10 @@ export class SvmExecutorService extends BaseChainExecutor {
     const publicKey = new PublicKey(address);
     const balance = await this.connection.getBalance(publicKey);
     return BigInt(balance);
+  }
+
+  getWalletAddress(): Promise<Address> {
+    throw new Error('Solana executor not initialized - missing wallet address');
   }
 
   async isTransactionConfirmed(txHash: string, _chainId: number): Promise<boolean> {

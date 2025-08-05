@@ -11,7 +11,6 @@ import {
   CrowdLiquidityFeeValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   ProverSupportValidation,
   RouteAmountLimitValidation,
@@ -33,7 +32,6 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
     private readonly blockchainService: BlockchainExecutorService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for crowd liquidity strategy
-    private readonly fundingValidation: FundingValidation,
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
@@ -47,7 +45,6 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
     super();
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
-      this.fundingValidation,
       this.intentFundedValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
@@ -70,7 +67,11 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Crowd liquidity fulfillment only uses the CL executor
-    await this.queueService.addIntentToExecutionQueue(intent, this.name);
+    await this.queueService.addIntentToExecutionQueue({
+      strategy: this.name,
+      intent,
+      chainId: intent.route.destination,
+    });
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

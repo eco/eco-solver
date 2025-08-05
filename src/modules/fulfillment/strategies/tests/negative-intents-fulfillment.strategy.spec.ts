@@ -257,16 +257,16 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(mockIntent);
+      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
 
       // Verify each validation was called exactly once
       [
@@ -342,8 +342,8 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // All validations should still be called for negative intents
-      expect(fundingValidation.validate).toHaveBeenCalledWith(negativeIntent);
-      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(negativeIntent);
+      expect(fundingValidation.validate).toHaveBeenCalledWith(negativeIntent, strategy);
+      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(negativeIntent, strategy);
     });
   });
 
@@ -353,10 +353,11 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
 
       await strategy.execute(mockIntent);
 
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith(
-        mockIntent,
-        FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
-      );
+      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+        intent: mockIntent,
+        chainId: mockIntent.route.destination,
+      });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
     });
 
@@ -417,8 +418,11 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       intents.forEach((intent, index) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
           index + 1,
-          intent,
-          FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+          {
+            strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+            intent,
+            chainId: intent.route.destination,
+          },
         );
       });
     });
@@ -446,13 +450,19 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(2);
       expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
         1,
-        evmIntent,
-        FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+        {
+          strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+          intent: evmIntent,
+          chainId: evmIntent.route.destination,
+        },
       );
       expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
         2,
-        svmIntent,
-        FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+        {
+          strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+          intent: svmIntent,
+          chainId: svmIntent.route.destination,
+        },
       );
     });
   });

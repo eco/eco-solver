@@ -1,5 +1,23 @@
 import { Test } from '@nestjs/testing';
 
+import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
+import {
+  ChainSupportValidation,
+  CrowdLiquidityFeeValidation,
+  ExecutorBalanceValidation,
+  ExpirationValidation,
+  IntentFundedValidation,
+  ProverSupportValidation,
+  RouteAmountLimitValidation,
+  RouteCallsValidation,
+  RouteTokenValidation,
+} from '@/modules/fulfillment/validations';
+import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
+import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+
 // Mock the dependencies before any imports
 jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
   BlockchainExecutorService: jest.fn().mockImplementation(() => ({})),
@@ -11,33 +29,11 @@ jest.mock('@/modules/queue/queue.service', () => ({
   })),
 }));
 
-import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
-import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
-import {
-  ChainSupportValidation,
-  CrowdLiquidityFeeValidation,
-  ExecutorBalanceValidation,
-  ExpirationValidation,
-  FundingValidation,
-  IntentFundedValidation,
-  ProverSupportValidation,
-  RouteAmountLimitValidation,
-  RouteCallsValidation,
-  RouteTokenValidation,
-} from '@/modules/fulfillment/validations';
-import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
-
-import { CrowdLiquidityFulfillmentStrategy } from '../crowd-liquidity-fulfillment.strategy';
-
 describe('CrowdLiquidityFulfillmentStrategy', () => {
   let strategy: CrowdLiquidityFulfillmentStrategy;
-  let blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
-  let fundingValidation: jest.Mocked<FundingValidation>;
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
@@ -64,7 +60,6 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       constructor: { name },
     });
 
-    fundingValidation = createMockValidation('FundingValidation') as any;
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
@@ -85,10 +80,6 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         {
           provide: QUEUE_SERVICE,
           useValue: mockQueueService,
-        },
-        {
-          provide: FundingValidation,
-          useValue: fundingValidation,
         },
         {
           provide: IntentFundedValidation,
@@ -130,7 +121,6 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<CrowdLiquidityFulfillmentStrategy>(CrowdLiquidityFulfillmentStrategy);
-    blockchainExecutorService = module.get(BlockchainExecutorService);
     queueService = module.get(QUEUE_SERVICE);
   });
 
@@ -146,22 +136,23 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
       expect(validations).toHaveLength(10);
-      expect(validations[0]).toBe(fundingValidation);
-      expect(validations[1]).toBe(intentFundedValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      expect(validations[3]).toBe(routeCallsValidation);
-      expect(validations[4]).toBe(routeAmountLimitValidation);
-      expect(validations[5]).toBe(expirationValidation);
-      expect(validations[6]).toBe(chainSupportValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(crowdLiquidityFeeValidation);
+      expect(validations[0]).toBe(intentFundedValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[2]).toBe(routeCallsValidation);
+      expect(validations[3]).toBe(routeAmountLimitValidation);
+      expect(validations[4]).toBe(expirationValidation);
+      expect(validations[5]).toBe(chainSupportValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(crowdLiquidityFeeValidation);
     });
 
     it('should use CrowdLiquidityFeeValidation instead of StandardFeeValidation', () => {
       const validations = (strategy as any).getValidations();
       expect(validations[9]).toBe(crowdLiquidityFeeValidation);
-      expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(false);
+      expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
+        false,
+      );
     });
 
     it('should have immutable validations array', () => {
@@ -186,16 +177,22 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         createMockIntent({ route: { source: BigInt(1), destination: BigInt(10) } as any }),
         createMockIntent({ route: { source: BigInt(137), destination: BigInt(42161) } as any }),
         createMockIntent({
-          reward: { 
+          reward: {
             nativeValue: BigInt(10000000000000000000), // Large amount
-            tokens: [{ amount: BigInt(1000000), token: '0x123' as any }] 
+            tokens: [{ amount: BigInt(1000000), token: '0x123' as any }],
           } as any,
         }),
         createMockIntent({
           route: {
             tokens: [
-              { amount: BigInt(1000000000), token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as any }, // USDC
-              { amount: BigInt(1000000000), token: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as any }, // USDT
+              {
+                amount: BigInt(1000000000),
+                token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as any,
+              }, // USDC
+              {
+                amount: BigInt(1000000000),
+                token: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as any,
+              }, // USDT
             ],
           } as any,
         }),
@@ -215,20 +212,18 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledWith(mockIntent);
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
 
       // Verify each validation was called exactly once
       [
-        fundingValidation,
         intentFundedValidation,
         routeTokenValidation,
         routeCallsValidation,
@@ -254,7 +249,6 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       );
 
       // Verify validations were called in order until failure
-      expect(fundingValidation.validate).toHaveBeenCalledTimes(1);
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
@@ -299,10 +293,11 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
       await strategy.execute(mockIntent);
 
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith(
-        mockIntent,
-        FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
-      );
+      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        strategy: FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
+        intent: mockIntent,
+        chainId: mockIntent.route.destination,
+      });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
     });
 
@@ -317,17 +312,27 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
     it('should handle different intent configurations for crowd liquidity', async () => {
       const intents = [
-        createMockIntent({ 
-          route: { 
-            source: BigInt(1), 
+        createMockIntent({
+          route: {
+            source: BigInt(1),
             destination: BigInt(10),
-            tokens: [{ amount: BigInt(1000000), token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as any }],
-          } as any 
+            tokens: [
+              {
+                amount: BigInt(1000000),
+                token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as any,
+              },
+            ],
+          } as any,
         }),
         createMockIntent({
-          reward: { 
-            nativeValue: BigInt(0), 
-            tokens: [{ amount: BigInt(5000000), token: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as any }] 
+          reward: {
+            nativeValue: BigInt(0),
+            tokens: [
+              {
+                amount: BigInt(5000000),
+                token: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as any,
+              },
+            ],
           } as any,
         }),
         createMockIntent({ status: 'VALIDATED' as any }),
@@ -339,11 +344,11 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-          index + 1,
+        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          strategy: FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
           intent,
-          FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
-        );
+          chainId: intent.route.destination,
+        });
       });
     });
   });
@@ -360,7 +365,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     it('should include crowd liquidity specific fee validation', () => {
       const validations = (strategy as any).getValidations();
       const lastValidation = validations[validations.length - 1];
-      
+
       expect(lastValidation).toBe(crowdLiquidityFeeValidation);
     });
   });

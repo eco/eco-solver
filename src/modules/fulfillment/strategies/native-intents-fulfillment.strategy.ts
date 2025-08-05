@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
@@ -9,17 +8,18 @@ import {
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
-import { ChainSupportValidation } from '../validations/chain-support.validation';
-import { ExecutorBalanceValidation } from '../validations/executor-balance.validation';
-import { ExpirationValidation } from '../validations/expiration.validation';
-import { FundingValidation } from '../validations/funding.validation';
-import { IntentFundedValidation } from '../validations/intent-funded.validation';
-import { NativeFeeValidation } from '../validations/native-fee.validation';
-import { ProverSupportValidation } from '../validations/prover-support.validation';
-import { RouteAmountLimitValidation } from '../validations/route-amount-limit.validation';
-import { RouteCallsValidation } from '../validations/route-calls.validation';
-import { RouteTokenValidation } from '../validations/route-token.validation';
-import { Validation } from '../validations/validation.interface';
+import {
+  ChainSupportValidation,
+  ExecutorBalanceValidation,
+  ExpirationValidation,
+  IntentFundedValidation,
+  NativeFeeValidation,
+  ProverSupportValidation,
+  RouteAmountLimitValidation,
+  RouteCallsValidation,
+  RouteTokenValidation,
+  Validation,
+} from '../validations';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
@@ -29,10 +29,8 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
-    private readonly blockchainService: BlockchainExecutorService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for native intents strategy
-    private readonly fundingValidation: FundingValidation,
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
@@ -46,7 +44,6 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     super();
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
-      this.fundingValidation,
       this.intentFundedValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
@@ -57,10 +54,6 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
       this.executorBalanceValidation,
       this.nativeFeeValidation, // Use native-specific fee validation
     ]);
-  }
-
-  protected getValidations(): ReadonlyArray<Validation> {
-    return this.validations;
   }
 
   canHandle(intent: Intent): boolean {
@@ -74,6 +67,14 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Native intents fulfillment uses EVM executor for native token handling
-    await this.queueService.addIntentToExecutionQueue(intent, this.name);
+    await this.queueService.addIntentToExecutionQueue({
+      strategy: this.name,
+      intent,
+      chainId: intent.route.destination,
+    });
+  }
+
+  protected getValidations(): ReadonlyArray<Validation> {
+    return this.validations;
   }
 }

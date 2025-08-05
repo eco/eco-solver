@@ -45,10 +45,20 @@ export class FulfillmentConfigService {
     return this.evmConfigService.getTokenConfig(chainId, address);
   }
 
-  sum(chainId: bigint, tokens: Readonly<{ amount: bigint; token: Address }[]>): bigint {
-    return tokens.reduce((acc, token) => {
-      const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), token.token);
-      return acc + normalize(token.amount, decimals);
-    }, 0n);
+  normalize<
+    Tokens extends Readonly<Token> | Readonly<Token[]>,
+    Token extends Readonly<{ amount: bigint; token: Address }>,
+    Normalized extends { token: Address; decimals: number; amount: bigint },
+    Result extends Tokens extends Readonly<Token[]> ? Normalized[] : Normalized,
+  >(chainId: bigint, tokens: Tokens): Result {
+    if (tokens instanceof Array) {
+      return tokens.map((token) => {
+        const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), token.token);
+        return { token: token.token, decimals, amount: normalize(token.amount, decimals) };
+      }) as Result;
+    }
+
+    const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), tokens.token);
+    return { token: tokens.token, decimals, amount: normalize(tokens.amount, decimals) } as Result;
   }
 }

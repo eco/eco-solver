@@ -2,7 +2,6 @@ export * from './chain-support.validation';
 export * from './crowd-liquidity-fee.validation';
 export * from './executor-balance.validation';
 export * from './expiration.validation';
-export * from './funding.validation';
 export * from './intent-funded.validation';
 export * from './native-fee.validation';
 export * from './prover-support.validation';

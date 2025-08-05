@@ -3,8 +3,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@/modules/config/config.module';
 
 import { SolanaListener } from './listeners/solana.listener';
-import { SvmExecutorService } from './svm.executor.service';
-import { SvmReaderService } from './svm.reader.service';
+import { SvmExecutorService } from './services/svm.executor.service';
+import { SvmReaderService } from './services/svm.reader.service';
 
 @Module({
   imports: [ConfigModule],

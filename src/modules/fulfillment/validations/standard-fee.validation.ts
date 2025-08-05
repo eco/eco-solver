@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { sum } from '@/common/utils/math';
 import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
 
 import { Validation } from './validation.interface';
@@ -18,13 +19,13 @@ export class StandardFeeValidation implements Validation {
     const baseFee = BigInt(fee.tokens.flatFee ?? 0);
 
     // Calculate total value being transferred
-    const totalReward = this.fulfillmentConfigService.sum(
-      intent.route.source,
-      intent.reward.tokens,
+    const totalReward = sum(
+      this.fulfillmentConfigService.normalize(intent.route.source, intent.reward.tokens),
+      'amount',
     );
-    const totalValue = this.fulfillmentConfigService.sum(
-      intent.route.destination,
-      intent.route.tokens,
+    const totalValue = sum(
+      this.fulfillmentConfigService.normalize(intent.route.destination, intent.route.tokens),
+      'amount',
     );
 
     // Calculate required fee: baseFee + (totalValue * scalarBps / 10000)

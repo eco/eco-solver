@@ -198,16 +198,16 @@ describe('StandardFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent);
-      expect(standardFeeValidation.validate).toHaveBeenCalledWith(mockIntent);
+      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(standardFeeValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
 
       // Verify each validation was called exactly once
       [
@@ -283,10 +283,11 @@ describe('StandardFulfillmentStrategy', () => {
 
       await strategy.execute(mockIntent);
 
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith(
-        mockIntent,
-        FULFILLMENT_STRATEGY_NAMES.STANDARD,
-      );
+      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
+        intent: mockIntent,
+        chainId: mockIntent.route.destination,
+      });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
     });
 
@@ -316,8 +317,11 @@ describe('StandardFulfillmentStrategy', () => {
       intents.forEach((intent, index) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
           index + 1,
-          intent,
-          FULFILLMENT_STRATEGY_NAMES.STANDARD,
+          {
+            strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
+            intent,
+            chainId: intent.route.destination,
+          },
         );
       });
     });

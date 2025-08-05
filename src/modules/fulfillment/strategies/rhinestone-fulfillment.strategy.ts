@@ -10,7 +10,6 @@ import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   ProverSupportValidation,
   RouteAmountLimitValidation,
@@ -32,7 +31,6 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     private readonly blockchainService: BlockchainExecutorService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for rhinestone strategy (excluding route calls)
-    private readonly fundingValidation: FundingValidation,
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     // Note: RouteCallsValidation is intentionally excluded
@@ -46,7 +44,6 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     super();
     // Define immutable validations for this strategy (skips route calls validation)
     this.validations = Object.freeze([
-      this.fundingValidation,
       this.intentFundedValidation,
       this.routeTokenValidation,
       // RouteCallsValidation is intentionally skipped for Rhinestone
@@ -70,7 +67,11 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
 
   async execute(intent: Intent): Promise<void> {
     // Rhinestone fulfillment uses only EVM executor with custom execution flow
-    await this.queueService.addIntentToExecutionQueue(intent, this.name);
+    await this.queueService.addIntentToExecutionQueue({
+      strategy: this.name,
+      intent,
+      chainId: intent.route.destination,
+    });
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

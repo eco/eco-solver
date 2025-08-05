@@ -5,8 +5,8 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 
-import { EvmExecutorService } from './evm/evm.executor.service';
-import { SvmExecutorService } from './svm/svm.executor.service';
+import { EvmExecutorService } from './evm/services/evm.executor.service';
+import { SvmExecutorService } from './svm/services/svm.executor.service';
 
 @Injectable()
 export class BlockchainExecutorService {
@@ -62,18 +62,19 @@ export class BlockchainExecutorService {
    * @param chainId The chain ID
    * @returns The executor for the chain, or undefined if not supported
    */
-  getExecutorForChain(chainId: string | number | bigint): BaseChainExecutor | undefined {
+  getExecutorForChain(chainId: string | number | bigint): BaseChainExecutor {
     // Convert bigint to number for EVM chains
     const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    return this.executors.get(normalizedChainId);
+    const executor = this.executors.get(normalizedChainId);
+    if (!executor) {
+      throw new Error(`No executor for chain ${chainId}`);
+    }
+    return executor;
   }
 
   async executeIntent(intent: Intent, walletId?: string): Promise<void> {
     try {
       const executor = this.getExecutorForChain(intent.route.destination);
-      if (!executor) {
-        throw new Error(`No executor for chain ${intent.route.destination}`);
-      }
 
       const result = await executor.fulfill(intent, walletId);
 

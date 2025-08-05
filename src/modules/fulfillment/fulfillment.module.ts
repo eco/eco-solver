@@ -18,7 +18,6 @@ import {
   CrowdLiquidityFeeValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   NativeFeeValidation,
   ProverSupportValidation,
@@ -50,7 +49,6 @@ import { QueueModule } from '@/modules/queue/queue.module';
     NegativeIntentsFulfillmentStrategy,
     RhinestoneFulfillmentStrategy,
     // Validations
-    FundingValidation,
     IntentFundedValidation,
     RouteTokenValidation,
     RouteCallsValidation,

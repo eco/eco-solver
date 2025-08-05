@@ -2,49 +2,46 @@ import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class ExecutorBalanceValidation implements Validation {
-  constructor(private readonly blockchainService: BlockchainExecutorService) {}
+  constructor(
+    private readonly blockchainExecutorService: BlockchainExecutorService,
+    private readonly blockchainReaderService: BlockchainReaderService,
+  ) {}
 
-  async validate(intent: Intent): Promise<boolean> {
-    // TODO: Implement executor balance check
+  async validate(intent: Intent, fulfillmentStrategy: FulfillmentStrategy): Promise<boolean> {
     // This should verify that the executor has enough funds to execute the fulfillment
     // on the destination chain
 
-    const _destinationChainId = Number(intent.route.destination);
+    const fulfillerWalletId = await fulfillmentStrategy.getWalletId(intent);
 
-    // Calculate total required amount
-    let _totalRequired = 0n;
+    const chainID = intent.route.destination;
+    const executor = this.blockchainExecutorService.getExecutorForChain(chainID);
+    const executorAddr = await executor.getWalletAddress(fulfillerWalletId, chainID);
 
-    // Add native value if any
-    if (intent.reward.nativeValue) {
-      _totalRequired += intent.reward.nativeValue;
+    const checkRequests = intent.route.tokens.map(async ({ token, amount }) => {
+      const balance = await this.blockchainReaderService.getTokenBalance(
+        chainID,
+        token,
+        executorAddr,
+      );
+
+      return { enough: balance >= amount, token };
+    });
+
+    const checks = await Promise.all(checkRequests);
+
+    const notEnough = checks.filter((check) => !check.enough);
+
+    if (notEnough.length) {
+      const tokens = notEnough.map(({ token }) => token);
+      throw new Error(`Not enough token balance found for: ${tokens.join(', ')}`);
     }
-
-    // Add call values
-    if (intent.route.calls && intent.route.calls.length > 0) {
-      for (const call of intent.route.calls) {
-        _totalRequired += call.value;
-      }
-    }
-
-    // TODO: Add gas estimation
-    // const estimatedGas = await this.blockchainService.estimateGas(intent);
-    // totalRequired += estimatedGas;
-
-    // TODO: Get executor address for destination chain
-    // TODO: Get executor balance on destination chain
-    // TODO: Compare balance with required amount + gas fees
-
-    // For now, we'll add a placeholder
-    // The actual implementation needs to:
-    // 1. Determine which executor will be used (EVM, SVM, or Crowd Liquidity)
-    // 2. Get the executor's address on the destination chain
-    // 3. Check the executor's balance (native + tokens)
-    // 4. Ensure balance > totalRequired + estimatedGasFees
 
     return true;
   }

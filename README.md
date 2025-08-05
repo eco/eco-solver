@@ -331,7 +331,6 @@ The system includes a comprehensive validation framework that ensures intents ar
 ### Available Validations
 
 1. **IntentFundedValidation** - Verifies the intent is funded on the IntentSource contract
-2. **FundingValidation** - Checks creator has sufficient token/native balances
 3. **RouteTokenValidation** - Validates token addresses in the route
 4. **RouteCallsValidation** - Validates call targets and data
 5. **RouteAmountLimitValidation** - Enforces route-specific amount limits

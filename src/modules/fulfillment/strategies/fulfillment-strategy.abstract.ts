@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
+import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { Validation } from '@/modules/fulfillment/validations';
 
 @Injectable()
-export abstract class FulfillmentStrategy {
+export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
   /**
    * Strategy name for identification
    */
@@ -20,12 +22,16 @@ export abstract class FulfillmentStrategy {
   async validate(intent: Intent): Promise<boolean> {
     const validations = this.getValidations();
     for (const validation of validations) {
-      const result = await validation.validate(intent);
+      const result = await validation.validate(intent, this);
       if (!result) {
         throw new Error(`Validation failed: ${validation.constructor.name}`);
       }
     }
     return true;
+  }
+
+  getWalletId(_intent: Intent): Promise<WalletType> {
+    return Promise.resolve('kernel');
   }
 
   /**

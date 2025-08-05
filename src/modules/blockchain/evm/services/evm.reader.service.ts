@@ -7,7 +7,7 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
-import { EvmTransportService } from './services/evm-transport.service';
+import { EvmTransportService } from './evm-transport.service';
 
 @Injectable()
 export class EvmReaderService extends BaseChainReader {

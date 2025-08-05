@@ -41,20 +41,11 @@ export class QueueService implements IQueueService {
     });
   }
 
-  async addIntentToExecutionQueue(
-    intent: Intent,
-    strategy: FulfillmentStrategyName,
-  ): Promise<void> {
-    const jobData: ExecutionJobData = {
-      strategy,
-      intent,
-      chainId: intent.route.destination,
-    };
-
+  async addIntentToExecutionQueue(jobData: ExecutionJobData): Promise<void> {
     const serializedData = QueueSerializer.serialize(jobData);
 
     await this.executionQueue.add(
-      `${QueueNames.INTENT_EXECUTION}-chain-${intent.route.destination}`,
+      `${QueueNames.INTENT_EXECUTION}-chain-${jobData.chainId}`,
       serializedData,
       {
         attempts: 3,

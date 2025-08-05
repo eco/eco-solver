@@ -5,4 +5,5 @@ export interface ExecutionJobData {
   strategy: FulfillmentStrategyName;
   intent: Intent;
   chainId: bigint;
+  walletId?: string;
 }

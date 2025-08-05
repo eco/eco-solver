@@ -29,7 +29,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
 
   async process(job: Job<string>) {
     const jobData = QueueSerializer.deserialize<ExecutionJobData>(job.data);
-    const { intent, strategy, chainId } = jobData;
+    const { intent, strategy, chainId, walletId } = jobData;
     const chainKey = chainId.toString();
 
     console.log(
@@ -39,11 +39,11 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     // Ensure sequential processing per chain
     const currentLock = this.chainLocks.get(chainKey) || Promise.resolve();
 
-    // Create new lock for this chain
+    // Create a new lock for this chain
     const newLock = currentLock.then(async () => {
       try {
         console.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
-        await this.blockchainService.executeIntent(intent);
+        await this.blockchainService.executeIntent(intent, walletId);
         console.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
       } catch (error) {
         console.error(`Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`, error);

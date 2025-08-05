@@ -11,8 +11,8 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 import { ProverService } from '@/modules/prover/prover.service';
 
-import { EvmTransportService } from './services/evm-transport.service';
-import { EvmWalletManager } from './services/evm-wallet-manager.service';
+import { EvmTransportService } from './evm-transport.service';
+import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
@@ -76,6 +76,10 @@ export class EvmExecutorService extends BaseChainExecutor {
   async getBalance(address: string, chainId: number): Promise<bigint> {
     const publicClient = this.transportService.getPublicClient(chainId);
     return publicClient.getBalance({ address: address as `0x${string}` });
+  }
+
+  async getWalletAddress(walletType: WalletType, chainId: bigint | number): Promise<Address> {
+    return this.walletManager.getWalletAddress(walletType, Number(chainId));
   }
 
   async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
