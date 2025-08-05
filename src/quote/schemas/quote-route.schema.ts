@@ -9,9 +9,14 @@ import {
 } from '@/quote/schemas/quote-call.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { VmType } from '@eco-foundation/routes-ts'
 
 @Schema({ timestamps: true })
 export class QuoteRouteDataModel implements QuoteRouteDataInterface {
+  @Prop({ required: true, type: String })
+  vm: VmType
+  @Prop({ required: true, type: BigInt })
+  deadline: bigint
   @Prop({ required: true, type: BigInt })
   source: bigint
   @Prop({ required: true, type: BigInt })

@@ -5,9 +5,15 @@ import { EcoError } from '@/common/errors/eco-error'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 import { BalanceProvider } from '../interfaces/balance-provider.interface'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
-import { Address as SvmAddress, Rpc, SolanaRpcApi } from '@solana/kit'
-import { fetchToken, fetchMint, findAssociatedTokenPda } from '@solana-program/token'
-import { ChainAddress } from '@/eco-configs/eco-config.types'
+import { PublicKey } from '@solana/web3.js'
+import { 
+  getAssociatedTokenAddress, 
+  getAccount, 
+  getMint,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID 
+} from '@solana/spl-token'
+import { Address, SerializableAddress, VmType } from '@eco-foundation/routes-ts'
 
 @Injectable()
 export class SvmBalanceService implements BalanceProvider {
@@ -25,8 +31,8 @@ export class SvmBalanceService implements BalanceProvider {
    */
   async fetchTokenBalances(
     chainID: number,
-    tokenAddresses: ChainAddress[],
-  ): Promise<Record<ChainAddress, TokenBalance>> {
+    tokenAddresses: Address<VmType.SVM>[],
+  ): Promise<Record<SerializableAddress<VmType.SVM>, TokenBalance>> {
     // TODO: Get actual wallet address from SVM client
     const walletAddress = this.getSolverWalletAddress(chainID)
     return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
@@ -41,11 +47,10 @@ export class SvmBalanceService implements BalanceProvider {
    */
   async fetchWalletTokenBalances(
     chainID: number,
-    walletAddress: ChainAddress,
-    tokenAddresses: ChainAddress[],
-  ): Promise<Record<ChainAddress, TokenBalance>> {
-    const rpc = await this.svmMultichainClientService.getRpc(chainID)
-    const owner = walletAddress as SvmAddress
+    walletAddress: Address<VmType.SVM>,
+    tokenAddresses: Address<VmType.SVM>[],
+  ): Promise<Record<SerializableAddress<VmType.SVM>, TokenBalance>> {
+    const connection = await this.svmMultichainClientService.getConnection(chainID)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -58,29 +63,32 @@ export class SvmBalanceService implements BalanceProvider {
       }),
     )
 
-    const tokenBalances: Record<ChainAddress, TokenBalance> = {}
+    const tokenBalances: Record<SerializableAddress<VmType.SVM>, TokenBalance> = {}
 
     for (const tokenAddress of tokenAddresses) {
       try {
-        const mint = tokenAddress as SvmAddress
+        const mint = tokenAddress.toString()
+        const mintPubkey = new PublicKey(mint)
         
         // find the associated token account address
-        const [associatedTokenPda] = await findAssociatedTokenPda({
-          owner,
-          mint,
-          tokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as SvmAddress,
-        })
+        const associatedTokenAddress = await getAssociatedTokenAddress(
+          mintPubkey,
+          walletAddress,
+          false, // allowOwnerOffCurve
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
 
         // get mint information for decimals
-        const mintInfo = await fetchMint(rpc, mint)
+        const mintInfo = await getMint(connection, mintPubkey)
         
         // get token account information
-        const tokenAccount = await fetchToken(rpc, associatedTokenPda)
+        const tokenAccount = await getAccount(connection, associatedTokenAddress)
 
-        tokenBalances[tokenAddress] = {
+        tokenBalances[tokenAddress.toString()] = {
           address: tokenAddress,
-          balance: tokenAccount.data.amount,
-          decimals: mintInfo.data.decimals,
+          balance: tokenAccount.amount,
+          decimals: mintInfo.decimals,
         }
       } catch (error) {
         this.logger.warn(
@@ -96,7 +104,7 @@ export class SvmBalanceService implements BalanceProvider {
         )
         
         // If account doesn't exist, set balance to 0
-        tokenBalances[tokenAddress] = {
+        tokenBalances[tokenAddress.toString()] = {
           address: tokenAddress,
           balance: 0n,
           decimals: 6, // Default to 6 decimals for USDC
@@ -115,13 +123,13 @@ export class SvmBalanceService implements BalanceProvider {
    * @returns The native SOL balance in lamports
    */
   async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
-    const rpc = await this.svmMultichainClientService.getRpc(chainID)
+    const connection = await this.svmMultichainClientService.getConnection(chainID)
     const walletAddress = this.getSolverWalletAddress(chainID)
     
     try {
-      const address = walletAddress as SvmAddress
-      const balance = await rpc.getBalance(address).send()
-      return BigInt(balance.value)
+      const pubkey = new PublicKey(walletAddress.toString())
+      const balance = await connection.getBalance(pubkey)
+      return BigInt(balance)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -142,7 +150,7 @@ export class SvmBalanceService implements BalanceProvider {
    * @param chainID the chain id
    * @returns the wallet address
    */
-  private getSolverWalletAddress(chainID: number): SvmAddress {
+  private getSolverWalletAddress(chainID: number): Address<VmType.SVM> {
     // Get the wallet address from the SVM client service
     return this.svmMultichainClientService.getAddress()
   }

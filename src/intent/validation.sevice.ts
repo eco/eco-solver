@@ -108,8 +108,8 @@ export class ValidationService implements OnModuleInit {
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       prover: intent.reward.prover,
-      source: Number(intent.route.source),
-      destination: Number(intent.route.destination),
+      source: Number(intent.source),
+      destination: Number(intent.destination),
     })
     const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
@@ -157,7 +157,7 @@ export class ValidationService implements OnModuleInit {
       case type.isMetalayer():
         return this.checkProverWhitelisted(opts.destination, opts.prover)
       default:
-        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover)
+        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover.toString())
     }
   }
 
@@ -212,7 +212,7 @@ export class ValidationService implements OnModuleInit {
           properties: {
             ...(intent.hash && {
               intentHash: intent.hash,
-              source: intent.route.source,
+              source: intent.source,
             }),
           },
         }),
@@ -263,7 +263,7 @@ export class ValidationService implements OnModuleInit {
           properties: {
             error: error.message,
             intentHash: intent.hash,
-            source: intent.route.source,
+            source: intent.source,
           },
         }),
       )
@@ -296,7 +296,7 @@ export class ValidationService implements OnModuleInit {
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
     try {
       const tokens = intent.route.tokens.map((t) => t.token)
-      const destinationChain = Number(intent.route.destination)
+      const destinationChain = Number(intent.destination)
 
       // Fetch token balances
       const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
@@ -317,8 +317,8 @@ export class ValidationService implements OnModuleInit {
 
       // Check if solver has enough token balances
       for (const routeToken of intent.route.tokens) {
-        const balance = tokenBalances[routeToken.token]
-        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+        const balance = tokenBalances[routeToken.token.toString()]
+        const minReqDollar = solverTargets[routeToken.token.toString()]?.minBalance || 0
         // Normalize the balance to the token's decimals, configs have the minReq in dollar value
         const balanceMinReq = normalizeBalance(
           { balance: BigInt(minReqDollar), decimal: 0 },
@@ -374,7 +374,7 @@ export class ValidationService implements OnModuleInit {
           properties: {
             error: error.message,
             intentHash: intent.hash,
-            destination: intent.route.destination,
+            destination: intent.destination,
           },
         }),
       )
@@ -392,7 +392,7 @@ export class ValidationService implements OnModuleInit {
     const time = Number(intent.reward.deadline) * 1000
     const expires = new Date(time)
     return this.proofService.isIntentExpirationWithinProofMinimumDate(
-      Number(intent.route.source),
+      Number(intent.source),
       intent.reward.prover,
       expires,
     )
@@ -404,7 +404,7 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   validDestination(intent: ValidationIntentInterface): boolean {
-    return this.ecoConfigService.getSupportedChains().includes(intent.route.destination)
+    return this.ecoConfigService.getSupportedChains().includes(intent.destination)
   }
 
   /**
@@ -414,6 +414,6 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
-    return intent.route.destination !== intent.route.source
+    return intent.destination !== intent.source
   }
 }

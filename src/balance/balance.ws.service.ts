@@ -13,14 +13,14 @@ import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/
 import { EcoError } from '@/common/errors/eco-error'
 import { getVMType, VMType } from '@/eco-configs/eco-config.types'
 import { SvmMultichainClientService } from '../transaction/svm-multichain-client.service'
-import { Address as SvmAddress, createSolanaRpcSubscriptions, RpcSubscriptions, SolanaRpcSubscriptionsApi } from '@solana/kit'
+import { PublicKey, Connection } from '@solana/web3.js'
 
 @Injectable()
 export class BalanceWebsocketService implements OnApplicationBootstrap, OnModuleDestroy {
   private logger = new Logger(BalanceWebsocketService.name)
   private intentJobConfig: JobsOptions
   private unwatch: Record<string, WatchContractEventReturnType> = {}
-  private solanaAbortControllers: AbortController[] = []
+  private solanaSubscriptions: Array<{ subscriptionId: number; connection: any; chainID: number }> = []
 
   constructor(
     @InjectQueue(QUEUES.ETH_SOCKET.queue) private readonly ethQueue: Queue,
@@ -51,8 +51,17 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
     // close Solana subscriptions
     try {
-      for (const abortController of this.solanaAbortControllers) {
-        abortController.abort()
+      for (const subscription of this.solanaSubscriptions) {
+        await subscription.connection.removeAccountChangeListener(subscription.subscriptionId)
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `solana-ws: unsubscribed`,
+            properties: {
+              subscriptionId: subscription.subscriptionId,
+              chainID: subscription.chainID,
+            },
+          }),
+        )
       }
     } catch (e) {
       this.logger.error(
@@ -99,60 +108,59 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
   private async subscribeSolanaTransfers(solver: any) {
     try {
-      // Get the Solana chain config
-
-      // Create websocket connection using solana/kit
-      const solanaSubscriptions = await this.svmMultichainClientService.getRpcSubscriptions(solver.chainID);
+      // Get the Solana connection from web3.js
+      const connection = await this.svmMultichainClientService.getConnection(solver.chainID)
       
-      // Get the solver's wallet address
-      const solverAddress = this.svmMultichainClientService.getAddress()
+      // Get the solver's wallet address and convert to PublicKey
+      const solverPubkey = this.svmMultichainClientService.getAddress()
       
       // Subscribe to account notifications for the solver address to detect incoming transfers
-      const abortController = new AbortController()
-      const notifications = await solanaSubscriptions
-        .accountNotifications(solverAddress, { commitment: 'confirmed' })
-        .subscribe({ abortSignal: abortController.signal })
-      
-      // Process notifications asynchronously
-      ;(async () => {
-        try {
-          for await (const notification of notifications) {
-            this.logger.debug(
-              EcoLogMessage.fromDefault({
-                message: `solana-ws: account notification`,
-                properties: {
-                  address: solverAddress,
-                  notification: notification,
-                  chainID: solver.chainID,
-                },
-              }),
-            )
-            
-            // Process the notification as a transfer event
-            this.processSolanaTransfer(notification, solver)
-          }
-        } catch (error) {
-          this.logger.error(
-            EcoLogMessage.withError({
-              message: `Error processing Solana notifications`,
-              error,
+      // Store subscription ID for cleanup
+      const subscriptionId = connection.onAccountChange(
+        solverPubkey,
+        (accountInfo, context) => {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `solana-ws: account notification`,
               properties: {
+                address: solverPubkey,
+                accountInfo: accountInfo,
+                slot: context.slot,
                 chainID: solver.chainID,
               },
             }),
           )
-        }
-      })()
+          
+          // Process the notification as a transfer event
+          const notification = {
+            accountInfo: {
+              lamports: accountInfo.lamports,
+              data: accountInfo.data,
+              owner: accountInfo.owner.toString(),
+              executable: accountInfo.executable,
+              rentEpoch: accountInfo.rentEpoch,
+            },
+            slot: context.slot,
+          }
+          this.processSolanaTransfer(notification, solver)
+        },
+        'confirmed'
+      )
       
-      // Store the abort controller for cleanup
-      this.solanaAbortControllers.push(abortController)
+      // Store the subscription info for cleanup
+      this.solanaSubscriptions.push({
+        subscriptionId,
+        connection,
+        chainID: solver.chainID,
+      })
       
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Solana websocket subscribed`,
           properties: {
             chainID: solver.chainID,
-            address: solverAddress,
+            address: solverPubkey,
+            subscriptionId,
           },
         }),
       )

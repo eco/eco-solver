@@ -153,7 +153,7 @@ export class CreateIntentService implements OnModuleInit {
     try {
       const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
       const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
-      const intentHash = hashIntent({ route, reward }).intentHash
+      const intentHash = hashIntent(destination, route, reward).intentHash
 
       this.logger.debug(
         EcoLogMessage.fromDefault({

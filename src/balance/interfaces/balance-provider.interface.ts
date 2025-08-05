@@ -1,4 +1,4 @@
-import { ChainAddress } from '@/eco-configs/eco-config.types'
+import { Address, SerializableAddress } from '@eco-foundation/routes-ts'
 import { TokenBalance } from '../types'
 
 export interface BalanceProvider {
@@ -8,7 +8,7 @@ export interface BalanceProvider {
    * @param tokenAddresses - Array of token addresses to fetch balances for
    * @returns Record mapping token address to balance information
    */
-  fetchTokenBalances(chainID: number, tokenAddresses: ChainAddress[]): Promise<Record<ChainAddress, TokenBalance>>
+  fetchTokenBalances(chainID: number, tokenAddresses: Address[]): Promise<Record<SerializableAddress, TokenBalance>>
 
   /**
    * Fetches the token balances for a specific wallet on the given chain
@@ -19,9 +19,9 @@ export interface BalanceProvider {
    */
   fetchWalletTokenBalances(
     chainID: number,
-    walletAddress: ChainAddress,
-    tokenAddresses: ChainAddress[]
-  ): Promise<Record<ChainAddress, TokenBalance>>
+    walletAddress: Address,
+    tokenAddresses: Address[]
+  ): Promise<Record<SerializableAddress, TokenBalance>>
 
   /**
    * Gets the native token balance for the specified account

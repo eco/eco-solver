@@ -70,7 +70,7 @@ export function isNativeIntent(intent: ValidationIntentInterface): boolean {
   return (
     intent.route.calls.some((call) => {
       return call.value > 0
-    }) || intent.reward.nativeValue > 0
+    }) || intent.reward.nativeAmount > 0
   )
 }
 
@@ -83,12 +83,12 @@ export function isNativeIntent(intent: ValidationIntentInterface): boolean {
 export function equivalentNativeGas(intent: ValidationIntentInterface, logger: Logger) {
   const sourceChain = extractChain({
     chains: ChainsSupported,
-    id: Number(intent.route.source),
+    id: Number(intent.source),
   })
 
   const dstChain = extractChain({
     chains: ChainsSupported,
-    id: Number(intent.route.destination),
+    id: Number(intent.destination),
   })
   if (!sourceChain || !dstChain) {
     logger.error(
@@ -173,11 +173,11 @@ export function getFunctionTargets(calls: CallDataInterface[]) {
 export function isNativeETH(intent: ValidationIntentInterface): boolean {
   const sourceChain = extractChain({
     chains: ChainsSupported,
-    id: Number(intent.route.source),
+    id: Number(intent.source),
   })
   const dstChain = extractChain({
     chains: ChainsSupported,
-    id: Number(intent.route.destination),
+    id: Number(intent.destination),
   })
   if (!sourceChain || !dstChain) {
     return false

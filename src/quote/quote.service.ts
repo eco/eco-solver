@@ -598,7 +598,7 @@ export class QuoteService implements OnModuleInit {
         const originalNormalizedAmount = this.feeService.convertNormalize(
           BigInt(originalToken.balance),
           {
-            chainID: intent.route.destination,
+            chainID: intent.destination,
             address: deficit.delta.address,
             decimals: deficit.token.decimals,
           },
@@ -611,7 +611,7 @@ export class QuoteService implements OnModuleInit {
         if (amountToFill > 0n) {
           // Convert back to original decimals
           const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
-            chainID: intent.route.destination,
+            chainID: intent.destination,
             address: deficit.delta.address,
             decimals: deficit.token.decimals,
           }).balance

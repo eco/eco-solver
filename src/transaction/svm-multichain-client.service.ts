@@ -3,6 +3,7 @@ import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Address as SvmAddress, createSolanaRpc, Rpc, SolanaRpcApi, RpcSubscriptions, createSolanaRpcSubscriptions, SolanaRpcSubscriptionsApi } from "@solana/kit";
 import { Connection, PublicKey } from '@solana/web3.js';
 import { EcoError } from '../common/errors/eco-error'
+import { Address, VmType } from '@eco-foundation/routes-ts'
 
 export interface SvmChainConfig {
   rpc: Rpc<SolanaRpcApi>
@@ -71,8 +72,8 @@ export class SvmMultichainClientService implements OnModuleInit {
     return this.supportedChainIds.includes(domainId)
   }
 
-  public getAddress(): SvmAddress {
+  public getAddress(): Address<VmType.SVM> {
     // TODO: hardcoded for now
-    return 'DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh' as SvmAddress
+    return new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh')
   }
 }

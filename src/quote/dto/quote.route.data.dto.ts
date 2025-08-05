@@ -1,10 +1,10 @@
 import { CallDataInterface } from '@/contracts'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
-import { RouteType } from '@eco-foundation/routes-ts'
+import { RouteType, VmType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
-import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
+import { ArrayNotEmpty, IsArray, IsEnum, IsNotEmpty, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
 
 /**
@@ -16,6 +16,15 @@ import { Hex } from 'viem'
  * @param calls denotes the array of {@link QuoteCallDataDTO} that the sender wants to make
  */
 export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
+  @IsEnum(VmType)
+  @ApiProperty({ enum: VmType })
+  vm: VmType
+
+  @IsNotEmpty()
+  @Transform(({ value }) => BigInt(value))
+  @ApiProperty()
+  deadline: bigint
+
   @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
@@ -30,6 +39,11 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
   @ApiProperty()
   inbox: Hex
+
+  @ViemAddressTransform()
+  @IsNotEmpty()
+  @ApiProperty()
+  portal: Hex
 
   @IsArray()
   @ValidateNested()

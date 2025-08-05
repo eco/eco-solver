@@ -10,7 +10,8 @@ import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { ChainAddress, getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { Address, SerializableAddress, VmType } from '@eco-foundation/routes-ts'
 import { EvmBalanceService } from './services/evm-balance.service'
 import { SvmBalanceService } from './services/svm-balance.service'
 
@@ -137,15 +138,19 @@ export class BalanceService implements OnApplicationBootstrap {
   @Cacheable()
   async fetchTokenBalances(
     chainID: number,
-    tokenAddresses: ChainAddress[],
-  ): Promise<Record<ChainAddress, TokenBalance>> {
+    tokenAddresses: Address[],
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     const vmType = getVMType(chainID)
     
     switch (vmType) {
-      case VMType.EVM:
-        return this.evmBalanceService.fetchTokenBalances(chainID, tokenAddresses)
-      case VMType.SVM:
-        return this.svmBalanceService.fetchTokenBalances(chainID, tokenAddresses)
+      case VMType.EVM: {
+        const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
+        return await this.evmBalanceService.fetchTokenBalances(chainID, evmAddresses)
+      }
+      case VMType.SVM: {
+        const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
+        return await this.svmBalanceService.fetchTokenBalances(chainID, svmAddresses)
+      }
       default:
         throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
     }
@@ -160,25 +165,31 @@ export class BalanceService implements OnApplicationBootstrap {
    */
   async fetchWalletTokenBalances(
     chainID: number,
-    walletAddress: ChainAddress,
-    tokenAddresses: ChainAddress[],
-  ): Promise<Record<ChainAddress, TokenBalance>> {
+    walletAddress: Address,
+    tokenAddresses: Address[],
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     const vmType = getVMType(chainID)
     
     switch (vmType) {
-      case VMType.EVM:
-        return this.evmBalanceService.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
-      case VMType.SVM:
-        return this.svmBalanceService.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+      case VMType.EVM: {
+        const evmWallet = walletAddress as Address<VmType.EVM>
+        const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
+        return await this.evmBalanceService.fetchWalletTokenBalances(chainID, evmWallet, evmAddresses)
+      }
+      case VMType.SVM: {
+        const svmWallet = walletAddress as Address<VmType.SVM>
+        const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
+        return await this.svmBalanceService.fetchWalletTokenBalances(chainID, svmWallet, svmAddresses)
+      }
       default:
         throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
     }
   }
 
   @Cacheable()
-  async fetchTokenBalance(chainID: number, tokenAddress: ChainAddress): Promise<TokenBalance> {
+  async fetchTokenBalance(chainID: number, tokenAddress: Address): Promise<TokenBalance> {
     const result = await this.fetchTokenBalances(chainID, [tokenAddress])
-    return result[tokenAddress]
+    return result[tokenAddress.toString()]
   }
 
   @Cacheable()
@@ -246,7 +257,7 @@ export class BalanceService implements OnApplicationBootstrap {
     }
   }
 
-  async getAllTokenDataForAddress(walletAddress: ChainAddress, tokens: TokenConfig[]) {
+  async getAllTokenDataForAddress(walletAddress: Address, tokens: TokenConfig[]) {
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
 
@@ -283,9 +294,9 @@ export class BalanceService implements OnApplicationBootstrap {
 
   private async loadERC20TokenBalance(
     chainID: number,
-    tokenAddress: ChainAddress,
+    tokenAddress: Address,
   ): Promise<TokenBalance | undefined> {
-    const key = getDestinationNetworkAddressKey(chainID, tokenAddress)
+    const key = getDestinationNetworkAddressKey(chainID, tokenAddress.toString())
     if (!this.tokenBalances.has(key)) {
       const tokenBalance = await this.fetchTokenBalance(chainID, tokenAddress)
       this.tokenBalances.set(key, tokenBalance)

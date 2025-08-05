@@ -2,35 +2,37 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeReward, hashReward, RewardType, VmType, Address } from '@eco-foundation/routes-ts'
+import { encodeReward, hashReward, RewardType, VmType, Address, EvmRewardType, SvmRewardType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 import { ChainAddress } from '@/eco-configs/eco-config.types'
 @Schema({ timestamps: true })
-export class RewardDataModel<TVM extends VmType = VmType> implements RewardType<TVM> {
+export class RewardDataModel {
   @Prop({ required: true, type: String })
-  vm: TVM
+  vm: VmType
+  
   @Prop({ required: true, type: String })
-  creator: Address<TVM>
+  creator: ChainAddress  // Can be EVM hex or Solana base58
+  
   @Prop({ required: true, type: String })
-  prover: Address<TVM>
+  prover: ChainAddress
+  
   @Prop({ required: true, type: BigInt })
   deadline: bigint
+  
   @Prop({ required: true, type: BigInt })
   nativeAmount: bigint
+  
   @Prop({ required: true, type: [TokenAmountDataSchema] })
-  tokens: readonly {
-    token: Address<TVM>
-    amount: bigint
-  }[]
+  tokens: TokenAmountDataModel[]
 
   constructor(
-    vm: TVM,
-    creator: Address<TVM>,
-    prover: Address<TVM>,
+    vm: VmType,
+    creator: ChainAddress,
+    prover: ChainAddress,
     deadline: bigint,
     nativeAmount: bigint,
-    tokens: readonly { token: Address<TVM>; amount: bigint }[],
+    tokens: TokenAmountDataModel[],
   ) {
     this.vm = vm
     this.creator = creator
@@ -40,11 +42,23 @@ export class RewardDataModel<TVM extends VmType = VmType> implements RewardType<
     this.tokens = tokens
   }
 
-  static getHash<TVM extends VmType>(vm: TVM, rewardDataModel: RewardDataModel<TVM>) {
+  // Type-safe helpers
+  asEvmReward(): EvmRewardType {
+    if (this.vm !== VmType.EVM) throw new Error('Not an EVM reward')
+    return { ...this } as EvmRewardType
+  }
+
+  asSvmReward(): SvmRewardType {
+    if (this.vm !== VmType.SVM) throw new Error('Not an SVM reward')
+    return { ...this } as SvmRewardType
+  }
+
+  static getHash(rewardDataModel: RewardDataModel): Hex {
+    // The library hashReward function handles VM switching internally
     return hashReward(rewardDataModel)
   }
 
-  static encode<TVM extends VmType>(rewardDataModel: RewardDataModel<TVM>) {
+  static encode(rewardDataModel: RewardDataModel): Hex {
     return encodeReward(rewardDataModel)
   }
 }
