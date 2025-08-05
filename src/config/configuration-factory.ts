@@ -1,7 +1,7 @@
 import { merge } from 'lodash';
 import { z } from 'zod';
 
-import { AwsSchema, BaseSchema, ConfigSchema } from '@/config/config.schema';
+import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';
 import {
   awsConfig,
   baseConfig,
@@ -17,11 +17,15 @@ import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
 
+let cachedConfig: Config;
+
 /**
  * Configuration factory that transforms environment variables to configuration
  * and optionally merges AWS secrets and YAML configuration
  */
 export const configurationFactory = async () => {
+  if (cachedConfig) return cachedConfig;
+
   const baseConfiguration = {
     ...(await baseConfig()),
     mongodb: await mongodbConfig(),
@@ -72,7 +76,8 @@ export const configurationFactory = async () => {
 
   try {
     // Parse and validate the complete merged configuration
-    return ConfigSchema.parse(mergedConfig);
+    cachedConfig = ConfigSchema.parse(mergedConfig);
+    return cachedConfig;
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Convert Zod errors to a format similar to Joi
