@@ -63,6 +63,11 @@ describe('LiquidityManagerService', () => {
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
 
+    Object.defineProperty(queue, 'name', {
+      value: LiquidityManagerQueue.queueName,
+      writable: false,
+    })
+
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
     kernelAccountClientService['getClient'] = jest
       .fn()
@@ -92,18 +97,25 @@ describe('LiquidityManagerService', () => {
   describe('onApplicationBootstrap', () => {
     it('should start cron job', async () => {
       const intervalDuration = 1000
+
       jest
         .spyOn(ecoConfigService, 'getLiquidityManager')
         .mockReturnValue({ intervalDuration } as any)
 
+      const startSpy = jest.fn().mockResolvedValue(undefined)
+
+      // Replace the manager instance for the test wallet
+      const walletAddress = zeroAddress
+      ;(CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress] = {
+        start: startSpy,
+      }
+
       await liquidityManagerService.onApplicationBootstrap()
 
-      const upsertJobScheduler = jest.spyOn(queue, 'upsertJobScheduler')
-      expect(upsertJobScheduler).toHaveBeenCalledWith(
-        CheckBalancesCronJobManager.getJobSchedulerName(zeroAddress),
-        { every: intervalDuration },
-        expect.anything(),
-      )
+      expect(startSpy).toHaveBeenCalledWith(queue, intervalDuration, walletAddress)
+
+      // Cleanup for isolation
+      delete (CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress]
     })
 
     it('should set liquidity manager config', async () => {
