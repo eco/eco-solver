@@ -1,3 +1,5 @@
+import { Hex } from 'viem';
+
 import { Intent as IntentInterface } from '@/common/interfaces/intent.interface';
 import { Intent as IntentSchema } from '@/modules/intents/schemas/intent.schema';
 
@@ -36,7 +38,7 @@ export class IntentConverter {
 
   static toInterface(schema: IntentSchema): IntentInterface {
     return {
-      intentHash: schema.intentId,
+      intentHash: schema.intentId as Hex,
       reward: {
         prover: schema.reward.prover as `0x${string}`,
         creator: schema.reward.creator as `0x${string}`,

@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { Address, decodeFunctionData, erc20Abi, isAddressEqual } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 
 import { Validation } from './validation.interface';
 
@@ -26,7 +26,11 @@ export class RouteCallsValidation implements Validation {
         isAddressEqual(token.address as Address, call.target),
       );
 
-      if (isTokenCall) return false;
+      if (!isTokenCall) {
+        throw new Error(
+          `Invalid route call: target ${call.target} is not a supported token address`,
+        );
+      }
 
       try {
         const fn = decodeFunctionData({
@@ -35,11 +39,15 @@ export class RouteCallsValidation implements Validation {
         });
 
         if (fn.functionName !== 'transfer') {
-          return false;
+          throw new Error(
+            `Invalid route call: only ERC20 transfer function is allowed, got ${fn.functionName}`,
+          );
         }
       } catch (error) {
         // Invalid ERC20 call data
-        return false;
+        throw new Error(
+          `Invalid route call: unable to decode ERC20 call data for target ${call.target}`,
+        );
       }
     }
 

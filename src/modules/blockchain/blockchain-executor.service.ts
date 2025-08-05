@@ -2,6 +2,7 @@ import { Injectable, Optional } from '@nestjs/common';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 
@@ -72,7 +73,7 @@ export class BlockchainExecutorService {
     return executor;
   }
 
-  async executeIntent(intent: Intent, walletId?: string): Promise<void> {
+  async executeIntent(intent: Intent, walletId?: WalletType): Promise<void> {
     try {
       const executor = this.getExecutorForChain(intent.route.destination);
 

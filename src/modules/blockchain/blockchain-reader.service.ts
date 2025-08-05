@@ -1,5 +1,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 
+import { Address } from 'viem';
+
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
@@ -110,6 +112,25 @@ export class BlockchainReaderService {
       throw new Error(`No reader available for chain ${chainId}`);
     }
     return reader.isIntentFunded(intent);
+  }
+
+  /**
+   * Fetch prover fee for an intent on a specific chain
+   * @param chainId The chain ID
+   * @param intent The intent to check
+   * @param claimant The recipient of the rewards
+   * @returns The prover fee amount in the chain's native token
+   */
+  async fetchProverFee(
+    chainId: string | number | bigint,
+    intent: Intent,
+    claimant?: Address,
+  ): Promise<bigint> {
+    const reader = this.getReaderForChain(chainId);
+    if (!reader) {
+      throw new Error(`No reader available for chain ${chainId}`);
+    }
+    return reader.fetchProverFee(intent, claimant);
   }
 
   private initializeReaders() {

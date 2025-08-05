@@ -1,7 +1,7 @@
 import { Address, Hex } from 'viem';
 
 export interface Intent {
-  intentHash: string;
+  intentHash: Hex;
   reward: Readonly<{
     prover: Address;
     creator: Address;

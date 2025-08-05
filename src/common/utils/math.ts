@@ -9,7 +9,7 @@ export function sum<
 }
 
 export function min(amounts: bigint[]) {
-  return amounts.reduce((min, amount) => (min > amount ? amount : min), 0n);
+  return amounts.reduce((min, amount) => (min > amount ? amount : min), amounts[0]);
 }
 
 export function max(amounts: bigint[]) {

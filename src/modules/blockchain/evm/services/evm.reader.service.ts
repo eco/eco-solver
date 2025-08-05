@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { IntentSourceAbi } from '@eco-foundation/routes-ts';
-import { Address, erc20Abi, isAddress } from 'viem';
+import { IMessageBridgeProverAbi, IntentSourceAbi } from '@eco-foundation/routes-ts';
+import { Address, erc20Abi, Hex, isAddress } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
@@ -119,5 +119,33 @@ export class EvmReaderService extends BaseChainReader {
     });
 
     return balance as bigint;
+  }
+
+  async fetchProverFee(intent: Intent, claimant?: Address): Promise<bigint> {
+    if (!this.chainId) {
+      throw new Error('Chain ID not set. Call setChainId() first.');
+    }
+
+    try {
+      const client = this.transportService.getPublicClient(this.chainId);
+
+      // Call fetchFee on the prover contract
+      const fee = await client.readContract({
+        address: intent.reward.prover,
+        abi: IMessageBridgeProverAbi,
+        functionName: 'fetchFee',
+        args: [
+          intent.route.source, // Source chain ID where the intent originates
+          [intent.intentHash], // Empty intent hashes array for fee query
+          [claimant], // Empty claimants array for fee query
+          '0x' as Hex, // Empty data parameter
+        ],
+      });
+
+      return fee as bigint;
+    } catch (error) {
+      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
+      throw new Error(`Failed to fetch prover fee: ${error.message}`);
+    }
   }
 }

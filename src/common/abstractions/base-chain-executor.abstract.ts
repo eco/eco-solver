@@ -13,7 +13,7 @@ export interface ExecutionResult {
 
 @Injectable()
 export abstract class BaseChainExecutor {
-  abstract fulfill(intent: Intent, walletId?: string): Promise<ExecutionResult>;
+  abstract fulfill(intent: Intent, walletId?: WalletType): Promise<ExecutionResult>;
 
   abstract getBalance(address: string, chainId: number): Promise<bigint>;
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { hashIntent, InboxAbi } from '@eco-foundation/routes-ts';
-import { Address, encodeFunctionData } from 'viem';
+import { Address, encodeFunctionData, erc20Abi } from 'viem';
 
 import {
   BaseChainExecutor,
@@ -25,7 +25,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     super();
   }
 
-  async fulfill(intent: Intent, claimant: Address): Promise<ExecutionResult> {
+  async fulfill(intent: Intent, walletId: WalletType): Promise<ExecutionResult> {
     try {
       // Get the destination chain ID from the intent
       const sourceChainId = Number(intent.route.source);
@@ -33,7 +33,9 @@ export class EvmExecutorService extends BaseChainExecutor {
 
       const network = this.evmConfigService.getChain(destinationChainId);
       // Map walletId to wallet type - for backward compatibility
-      const wallet = this.walletManager.getWallet('kernel', destinationChainId);
+      const wallet = this.walletManager.getWallet(walletId, destinationChainId);
+
+      const claimant = await wallet.getAddress();
 
       const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
       if (!prover) {
@@ -41,18 +43,33 @@ export class EvmExecutorService extends BaseChainExecutor {
       }
 
       const proverAddr = prover.getContractAddress(destinationChainId);
+      const proverFee = await prover.getFee(intent, claimant);
       const proverMessageData = await prover.getMessageData(intent);
 
       const { intentHash, rewardHash } = hashIntent(intent);
 
-      const hash = await wallet.writeContract({
-        to: network.inboxAddress as `0x${string}`,
+      const inboxAddr = network.inboxAddress as Address;
+
+      const approvalTxs = intent.route.tokens.map(({ token, amount }) => ({
+        to: token,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [inboxAddr, amount],
+        }),
+      }));
+
+      const fulfillTx = {
+        to: inboxAddr,
         data: encodeFunctionData({
           abi: InboxAbi,
           functionName: 'fulfillAndProve',
           args: [intent.route, rewardHash, claimant, intentHash, proverAddr, proverMessageData],
         }),
-      });
+        value: proverFee,
+      };
+
+      const [hash] = await wallet.writeContracts([...approvalTxs, fulfillTx]);
 
       const publicClient = this.transportService.getPublicClient(destinationChainId);
       const receipt = await publicClient.waitForTransactionReceipt({
@@ -75,7 +92,7 @@ export class EvmExecutorService extends BaseChainExecutor {
 
   async getBalance(address: string, chainId: number): Promise<bigint> {
     const publicClient = this.transportService.getPublicClient(chainId);
-    return publicClient.getBalance({ address: address as `0x${string}` });
+    return publicClient.getBalance({ address: address as Address });
   }
 
   async getWalletAddress(walletType: WalletType, chainId: bigint | number): Promise<Address> {
@@ -86,7 +103,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     try {
       const publicClient = this.transportService.getPublicClient(chainId);
       const receipt = await publicClient.getTransactionReceipt({
-        hash: txHash as `0x${string}`,
+        hash: txHash as Address,
       });
       return receipt.status === 'success';
     } catch {

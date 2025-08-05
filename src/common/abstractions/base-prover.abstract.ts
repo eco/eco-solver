@@ -12,6 +12,7 @@ export abstract class BaseProver {
   constructor(protected readonly evmConfigService: EvmConfigService) {}
 
   abstract getMessageData(intent: Intent): Promise<Hex>;
+  abstract getFee(intent: Intent): Promise<bigint>;
 
   getContractAddress(chainId: number): Address | undefined {
     const chainConfig = this.evmConfigService.getChain(chainId);

@@ -99,4 +99,11 @@ export class SvmReaderService extends BaseChainReader {
     const signatureStatus = await this.connection.getSignatureStatus(signature);
     return signatureStatus?.value?.confirmationStatus === 'finalized';
   }
+
+  async fetchProverFee(_intent: Intent): Promise<bigint> {
+    // Solana doesn't have prover contracts yet
+    // This is a stub implementation
+    this.logger.warn('Prover fee fetching not implemented for Solana');
+    throw new Error('Prover fee fetching not implemented for Solana');
+  }
 }

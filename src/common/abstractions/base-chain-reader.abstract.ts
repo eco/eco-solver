@@ -1,5 +1,7 @@
 import { Logger } from '@nestjs/common';
 
+import { Address } from 'viem';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 
 export abstract class BaseChainReader {
@@ -12,4 +14,6 @@ export abstract class BaseChainReader {
   abstract isAddressValid(address: string): boolean;
 
   abstract isIntentFunded(intent: Intent): Promise<boolean>;
+
+  abstract fetchProverFee(intent: Intent, claimant?: Address): Promise<bigint>;
 }
