@@ -9,6 +9,9 @@ import { TokenData } from '@/liquidity-manager/types/types'
 import { Hex, parseUnits } from 'viem'
 import { EverclearApiError } from './everclear.errors'
 
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cache } from 'cache-manager'
+
 // Mock global fetch
 global.fetch = jest.fn()
 
@@ -18,6 +21,7 @@ describe('EverclearProviderService', () => {
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   let mockQueue: any
   let mockStartCheckEverclearIntent: jest.SpyInstance
+  let getTokenSymbolSpy: jest.SpyInstance
 
   const mockWalletAddress: Hex = '0x1234567890123456789012345678901234567890'
 
@@ -67,6 +71,10 @@ describe('EverclearProviderService', () => {
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<any>() },
+        {
+          provide: CACHE_MANAGER,
+          useValue: createMock<Cache>(),
+        },
       ],
     }).compile()
 
@@ -78,12 +86,20 @@ describe('EverclearProviderService', () => {
     // Setup default mocks
     ecoConfigService.getEverclear.mockReturnValue({ baseUrl: 'https://test.everclear.org' })
     kernelAccountClientService.getAddress.mockResolvedValue(mockWalletAddress)
+    getTokenSymbolSpy = jest
+      .spyOn(service as any, 'getTokenSymbol')
+      .mockImplementation(async (token: TokenData) => {
+        if (token.config.address === mockTokenIn.config.address) return 'USDC'
+        if (token.config.address === mockTokenOut.config.address) return 'USDC'
+        return 'UNKNOWN'
+      })
 
     await service.onModuleInit()
   })
 
   afterEach(() => {
     mockStartCheckEverclearIntent.mockRestore()
+    getTokenSymbolSpy.mockRestore()
   })
 
   describe('getStrategy', () => {
@@ -113,6 +129,18 @@ describe('EverclearProviderService', () => {
       expect(quote.amountIn).toBe(parseUnits(swapAmount.toString(), 6))
       expect(quote.amountOut).toBe(BigInt(expectedAmount))
       expect(quote.slippage).toBeCloseTo(0.01)
+    })
+
+    it('should return an empty array if token symbols do not match', async () => {
+      getTokenSymbolSpy.mockImplementation(async (token: TokenData) => {
+        if (token.config.address === mockTokenIn.config.address) return 'USDC'
+        if (token.config.address === mockTokenOut.config.address) return 'WETH'
+        return 'UNKNOWN'
+      })
+
+      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 100)
+      expect(quotes).toEqual([])
+      expect(fetch).not.toHaveBeenCalled()
     })
 
     it('should throw EverclearApiError on API failure', async () => {
@@ -193,6 +221,19 @@ describe('EverclearProviderService', () => {
 
       await expect(service.execute(mockWalletAddress, mockQuote)).rejects.toThrow(EverclearApiError)
       expect(mockStartCheckEverclearIntent).not.toHaveBeenCalled()
+    })
+
+    it('should throw an error if token symbols do not match', async () => {
+      getTokenSymbolSpy.mockImplementation(async (token: TokenData) => {
+        if (token.config.address === mockTokenIn.config.address) return 'USDC'
+        if (token.config.address === mockTokenOut.config.address) return 'WETH'
+        return 'UNKNOWN'
+      })
+
+      await expect(service.execute(mockWalletAddress, mockQuote)).rejects.toThrow(
+        'Everclear: cross-token swaps are not supported',
+      )
+      expect(fetch).not.toHaveBeenCalled()
     })
 
     it('should re-throw transaction error', async () => {

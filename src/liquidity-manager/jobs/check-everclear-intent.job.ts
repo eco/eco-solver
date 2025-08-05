@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq'
+import { DelayedError, Queue, UnrecoverableError } from 'bullmq'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
@@ -46,38 +46,40 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
   ): Promise<CheckEverclearIntentJob['returnvalue']> {
     const { txHash, id } = job.data
+    const result = await processor.everclearProviderService.checkIntentStatus(txHash)
     processor.logger.debug(
       EcoLogMessage.withId({
-        message: 'Everclear: CheckEverclearIntentJob: processing intent status check',
+        message: 'Everclear: Intent status check result',
         id,
-        properties: { txHash },
+        properties: { result },
       }),
     )
-    return processor.everclearProviderService.checkIntentStatus(txHash)
+
+    switch (result.status) {
+      case 'pending':
+        await job.moveToDelayed(Date.now() + 5_000, job.token)
+        // we need to exit from the processor by throwing this error that will signal to the worker
+        // that the job has been delayed so that it does not try to complete (or fail the job) instead
+        throw new DelayedError()
+      case 'complete':
+        return result
+      case 'failed':
+        // this will move the job to the failed set without performing any retries
+        throw new UnrecoverableError(`Everclear: Intent failed to complete for txHash: ${txHash}`)
+    }
   }
 
   async onComplete(
     job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
-    if (job.returnvalue.status === 'pending') {
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Everclear: Intent still pending, re-queuing check.',
-          id: job.data.id,
-          properties: { ...job.returnvalue, txHash: job.data.txHash },
-        }),
-      )
-      await CheckEverclearIntentJobManager.start(processor.queue, job.data, 5_000) // Re-check in 5s
-    } else {
-      processor.logger.log(
-        EcoLogMessage.withId({
-          message: `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
-          id: job.data.id,
-          properties: { ...job.returnvalue, txHash: job.data.txHash },
-        }),
-      )
-    }
+    processor.logger.log(
+      EcoLogMessage.withId({
+        message: `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
+        id: job.data.id,
+        properties: { ...job.returnvalue, txHash: job.data.txHash },
+      }),
+    )
   }
 
   onFailed(job: CheckEverclearIntentJob, processor: LiquidityManagerProcessor, error: unknown) {
@@ -87,7 +89,8 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
         id: job.data.id,
         error: error as any,
         properties: {
-          data: job.data,
+          ...job.returnvalue,
+          txHash: job.data.txHash,
         },
       }),
     )

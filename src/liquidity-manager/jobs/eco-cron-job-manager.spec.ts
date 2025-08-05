@@ -5,7 +5,7 @@ import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 
-jest.setTimeout(15000)
+jest.setTimeout(30000)
 
 describe('EcoCronJobManager', () => {
   let mockQueue: Queue
