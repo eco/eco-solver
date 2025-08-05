@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import {
@@ -23,6 +24,10 @@ jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
   BlockchainExecutorService: jest.fn().mockImplementation(() => ({})),
 }));
 
+jest.mock('@/modules/blockchain/blockchain-reader.service', () => ({
+  BlockchainReaderService: jest.fn().mockImplementation(() => ({})),
+}));
+
 jest.mock('@/modules/queue/queue.service', () => ({
   QueueService: jest.fn().mockImplementation(() => ({
     addIntentToExecutionQueue: jest.fn(),
@@ -31,6 +36,7 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 describe('CrowdLiquidityFulfillmentStrategy', () => {
   let strategy: CrowdLiquidityFulfillmentStrategy;
+  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
@@ -50,6 +56,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
     // Create mock services
     const mockBlockchainExecutorService = {};
+    const mockBlockchainReaderService = {};
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
@@ -76,6 +83,10 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         {
           provide: BlockchainExecutorService,
           useValue: mockBlockchainExecutorService,
+        },
+        {
+          provide: BlockchainReaderService,
+          useValue: mockBlockchainReaderService,
         },
         {
           provide: QUEUE_SERVICE,
@@ -121,6 +132,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<CrowdLiquidityFulfillmentStrategy>(CrowdLiquidityFulfillmentStrategy);
+    blockchainReaderService = module.get(BlockchainReaderService);
     queueService = module.get(QUEUE_SERVICE);
   });
 
@@ -135,7 +147,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(10);
+      expect(validations).toHaveLength(9);
       expect(validations[0]).toBe(intentFundedValidation);
       expect(validations[1]).toBe(routeTokenValidation);
       expect(validations[2]).toBe(routeCallsValidation);
@@ -149,7 +161,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
     it('should use CrowdLiquidityFeeValidation instead of StandardFeeValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations[9]).toBe(crowdLiquidityFeeValidation);
+      expect(validations[8]).toBe(crowdLiquidityFeeValidation);
       expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
         false,
       );
@@ -212,15 +224,15 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
 
       // Verify each validation was called exactly once
       [
@@ -297,6 +309,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         strategy: FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
         intent: mockIntent,
         chainId: mockIntent.route.destination,
+        walletId: 'kernel',
       });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
     });
@@ -348,6 +361,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
           strategy: FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
           intent,
           chainId: intent.route.destination,
+          walletId: 'kernel',
         });
       });
     });
@@ -358,7 +372,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(10);
+      expect(validations).toHaveLength(9);
       expect(Object.isFrozen(validations)).toBe(true);
     });
 

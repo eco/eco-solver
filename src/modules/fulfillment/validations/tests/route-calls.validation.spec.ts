@@ -5,7 +5,7 @@ import { Address } from 'viem';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 
 import { RouteCallsValidation } from '../route-calls.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('RouteCallsValidation', () => {
   let validation: RouteCallsValidation;
@@ -37,6 +37,7 @@ describe('RouteCallsValidation', () => {
         nativeValue: BigInt(0),
       },
     });
+    const mockContext = createMockValidationContext();
 
     const mockTokens = [
       {
@@ -53,7 +54,7 @@ describe('RouteCallsValidation', () => {
 
     describe('no calls scenarios', () => {
       it('should return true when no calls exist', async () => {
-        const result = await validation.validate(mockIntent);
+        const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.getSupportedTokens).not.toHaveBeenCalled();
@@ -82,7 +83,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithValidTransferCalls);
+        const result = await validation.validate(intentWithValidTransferCalls, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.getSupportedTokens).toHaveBeenCalledWith(10n);
@@ -106,7 +107,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithTokenCall);
+        const result = await validation.validate(intentWithTokenCall, mockContext);
 
         expect(result).toBe(false);
       });
@@ -127,7 +128,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithApprove);
+        const result = await validation.validate(intentWithApprove, mockContext);
 
         expect(result).toBe(false);
       });
@@ -148,7 +149,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithTransferFrom);
+        const result = await validation.validate(intentWithTransferFrom, mockContext);
 
         expect(result).toBe(false);
       });
@@ -169,7 +170,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithLowercaseToken);
+        const result = await validation.validate(intentWithLowercaseToken, mockContext);
 
         expect(result).toBe(false);
       });
@@ -190,7 +191,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithInvalidData);
+        const result = await validation.validate(intentWithInvalidData, mockContext);
 
         expect(result).toBe(false);
       });
@@ -211,7 +212,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithCustomFunction);
+        const result = await validation.validate(intentWithCustomFunction, mockContext);
 
         expect(result).toBe(false);
       });
@@ -234,7 +235,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue([]);
 
-        const result = await validation.validate(intentWithNonTransferCall);
+        const result = await validation.validate(intentWithNonTransferCall, mockContext);
 
         expect(result).toBe(false); // Still fails because it's not a transfer function
       });
@@ -255,7 +256,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue([]);
 
-        const result = await validation.validate(intentWithTransferCall);
+        const result = await validation.validate(intentWithTransferCall, mockContext);
 
         expect(result).toBe(true); // Passes because it's a transfer and not in token list
       });
@@ -283,7 +284,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithMixedCalls);
+        const result = await validation.validate(intentWithMixedCalls, mockContext);
 
         expect(result).toBe(false);
       });
@@ -304,7 +305,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithTokenTransfer);
+        const result = await validation.validate(intentWithTokenTransfer, mockContext);
 
         // Should fail on first check (token address)
         expect(result).toBe(false);
@@ -336,7 +337,7 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithAllValidTransfers);
+        const result = await validation.validate(intentWithAllValidTransfers, mockContext);
 
         expect(result).toBe(true);
       });

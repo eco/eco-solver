@@ -1,6 +1,20 @@
 import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
+
+export function createMockValidationContext(overrides?: Partial<ValidationContext>): ValidationContext {
+  const defaultContext: ValidationContext = {
+    getWalletAddress: jest.fn().mockResolvedValue('0x1234567890123456789012345678901234567890' as Address),
+    getWalletBalance: jest.fn().mockResolvedValue(BigInt(10000000000000000000)), // 10 ETH
+    getWalletId: jest.fn().mockResolvedValue('basic'),
+  };
+
+  return {
+    ...defaultContext,
+    ...overrides,
+  };
+}
 
 export function createMockIntent(overrides?: Partial<Intent>): Intent {
   const defaultIntent: Intent = {

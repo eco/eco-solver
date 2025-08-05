@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { Validation } from './validation.interface';
@@ -9,7 +10,7 @@ import { Validation } from './validation.interface';
 export class CrowdLiquidityFeeValidation implements Validation {
   constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
-  async validate(intent: Intent): Promise<boolean> {
+  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     // Calculate total value from tokens and native value in calls
     // const totalValue = this.fulfillmentConfigService.sum(
     //   intent.route.destination,

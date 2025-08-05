@@ -5,7 +5,7 @@ import { Address } from 'viem';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { ExpirationValidation } from '../expiration.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('ExpirationValidation', () => {
   let validation: ExpirationValidation;
@@ -39,6 +39,7 @@ describe('ExpirationValidation', () => {
         deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // 1 hour from now in seconds
       },
     });
+    const mockContext = createMockValidationContext();
 
     beforeEach(() => {
       // Mock Date.now() for consistent testing
@@ -58,7 +59,7 @@ describe('ExpirationValidation', () => {
           },
         });
 
-        await expect(validation.validate(intentWithoutDeadline)).rejects.toThrow(
+        await expect(validation.validate(intentWithoutDeadline, mockContext)).rejects.toThrow(
           'Intent must have a deadline',
         );
       });
@@ -71,7 +72,7 @@ describe('ExpirationValidation', () => {
           },
         });
 
-        await expect(validation.validate(intentWithZeroDeadline)).rejects.toThrow(
+        await expect(validation.validate(intentWithZeroDeadline, mockContext)).rejects.toThrow(
           'Intent must have a deadline',
         );
       });
@@ -89,7 +90,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(3600); // 1 hour buffer in seconds
 
-        const result = await validation.validate(intentWithFutureDeadline);
+        const result = await validation.validate(intentWithFutureDeadline, mockContext);
 
         expect(result).toBe(true);
       });
@@ -106,7 +107,7 @@ describe('ExpirationValidation', () => {
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(1800); // 30 min buffer in seconds
 
         const currentTime = BigInt(Math.floor(Date.now() / 1000));
-        await expect(validation.validate(intentWithPastDeadline)).rejects.toThrow(
+        await expect(validation.validate(intentWithPastDeadline, mockContext)).rejects.toThrow(
           `Intent deadline ${pastDeadline} has expired. Current time: ${currentTime}`,
         );
       });
@@ -122,7 +123,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(1800); // 30 min buffer in seconds
 
-        await expect(validation.validate(intentWithCurrentDeadline)).rejects.toThrow(
+        await expect(validation.validate(intentWithCurrentDeadline, mockContext)).rejects.toThrow(
           `Intent deadline ${currentDeadline} has expired. Current time: ${currentDeadline}`,
         );
       });
@@ -140,7 +141,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(3600); // 1 hour buffer in seconds
 
-        await expect(validation.validate(intentWithNearDeadline)).rejects.toThrow(
+        await expect(validation.validate(intentWithNearDeadline, mockContext)).rejects.toThrow(
           `Intent deadline ${nearDeadline} is too close. Need at least 3600 seconds buffer`,
         );
       });
@@ -159,7 +160,7 @@ describe('ExpirationValidation', () => {
           .spyOn(fulfillmentConfigService, 'deadlineDuration', 'get')
           .mockReturnValue(bufferSeconds);
 
-        await expect(validation.validate(intentWithExactBuffer)).rejects.toThrow(
+        await expect(validation.validate(intentWithExactBuffer, mockContext)).rejects.toThrow(
           `Intent deadline ${exactBufferDeadline} is too close. Need at least ${bufferSeconds} seconds buffer`,
         );
       });
@@ -175,7 +176,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(0); // No buffer
 
-        const result = await validation.validate(intentWithNearDeadline);
+        const result = await validation.validate(intentWithNearDeadline, mockContext);
 
         expect(result).toBe(true);
       });
@@ -193,7 +194,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(3600); // 1 hour in seconds
 
-        const result = await validation.validate(intentWithFarDeadline);
+        const result = await validation.validate(intentWithFarDeadline, mockContext);
 
         expect(result).toBe(true);
       });
@@ -211,7 +212,7 @@ describe('ExpirationValidation', () => {
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(3600); // 1 hour in seconds
 
         // This should pass because the validation uses seconds
-        const result = await validation.validate(intentWithSecondsDeadline);
+        const result = await validation.validate(intentWithSecondsDeadline, mockContext);
 
         expect(result).toBe(true);
       });
@@ -227,7 +228,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(-1); // Negative buffer
 
-        const result = await validation.validate(intentWithFutureDeadline);
+        const result = await validation.validate(intentWithFutureDeadline, mockContext);
 
         expect(result).toBe(true); // Should still pass with future deadline
       });
@@ -245,7 +246,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(3600); // Exactly 1 hour
 
-        const result = await validation.validate(intentWithPreciseDeadline);
+        const result = await validation.validate(intentWithPreciseDeadline, mockContext);
 
         expect(result).toBe(true); // Should pass as it's 1 second over the buffer
       });
@@ -261,7 +262,7 @@ describe('ExpirationValidation', () => {
 
         jest.spyOn(fulfillmentConfigService, 'deadlineDuration', 'get').mockReturnValue(3600); // Exactly 1 hour
 
-        await expect(validation.validate(intentWithPreciseDeadline)).rejects.toThrow(
+        await expect(validation.validate(intentWithPreciseDeadline, mockContext)).rejects.toThrow(
           `Intent deadline ${preciseDeadline} is too close. Need at least 3600 seconds buffer`,
         );
       });

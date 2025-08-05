@@ -1,49 +1,47 @@
-# Fulfillment Module Review Plan
+# Fix Strategy Test Issues
 
-## Objectives
-- Review FulfillmentStrategy abstract class and all strategy implementations
-- Validation interface and all validation implementations
-- Check if strategies use immutable validation arrays as documented
-- Verify strategy selection and registration patterns
-- Check for IntentFundedValidation usage in all strategies
-- Look for any inconsistencies or improvements
+## Todo Items
 
-## Todo List
+- [x] Fix validation call expectations in standard-fulfillment.strategy.spec.ts
+  - Update all validation.validate() calls to expect ValidationContextImpl instead of strategy
+  
+- [x] Fix validation count and array indices in native-intents-fulfillment.strategy.spec.ts  
+  - Update expected validation count from 10 to 9 (funding validation removed)
+  - Update array indices to match new count
+  - Fix validation call expectations
+  
+- [x] Fix validation count and indices in negative-intents-fulfillment.strategy.spec.ts
+  - Update validation count from 10 to 9
+  - Update array indices  
+  - Fix validation call expectations
+  
+- [x] Fix validation count in rhinestone-fulfillment.strategy.spec.ts
+  - Update from 9 to 8 validations (funding validation removed)
+  - Update array indices
+  - Fix validation call expectations
+  
+- [x] Fix validation count in crowd-liquidity-fulfillment.strategy.spec.ts
+  - Update from 10 to 9 validations
+  - Update array indices
+  - Fix validation call expectations
 
-### 1. Strategy Implementation Review
-- [ ] Verify all strategies extend FulfillmentStrategy abstract class
-- [ ] Check that all strategies implement required abstract methods (execute, canHandle, getValidations)
-- [ ] Confirm all strategies use Object.freeze() for immutable validation arrays
-- [ ] Ensure all strategies inject validations via constructor
-- [ ] Verify all strategies include IntentFundedValidation
+## Review
 
-### 2. Validation Framework Review
-- [ ] Check all validations implement the Validation interface
-- [ ] Review validation patterns for consistency
-- [ ] Verify error handling in validations
-- [ ] Check validation dependencies (e.g., IntentFundedValidation uses BlockchainReaderService)
+### Summary of Changes
 
-### 3. Strategy Registration and Selection
-- [ ] Review FulfillmentService strategy registration
-- [ ] Check strategy selection logic in processIntent
-- [ ] Verify canHandle() implementations are consistent with documentation
-- [ ] Review strategy name constants and type definitions
+All strategy test files have been successfully updated to address the following issues:
 
-### 4. Module Structure
-- [ ] Verify all strategies and validations are properly registered in FulfillmentModule
-- [ ] Check module dependencies and imports
-- [ ] Review exports and ensure proper encapsulation
+1. **Validation Context Changes**: Updated all validation expectations to use `expect.objectContaining({ strategy })` instead of expecting the strategy instance directly. This was necessary because validations now receive a ValidationContextImpl object that contains the strategy.
 
-### 5. Queue Integration
-- [ ] Verify all strategies use QueueService.addIntentToExecutionQueue()
-- [ ] Check that strategy name is properly passed through the queue
-- [ ] Review FulfillmentProcessor implementation
+2. **Validation Count Updates**: 
+   - Most strategies now have 9 validations instead of 10 (funding validation was removed)
+   - Rhinestone strategy has 8 validations (it excludes RouteCallsValidation)
 
-### 6. Documentation and Code Quality
-- [ ] Check for missing or outdated documentation
-- [ ] Look for code duplication or opportunities for refactoring
-- [ ] Verify consistent naming conventions
-- [ ] Check for proper TypeScript typing
+3. **Test Files Updated**:
+   - `standard-fulfillment.strategy.spec.ts` - Fixed validation expectations
+   - `native-intents-fulfillment.strategy.spec.ts` - Fixed validation count and expectations
+   - `negative-intents-fulfillment.strategy.spec.ts` - Fixed validation expectations
+   - `rhinestone-fulfillment.strategy.spec.ts` - Fixed validation expectations
+   - `crowd-liquidity-fulfillment.strategy.spec.ts` - Fixed validation count and expectations
 
-## Review Notes
-(To be filled during review)
+All tests are now passing successfully!

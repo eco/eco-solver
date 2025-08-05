@@ -11,18 +11,27 @@ jest.mock('@/modules/config/services/evm-config.service', () => ({
 }));
 
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { StandardFeeValidation } from '../standard-fee.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;
   let evmConfigService: jest.Mocked<EvmConfigService>;
+  let fulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
 
   beforeEach(async () => {
     const mockEvmConfigService = {
       getFeeLogic: jest.fn(),
       getTokenConfig: jest.fn(),
+    };
+
+    const mockFulfillmentConfigService = {
+      normalize: jest.fn((chainId, tokens) => {
+        // Return the tokens as-is for testing
+        return tokens.map(token => ({ ...token, amount: token.amount }));
+      }),
     };
 
     const module = await Test.createTestingModule({
@@ -32,15 +41,21 @@ describe('StandardFeeValidation', () => {
           provide: EvmConfigService,
           useValue: mockEvmConfigService,
         },
+        {
+          provide: FulfillmentConfigService,
+          useValue: mockFulfillmentConfigService,
+        },
       ],
     }).compile();
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);
     evmConfigService = module.get(EvmConfigService);
+    fulfillmentConfigService = module.get(FulfillmentConfigService);
   });
 
   describe('validate', () => {
     const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
 
     const mockFeeLogic = {
       tokens: {
@@ -81,7 +96,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        const result = await validation.validate(intentWithRewardTokens);
+        const result = await validation.validate(intentWithRewardTokens, mockContext);
 
         expect(result).toBe(true);
       });
@@ -118,7 +133,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 0.013 ETH
         // Reward tokens: 0.5 ETH > Total fee (0.013 ETH)
 
-        const result = await validation.validate(intentWithMultipleValues);
+        const result = await validation.validate(intentWithMultipleValues, mockContext);
 
         expect(result).toBe(true);
       });
@@ -151,7 +166,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 0.015 ETH = 15000000000000000
         // Reward tokens: 15000000000000001 (1 wei over minimum)
 
-        const result = await validation.validate(precisionIntent);
+        const result = await validation.validate(precisionIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -186,7 +201,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 0.01 + 0.0001 = 0.0101 ETH = 10100000000000000
         // Reward tokens: 0.005 ETH < Total fee (0.0101 ETH)
 
-        await expect(validation.validate(lowRewardIntent)).rejects.toThrow(
+        await expect(validation.validate(lowRewardIntent, mockContext)).rejects.toThrow(
           'Reward native value 5000000000000000 is less than required fee 10100000000000000',
         );
       });
@@ -222,7 +237,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        await expect(validation.validate(almostEnoughIntent)).rejects.toThrow(
+        await expect(validation.validate(almostEnoughIntent, mockContext)).rejects.toThrow(
           'Reward native value 10099999999999999 is less than required fee 10100000000000000',
         );
       });
@@ -249,7 +264,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        const result = await validation.validate(exactFeeIntent);
+        const result = await validation.validate(exactFeeIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -295,7 +310,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 0.02 ETH
         // Reward: 0.03 ETH > 0.02 ETH
 
-        const result = await validation.validate(intentWithTokens);
+        const result = await validation.validate(intentWithTokens, mockContext);
 
         expect(result).toBe(true);
       });
@@ -330,7 +345,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 0.05 ETH
         // Reward: 0.06 ETH > 0.05 ETH
 
-        const result = await validation.validate(intentWithTokens);
+        const result = await validation.validate(intentWithTokens, mockContext);
 
         expect(result).toBe(true);
       });
@@ -354,7 +369,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        const result = await validation.validate(zeroRewardIntent);
+        const result = await validation.validate(zeroRewardIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -396,7 +411,7 @@ describe('StandardFeeValidation', () => {
         // Percentage fee: 50% of 1 ETH = 0.5 ETH
         // Reward (0.6 ETH) > Fee (0.5 ETH)
 
-        const result = await validation.validate(highFeeIntent);
+        const result = await validation.validate(highFeeIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -442,7 +457,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 60 ETH
         // Reward (1000 ETH) > Fee (60 ETH)
 
-        const result = await validation.validate(largeIntent);
+        const result = await validation.validate(largeIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -471,7 +486,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        const result = await validation.validate(zeroIntent);
+        const result = await validation.validate(zeroIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -515,7 +530,7 @@ describe('StandardFeeValidation', () => {
         // Total fee: 10000000000000000 + 33333333333 = 10033333333333
         // Reward: 10333333333333334 > 10033333333333
 
-        const result = await validation.validate(oddValueIntent);
+        const result = await validation.validate(oddValueIntent, mockContext);
 
         expect(result).toBe(true);
       });

@@ -5,6 +5,10 @@ jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
   BlockchainExecutorService: jest.fn().mockImplementation(() => ({})),
 }));
 
+jest.mock('@/modules/blockchain/blockchain-reader.service', () => ({
+  BlockchainReaderService: jest.fn().mockImplementation(() => ({})),
+}));
+
 jest.mock('@/modules/queue/queue.service', () => ({
   QueueService: jest.fn().mockImplementation(() => ({
     addIntentToExecutionQueue: jest.fn(),
@@ -12,12 +16,12 @@ jest.mock('@/modules/queue/queue.service', () => ({
 }));
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import {
   ChainSupportValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  FundingValidation,
   IntentFundedValidation,
   ProverSupportValidation,
   RouteAmountLimitValidation,
@@ -34,10 +38,10 @@ import { RhinestoneFulfillmentStrategy } from '../rhinestone-fulfillment.strateg
 describe('RhinestoneFulfillmentStrategy', () => {
   let strategy: RhinestoneFulfillmentStrategy;
   let blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
+  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
-  let fundingValidation: jest.Mocked<FundingValidation>;
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
@@ -54,6 +58,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     // Create mock services
     const mockBlockchainExecutorService = {};
+    const mockBlockchainReaderService = {};
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
@@ -64,7 +69,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
       constructor: { name },
     });
 
-    fundingValidation = createMockValidation('FundingValidation') as any;
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
@@ -83,12 +87,12 @@ describe('RhinestoneFulfillmentStrategy', () => {
           useValue: mockBlockchainExecutorService,
         },
         {
-          provide: QUEUE_SERVICE,
-          useValue: mockQueueService,
+          provide: BlockchainReaderService,
+          useValue: mockBlockchainReaderService,
         },
         {
-          provide: FundingValidation,
-          useValue: fundingValidation,
+          provide: QUEUE_SERVICE,
+          useValue: mockQueueService,
         },
         {
           provide: IntentFundedValidation,
@@ -131,6 +135,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     strategy = module.get<RhinestoneFulfillmentStrategy>(RhinestoneFulfillmentStrategy);
     blockchainExecutorService = module.get(BlockchainExecutorService);
+    blockchainReaderService = module.get(BlockchainReaderService);
     queueService = module.get(QUEUE_SERVICE);
   });
 
@@ -145,17 +150,16 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     it('should have the correct validations in order WITHOUT RouteCallsValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(9); // One less than standard strategy
-      expect(validations[0]).toBe(fundingValidation);
-      expect(validations[1]).toBe(intentFundedValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
+      expect(validations).toHaveLength(8); // One less than standard strategy
+      expect(validations[0]).toBe(intentFundedValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
       // RouteCallsValidation is intentionally skipped
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(standardFeeValidation);
+      expect(validations[2]).toBe(routeAmountLimitValidation);
+      expect(validations[3]).toBe(expirationValidation);
+      expect(validations[4]).toBe(chainSupportValidation);
+      expect(validations[5]).toBe(proverSupportValidation);
+      expect(validations[6]).toBe(executorBalanceValidation);
+      expect(validations[7]).toBe(standardFeeValidation);
     });
 
     it('should exclude RouteCallsValidation from validations', () => {
@@ -255,20 +259,18 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify validations were called (excluding RouteCallsValidation)
-      expect(fundingValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
       expect(routeCallsValidation.validate).not.toHaveBeenCalled(); // Should NOT be called
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
-      expect(standardFeeValidation.validate).toHaveBeenCalledWith(mockIntent, strategy);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(standardFeeValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
 
       // Verify each validation was called exactly once (except RouteCallsValidation)
       [
-        fundingValidation,
         intentFundedValidation,
         routeTokenValidation,
         routeAmountLimitValidation,
@@ -317,7 +319,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
       );
 
       // Verify validations were called in order until failure
-      expect(fundingValidation.validate).toHaveBeenCalledTimes(1);
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeCallsValidation.validate).not.toHaveBeenCalled(); // Skipped
@@ -376,6 +377,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
         strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
         intent: mockIntent,
         chainId: mockIntent.route.destination,
+        walletId: 'kernel',
       });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
     });
@@ -435,6 +437,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
             strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
             intent,
             chainId: intent.route.destination,
+            walletId: 'kernel',
           },
         );
       });
@@ -459,6 +462,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
           strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
           intent,
           chainId: intent.route.destination,
+          walletId: 'kernel',
         });
       });
     });
@@ -469,7 +473,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(9); // One less than standard
+      expect(validations).toHaveLength(8); // One less than standard
       expect(Object.isFrozen(validations)).toBe(true);
     });
 
@@ -484,16 +488,15 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
       
       // Check that validations are in the expected order
-      expect(validations[0]).toBe(fundingValidation);
-      expect(validations[1]).toBe(intentFundedValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      // Index 3 would have been RouteCallsValidation, but it's skipped
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(standardFeeValidation);
+      expect(validations[0]).toBe(intentFundedValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      // Index 2 would have been RouteCallsValidation, but it's skipped
+      expect(validations[2]).toBe(routeAmountLimitValidation);
+      expect(validations[3]).toBe(expirationValidation);
+      expect(validations[4]).toBe(chainSupportValidation);
+      expect(validations[5]).toBe(proverSupportValidation);
+      expect(validations[6]).toBe(executorBalanceValidation);
+      expect(validations[7]).toBe(standardFeeValidation);
     });
   });
 });

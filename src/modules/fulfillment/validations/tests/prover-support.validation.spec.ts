@@ -5,7 +5,7 @@ import { Address } from 'viem';
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { ProverSupportValidation } from '../prover-support.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('ProverSupportValidation', () => {
   let validation: ProverSupportValidation;
@@ -32,12 +32,13 @@ describe('ProverSupportValidation', () => {
 
   describe('validate', () => {
     const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
 
     describe('successful validation', () => {
       it('should return true when prover validates the route successfully', async () => {
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        const result = await validation.validate(mockIntent);
+        const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
         expect(proverService.validateIntentRoute).toHaveBeenCalledWith(mockIntent);
@@ -78,7 +79,7 @@ describe('ProverSupportValidation', () => {
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        await validation.validate(complexIntent);
+        await validation.validate(complexIntent, mockContext);
 
         expect(proverService.validateIntentRoute).toHaveBeenCalledWith(complexIntent);
       });
@@ -91,7 +92,7 @@ describe('ProverSupportValidation', () => {
           reason: 'Route validation failed',
         });
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
           'Prover validation failed: Route validation failed',
         );
 
@@ -104,21 +105,21 @@ describe('ProverSupportValidation', () => {
         const error = new Error('Prover connection failed');
         proverService.validateIntentRoute.mockRejectedValue(error);
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(error);
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(error);
       });
 
       it('should handle specific prover errors', async () => {
         const proverError = new Error('Invalid prover configuration for chain 1');
         proverService.validateIntentRoute.mockRejectedValue(proverError);
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(proverError);
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(proverError);
       });
 
       it('should handle timeout errors', async () => {
         const timeoutError = new Error('Prover validation timeout');
         proverService.validateIntentRoute.mockRejectedValue(timeoutError);
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(timeoutError);
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(timeoutError);
       });
     });
 
@@ -134,7 +135,7 @@ describe('ProverSupportValidation', () => {
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        const result = await validation.validate(crossChainIntent);
+        const result = await validation.validate(crossChainIntent, mockContext);
 
         expect(result).toBe(true);
         expect(proverService.validateIntentRoute).toHaveBeenCalledWith(crossChainIntent);
@@ -151,7 +152,7 @@ describe('ProverSupportValidation', () => {
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        const result = await validation.validate(sameChainIntent);
+        const result = await validation.validate(sameChainIntent, mockContext);
 
         expect(result).toBe(true);
         expect(proverService.validateIntentRoute).toHaveBeenCalledWith(sameChainIntent);
@@ -168,7 +169,7 @@ describe('ProverSupportValidation', () => {
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        const result = await validation.validate(largeChainIntent);
+        const result = await validation.validate(largeChainIntent, mockContext);
 
         expect(result).toBe(true);
         expect(proverService.validateIntentRoute).toHaveBeenCalledWith(largeChainIntent);
@@ -183,7 +184,7 @@ describe('ProverSupportValidation', () => {
           return { isValid: true };
         });
 
-        const result = await validation.validate(mockIntent);
+        const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -191,7 +192,7 @@ describe('ProverSupportValidation', () => {
       it('should call prover service exactly once per validation', async () => {
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        await validation.validate(mockIntent);
+        await validation.validate(mockIntent, mockContext);
 
         expect(proverService.validateIntentRoute).toHaveBeenCalledTimes(1);
       });
@@ -200,7 +201,7 @@ describe('ProverSupportValidation', () => {
         const originalIntent = { ...mockIntent };
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        await validation.validate(mockIntent);
+        await validation.validate(mockIntent, mockContext);
 
         expect(mockIntent).toEqual(originalIntent);
       });
@@ -226,7 +227,7 @@ describe('ProverSupportValidation', () => {
         for (const intent of intentsWithDifferentProvers) {
           proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-          const result = await validation.validate(intent);
+          const result = await validation.validate(intent, mockContext);
 
           expect(result).toBe(true);
           expect(proverService.validateIntentRoute).toHaveBeenCalledWith(intent);
@@ -243,7 +244,7 @@ describe('ProverSupportValidation', () => {
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
 
-        const result = await validation.validate(intentWithDifferentSalt);
+        const result = await validation.validate(intentWithDifferentSalt, mockContext);
 
         expect(result).toBe(true);
       });

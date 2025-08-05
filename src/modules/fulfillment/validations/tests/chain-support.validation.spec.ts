@@ -10,7 +10,7 @@ jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 
 import { ChainSupportValidation } from '../chain-support.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('ChainSupportValidation', () => {
   let validation: ChainSupportValidation;
@@ -37,6 +37,7 @@ describe('ChainSupportValidation', () => {
 
   describe('validate', () => {
     const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
 
     describe('both chains supported', () => {
       it('should return true when both source and destination chains are supported', async () => {
@@ -44,7 +45,7 @@ describe('ChainSupportValidation', () => {
           .mockReturnValueOnce(true) // source chain
           .mockReturnValueOnce(true); // destination chain
 
-        const result = await validation.validate(mockIntent);
+        const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
         expect(blockchainExecutorService.isChainSupported).toHaveBeenCalledTimes(2);
@@ -57,7 +58,7 @@ describe('ChainSupportValidation', () => {
       it('should throw error when source chain is not supported', async () => {
         blockchainExecutorService.isChainSupported.mockReturnValueOnce(false); // source chain isn't supported
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
           'Source chain 1 is not supported',
         );
 
@@ -72,7 +73,7 @@ describe('ChainSupportValidation', () => {
           .mockReturnValueOnce(true) // source chain supported
           .mockReturnValueOnce(false); // destination chain not supported
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
           'Target chain 10 is not supported',
         );
 
@@ -86,7 +87,7 @@ describe('ChainSupportValidation', () => {
           .mockReturnValueOnce(false) // source chain not supported
           .mockReturnValueOnce(false); // destination chain not supported (won't be called)
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
           'Source chain 1 is not supported',
         );
 
@@ -109,7 +110,7 @@ describe('ChainSupportValidation', () => {
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(true);
 
-        const result = await validation.validate(intentWithLargeChainIds);
+        const result = await validation.validate(intentWithLargeChainIds, mockContext);
 
         expect(result).toBe(true);
         expect(blockchainExecutorService.isChainSupported).toHaveBeenNthCalledWith(
@@ -135,7 +136,7 @@ describe('ChainSupportValidation', () => {
           .mockReturnValueOnce(true) // source check
           .mockReturnValueOnce(true); // destination check
 
-        const result = await validation.validate(sameChainIntent);
+        const result = await validation.validate(sameChainIntent, mockContext);
 
         expect(result).toBe(true);
         expect(blockchainExecutorService.isChainSupported).toHaveBeenCalledTimes(2);
@@ -163,7 +164,7 @@ describe('ChainSupportValidation', () => {
             .mockReturnValueOnce(true)
             .mockReturnValueOnce(true);
 
-          const result = await validation.validate(intent);
+          const result = await validation.validate(intent, mockContext);
 
           expect(result).toBe(true);
         }
@@ -177,7 +178,7 @@ describe('ChainSupportValidation', () => {
           throw error;
         });
 
-        await expect(validation.validate(mockIntent)).rejects.toThrow(error);
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(error);
       });
     });
 
@@ -190,7 +191,7 @@ describe('ChainSupportValidation', () => {
           return true;
         });
 
-        await validation.validate(mockIntent);
+        await validation.validate(mockIntent, mockContext);
 
         expect(callOrder).toEqual(['chain-1', 'chain-10']);
       });

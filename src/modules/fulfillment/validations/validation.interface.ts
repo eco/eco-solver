@@ -1,13 +1,13 @@
 import { Intent } from '@/common/interfaces/intent.interface';
-import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 
 export interface Validation {
   /**
    * Validate the intent
    * @param intent The intent to validate
-   * @param fulfillmentStrategy The fulfillment strategy
+   * @param context The validation context providing necessary blockchain information
    * @returns true if validation passes, false otherwise
    * @throws Error with specific validation failure reason
    */
-  validate(intent: Intent, fulfillmentStrategy: FulfillmentStrategy): Promise<boolean>;
+  validate(intent: Intent, context: ValidationContext): Promise<boolean>;
 }

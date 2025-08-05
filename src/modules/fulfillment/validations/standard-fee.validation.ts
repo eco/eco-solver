@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { sum } from '@/common/utils/math';
 import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
 
@@ -13,7 +14,7 @@ export class StandardFeeValidation implements Validation {
     private fulfillmentConfigService: FulfillmentConfigService,
   ) {}
 
-  async validate(intent: Intent): Promise<boolean> {
+  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     // Get fee logic for the destination chain
     const fee = this.evmConfigService.getFeeLogic(Number(intent.route.destination));
     const baseFee = BigInt(fee.tokens.flatFee ?? 0);

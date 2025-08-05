@@ -31,5 +31,5 @@ export interface IFulfillmentStrategy {
    * @param {Intent} intent - The intent object containing details used to obtain the wallet ID.
    * @return {Promise<string>} A promise that resolves to the wallet ID as a string.
    */
-  getWalletId(intent: Intent): Promise<string>;
+  getWalletIdForIntent(intent: Intent): Promise<string>;
 }

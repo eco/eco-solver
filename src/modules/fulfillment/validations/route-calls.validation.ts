@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Address, decodeFunctionData, erc20Abi, isAddressEqual } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { Validation } from './validation.interface';
@@ -11,7 +12,7 @@ import { Validation } from './validation.interface';
 export class RouteCallsValidation implements Validation {
   constructor(private evmConfigService: EvmConfigService) {}
 
-  async validate(intent: Intent): Promise<boolean> {
+  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     // Validate route calls
     if (!intent.route.calls || intent.route.calls.length === 0) {
       // It's valid to have no calls (token-only transfer)

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { Validation } from './validation.interface';
@@ -9,7 +10,7 @@ import { Validation } from './validation.interface';
 export class NativeFeeValidation implements Validation {
   constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
-  async validate(intent: Intent): Promise<boolean> {
+  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     // Calculate total value from native values in calls
     const nativeValue = intent.route.calls.reduce((sum, call) => sum + call.value, 0n);
 

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
@@ -29,7 +30,8 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
-    private readonly blockchainService: BlockchainExecutorService,
+    protected readonly blockchainExecutor: BlockchainExecutorService,
+    protected readonly blockchainReader: BlockchainReaderService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for negative intents strategy
     private readonly intentFundedValidation: IntentFundedValidation,
@@ -42,7 +44,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly nativeFeeValidation: NativeFeeValidation,
   ) {
-    super();
+    super(blockchainExecutor, blockchainReader);
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.intentFundedValidation,
@@ -67,11 +69,15 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   async execute(intent: Intent): Promise<void> {
+    // Get wallet ID for this intent
+    const walletId = await this.getWalletIdForIntent(intent);
+    
     // Negative intents fulfillment uses both EVM and SVM executors
     await this.queueService.addIntentToExecutionQueue({
       strategy: this.name,
       intent,
       chainId: intent.route.destination,
+      walletId,
     });
   }
 

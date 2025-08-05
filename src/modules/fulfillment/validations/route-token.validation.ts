@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
 import { Validation } from './validation.interface';
@@ -9,7 +10,7 @@ import { Validation } from './validation.interface';
 export class RouteTokenValidation implements Validation {
   constructor(private evmConfigService: EvmConfigService) {}
 
-  async validate(intent: Intent): Promise<boolean> {
+  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     const destinationChainId = Number(intent.route.destination);
 
     const nativeTokenAmount = intent.route.calls.reduce((acc, call) => acc + call.value, 0n);

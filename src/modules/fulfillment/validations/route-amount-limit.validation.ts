@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { min, sum } from '@/common/utils/math';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
@@ -13,7 +14,7 @@ import { Validation } from './validation.interface';
 export class RouteAmountLimitValidation implements Validation {
   constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
-  async validate(intent: Intent): Promise<boolean> {
+  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     // Calculate total value being transferred
     const normalizedTokens = this.fulfillmentConfigService.normalize(
       intent.route.destination,

@@ -5,7 +5,7 @@ import { Address } from 'viem';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 
 import { RouteTokenValidation } from '../route-token.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('RouteTokenValidation', () => {
   let validation: RouteTokenValidation;
@@ -37,10 +37,11 @@ describe('RouteTokenValidation', () => {
         nativeValue: BigInt(0),
       },
     });
+    const mockContext = createMockValidationContext();
 
     describe('native token transfer validation', () => {
       it('should return true when no native token transfers in calls', async () => {
-        const result = await validation.validate(mockIntent);
+        const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -59,7 +60,7 @@ describe('RouteTokenValidation', () => {
           },
         });
 
-        await expect(validation.validate(intentWithNativeTransfer)).rejects.toThrow(
+        await expect(validation.validate(intentWithNativeTransfer, mockContext)).rejects.toThrow(
           'Native token transfers are not supported',
         );
       });
@@ -88,7 +89,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(true) // First token
           .mockReturnValueOnce(true); // Second token
 
-        const result = await validation.validate(intentWithTokens);
+        const result = await validation.validate(intentWithTokens, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
@@ -123,7 +124,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(true) // First token
           .mockReturnValueOnce(false); // Second token
 
-        await expect(validation.validate(intentWithUnsupportedToken)).rejects.toThrow(
+        await expect(validation.validate(intentWithUnsupportedToken, mockContext)).rejects.toThrow(
           'Token 0xUNSUPPORTEDTOKENADDRESS123456789012345678 is not supported on chain 10',
         );
       });
@@ -144,7 +145,7 @@ describe('RouteTokenValidation', () => {
         // Mock that token is supported
         evmConfigService.isTokenSupported.mockReturnValue(true);
 
-        const result = await validation.validate(intentWithMixedCase);
+        const result = await validation.validate(intentWithMixedCase, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
@@ -177,7 +178,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(true) // First reward token
           .mockReturnValueOnce(true); // Second reward token
 
-        const result = await validation.validate(intentWithRewardTokens);
+        const result = await validation.validate(intentWithRewardTokens, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
@@ -212,7 +213,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(true) // First reward token
           .mockReturnValueOnce(false); // Second reward token
 
-        await expect(validation.validate(intentWithUnsupportedReward)).rejects.toThrow(
+        await expect(validation.validate(intentWithUnsupportedReward, mockContext)).rejects.toThrow(
           'Reward token 0xINVALIDTOKENADDRESS123456789012345678901 is not supported on chain 1',
         );
       });
@@ -235,7 +236,7 @@ describe('RouteTokenValidation', () => {
         // Mock that isTokenSupported returns true (token is supported)
         evmConfigService.isTokenSupported.mockReturnValue(true);
 
-        const result = await validation.validate(intentWithTokens);
+        const result = await validation.validate(intentWithTokens, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
@@ -260,7 +261,7 @@ describe('RouteTokenValidation', () => {
         // Mock that isTokenSupported returns false (token is not supported)
         evmConfigService.isTokenSupported.mockReturnValue(false);
 
-        await expect(validation.validate(intentWithTokens)).rejects.toThrow(
+        await expect(validation.validate(intentWithTokens, mockContext)).rejects.toThrow(
           'Token 0x7F5c764cBc14f9669B88837ca1490cCa17c31607 is not supported on chain 10',
         );
       });
@@ -306,7 +307,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(true) // Route token on destination
           .mockReturnValueOnce(true); // Reward token on source
 
-        const result = await validation.validate(complexIntent);
+        const result = await validation.validate(complexIntent, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.isTokenSupported).toHaveBeenCalledTimes(2);

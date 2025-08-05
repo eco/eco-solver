@@ -5,7 +5,7 @@ import { Address } from 'viem';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 
 import { IntentFundedValidation } from '../intent-funded.validation';
-import { createMockIntent } from '../test-helpers';
+import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('IntentFundedValidation', () => {
   let validation: IntentFundedValidation;
@@ -32,11 +32,12 @@ describe('IntentFundedValidation', () => {
 
   describe('validate', () => {
     const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
 
     it('should return true when intent is funded', async () => {
       blockchainReaderService.isIntentFunded.mockResolvedValue(true);
 
-      const result = await validation.validate(mockIntent);
+      const result = await validation.validate(mockIntent, mockContext);
 
       expect(result).toBe(true);
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
@@ -48,7 +49,7 @@ describe('IntentFundedValidation', () => {
     it('should throw error when intent is not funded', async () => {
       blockchainReaderService.isIntentFunded.mockResolvedValue(false);
 
-      await expect(validation.validate(mockIntent)).rejects.toThrow(
+      await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
         `Intent ${mockIntent.intentHash} is not funded on chain ${mockIntent.route.source}`,
       );
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
@@ -61,7 +62,7 @@ describe('IntentFundedValidation', () => {
       const error = new Error('Blockchain connection failed');
       blockchainReaderService.isIntentFunded.mockRejectedValue(error);
 
-      await expect(validation.validate(mockIntent)).rejects.toThrow(
+      await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
         'Failed to verify intent funding status: Blockchain connection failed',
       );
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
@@ -102,7 +103,7 @@ describe('IntentFundedValidation', () => {
 
       blockchainReaderService.isIntentFunded.mockResolvedValue(true);
 
-      const result = await validation.validate(intentsWithTokens);
+      const result = await validation.validate(intentsWithTokens, mockContext);
 
       expect(result).toBe(true);
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
