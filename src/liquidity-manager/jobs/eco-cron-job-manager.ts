@@ -129,7 +129,6 @@ export class EcoCronJobManager {
             error: ex.message || ex,
           },
         }),
-        ex.stack,
       )
 
       return { error: ex }
