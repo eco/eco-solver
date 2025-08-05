@@ -8,7 +8,7 @@ import { Config } from '@/config/config.schema';
 export function getEcoNpmPackageConfig(config: DeepPartial<Config>): DeepPartial<Config> {
   return {
     evm: {
-      networks: config.evm.networks.map((network) => {
+      networks: config.evm.networks?.map((network) => {
         if (!network.chainId) return network;
 
         const chainId =

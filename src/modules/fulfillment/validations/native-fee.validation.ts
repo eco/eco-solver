@@ -16,13 +16,15 @@ export class NativeFeeValidation implements Validation {
     // Get reward from the new structure
     const reward = intent.reward.nativeValue;
 
+    // TODO: Add case where the source is also Ethereum
+
     // Native intents have different fee requirements
     // Calculate required fee: nativeBaseFee + (totalValue * nativePercentageFee / 10000)
-    const nativeFeeConfig = this.fulfillmentConfigService.nativeFee;
-    const nativeBaseFee = nativeFeeConfig?.baseFee ?? BigInt(0);
+    const nativeFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.route.destination);
+    const nativeBaseFee = BigInt(nativeFeeConfig.native.flatFee ?? 0);
 
     const base = 1_000;
-    const nativePercentageFee = BigInt(Math.floor((nativeFeeConfig?.bpsFee ?? 0) * base));
+    const nativePercentageFee = BigInt(Math.floor((nativeFeeConfig.native.scalarBps ?? 0) * base));
 
     const percentageFee = (nativeValue * nativePercentageFee) / BigInt(base * 10000);
     const totalRequiredFee = nativeBaseFee + percentageFee;

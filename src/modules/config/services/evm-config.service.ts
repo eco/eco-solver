@@ -64,7 +64,7 @@ export class EvmConfigService {
     return tokens.some((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
   }
 
-  getTokenConfig(chainId: number, tokenAddress: string): EvmTokenConfig {
+  getTokenConfig(chainId: bigint | number, tokenAddress: string): EvmTokenConfig {
     const tokens = this.getSupportedTokens(chainId);
     const tokenConfig = tokens.find(
       (token) => token.address.toLowerCase() === tokenAddress.toLowerCase(),
@@ -77,7 +77,7 @@ export class EvmConfigService {
 
   getFeeLogic(chainId: number): EvmFeeLogicConfig {
     const network = this.getChain(chainId);
-    return network.feeLogic;
+    return network.fee;
   }
 
   private initializeNetworks(): void {

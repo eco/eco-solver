@@ -1,9 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 
-import { ConfigSchema } from '@/config/config.schema';
 import { configurationFactory } from '@/config/configuration-factory';
-import { createZodValidationAdapter } from '@/config/zod-validation.adapter';
 import {
   AppConfigService,
   AwsConfigService,
@@ -37,7 +35,7 @@ const configProviders = [
         // Load the configuration factory that handles all env vars and AWS secrets
         configurationFactory,
       ],
-      validate: createZodValidationAdapter(ConfigSchema),
+      // validate: createZodValidationAdapter(ConfigSchema),
     }),
   ],
   providers: [ConfigService, ...configProviders],

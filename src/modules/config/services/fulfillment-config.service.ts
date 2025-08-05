@@ -1,15 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { Address } from 'viem';
 import { z } from 'zod';
 
+import { normalize } from '@/common/tokens/normalize';
 import { FulfillmentSchema } from '@/config/config.schema';
+import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 
 type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
 
 @Injectable()
 export class FulfillmentConfigService {
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly evmConfigService: EvmConfigService,
+  ) {}
 
   get defaultStrategy(): FulfillmentConfig['defaultStrategy'] {
     return this.configService.get<FulfillmentConfig['defaultStrategy']>(
@@ -25,33 +31,24 @@ export class FulfillmentConfigService {
     return this.configService.get<FulfillmentConfig['validations']>('fulfillment.validations');
   }
 
-  get routeLimits(): FulfillmentConfig['validations']['routeLimits'] {
-    return this.configService.get<FulfillmentConfig['validations']['routeLimits']>(
-      'fulfillment.validations.routeLimits',
-    );
-  }
-
-  get nativeFee(): FulfillmentConfig['validations']['nativeFee'] {
-    return this.configService.get<FulfillmentConfig['validations']['nativeFee']>(
-      'fulfillment.validations.nativeFee',
-    );
-  }
-
-  get crowdLiquidityFee(): FulfillmentConfig['validations']['crowdLiquidityFee'] {
-    return this.configService.get<FulfillmentConfig['validations']['crowdLiquidityFee']>(
-      'fulfillment.validations.crowdLiquidityFee',
-    );
-  }
-
   get deadlineDuration(): FulfillmentConfig['deadlineDuration'] {
     return this.configService.get<FulfillmentConfig['deadlineDuration']>(
       'fulfillment.deadlineDuration',
     );
   }
 
-  getRouteLimitForChain(chainId: bigint): bigint {
-    const routeLimits = this.routeLimits;
-    const specificLimit = routeLimits?.routes?.find((route) => route.chainId === chainId);
-    return specificLimit?.limit ?? routeLimits?.default ?? 10000000000000000000n;
+  getNetworkFee(chainId: bigint | number) {
+    return this.evmConfigService.getFeeLogic(Number(chainId));
+  }
+
+  getToken(chainId: bigint | number, address: Address) {
+    return this.evmConfigService.getTokenConfig(chainId, address);
+  }
+
+  sum(chainId: bigint, tokens: Readonly<{ amount: bigint; token: Address }[]>): bigint {
+    return tokens.reduce((acc, token) => {
+      const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), token.token);
+      return acc + normalize(token.amount, decimals);
+    }, 0n);
   }
 }

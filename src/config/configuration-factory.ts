@@ -1,4 +1,5 @@
 import { merge } from 'lodash';
+import { z } from 'zod';
 
 import { AwsSchema, BaseSchema, ConfigSchema } from '@/config/config.schema';
 import {
@@ -69,6 +70,21 @@ export const configurationFactory = async () => {
     mergedConfig = merge({}, mergedConfig, npmPackageConfig);
   }
 
-  // Parse and validate the complete merged configuration
-  return ConfigSchema.parse(mergedConfig);
+  try {
+    // Parse and validate the complete merged configuration
+    return ConfigSchema.parse(mergedConfig);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      // Convert Zod errors to a format similar to Joi
+      const errorMessages = error.issues
+        .map((issue) => {
+          const path = issue.path.join('.');
+          return `${path}: ${issue.message}`;
+        })
+        .join(', ');
+
+      throw new Error(`Configuration validation error: ${errorMessages}`);
+    }
+    throw error;
+  }
 };

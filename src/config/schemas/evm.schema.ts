@@ -62,15 +62,21 @@ export const EvmWsSchema = z.object({
 const EvmTokenSchema = z.object({
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   decimals: z.number().int().min(0).max(18),
-  limit: z.string(), // Using string for bigint compatibility
+  limit: z.number().int().positive(), // Using string for bigint compatibility
 });
 
 /**
  * EVM fee logic configuration schema
  */
-const EvmFeeLogicSchema = z.object({
-  baseFlatFee: z.string(), // Using string for bigint compatibility (in wei)
-  scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+const EvmFeeSchema = z.object({
+  tokens: z.object({
+    flatFee: z.string(), // Using string for bigint compatibility (in wei)
+    scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+  }),
+  native: z.object({
+    flatFee: z.string(), // Using string for bigint compatibility (in wei)
+    scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+  }),
 });
 
 /**
@@ -118,7 +124,7 @@ const EvmNetworkSchema = z.object({
   intentSourceAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(EvmTokenSchema).default([]),
-  feeLogic: EvmFeeLogicSchema,
+  fee: EvmFeeSchema,
   provers: z.record(
     z.enum(['hyper', 'metalayer'] as const),
     z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -130,7 +136,6 @@ const EvmNetworkSchema = z.object({
  */
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
-  privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
   wallets: WalletsSchema.default({
     basic: {},
   }),
@@ -139,7 +144,7 @@ export const EvmSchema = z.object({
 export type EvmConfig = z.infer<typeof EvmSchema>;
 export type EvmNetworkConfig = z.infer<typeof EvmNetworkSchema>;
 export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
-export type EvmFeeLogicConfig = z.infer<typeof EvmFeeLogicSchema>;
+export type EvmFeeLogicConfig = z.infer<typeof EvmFeeSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type BasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;

@@ -43,7 +43,7 @@ describe('StandardFeeValidation', () => {
     const mockIntent = createMockIntent();
 
     const mockFeeLogic = {
-      baseFlatFee: '10000000000000000', // 0.01 ETH
+      flatFee: '10000000000000000', // 0.01 ETH
       scalarBps: 1, // 1% = 100 bps, but scalarBps uses decimals (1 = 100 bps)
     };
 
@@ -252,7 +252,7 @@ describe('StandardFeeValidation', () => {
     describe('different fee configurations', () => {
       it('should handle zero base fee', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '0',
+          flatFee: '0',
           scalarBps: 2, // 2% = 200 bps
         });
 
@@ -290,7 +290,7 @@ describe('StandardFeeValidation', () => {
 
       it('should handle zero percentage fee', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '50000000000000000', // 0.05 ETH
+          flatFee: '50000000000000000', // 0.05 ETH
           scalarBps: 0,
         });
 
@@ -319,7 +319,7 @@ describe('StandardFeeValidation', () => {
 
       it('should handle both zero fees', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '0',
+          flatFee: '0',
           scalarBps: 0,
         });
 
@@ -337,7 +337,7 @@ describe('StandardFeeValidation', () => {
 
       it('should handle high percentage fees', async () => {
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '0',
+          flatFee: '0',
           scalarBps: 50, // 50% = 5000 bps
         });
 
@@ -396,7 +396,7 @@ describe('StandardFeeValidation', () => {
         });
 
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '10000000000000000000', // 10 ETH
+          flatFee: '10000000000000000000', // 10 ETH
           scalarBps: 1, // 1% = 100 bps
         });
 
@@ -425,7 +425,7 @@ describe('StandardFeeValidation', () => {
         });
 
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '0',
+          flatFee: '0',
           scalarBps: 0,
         });
 
@@ -457,7 +457,7 @@ describe('StandardFeeValidation', () => {
         });
 
         evmConfigService.getFeeLogic.mockReturnValue({
-          baseFlatFee: '10000000000000000', // 0.01 ETH
+          flatFee: '10000000000000000', // 0.01 ETH
           scalarBps: 1, // 1% = 100 bps
         });
 
