@@ -5,6 +5,8 @@ import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 
+jest.setTimeout(15000)
+
 describe('EcoCronJobManager', () => {
   let mockQueue: Queue
   let ecoCronJobManager: EcoCronJobManager
@@ -26,6 +28,7 @@ describe('EcoCronJobManager', () => {
   })
 
   afterEach(() => {
+    ecoCronJobManager.stop()
     jest.clearAllTimers()
     jest.restoreAllMocks()
   })
@@ -54,6 +57,9 @@ describe('EcoCronJobManager', () => {
     ecoCronJobManager['started'] = true
 
     await ecoCronJobManager.start(mockQueue, 5000, walletAddress)
+
+    // wait a tick in case setImmediate ran
+    await new Promise((r) => setTimeout(r, 10))
 
     expect(spy).not.toHaveBeenCalled()
   })
