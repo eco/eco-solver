@@ -175,7 +175,7 @@ describe.skip('CrowdLiquidityFeeValidation', () => {
         const almostEnoughIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(9999999999999999), // 1 wei less than required
+            nativeValue: BigInt('9999999999999999'), // 1 wei less than required
           },
           route: {
             ...mockIntent.route,

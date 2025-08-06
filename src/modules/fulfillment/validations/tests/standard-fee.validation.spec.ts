@@ -19,7 +19,7 @@ import { createMockIntent, createMockValidationContext } from '../test-helpers';
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;
   let evmConfigService: jest.Mocked<EvmConfigService>;
-  let fulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
+  let _fulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
 
   beforeEach(async () => {
     const mockEvmConfigService = {
@@ -50,7 +50,7 @@ describe('StandardFeeValidation', () => {
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);
     evmConfigService = module.get(EvmConfigService);
-    fulfillmentConfigService = module.get(FulfillmentConfigService);
+    _fulfillmentConfigService = module.get(FulfillmentConfigService);
   });
 
   describe('validate', () => {
@@ -145,7 +145,7 @@ describe('StandardFeeValidation', () => {
             tokens: [
               {
                 token: '0x0000000000000000000000000000000000000001' as Address,
-                amount: BigInt(15000000000000001), // Slightly over minimum required
+                amount: BigInt('15000000000000001'), // Slightly over minimum required
               },
             ],
           },
@@ -222,7 +222,7 @@ describe('StandardFeeValidation', () => {
             tokens: [
               {
                 token: '0x0000000000000000000000000000000000000001' as Address,
-                amount: BigInt(10099999999999999), // 1 wei less than required (10100000000000000)
+                amount: BigInt('10099999999999999'), // 1 wei less than required (10100000000000000)
               },
             ],
           },

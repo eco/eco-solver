@@ -197,7 +197,7 @@ describe('NativeFeeValidation', () => {
         const preciseIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(34999999999999999), // 1 wei less than required
+            nativeValue: BigInt('34999999999999999'), // 1 wei less than required
           },
           route: {
             ...mockIntent.route,
@@ -444,7 +444,7 @@ describe('NativeFeeValidation', () => {
         const oddIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(33300000000000001), // Covers fee with odd percentage
+            nativeValue: BigInt('33300000000000001'), // Covers fee with odd percentage
           },
           route: {
             ...mockIntent.route,

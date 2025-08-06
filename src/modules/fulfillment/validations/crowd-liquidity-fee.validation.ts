@@ -10,7 +10,7 @@ import { Validation } from './validation.interface';
 export class CrowdLiquidityFeeValidation implements Validation {
   constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
-  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
+  async validate(_intent: Intent, _context: ValidationContext): Promise<boolean> {
     // Calculate total value from tokens and native value in calls
     // const totalValue = this.fulfillmentConfigService.sum(
     //   intent.route.destination,

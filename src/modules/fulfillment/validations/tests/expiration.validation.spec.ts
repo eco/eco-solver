@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
 
-import { Address } from 'viem';
-
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { ExpirationValidation } from '../expiration.validation';

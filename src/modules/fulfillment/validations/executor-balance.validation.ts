@@ -15,7 +15,6 @@ export class ExecutorBalanceValidation implements Validation {
     // on the destination chain
 
     const chainID = intent.route.destination;
-    const executorAddr = await context.getWalletAddress(chainID);
 
     const checkRequests = intent.route.tokens.map(async ({ token, amount }) => {
       const balance = await context.getWalletBalance(chainID, token);

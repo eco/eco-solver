@@ -37,8 +37,8 @@ import { NegativeIntentsFulfillmentStrategy } from '../negative-intents-fulfillm
 
 describe('NegativeIntentsFulfillmentStrategy', () => {
   let strategy: NegativeIntentsFulfillmentStrategy;
-  let blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
-  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
+  let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
+  let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
@@ -134,8 +134,8 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<NegativeIntentsFulfillmentStrategy>(NegativeIntentsFulfillmentStrategy);
-    blockchainExecutorService = module.get(BlockchainExecutorService);
-    blockchainReaderService = module.get(BlockchainReaderService);
+    _blockchainExecutorService = module.get(BlockchainExecutorService);
+    _blockchainReaderService = module.get(BlockchainReaderService);
     queueService = module.get(QUEUE_SERVICE);
   });
 

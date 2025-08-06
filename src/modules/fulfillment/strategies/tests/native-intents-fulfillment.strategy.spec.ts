@@ -35,8 +35,8 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 describe('NativeIntentsFulfillmentStrategy', () => {
   let strategy: NativeIntentsFulfillmentStrategy;
-  let blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
-  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
+  let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
+  let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
@@ -132,8 +132,8 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<NativeIntentsFulfillmentStrategy>(NativeIntentsFulfillmentStrategy);
-    blockchainExecutorService = module.get(BlockchainExecutorService);
-    blockchainReaderService = module.get(BlockchainReaderService);
+    _blockchainExecutorService = module.get(BlockchainExecutorService);
+    _blockchainReaderService = module.get(BlockchainReaderService);
     queueService = module.get(QUEUE_SERVICE);
   });
 

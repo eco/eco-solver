@@ -23,7 +23,7 @@ describe('Intent Discovery Flow Integration', () => {
   let module: TestingModule;
   let eventEmitter: EventEmitter2;
   let intentsService: IntentsService;
-  let fulfillmentService: FulfillmentService;
+  let _fulfillmentService: FulfillmentService;
   let fulfillmentQueue: Queue;
   let executionQueue: Queue;
   let mongoServer: MongoMemoryServer;
@@ -75,7 +75,7 @@ describe('Intent Discovery Flow Integration', () => {
     // Get service instances
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
     intentsService = module.get<IntentsService>(IntentsService);
-    fulfillmentService = module.get<FulfillmentService>(FulfillmentService);
+    _fulfillmentService = module.get<FulfillmentService>(FulfillmentService);
     fulfillmentQueue = module.get<Queue>(getQueueToken('intent-fulfillment'));
     executionQueue = module.get<Queue>(getQueueToken('blockchain-execution'));
 

@@ -36,7 +36,7 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 describe('CrowdLiquidityFulfillmentStrategy', () => {
   let strategy: CrowdLiquidityFulfillmentStrategy;
-  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
+  let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
 
   // Mock validation services
@@ -132,7 +132,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<CrowdLiquidityFulfillmentStrategy>(CrowdLiquidityFulfillmentStrategy);
-    blockchainReaderService = module.get(BlockchainReaderService);
+    _blockchainReaderService = module.get(BlockchainReaderService);
     queueService = module.get(QUEUE_SERVICE);
   });
 
