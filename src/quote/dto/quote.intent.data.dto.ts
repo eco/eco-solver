@@ -45,6 +45,14 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @ApiPropertyOptional()
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData?: GaslessIntentDataDTO
+
+  @IsNotEmpty()
+  @ApiProperty()
+  source: bigint
+
+  @IsNotEmpty()
+  @ApiProperty()
+  destination: bigint
 }
 
 export interface QuoteIntentDataInterface {

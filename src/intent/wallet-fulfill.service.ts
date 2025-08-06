@@ -200,7 +200,7 @@ export class WalletFulfillService implements IFulfillService {
 
       switch (tt.targetConfig.contractType) {
         case 'erc20':
-          return this.handleErc20(tt, solver, call.target)
+          return this.handleErc20(tt, solver, call.target as `0x${string}`)
         case 'erc721':
         case 'erc1155':
         default:

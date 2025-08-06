@@ -52,7 +52,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     // Check if this is an SVM chain and use SVM client
     const vmType = getVMType(intentSource.chainID)
     if (vmType === VMType.SVM) {
-      this.walletAddress = await this.svmMultichainClientService.getAddress()
+      this.walletAddress = await this.svmMultichainClientService.getAddress().toString()
       return;
     }
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
@@ -122,13 +122,13 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       // Origin chain
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
-      fromTokenAddress: tokenIn.config.address,
+      fromTokenAddress: tokenIn.config.address.toString(),
       fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
       toChainId: tokenOut.chainId,
-      toTokenAddress: tokenOut.config.address,
+      toTokenAddress: tokenOut.config.address.toString(),
     }
 
     if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
@@ -314,11 +314,11 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     // Check if tokens are supported on their respective chains
     const isFromTokenSupported = this.assetCacheManager.isTokenSupported(
       tokenIn.chainId,
-      tokenIn.config.address,
+      tokenIn.config.address.toString(),
     )
     const isToTokenSupported = this.assetCacheManager.isTokenSupported(
       tokenOut.chainId,
-      tokenOut.config.address,
+      tokenOut.config.address.toString(),
     )
 
     if (!isFromTokenSupported) {
@@ -350,9 +350,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     // Check if tokens are connected (can be swapped/bridged)
     const areConnected = this.assetCacheManager.areTokensConnected(
       tokenIn.chainId,
-      tokenIn.config.address,
+      tokenIn.config.address.toString(),
       tokenOut.chainId,
-      tokenOut.config.address,
+      tokenOut.config.address.toString(),
     )
 
     if (!areConnected) {

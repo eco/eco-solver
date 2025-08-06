@@ -153,6 +153,8 @@ export class QuoteRepository {
       quoteID,
       dAppID,
       intentExecutionType,
+      source: quoteRoute.source,
+      destination: quoteRoute.destination,
       route: quoteRoute,
       reward,
       receipt: null,

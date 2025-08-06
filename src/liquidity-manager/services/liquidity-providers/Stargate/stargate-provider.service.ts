@@ -33,7 +33,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     // Check if this is an SVM chain and use SVM client
     const vmType = getVMType(intentSource.chainID)
     if (vmType === VMType.SVM) {
-      this.walletAddress = await this.svmMultichainClientService.getAddress()
+      this.walletAddress = await this.svmMultichainClientService.getAddress().toString()
       return
     }
 
@@ -66,8 +66,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     try {
       // Build URL with query parameters
       const params = new URLSearchParams({
-        srcToken: tokenIn.config.address,
-        dstToken: tokenOut.config.address,
+        srcToken: tokenIn.config.address.toString(),
+        dstToken: tokenOut.config.address.toString(),
         srcChainKey: srcChainKey,
         dstChainKey: dstChainKey,
         srcAddress: this.walletAddress,

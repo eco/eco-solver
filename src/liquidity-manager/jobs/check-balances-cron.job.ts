@@ -232,9 +232,9 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       .flatMap((item) => item.quotes)
       .map((quote) => {
         return [
-          shortAddr(quote.tokenOut.config.address),
+          shortAddr(quote.tokenOut.config.address.toString()),
           quote.tokenOut.config.chainId,
-          shortAddr(quote.tokenIn.config.address),
+          shortAddr(quote.tokenIn.config.address.toString()),
           quote.tokenIn.config.chainId,
           format(quote.tokenOut.balance.balance, quote.tokenOut.balance.decimals),
           quote.tokenOut.config.targetBalance,

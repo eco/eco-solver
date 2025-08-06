@@ -3,6 +3,7 @@ import { EcoChainConfig, getVMType, VMType } from './eco-config.types'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 import { Address as EvmAddress, getAddress } from 'viem'
+import { PublicKey } from '@solana/web3.js'
 
 /**
  * The prefix for non-production deploys on a chain
@@ -55,6 +56,14 @@ export function getChainAddress(chainID: number | bigint, address: Address): Add
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
+  if (id === '1399811150-pre') {
+    return {
+      IntentSource: new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6'),
+      Inbox: new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6'),
+      MetaProver: '0x0000000000000000000000000000000000000000',
+      HyperProver: new PublicKey('B4pMQaAGPZ7Mza9XnDxJfXZ1cUa4aa67zrNkv8zYAjx4'),
+    }
+  }
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)

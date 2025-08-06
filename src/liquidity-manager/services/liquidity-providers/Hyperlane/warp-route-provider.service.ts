@@ -91,7 +91,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     )
 
     if (actionPath === ActionPath.UNSUPPORTED) {
-      throw new UnsupportedActionPathError(tokenIn.config, tokenOut.config)
+      throw new UnsupportedActionPathError(tokenIn.config as any, tokenOut.config as any)
     }
 
     if (actionPath === ActionPath.PARTIAL) {
@@ -315,7 +315,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     if (!tokenData) {
       throw new InvalidInputError(`${fieldName} is required`)
     }
-    if (!tokenData.config || !isAddress(tokenData.config.address)) {
+    if (!tokenData.config || !isAddress(tokenData.config.address.toString())) {
       throw new InvalidInputError(`Invalid ${fieldName} address`, {
         address: tokenData.config?.address,
       })

@@ -13,6 +13,7 @@ import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-mana
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { Address } from '@eco-foundation/routes-ts'
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
@@ -481,7 +482,7 @@ describe('LiFiProviderService', () => {
       // Mock getAllTokenDataForAddress to return proper core token data
       jest
         .spyOn(balanceService, 'getAllTokenDataForAddress')
-        .mockImplementation((walletAddress: string, configs: any[]) => {
+        .mockImplementation((walletAddress: Address, configs: any[]) => {
           if (configs.length > 0) {
             const config = configs[0]
             const coreToken = mockCoreTokens.find((ct) => ct.token === config.address)

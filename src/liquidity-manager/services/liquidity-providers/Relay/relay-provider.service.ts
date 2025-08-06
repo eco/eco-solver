@@ -54,8 +54,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       const relayQuote = await getClient()?.actions.getQuote({
         chainId: tokenIn.chainId,
         toChainId: tokenOut.chainId,
-        currency: tokenIn.config.address,
-        toCurrency: tokenOut.config.address,
+        currency: tokenIn.config.address.toString(),
+        toCurrency: tokenOut.config.address.toString(),
         amount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
         wallet: adaptedWallet,
         tradeType: 'EXACT_INPUT',

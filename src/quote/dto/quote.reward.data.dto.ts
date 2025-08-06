@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { getAddress, Hex } from 'viem'
-import { IsArray, IsEnum, IsNotEmpty, ValidateNested } from 'class-validator'
+import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
 import { RewardTokensInterface } from '@/contracts'
 import { RewardType, VmType } from '@eco-foundation/routes-ts'
@@ -17,8 +17,8 @@ import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
  * @param tokens denotes the array of {@link QuoteRewardTokensDTO} that the sender has
  */
 export class QuoteRewardDataDTO implements QuoteRewardDataType {
-  @IsEnum(VmType)
-  @ApiProperty({ enum: VmType })
+  @IsNotEmpty()
+  @ApiProperty({ enum: ['EVM', 'SVM'] })
   vm: VmType
 
   @ViemAddressTransform()

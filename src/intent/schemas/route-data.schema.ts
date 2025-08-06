@@ -26,8 +26,8 @@ export class RouteDataModel {
   @Prop({ required: true, type: [TargetCallDataSchema] })
   calls: TargetCallDataModel[]
 
-  @Prop({ required: true, type: String })
-  deadline: Hex
+  @Prop({ required: true, type: BigInt })
+  deadline: bigint
 
   constructor(
     salt: Hex,
