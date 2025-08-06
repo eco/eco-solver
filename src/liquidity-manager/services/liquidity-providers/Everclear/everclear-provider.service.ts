@@ -1,4 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cache } from 'cache-manager'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
@@ -15,6 +17,8 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EverclearApiError } from './everclear.errors'
 import { getSlippage } from '@/liquidity-manager/utils/math'
 import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
+import { Cacheable } from '@/decorators/cacheable.decorator'
+import { erc20Abi } from 'viem'
 
 @Injectable()
 export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {
@@ -23,6 +27,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
   constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     @InjectQueue(LiquidityManagerQueue.queueName)
@@ -39,17 +44,46 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     return 'Everclear' as const
   }
 
+  @Cacheable()
+  private async getTokenSymbol(token: TokenData): Promise<string> {
+    const client = await this.kernelAccountClientService.getClient(token.chainId)
+    return client.readContract({
+      abi: erc20Abi,
+      address: token.config.address,
+      functionName: 'symbol',
+    })
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'Everclear'>[]> {
+    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
+      this.getTokenSymbol(tokenIn),
+      this.getTokenSymbol(tokenOut),
+    ])
+
+    if (tokenInSymbol !== tokenOutSymbol) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: 'Everclear: cross-token swaps are not supported',
+          id,
+          properties: {
+            tokenIn: tokenInSymbol,
+            tokenOut: tokenOutSymbol,
+          },
+        }),
+      )
+      return []
+    }
+
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Everclear: getting quote',
         id,
-        properties: { tokenIn, tokenOut, swapAmount },
+        properties: { tokenIn, tokenOut, swapAmount, tokenInSymbol, tokenOutSymbol },
       }),
     )
 
@@ -116,6 +150,14 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Everclear'>): Promise<string> {
     const { tokenIn, tokenOut, amountIn, id } = quote
+    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
+      this.getTokenSymbol(tokenIn),
+      this.getTokenSymbol(tokenOut),
+    ])
+
+    if (tokenInSymbol !== tokenOutSymbol) {
+      throw new Error('Everclear: cross-token swaps are not supported')
+    }
 
     this.logger.debug(
       EcoLogMessage.withId({
@@ -167,7 +209,6 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
         properties: { txRequest },
       }),
     )
-
     const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
 
     if (!client.account || !client.chain) {

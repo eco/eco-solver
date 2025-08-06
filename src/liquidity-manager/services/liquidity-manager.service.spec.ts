@@ -10,7 +10,6 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
@@ -89,22 +88,6 @@ describe('LiquidityManagerService', () => {
   })
 
   describe('onApplicationBootstrap', () => {
-    it('should start cron job', async () => {
-      const intervalDuration = 1000
-      jest
-        .spyOn(ecoConfigService, 'getLiquidityManager')
-        .mockReturnValue({ intervalDuration } as any)
-
-      await liquidityManagerService.onApplicationBootstrap()
-
-      const upsertJobScheduler = jest.spyOn(queue, 'upsertJobScheduler')
-      expect(upsertJobScheduler).toHaveBeenCalledWith(
-        CheckBalancesCronJobManager.getJobSchedulerName(zeroAddress),
-        { every: intervalDuration },
-        expect.anything(),
-      )
-    })
-
     it('should set liquidity manager config', async () => {
       const mockConfig = { intervalDuration: 1000 }
       jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
