@@ -182,6 +182,10 @@ export class EcoConfigService {
     return this.get('launchDarkly')
   }
 
+  getAnalyticsConfig(): EcoConfigType['analytics'] {
+    return this.get('analytics')
+  }
+
   getDatabaseConfig(): EcoConfigType['database'] {
     return this.get('database')
   }
@@ -250,42 +254,38 @@ export class EcoConfigService {
     return this.get('liquidityManager')
   }
 
-  // Returns the liquidity manager config
   getWhitelist(): EcoConfigType['whitelist'] {
     return this.get('whitelist')
   }
 
-  // Returns the liquidity manager config
   getHyperlane(): EcoConfigType['hyperlane'] {
     return this.get('hyperlane')
   }
 
-  // Returns the liquidity manager config
   getWithdraws(): EcoConfigType['withdraws'] {
     return this.get('withdraws')
   }
 
-  // Returns the liquidity manager config
   getSendBatch(): EcoConfigType['sendBatch'] {
     return this.get('sendBatch')
   }
 
-  // Returns the liquidity manager config
   getIndexer(): EcoConfigType['indexer'] {
     return this.get('indexer')
   }
 
-  // Returns the liquidity manager config
   getCCTP(): EcoConfigType['CCTP'] {
     return this.get('CCTP')
   }
 
-  // Returns the liquidity manager config
+  getCCTPV2(): EcoConfigType['CCTPV2'] {
+    return this.get('CCTPV2')
+  }
+
   getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
     return this.get('crowdLiquidity')
   }
 
-  // Returns the liquidity manager config
   getWarpRoutes(): EcoConfigType['warpRoutes'] {
     return this.get('warpRoutes')
   }
@@ -294,10 +294,18 @@ export class EcoConfigService {
     return this.get('liFi')
   }
 
+  getSquid(): EcoConfigType['squid'] {
+    return this.get('squid')
+  }
+
+  getEverclear(): EcoConfigType['everclear'] {
+    return this.get('everclear')
+  }
+
   // Returns the liquidity manager config
-  getChainRpcs(): Record<number, string> {
+  getChainRpcs(): Record<number, string[]> {
     const entries = ChainsSupported.map(
-      (chain) => [chain.id, this.getRpcUrl(chain).rpcUrl] as const,
+      (chain) => [chain.id, this.getRpcUrls(chain).rpcUrls] as const,
     )
     return Object.fromEntries(entries)
   }
@@ -312,7 +320,7 @@ export class EcoConfigService {
    * @param chain The chain object to get the RPC URL for
    * @returns The RPC URL string for the specified chain
    */
-  getRpcUrl(chain: Chain): { rpcUrl: string; config: TransportConfig } {
+  getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
     const rpcChain = this.ecoChains.getChain(chain.id)
@@ -321,25 +329,25 @@ export class EcoConfigService {
 
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    let rpc: string | undefined
+    let rpcs: string[] = []
     if (isWebSocketEnabled) {
-      rpc = custom?.webSocket?.[0] || def?.webSocket?.[0]
+      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
     } else {
-      rpc = custom?.http?.[0] || def?.http?.[0]
+      rpcs = [...(custom?.http || def?.http || [])]
     }
 
     const config: TransportConfig['config'] = customRpcUrls?.config
 
     if (customRpcUrls?.http) {
       isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
-      rpc = isWebSocketEnabled ? customRpcUrls.webSocket![0] : customRpcUrls.http[0]
+      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
     }
 
-    if (!rpc) {
+    if (!rpcs.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrl: rpc, config: { isWebsocket: isWebSocketEnabled, config } }
+    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
   }
 
   /**

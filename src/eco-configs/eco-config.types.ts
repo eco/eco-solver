@@ -11,9 +11,11 @@ import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
+import { AnalyticsConfig } from '@/analytics'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType
@@ -79,6 +81,9 @@ export type EcoConfigType = {
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
+  squid: SquidConfig
+  CCTPV2: CCTPV2Config
+  everclear: EverclearConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -118,6 +123,7 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    watchJobConfig: JobsOptions
   }
 }
 
@@ -152,6 +158,11 @@ export type IntentConfig = {
     metalayer_duration_seconds: number
   }
   isNativeETHSupported: boolean
+  intentFundedRetries: number
+  intentFundedRetryDelayMs: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -302,6 +313,8 @@ export type Solver = {
 
   // The average block time for the chain in seconds
   averageBlockTime: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  gasOverhead?: number
 }
 
 /**
@@ -375,7 +388,7 @@ export interface LiquidityManagerConfig {
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
-  swapSlippage?: number
+  swapSlippage: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
@@ -454,16 +467,27 @@ export interface CCTPConfig {
   }[]
 }
 
+export interface CCTPV2Config {
+  apiUrl: string
+  fastTransferEnabled?: boolean
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
 export interface WarpRoutesConfig {
   routes: {
-    collateral: {
-      chainId: number
-      token: Hex
-    }
     chains: {
       chainId: number
       token: Hex
-      synthetic: Hex
+      // The address of the hyperlane warp contract (synthetic token)
+      warpContract: Hex
+      // The type of token
+      type: 'collateral' | 'synthetic'
     }[]
   }[]
 }
@@ -490,4 +514,13 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface SquidConfig {
+  integratorId: string
+  baseUrl: string
+}
+
+export interface EverclearConfig {
+  baseUrl: string
 }

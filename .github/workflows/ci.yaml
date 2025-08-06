@@ -6,33 +6,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Format Check
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-          cache: "npm"
-      - run: yarn install
-      - run: yarn format:check
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
   build:
     runs-on: ubuntu-latest
     environment: development
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Build Project
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-          cache: "npm"
-      - run: yarn install
-      - run: yarn build
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Test Project
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-          cache: "npm"
-      - run: yarn install
-      - run: yarn test
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test

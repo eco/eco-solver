@@ -15,6 +15,7 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { EcoAnalyticsService } from '@/analytics'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -34,6 +35,10 @@ describe('LiquidityManagerService', () => {
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
+        },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
@@ -58,6 +63,11 @@ describe('LiquidityManagerService', () => {
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
 
+    Object.defineProperty(queue, 'name', {
+      value: LiquidityManagerQueue.queueName,
+      writable: false,
+    })
+
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
     kernelAccountClientService['getClient'] = jest
       .fn()
@@ -77,6 +87,7 @@ describe('LiquidityManagerService', () => {
       'crowd-liquidity-pool': ['CCTP'],
       'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
+    swapSlippage: 0.01,
   } as LiquidityManagerConfig
 
   afterEach(() => {
@@ -86,18 +97,25 @@ describe('LiquidityManagerService', () => {
   describe('onApplicationBootstrap', () => {
     it('should start cron job', async () => {
       const intervalDuration = 1000
+
       jest
         .spyOn(ecoConfigService, 'getLiquidityManager')
         .mockReturnValue({ intervalDuration } as any)
 
+      const startSpy = jest.fn().mockResolvedValue(undefined)
+
+      // Replace the manager instance for the test wallet
+      const walletAddress = zeroAddress
+      ;(CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress] = {
+        start: startSpy,
+      }
+
       await liquidityManagerService.onApplicationBootstrap()
 
-      const upsertJobScheduler = jest.spyOn(queue, 'upsertJobScheduler')
-      expect(upsertJobScheduler).toHaveBeenCalledWith(
-        CheckBalancesCronJobManager.getJobSchedulerName(zeroAddress),
-        { every: intervalDuration },
-        expect.anything(),
-      )
+      expect(startSpy).toHaveBeenCalledWith(queue, intervalDuration, walletAddress)
+
+      // Cleanup for isolation
+      delete (CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress]
     })
 
     it('should set liquidity manager config', async () => {

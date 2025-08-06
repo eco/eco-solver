@@ -18,6 +18,7 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
+- [MCP (Model Context Protocol) Integrations](#mcp-model-context-protocol-integrations)
 - [Setup](#setup)
   - [1. Clone & Install Dependencies](#1-clone--install-dependencies)
   - [2. AWS Configuration](#2-aws-configuration)
@@ -25,7 +26,7 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
   - [4. Docker Compose Services](#4-docker-compose-services)
   - [5. Running the Application](#5-running-the-application)
   - [6. Running Tests](#6-running-tests)
-- [Typical Yarn Scripts](#typical-yarn-scripts)
+- [Typical pnpm Scripts](#typical-pnpm-scripts)
 - [API Quick-Start](#api-quick-start)
 - [Contributing](#contributing)
 
@@ -33,12 +34,94 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
 
 ## Prerequisites
 
-- **Node.js** v20.14.0 (use [nvm](https://github.com/nvm-sh/nvm))
-- **Yarn** v1.22.22 (managed by Corepack)
+- **Node.js** v20.19.0 (use [nvm](https://github.com/nvm-sh/nvm))
+- **pnpm** v9.x (managed by Corepack)
 - **Docker** & **Docker Compose** v3.8+
 - AWS credentials (SSO or IAM) for Secrets Manager & KMS access
 
 > Redis & MongoDB can run locally or via Docker (see below).
+
+## MCP (Model Context Protocol) Integrations
+
+This project includes MCP server integrations for enhanced development tooling:
+
+### MongoDB MCP
+
+- **Development**: Connects to local MongoDB instance
+- **Production**: Connects to production MongoDB (requires AWS VPN connection)
+- **Configuration**: Uses `.mcp.json` with connection strings from environment variables
+
+### GitHub MCP
+
+- **Purpose**: GitHub repository management and operations
+- **Requirements**: GitHub Personal Access Token must be set as `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+- **Usage**: Enables GitHub operations through MCP tools
+
+### MCP Setup for New Git Clones
+
+When setting up this repository for the first time, follow these steps to configure MCP services:
+
+#### Prerequisites
+
+1. **AWS VPN Connection**: Must be active and connected for production/preprod database access
+2. **Docker**: Must be running locally for GitHub MCP service
+3. **Environment Variables**: Required for service authentication
+4. **env-cmd**: Tool for loading environment variables from config files (install globally or use via npx)
+
+#### Step-by-Step Setup
+
+1. **Verify Prerequisites**:
+
+   ```bash
+   # Check AWS VPN is connected (verify internal network access)
+   # Check Docker is running
+   docker --version
+
+   # Install env-cmd globally (optional - can also use npx)
+   npm install -g env-cmd
+   # OR verify npx can access it
+   npx env-cmd --version
+   ```
+
+2. **Configure Environment Variables**:
+
+   ```bash
+   # Set GitHub Personal Access Token for GitHub MCP
+   export GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token_here
+
+   # Verify environment files exist (these should be in the repo)
+   ls -la .env*
+   # Should show: .env-cmdrc, .env.preprod, .env.prod
+   ```
+
+3. **Test MCP Services**:
+   The following services are configured in `.mcp.json`:
+   - **mongodb-preprod**: Uses `env-cmd -e preprod` to load preprod MongoDB connection from `.env-cmdrc`
+   - **mongodb-prod**: Uses `env-cmd -e prod` to load production MongoDB connection from `.env-cmdrc`
+   - **github**: Uses Docker to run GitHub MCP server with your personal access token
+
+   The `env-cmd` tool reads environment-specific configurations from `.env-cmdrc` and applies them before running the `mongodb-mcp-server`.
+
+4. **Verify Connection Strings**:
+   Connection strings are automatically loaded from:
+   - `.env-cmdrc` (JSON format with preprod/prod environments)
+   - `.env.preprod` and `.env.prod` (traditional .env format)
+
+   These files contain the MongoDB Atlas connection strings for the MCP user.
+
+#### Troubleshooting
+
+- **MongoDB Connection Issues**: Ensure AWS VPN is active and you can reach internal MongoDB clusters
+- **GitHub MCP Issues**: Verify `GITHUB_PERSONAL_ACCESS_TOKEN` is set and Docker is running
+- **Service Not Found**: Check that `mongodb-mcp-server` is available via `npx -y mongodb-mcp-server`
+
+#### Security Notes
+
+- MongoDB credentials are read-only MCP user credentials, not production write access
+- GitHub token should have minimal required permissions for repository operations
+- All MCP services run locally and do not expose external endpoints
+
+The MCP configuration is defined in `.mcp.json` at the project root.
 
 ---
 
@@ -51,13 +134,13 @@ eco-solver is a TypeScript / NestJS service that _listens for_, _validates_, and
 git clone <repository-url>
 cd eco-solver
 
-# Node & Yarn
-nvm install 20.14.0
-nvm use 20.14.0
+# Node & pnpm
+nvm install 20.19.0
+nvm use 20.19.0
 corepack enable
 
 # Install packages
-yarn install
+pnpm install
 ```
 
 ### 2. AWS Configuration
@@ -109,7 +192,7 @@ docker compose --profile app up --build   # --build to pick up local code change
 docker compose --profile all down
 ```
 
-Internally the `app` service mounts `./src` and `./config` as bind-volumes and runs `yarn start:dev`, so code changes are live-reloaded.
+Internally the `app` service mounts `./src` and `./config` as bind-volumes and runs `pnpm start:dev`, so code changes are live-reloaded.
 
 A few **environment variables** are forwarded into the container via `docker-compose.yml`:
 
@@ -124,28 +207,28 @@ Make sure you export `AWS_PROFILE` in your shell before launching compose so the
 ### 5. Running the Application
 
 ```bash
-yarn start:dev   # Hot-reload dev mode
-yarn start       # Compile & run once
+pnpm start:dev   # Hot-reload dev mode
+pnpm start       # Compile & run once
 ```
 
 ### 6. Running Tests
 
 ```bash
-yarn test        # all unit tests
-yarn test --watch
+pnpm test        # all unit tests
+pnpm test --watch
 ```
 
 ---
 
-## Typical Yarn Scripts
+## Typical pnpm Scripts
 
 | Script                           | Purpose                                                        |
 | -------------------------------- | -------------------------------------------------------------- |
-| `yarn build`                     | Compile TypeScript into `dist/`                                |
-| `yarn cli`                       | Invoke commander CLI utilities (balance check, transfer, etc.) |
-| `yarn lint` / `lint:fix`         | ESLint code quality                                            |
-| `yarn prettier` / `prettier:fix` | Code formatting                                                |
-| `yarn test:cov`                  | Unit-test coverage report                                      |
+| `pnpm build`                     | Compile TypeScript into `dist/`                                |
+| `pnpm cli`                       | Invoke commander CLI utilities (balance check, transfer, etc.) |
+| `pnpm lint` / `lint:fix`         | ESLint code quality                                            |
+| `pnpm prettier` / `prettier:fix` | Code formatting                                                |
+| `pnpm test:cov`                  | Unit-test coverage report                                      |
 
 ---
 
