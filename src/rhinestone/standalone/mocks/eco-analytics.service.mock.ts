@@ -2,15 +2,21 @@ import { Injectable } from '@nestjs/common'
 
 @Injectable()
 export class MockEcoAnalyticsService {
-  trackIntentValidationStarted(intentHash: string) {}
+  trackIntentValidationStarted(_intentHash: string) {}
 
-  trackIntentValidationFailed(intentHash: string, reason: string, stage: string, metadata?: any) {}
+  trackIntentValidationFailed(_intentHash: string, _reason: string, _stage: string, _metadata?: any) {}
 
-  trackIntentValidatedAndQueued(intentHash: string, jobId: string, model: any) {}
+  trackIntentValidatedAndQueued(_intentHash: string, _jobId: string, _model: any) {}
 
-  trackSuccess(event: string, metadata?: any) {}
+  trackIntentFeasibilityCheckStarted(_intentHash: string) {}
 
-  trackError(event: string, error: Error, metadata?: any) {}
+  trackIntentFeasibleAndQueued(_intentHash: string, _jobId: string, _model: any) {}
 
-  trackEvent(event: string, metadata?: any) {}
+  trackIntentInfeasible(_intentHash: string, _model: any, _error: any) {}
+
+  trackSuccess(_event: string, _metadata?: any) {}
+
+  trackError(_event: string, _error: Error, _metadata?: any) {}
+
+  trackEvent(_event: string, _metadata?: any) {}
 }

@@ -21,9 +21,11 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { EcoAnalyticsService } from '@/analytics'
 import { MockEcoAnalyticsService } from './mocks/eco-analytics.service.mock'
 import { FeeService } from '@/fee/fee.service'
+import { MockFeeService } from './mocks/fee.service.mock'
 import { ProofService } from '@/prover/proof.service'
 import { MockProofService } from './mocks/proof.service.mock'
 import { BalanceService } from '@/balance/balance.service'
+import { MockBalanceService } from './mocks/balance.service.mock'
 import { MockIntentModel } from './mocks/intent-model.mock'
 import { QUEUES } from '@/common/redis/constants'
 import { KmsService } from '@/kms/kms.service'
@@ -58,6 +60,14 @@ import { KmsService } from '@/kms/kms.service'
       useClass: MockProofService,
     },
     {
+      provide: FeeService,
+      useClass: MockFeeService,
+    },
+    {
+      provide: BalanceService,
+      useClass: MockBalanceService,
+    },
+    {
       provide: 'IntentSourceModelModel',
       useClass: MockIntentModel,
     },
@@ -67,8 +77,6 @@ import { KmsService } from '@/kms/kms.service'
     WalletClientDefaultSignerService,
     KernelAccountClientService,
     MultichainPublicClientService,
-    FeeService,
-    BalanceService,
     RhinestoneValidatorService,
     RhinestoneContractsService,
     ValidateIntentService,

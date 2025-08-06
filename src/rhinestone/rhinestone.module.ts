@@ -3,6 +3,8 @@ import { CacheModule } from '@nestjs/cache-manager'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { IntentModule } from '@/intent/intent.module'
 import { TransactionModule } from '@/transaction/transaction.module'
+import { FeeModule } from '@/fee/fee.module'
+import { AnalyticsModule } from '@/analytics'
 import { RhinestoneService } from '@/rhinestone/services/rhinestone.service'
 import { RhinestoneApiService } from '@/rhinestone/services/rhinestone-api.service'
 import { RhinestoneConfigService } from '@/rhinestone/services/rhinestone-config.service'
@@ -16,6 +18,8 @@ import { ONE_HOUR } from '@/common/time'
   imports: [
     TransactionModule,
     IntentModule,
+    FeeModule,
+    AnalyticsModule,
     EventEmitterModule.forRoot(),
     CacheModule.registerAsync({
       useFactory: async (configService: EcoConfigService) =>

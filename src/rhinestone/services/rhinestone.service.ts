@@ -6,6 +6,8 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { FeeService } from '@/fee/fee.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 import { RhinestoneApiService } from './rhinestone-api.service'
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
@@ -17,7 +19,7 @@ import {
   RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
-import { IntentType } from '@eco-foundation/routes-ts'
+import { IntentType, hashIntent } from '@eco-foundation/routes-ts'
 
 /**
  * Main service for handling Rhinestone WebSocket events and executing transactions.
@@ -33,6 +35,8 @@ export class RhinestoneService implements OnModuleInit {
     private readonly rhinestoneApi: RhinestoneApiService,
     private readonly rhinestoneWebsocketService: RhinestoneWebsocketService,
     private readonly rhinestoneValidatorService: RhinestoneValidatorService,
+    private readonly feeService: FeeService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   /**
@@ -79,6 +83,52 @@ export class RhinestoneService implements OnModuleInit {
 
     // Throws if the message is invalid
     const { intent } = await this.rhinestoneValidatorService.validateRelayerAction(message)
+
+    // Get intent hash for analytics tracking
+    const { intentHash } = hashIntent(intent)
+
+    // Track feasibility check start
+    this.ecoAnalytics.trackIntentFeasibilityCheckStarted(intentHash)
+
+    // Check if the route is feasible
+    const { error: feasibilityError } = await this.feeService.isRouteFeasible(intent)
+
+    if (feasibilityError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Relayer action is not feasible',
+          properties: {
+            actionId: message.id,
+            intentHash,
+            error: feasibilityError.message,
+          },
+        }),
+      )
+
+      // For Rhinestone, we don't have IntentSourceModel, so we skip the model-based tracking
+      // Just log the error
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Intent is infeasible',
+          properties: {
+            intentHash,
+            error: feasibilityError,
+          },
+        }),
+      )
+      return
+    }
+
+    // Track feasible intent - for Rhinestone we skip model-based tracking
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Intent is feasible and ready for execution',
+        properties: {
+          actionId: message.id,
+          intentHash,
+        },
+      }),
+    )
 
     try {
       const result = await this.executeRelayerAction(message, intent)
