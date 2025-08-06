@@ -17,7 +17,7 @@ global.fetch = jest.fn()
 
 describe('EverclearProviderService', () => {
   let service: EverclearProviderService
-  let ecoConfigService: DeepMocked<EcoConfigService>
+  let configService: DeepMocked<EcoConfigService>
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   let mockQueue: any
   let mockStartCheckEverclearIntent: jest.SpyInstance
@@ -79,18 +79,18 @@ describe('EverclearProviderService', () => {
     }).compile()
 
     service = module.get<EverclearProviderService>(EverclearProviderService)
-    ecoConfigService = module.get(EcoConfigService)
+    configService = module.get(EcoConfigService)
     kernelAccountClientService = module.get(KernelAccountClientService)
     mockQueue = module.get(getQueueToken(LiquidityManagerQueue.queueName))
 
     // Setup default mocks
-    ecoConfigService.getEverclear.mockReturnValue({ baseUrl: 'https://test.everclear.org' })
+    configService.getEverclear.mockReturnValue({ baseUrl: 'https://test.everclear.org' })
     kernelAccountClientService.getAddress.mockResolvedValue(mockWalletAddress)
     getTokenSymbolSpy = jest
       .spyOn(service as any, 'getTokenSymbol')
-      .mockImplementation(async (token: TokenData) => {
-        if (token.config.address === mockTokenIn.config.address) return 'USDC'
-        if (token.config.address === mockTokenOut.config.address) return 'USDC'
+      .mockImplementation(async (chainId: number, address: Hex) => {
+        if (address === mockTokenIn.config.address) return 'USDC'
+        if (address === mockTokenOut.config.address) return 'USDC'
         return 'UNKNOWN'
       })
 
@@ -132,9 +132,9 @@ describe('EverclearProviderService', () => {
     })
 
     it('should return an empty array if token symbols do not match', async () => {
-      getTokenSymbolSpy.mockImplementation(async (token: TokenData) => {
-        if (token.config.address === mockTokenIn.config.address) return 'USDC'
-        if (token.config.address === mockTokenOut.config.address) return 'WETH'
+      getTokenSymbolSpy.mockImplementation(async (chainId: number, address: Hex) => {
+        if (address === mockTokenIn.config.address) return 'USDC'
+        if (address === mockTokenOut.config.address) return 'WETH'
         return 'UNKNOWN'
       })
 
@@ -224,9 +224,9 @@ describe('EverclearProviderService', () => {
     })
 
     it('should throw an error if token symbols do not match', async () => {
-      getTokenSymbolSpy.mockImplementation(async (token: TokenData) => {
-        if (token.config.address === mockTokenIn.config.address) return 'USDC'
-        if (token.config.address === mockTokenOut.config.address) return 'WETH'
+      getTokenSymbolSpy.mockImplementation(async (chainId: number, address: Hex) => {
+        if (address === mockTokenIn.config.address) return 'USDC'
+        if (address === mockTokenOut.config.address) return 'WETH'
         return 'UNKNOWN'
       })
 
