@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import {
   Connection,
@@ -19,6 +19,7 @@ import { SolanaConfigService } from '@/modules/config/services';
 
 @Injectable()
 export class SvmExecutorService extends BaseChainExecutor {
+  private readonly logger = new Logger(SvmExecutorService.name);
   private readonly connection: Connection;
   private readonly keypair: Keypair;
   private readonly programId: PublicKey;
@@ -64,7 +65,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         txHash: signature,
       };
     } catch (error) {
-      console.error('Solana execution error:', error);
+      this.logger.error('Solana execution error:', error);
       return {
         success: false,
         error: error.message,

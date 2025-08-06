@@ -70,7 +70,7 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     // Get wallet ID for this intent
     const walletId = await this.getWalletIdForIntent(intent);
-    
+
     // Crowd liquidity fulfillment only uses the CL executor
     await this.queueService.addIntentToExecutionQueue({
       strategy: this.name,

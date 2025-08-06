@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -11,6 +11,7 @@ import { SvmExecutorService } from './svm/services/svm.executor.service';
 
 @Injectable()
 export class BlockchainExecutorService {
+  private readonly logger = new Logger(BlockchainExecutorService.name);
   private executors: Map<string | number, BaseChainExecutor> = new Map();
 
   constructor(
@@ -81,13 +82,13 @@ export class BlockchainExecutorService {
 
       if (result.success) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
-        console.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
+        this.logger.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
       } else {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        console.error(`Intent ${intent.intentHash} failed: ${result.error}`);
+        this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
       }
     } catch (error) {
-      console.error(`Error executing intent ${intent.intentHash}:`, error.message);
+      this.logger.error(`Error executing intent ${intent.intentHash}:`, error.message);
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
     }
   }

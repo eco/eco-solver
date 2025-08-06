@@ -71,7 +71,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     // Get wallet ID for this intent
     const walletId = await this.getWalletIdForIntent(intent);
-    
+
     // Negative intents fulfillment uses both EVM and SVM executors
     await this.queueService.addIntentToExecutionQueue({
       strategy: this.name,

@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
-import { Validation } from '@/modules/fulfillment/validations';
-import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { ValidationContextImpl } from '@/modules/fulfillment/validation-context.impl';
+import { Validation } from '@/modules/fulfillment/validations';
 
 @Injectable()
 export abstract class FulfillmentStrategy implements IFulfillmentStrategy {

@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, Logger, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
@@ -12,6 +12,7 @@ import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
   concurrency: 10, // Will be overridden by constructor
 })
 export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
+  private readonly logger = new Logger(BlockchainProcessor.name);
   private chainLocks: Map<string, Promise<void>> = new Map();
   constructor(
     private blockchainService: BlockchainExecutorService,
@@ -32,7 +33,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     const { intent, strategy, chainId, walletId } = jobData;
     const chainKey = chainId.toString();
 
-    console.log(
+    this.logger.log(
       `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
     );
 
@@ -42,11 +43,14 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     // Create a new lock for this chain
     const newLock = currentLock.then(async () => {
       try {
-        console.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
+        this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
         await this.blockchainService.executeIntent(intent, walletId);
-        console.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
+        this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
       } catch (error) {
-        console.error(`Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`, error);
+        this.logger.error(
+          `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
+          error,
+        );
         throw error;
       }
     });

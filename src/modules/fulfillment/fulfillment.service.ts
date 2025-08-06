@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -18,6 +18,7 @@ import { QueueService } from '@/modules/queue/interfaces/queue-service.interface
 
 @Injectable()
 export class FulfillmentService {
+  private readonly logger = new Logger(FulfillmentService.name);
   private strategies: Map<FulfillmentStrategyName, FulfillmentStrategy> = new Map();
 
   constructor(
@@ -43,7 +44,7 @@ export class FulfillmentService {
       // Check if intent already exists
       const existingIntent = await this.intentsService.findById(intent.intentHash);
       if (existingIntent) {
-        console.log(`Intent ${intent.intentHash} already exists`);
+        this.logger.log(`Intent ${intent.intentHash} already exists`);
         return IntentConverter.toInterface(existingIntent);
       }
 
@@ -54,13 +55,13 @@ export class FulfillmentService {
       // Add to the fulfillment queue
       await this.queueService.addIntentToFulfillmentQueue(interfaceIntent, strategy);
 
-      console.log(
+      this.logger.log(
         `New intent ${intent.intentHash} added to fulfillment queue with strategy: ${strategy}`,
       );
 
       return interfaceIntent;
     } catch (error) {
-      console.error(`Error submitting intent ${intent.intentHash}:`, error);
+      this.logger.error(`Error submitting intent ${intent.intentHash}:`, error);
       throw error;
     }
   }
@@ -73,14 +74,14 @@ export class FulfillmentService {
       const strategy = this.strategies.get(strategyName);
       if (!strategy) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        console.error(`Unknown fulfillment strategy: ${strategyName}`);
+        this.logger.error(`Unknown fulfillment strategy: ${strategyName}`);
         return;
       }
 
       // Verify the strategy can handle this intent
       if (!strategy.canHandle(intent)) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        console.error(`Strategy ${strategyName} cannot handle this intent`);
+        this.logger.error(`Strategy ${strategyName} cannot handle this intent`);
         return;
       }
 
@@ -89,7 +90,7 @@ export class FulfillmentService {
         await strategy.validate(intent);
       } catch (validationError) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        console.error(
+        this.logger.error(
           `Validation failed for intent ${intent.intentHash}:`,
           validationError.message,
         );
@@ -101,7 +102,7 @@ export class FulfillmentService {
 
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.EXECUTING);
     } catch (error) {
-      console.error(`Error processing intent ${intent.intentHash}:`, error);
+      this.logger.error(`Error processing intent ${intent.intentHash}:`, error);
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
     }
   }

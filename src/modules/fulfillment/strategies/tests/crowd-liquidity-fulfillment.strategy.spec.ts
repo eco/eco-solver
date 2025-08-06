@@ -224,15 +224,42 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(expirationValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
 
       // Verify each validation was called exactly once
       [

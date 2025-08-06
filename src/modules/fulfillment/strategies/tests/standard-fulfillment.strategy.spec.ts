@@ -184,7 +184,10 @@ describe('StandardFulfillmentStrategy', () => {
         createMockIntent({ route: { source: BigInt(1), destination: BigInt(10) } as any }),
         createMockIntent({ route: { source: BigInt(137), destination: BigInt(42161) } as any }),
         createMockIntent({
-          reward: { nativeValue: BigInt(0), tokens: [{ amount: BigInt(1000), token: '0x123' as any }] } as any,
+          reward: {
+            nativeValue: BigInt(0),
+            tokens: [{ amount: BigInt(1000), token: '0x123' as any }],
+          } as any,
         }),
       ];
 
@@ -202,15 +205,42 @@ describe('StandardFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(standardFeeValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(expirationValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(standardFeeValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
 
       // Verify each validation was called exactly once
       [
@@ -306,7 +336,10 @@ describe('StandardFulfillmentStrategy', () => {
       const intents = [
         createMockIntent({ route: { source: BigInt(1), destination: BigInt(10) } as any }),
         createMockIntent({
-          reward: { nativeValue: BigInt(0), tokens: [{ amount: BigInt(1000), token: '0x123' as any }] } as any,
+          reward: {
+            nativeValue: BigInt(0),
+            tokens: [{ amount: BigInt(1000), token: '0x123' as any }],
+          } as any,
         }),
         createMockIntent({ status: 'VALIDATED' as any }),
       ];
@@ -317,15 +350,12 @@ describe('StandardFulfillmentStrategy', () => {
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-          index + 1,
-          {
-            strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
-            intent,
-            chainId: intent.route.destination,
-            walletId: 'kernel',
-          },
-        );
+        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
+          intent,
+          chainId: intent.route.destination,
+          walletId: 'kernel',
+        });
       });
     });
   });

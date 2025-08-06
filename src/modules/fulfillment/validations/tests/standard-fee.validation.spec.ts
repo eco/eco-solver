@@ -30,7 +30,7 @@ describe('StandardFeeValidation', () => {
     const mockFulfillmentConfigService = {
       normalize: jest.fn((chainId, tokens) => {
         // Return the tokens as-is for testing
-        return tokens.map(token => ({ ...token, amount: token.amount }));
+        return tokens.map((token) => ({ ...token, amount: token.amount }));
       }),
     };
 

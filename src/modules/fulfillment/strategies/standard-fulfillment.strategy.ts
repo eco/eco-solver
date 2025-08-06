@@ -68,7 +68,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     // Get wallet ID for this intent
     const walletId = await this.getWalletIdForIntent(intent);
-    
+
     // Add to execution queue with standard execution data
     await this.queueService.addIntentToExecutionQueue({
       strategy: this.name,

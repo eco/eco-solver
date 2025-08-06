@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 
 import { Validation } from './validation.interface';
 

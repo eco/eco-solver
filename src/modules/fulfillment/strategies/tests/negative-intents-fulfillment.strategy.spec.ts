@@ -165,8 +165,12 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
     it('should use NativeFeeValidation for negative intents', () => {
       const validations = (strategy as any).getValidations();
       expect(validations[8]).toBe(nativeFeeValidation);
-      expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(false);
-      expect(validations.some((v: any) => v.constructor.name === 'CrowdLiquidityFeeValidation')).toBe(false);
+      expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
+        false,
+      );
+      expect(
+        validations.some((v: any) => v.constructor.name === 'CrowdLiquidityFeeValidation'),
+      ).toBe(false);
     });
 
     it('should have immutable validations array', () => {
@@ -193,21 +197,25 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
         // Intent with specific debt-like patterns (future implementation)
         createMockIntent({
           route: {
-            calls: [{
-              target: '0xAaveProtocolAddress' as any,
-              data: '0xborrowFunction' as any,
-              value: BigInt(0),
-            }],
+            calls: [
+              {
+                target: '0xAaveProtocolAddress' as any,
+                data: '0xborrowFunction' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
         // Intent with negative value patterns
         createMockIntent({
-          reward: { 
+          reward: {
             nativeValue: BigInt(0),
-            tokens: [{ 
-              amount: BigInt(1000000), 
-              token: '0xDebtTokenAddress' as any 
-            }],
+            tokens: [
+              {
+                amount: BigInt(1000000),
+                token: '0xDebtTokenAddress' as any,
+              },
+            ],
           } as any,
         }),
         // Cross-chain debt settlement
@@ -215,11 +223,13 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
           route: {
             source: BigInt(1),
             destination: BigInt(137),
-            calls: [{
-              target: '0xLendingProtocol' as any,
-              data: '0xrepayDebt' as any,
-              value: BigInt(0),
-            }],
+            calls: [
+              {
+                target: '0xLendingProtocol' as any,
+                data: '0xrepayDebt' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
       ];
@@ -261,15 +271,42 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify all validations were called
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeCallsValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeCallsValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(expirationValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
 
       // Verify each validation was called exactly once
       [
@@ -343,7 +380,10 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // All validations should still be called for negative intents
-      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(negativeIntent, expect.objectContaining({ strategy }));
+      expect(nativeFeeValidation.validate).toHaveBeenCalledWith(
+        negativeIntent,
+        expect.objectContaining({ strategy }),
+      );
     });
   });
 
@@ -374,39 +414,47 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
     it('should handle various negative intent configurations', async () => {
       const intents = [
         // Debt repayment intent
-        createMockIntent({ 
-          route: { 
-            calls: [{
-              target: '0xLendingProtocol' as any,
-              data: '0xrepayDebt' as any,
-              value: BigInt(1000000000000000000),
-            }],
+        createMockIntent({
+          route: {
+            calls: [
+              {
+                target: '0xLendingProtocol' as any,
+                data: '0xrepayDebt' as any,
+                value: BigInt(1000000000000000000),
+              },
+            ],
           } as any,
         }),
         // Flash loan intent
         createMockIntent({
           route: {
-            calls: [{
-              target: '0xFlashLoanProvider' as any,
-              data: '0xexecuteFlashLoan' as any,
-              value: BigInt(0),
-            }],
-            tokens: [{
-              amount: BigInt(10000000000),
-              token: '0xUSDC' as any,
-            }],
+            calls: [
+              {
+                target: '0xFlashLoanProvider' as any,
+                data: '0xexecuteFlashLoan' as any,
+                value: BigInt(0),
+              },
+            ],
+            tokens: [
+              {
+                amount: BigInt(10000000000),
+                token: '0xUSDC' as any,
+              },
+            ],
           } as any,
         }),
         // Cross-chain debt settlement
-        createMockIntent({ 
+        createMockIntent({
           route: {
             source: BigInt(1),
             destination: BigInt(42161),
-            calls: [{
-              target: '0xCrossChainDebtSettler' as any,
-              data: '0xsettleDebt' as any,
-              value: BigInt(0),
-            }],
+            calls: [
+              {
+                target: '0xCrossChainDebtSettler' as any,
+                data: '0xsettleDebt' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
       ];
@@ -417,15 +465,12 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-          index + 1,
-          {
-            strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
-            intent,
-            chainId: intent.route.destination,
-            walletId: 'kernel',
-          },
-        );
+        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+          intent,
+          chainId: intent.route.destination,
+          walletId: 'kernel',
+        });
       });
     });
 
@@ -450,24 +495,18 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       await strategy.execute(svmIntent);
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(2);
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-        1,
-        {
-          strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
-          intent: evmIntent,
-          chainId: evmIntent.route.destination,
-          walletId: 'kernel',
-        },
-      );
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-        2,
-        {
-          strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
-          intent: svmIntent,
-          chainId: svmIntent.route.destination,
-          walletId: 'kernel',
-        },
-      );
+      expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(1, {
+        strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+        intent: evmIntent,
+        chainId: evmIntent.route.destination,
+        walletId: 'kernel',
+      });
+      expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(2, {
+        strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
+        intent: svmIntent,
+        chainId: svmIntent.route.destination,
+        walletId: 'kernel',
+      });
     });
   });
 
@@ -483,7 +522,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
     it('should include native fee validation for negative intents', () => {
       const validations = (strategy as any).getValidations();
       const lastValidation = validations[validations.length - 1];
-      
+
       expect(lastValidation).toBe(nativeFeeValidation);
     });
   });

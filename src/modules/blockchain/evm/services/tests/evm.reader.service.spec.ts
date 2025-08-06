@@ -6,8 +6,8 @@ import { Address, Hex } from 'viem';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 
-import { EvmTransportService } from '../evm-transport.service';
 import { EvmReaderService } from '../evm.reader.service';
+import { EvmTransportService } from '../evm-transport.service';
 
 describe('EvmReaderService', () => {
   let service: EvmReaderService;
@@ -91,12 +91,7 @@ describe('EvmReaderService', () => {
         address: mockIntent.reward.prover,
         abi: IMessageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [
-          mockIntent.route.source,
-          [mockIntent.intentHash],
-          [mockClaimant],
-          '0x' as Hex,
-        ],
+        args: [mockIntent.route.source, [mockIntent.intentHash], [mockClaimant], '0x' as Hex],
       });
     });
 
@@ -111,12 +106,7 @@ describe('EvmReaderService', () => {
         address: mockIntent.reward.prover,
         abi: IMessageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [
-          mockIntent.route.source,
-          [mockIntent.intentHash],
-          [undefined],
-          '0x' as Hex,
-        ],
+        args: [mockIntent.route.source, [mockIntent.intentHash], [undefined], '0x' as Hex],
       });
     });
 
@@ -169,12 +159,7 @@ describe('EvmReaderService', () => {
         address: customIntent.reward.prover,
         abi: IMessageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [
-          customIntent.route.source,
-          [customIntent.intentHash],
-          [mockClaimant],
-          '0x' as Hex,
-        ],
+        args: [customIntent.route.source, [customIntent.intentHash], [mockClaimant], '0x' as Hex],
       });
     });
   });

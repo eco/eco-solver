@@ -70,7 +70,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     // Get wallet ID for this intent
     const walletId = await this.getWalletIdForIntent(intent);
-    
+
     // Rhinestone fulfillment uses only EVM executor with custom execution flow
     await this.queueService.addIntentToExecutionQueue({
       strategy: this.name,

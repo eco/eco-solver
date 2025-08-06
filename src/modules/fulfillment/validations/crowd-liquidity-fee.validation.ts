@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 
 import { Validation } from './validation.interface';
 

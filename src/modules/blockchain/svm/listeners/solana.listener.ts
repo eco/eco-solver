@@ -40,14 +40,14 @@ export class SolanaListener extends BaseChainListener {
       'confirmed',
     );
 
-    console.log(`Solana listener started for program ${this.solanaConfigService.programId}`);
+    this.logger.log(`Solana listener started for program ${this.solanaConfigService.programId}`);
   }
 
   async stop(): Promise<void> {
     if (this.subscriptionId && this.connection) {
       await this.connection.removeOnLogsListener(this.subscriptionId);
     }
-    console.log('Solana listener stopped');
+    this.logger.log('Solana listener stopped');
   }
 
   protected parseIntentFromEvent(event: any): Intent {
@@ -90,7 +90,7 @@ export class SolanaListener extends BaseChainListener {
         this.eventEmitter.emit('intent.discovered', { intent, strategy: defaultStrategy });
       }
     } catch (error) {
-      console.error('Error handling Solana program logs:', error);
+      this.logger.error('Error handling Solana program logs:', error);
     }
   }
 

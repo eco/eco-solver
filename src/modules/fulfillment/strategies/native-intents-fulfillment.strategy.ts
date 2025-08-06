@@ -72,7 +72,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     // Get wallet ID for this intent
     const walletId = await this.getWalletIdForIntent(intent);
-    
+
     // Native intents fulfillment uses EVM executor for native token handling
     await this.queueService.addIntentToExecutionQueue({
       strategy: this.name,

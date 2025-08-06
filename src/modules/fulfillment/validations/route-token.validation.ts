@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 
 import { Validation } from './validation.interface';
 

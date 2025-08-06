@@ -200,14 +200,14 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
       // We found a union in the path, now check if any union option has the remaining properties
       const remainingPath = envPath.slice(schemaPath.path.length);
       const unionOptions = (schemaPath.schema as z.ZodUnion<any>).options;
-      
+
       // Try to find which union option matches
       for (const option of unionOptions) {
         if (option instanceof z.ZodObject) {
           // Navigate through the object to find the property
           let currentSchema: z.ZodTypeAny = option;
           let found = true;
-          
+
           for (const segment of remainingPath) {
             if (currentSchema instanceof z.ZodObject) {
               const shape = currentSchema.shape;
@@ -222,7 +222,7 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
               break;
             }
           }
-          
+
           if (found) {
             return { path: envPath, schema: currentSchema };
           }

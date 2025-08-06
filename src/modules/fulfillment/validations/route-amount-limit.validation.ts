@@ -3,10 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { min, sum } from '@/common/utils/math';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 
 import { Validation } from './validation.interface';
 

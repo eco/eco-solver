@@ -165,7 +165,9 @@ describe('RhinestoneFulfillmentStrategy', () => {
     it('should exclude RouteCallsValidation from validations', () => {
       const validations = (strategy as any).getValidations();
       expect(validations).not.toContain(routeCallsValidation);
-      expect(validations.some((v: any) => v.constructor.name === 'RouteCallsValidation')).toBe(false);
+      expect(validations.some((v: any) => v.constructor.name === 'RouteCallsValidation')).toBe(
+        false,
+      );
     });
 
     it('should have immutable validations array', () => {
@@ -192,21 +194,25 @@ describe('RhinestoneFulfillmentStrategy', () => {
         // Intent with smart account as target
         createMockIntent({
           route: {
-            calls: [{
-              target: '0x4337000000000000000000000000000000000000' as any, // Safe address
-              data: '0xexecTransaction' as any,
-              value: BigInt(0),
-            }],
+            calls: [
+              {
+                target: '0x4337000000000000000000000000000000000000' as any, // Safe address
+                data: '0xexecTransaction' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
         // Intent with account abstraction patterns
         createMockIntent({
           route: {
-            calls: [{
-              target: '0xSmartAccountFactory' as any,
-              data: '0xcreateAccount' as any,
-              value: BigInt(0),
-            }],
+            calls: [
+              {
+                target: '0xSmartAccountFactory' as any,
+                data: '0xcreateAccount' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
         // Intent with bundled operations
@@ -238,11 +244,13 @@ describe('RhinestoneFulfillmentStrategy', () => {
       // the strategy currently only activates via configuration
       const userOpIntent = createMockIntent({
         route: {
-          calls: [{
-            target: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789' as any, // EntryPoint v0.6
-            data: '0x1fad948c' as any, // handleOps selector
-            value: BigInt(0),
-          }],
+          calls: [
+            {
+              target: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789' as any, // EntryPoint v0.6
+              data: '0x1fad948c' as any, // handleOps selector
+              value: BigInt(0),
+            },
+          ],
           inbox: '0x4337000000000000000000000000000000000001' as any, // ERC-4337 sender
         } as any,
       });
@@ -259,15 +267,39 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // Verify validations were called (excluding RouteCallsValidation)
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(intentFundedValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(routeTokenValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
       expect(routeCallsValidation.validate).not.toHaveBeenCalled(); // Should NOT be called
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(expirationValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
-      expect(standardFeeValidation.validate).toHaveBeenCalledWith(mockIntent, expect.objectContaining({ strategy }));
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(expirationValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(chainSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(proverSupportValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
+      expect(standardFeeValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
 
       // Verify each validation was called exactly once (except RouteCallsValidation)
       [
@@ -394,33 +426,39 @@ describe('RhinestoneFulfillmentStrategy', () => {
     it('should handle various smart account intent configurations', async () => {
       const intents = [
         // Safe transaction
-        createMockIntent({ 
-          route: { 
-            calls: [{
-              target: '0xSafeProxy' as any,
-              data: '0xexecTransaction' as any,
-              value: BigInt(0),
-            }],
+        createMockIntent({
+          route: {
+            calls: [
+              {
+                target: '0xSafeProxy' as any,
+                data: '0xexecTransaction' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
         // EIP-4337 UserOperation
         createMockIntent({
           route: {
-            calls: [{
-              target: '0xEntryPoint' as any,
-              data: '0xhandleOps' as any,
-              value: BigInt(0),
-            }],
+            calls: [
+              {
+                target: '0xEntryPoint' as any,
+                data: '0xhandleOps' as any,
+                value: BigInt(0),
+              },
+            ],
           } as any,
         }),
         // Modular smart account
-        createMockIntent({ 
+        createMockIntent({
           route: {
-            calls: [{
-              target: '0xSmartAccount' as any,
-              data: '0xexecuteWithModule' as any,
-              value: BigInt(1000000000000000000),
-            }],
+            calls: [
+              {
+                target: '0xSmartAccount' as any,
+                data: '0xexecuteWithModule' as any,
+                value: BigInt(1000000000000000000),
+              },
+            ],
           } as any,
         }),
       ];
@@ -431,15 +469,12 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(
-          index + 1,
-          {
-            strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
-            intent,
-            chainId: intent.route.destination,
-            walletId: 'kernel',
-          },
-        );
+        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
+          intent,
+          chainId: intent.route.destination,
+          walletId: 'kernel',
+        });
       });
     });
 
@@ -479,14 +514,14 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     it('should exclude RouteCallsValidation from the array', () => {
       const validations = (strategy as any).getValidations();
-      
+
       expect(validations).not.toContain(routeCallsValidation);
       expect(validations.find((v: any) => v === routeCallsValidation)).toBeUndefined();
     });
 
     it('should maintain correct validation order', () => {
       const validations = (strategy as any).getValidations();
-      
+
       // Check that validations are in the expected order
       expect(validations[0]).toBe(intentFundedValidation);
       expect(validations[1]).toBe(routeTokenValidation);
