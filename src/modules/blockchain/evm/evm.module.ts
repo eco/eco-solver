@@ -1,24 +1,18 @@
 import { Module } from '@nestjs/common';
 
+import { BasicWalletModule } from '@/modules/blockchain/evm/wallets';
+import { KernelWalletModule } from '@/modules/blockchain/evm/wallets';
 import { ConfigModule } from '@/modules/config/config.module';
 
 import { EvmListenersManagerService } from './listeners/evm-listeners-manager.service';
 import { EvmExecutorService } from './services/evm.executor.service';
 import { EvmReaderService } from './services/evm.reader.service';
-import { EvmTransportService } from './services/evm-transport.service';
 import { EvmWalletManager } from './services/evm-wallet-manager.service';
-import { BasicWalletModule } from './wallets/basic-wallet';
-import { KernelWalletModule } from './wallets/kernel-wallet';
+import { EvmCoreModule } from './evm-core.module';
 
 @Module({
-  imports: [ConfigModule, BasicWalletModule, KernelWalletModule],
-  providers: [
-    EvmTransportService,
-    EvmExecutorService,
-    EvmReaderService,
-    EvmWalletManager,
-    EvmListenersManagerService,
-  ],
-  exports: [EvmExecutorService, EvmReaderService, EvmTransportService],
+  imports: [ConfigModule, EvmCoreModule, BasicWalletModule, KernelWalletModule],
+  providers: [EvmExecutorService, EvmReaderService, EvmWalletManager, EvmListenersManagerService],
+  exports: [EvmExecutorService, EvmReaderService],
 })
 export class EvmModule {}

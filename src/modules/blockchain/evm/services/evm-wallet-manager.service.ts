@@ -49,7 +49,9 @@ export class EvmWalletManager implements OnModuleInit {
       try {
         const wallet = await walletFactory.createWallet(chainId);
         chainWallets.set(walletFactory.name, wallet);
-        this.logger.debug(`Initialized ${walletFactory.name} wallet for chain ${chainId}`);
+        this.logger.debug(
+          `Initialized ${walletFactory.name} wallet for chain ${chainId}: ${await wallet.getAddress()}`,
+        );
       } catch (error) {
         this.logger.error(
           `Failed to initialize ${walletFactory.name} for chain ${chainId}: ${error.message}`,

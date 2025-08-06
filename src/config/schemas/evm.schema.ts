@@ -88,8 +88,14 @@ const BasicWalletConfigSchema = z.object({
 
 const KmsSignerConfigSchema = z.object({
   type: z.literal('kms'),
-  region: z.string(),
   keyID: z.string(),
+  region: z.string(),
+  credentials: z
+    .object({
+      accessKeyId: z.string(),
+      secretAccessKey: z.string(),
+    })
+    .optional(),
 });
 
 const EOASignerConfigSchema = z.object({
@@ -145,6 +151,7 @@ export type EvmFeeLogicConfig = z.infer<typeof EvmFeeSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type BasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
+export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;
 
 /**
  * EVM configuration factory using registerAs

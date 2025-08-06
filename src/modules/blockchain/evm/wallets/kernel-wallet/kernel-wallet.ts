@@ -1,8 +1,7 @@
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
 import { createKernelAccount } from '@zerodev/sdk';
 import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants';
-import { Address, createWalletClient, Hash, Hex, LocalAccount, WalletClient } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { Address, createWalletClient, Hash, LocalAccount, WalletClient } from 'viem';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
@@ -17,7 +16,6 @@ const entryPoint = getEntryPoint('0.7');
 type KernelAccount = Awaited<ReturnType<typeof createKernelAccount>>;
 
 export class KernelWallet extends BaseEvmWallet {
-  private signer: LocalAccount;
   private kernelAccount!: KernelAccount;
   private readonly publicClient: ReturnType<EvmTransportService['getPublicClient']>;
   private readonly signerWalletClient: WalletClient;
@@ -26,18 +24,14 @@ export class KernelWallet extends BaseEvmWallet {
 
   constructor(
     private readonly chainId: number,
+    private readonly signer: LocalAccount,
     private readonly kernelWalletConfig: KernelWalletConfig,
     private readonly transportService: EvmTransportService,
   ) {
     super();
 
-    if (kernelWalletConfig.signer.type !== 'eoa') {
-      throw new Error('Signer must be a eoa');
-    }
-
     const chain = this.transportService.getViemChain(chainId);
     const transport = this.transportService.getTransport(chainId);
-    const signer = privateKeyToAccount(kernelWalletConfig.signer.privateKey as Hex);
 
     const signerWalletClient = createWalletClient({
       account: signer,
@@ -45,7 +39,6 @@ export class KernelWallet extends BaseEvmWallet {
       transport,
     });
 
-    this.signer = signer;
     this.signerWalletClient = signerWalletClient as WalletClient;
     this.publicClient = this.transportService.getPublicClient(chainId);
   }

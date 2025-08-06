@@ -9,8 +9,8 @@ import { DeepPartial } from '@/common/types';
  */
 export const AwsSchema = z
   .object({
-    region: z.string(),
-    secretName: z.string(),
+    region: z.string().optional(),
+    secretName: z.string().optional(),
     accessKeyId: z.string().optional(),
     secretAccessKey: z.string().optional(),
   })
