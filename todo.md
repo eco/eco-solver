@@ -1,47 +1,44 @@
-# Fix Strategy Test Issues
+# Intent Discovery Flow Integration Test - Review
 
-## Todo Items
+## Summary of Changes
 
-- [x] Fix validation call expectations in standard-fulfillment.strategy.spec.ts
-  - Update all validation.validate() calls to expect ValidationContextImpl instead of strategy
-  
-- [x] Fix validation count and array indices in native-intents-fulfillment.strategy.spec.ts  
-  - Update expected validation count from 10 to 9 (funding validation removed)
-  - Update array indices to match new count
-  - Fix validation call expectations
-  
-- [x] Fix validation count and indices in negative-intents-fulfillment.strategy.spec.ts
-  - Update validation count from 10 to 9
-  - Update array indices  
-  - Fix validation call expectations
-  
-- [x] Fix validation count in rhinestone-fulfillment.strategy.spec.ts
-  - Update from 9 to 8 validations (funding validation removed)
-  - Update array indices
-  - Fix validation call expectations
-  
-- [x] Fix validation count in crowd-liquidity-fulfillment.strategy.spec.ts
-  - Update from 10 to 9 validations
-  - Update array indices
-  - Fix validation call expectations
+Created a comprehensive integration test that validates the complete flow from emitting an `intent.discovered` event through the fulfillment and blockchain modules without using mocks.
 
-## Review
+### Files Created
+- `/src/tests/integration/intent-discovery-flow.integration.spec.ts` - Main integration test file
 
-### Summary of Changes
+### Key Features Implemented
 
-All strategy test files have been successfully updated to address the following issues:
+1. **Test Setup**
+   - Uses real modules: EventEmitterModule, FulfillmentModule, BlockchainModule, IntentsModule, QueueModule
+   - Configures MongoDB Memory Server for isolated database testing
+   - Uses actual Redis instance for queue testing
+   - Properly initializes and cleans up all resources
 
-1. **Validation Context Changes**: Updated all validation expectations to use `expect.objectContaining({ strategy })` instead of expecting the strategy instance directly. This was necessary because validations now receive a ValidationContextImpl object that contains the strategy.
+2. **Test Cases**
+   - **Happy Path**: Verifies intent flows from event emission to fulfillment queue
+   - **Duplicate Intent Handling**: Ensures duplicate intents are not re-queued
+   - **Multiple Strategies**: Tests different fulfillment strategy selections
+   - **Concurrent Events**: Validates handling of multiple simultaneous intent discoveries
+   - **Error Scenarios**: Tests graceful handling of invalid strategies and malformed data
 
-2. **Validation Count Updates**: 
-   - Most strategies now have 9 validations instead of 10 (funding validation was removed)
-   - Rhinestone strategy has 8 validations (it excludes RouteCallsValidation)
+3. **Verification Points**
+   - Intent persistence in MongoDB database
+   - Queue job creation with correct structure (`{ strategy, intent }`)
+   - Proper strategy propagation through the system
+   - Intent status updates
+   - No duplicate processing
 
-3. **Test Files Updated**:
-   - `standard-fulfillment.strategy.spec.ts` - Fixed validation expectations
-   - `native-intents-fulfillment.strategy.spec.ts` - Fixed validation count and expectations
-   - `negative-intents-fulfillment.strategy.spec.ts` - Fixed validation expectations
-   - `rhinestone-fulfillment.strategy.spec.ts` - Fixed validation expectations
-   - `crowd-liquidity-fulfillment.strategy.spec.ts` - Fixed validation count and expectations
+### Technical Details
+- Uses `mongodb-memory-server` for isolated database testing
+- Requires Redis to be running (uses actual Redis, not mocked)
+- Implements proper cleanup between tests and after all tests
+- Uses async/await patterns with appropriate timing for event processing
+- Leverages the existing `createMockIntent` helper for consistent test data
 
-All tests are now passing successfully!
+### Benefits
+- Tests real module interactions without mocks
+- Validates the event-driven architecture
+- Ensures proper integration between fulfillment and blockchain modules
+- Provides confidence in the intent processing pipeline
+- Can catch integration issues that unit tests might miss

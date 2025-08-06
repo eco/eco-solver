@@ -60,14 +60,12 @@ export class ChainListener extends BaseChainListener {
         });
       },
     });
-
-    console.log(`EVM listener started for chain ${evmConfig.chainId}`);
   }
 
   async stop(): Promise<void> {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
-    console.log(`EVM listener stopped for chain ${this.config.chainId}`);
+    this.logger.warn(`EVM listener stopped for chain ${this.config.chainId}`);
   }
 }

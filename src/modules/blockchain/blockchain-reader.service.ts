@@ -1,6 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 
-import { Address } from 'viem';
+import { Address, Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
@@ -118,19 +118,21 @@ export class BlockchainReaderService {
    * Fetch prover fee for an intent on a specific chain
    * @param chainId The chain ID
    * @param intent The intent to check
+   * @param messageData The message data
    * @param claimant The recipient of the rewards
    * @returns The prover fee amount in the chain's native token
    */
   async fetchProverFee(
     chainId: string | number | bigint,
     intent: Intent,
+    messageData: Hex,
     claimant?: Address,
   ): Promise<bigint> {
     const reader = this.getReaderForChain(chainId);
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }
-    return reader.fetchProverFee(intent, claimant);
+    return reader.fetchProverFee(intent, messageData, claimant);
   }
 
   private initializeReaders() {

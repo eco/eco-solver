@@ -87,7 +87,7 @@ export class BlockchainExecutorService {
         console.error(`Intent ${intent.intentHash} failed: ${result.error}`);
       }
     } catch (error) {
-      console.error(`Error executing intent ${intent.intentHash}:`, error);
+      console.error(`Error executing intent ${intent.intentHash}:`, error.message);
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
     }
   }

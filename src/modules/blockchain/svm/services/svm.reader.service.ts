@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
@@ -100,7 +101,7 @@ export class SvmReaderService extends BaseChainReader {
     return signatureStatus?.value?.confirmationStatus === 'finalized';
   }
 
-  async fetchProverFee(_intent: Intent): Promise<bigint> {
+  async fetchProverFee(_intent: Intent, messageData: Hex): Promise<bigint> {
     // Solana doesn't have prover contracts yet
     // This is a stub implementation
     this.logger.warn('Prover fee fetching not implemented for Solana');

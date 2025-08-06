@@ -91,9 +91,6 @@ export class EvmTransportService implements OnModuleInit {
       }
     } else if (rpc.success) {
       const { urls, options } = rpc.data;
-
-      console.log('RPC urls', JSON.stringify(urls));
-
       if (urls.length > 1) {
         transport = fallback(urls.map((url) => http(url, options)));
       } else {

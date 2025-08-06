@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Address } from 'viem';
@@ -11,6 +11,7 @@ import { EvmTransportService } from '../services/evm-transport.service';
 
 @Injectable()
 export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy {
+  private logger = new Logger(EvmListenersManagerService.name);
   private listeners: Map<number, ChainListener> = new Map();
 
   constructor(
@@ -35,7 +36,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       this.listeners.set(network.chainId, listener);
     }
 
-    console.log(
+    this.logger.log(
       `Started ${this.listeners.size} EVM listeners for chains: ${Array.from(
         this.listeners.keys(),
       ).join(', ')}`,

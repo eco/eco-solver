@@ -121,7 +121,7 @@ export class EvmReaderService extends BaseChainReader {
     return balance as bigint;
   }
 
-  async fetchProverFee(intent: Intent, claimant?: Address): Promise<bigint> {
+  async fetchProverFee(intent: Intent, messageData: Hex, claimant?: Address): Promise<bigint> {
     if (!this.chainId) {
       throw new Error('Chain ID not set. Call setChainId() first.');
     }
@@ -138,7 +138,7 @@ export class EvmReaderService extends BaseChainReader {
           intent.route.source, // Source chain ID where the intent originates
           [intent.intentHash], // Empty intent hashes array for fee query
           [claimant], // Empty claimants array for fee query
-          '0x' as Hex, // Empty data parameter
+          messageData, // Empty data parameter
         ],
       });
 

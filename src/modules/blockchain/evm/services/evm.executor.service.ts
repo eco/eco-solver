@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { hashIntent, InboxAbi } from '@eco-foundation/routes-ts';
 import { Address, encodeFunctionData, erc20Abi } from 'viem';
@@ -16,6 +16,8 @@ import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
+  private logger = new Logger(EvmTransportService.name);
+
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
@@ -61,28 +63,31 @@ export class EvmExecutorService extends BaseChainExecutor {
 
       const fulfillTx = {
         to: inboxAddr,
+        value: proverFee,
         data: encodeFunctionData({
           abi: InboxAbi,
           functionName: 'fulfillAndProve',
           args: [intent.route, rewardHash, claimant, intentHash, proverAddr, proverMessageData],
         }),
-        value: proverFee,
       };
 
-      const [hash] = await wallet.writeContracts([...approvalTxs, fulfillTx]);
+      const [hash] = await wallet.writeContracts(
+        [...approvalTxs, fulfillTx],
+        { value: 0n }, // EOA doesn't send ETH, prover fee is paid by the Kernel wallet
+      );
 
       const publicClient = this.transportService.getPublicClient(destinationChainId);
-      const receipt = await publicClient.waitForTransactionReceipt({
+      await publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 2,
       });
 
       return {
-        success: receipt.status === 'success',
+        success: true,
         txHash: hash,
       };
     } catch (error) {
-      console.error('EVM execution error:', error);
+      this.logger.error('EVM execution error:', error);
       return {
         success: false,
         error: error.message,

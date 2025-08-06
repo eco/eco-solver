@@ -1,9 +1,9 @@
 export function sum<
   Item extends bigint | Record<string, unknown>,
   Key extends Item extends bigint ? never : keyof Item,
->(items: Item[], key: Key): bigint {
+>(items: Item[], key?: Key): bigint {
   return items.reduce((sum, item) => {
-    const amount = typeof item === 'bigint' ? item : (item[key] as bigint);
+    const amount = typeof item === 'bigint' ? item : ((item[key] ?? 0n) as bigint);
     return sum + amount;
   }, 0n);
 }

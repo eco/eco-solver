@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
-import { ProverModule } from '@/modules/prover/prover.module';
 
 import { EvmListenersManagerService } from './listeners/evm-listeners-manager.service';
 import { EvmExecutorService } from './services/evm.executor.service';
@@ -12,7 +11,7 @@ import { BasicWalletModule } from './wallets/basic-wallet';
 import { KernelWalletModule } from './wallets/kernel-wallet';
 
 @Module({
-  imports: [ConfigModule, ProverModule, BasicWalletModule, KernelWalletModule],
+  imports: [ConfigModule, BasicWalletModule, KernelWalletModule],
   providers: [
     EvmTransportService,
     EvmExecutorService,

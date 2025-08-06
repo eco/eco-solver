@@ -1,11 +1,11 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 
 import { Address, encodeAbiParameters, Hex, pad, zeroAddress } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { EvmConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -14,10 +14,9 @@ export class HyperProver extends BaseProver {
 
   constructor(
     protected readonly evmConfigService: EvmConfigService,
-    @Inject(forwardRef(() => BlockchainReaderService))
-    private readonly blockchainReaderService: BlockchainReaderService,
+    protected readonly moduleRef: ModuleRef,
   ) {
-    super(evmConfigService);
+    super(evmConfigService, moduleRef);
   }
 
   async getMessageData(intent: Intent): Promise<Hex> {
@@ -29,6 +28,11 @@ export class HyperProver extends BaseProver {
 
   async getFee(intent: Intent, claimant?: Address): Promise<bigint> {
     // Fetch fee from the source chain where the intent originates
-    return this.blockchainReaderService.fetchProverFee(intent.route.destination, intent, claimant);
+    return this.blockchainReaderService.fetchProverFee(
+      intent.route.destination,
+      intent,
+      await this.getMessageData(intent),
+      claimant,
+    );
   }
 }

@@ -10,6 +10,7 @@ import {
   ReadContractParams,
   WriteContractsOptions,
 } from '@/common/interfaces/evm-wallet.interface';
+import { sum } from '@/common/utils/math';
 import { KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { encodeKernelExecuteCallData } from '@/modules/blockchain/evm/wallets/kernel-wallet/utils/encode-transactions';
@@ -127,7 +128,7 @@ export class KernelWallet extends BaseEvmWallet {
   }
 
   async writeContracts(calls: Call[], _options?: WriteContractsOptions): Promise<Hash[]> {
-    const totalValue = calls.reduce((acc, call) => acc + (call.value ?? 0n), 0n);
+    const totalValue = _options?.value ?? sum(calls.map((call) => call.value ?? 0n));
 
     // Send transaction using the signer wallet client
     const hash = await this.signerWalletClient.sendTransaction({
