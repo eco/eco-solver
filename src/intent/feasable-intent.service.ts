@@ -9,6 +9,7 @@ import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
+import { VmType } from '@eco-foundation/routes-ts'
 
 /**
  * Service class for getting configs for the app
@@ -55,7 +56,17 @@ export class FeasableIntentService implements OnModuleInit {
       return
     }
 
-    const { error } = await this.feeService.isRouteFeasible(model.intent)
+    const { error } = await this.feeService.isRouteFeasible({
+      source: model.intent.route.source,
+      destination: model.intent.route.destination,
+      route: {
+        ...model.intent.route,
+        vm: VmType.EVM,
+        deadline: model.intent.reward.deadline,
+        portal: model.intent.route.portal,
+      },
+      reward: model.intent.reward,
+    })
 
     const jobId = getIntentJobId('feasable', intentHash, model!.intent.logIndex)
     this.logger.debug(

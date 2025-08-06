@@ -21,7 +21,7 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress, Hex, zeroAddress } from 'viem'
+import { Address as EvmAddress, getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
@@ -68,8 +68,8 @@ export class FeeService implements OnModuleInit {
     let feeConfig = defaultFeeArg || this.intentConfigs.defaultFee
 
     if (intent) {
-      feeConfig = defaultFeeArg || this.getRouteDestinationSolverFee(intent.route)
-      const specialFee = this.whitelist[intent.reward.creator]
+      feeConfig = defaultFeeArg || this.getRouteDestinationSolverFee(intent)
+      const specialFee = this.whitelist[intent.reward.creator.toString()]
 
       if (specialFee) {
         const chainFee = specialFee[Number(intent.source)] // TODO: where is this source?
@@ -93,7 +93,7 @@ export class FeeService implements OnModuleInit {
   getFee(normalizedTotal: NormalizedTotal, intent: QuoteIntentDataInterface): NormalizedTotal {
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
-    const solverFee = this.getRouteDestinationSolverFee(route)
+    const solverFee = this.getRouteDestinationSolverFee(intent)
 
     const fee: NormalizedTotal = {
       token: 0n,
@@ -157,7 +157,7 @@ export class FeeService implements OnModuleInit {
     }
 
     const rewardTokens = _.map(quote.reward.tokens, 'token')
-    if (hasDuplicateStrings(rewardTokens)) {
+    if (hasDuplicateStrings(rewardTokens.map(token => token.toString()))) {
       return { error: QuoteError.DuplicatedRewardToken() }
     }
 
@@ -377,7 +377,7 @@ export class FeeService implements OnModuleInit {
 
     return {
       rewards: Object.values(erc20Rewards).map((tb) => {
-        const token = quote.reward.tokens.find((reward) => getAddress(reward.token) === tb.address)
+        const token = quote.reward.tokens.find((reward) => getChainAddress(srcChainID, reward.token) === tb.address)
         if (!token) {
           throw QuoteError.RewardTokenNotFound(tb.address as Hex)
         }
@@ -472,8 +472,8 @@ export class FeeService implements OnModuleInit {
 
     const erc20Balances = Object.values(callERC20Balances).reduce(
       (acc, tokenBalance) => {
-        const config = solver.targets[tokenBalance.address]
-        acc[tokenBalance.address] = {
+        const config = solver.targets[tokenBalance.address.toString()]
+        acc[tokenBalance.address.toString()] = {
           token: tokenBalance,
           config: {
             ...config,
@@ -511,13 +511,13 @@ export class FeeService implements OnModuleInit {
           throw err
         }
 
-        const callTarget = erc20Balances[call.target]
+        const callTarget = erc20Balances[call.target.toString()]
         if (!callTarget) {
-          throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target)
+          throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target.toString() as EvmAddress)
         }
 
         if (!ttd?.decodedFunctionData?.args || ttd.decodedFunctionData.args.length < 2) {
-          throw QuoteError.InvalidFunctionData(call.target)
+          throw QuoteError.InvalidFunctionData(call.target.toString() as EvmAddress)
         }
         const recipient = ttd.decodedFunctionData.args[0] as Hex
         const transferAmount = ttd.decodedFunctionData.args[1] as bigint
@@ -529,7 +529,7 @@ export class FeeService implements OnModuleInit {
         ) {
           const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,
-            call.target,
+            call.target.toString() as EvmAddress,
             transferAmount,
             callTarget.token.balance,
             normMinBalance,
@@ -551,7 +551,7 @@ export class FeeService implements OnModuleInit {
         return {
           ...this.convertNormalize(transferAmount, {
             chainID: BigInt(solver.chainID),
-            address: call.target,
+            address: call.target.toString() as EvmAddress,
             decimals: callTarget.token.decimals,
           }),
           recipient,
@@ -575,7 +575,7 @@ export class FeeService implements OnModuleInit {
     chainID: number,
   ): NormalizedCall[] {
     return getNativeCalls(quote.route.calls as CallDataInterface[]).map((call) => ({
-      recipient: call.target,
+      recipient: call.target.toString() as EvmAddress,
       native: {
         amount: call.value,
       },
@@ -650,8 +650,8 @@ export class FeeService implements OnModuleInit {
     }
   }
 
-  private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
-    const solverFee = this.getAskRouteDestinationSolver(route).fee
+  private getRouteDestinationSolverFee(intent: QuoteIntentDataInterface): FeeConfigType {
+    const solverFee = this.getAskRouteDestinationSolver(intent).fee
 
     // Return solver fee if it has valid structure, otherwise use default
     return solverFee?.constants ? solverFee : this.intentConfigs.defaultFee
@@ -664,18 +664,18 @@ export class FeeService implements OnModuleInit {
    * @param route The route of the quote intent
    * @returns
    */
-  getAskRouteDestinationSolver(route: QuoteRouteDataInterface) {
+  getAskRouteDestinationSolver(intent: QuoteIntentDataInterface) {
     // Constants for Ethereum mainnet and sepolia chain IDs
     const ETH_MAINNET = 1n
     const ETH_SEPOLIA = 11155111n
 
     // Use Ethereum L1 chain if either source or destination is L1
     const destination =
-      route.destination === ETH_MAINNET || route.source === ETH_MAINNET
+      intent.destination === ETH_MAINNET || intent.source === ETH_MAINNET
         ? ETH_MAINNET
-        : route.destination === ETH_SEPOLIA || route.source === ETH_SEPOLIA
+        : intent.destination === ETH_SEPOLIA || intent.source === ETH_SEPOLIA
           ? ETH_SEPOLIA
-          : route.destination
+          : intent.destination
 
     const solver = this.ecoConfigService.getSolver(destination)
     if (!solver) {

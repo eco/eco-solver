@@ -2,7 +2,7 @@ import { encodeFunctionData, getAddress, Hex, erc20Abi, parseEther } from 'viem'
 import { Command, CommandRunner, Option } from 'nest-commander'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { BalanceService } from '@/balance/balance.service'
-import { ChainAddress } from '@/eco-configs/eco-config.types'
+import { Address } from '@/eco-configs/eco-config.types'
 import { Address as EvmAddress } from 'viem'
 
 @Command({
@@ -94,7 +94,7 @@ export class TransferCommand extends CommandRunner {
    * @param recipient the recipient address
    * @param amount the amount to transfer, assumes in correct decimal format for that token
    */
-  async transferToken(chainID: number, token: ChainAddress, recipient: Hex, amount: bigint) {
+  async transferToken(chainID: number, token: Address, recipient: Hex, amount: bigint) {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const transferFunctionData = encodeFunctionData({
       abi: erc20Abi,

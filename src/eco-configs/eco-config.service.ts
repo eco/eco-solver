@@ -5,7 +5,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
-  ChainAddress,
+  Address,
   EcoConfigType,
   IntentSource,
   KmsConfig,
@@ -154,7 +154,6 @@ export class EcoConfigService {
       //remove duplicates
       intent.provers = _.uniq(intent.provers)
 
-      intent.tokens = intent.tokens.map((token: string) => getChainAddress(intent.chainID, token as ChainAddress))
       return intent
     })
   }

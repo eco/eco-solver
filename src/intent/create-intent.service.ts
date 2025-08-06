@@ -147,12 +147,14 @@ export class CreateIntentService implements OnModuleInit {
   async createIntentFromIntentInitiation(
     quoteID: string,
     funder: Hex,
+    source: bigint,
+    destination: bigint,
     route: RouteType,
     reward: QuoteRewardDataModel,
   ) {
     try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
+      const { salt, portal, tokens: routeTokens, calls } = route
+      const { creator, prover, deadline, nativeAmount, tokens: rewardTokens } = reward
       const intentHash = hashIntent(destination, route, reward).intentHash
 
       this.logger.debug(
@@ -170,13 +172,13 @@ export class CreateIntentService implements OnModuleInit {
         salt,
         source,
         destination,
-        inbox,
+        inbox: portal as Hex,
         routeTokens: routeTokens as RewardTokensInterface[],
         calls: calls as CallDataInterface[],
         creator,
         prover,
         deadline,
-        nativeValue,
+        nativeValue: nativeAmount,
         rewardTokens,
         logIndex: 0,
         funder,

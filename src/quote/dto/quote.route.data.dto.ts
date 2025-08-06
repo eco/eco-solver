@@ -38,11 +38,6 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
-  inbox: Hex
-
-  @ViemAddressTransform()
-  @IsNotEmpty()
-  @ApiProperty()
   portal: Hex
 
   @IsArray()

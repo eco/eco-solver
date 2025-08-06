@@ -9,7 +9,7 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
+import { RouteType, VmType, hashRoute } from '@eco-foundation/routes-ts'
 import * as crypto from 'crypto'
 
 const AddressLen = 40
@@ -64,9 +64,11 @@ export class QuoteTestUtils {
         calls: [],
       },
       reward: {
+        vm: VmType.EVM,
         creator: '0x0000000000000000000000000000000000000006',
         prover: '0x0000000000000000000000000000000000000007',
         deadline: 9999999999n,
+        nativeAmount: 0n,
         nativeValue: 0n,
         tokens: [],
       } as QuoteRewardDataModel,
@@ -109,10 +111,12 @@ export class QuoteTestUtils {
         calls: [],
       },
       reward: {
+        vm: VmType.EVM,
         creator: '0x0000000000000000000000000000000000000006',
         prover: '0x0000000000000000000000000000000000000007',
         deadline: 9999999999n,
-        nativeValue: 0n,
+        nativeAmount: 0n,
+        nativeValue: 0n, // TODO: remove this
         tokens: [],
       } as QuoteRewardDataModel,
       ...overrides,
@@ -154,10 +158,11 @@ export class QuoteTestUtils {
     return this.createQuoteIntentModel({
       route: dto.route,
       reward: {
+        vm: VmType.EVM,
         creator: dto.reward.creator as `0x${string}`,
         prover: dto.reward.prover as `0x${string}`,
         deadline: BigInt(dto.reward.deadline),
-        nativeValue: BigInt(dto.reward.nativeValue),
+        nativeAmount: BigInt(dto.reward.nativeValue),
         tokens: dto.reward.tokens.map((t) => ({
           token: t.token as `0x${string}`,
           amount: BigInt(t.amount),
@@ -168,9 +173,11 @@ export class QuoteTestUtils {
 
   createQuoteRouteDataDTO(overrides: Partial<QuoteRouteDataDTO> = {}): QuoteRouteDataDTO {
     const quoteRouteDataDTO: QuoteRouteDataDTO = {
+      vm: VmType.EVM,
       source: 10n,
+      deadline: 9999999999n,
       destination: 8453n,
-      inbox: '0x0000000000000000000000000000000000000005',
+      portal: '0x0000000000000000000000000000000000000005',
       tokens: [],
       calls: [],
       ...overrides,
@@ -181,10 +188,12 @@ export class QuoteTestUtils {
 
   createQuoteRewardDataDTO(overrides: Partial<QuoteRewardDataDTO> = {}): QuoteRewardDataDTO {
     const quoteRewardDataDTO: QuoteRewardDataDTO = {
+      vm: VmType.EVM,
       creator: '0x0000000000000000000000000000000000000006',
       prover: '0x0000000000000000000000000000000000000007',
       deadline: 9999999999n,
-      nativeValue: 0n,
+      nativeAmount: 0n,
+      nativeValue: 0n, // TODO: remove this
       tokens: [],
       ...overrides,
 

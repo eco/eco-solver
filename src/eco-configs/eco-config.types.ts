@@ -12,6 +12,7 @@ import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
+import { SerializableAddress } from '@eco-foundation/routes-ts'
 
 // VM Types for different blockchain architectures
 export enum VMType {
@@ -32,14 +33,14 @@ export function getVMType(chainId: number): VMType {
 }
 
 // Address type that supports both EVM (Hex) and SVM (base58) addresses
-export type ChainAddress = EvmAddress | SvmAddress
+export type Address = EvmAddress | SvmAddress
 
 // Chain configuration for both EVM and SVM chains
 export type EcoChainConfig = {
-  IntentSource: ChainAddress
-  Inbox: ChainAddress
-  HyperProver: ChainAddress
-  MetaProver: ChainAddress
+  IntentSource: Address
+  Inbox: Address
+  HyperProver: Address
+  MetaProver: Address
 }
 
 // The config type that we store in json
@@ -325,9 +326,9 @@ export type RpcConfigType = {
  * The config type for a single solver configuration
  */
 export type Solver = {
-  inboxAddress: ChainAddress
+  inboxAddress: Address
   //target address to contract type mapping
-  targets: Record<ChainAddress, TargetContract>
+  targets: Record<SerializableAddress, TargetContract>
   network: Network
   fee: FeeConfigType
   chainID: number
@@ -387,13 +388,13 @@ export class IntentSource {
   // The chain ID of the network
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
-  sourceAddress: ChainAddress
+  sourceAddress: Address
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
-  inbox: ChainAddress
+  inbox: Address
   // The addresses of the tokens that we support as rewards
-  tokens: ChainAddress[]
+  tokens: Address[]
   // The addresses of the provers that we support
-  provers: ChainAddress[]
+  provers: Address[]
   // custom configs for the intent source
   config?: {
     // Defaults to append, @eco-foundation/routes-ts provers will append to the provers in configs

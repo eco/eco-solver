@@ -3,20 +3,16 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
+import { encodeRoute, hashRoute, RouteType, VmType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
-import { ChainAddress } from '@/eco-configs/eco-config.types'
-
-export interface MultiChainRouteType extends Omit<RouteType, 'tokens'> {
-  tokens: {
-    token: ChainAddress
-    amount: bigint
-  }[]
-}
+import { Address } from '@eco-foundation/routes-ts'
 
 @Schema({ timestamps: true })
-export class RouteDataModel implements MultiChainRouteType {
+export class RouteDataModel {
+  @Prop({ required: true, type: String })
+  vm: VmType
+
   @Prop({ required: true, type: String })
   salt: Hex
   @Prop({ required: true, type: BigInt })
@@ -24,11 +20,14 @@ export class RouteDataModel implements MultiChainRouteType {
   @Prop({ required: true, type: BigInt })
   destination: bigint
   @Prop({ required: true, type: String })
-  inbox: Hex
+  portal: Address
   @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
   @Prop({ required: true, type: [TargetCallDataSchema] })
   calls: TargetCallDataModel[]
+
+  @Prop({ required: true, type: String })
+  deadline: Hex
 
   constructor(
     salt: Hex,
@@ -42,7 +41,7 @@ export class RouteDataModel implements MultiChainRouteType {
     this.source = source
     this.destination = destination
     this.tokens = routeTokens
-    this.inbox = inbox
+    this.portal = inbox
     this.calls = calls
   }
 }

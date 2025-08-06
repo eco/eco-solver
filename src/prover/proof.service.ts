@@ -8,7 +8,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { ChainAddress, getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { Address, getVMType, VMType } from '@/eco-configs/eco-config.types'
 
 interface ProverMetadata {
   address: Hex
@@ -44,7 +44,7 @@ export class ProofService implements OnModuleInit {
    * @param proverAddress the prover address
    * @returns
    */
-  isHyperlaneProver(chainID: number, proverAddress: ChainAddress): boolean {
+  isHyperlaneProver(chainID: number, proverAddress: Address): boolean {
     return Boolean(this.getProverType(chainID, proverAddress)?.isHyperlane())
   }
 
@@ -54,7 +54,7 @@ export class ProofService implements OnModuleInit {
    * @param proverAddress the prover address
    * @returns
    */
-  isMetalayerProver(chainID: number, proverAddress: ChainAddress): boolean {
+  isMetalayerProver(chainID: number, proverAddress: Address): boolean {
     return Boolean(this.getProverType(chainID, proverAddress)?.isMetalayer())
   }
 
@@ -77,7 +77,7 @@ export class ProofService implements OnModuleInit {
    * @param proverAddr the prover address
    * @returns
    */
-  getProverType(chainID: number, proverAddr: ChainAddress): ProofType | undefined {
+  getProverType(chainID: number, proverAddr: Address): ProofType | undefined {
     return this.provers.find(
       (prover) => prover.chainID === chainID && prover.address === proverAddr,
     )?.type
@@ -93,7 +93,7 @@ export class ProofService implements OnModuleInit {
    */
   isIntentExpirationWithinProofMinimumDate(
     chainID: number,
-    prover: ChainAddress,
+    prover: Address,
     expirationDate: Date,
   ): boolean {
     const proofType = this.getProverType(chainID, prover)

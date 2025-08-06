@@ -1,8 +1,8 @@
-import { ChainAddress, TargetContractType } from '@/eco-configs/eco-config.types'
+import { Address, TargetContractType } from '@/eco-configs/eco-config.types'
 import { Hex } from 'viem'
 
 export type TokenConfig = {
-  address: ChainAddress
+  address: Address
   chainId: number
   minBalance: number
   targetBalance: number
@@ -10,7 +10,7 @@ export type TokenConfig = {
 }
 
 export type TokenBalance = {
-  address: ChainAddress
+  address: Address
   decimals: number
   balance: bigint
 }

@@ -159,7 +159,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const txHash = await walletClient.writeContract({
       abi: IntentSourceAbi,
       address: intentSourceAddr,
-      args: [intents],
+      args: [intents as any], // TODO: fix this
       functionName: 'batchWithdraw',
     })
 

@@ -2,9 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
 import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
-import { MultiChainRouteType, RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
+import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType, RewardType } from '@eco-foundation/routes-ts'
+import { encodeIntent, hashIntent, IntentType, RewardType, VmType } from '@eco-foundation/routes-ts'
 import { getChainAddress } from '@/eco-configs/utils'
 
 export interface CreateIntentDataModelParams {
@@ -46,6 +46,11 @@ export class IntentDataModel implements IntentType {
   @Prop({ required: false })
   funder?: Hex
 
+  @Prop({ required: true, type: BigInt })
+  source: bigint
+  @Prop({ required: true, type: BigInt })
+  destination: bigint
+
   constructor(params: CreateIntentDataModelParams) {
     const {
       quoteID,
@@ -85,22 +90,23 @@ export class IntentDataModel implements IntentType {
       destination,
       getAddress(inbox),
       routeTokens.map((token) => {
-        token.token = getAddress(token.token)
+        token.token = getChainAddress(destination, token.token).toString() as `0x${string}`;
         return token
       }),
       calls.map((call) => {
-        call.target = getAddress(call.target)
+        call.target = getChainAddress(destination, call.target).toString() as `0x${string}`;
         return call
-      }),
+      }) as any,
     )
 
     this.reward = new RewardDataModel(
-      getChainAddress(source, creator),
-      getChainAddress(source, prover),
+      VmType.EVM,
+      getChainAddress(source, creator).toString() as `0x${string}`,
+      getChainAddress(source, prover).toString() as `0x${string}`,
       deadline,
       nativeValue,
       rewardTokens.map((token) => {
-        token.token = getAddress(token.token)
+        token.token = getChainAddress(destination, token.token).toString() as `0x${string}`;
         return token
       }),
     )
@@ -121,14 +127,14 @@ export class IntentDataModel implements IntentType {
     if (intentDataModel.route.source === 1399811150n || intentDataModel.route.destination === 1399811150n) {
       console.log("JUSTLOGGING: intent.getHash()", intentDataModel)
     }
-    return hashIntent(intentDataModel as any) // this should panic
+    return hashIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
   }
 
   static encode(intentDataModel: IntentDataModel) {
     if (intentDataModel.route.source === 1399811150n || intentDataModel.route.destination === 1399811150n) {
       console.log("JUSTLOGGING: intent.encode()", intentDataModel)
     }
-    return encodeIntent(intentDataModel as any) // this should panic
+    return encodeIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
@@ -150,10 +156,19 @@ export class IntentDataModel implements IntentType {
     })
   }
 
-  static toChainIntent(intent: IntentDataModel): MultiChainIntentType {
+  static toChainIntent(intent: IntentDataModel): IntentType {
     return {
-      route: intent.route,
+      destination: intent.route.destination,
+      source: intent.route.source,
+      route: {
+        ...intent.route,
+        vm: VmType.EVM,
+        deadline: intent.reward.deadline,
+
+        portal: intent.route.portal,
+      },
       reward: intent.reward,
+
     }
   }
 }
@@ -170,9 +185,9 @@ IntentSourceDataSchema.methods.getHash = function (): {
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  return hashIntent(this.route.destination, this.route, this.reward)
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  return encodeIntent(this.route.destination, this.route, this.reward)
 }

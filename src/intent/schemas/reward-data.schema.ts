@@ -5,17 +5,16 @@ import {
 import { encodeReward, hashReward, RewardType, VmType, Address, EvmRewardType, SvmRewardType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
-import { ChainAddress } from '@/eco-configs/eco-config.types'
 @Schema({ timestamps: true })
 export class RewardDataModel {
   @Prop({ required: true, type: String })
   vm: VmType
   
   @Prop({ required: true, type: String })
-  creator: ChainAddress  // Can be EVM hex or Solana base58
+  creator: Address  // Can be EVM hex or Solana base58
   
   @Prop({ required: true, type: String })
-  prover: ChainAddress
+  prover: Address
   
   @Prop({ required: true, type: BigInt })
   deadline: bigint
@@ -28,8 +27,8 @@ export class RewardDataModel {
 
   constructor(
     vm: VmType,
-    creator: ChainAddress,
-    prover: ChainAddress,
+    creator: Address,
+    prover: Address,
     deadline: bigint,
     nativeAmount: bigint,
     tokens: TokenAmountDataModel[],

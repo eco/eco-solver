@@ -8,6 +8,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { isNativeIntent } from './utils'
+import { VmType } from '@eco-foundation/routes-ts'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -37,7 +38,17 @@ export class FulfillIntentService {
     if (!data || !model || !solver) return
     if (model.status === 'SOLVED') return
 
-    const { type } = isNativeIntent(model.intent) // disable crowd liquidity for native intents
+    const { type } = isNativeIntent({
+      source: model.intent.route.source,
+      destination: model.intent.route.destination,
+      route: {
+        ...model.intent.route,
+        vm: VmType.EVM,
+        deadline: model.intent.reward.deadline,
+        portal: model.intent.route.portal,
+      },
+      reward: model.intent.reward,
+    })// disable crowd liquidity for native intents
       ? { type: 'smart-wallet-account' }
       : this.ecoConfigService.getFulfill()
 

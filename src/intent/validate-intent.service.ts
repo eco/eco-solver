@@ -188,11 +188,11 @@ export class ValidateIntentService implements OnModuleInit {
           // Convert intent model to SolanaReward format
           const solanaReward: SolanaReward = {
             deadline: Number(model.intent.reward.deadline),
-            creator: model.intent.reward.creator,
-            prover: model.intent.reward.prover,
-            native_amount: Number(model.intent.reward.nativeValue),
-            tokens: model.intent.reward.rewardTokens.map(token => ({
-              token: token.token,
+            creator: model.intent.reward.creator.toString(),
+            prover: model.intent.reward.prover.toString(),
+            native_amount: Number(model.intent.reward.nativeAmount),
+            tokens: model.intent.reward.tokens.map(token => ({
+              token: token.token.toString(),
               amount: Number(token.amount)
             }))
           };

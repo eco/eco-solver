@@ -1,8 +1,7 @@
-import { EcoProtocolAddresses } from '@eco-foundation/routes-ts'
-import { ChainAddress, EcoChainConfig, getVMType, VMType } from './eco-config.types'
+import { Address, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoChainConfig, getVMType, VMType } from './eco-config.types'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
-import { Address as SvmAddress } from '@solana/kit'
 import { Address as EvmAddress, getAddress } from 'viem'
 
 /**
@@ -40,7 +39,7 @@ export function isPreEnv(): boolean {
   )
 }
 
-export function getChainAddress(chainID: number | bigint, address: ChainAddress): ChainAddress {
+export function getChainAddress(chainID: number | bigint, address: Address): Address {
   const vm = getVMType(Number(chainID))
   if (vm === VMType.EVM) {
     return getAddress(address as EvmAddress)
@@ -56,14 +55,6 @@ export function getChainAddress(chainID: number | bigint, address: ChainAddress)
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
-  // if (id === '1399811150-pre') {
-  //   return {
-  //     IntentSource: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
-  //     Inbox: '64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6' as SvmAddress,
-  //     HyperProver: '8bvpmgp9xbGngm9KmfX5poJer8dW4BJb7LaxuSmfCPZz' as SvmAddress,
-  //     MetaProver: '0x0000000000000000000000000000000000000000'
-  //   }
-  // }
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)
