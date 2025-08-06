@@ -1,57 +1,23 @@
 import { Address, Hash, PublicClient, WalletClient } from 'viem';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
-import {
-  Call,
-  ReadContractParams,
-  WriteContractsOptions,
-} from '@/common/interfaces/evm-wallet.interface';
+import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 
 import { MULTICALL3_ABI } from '../../constants/multicall3.constants';
 
 export class BasicWallet extends BaseEvmWallet {
-  protected publicClient: PublicClient;
-  protected walletClient: WalletClient;
-
-  constructor(publicClient: PublicClient, walletClient: WalletClient) {
+  constructor(
+    private readonly publicClient: PublicClient,
+    private readonly walletClient: WalletClient,
+  ) {
     super();
-    this.publicClient = publicClient;
-    this.walletClient = walletClient;
   }
 
   async getAddress(): Promise<Address> {
-    if (!this.walletClient.account) {
-      throw new Error('Wallet client account not found');
-    }
     return this.walletClient.account.address;
   }
 
-  async readContract(params: ReadContractParams): Promise<any> {
-    return this.publicClient.readContract({
-      address: params.address,
-      abi: params.abi,
-      functionName: params.functionName,
-      args: params.args,
-    });
-  }
-
-  async readContracts(params: ReadContractParams[]): Promise<any[]> {
-    const contracts = params.map((param) => ({
-      address: param.address,
-      abi: param.abi,
-      functionName: param.functionName,
-      args: param.args || [],
-    }));
-
-    const results = await (this.publicClient as any).multicall({ contracts });
-    return results.map((result: any) => result.result);
-  }
-
   async writeContract(call: Call): Promise<Hash> {
-    if (!this.walletClient.account) {
-      throw new Error('Wallet client account not found');
-    }
-
     return this.walletClient.sendTransaction(call as any);
   }
 

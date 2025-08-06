@@ -5,11 +5,7 @@ import { Address, createWalletClient, Hash, Hex, LocalAccount, WalletClient } fr
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
-import {
-  Call,
-  ReadContractParams,
-  WriteContractsOptions,
-} from '@/common/interfaces/evm-wallet.interface';
+import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 import { sum } from '@/common/utils/math';
 import { KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
@@ -98,27 +94,6 @@ export class KernelWallet extends BaseEvmWallet {
 
   async getAddress(): Promise<Address> {
     return this.kernelAccount.address;
-  }
-
-  async readContract(params: ReadContractParams): Promise<any> {
-    return this.publicClient.readContract({
-      address: params.address,
-      abi: params.abi,
-      functionName: params.functionName,
-      args: params.args,
-    });
-  }
-
-  async readContracts(params: ReadContractParams[]): Promise<any[]> {
-    const contracts = params.map((param) => ({
-      address: param.address,
-      abi: param.abi,
-      functionName: param.functionName,
-      args: param.args || [],
-    }));
-
-    const results = await (this.publicClient as any).multicall({ contracts });
-    return results.map((result: any) => result.result);
   }
 
   async writeContract(call: Call): Promise<Hash> {
