@@ -1,4 +1,5 @@
 import { BalanceModule } from '@/balance/balance.module'
+import { CacheModule } from '@nestjs/cache-manager'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
@@ -21,6 +22,7 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
 
 @Module({
   imports: [
+    CacheModule.register(),
     BalanceModule,
     IntentModule,
     TransactionModule,
