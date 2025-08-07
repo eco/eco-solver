@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { Injectable, Logger } from '@nestjs/common'
 import { Chain, Hex } from 'viem'
 import { EcoConfigType } from '@/eco-configs/eco-config.types'
