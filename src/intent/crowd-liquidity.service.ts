@@ -1,36 +1,19 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
-import { LitNodeClient } from '@lit-protocol/lit-node-client'
-import { LIT_ABILITY } from '@lit-protocol/constants'
-import {
-  createSiweMessage,
-  generateAuthSig,
-  LitActionResource,
-  LitPKPResource,
-} from '@lit-protocol/auth-helpers'
 
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { privateKeyToAccount } from 'viem/accounts'
-import {
-  Hex,
-  isAddressEqual,
-  parseSignature,
-  PublicClient,
-  serializeTransaction,
-  TransactionSerializableEIP1559,
-} from 'viem'
+import { Hex, isAddressEqual, PublicClient } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { EcoAnalyticsService } from '@/analytics'
+import { LitActionService } from '@/lit-actions/lit-action.service'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
@@ -42,6 +25,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     private readonly publicClient: MultichainPublicClientService,
     private readonly balanceService: BalanceService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly litActionService: LitActionService,
   ) {}
 
   onModuleInit() {
@@ -84,7 +68,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
   async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
     try {
-      const { kernel, pkp, actions } = this.config
+      const { kernel, pkp } = this.config
 
       const publicClient = await this.publicClient.getClient(tokenIn.chainId)
 
@@ -95,16 +79,16 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
       const transactionBase = { ...feeData, nonce, gasLimit: 1_000_000 }
 
-      const params = {
-        chainId: tokenIn.chainId,
-        tokenAddress: tokenOut.config.address,
-        tokenChainId: tokenOut.chainId,
-        publicKey: pkp.publicKey,
-        kernelAddress: kernel.address,
-        transaction: transactionBase,
-      }
+      const result = await this.litActionService.executeRebalanceCCTPAction(
+        tokenIn.chainId,
+        tokenOut.config.address,
+        tokenOut.chainId,
+        pkp.publicKey,
+        kernel.address,
+        transactionBase,
+        publicClient,
+      )
 
-      const result = await this.callLitAction(actions.rebalance, publicClient, params)
       this.ecoAnalytics.trackCrowdLiquidityRebalanceSuccess(tokenIn, tokenOut, result)
       return result
     } catch (error) {
@@ -143,9 +127,10 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
   /**
    * Determines if the reward provided in the intent model is sufficient based on the route amount and the fee percentage.
+   * For rebalancing intents, the reward can be less than the route amount.
    *
    * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
-   * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
+   * @return {boolean} - Returns true if the reward meets the requirements for the intent type.
    */
   isRewardEnough(intentModel: IntentSourceModel): boolean {
     this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
@@ -154,6 +139,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     const totalRouteAmount = route.tokens.reduce((acc, token) => acc + token.amount, 0n)
     const totalRewardAmount = reward.tokens.reduce((acc, token) => acc + token.amount, 0n)
 
+    // Check if this is a rebalancing intent (reward < route amount)
+    if (totalRewardAmount < totalRouteAmount) {
+      // For rebalancing intents, accept the loss
+      return true
+    }
+
+    // For normal intents, ensure minimum reward
     const minimumReward = (totalRouteAmount * BigInt(this.config.feePercentage * 1e6)) / BigInt(1e6)
     const isEnough = totalRewardAmount >= minimumReward
 
@@ -259,7 +251,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   }
 
   private async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
-    const { kernel, pkp, actions } = this.config
+    const { kernel, pkp } = this.config
 
     const publicClient = await this.publicClient.getClient(Number(intentModel.route.destination))
 
@@ -299,129 +291,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       },
     }
 
-    const params = {
+    return this.litActionService.executeFulfillAction(
       intent,
-      publicKey: pkp.publicKey,
-      kernelAddress: kernel.address,
-      transaction: transactionBase,
-    }
-
-    return this.callLitAction(actions.fulfill, publicClient, params)
-  }
-
-  private async callLitAction(
-    ipfsId: string,
-    publicClient: PublicClient,
-    params: LitActionSdkParams['jsParams'],
-  ): Promise<Hex> {
-    try {
-      const { capacityTokenId, capacityTokenOwnerPk, pkp, litNetwork } = this.config
-
-      const litNodeClient = new LitNodeClient({
-        litNetwork,
-        debug: false,
-      })
-      await litNodeClient.connect()
-
-      // ================ Create capacity delegation AuthSig ================
-
-      const capacityTokenOwner = this.getViemWallet(capacityTokenOwnerPk)
-
-      const { capacityDelegationAuthSig } = await litNodeClient.createCapacityDelegationAuthSig({
-        uses: '1',
-        dAppOwnerWallet: capacityTokenOwner,
-        capacityTokenId: capacityTokenId,
-      })
-
-      // ================ Get session sigs ================
-
-      const sessionSigs = await litNodeClient.getSessionSigs({
-        pkpPublicKey: pkp.publicKey,
-        chain: 'ethereum',
-        capabilityAuthSigs: [capacityDelegationAuthSig],
-        resourceAbilityRequests: [
-          {
-            resource: new LitActionResource('*'),
-            ability: LIT_ABILITY.LitActionExecution,
-          },
-          { resource: new LitPKPResource('*'), ability: LIT_ABILITY.PKPSigning },
-        ],
-
-        authNeededCallback: async ({ uri, expiration, resourceAbilityRequests }) => {
-          const toSign = await createSiweMessage({
-            uri,
-            expiration,
-            litNodeClient,
-            resources: resourceAbilityRequests,
-            walletAddress: await capacityTokenOwner.getAddress(),
-            nonce: await litNodeClient.getLatestBlockhash(),
-          })
-
-          return generateAuthSig({ signer: capacityTokenOwner, toSign })
-        },
-      })
-
-      // ================ Execute Lit Action ================
-
-      const litRes = await litNodeClient.executeJs({ ipfsId, sessionSigs, jsParams: params })
-
-      await litNodeClient.disconnect()
-
-      // ================ Execute Transaction ================
-
-      if (typeof litRes.response === 'string') {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: 'Error processing Lit action',
-            properties: { ipfsId, params },
-          }),
-        )
-
-        const error = new Error(litRes.response)
-        this.ecoAnalytics.trackCrowdLiquidityLitActionError(ipfsId, params, error)
-        throw error
-      }
-
-      const response = litRes.response as {
-        type: number
-        maxPriorityFeePerGas: string
-        maxFeePerGas: string
-        nonce: number
-        gasLimit: number
-        value: {
-          type: 'BigNumber'
-          hex: string
-        }
-        from: string
-        to: string
-        data: string
-        chainId: number
-      }
-
-      const unsignedTransaction: TransactionSerializableEIP1559 = {
-        type: 'eip1559',
-        chainId: response.chainId,
-        nonce: response.nonce,
-        to: response.to as Hex,
-        value: BigInt(response.value.hex ?? response.value ?? 0),
-        data: response.data as Hex,
-        gas: BigInt(response.gasLimit),
-        maxFeePerGas: BigInt(response.maxFeePerGas),
-        maxPriorityFeePerGas: BigInt(response.maxPriorityFeePerGas),
-      }
-
-      const serializedTransaction = serializeTransaction(
-        unsignedTransaction,
-        parseSignature(litRes.signatures.sig.signature),
-      )
-
-      const result = await publicClient.sendRawTransaction({ serializedTransaction })
-      this.ecoAnalytics.trackCrowdLiquidityLitActionSuccess(ipfsId, params, result)
-      return result
-    } catch (error) {
-      this.ecoAnalytics.trackCrowdLiquidityLitActionError(ipfsId, params, error)
-      throw error
-    }
+      pkp.publicKey,
+      kernel.address,
+      transactionBase,
+      publicClient,
+    )
   }
 
   /**
@@ -433,18 +309,6 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   private isSupportedAction(data: Hex): boolean {
     // Only support `transfer` function calls
     return data.startsWith(getERC20Selector('transfer'))
-  }
-
-  private getViemWallet(privateKey: string): SignerLike {
-    const account = privateKeyToAccount(privateKey as Hex)
-    return {
-      signMessage(message: string): Promise<string> {
-        return account.signMessage({ message })
-      },
-      getAddress(): Promise<string> {
-        return Promise.resolve(account.address)
-      },
-    }
   }
 
   private async getFeeData(publicClient: PublicClient) {
