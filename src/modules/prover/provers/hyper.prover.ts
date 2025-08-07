@@ -35,4 +35,9 @@ export class HyperProver extends BaseProver {
       claimant,
     );
   }
+
+  getDeadlineBuffer(): bigint {
+    // HyperProver requires 5 minutes (300 seconds) for processing
+    return 300n;
+  }
 }

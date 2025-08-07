@@ -1,3 +1,43 @@
+# ExpirationValidation Prover Integration - Review
+
+## Summary of Changes
+
+The ExpirationValidation service has been updated to use prover-specific deadline buffers instead of a global configuration value. This allows different provers to specify their own processing time requirements.
+
+### Key Changes Made:
+
+1. **BaseProver Abstract Class** (`src/common/abstractions/base-prover.abstract.ts`):
+   - Added abstract method `getDeadlineBuffer(): bigint` to define minimum time buffer required by each prover
+
+2. **HyperProver** (`src/modules/prover/provers/hyper.prover.ts`):
+   - Implemented `getDeadlineBuffer()` returning 300 seconds (5 minutes)
+
+3. **MetalayerProver** (`src/modules/prover/provers/metalayer.prover.ts`):
+   - Implemented `getDeadlineBuffer()` returning 600 seconds (10 minutes)
+
+4. **ProverService** (`src/modules/prover/prover.service.ts`):
+   - Added `getMaxDeadlineBuffer(source: number, destination: number): bigint` method
+   - Returns the maximum deadline buffer among all provers supporting the route
+   - Falls back to 300 seconds if no prover supports the route
+
+5. **ExpirationValidation** (`src/modules/fulfillment/validations/expiration.validation.ts`):
+   - Now injects ProverService
+   - Uses `proverService.getMaxDeadlineBuffer()` instead of global config
+   - Error messages updated to indicate route-specific buffer requirements
+
+6. **Tests** (`src/modules/fulfillment/validations/tests/expiration.validation.spec.ts`):
+   - Updated to mock ProverService instead of FulfillmentConfigService
+   - Added test for route-specific deadline buffers
+   - All existing tests updated to use the new approach
+
+### Benefits:
+- Each prover can specify its own processing requirements
+- The system automatically uses the most conservative deadline for routes with multiple provers
+- More flexible and scalable as new provers are added
+- Maintains backward compatibility with existing validation framework
+
+---
+
 # Token Limit Configuration Update - Review
 
 ## Summary of Changes

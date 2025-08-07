@@ -56,6 +56,26 @@ export class ProverService implements OnModuleInit {
     this.logger.log(`Initialized ${this.provers.size} provers`);
   }
 
+  getMaxDeadlineBuffer(source: number, destination: number): bigint {
+    let maxBuffer = 0n;
+    
+    // Check each prover that supports this route and find the maximum deadline buffer
+    for (const prover of this.provers.values()) {
+      const sourceSupported = prover.isSupported(source);
+      const destinationSupported = prover.isSupported(destination);
+
+      if (sourceSupported && destinationSupported) {
+        const buffer = prover.getDeadlineBuffer();
+        if (buffer > maxBuffer) {
+          maxBuffer = buffer;
+        }
+      }
+    }
+
+    // If no prover supports this route, return a default buffer (5 minutes)
+    return maxBuffer > 0n ? maxBuffer : 300n;
+  }
+
   private findProverForRoute(
     source: number,
     destination: number,

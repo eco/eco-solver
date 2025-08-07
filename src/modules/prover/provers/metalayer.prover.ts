@@ -32,4 +32,9 @@ export class MetalayerProver extends BaseProver {
       claimant,
     );
   }
+
+  getDeadlineBuffer(): bigint {
+    // MetalayerProver requires 10 minutes (600 seconds) for processing
+    return 600n;
+  }
 }
