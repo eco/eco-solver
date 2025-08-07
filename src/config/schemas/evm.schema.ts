@@ -57,7 +57,19 @@ export const EvmWsSchema = z.object({
 const EvmTokenSchema = z.object({
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   decimals: z.number().int().min(0).max(18),
-  limit: z.number().int().positive(), // Using string for bigint compatibility
+  limit: z
+    .union([
+      z.number().int().positive(), // Backward compatible: acts as max
+      z
+        .object({
+          min: z.number().int().positive(),
+          max: z.number().int().positive(),
+        })
+        .refine((data) => data.min <= data.max, {
+          message: 'min must be less than or equal to max',
+        }),
+    ])
+    .optional(),
 });
 
 /**

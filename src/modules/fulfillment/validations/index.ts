@@ -3,6 +3,7 @@ export * from './crowd-liquidity-fee.validation';
 export * from './executor-balance.validation';
 export * from './expiration.validation';
 export * from './intent-funded.validation';
+export * from './minimum-route-amount.validation';
 export * from './native-fee.validation';
 export * from './prover-support.validation';
 export * from './route-amount-limit.validation';

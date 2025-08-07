@@ -1,19 +1,28 @@
-import { PublicClient, WalletClient, Address, Hex, encodeFunctionData } from 'viem';
-import { KERNEL_V3_1 } from '@zerodev/sdk/constants';
-import { createKernelAccount, createKernelAccountClient } from '@zerodev/sdk';
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
+import { createKernelAccount } from '@zerodev/sdk';
+import { KERNEL_V3_1 } from '@zerodev/sdk/constants';
+import { Address, createWalletClient, encodeFunctionData, Hex, LocalAccount } from 'viem';
 
 import { Call } from '@/common/interfaces/evm-wallet.interface';
+import { KernelWalletConfig } from '@/config/schemas';
+import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
+
 import { KernelWallet } from '../kernel-wallet';
+import { encodeKernelExecuteCallData } from '../utils/encode-transactions';
 
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
   encodeFunctionData: jest.fn(),
+  createWalletClient: jest.fn(),
 }));
 
 jest.mock('@zerodev/sdk', () => ({
   createKernelAccount: jest.fn(),
-  createKernelAccountClient: jest.fn(),
+}));
+
+jest.mock('@zerodev/sdk/constants', () => ({
+  KERNEL_V3_1: '0.3.1',
+  getEntryPoint: jest.fn().mockReturnValue('0xEntryPointAddress'),
 }));
 
 jest.mock('@zerodev/ecdsa-validator', () => ({
@@ -21,19 +30,21 @@ jest.mock('@zerodev/ecdsa-validator', () => ({
 }));
 
 jest.mock('../utils/encode-transactions', () => ({
-  encodeCallDataForKernel: jest.fn(),
+  encodeKernelExecuteCallData: jest.fn(),
 }));
 
 describe('KernelWallet', () => {
   let wallet: KernelWallet;
-  let mockPublicClient: jest.Mocked<PublicClient>;
-  let mockSignerWalletClient: jest.Mocked<WalletClient>;
+  let mockTransportService: jest.Mocked<EvmTransportService>;
+  let mockSigner: jest.Mocked<LocalAccount>;
+  let mockKernelWalletConfig: KernelWalletConfig;
+  let mockPublicClient: any;
+  let mockSignerWalletClient: any;
   let mockKernelAccount: any;
-  let mockKernelClient: any;
 
+  const mockChainId = 1;
   const mockAddress = '0xKernelAccountAddress' as Address;
   const mockTxHash = '0xTransactionHash' as Hex;
-  const mockDeployTxHash = '0xDeployTxHash' as Hex;
 
   beforeEach(() => {
     // Mock public client
@@ -44,21 +55,40 @@ describe('KernelWallet', () => {
 
     // Mock signer wallet client
     mockSignerWalletClient = {
-      sendTransaction: jest.fn().mockResolvedValue(mockDeployTxHash),
+      sendTransaction: jest.fn().mockResolvedValue(mockTxHash),
+    } as any;
+
+    // Mock signer
+    mockSigner = {
+      address: '0xSignerAddress' as Address,
+      signMessage: jest.fn(),
+      signTransaction: jest.fn(),
+      signTypedData: jest.fn(),
+    } as any;
+
+    // Mock transport service
+    mockTransportService = {
+      getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
+      getTransport: jest.fn().mockReturnValue('http'),
+      getViemChain: jest.fn().mockReturnValue({ id: 1, name: 'mainnet' }),
+    } as any;
+
+    // Mock kernel wallet config
+    mockKernelWalletConfig = {
+      signer: {
+        type: 'eoa',
+        privateKey: '0xPrivateKey',
+      },
     } as any;
 
     // Mock kernel account
     mockKernelAccount = {
       address: mockAddress,
+      isDeployed: jest.fn().mockResolvedValue(true),
       getFactoryArgs: jest.fn().mockResolvedValue({
         factory: '0xFactoryAddress',
         factoryData: '0xFactoryData',
       }),
-    };
-
-    // Mock kernel client
-    mockKernelClient = {
-      sendTransaction: jest.fn().mockResolvedValue(mockTxHash),
     };
 
     // Mock validator
@@ -67,13 +97,20 @@ describe('KernelWallet', () => {
 
     // Mock kernel account creation
     (createKernelAccount as jest.Mock).mockResolvedValue(mockKernelAccount);
-    (createKernelAccountClient as jest.Mock).mockResolvedValue(mockKernelClient);
 
     // Mock encodeFunctionData
     (encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedData');
 
+    // Mock createWalletClient from viem
+    (createWalletClient as jest.Mock).mockReturnValue(mockSignerWalletClient);
+
     // Create wallet instance
-    wallet = new KernelWallet(mockPublicClient, mockSignerWalletClient);
+    wallet = new KernelWallet(
+      mockChainId,
+      mockSigner,
+      mockKernelWalletConfig,
+      mockTransportService,
+    );
   });
 
   afterEach(() => {
@@ -85,60 +122,61 @@ describe('KernelWallet', () => {
       await wallet.init();
 
       // Verify validator creation
-      expect(signerToEcdsaValidator).toHaveBeenCalledWith(mockPublicClient, {
-        signer: mockSignerWalletClient,
-        entryPoint: KERNEL_V3_1.entryPoint,
-        kernelVersion: KERNEL_V3_1.kernelVersion,
-      });
+      expect(signerToEcdsaValidator).toHaveBeenCalledWith(
+        mockPublicClient,
+        expect.objectContaining({
+          signer: mockSigner,
+          entryPoint: '0xEntryPointAddress',
+          kernelVersion: KERNEL_V3_1,
+        }),
+      );
 
       // Verify kernel account creation
-      expect(createKernelAccount).toHaveBeenCalledWith(mockPublicClient, {
-        entryPoint: KERNEL_V3_1.entryPoint,
-        kernelVersion: KERNEL_V3_1.kernelVersion,
-        plugins: {
-          sudo: { type: 'ecdsa' },
-        },
-      });
+      expect(createKernelAccount).toHaveBeenCalledWith(
+        mockPublicClient,
+        expect.objectContaining({
+          entryPoint: '0xEntryPointAddress',
+          kernelVersion: KERNEL_V3_1,
+          useMetaFactory: false,
+          plugins: {
+            sudo: { type: 'ecdsa' },
+          },
+        }),
+      );
 
-      // Verify kernel client creation
-      expect(createKernelAccountClient).toHaveBeenCalledWith({
-        account: mockKernelAccount,
-        entryPoint: KERNEL_V3_1.entryPoint,
-        bundlerTransport: expect.any(Function),
-      });
+      // Verify deployment check
+      expect(mockKernelAccount.isDeployed).toHaveBeenCalled();
     });
 
     it('should deploy account if not deployed', async () => {
-      // Mock account not deployed (no code)
-      mockPublicClient.getCode.mockResolvedValue(undefined);
+      // Mock account not deployed
+      mockKernelAccount.isDeployed.mockResolvedValue(false);
 
       await wallet.init();
 
       // Verify deployment check
-      expect(mockPublicClient.getCode).toHaveBeenCalledWith({ address: mockAddress });
+      expect(mockKernelAccount.isDeployed).toHaveBeenCalled();
 
       // Verify deployment
       expect(mockKernelAccount.getFactoryArgs).toHaveBeenCalled();
-      expect(encodeFunctionData).toHaveBeenCalledWith({
-        abi: expect.any(Array),
-        functionName: 'createAccount',
-        args: ['0xFactoryData', 0n],
-      });
-      expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith({
-        to: '0xFactoryAddress',
-        data: '0xEncodedData',
-      });
+      expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '0xFactoryAddress',
+          data: '0xFactoryData',
+        }),
+      );
       expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({
-        hash: mockDeployTxHash,
+        hash: mockTxHash,
       });
     });
 
     it('should not deploy if account already deployed', async () => {
-      // Mock account deployed (has code)
-      mockPublicClient.getCode.mockResolvedValue('0x123456');
+      // Mock account deployed
+      mockKernelAccount.isDeployed.mockResolvedValue(true);
 
       await wallet.init();
 
+      expect(mockKernelAccount.getFactoryArgs).not.toHaveBeenCalled();
       expect(mockSignerWalletClient.sendTransaction).not.toHaveBeenCalled();
     });
 
@@ -166,8 +204,10 @@ describe('KernelWallet', () => {
       expect(address).toBe(mockAddress);
     });
 
-    it('should throw error if not initialized', async () => {
-      await expect(wallet.getAddress()).rejects.toThrow('Kernel account not initialized');
+    it('should return kernel account address if initialized', async () => {
+      await wallet.init();
+      const address = await wallet.getAddress();
+      expect(address).toBe(mockAddress);
     });
   });
 
@@ -183,20 +223,13 @@ describe('KernelWallet', () => {
       const result = await wallet.writeContract(mockParams);
 
       expect(result).toBe(mockTxHash);
-      
+
       // Should use writeContracts internally
-      const { encodeCallDataForKernel } = require('../utils/encode-transactions');
-      expect(encodeCallDataForKernel).toHaveBeenCalledWith([
-        {
-          target: mockParams.to,
-          data: mockParams.data,
-          value: mockParams.value || 0n,
-        },
-      ]);
+      expect(encodeKernelExecuteCallData).toHaveBeenCalledWith([mockParams]);
     });
 
-    it('should throw error if not initialized', async () => {
-      await expect(wallet.writeContract(mockParams)).rejects.toThrow('Kernel account not initialized');
+    beforeEach(async () => {
+      await wallet.init();
     });
   });
 
@@ -216,8 +249,7 @@ describe('KernelWallet', () => {
 
     beforeEach(async () => {
       await wallet.init();
-      const { encodeCallDataForKernel } = require('../utils/encode-transactions');
-      (encodeCallDataForKernel as jest.Mock).mockReturnValue('0xBatchEncodedData');
+      (encodeKernelExecuteCallData as jest.Mock).mockReturnValue('0xBatchEncodedData');
     });
 
     it('should execute batch contract writes', async () => {
@@ -226,37 +258,29 @@ describe('KernelWallet', () => {
       expect(result).toEqual([mockTxHash]);
 
       // Verify encoding
-      const { encodeCallDataForKernel } = require('../utils/encode-transactions');
-      expect(encodeCallDataForKernel).toHaveBeenCalledWith([
-        {
-          target: mockParams[0].to,
-          data: mockParams[0].data,
-          value: mockParams[0].value || 0n,
-        },
-        {
-          target: mockParams[1].to,
-          data: mockParams[1].data,
-          value: mockParams[1].value || 0n,
-        },
-      ]);
+      expect(encodeKernelExecuteCallData).toHaveBeenCalledWith(mockParams);
 
-      // Verify transaction sent to kernel account
-      expect(mockKernelClient.sendTransaction).toHaveBeenCalledWith({
-        to: mockAddress,
-        data: '0xBatchEncodedData',
-        value: 1000000000000000000n, // Total value
-      });
+      // Verify transaction sent with signer wallet client
+      expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockAddress,
+          data: '0xBatchEncodedData',
+          value: 1000000000000000000n, // Total value
+        }),
+      );
     });
 
     it('should handle writeContracts options with value', async () => {
       const options = { value: 2000000000000000000n };
       await wallet.writeContracts(mockParams, options);
 
-      expect(mockKernelClient.sendTransaction).toHaveBeenCalledWith({
-        to: mockAddress,
-        data: '0xBatchEncodedData',
-        value: 2000000000000000000n, // Options value overrides
-      });
+      expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockAddress,
+          data: '0xBatchEncodedData',
+          value: 2000000000000000000n, // Options value overrides
+        }),
+      );
     });
 
     it('should calculate total value from calls', async () => {
@@ -275,20 +299,21 @@ describe('KernelWallet', () => {
 
       await wallet.writeContracts(paramsWithValues);
 
-      expect(mockKernelClient.sendTransaction).toHaveBeenCalledWith({
-        to: mockAddress,
-        data: '0xBatchEncodedData',
-        value: 3000000000000000000n, // Sum of values
-      });
+      expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockAddress,
+          data: '0xBatchEncodedData',
+          value: 3000000000000000000n, // Sum of values
+        }),
+      );
     });
 
     it('should handle empty params', async () => {
       const result = await wallet.writeContracts([]);
 
       expect(result).toEqual([mockTxHash]);
-      
-      const { encodeCallDataForKernel } = require('../utils/encode-transactions');
-      expect(encodeCallDataForKernel).toHaveBeenCalledWith([]);
+
+      expect(encodeKernelExecuteCallData).toHaveBeenCalledWith([]);
     });
 
     it('should ignore keepSender option', async () => {
@@ -299,13 +324,20 @@ describe('KernelWallet', () => {
       // Should still use kernel encoding, not multicall
     });
 
-    it('should throw error if not initialized', async () => {
-      // Create new wallet instance - the constructor in the real implementation might have different args
-      // but for the test we just want to test the uninitialized state
-      const newWallet = Object.create(KernelWallet.prototype);
-      newWallet.kernelAccount = null;
-      
-      await expect(newWallet.writeContracts(mockParams)).rejects.toThrow('Kernel account not initialized');
+    it('should throw error when account deployment fails', async () => {
+      // Create new wallet instance for deployment failure test
+      const newWallet = new KernelWallet(
+        mockChainId,
+        mockSigner,
+        mockKernelWalletConfig,
+        mockTransportService,
+      );
+
+      // Mock deployment failure
+      mockKernelAccount.isDeployed.mockResolvedValue(false);
+      mockKernelAccount.getFactoryArgs.mockResolvedValue({ factory: null, factoryData: null });
+
+      await expect(newWallet.init()).rejects.toThrow('Unable to deploy kernel account');
     });
   });
 });

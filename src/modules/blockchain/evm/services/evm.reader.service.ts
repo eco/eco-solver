@@ -25,7 +25,11 @@ export class EvmReaderService extends BaseChainReader {
     return client.getBalance({ address: address as Address });
   }
 
-  async getTokenBalance(tokenAddress: string, walletAddress: string, chainId: number): Promise<bigint> {
+  async getTokenBalance(
+    tokenAddress: string,
+    walletAddress: string,
+    chainId: number,
+  ): Promise<bigint> {
     const client = this.transportService.getPublicClient(chainId);
     const balance = await client.readContract({
       address: tokenAddress as Address,
@@ -106,7 +110,12 @@ export class EvmReaderService extends BaseChainReader {
     return balance as bigint;
   }
 
-  async fetchProverFee(intent: Intent, messageData: Hex, chainId: number, claimant?: Address): Promise<bigint> {
+  async fetchProverFee(
+    intent: Intent,
+    messageData: Hex,
+    chainId: number,
+    claimant?: Address,
+  ): Promise<bigint> {
     try {
       const client = this.transportService.getPublicClient(chainId);
 

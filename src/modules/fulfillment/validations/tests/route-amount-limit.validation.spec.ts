@@ -57,11 +57,11 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        // Mock getToken to return token config with limit
+        // Mock getToken to return token config with limit (backward compatible format)
         fulfillmentConfigService.getToken.mockReturnValue({
           address: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
           decimals: 6,
-          limit: 1000, // 1000 USDC limit
+          limit: 1000, // 1000 USDC limit (acts as max)
         });
 
         const result = await validation.validate(mockIntent, mockContext);
@@ -433,6 +433,151 @@ describe('RouteAmountLimitValidation', () => {
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
           'Total value 2000000000000000000000 exceeds route limit 1000000000000000000000 for route 137-42161',
         );
+      });
+    });
+
+    describe('object format limits', () => {
+      it('should handle object format with min and max', async () => {
+        const mockIntent = createMockIntent({
+          route: {
+            ...createMockIntent().route,
+            tokens: [
+              {
+                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                amount: BigInt(800000000), // 800 USDC
+              },
+            ],
+          },
+        });
+
+        fulfillmentConfigService.normalize.mockReturnValue([
+          {
+            token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+            decimals: 18,
+            amount: BigInt('800000000000000000000'), // 800 normalized
+          },
+        ]);
+
+        // Mock getToken to return object format limit
+        fulfillmentConfigService.getToken.mockReturnValue({
+          address: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          decimals: 6,
+          limit: { min: 100, max: 1000 }, // Object format with min and max
+        });
+
+        const result = await validation.validate(mockIntent, mockContext);
+        expect(result).toBe(true);
+      });
+
+      it('should throw error when exceeds max in object format', async () => {
+        const mockIntent = createMockIntent({
+          route: {
+            ...createMockIntent().route,
+            tokens: [
+              {
+                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                amount: BigInt(1500000000), // 1500 USDC
+              },
+            ],
+          },
+        });
+
+        fulfillmentConfigService.normalize.mockReturnValue([
+          {
+            token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+            decimals: 18,
+            amount: BigInt('1500000000000000000000'), // 1500 normalized
+          },
+        ]);
+
+        fulfillmentConfigService.getToken.mockReturnValue({
+          address: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          decimals: 6,
+          limit: { min: 100, max: 1000 }, // Max is 1000
+        });
+
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
+          'Total value 1500000000000000000000 exceeds route limit 1000000000000000000000 for route 1-10',
+        );
+      });
+
+      it('should handle mixed limit formats across tokens', async () => {
+        const mockIntent = createMockIntent({
+          route: {
+            ...createMockIntent().route,
+            tokens: [
+              {
+                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                amount: BigInt(300000000), // 300 USDC
+              },
+              {
+                token: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as Address,
+                amount: BigInt(200000000), // 200 USDT
+              },
+            ],
+          },
+        });
+
+        fulfillmentConfigService.normalize.mockReturnValue([
+          {
+            token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+            decimals: 18,
+            amount: BigInt('300000000000000000000'), // 300 normalized
+          },
+          {
+            token: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as Address,
+            decimals: 18,
+            amount: BigInt('200000000000000000000'), // 200 normalized
+          },
+        ]);
+
+        fulfillmentConfigService.getToken
+          .mockReturnValueOnce({
+            address: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+            decimals: 6,
+            limit: 1000, // Number format (backward compatible)
+          })
+          .mockReturnValueOnce({
+            address: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            decimals: 6,
+            limit: { min: 50, max: 400 }, // Object format
+          });
+
+        await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
+          'Total value 500000000000000000000 exceeds route limit 400000000000000000000 for route 1-10',
+        ); // Total 500 > min(1000, 400) = 400
+      });
+
+      it('should handle no limit set', async () => {
+        const mockIntent = createMockIntent({
+          route: {
+            ...createMockIntent().route,
+            tokens: [
+              {
+                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                amount: BigInt('1000000000000'), // Very large amount
+              },
+            ],
+          },
+        });
+
+        fulfillmentConfigService.normalize.mockReturnValue([
+          {
+            token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+            decimals: 18,
+            amount: BigInt('1000000000000000000000000'), // Very large normalized
+          },
+        ]);
+
+        // Mock getToken to return no limit
+        fulfillmentConfigService.getToken.mockReturnValue({
+          address: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          decimals: 6,
+          // No limit property
+        });
+
+        const result = await validation.validate(mockIntent, mockContext);
+        expect(result).toBe(true); // No limit means no restriction
       });
     });
   });

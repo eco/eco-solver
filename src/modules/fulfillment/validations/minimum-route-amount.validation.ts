@@ -11,7 +11,7 @@ import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-c
 import { Validation } from './validation.interface';
 
 @Injectable()
-export class RouteAmountLimitValidation implements Validation {
+export class MinimumRouteAmountValidation implements Validation {
   constructor(private readonly fulfillmentConfigService: FulfillmentConfigService) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
@@ -22,29 +22,43 @@ export class RouteAmountLimitValidation implements Validation {
     );
     const totalValue = sum(normalizedTokens, 'amount');
 
-    // Get the smallest token limit from configuration
-    const tokenLimits = intent.route.tokens.map((token) => {
+    // Get minimum limits from all tokens
+    const tokenMinimums = intent.route.tokens.map((token) => {
       const { limit, decimals } = this.fulfillmentConfigService.getToken(
         intent.route.destination,
         token.token,
       );
 
       if (!limit) {
-        // If no limit is set, return a very large number (effectively no limit)
+        // If no limit is set, no minimum requirement (return max value to exclude from min calculation)
         return BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
       }
 
-      // Extract max value from either number or object format
-      const maxLimit = typeof limit === 'number' ? limit : limit.max;
-      const limitWei = parseUnits(maxLimit.toString(), decimals);
+      // Extract min value from either number format (no min) or object format
+      const minLimit = typeof limit === 'number' ? 0 : (limit.min ?? 0);
+
+      if (minLimit === 0) {
+        // No minimum requirement (return max value to exclude from min calculation)
+        return BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
+      }
+
+      const limitWei = parseUnits(minLimit.toString(), decimals);
       return normalize(limitWei, decimals);
     });
 
-    const limit = min(tokenLimits);
+    // Use the smallest minimum as the threshold
+    const minimumAmount = min(tokenMinimums);
 
-    if (totalValue > limit) {
+    // If all tokens have no minimum (all returned max value), then no minimum requirement
+    if (
+      minimumAmount === BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
+    ) {
+      return true;
+    }
+
+    if (totalValue < minimumAmount) {
       throw new Error(
-        `Total value ${totalValue} exceeds route limit ${limit} for route ${intent.route.source}-${intent.route.destination}`,
+        `Total route value ${totalValue} is below minimum amount ${minimumAmount} for destination chain ${intent.route.destination}`,
       );
     }
 
