@@ -29,6 +29,8 @@ import { MockBalanceService } from './mocks/balance.service.mock'
 import { MockIntentModel } from './mocks/intent-model.mock'
 import { QUEUES } from '@/common/redis/constants'
 import { KmsService } from '@/kms/kms.service'
+import { MockKmsService } from './mocks/kms.service.mock'
+import { MockSignerKmsService } from './mocks/signer-kms.service.mock'
 
 @Module({
   imports: [
@@ -71,8 +73,14 @@ import { KmsService } from '@/kms/kms.service'
       provide: 'IntentSourceModelModel',
       useClass: MockIntentModel,
     },
-    KmsService,
-    SignerKmsService,
+    {
+      provide: KmsService,
+      useClass: MockKmsService,
+    },
+    {
+      provide: SignerKmsService,
+      useClass: MockSignerKmsService,
+    },
     SignerService,
     WalletClientDefaultSignerService,
     KernelAccountClientService,
