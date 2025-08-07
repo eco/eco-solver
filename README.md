@@ -18,7 +18,7 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 ## 📋 Prerequisites
 
 - Node.js 18+ 
-- PNPM 8.15.0+
+- PNPM 8.15.0 (exact version required)
 - Redis 6+
 - MongoDB 5+
 - Docker & Docker Compose (optional)
@@ -41,6 +41,8 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
    cp .env.example .env
    # Edit .env with your configuration
    ```
+   
+   The `.env.example` file contains comprehensive documentation for all configuration options, including detailed explanations and examples.
 
 4. **Start required services**
    ```bash
@@ -115,7 +117,7 @@ The system uses a structured Intent format with Viem types:
 
 ```typescript
 interface Intent {
-  intentId: string;
+  intentHash: Hex;
   reward: {
     prover: Address;
     creator: Address;
@@ -279,7 +281,7 @@ FULFILLMENT_STRATEGIES_STANDARD_ENABLED=true
 FULFILLMENT_STRATEGIES_CROWD_LIQUIDITY_ENABLED=true
 
 # AWS Secrets Manager (optional)
-# Note: AWS secrets are enabled automatically when AWS_SECRET_NAME is provided
+# Secrets are automatically fetched when AWS_SECRET_NAME is provided
 AWS_REGION=us-east-1
 AWS_SECRET_NAME=blockchain-intent-solver-secrets
 ```
