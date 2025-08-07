@@ -47,7 +47,6 @@ describe('BlockchainReaderService', () => {
     } as any;
 
     evmReader = {
-      setChainId: jest.fn(),
       getBalance: jest.fn().mockResolvedValue(1000000000000000000n),
       getTokenBalance: jest.fn().mockResolvedValue(500000000000000000n),
       isAddressValid: jest.fn().mockReturnValue(true),
@@ -82,10 +81,10 @@ describe('BlockchainReaderService', () => {
 
   describe('initialization', () => {
     it('should initialize EVM readers for configured chains', () => {
-      expect(evmReader.setChainId).toHaveBeenCalledWith(1);
-      expect(evmReader.setChainId).toHaveBeenCalledWith(10);
-      expect(evmReader.setChainId).toHaveBeenCalledWith(137);
-      expect(evmReader.setChainId).toHaveBeenCalledTimes(3);
+      const supportedChains = service.getSupportedChains();
+      expect(supportedChains).toContain(1);
+      expect(supportedChains).toContain(10);
+      expect(supportedChains).toContain(137);
     });
 
     it('should not initialize readers when configs are not available', async () => {
@@ -176,13 +175,13 @@ describe('BlockchainReaderService', () => {
     it('should get balance for EVM chain', async () => {
       const balance = await service.getBalance(1, '0x1234567890123456789012345678901234567890');
       expect(balance).toBe(1000000000000000000n);
-      expect(evmReader.getBalance).toHaveBeenCalledWith('0x1234567890123456789012345678901234567890');
+      expect(evmReader.getBalance).toHaveBeenCalledWith('0x1234567890123456789012345678901234567890', 1);
     });
 
     it('should get balance for Solana chain', async () => {
       const balance = await service.getBalance('solana-mainnet', 'So11111111111111111111111111111111111111112');
       expect(balance).toBe(2000000000n);
-      expect(svmReader.getBalance).toHaveBeenCalledWith('So11111111111111111111111111111111111111112');
+      expect(svmReader.getBalance).toHaveBeenCalledWith('So11111111111111111111111111111111111111112', 'solana-mainnet');
     });
 
     it('should throw error for unsupported chain', async () => {
@@ -207,7 +206,8 @@ describe('BlockchainReaderService', () => {
       expect(balance).toBe(500000000000000000n);
       expect(evmReader.getTokenBalance).toHaveBeenCalledWith(
         '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        '0x1234567890123456789012345678901234567890'
+        '0x1234567890123456789012345678901234567890',
+        1
       );
     });
 
@@ -220,7 +220,8 @@ describe('BlockchainReaderService', () => {
       expect(balance).toBe(1000000000n);
       expect(svmReader.getTokenBalance).toHaveBeenCalledWith(
         'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'So11111111111111111111111111111111111111112'
+        'So11111111111111111111111111111111111111112',
+        'solana-mainnet'
       );
     });
 
@@ -258,13 +259,13 @@ describe('BlockchainReaderService', () => {
     it('should check intent funding for EVM chain', async () => {
       const isFunded = await service.isIntentFunded(1, mockIntent);
       expect(isFunded).toBe(true);
-      expect(evmReader.isIntentFunded).toHaveBeenCalledWith(mockIntent);
+      expect(evmReader.isIntentFunded).toHaveBeenCalledWith(mockIntent, 1);
     });
 
     it('should check intent funding for Solana chain', async () => {
       const isFunded = await service.isIntentFunded('solana-mainnet', mockIntent);
       expect(isFunded).toBe(true);
-      expect(svmReader.isIntentFunded).toHaveBeenCalledWith(mockIntent);
+      expect(svmReader.isIntentFunded).toHaveBeenCalledWith(mockIntent, 'solana-mainnet');
     });
 
     it('should throw error for unsupported chain', async () => {
@@ -281,19 +282,19 @@ describe('BlockchainReaderService', () => {
     it('should fetch prover fee for EVM chain', async () => {
       const fee = await service.fetchProverFee(1, mockIntent, messageData, claimant);
       expect(fee).toBe(100000000000000000n);
-      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, claimant);
+      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, 1, claimant);
     });
 
     it('should fetch prover fee for Solana chain', async () => {
       const fee = await service.fetchProverFee('solana-mainnet', mockIntent, messageData, claimant);
       expect(fee).toBe(50000000n);
-      expect(svmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, claimant);
+      expect(svmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, 'solana-mainnet', claimant);
     });
 
     it('should fetch prover fee without claimant', async () => {
       const fee = await service.fetchProverFee(1, mockIntent, messageData);
       expect(fee).toBe(100000000000000000n);
-      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, undefined);
+      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, 1, undefined);
     });
 
     it('should throw error for unsupported chain', async () => {

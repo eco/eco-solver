@@ -74,17 +74,12 @@ describe('EvmReaderService', () => {
     const mockClaimant = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Address;
     const chainId = 1;
 
-    beforeEach(() => {
-      // Set the chain ID
-      service.setChainId(chainId);
-    });
-
     it('should fetch prover fee successfully', async () => {
       const expectedFee = BigInt(500000000000000000); // 0.5 ETH
       const messageData = '0xdeadbeef' as Hex;
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
-      const result = await service.fetchProverFee(mockIntent, messageData, mockClaimant);
+      const result = await service.fetchProverFee(mockIntent, messageData, chainId, mockClaimant);
 
       expect(result).toBe(expectedFee);
       expect(transportService.getPublicClient).toHaveBeenCalledWith(chainId);
@@ -101,7 +96,7 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const messageData = '0xdeadbeef' as Hex;
-      const result = await service.fetchProverFee(mockIntent, messageData);
+      const result = await service.fetchProverFee(mockIntent, messageData, chainId);
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
@@ -112,31 +107,32 @@ describe('EvmReaderService', () => {
       });
     });
 
-    it('should throw error when chain ID is not set', async () => {
-      // Create a new instance without setting chain ID
-      const newService = new EvmReaderService(transportService, evmConfigService);
+    it('should handle missing transport client', async () => {
+      transportService.getPublicClient.mockImplementation(() => {
+        throw new Error('No transport client available');
+      });
 
-      await expect(newService.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, mockClaimant)).rejects.toThrow(
-        'Chain ID not set. Call setChainId() first.',
-      );
+      await expect(
+        service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, chainId, mockClaimant),
+      ).rejects.toThrow('No transport client available');
     });
 
     it('should handle contract read errors', async () => {
       const contractError = new Error('Contract execution reverted');
       mockPublicClient.readContract.mockRejectedValue(contractError);
 
-      await expect(service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, mockClaimant)).rejects.toThrow(
-        'Failed to fetch prover fee: Contract execution reverted',
-      );
+      await expect(
+        service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, chainId, mockClaimant),
+      ).rejects.toThrow('Failed to fetch prover fee: Contract execution reverted');
     });
 
     it('should handle network errors', async () => {
       const networkError = new Error('Network timeout');
       mockPublicClient.readContract.mockRejectedValue(networkError);
 
-      await expect(service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, mockClaimant)).rejects.toThrow(
-        'Failed to fetch prover fee: Network timeout',
-      );
+      await expect(
+        service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, chainId, mockClaimant),
+      ).rejects.toThrow('Failed to fetch prover fee: Network timeout');
     });
 
     it('should work with different intent configurations', async () => {
@@ -154,7 +150,7 @@ describe('EvmReaderService', () => {
       const expectedFee = BigInt(100000000000000); // 0.0001 ETH
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
-      const result = await service.fetchProverFee(customIntent, mockClaimant);
+      const result = await service.fetchProverFee(customIntent, '0x' as Hex, chainId, mockClaimant);
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({

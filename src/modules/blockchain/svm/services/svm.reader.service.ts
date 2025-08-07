@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { Hex } from 'viem';
+import { Address, Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
@@ -19,7 +19,7 @@ export class SvmReaderService extends BaseChainReader {
     this.connection = new Connection(rpcUrl, 'confirmed');
   }
 
-  async getBalance(address: string): Promise<bigint> {
+  async getBalance(address: string, _chainId?: number | string): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
     }
@@ -28,7 +28,7 @@ export class SvmReaderService extends BaseChainReader {
     return BigInt(balance);
   }
 
-  async getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint> {
+  async getTokenBalance(tokenAddress: string, walletAddress: string, _chainId?: number | string): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
     }
@@ -64,7 +64,7 @@ export class SvmReaderService extends BaseChainReader {
     }
   }
 
-  async isIntentFunded(_intent: Intent): Promise<boolean> {
+  async isIntentFunded(_intent: Intent, _chainId?: number | string): Promise<boolean> {
     // Solana doesn't have IntentSource contracts
     // Always return true for now
     this.logger.debug('Intent funding check not implemented for Solana');
@@ -101,7 +101,7 @@ export class SvmReaderService extends BaseChainReader {
     return signatureStatus?.value?.confirmationStatus === 'finalized';
   }
 
-  async fetchProverFee(_intent: Intent, _messageData: Hex): Promise<bigint> {
+  async fetchProverFee(_intent: Intent, _messageData: Hex, _chainId?: number | string, _claimant?: Address): Promise<bigint> {
     // Solana doesn't have prover contracts yet
     // This is a stub implementation
     this.logger.warn('Prover fee fetching not implemented for Solana');

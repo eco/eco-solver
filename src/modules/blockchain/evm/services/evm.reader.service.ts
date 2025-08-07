@@ -12,7 +12,6 @@ import { EvmTransportService } from './evm-transport.service';
 @Injectable()
 export class EvmReaderService extends BaseChainReader {
   protected readonly logger = new Logger(EvmReaderService.name);
-  private chainId: number;
 
   constructor(
     private transportService: EvmTransportService,
@@ -21,23 +20,13 @@ export class EvmReaderService extends BaseChainReader {
     super();
   }
 
-  setChainId(chainId: number): void {
-    this.chainId = chainId;
-  }
-
-  async getBalance(address: string): Promise<bigint> {
-    if (!this.chainId) {
-      throw new Error('Chain ID not set. Call setChainId() first.');
-    }
-    const client = this.transportService.getPublicClient(this.chainId);
+  async getBalance(address: string, chainId: number): Promise<bigint> {
+    const client = this.transportService.getPublicClient(chainId);
     return client.getBalance({ address: address as Address });
   }
 
-  async getTokenBalance(tokenAddress: string, walletAddress: string): Promise<bigint> {
-    if (!this.chainId) {
-      throw new Error('Chain ID not set. Call setChainId() first.');
-    }
-    const client = this.transportService.getPublicClient(this.chainId);
+  async getTokenBalance(tokenAddress: string, walletAddress: string, chainId: number): Promise<bigint> {
+    const client = this.transportService.getPublicClient(chainId);
     const balance = await client.readContract({
       address: tokenAddress as Address,
       abi: erc20Abi,
@@ -52,19 +41,15 @@ export class EvmReaderService extends BaseChainReader {
     return isAddress(address);
   }
 
-  async isIntentFunded(intent: Intent): Promise<boolean> {
-    if (!this.chainId) {
-      throw new Error('Chain ID not set. Call setChainId() first.');
-    }
-
+  async isIntentFunded(intent: Intent, chainId: number): Promise<boolean> {
     try {
-      const network = this.evmConfigService.getChain(this.chainId);
+      const network = this.evmConfigService.getChain(chainId);
       if (!network || !network.intentSourceAddress) {
-        this.logger.warn(`No IntentSource address configured for chain ${this.chainId}`);
+        this.logger.warn(`No IntentSource address configured for chain ${chainId}`);
         return false;
       }
 
-      const client = this.transportService.getPublicClient(this.chainId);
+      const client = this.transportService.getPublicClient(chainId);
 
       // The isIntentFunded function expects the full Intent struct
       const isFunded = await client.readContract({
@@ -121,13 +106,9 @@ export class EvmReaderService extends BaseChainReader {
     return balance as bigint;
   }
 
-  async fetchProverFee(intent: Intent, messageData: Hex, claimant?: Address): Promise<bigint> {
-    if (!this.chainId) {
-      throw new Error('Chain ID not set. Call setChainId() first.');
-    }
-
+  async fetchProverFee(intent: Intent, messageData: Hex, chainId: number, claimant?: Address): Promise<bigint> {
     try {
-      const client = this.transportService.getPublicClient(this.chainId);
+      const client = this.transportService.getPublicClient(chainId);
 
       // Call fetchFee on the prover contract
       const fee = await client.readContract({

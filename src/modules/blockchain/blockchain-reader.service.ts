@@ -64,7 +64,8 @@ export class BlockchainReaderService {
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }
-    return reader.getBalance(address);
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return reader.getBalance(address, normalizedChainId);
   }
 
   /**
@@ -83,7 +84,8 @@ export class BlockchainReaderService {
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }
-    return reader.getTokenBalance(tokenAddress, walletAddress);
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return reader.getTokenBalance(tokenAddress, walletAddress, normalizedChainId);
   }
 
   /**
@@ -111,7 +113,8 @@ export class BlockchainReaderService {
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }
-    return reader.isIntentFunded(intent);
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return reader.isIntentFunded(intent, normalizedChainId);
   }
 
   /**
@@ -132,7 +135,8 @@ export class BlockchainReaderService {
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }
-    return reader.fetchProverFee(intent, messageData, claimant);
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return reader.fetchProverFee(intent, messageData, normalizedChainId, claimant);
   }
 
   private initializeReaders() {
@@ -140,10 +144,8 @@ export class BlockchainReaderService {
     if (this.evmReader && this.evmConfigService.isConfigured()) {
       const evmChainIds = this.evmConfigService.supportedChainIds;
       for (const chainId of evmChainIds) {
-        // Create a new instance for each chain with chainId set
-        const reader = Object.create(this.evmReader);
-        reader.setChainId(chainId);
-        this.readers.set(chainId, reader);
+        // Use the same reader instance for all chains
+        this.readers.set(chainId, this.evmReader);
       }
     }
 
