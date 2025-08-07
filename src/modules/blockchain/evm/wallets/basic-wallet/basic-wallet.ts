@@ -30,13 +30,17 @@ export class BasicWallet extends BaseEvmWallet {
 
       for (const call of calls) {
         const hash = await this.writeContract(call);
-        if (!options.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
+        if (!options?.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
         hashes.push(hash);
       }
 
       return hashes;
     } else {
       // Use multicall3 to batch transactions
+      if (calls.length === 0) {
+        return [];
+      }
+
       if (!this.walletClient.account) {
         throw new Error('Wallet client account not found');
       }
@@ -45,7 +49,7 @@ export class BasicWallet extends BaseEvmWallet {
       const chainConfig = this.publicClient.chain;
 
       if (!chainConfig?.contracts?.multicall3?.address) {
-        throw new Error('Multicall3 contract address not found in chain configuration');
+        throw new Error(`Multicall3 address not found for chain ${chainConfig.id}`);
       }
 
       const multicall3Address = chainConfig.contracts.multicall3.address;
@@ -58,7 +62,7 @@ export class BasicWallet extends BaseEvmWallet {
         callData: call.data,
       }));
 
-      const totalValue = multicallCalls.reduce((sum, p) => sum + (p.value || 0n), 0n);
+      const totalValue = options?.value ?? multicallCalls.reduce((sum, p) => sum + (p.value || 0n), 0n);
 
       const { request } = await this.publicClient.simulateContract({
         address: multicall3Address,
@@ -70,7 +74,7 @@ export class BasicWallet extends BaseEvmWallet {
       });
 
       const hash = await this.walletClient.writeContract(request);
-      if (!options.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
+      if (!options?.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
       return [hash];
     }
   }

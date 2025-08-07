@@ -81,9 +81,10 @@ describe('EvmReaderService', () => {
 
     it('should fetch prover fee successfully', async () => {
       const expectedFee = BigInt(500000000000000000); // 0.5 ETH
+      const messageData = '0xdeadbeef' as Hex;
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
-      const result = await service.fetchProverFee(mockIntent, mockClaimant);
+      const result = await service.fetchProverFee(mockIntent, messageData, mockClaimant);
 
       expect(result).toBe(expectedFee);
       expect(transportService.getPublicClient).toHaveBeenCalledWith(chainId);
@@ -91,7 +92,7 @@ describe('EvmReaderService', () => {
         address: mockIntent.reward.prover,
         abi: IMessageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [mockIntent.route.source, [mockIntent.intentHash], [mockClaimant], '0x' as Hex],
+        args: [mockIntent.route.source, [mockIntent.intentHash], [mockClaimant], messageData],
       });
     });
 
@@ -99,14 +100,15 @@ describe('EvmReaderService', () => {
       const expectedFee = BigInt(300000000000000000); // 0.3 ETH
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
-      const result = await service.fetchProverFee(mockIntent);
+      const messageData = '0xdeadbeef' as Hex;
+      const result = await service.fetchProverFee(mockIntent, messageData);
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
         address: mockIntent.reward.prover,
         abi: IMessageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [mockIntent.route.source, [mockIntent.intentHash], [undefined], '0x' as Hex],
+        args: [mockIntent.route.source, [mockIntent.intentHash], [undefined], messageData],
       });
     });
 
@@ -114,7 +116,7 @@ describe('EvmReaderService', () => {
       // Create a new instance without setting chain ID
       const newService = new EvmReaderService(transportService, evmConfigService);
 
-      await expect(newService.fetchProverFee(mockIntent, mockClaimant)).rejects.toThrow(
+      await expect(newService.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, mockClaimant)).rejects.toThrow(
         'Chain ID not set. Call setChainId() first.',
       );
     });
@@ -123,7 +125,7 @@ describe('EvmReaderService', () => {
       const contractError = new Error('Contract execution reverted');
       mockPublicClient.readContract.mockRejectedValue(contractError);
 
-      await expect(service.fetchProverFee(mockIntent, mockClaimant)).rejects.toThrow(
+      await expect(service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, mockClaimant)).rejects.toThrow(
         'Failed to fetch prover fee: Contract execution reverted',
       );
     });
@@ -132,7 +134,7 @@ describe('EvmReaderService', () => {
       const networkError = new Error('Network timeout');
       mockPublicClient.readContract.mockRejectedValue(networkError);
 
-      await expect(service.fetchProverFee(mockIntent, mockClaimant)).rejects.toThrow(
+      await expect(service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, mockClaimant)).rejects.toThrow(
         'Failed to fetch prover fee: Network timeout',
       );
     });
