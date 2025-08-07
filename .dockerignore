@@ -1,0 +1,60 @@
+# Git files
+.git
+.gitignore
+
+# Node modules
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea
+.vscode
+*.swp
+*.swo
+*.swn
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist
+build
+*.log
+
+# Test files
+coverage
+.nyc_output
+jest.config.*
+*.spec.ts
+*.test.ts
+test/
+tests/
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Config examples
+config.example.yaml
+config.example.yml
+
+# Development files
+.eslintrc*
+.prettierrc*
+docker-compose*.yml
+todo.md
+
+# Temporary files
+tmp/
+temp/
+*.tmp
