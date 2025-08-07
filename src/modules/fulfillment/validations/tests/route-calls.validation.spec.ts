@@ -62,18 +62,18 @@ describe('RouteCallsValidation', () => {
     });
 
     describe('valid calls scenarios', () => {
-      it('should return true only for ERC20 transfer calls to non-token addresses', async () => {
+      it('should return true for ERC20 transfer calls to supported token addresses', async () => {
         const intentWithValidTransferCalls = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC - supported token
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer(address,uint256)
                 value: BigInt(0),
               },
               {
-                target: '0x6666666666666666666666666666666666666666' as Address,
+                target: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as Address, // USDT - supported token
                 data: '0xa9059cbb00000000000000000000000098765432109876543210987654321098765432100000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer(address,uint256)
                 value: BigInt(0),
               },
@@ -91,13 +91,13 @@ describe('RouteCallsValidation', () => {
     });
 
     describe('invalid calls scenarios', () => {
-      it('should return false when call target is a supported token address', async () => {
-        const intentWithTokenCall = createMockIntent({
+      it('should throw error when call target is not a supported token address', async () => {
+        const intentWithNonTokenCall = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC on destination
+                target: '0x5555555555555555555555555555555555555555' as Address, // Not a supported token
                 data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890' as `0x${string}`,
                 value: BigInt(0),
               },
@@ -107,19 +107,19 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithTokenCall, mockContext);
-
-        expect(result).toBe(false);
+        await expect(validation.validate(intentWithNonTokenCall, mockContext)).rejects.toThrow(
+          'Invalid route call: target 0x5555555555555555555555555555555555555555 is not a supported token address',
+        );
       });
 
-      it('should return false for non-transfer ERC20 functions', async () => {
+      it('should throw error for non-transfer ERC20 functions on supported tokens', async () => {
         const intentWithApprove = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
-                data: '0x095ea7b30000000000000000000000001234567890123456789012345678901234567890' as `0x${string}`, // approve(address,uint256)
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC - supported token
+                data: '0x095ea7b300000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // approve(address,uint256)
                 value: BigInt(0),
               },
             ],
@@ -128,18 +128,18 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithApprove, mockContext);
-
-        expect(result).toBe(false);
+        await expect(validation.validate(intentWithApprove, mockContext)).rejects.toThrow(
+          'Invalid route call: unable to decode ERC20 call data for target 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+        );
       });
 
-      it('should return false for transferFrom function', async () => {
+      it('should throw error for transferFrom function', async () => {
         const intentWithTransferFrom = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC - supported token
                 data: '0x23b872dd' as `0x${string}`, // transferFrom(address,address,uint256)
                 value: BigInt(0),
               },
@@ -149,9 +149,9 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithTransferFrom, mockContext);
-
-        expect(result).toBe(false);
+        await expect(validation.validate(intentWithTransferFrom, mockContext)).rejects.toThrow(
+          'Invalid route call: unable to decode ERC20 call data for target 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+        );
       });
 
       it('should handle case-insensitive token address comparison', async () => {
@@ -161,7 +161,7 @@ describe('RouteCallsValidation', () => {
             calls: [
               {
                 target: '0x7f5c764cbc14f9669b88837ca1490cca17c31607' as Address, // lowercase USDC
-                data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890' as `0x${string}`,
+                data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },
             ],
@@ -172,16 +172,16 @@ describe('RouteCallsValidation', () => {
 
         const result = await validation.validate(intentWithLowercaseToken, mockContext);
 
-        expect(result).toBe(false);
+        expect(result).toBe(true); // Should pass because isAddressEqual handles case-insensitive comparison
       });
 
-      it('should return false when call data cannot be decoded as ERC20', async () => {
+      it('should throw error when call data cannot be decoded as ERC20', async () => {
         const intentWithInvalidData = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC - supported token
                 data: '0x' as `0x${string}`, // Empty data that cannot be decoded
                 value: BigInt(0),
               },
@@ -191,18 +191,18 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithInvalidData, mockContext);
-
-        expect(result).toBe(false);
+        await expect(validation.validate(intentWithInvalidData, mockContext)).rejects.toThrow(
+          'Invalid route call: unable to decode ERC20 call data for target 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+        );
       });
 
-      it('should return false for custom function selectors', async () => {
+      it('should throw error for custom function selectors', async () => {
         const intentWithCustomFunction = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC - supported token
                 data: '0x12345678' as `0x${string}`, // Custom function selector
                 value: BigInt(0),
               },
@@ -212,21 +212,21 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithCustomFunction, mockContext);
-
-        expect(result).toBe(false);
+        await expect(validation.validate(intentWithCustomFunction, mockContext)).rejects.toThrow(
+          'Invalid route call: unable to decode ERC20 call data for target 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+        );
       });
     });
 
     describe('network configuration edge cases', () => {
-      it('should still validate calls even when network has no supported tokens', async () => {
+      it('should throw error when call is to unsupported token even with no tokens configured', async () => {
         const intentWithNonTransferCall = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
                 target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
-                data: '0x095ea7b3' as `0x${string}`, // approve - not transfer
+                data: '0x095ea7b300000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // approve - not transfer
                 value: BigInt(0),
               },
             ],
@@ -235,12 +235,12 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue([]);
 
-        const result = await validation.validate(intentWithNonTransferCall, mockContext);
-
-        expect(result).toBe(false); // Still fails because it's not a transfer function
+        await expect(validation.validate(intentWithNonTransferCall, mockContext)).rejects.toThrow(
+          'Invalid route call: target 0x7F5c764cBc14f9669B88837ca1490cCa17c31607 is not a supported token address',
+        );
       });
 
-      it('should allow transfer calls when no tokens are configured', async () => {
+      it('should throw error for transfer calls when no tokens are configured', async () => {
         const intentWithTransferCall = createMockIntent({
           route: {
             ...mockIntent.route,
@@ -256,26 +256,26 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue([]);
 
-        const result = await validation.validate(intentWithTransferCall, mockContext);
-
-        expect(result).toBe(true); // Passes because it's a transfer and not in token list
+        await expect(validation.validate(intentWithTransferCall, mockContext)).rejects.toThrow(
+          'Invalid route call: target 0x7F5c764cBc14f9669B88837ca1490cCa17c31607 is not a supported token address',
+        );
       });
     });
 
     describe('complex scenarios', () => {
-      it('should return false if any call in the array is invalid', async () => {
+      it('should throw error if any call in the array is invalid', async () => {
         const intentWithMixedCalls = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
-                data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890' as `0x${string}`, // valid transfer
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC - supported token
+                data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // valid transfer
                 value: BigInt(0),
               },
               {
-                target: '0x6666666666666666666666666666666666666666' as Address,
-                data: '0x095ea7b3' as `0x${string}`, // approve - invalid
+                target: '0x6666666666666666666666666666666666666666' as Address, // Not a supported token
+                data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer
                 value: BigInt(0),
               },
             ],
@@ -284,9 +284,9 @@ describe('RouteCallsValidation', () => {
 
         evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
 
-        const result = await validation.validate(intentWithMixedCalls, mockContext);
-
-        expect(result).toBe(false);
+        await expect(validation.validate(intentWithMixedCalls, mockContext)).rejects.toThrow(
+          'Invalid route call: target 0x6666666666666666666666666666666666666666 is not a supported token address',
+        );
       });
 
       it('should check both conditions (token address and transfer function)', async () => {
@@ -296,7 +296,7 @@ describe('RouteCallsValidation', () => {
             calls: [
               {
                 target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // Token address
-                data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890' as `0x${string}`, // transfer function
+                data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer function
                 value: BigInt(0),
               },
             ],
@@ -307,27 +307,27 @@ describe('RouteCallsValidation', () => {
 
         const result = await validation.validate(intentWithTokenTransfer, mockContext);
 
-        // Should fail on first check (token address)
-        expect(result).toBe(false);
+        // Should pass both checks (is token address AND is transfer function)
+        expect(result).toBe(true);
       });
 
-      it('should validate all calls must be transfers to non-token addresses', async () => {
+      it('should validate all calls must be transfers to supported token addresses', async () => {
         const intentWithAllValidTransfers = createMockIntent({
           route: {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x1111111111111111111111111111111111111111' as Address,
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },
               {
-                target: '0x2222222222222222222222222222222222222222' as Address,
+                target: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as Address, // USDT
                 data: '0xa9059cbb00000000000000000000000098765432109876543210987654321098765432100000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },
               {
-                target: '0x3333333333333333333333333333333333333333' as Address,
+                target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC again
                 data: '0xa9059cbb00000000000000000000000055556666777788889999000011112222333344440000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },

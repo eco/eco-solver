@@ -193,11 +193,11 @@ describe('NativeFeeValidation', () => {
         );
       });
 
-      it.skip('should throw error for insufficient reward with precise calculation', async () => {
+      it('should throw error for insufficient reward with precise calculation', async () => {
         const preciseIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt('34999999999999999'), // 1 wei less than required
+            nativeValue: BigInt('20149999999999999'), // 1 wei less than required
           },
           route: {
             ...mockIntent.route,
@@ -212,7 +212,7 @@ describe('NativeFeeValidation', () => {
         });
 
         await expect(validation.validate(preciseIntent, mockContext)).rejects.toThrow(
-          'Reward 34999999999999999 is less than required native fee 35000000000000000',
+          'Reward 20149999999999999 is less than required native fee 20150000000000000 (base: 20000000000000000, percentage: 150000000000000)',
         );
       });
     });

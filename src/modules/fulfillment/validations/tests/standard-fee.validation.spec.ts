@@ -206,7 +206,7 @@ describe('StandardFeeValidation', () => {
         );
       });
 
-      it.skip('should throw error when reward exactly equals total fee minus 1 wei', async () => {
+      it('should throw error when reward exactly equals total fee minus 1 wei', async () => {
         // Let me debug the actual fee calculation:
         // Base fee: 10000000000000000 (0.01 ETH)
         // Route value: 1000000000000000000 (1 ETH)
@@ -238,7 +238,7 @@ describe('StandardFeeValidation', () => {
         });
 
         await expect(validation.validate(almostEnoughIntent, mockContext)).rejects.toThrow(
-          'Reward native value 10099999999999999 is less than required fee 10100000000000000',
+          'Reward native value 10099999999999999 is less than required fee 10100000000000000 (base: 10000000000000000, scalar: 100000000000000)',
         );
       });
 
