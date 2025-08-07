@@ -32,7 +32,13 @@ describe('BasicWallet', () => {
   beforeEach(() => {
     mockPublicClient = {
       chain: mockChain,
-      simulateContract: jest.fn().mockResolvedValue({ result: [[true, '0x']] }),
+      simulateContract: jest.fn().mockImplementation((args) => {
+        return Promise.resolve({ 
+          request: {
+            ...args,
+          }
+        });
+      }),
       waitForTransactionReceipt: jest.fn().mockResolvedValue({ status: 'success' }),
     };
 
@@ -119,13 +125,15 @@ describe('BasicWallet', () => {
         });
 
         // Should execute the multicall
-        expect(mockWalletClient.writeContract).toHaveBeenCalledWith({
-          address: mockMulticall3Address,
-          abi: expect.any(Array),
-          functionName: 'aggregate3Value',
-          args: expect.any(Array),
-          value: 0n,
-        });
+        expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address: mockMulticall3Address,
+            abi: expect.any(Array),
+            functionName: 'aggregate3Value',
+            args: expect.any(Array),
+            value: 0n,
+          })
+        );
       });
 
       it('should handle batch writes with value', async () => {

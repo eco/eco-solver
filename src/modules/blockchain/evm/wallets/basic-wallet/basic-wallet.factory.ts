@@ -27,6 +27,9 @@ export class BasicWalletFactory implements IWalletFactory {
 
     // Get the private key - use wallet-specific if provided, otherwise use global
     const privateKey = this.evmConfigService.getBasicWalletConfig().privateKey as Hex;
+    if (!privateKey) {
+      throw new Error('Private key not configured for basic wallet');
+    }
     const account = privateKeyToAccount(privateKey);
 
     // Create the clients

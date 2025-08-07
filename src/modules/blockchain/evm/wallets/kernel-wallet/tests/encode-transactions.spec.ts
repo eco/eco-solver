@@ -1,12 +1,15 @@
-import { Address, Hex, encodeAbiParameters, encodeFunctionData } from 'viem';
+import { Address, encodeAbiParameters, encodeFunctionData, Hex } from 'viem';
 
 import { Call } from '@/common/interfaces/evm-wallet.interface';
+
 import { encodeKernelExecuteCallData } from '../utils/encode-transactions';
 
 jest.mock('viem', () => ({
   encodeAbiParameters: jest.fn(),
   encodeFunctionData: jest.fn(),
-  encodePacked: jest.fn().mockReturnValue('0xEncodedPacked'),
+  encodePacked: jest
+    .fn()
+    .mockReturnValue('0x0000000000000000000000000000000000000000000000000000000000000000'),
   toBytes: jest.fn().mockImplementation((value) => value),
   toHex: jest.fn().mockImplementation((value) => value),
   concatHex: jest.fn().mockImplementation((values) => values.join('')),
@@ -77,11 +80,17 @@ describe('encode-transactions', () => {
             components: [
               { name: 'target', type: 'address' },
               { name: 'value', type: 'uint256' },
-              { name: 'data', type: 'bytes' },
+              { name: 'callData', type: 'bytes' },
             ],
           },
         ],
-        [mockMultipleCalls]
+        [
+          mockMultipleCalls.map((call) => ({
+            target: call.to,
+            value: call.value ?? 0n,
+            callData: call.data ?? '0x',
+          })),
+        ],
       );
 
       // Then encode the execute function with mode selector
@@ -103,12 +112,7 @@ describe('encode-transactions', () => {
     });
 
     it('should handle empty calls array', () => {
-      const result = encodeKernelExecuteCallData([]);
-
-      // Should encode as batch even for empty array
-      expect(encodeAbiParameters).toHaveBeenCalled();
-      expect(encodeFunctionData).toHaveBeenCalled();
-      expect(result).toBe('0xEncodedFunctionData');
+      expect(() => encodeKernelExecuteCallData([])).toThrow('No calls to encode');
     });
 
     it('should handle calls with zero values', () => {
@@ -162,13 +166,13 @@ describe('encode-transactions', () => {
 
       // Check that mode selector is constructed correctly
       const modeSelectorCall = (encodeFunctionData as jest.Mock).mock.calls.find(
-        call => call[0].functionName === 'execute' && call[0].args.length === 2
+        (call) => call[0].functionName === 'execute' && call[0].args.length === 2,
       );
 
       expect(modeSelectorCall).toBeDefined();
-      
+
       const modeSelector = modeSelectorCall[0].args[0];
-      // Mode selector should start with 0x00 (call mode) 
+      // Mode selector should start with 0x00 (call mode)
       expect(modeSelector).toMatch(/^0x00/);
     });
   });

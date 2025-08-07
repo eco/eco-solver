@@ -124,37 +124,7 @@ function encode7579Calls<callType extends CallType>({
   }
 
   if (callData.length === 0) {
-    // Encode empty call data
-    return encodeFunctionData({
-      abi: executeAbi,
-      functionName: 'execute',
-      args: [
-        encodeExecutionMode(mode),
-        encodeAbiParameters(
-          [
-            {
-              name: 'executionBatch',
-              type: 'tuple[]',
-              components: [
-                {
-                  name: 'target',
-                  type: 'address',
-                },
-                {
-                  name: 'value',
-                  type: 'uint256',
-                },
-                {
-                  name: 'callData',
-                  type: 'bytes',
-                },
-              ],
-            },
-          ],
-          [[]],
-        ),
-      ],
-    });
+    throw new Error('No calls to encode');
   }
 
   const call = callData[0];

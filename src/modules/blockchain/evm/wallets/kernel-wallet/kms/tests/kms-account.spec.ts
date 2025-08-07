@@ -21,7 +21,8 @@ describe('kmsToAccount', () => {
   const mockKmsWallet = { 
     getAddress: jest.fn().mockResolvedValue(mockAddress),
     publicKey: jest.fn().mockResolvedValue(mockPublicKey),
-    getPublickey: jest.fn().mockResolvedValue(Buffer.from(mockPublicKey.slice(2), 'hex'))
+    getPublickey: jest.fn().mockResolvedValue(Buffer.from(mockPublicKey.slice(2), 'hex')),
+    getAddressHex: jest.fn().mockResolvedValue(mockAddress)
   };
   const mockAccount = {
     address: mockAddress,
