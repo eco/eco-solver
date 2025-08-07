@@ -20,7 +20,9 @@ import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '../balance/balance.service'
+import { BalanceService } from '@/balance/balance.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -50,9 +52,9 @@ export type ValidationChecks = {
 }
 
 /**
- * Validates that all of the validations succeeded
+ * Validates that all the validations succeeded
  * @param validations  the validations to check
- * @returns true if all of the validations passed
+ * @returns true if all the validations passed
  */
 export function validationsSucceeded(validations: ValidationType): boolean {
   return Object.values(validations).every((v) => v)
@@ -81,11 +83,14 @@ export class ValidationService implements OnModuleInit {
   private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
   private minEthBalanceWei: bigint
+
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   onModuleInit() {
@@ -294,17 +299,15 @@ export class ValidationService implements OnModuleInit {
    * @returns true if the solver has sufficient balance
    */
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
-    try {
-      const tokens = intent.route.tokens.map((t) => t.token)
-      const destinationChain = Number(intent.route.destination)
+    const destinationChain = Number(intent.route.destination)
 
-      // Fetch token balances
-      const tokenBalances = await this.balanceService.fetchTokenBalances(destinationChain, tokens)
+    try {
+      // Early return if no solver configured for destination chain
       const solver = this.ecoConfigService.getSolver(destinationChain)
       if (!solver) {
         this.logger.warn(
           EcoLogMessage.fromDefault({
-            message: `hasSufficientBalance: No solver targets found`,
+            message: `hasSufficientBalance: No solver configured for destination chain`,
             properties: {
               intentHash: intent.hash,
               destination: destinationChain,
@@ -313,68 +316,97 @@ export class ValidationService implements OnModuleInit {
         )
         return false
       }
-      const solverTargets = solver.targets // Ensure the solver is initialized
 
-      // Check if solver has enough token balances
-      for (const routeToken of intent.route.tokens) {
-        const balance = tokenBalances[routeToken.token]
-        const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
-        // Normalize the balance to the token's decimals, configs have the minReq in dollar value
-        const balanceMinReq = normalizeBalance(
-          { balance: BigInt(minReqDollar), decimal: 0 },
-          balance.decimals,
-        )
-
-        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
-          this.logger.warn(
-            EcoLogMessage.fromDefault({
-              message: `hasSufficientBalance: Insufficient token balance`,
-              properties: {
-                token: routeToken.token,
-                required: routeToken.amount.toString(),
-                available: balance?.balance.toString() || '0',
-                intentHash: intent.hash,
-                destination: destinationChain,
-              },
-            }),
-          )
-          return false
-        }
-      }
-
-      // Check native balance if there are native value calls
+      // Early return if no tokens to check and no native value
       const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
+      if (intent.route.tokens.length === 0 && totalFulfillNativeValue === 0n) {
+        return true
+      }
 
-      if (totalFulfillNativeValue > 0n) {
-        const solverNativeBalance = await this.balanceService.getNativeBalance(
-          destinationChain,
-          'kernel',
-        )
-        if (solverNativeBalance < totalFulfillNativeValue) {
-          this.logger.warn(
+      const walletAddresses =
+        this.ecoConfigService.getFulfill().type === 'crowd-liquidity'
+          ? [
+              await this.kernelAccountClientService.getAddress(),
+              this.crowdLiquidityService.getPoolAddress(),
+            ]
+          : [await this.kernelAccountClientService.getAddress()]
+
+      const responses = walletAddresses.map(async (walletAddress) => {
+        try {
+          // Validate token balances if tokens present
+          if (intent.route.tokens.length > 0) {
+            const hasSufficientTokenBalance = await this.checkTokenBalances(
+              walletAddress,
+              intent,
+              destinationChain,
+              solver.targets,
+            )
+            if (!hasSufficientTokenBalance) {
+              this.logger.warn(
+                EcoLogMessage.fromDefault({
+                  message: `hasSufficientBalance: Insufficient token balance`,
+                  properties: {
+                    intentHash: intent.hash,
+                    destination: destinationChain,
+                  },
+                }),
+              )
+
+              return false
+            }
+          }
+
+          // Validate native balance if native value required
+          if (totalFulfillNativeValue > 0n) {
+            const hasSufficientNativeBalance = await this.sufficientNativeBalance(
+              walletAddress,
+              destinationChain,
+              totalFulfillNativeValue,
+            )
+            if (!hasSufficientNativeBalance) {
+              this.logger.warn(
+                EcoLogMessage.fromDefault({
+                  message: `hasSufficientBalance: Insufficient native balance`,
+                  properties: {
+                    intentHash: intent.hash,
+                    destination: destinationChain,
+                  },
+                }),
+              )
+
+              return false
+            }
+          }
+          return true
+        } catch (error) {
+          // If validation fails for this address, return false but continue checking others
+          this.logger.error(
             EcoLogMessage.fromDefault({
-              message: `hasSufficientBalance: Insufficient native balance`,
+              message: 'hasSufficientBalance: Error checking balance for address',
               properties: {
-                required: totalFulfillNativeValue.toString(),
-                available: solverNativeBalance.toString(),
+                error: error.message,
+                errorStack: error.stack,
+                walletAddress,
                 intentHash: intent.hash,
-                destination: destinationChain,
+                destination: intent.route.destination,
               },
             }),
           )
           return false
         }
-      }
+      })
 
-      return true
+      const results = await Promise.all(responses)
+      return results.some(Boolean)
     } catch (error) {
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `hasSufficientBalance: Error checking balance`,
           properties: {
-            error: error.message,
+            error: error?.message || String(error),
+            errorStack: error?.stack,
             intentHash: intent.hash,
-            destination: intent.route.destination,
+            destination: destinationChain,
           },
         }),
       )
@@ -415,5 +447,68 @@ export class ValidationService implements OnModuleInit {
    */
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
     return intent.route.destination !== intent.route.source
+  }
+
+  /**
+   * Checks if the solver has sufficient token balances
+   * @private
+   */
+  private async checkTokenBalances(
+    walletAddr: Hex,
+    intent: ValidationIntentInterface,
+    destinationChain: number,
+    solverTargets: Record<string, any>,
+  ): Promise<boolean> {
+    const tokens = intent.route.tokens.map((t) => t.token)
+    const tokenBalances = await this.balanceService.fetchWalletTokenBalances(
+      destinationChain,
+      walletAddr,
+      tokens,
+    )
+
+    for (const routeToken of intent.route.tokens) {
+      const balance = tokenBalances[routeToken.token]
+
+      if (!balance) {
+        return false // Insufficient balance
+      }
+
+      // Calculate minimum required balance
+      const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+      const balanceMinReq = normalizeBalance(
+        { balance: BigInt(minReqDollar), decimal: 0 },
+        balance.decimals,
+      )
+
+      // Check if the available balance (after the minimum) is enough
+      const availableBalance = balance.balance - balanceMinReq.balance
+
+      if (availableBalance < routeToken.amount) {
+        return false // Insufficient balance
+      }
+    }
+
+    return true // All token balances sufficient
+  }
+
+  /**
+   * Checks if the solver has sufficient native balance
+   * @private
+   */
+  private async sufficientNativeBalance(
+    walletAddr: Hex,
+    destinationChain: number,
+    requiredAmount: bigint,
+  ): Promise<boolean> {
+    const solverNativeBalance = await this.balanceService.getNativeBalance(
+      destinationChain,
+      walletAddr,
+    )
+
+    // Account for minimum ETH balance requirement
+    const effectiveBalance =
+      solverNativeBalance > this.minEthBalanceWei ? solverNativeBalance - this.minEthBalanceWei : 0n
+
+    return effectiveBalance >= requiredAmount
   }
 }
