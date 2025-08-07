@@ -6,8 +6,10 @@ import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
+import { QuoteResult, ValidationResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { ValidationContextImpl } from '@/modules/fulfillment/validation-context.impl';
 import { Validation } from '@/modules/fulfillment/validations';
+import { FeeCalculationValidation } from '@/modules/fulfillment/validations/fee-calculation.interface';
 
 @Injectable()
 export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
@@ -71,4 +73,67 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
    * Each strategy must define its own immutable set of validations
    */
   protected abstract getValidations(): ReadonlyArray<Validation>;
+
+  /**
+   * Get a quote for fulfilling this intent
+   * Runs all validations and extracts fee information
+   * @param intent The intent to quote
+   * @returns Quote result with validation details and fees
+   */
+  async getQuote(intent: Intent): Promise<QuoteResult> {
+    const context = new ValidationContextImpl(
+      intent,
+      this,
+      this.blockchainExecutor,
+      this.blockchainReader,
+    );
+
+    const validations = this.getValidations();
+    const validationResults: ValidationResult[] = [];
+    let valid = true;
+    let fees = undefined;
+
+    for (const validation of validations) {
+      const validationName = validation.constructor.name;
+      try {
+        const result = await validation.validate(intent, context);
+        if (result) {
+          validationResults.push({
+            validation: validationName,
+            passed: true,
+          });
+          
+          // Extract fee information from the first fee calculation validation only
+          if (!fees && this.isFeeCalculationValidation(validation)) {
+            fees = await validation.calculateFee(intent, context);
+          }
+        } else {
+          validationResults.push({
+            validation: validationName,
+            passed: false,
+            error: 'Validation returned false',
+          });
+          valid = false;
+        }
+      } catch (error) {
+        validationResults.push({
+          validation: validationName,
+          passed: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        valid = false;
+      }
+    }
+
+    return {
+      valid,
+      strategy: this.name,
+      fees,
+      validationResults,
+    };
+  }
+
+  private isFeeCalculationValidation(validation: Validation): validation is FeeCalculationValidation {
+    return 'calculateFee' in validation;
+  }
 }

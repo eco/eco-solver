@@ -536,4 +536,256 @@ describe('StandardFeeValidation', () => {
       });
     });
   });
+
+  describe('calculateFee method', () => {
+    const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
+
+    it('should calculate fees correctly with base and percentage', async () => {
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          tokens: [
+            {
+              amount: BigInt('5000000000000000000'), // 5 tokens reward
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+        route: {
+          ...mockIntent.route,
+          tokens: [
+            {
+              amount: BigInt('1000000000000000000'), // 1 token to transfer
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+      });
+
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '1000000000000000', // 0.001 token base fee
+          scalarBps: 0.01, // 0.01 * 10000 = 100 / 10000 = 0.01 = 1 bps
+        },
+      });
+
+      const feeDetails = await (validation as any).calculateFee(intent, mockContext);
+
+      expect(feeDetails).toEqual({
+        baseFee: BigInt('1000000000000000'),
+        percentageFee: BigInt('1000000000000'), // 0.001% of 1 token (0.1 bps)
+        totalRequiredFee: BigInt('1001000000000000'),
+        currentReward: BigInt('5000000000000000000'),
+        minimumRequiredReward: BigInt('1001000000000000'),
+      });
+    });
+
+    it('should handle zero base fee', async () => {
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          tokens: [
+            {
+              amount: BigInt('5000000000000000000'),
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+        route: {
+          ...mockIntent.route,
+          tokens: [
+            {
+              amount: BigInt('1000000000000000000'),
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+      });
+
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '0',
+          scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
+        },
+      });
+
+      const feeDetails = await (validation as any).calculateFee(intent, mockContext);
+
+      expect(feeDetails).toEqual({
+        baseFee: BigInt('0'),
+        percentageFee: BigInt('50000000000'), // 0.00005% of 1 token (0.005 bps)
+        totalRequiredFee: BigInt('50000000000'),
+        currentReward: BigInt('5000000000000000000'),
+        minimumRequiredReward: BigInt('50000000000'),
+      });
+    });
+
+    it('should handle zero percentage fee', async () => {
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          tokens: [
+            {
+              amount: BigInt('5000000000000000000'),
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+        route: {
+          ...mockIntent.route,
+          tokens: [
+            {
+              amount: BigInt('1000000000000000000'),
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+      });
+
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '2000000000000000',
+          scalarBps: 0,
+        },
+      });
+
+      const feeDetails = await (validation as any).calculateFee(intent, mockContext);
+
+      expect(feeDetails).toEqual({
+        baseFee: BigInt('2000000000000000'),
+        percentageFee: BigInt('0'),
+        totalRequiredFee: BigInt('2000000000000000'),
+        currentReward: BigInt('5000000000000000000'),
+        minimumRequiredReward: BigInt('2000000000000000'),
+      });
+    });
+  });
+
+  describe('validate and calculateFee consistency', () => {
+    const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
+
+    it('should use the same calculation logic', async () => {
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          tokens: [
+            {
+              amount: BigInt('2000000000000000000'),
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+        route: {
+          ...mockIntent.route,
+          tokens: [
+            {
+              amount: BigInt('1000000000000000000'),
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+      });
+
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '1500000000000000',
+          scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
+        },
+      });
+      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 18 });
+
+      // Calculate fee details
+      const feeDetails = await (validation as any).calculateFee(intent, mockContext);
+
+      // Reset mocks to ensure validate uses fresh calls
+      jest.clearAllMocks();
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '1500000000000000',
+          scalarBps: 0.0005,
+        },
+      });
+      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 18 });
+
+      // Validate should pass because currentReward >= totalRequiredFee
+      const isValid = await validation.validate(intent, mockContext);
+
+      expect(isValid).toBe(true);
+      expect(feeDetails.currentReward).toBe(BigInt('2000000000000000000'));
+      expect(feeDetails.totalRequiredFee).toBe(BigInt('1500050000000000'));
+    });
+
+    it('should pass validation when reward covers the fee using calculateFee', async () => {
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          tokens: [
+            {
+              amount: BigInt('5000000000000000000'), // 5 tokens reward
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+        route: {
+          ...mockIntent.route,
+          tokens: [
+            {
+              amount: BigInt('1000000000000000000'), // 1 token to transfer
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+      });
+
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '1000000000000000', // 0.001 token
+          scalarBps: 0.01, // 1 bps = 0.01%
+        },
+      });
+      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 18 });
+
+      const result = await validation.validate(intent, mockContext);
+
+      expect(result).toBe(true);
+      expect(evmConfigService.getFeeLogic).toHaveBeenCalledWith(10);
+    });
+
+    it('should throw error when reward does not cover the fee using calculateFee', async () => {
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          tokens: [
+            {
+              amount: BigInt('500000000000000'), // 0.0005 tokens reward (too low)
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+        route: {
+          ...mockIntent.route,
+          tokens: [
+            {
+              amount: BigInt('1000000000000000000'), // 1 token to transfer
+              token: '0x1234567890123456789012345678901234567890' as Address,
+            },
+          ],
+        },
+      });
+
+      evmConfigService.getFeeLogic.mockReturnValue({
+        tokens: {
+          flatFee: '1000000000000000', // 0.001 token
+          scalarBps: 1, // 100 bps = 1%
+        },
+      });
+      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 18 });
+
+      await expect(validation.validate(intent, mockContext)).rejects.toThrow(
+        'Reward native value 500000000000000 is less than required fee 1100000000000000 (base: 1000000000000000, scalar: 100000000000000)',
+      );
+    });
+  });
 });

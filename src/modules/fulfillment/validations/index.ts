@@ -10,3 +10,4 @@ export * from './route-calls.validation';
 export * from './route-token.validation';
 export * from './standard-fee.validation';
 export * from './validation.interface';
+export * from './fee-calculation.interface';

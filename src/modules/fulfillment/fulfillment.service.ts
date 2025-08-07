@@ -112,4 +112,21 @@ export class FulfillmentService {
     const { intent, strategy } = payload;
     await this.submitIntent(intent, strategy);
   }
+
+  /**
+   * Get a strategy by name
+   * @param strategyName The name of the strategy to retrieve
+   * @returns The strategy instance or undefined if not found
+   */
+  getStrategy(strategyName: FulfillmentStrategyName): FulfillmentStrategy | undefined {
+    return this.strategies.get(strategyName);
+  }
+
+  /**
+   * Get all available strategies
+   * @returns Map of all registered strategies
+   */
+  getAllStrategies(): Map<FulfillmentStrategyName, FulfillmentStrategy> {
+    return new Map(this.strategies);
+  }
 }

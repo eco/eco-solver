@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MongooseModule } from '@nestjs/mongoose';
 
+import { ApiModule } from '@/modules/api/api.module';
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService, RedisConfigService } from '@/modules/config/services';
@@ -36,6 +37,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
     IntentsModule,
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
+    ApiModule,
   ],
 })
 export class AppModule {}

@@ -14,6 +14,7 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 - **AWS Integration**: Secure secrets management with AWS Secrets Manager
 - **Docker Ready**: Full containerization support for easy deployment
 - **Extensible Design**: Easy to add new chains, fulfillment strategies, and validations
+- **REST API**: Quoting API for intent validation and fee calculation
 
 ## 📋 Prerequisites
 
@@ -86,6 +87,8 @@ src/
 │   ├── config.schema.ts   # Zod schema for configuration
 │   └── configuration.ts   # Configuration factory
 └── modules/               # Core application modules
+    ├── api/              # REST API module
+    │   └── quotes/       # Quote endpoint for intent validation and fees
     ├── config/           # Configuration module with typed services
     ├── intents/          # Intent persistence and management
     ├── queue/            # Queue management with BullMQ
@@ -148,6 +151,21 @@ interface Intent {
 ```
 
 ## 📦 Module Documentation
+
+### API Module (`/modules/api/`)
+**Purpose**: Provides REST API endpoints for external systems to interact with the solver
+
+**Components**:
+- **Quotes Module**: Quote endpoint for intent validation and fee calculation
+  - `POST /api/v1/quotes`: Get a quote for fulfilling an intent
+  - Returns validation status, required fees, and strategy information
+  - Uses Zod for request validation and BigInt serialization
+
+**Features**:
+- Versioned API routes (`/api/v1/*`)
+- Strategy-specific fee calculations
+- Comprehensive validation results
+- BigInt to string serialization for JSON compatibility
 
 ### Blockchain Module (`/modules/blockchain/`)
 **Purpose**: Handles all blockchain interactions across multiple chains (EVM and Solana)
@@ -241,6 +259,106 @@ Each strategy uses an immutable set of validations including funding checks, rou
 2. FulfillmentProcessor validates using strategy's validation set
 3. Valid intents queued to execution queue
 4. BlockchainProcessor executes on target chain
+
+## 🌐 API Usage
+
+### Quotes Endpoint
+
+The quotes API allows external systems to validate intents and get fee requirements before submission.
+
+**Endpoint**: `POST /api/v1/quotes`
+
+**Request Body**:
+```json
+{
+  "intent": {
+    "reward": {
+      "prover": "0x1234567890123456789012345678901234567890",
+      "creator": "0x1234567890123456789012345678901234567890",
+      "deadline": "1735689600",
+      "nativeValue": "1000000000000000000",
+      "tokens": [
+        {
+          "amount": "5000000000000000000",
+          "token": "0x1234567890123456789012345678901234567890"
+        }
+      ]
+    },
+    "route": {
+      "source": "1",
+      "destination": "10",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "inbox": "0x1234567890123456789012345678901234567890",
+      "calls": [
+        {
+          "target": "0x1234567890123456789012345678901234567890",
+          "value": "0",
+          "data": "0x"
+        }
+      ],
+      "tokens": [
+        {
+          "amount": "5000000000000000000",
+          "token": "0x1234567890123456789012345678901234567890"
+        }
+      ]
+    }
+  },
+  "strategy": "standard"  // optional, defaults to configured default strategy
+}
+```
+
+**Response**:
+```json
+{
+  "valid": true,
+  "strategy": "standard",
+  "fees": {
+    "baseFee": "1000000000000000",
+    "percentageFee": "50000000000000",
+    "totalRequiredFee": "1050000000000000",
+    "currentReward": "5000000000000000000",
+    "minimumRequiredReward": "1050000000000000"
+  },
+  "validations": {
+    "passed": [
+      "IntentFundedValidation",
+      "RouteTokenValidation",
+      "RouteCallsValidation",
+      "ChainSupportValidation",
+      "StandardFeeValidation"
+    ],
+    "failed": []
+  }
+}
+```
+
+**Error Response**:
+```json
+{
+  "valid": false,
+  "strategy": "standard",
+  "fees": {
+    "baseFee": "1000000000000000",
+    "percentageFee": "50000000000000",
+    "totalRequiredFee": "1050000000000000",
+    "currentReward": "500000000000000",
+    "minimumRequiredReward": "1050000000000000"
+  },
+  "validations": {
+    "passed": [
+      "RouteTokenValidation",
+      "ChainSupportValidation"
+    ],
+    "failed": [
+      {
+        "validation": "StandardFeeValidation",
+        "reason": "Reward native value 500000000000000 is less than required fee 1050000000000000"
+      }
+    ]
+  }
+}
+```
 
 ## ⚙️ Configuration
 
