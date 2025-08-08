@@ -11,7 +11,7 @@ import {
 
 export type TransportConfig =
   | { isWebsocketEnabled: true; config?: WebSocketTransportConfig }
-  | { isWebsocketEnabled: false; config?: HttpTransportConfig }
+  | { isWebsocketEnabled?: false; config?: HttpTransportConfig }
 
 /**
  * Returns a transport for the chain with the given rpc urls

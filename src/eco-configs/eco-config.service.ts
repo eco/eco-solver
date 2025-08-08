@@ -321,12 +321,12 @@ export class EcoConfigService {
    * @returns The RPC URL string for the specified chain
    */
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
-    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
+    const { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
     const rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled })
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    let rpcs: string[] = []
+    const rpcs: string[] = []
     if (customRpcUrls) {
       // Prioritize custom RPC URLs if they exist
       if (isWebSocketEnabled && customRpcUrls.webSocket?.length) {
@@ -335,10 +335,9 @@ export class EcoConfigService {
       if (customRpcUrls.http?.length) {
         rpcs.push(...customRpcUrls.http)
       }
-
-      // Fallback to default RPC URLs
-      rpcs.push(...rpcUrls)
     }
+    // Fallback to default RPC URLs
+    rpcs.push(...rpcUrls)
 
     const config: TransportConfig['config'] = customRpcUrls?.config
 

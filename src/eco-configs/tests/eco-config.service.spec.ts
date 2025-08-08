@@ -232,7 +232,7 @@ describe('Eco Config Helper Tests', () => {
     it('should return default websocket urls', () => {
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual(['ws://default-ws.com'])
-      expect(config.isWebsocket).toBe(true)
+      expect(config.isWebsocketEnabled).toBe(true)
     })
 
     it('should return default http urls when websockets are disabled', () => {
@@ -241,7 +241,7 @@ describe('Eco Config Helper Tests', () => {
         .mockReturnValue({ ...mockRpcConfig, config: { webSockets: false } } as any)
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual(['http://default-rpc.com'])
-      expect(config.isWebsocket).toBe(false)
+      expect(config.isWebsocketEnabled).toBe(false)
     })
 
     it('should return custom rpc urls if available', () => {
@@ -253,7 +253,7 @@ describe('Eco Config Helper Tests', () => {
 
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual(customRpc.webSocket)
-      expect(config.isWebsocket).toBe(true)
+      expect(config.isWebsocketEnabled).toBe(true)
     })
 
     it('should use custom http urls if websocket urls are not available in custom config', () => {
@@ -264,7 +264,7 @@ describe('Eco Config Helper Tests', () => {
 
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual(customRpc.http)
-      expect(config.isWebsocket).toBe(false)
+      expect(config.isWebsocketEnabled).toBe(false)
     })
 
     it('should pass through transport config from custom rpc config', () => {
