@@ -143,7 +143,9 @@ describe('QuoteV2Controller', () => {
     controller = module.get<QuoteV2Controller>(QuoteV2Controller)
     quoteService = module.get<QuoteService>(QuoteService)
     quoteV2TransformService = module.get<QuoteV2TransformService>(QuoteV2TransformService)
-    quoteV2RequestTransformService = module.get<QuoteV2RequestTransformService>(QuoteV2RequestTransformService)
+    quoteV2RequestTransformService = module.get<QuoteV2RequestTransformService>(
+      QuoteV2RequestTransformService,
+    )
     ecoAnalytics = module.get<EcoAnalyticsService>(EcoAnalyticsService)
   })
 
@@ -158,16 +160,16 @@ describe('QuoteV2Controller', () => {
         .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntent')
         .mockReturnValue(mockQuoteIntentDataDTO)
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: mockQuoteDataDTO })
-      jest
-        .spyOn(quoteV2TransformService, 'transformToV2')
-        .mockResolvedValue(mockQuoteV2Response)
+      jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(mockQuoteV2Response)
 
       // Act
       const result = await controller.getQuote(mockV2Request)
 
       // Assert
       expect(result).toEqual(mockQuoteV2Response)
-      expect(quoteV2RequestTransformService.transformToQuoteIntent).toHaveBeenCalledWith(mockV2Request)
+      expect(quoteV2RequestTransformService.transformToQuoteIntent).toHaveBeenCalledWith(
+        mockV2Request,
+      )
       expect(quoteService.getReverseQuote).toHaveBeenCalledWith(mockQuoteIntentDataDTO)
       expect(quoteV2TransformService.transformToV2).toHaveBeenCalledWith(
         mockQuoteDataDTO,

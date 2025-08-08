@@ -198,7 +198,7 @@ export class QuoteV2TransformService {
     chainId: number,
   ): Promise<{ address: Hex; decimals: number; symbol: string }> {
     // Get native token info based on chain
-    const chainConfig = this.ecoConfigService.getChain(BigInt(chainId))
+    const chainConfig = this.ecoConfigService.getChain(chainId)
 
     return {
       address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Hex, // Standard native token address
