@@ -45,7 +45,7 @@ describe('getTransport', () => {
 
   it('should return a single websocket transport for a single websocket rpc url', () => {
     const rpcUrls = ['ws://test.rpc']
-    const transport = getTransport(rpcUrls, { isWebsocket: true })
+    const transport = getTransport(rpcUrls, { isWebsocketEnabled: true })
 
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[0], { keepAlive: true, reconnect: true })
     expect(webSocket).toHaveBeenCalledTimes(1)
@@ -56,7 +56,7 @@ describe('getTransport', () => {
 
   it('should return a fallback transport for multiple websocket rpc urls', () => {
     const rpcUrls = ['ws://test.rpc', 'ws://test2.rpc']
-    const transport = getTransport(rpcUrls, { isWebsocket: true })
+    const transport = getTransport(rpcUrls, { isWebsocketEnabled: true })
 
     expect(webSocket).toHaveBeenCalledTimes(2)
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[0], { keepAlive: true, reconnect: true })
@@ -76,7 +76,7 @@ describe('getTransport', () => {
 
   it('should pass websocket config to websocket transport', () => {
     const rpcUrls = ['ws://test.rpc']
-    const config = { isWebsocket: true, config: { key: 'test' } } as const
+    const config = { isWebsocketEnabled: true, config: { key: 'test' } } as const
     getTransport(rpcUrls, config)
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[0], {
       keepAlive: true,
