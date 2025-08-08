@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { Address } from 'viem';
+
 import {
   EvmFeeLogicConfig,
   EvmNetworkConfig,
@@ -87,5 +89,20 @@ export class EvmConfigService {
     // Check if EVM configuration exists with at least one network
     const evmConfig = this.configService.get('evm');
     return !!(evmConfig && this._networks.size > 0);
+  }
+
+  getIntentSourceAddress(chainId: number): Address {
+    const network = this.getChain(chainId);
+    return network.intentSourceAddress as Address;
+  }
+
+  getInboxAddress(chainId: number): Address {
+    const network = this.getChain(chainId);
+    return network.inboxAddress as Address;
+  }
+
+  getProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {
+    const network = this.getChain(chainId);
+    return network.provers?.[proverType] as Address | undefined;
   }
 }

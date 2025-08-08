@@ -33,7 +33,6 @@ export class EvmExecutorService extends BaseChainExecutor {
       const sourceChainId = Number(intent.route.source);
       const destinationChainId = Number(intent.route.destination);
 
-      const network = this.evmConfigService.getChain(destinationChainId);
       // Map walletId to wallet type - for backward compatibility
       const wallet = this.walletManager.getWallet(walletId, destinationChainId);
 
@@ -50,7 +49,7 @@ export class EvmExecutorService extends BaseChainExecutor {
 
       const { intentHash, rewardHash } = hashIntent(intent);
 
-      const inboxAddr = network.inboxAddress as Address;
+      const inboxAddr = this.evmConfigService.getInboxAddress(destinationChainId);
 
       const approvalTxs = intent.route.tokens.map(({ token, amount }) => ({
         to: token,

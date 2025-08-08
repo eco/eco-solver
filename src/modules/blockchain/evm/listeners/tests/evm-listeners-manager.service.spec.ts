@@ -53,6 +53,14 @@ describe('EvmListenersManagerService', () => {
 
     evmConfigService = {
       networks: mockNetworks,
+      getInboxAddress: jest.fn().mockImplementation((chainId: number) => {
+        const network = mockNetworks.find(n => n.chainId === chainId);
+        return network?.inboxAddress;
+      }),
+      getIntentSourceAddress: jest.fn().mockImplementation((chainId: number) => {
+        const network = mockNetworks.find(n => n.chainId === chainId);
+        return network?.intentSourceAddress;
+      }),
     } as any;
 
     transportService = {} as any;
@@ -127,9 +135,25 @@ describe('EvmListenersManagerService', () => {
     });
 
     it('should handle empty networks configuration', async () => {
-      evmConfigService.networks = [];
+      // Create a new service instance with empty networks
+      const emptyEvmConfigService = {
+        networks: [],
+        getInboxAddress: jest.fn(),
+        getIntentSourceAddress: jest.fn(),
+      } as any;
 
-      await service.onModuleInit();
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          EvmListenersManagerService,
+          { provide: EvmConfigService, useValue: emptyEvmConfigService },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: EventEmitter2, useValue: eventEmitter },
+        ],
+      }).compile();
+
+      const emptyService = module.get<EvmListenersManagerService>(EvmListenersManagerService);
+
+      await emptyService.onModuleInit();
 
       expect(ChainListener).not.toHaveBeenCalled();
     });
@@ -185,10 +209,10 @@ describe('EvmListenersManagerService', () => {
       // Make one listener fail to stop
       mockListenerInstances[1].stop.mockRejectedValue(new Error('Stop failed'));
 
-      // Should not throw - Promise.all will handle the rejection
-      await expect(service.onModuleDestroy()).resolves.not.toThrow();
+      // Should throw because Promise.all rejects if any promise rejects
+      await expect(service.onModuleDestroy()).rejects.toThrow('Stop failed');
 
-      // Other listeners should still be stopped
+      // Other listeners should still be attempted to stop
       expect(mockListenerInstances[0].stop).toHaveBeenCalled();
       expect(mockListenerInstances[2].stop).toHaveBeenCalled();
     });
@@ -223,15 +247,27 @@ describe('EvmListenersManagerService', () => {
 
   describe('network configuration', () => {
     it('should handle networks with different configurations', async () => {
+      const testNetworks = [
+        {
+          chainId: 42,
+          inboxAddress: '0xTestInbox' as Address,
+          intentSourceAddress: '0xTestIntentSource' as Address,
+        },
+      ];
+
       Object.defineProperty(evmConfigService, 'networks', {
-        get: jest.fn().mockReturnValue([
-          {
-            chainId: 42,
-            inboxAddress: '0xTestInbox' as Address,
-            intentSourceAddress: '0xTestIntentSource' as Address,
-          },
-        ]),
+        get: jest.fn().mockReturnValue(testNetworks),
         configurable: true,
+      });
+
+      // Update the mock functions to return the test values
+      evmConfigService.getInboxAddress.mockImplementation((chainId: number) => {
+        const network = testNetworks.find(n => n.chainId === chainId);
+        return network?.inboxAddress;
+      });
+      evmConfigService.getIntentSourceAddress.mockImplementation((chainId: number) => {
+        const network = testNetworks.find(n => n.chainId === chainId);
+        return network?.intentSourceAddress;
       });
 
       await service.onModuleInit();

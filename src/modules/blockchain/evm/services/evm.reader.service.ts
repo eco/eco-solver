@@ -47,8 +47,8 @@ export class EvmReaderService extends BaseChainReader {
 
   async isIntentFunded(intent: Intent, chainId: number): Promise<boolean> {
     try {
-      const network = this.evmConfigService.getChain(chainId);
-      if (!network || !network.intentSourceAddress) {
+      const intentSourceAddress = this.evmConfigService.getIntentSourceAddress(chainId);
+      if (!intentSourceAddress) {
         this.logger.warn(`No IntentSource address configured for chain ${chainId}`);
         return false;
       }
@@ -57,7 +57,7 @@ export class EvmReaderService extends BaseChainReader {
 
       // The isIntentFunded function expects the full Intent struct
       const isFunded = await client.readContract({
-        address: network.intentSourceAddress as Address,
+        address: intentSourceAddress,
         abi: IntentSourceAbi,
         functionName: 'isIntentFunded',
         args: [

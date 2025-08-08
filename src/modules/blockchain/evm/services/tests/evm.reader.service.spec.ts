@@ -29,6 +29,7 @@ describe('EvmReaderService', () => {
 
     const mockEvmConfigService = {
       getChain: jest.fn(),
+      getIntentSourceAddress: jest.fn(),
     };
 
     const module = await Test.createTestingModule({

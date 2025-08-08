@@ -76,7 +76,8 @@ describe('EvmExecutorService', () => {
       getChain: jest.fn().mockReturnValue({
         chainId: 10,
         inboxAddress: '0xInboxAddress'
-      })
+      }),
+      getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address)
     } as any;
 
     transportService = {
