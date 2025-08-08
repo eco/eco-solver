@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { QuotesController } from '../quotes.controller';
 import { QuotesService } from '../quotes.service';
 import { QuoteRequest } from '../schemas/quote-request.schema';
-import { QuoteResponse } from '../schemas/quote-response.schema';
+import { QuoteResponse, SuccessfulQuoteResponse } from '../schemas/quote-response.schema';
 
 describe('QuotesController', () => {
   let controller: QuotesController;
@@ -71,19 +71,36 @@ describe('QuotesController', () => {
         strategy: 'standard',
       };
 
-      const mockResponse: QuoteResponse = {
-        valid: true,
-        strategy: 'standard',
-        fees: {
-          baseFee: '1000000000000000',
-          percentageFee: '50000000000000',
-          totalRequiredFee: '1050000000000000',
-          currentReward: '5000000000000000000',
-          minimumRequiredReward: '1050000000000000',
+      const mockResponse: SuccessfulQuoteResponse = {
+        quoteResponse: {
+          sourceChainID: 1,
+          destinationChainID: 10,
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceAmount: '5000000000000000000',
+          destinationAmount: '5000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          refundRecipient: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
+          fees: [
+            {
+              name: 'Eco Protocol Fee',
+              description: 'Protocol fee for fulfilling intent on chain 10',
+              token: {
+                address: '0x1234567890123456789012345678901234567890',
+                decimals: 18,
+                symbol: 'TOKEN',
+              },
+              amount: '1050000000000000',
+            },
+          ],
+          deadline: 1735689600,
+          estimatedFulfillTimeSec: 30,
         },
-        validations: {
-          passed: ['IntentFundedValidation', 'RouteTokenValidation'],
-          failed: [],
+        contracts: {
+          intentSource: '0x1234567890123456789012345678901234567890',
+          prover: '0x1234567890123456789012345678901234567890',
+          inbox: '0x1234567890123456789012345678901234567890',
         },
       };
 
@@ -116,24 +133,25 @@ describe('QuotesController', () => {
         },
       };
 
-      const mockResponse: QuoteResponse = {
-        valid: false,
-        strategy: 'standard',
-        fees: {
-          baseFee: '0',
-          percentageFee: '0',
-          totalRequiredFee: '0',
-          currentReward: '0',
-          minimumRequiredReward: '0',
+      const mockResponse: SuccessfulQuoteResponse = {
+        quoteResponse: {
+          sourceChainID: 1,
+          destinationChainID: 10,
+          sourceToken: '0x0000000000000000000000000000000000000000',
+          destinationToken: '0x0000000000000000000000000000000000000000',
+          sourceAmount: '0',
+          destinationAmount: '0',
+          funder: '0x1234567890123456789012345678901234567890',
+          refundRecipient: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
+          fees: [],
+          deadline: 1735689600,
+          estimatedFulfillTimeSec: 30,
         },
-        validations: {
-          passed: [],
-          failed: [
-            {
-              validation: 'StandardFeeValidation',
-              reason: 'Insufficient reward',
-            },
-          ],
+        contracts: {
+          intentSource: '0x1234567890123456789012345678901234567890',
+          prover: '0x1234567890123456789012345678901234567890',
+          inbox: '0x1234567890123456789012345678901234567890',
         },
       };
 

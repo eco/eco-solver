@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { FulfillmentConfigService } from '@/modules/config/services';
+import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
@@ -27,6 +27,12 @@ describe('QuotesService', () => {
     defaultStrategy: 'standard',
   };
 
+  const mockEvmConfigService = {
+    getIntentSourceAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getInboxAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -38,6 +44,10 @@ describe('QuotesService', () => {
         {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
+        },
+        {
+          provide: EvmConfigService,
+          useValue: mockEvmConfigService,
         },
       ],
     }).compile();
@@ -110,18 +120,35 @@ describe('QuotesService', () => {
       const result = await service.getQuote(mockIntentInput, 'standard');
 
       expect(result).toEqual({
-        valid: true,
-        strategy: 'standard',
-        fees: {
-          baseFee: '1000000000000000',
-          percentageFee: '50000000000000',
-          totalRequiredFee: '1050000000000000',
-          currentReward: '5000000000000000000',
-          minimumRequiredReward: '1050000000000000',
+        quoteResponse: {
+          sourceChainID: 1,
+          destinationChainID: 10,
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceAmount: '5000000000000000000',
+          destinationAmount: '5000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          refundRecipient: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
+          fees: [
+            {
+              name: 'Eco Protocol Fee',
+              description: 'Protocol fee for fulfilling intent on chain 10',
+              token: {
+                address: '0x1234567890123456789012345678901234567890',
+                decimals: 18,
+                symbol: 'TOKEN',
+              },
+              amount: '1050000000000000',
+            },
+          ],
+          deadline: 1735689600,
+          estimatedFulfillTimeSec: 30,
         },
-        validations: {
-          passed: ['IntentFundedValidation', 'StandardFeeValidation'],
-          failed: [],
+        contracts: {
+          intentSource: '0x1234567890123456789012345678901234567890',
+          prover: '0x1234567890123456789012345678901234567890',
+          inbox: '0x1234567890123456789012345678901234567890',
         },
       });
 
@@ -171,7 +198,7 @@ describe('QuotesService', () => {
       );
     });
 
-    it('should return invalid quote with failed validations', async () => {
+    it('should throw BadRequestException with failed validations for invalid quote', async () => {
       const mockQuoteResult: QuoteResult = {
         valid: false,
         strategy: 'standard',
@@ -198,15 +225,19 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockIntentInput, 'standard');
-
-      expect(result.valid).toBe(false);
-      expect(result.validations.failed).toEqual([
-        {
-          validation: 'StandardFeeValidation',
-          reason: 'Reward native value 500000000000000 is less than required fee 1050000000000000',
-        },
-      ]);
+      await expect(service.getQuote(mockIntentInput, 'standard')).rejects.toThrow(
+        new BadRequestException({
+          validations: {
+            passed: ['IntentFundedValidation'],
+            failed: [
+              {
+                validation: 'StandardFeeValidation',
+                reason: 'Reward native value 500000000000000 is less than required fee 1050000000000000',
+              },
+            ],
+          },
+        }),
+      );
     });
 
     it('should handle quote result without fees', async () => {
@@ -225,12 +256,26 @@ describe('QuotesService', () => {
 
       const result = await service.getQuote(mockIntentInput, 'standard');
 
-      expect(result.fees).toEqual({
-        baseFee: '0',
-        percentageFee: '0',
-        totalRequiredFee: '0',
-        currentReward: '0',
-        minimumRequiredReward: '0',
+      expect(result).toEqual({
+        quoteResponse: {
+          sourceChainID: 1,
+          destinationChainID: 10,
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceAmount: '5000000000000000000',
+          destinationAmount: '5000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          refundRecipient: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
+          fees: [],
+          deadline: 1735689600,
+          estimatedFulfillTimeSec: 30,
+        },
+        contracts: {
+          intentSource: '0x1234567890123456789012345678901234567890',
+          prover: '0x1234567890123456789012345678901234567890',
+          inbox: '0x1234567890123456789012345678901234567890',
+        },
       });
     });
 
