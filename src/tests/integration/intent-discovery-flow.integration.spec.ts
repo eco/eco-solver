@@ -9,6 +9,8 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
+import { BasicWalletFactory } from '@/modules/blockchain/evm/wallets/basic-wallet/basic-wallet.factory';
+import { KernelWalletFactory } from '@/modules/blockchain/evm/wallets/kernel-wallet/kernel-wallet.factory';
 import { ConfigModule } from '@/modules/config/config.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
@@ -18,6 +20,25 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { QueueModule } from '@/modules/queue/queue.module';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
+
+// Mock wallet factories
+const mockWallet = {
+  getAddress: jest.fn().mockResolvedValue('0x1234567890123456789012345678901234567890'),
+  writeContract: jest.fn().mockResolvedValue('0xTransactionHash'),
+  writeContracts: jest.fn().mockResolvedValue(['0xTransactionHash']),
+  readContract: jest.fn(),
+  readContracts: jest.fn().mockResolvedValue([]),
+};
+
+const mockBasicWalletFactory = {
+  name: 'basic',
+  createWallet: jest.fn().mockResolvedValue(mockWallet),
+};
+
+const mockKernelWalletFactory = {
+  name: 'kernel',
+  createWallet: jest.fn().mockResolvedValue(mockWallet),
+};
 
 describe('Intent Discovery Flow Integration', () => {
   let module: TestingModule;
@@ -67,7 +88,12 @@ describe('Intent Discovery Flow Integration', () => {
         BlockchainModule.forRootAsync(),
         FulfillmentModule,
       ],
-    }).compile();
+    })
+      .overrideProvider(BasicWalletFactory)
+      .useValue(mockBasicWalletFactory)
+      .overrideProvider(KernelWalletFactory)
+      .useValue(mockKernelWalletFactory)
+      .compile();
 
     // Initialize the application to ensure all lifecycle hooks are executed
     await module.init();

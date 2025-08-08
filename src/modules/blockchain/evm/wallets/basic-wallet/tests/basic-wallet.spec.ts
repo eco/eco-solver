@@ -120,19 +120,22 @@ describe('BasicWallet', () => {
           functionName: 'aggregate3Value',
           args: expect.any(Array),
           value: 0n,
-          account: mockAddress,
+          account: {
+            address: mockAddress,
+          },
         });
 
         // Should execute the multicall
-        expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
-          expect.objectContaining({
-            address: mockMulticall3Address,
-            abi: expect.any(Array),
-            functionName: 'aggregate3Value',
-            args: expect.any(Array),
-            value: 0n,
-          }),
-        );
+        expect(mockWalletClient.writeContract).toHaveBeenCalledWith({
+          address: mockMulticall3Address,
+          abi: expect.any(Array),
+          functionName: 'aggregate3Value',
+          args: expect.any(Array),
+          value: 0n,
+          account: {
+            address: mockAddress,
+          },
+        });
       });
 
       it('should handle batch writes with value', async () => {
@@ -151,14 +154,22 @@ describe('BasicWallet', () => {
         expect(mockPublicClient.simulateContract).toHaveBeenCalledWith(
           expect.objectContaining({
             value: 2000000000000000000n,
+            account: {
+              address: mockAddress,
+            },
           }),
         );
 
-        expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
-          expect.objectContaining({
-            value: 2000000000000000000n,
-          }),
-        );
+        expect(mockWalletClient.writeContract).toHaveBeenCalledWith({
+          address: mockMulticall3Address,
+          abi: expect.any(Array),
+          functionName: 'aggregate3Value',
+          args: expect.any(Array),
+          value: 2000000000000000000n,
+          account: {
+            address: mockAddress,
+          },
+        });
       });
 
       it('should calculate total value from individual calls', async () => {
@@ -178,11 +189,16 @@ describe('BasicWallet', () => {
         await wallet.writeContracts(paramsWithValues);
 
         // Should calculate total value (1 + 2 = 3 ETH)
-        expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
-          expect.objectContaining({
-            value: 3000000000000000000n,
-          }),
-        );
+        expect(mockWalletClient.writeContract).toHaveBeenCalledWith({
+          address: mockMulticall3Address,
+          abi: expect.any(Array),
+          functionName: 'aggregate3Value',
+          args: expect.any(Array),
+          value: 3000000000000000000n,
+          account: {
+            address: mockAddress,
+          },
+        });
       });
 
       it('should handle simulation failure', async () => {

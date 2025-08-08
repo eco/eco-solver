@@ -41,9 +41,6 @@ describe('KernelWalletFactory', () => {
   } as Chain;
   const mockPublicClient = { id: 'publicClient' };
   const mockWalletClient = { id: 'walletClient' };
-  const mockKernelWallet = {
-    init: jest.fn().mockResolvedValue(undefined),
-  };
 
   beforeEach(async () => {
     evmConfigService = {
@@ -53,6 +50,7 @@ describe('KernelWalletFactory', () => {
     transportService = {
       getTransport: jest.fn().mockReturnValue(mockTransport),
       getViemChain: jest.fn().mockReturnValue(mockChain),
+      getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -70,13 +68,24 @@ describe('KernelWalletFactory', () => {
     (kmsToAccount as jest.Mock).mockResolvedValue(mockKmsAccount);
     (createPublicClient as jest.Mock).mockReturnValue(mockPublicClient);
     (createWalletClient as jest.Mock).mockReturnValue(mockWalletClient);
-    (KernelWallet as jest.Mock).mockReturnValue(mockKernelWallet);
+    
+    // Mock KernelWallet
+    const mockKernelWalletInstance = {
+      init: jest.fn().mockResolvedValue(undefined),
+    };
+    (KernelWallet as jest.Mock).mockImplementation(() => mockKernelWalletInstance);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     // Reset singleton promise
     (factory as any).signerPromise = null;
+    
+    // Reset KernelWallet mock to default behavior
+    const mockKernelWalletInstance = {
+      init: jest.fn().mockResolvedValue(undefined),
+    };
+    (KernelWallet as jest.Mock).mockImplementation(() => mockKernelWalletInstance);
   });
 
   it('should be defined', () => {
@@ -89,12 +98,13 @@ describe('KernelWalletFactory', () => {
 
   describe('createWallet with EOA signer', () => {
     beforeEach(() => {
-      evmConfigService.getKernelWalletConfig.mockReturnValue({
+      const kernelConfig = {
         signer: {
-          type: 'eoa',
+          type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
-      });
+      };
+      evmConfigService.getKernelWalletConfig.mockReturnValue(kernelConfig);
     });
 
     it('should create wallet with EOA signer', async () => {
@@ -104,29 +114,23 @@ describe('KernelWalletFactory', () => {
       // Verify configuration was retrieved
       expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalled();
 
-      // Verify transport and chain were retrieved
-      expect(transportService.getTransport).toHaveBeenCalledWith(chainId);
-      expect(transportService.getViemChain).toHaveBeenCalledWith(chainId);
-
       // Verify EOA account was created
       expect(privateKeyToAccount).toHaveBeenCalledWith(mockEoaPrivateKey);
 
-      // Verify clients were created
-      expect(createPublicClient).toHaveBeenCalledWith({
-        chain: mockChain,
-        transport: mockTransport,
-      });
-
-      expect(createWalletClient).toHaveBeenCalledWith({
-        account: mockAccount,
-        chain: mockChain,
-        transport: mockTransport,
-      });
-
-      // Verify KernelWallet was created and initialized
-      expect(KernelWallet).toHaveBeenCalledWith(mockPublicClient, mockWalletClient);
-      expect(mockKernelWallet.init).toHaveBeenCalled();
-      expect(wallet).toBe(mockKernelWallet);
+      // Verify KernelWallet was created with correct parameters
+      expect(KernelWallet).toHaveBeenCalledWith(
+        chainId,
+        mockAccount,
+        evmConfigService.getKernelWalletConfig(),
+        transportService,
+      );
+      expect(wallet).toBeDefined();
+      
+      // Verify init was called by checking the mock
+      const mockCalls = (KernelWallet as jest.Mock).mock.calls;
+      expect(mockCalls.length).toBeGreaterThan(0);
+      const mockInstance = (KernelWallet as jest.Mock).mock.results[0].value;
+      expect(mockInstance.init).toHaveBeenCalled();
     });
 
     it('should reuse signer for multiple wallets', async () => {
@@ -135,7 +139,9 @@ describe('KernelWalletFactory', () => {
 
       // Signer should only be created once
       expect(privateKeyToAccount).toHaveBeenCalledTimes(1);
-      expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalledTimes(1);
+      
+      // Config is called once for signer creation and once per wallet instance
+      expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalledTimes(3); // 1 for signer + 2 for wallets
 
       // But wallet instances should be different
       expect(KernelWallet).toHaveBeenCalledTimes(2);
@@ -163,13 +169,13 @@ describe('KernelWalletFactory', () => {
   describe('createWallet with KMS signer', () => {
     const mockKmsConfig = {
       region: 'us-east-1',
-      keyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
+      keyID: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
     };
 
     beforeEach(() => {
       evmConfigService.getKernelWalletConfig.mockReturnValue({
         signer: {
-          type: 'kms',
+          type: 'kms' as const,
           ...mockKmsConfig,
         },
       });
@@ -181,18 +187,26 @@ describe('KernelWalletFactory', () => {
 
       // Verify KMS account was created
       expect(kmsToAccount).toHaveBeenCalledWith({
-        keyId: mockKmsConfig.keyId,
+        type: 'kms',
+        keyID: mockKmsConfig.keyID,
         region: mockKmsConfig.region,
       });
 
-      // Verify wallet client was created with KMS account
-      expect(createWalletClient).toHaveBeenCalledWith({
-        account: mockKmsAccount,
-        chain: mockChain,
-        transport: mockTransport,
-      });
+      // Verify KernelWallet was created with KMS account
+      expect(KernelWallet).toHaveBeenCalledWith(
+        chainId,
+        mockKmsAccount,
+        evmConfigService.getKernelWalletConfig(),
+        transportService,
+      );
 
-      expect(wallet).toBe(mockKernelWallet);
+      expect(wallet).toBeDefined();
+      
+      // Verify init was called by checking the mock
+      const mockCalls = (KernelWallet as jest.Mock).mock.calls;
+      expect(mockCalls.length).toBeGreaterThan(0);
+      const mockInstance = (KernelWallet as jest.Mock).mock.results[mockCalls.length - 1].value;
+      expect(mockInstance.init).toHaveBeenCalled();
     });
 
     it('should pass additional KMS options', async () => {
@@ -204,14 +218,17 @@ describe('KernelWalletFactory', () => {
 
       evmConfigService.getKernelWalletConfig.mockReturnValue({
         signer: {
-          type: 'kms',
+          type: 'kms' as const,
           ...kmsConfigWithOptions,
         },
       });
 
       await factory.createWallet(1);
 
-      expect(kmsToAccount).toHaveBeenCalledWith(kmsConfigWithOptions);
+      expect(kmsToAccount).toHaveBeenCalledWith({
+        type: 'kms',
+        ...kmsConfigWithOptions,
+      });
     });
   });
 
@@ -237,13 +254,15 @@ describe('KernelWalletFactory', () => {
     it('should handle transport service errors', async () => {
       evmConfigService.getKernelWalletConfig.mockReturnValue({
         signer: {
-          type: 'eoa',
+          type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
       });
 
       const error = new Error('Transport not found');
-      transportService.getTransport.mockImplementation(() => {
+      
+      // Mock KernelWallet to throw error during construction
+      (KernelWallet as jest.Mock).mockImplementation(() => {
         throw error;
       });
 
@@ -253,13 +272,15 @@ describe('KernelWalletFactory', () => {
     it('should handle wallet initialization errors', async () => {
       evmConfigService.getKernelWalletConfig.mockReturnValue({
         signer: {
-          type: 'eoa',
+          type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
       });
 
       const error = new Error('Failed to initialize wallet');
-      mockKernelWallet.init.mockRejectedValue(error);
+      (KernelWallet as jest.Mock).mockImplementationOnce(() => ({
+        init: jest.fn().mockRejectedValue(error),
+      }));
 
       await expect(factory.createWallet(1)).rejects.toThrow(error);
     });
@@ -267,7 +288,7 @@ describe('KernelWalletFactory', () => {
     it('should handle EOA account creation errors', async () => {
       evmConfigService.getKernelWalletConfig.mockReturnValue({
         signer: {
-          type: 'eoa',
+          type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
       });
@@ -283,7 +304,7 @@ describe('KernelWalletFactory', () => {
     it('should handle KMS account creation errors', async () => {
       evmConfigService.getKernelWalletConfig.mockReturnValue({
         signer: {
-          type: 'kms',
+          type: 'kms' as const,
           region: 'us-east-1',
         },
       });

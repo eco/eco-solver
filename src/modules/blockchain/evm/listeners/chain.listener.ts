@@ -37,26 +37,30 @@ export class ChainListener extends BaseChainListener {
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
-          const intent = {
-            intentHash: log.args.hash,
-            reward: {
-              prover: log.args.prover,
-              creator: log.args.creator,
-              deadline: log.args.deadline,
-              nativeValue: log.args.nativeValue,
-              tokens: log.args.rewardTokens,
-            },
-            route: {
-              source: log.args.source,
-              destination: log.args.destination,
-              salt: log.args.salt,
-              inbox: log.args.inbox,
-              calls: log.args.calls,
-              tokens: log.args.routeTokens,
-            },
-          };
+          try {
+            const intent = {
+              intentHash: log.args.hash,
+              reward: {
+                prover: log.args.prover,
+                creator: log.args.creator,
+                deadline: log.args.deadline,
+                nativeValue: log.args.nativeValue,
+                tokens: log.args.rewardTokens,
+              },
+              route: {
+                source: log.args.source,
+                destination: log.args.destination,
+                salt: log.args.salt,
+                inbox: log.args.inbox,
+                calls: log.args.calls,
+                tokens: log.args.routeTokens,
+              },
+            };
 
-          this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+            this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+          } catch (error) {
+            this.logger.error(`Error processing intent event: ${error.message}`, error);
+          }
         });
       },
     });
@@ -65,6 +69,7 @@ export class ChainListener extends BaseChainListener {
   async stop(): Promise<void> {
     if (this.unsubscribe) {
       this.unsubscribe();
+      this.unsubscribe = null;
     }
     this.logger.warn(`EVM listener stopped for chain ${this.config.chainId}`);
   }

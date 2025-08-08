@@ -11,12 +11,12 @@ jest.mock('@eco-foundation/eco-kms-wallets');
 
 describe('kmsToAccount', () => {
   const mockConfig = {
-    keyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
+    keyID: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
     region: 'us-east-1',
   };
 
   const mockAddress = '0x1234567890123456789012345678901234567890' as Address;
-  const mockPublicKey = '0x04abcdef...';
+  const mockPublicKey = '0x04abcdef';
   const mockProvider = { id: 'provider' };
   const mockKmsWallet = {
     getAddress: jest.fn().mockResolvedValue(mockAddress),
@@ -48,7 +48,11 @@ describe('kmsToAccount', () => {
     it('should create KMS account with required config', async () => {
       const account = await kmsToAccount(mockConfig);
 
-      expect(account).toBe(mockAccount);
+      expect(account).toEqual({
+        ...mockAccount,
+        publicKey: mockPublicKey,
+        source: 'kms',
+      });
 
       // Verify provider creation
       expect(KMSProviderAWS).toHaveBeenCalledWith({
@@ -57,10 +61,7 @@ describe('kmsToAccount', () => {
       });
 
       // Verify wallet creation
-      expect(KMSWallets).toHaveBeenCalledWith({
-        keyId: mockConfig.keyId,
-        provider: mockProvider,
-      });
+      expect(KMSWallets).toHaveBeenCalledWith(mockProvider);
 
       // Verify toAccount was called
       expect(toAccount).toHaveBeenCalled();

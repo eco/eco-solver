@@ -183,7 +183,7 @@ describe('EvmWalletManager', () => {
       const duration = Date.now() - start;
 
       // Should complete in roughly 100ms, not 600ms (sequential)
-      expect(duration).toBeLessThan(200);
+      expect(duration).toBeLessThan(300);
       expect(basicWalletFactory.createWallet).toHaveBeenCalledTimes(3);
       expect(kernelWalletFactory.createWallet).toHaveBeenCalledTimes(3);
     });

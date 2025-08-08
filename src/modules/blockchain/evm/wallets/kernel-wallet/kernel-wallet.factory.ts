@@ -50,7 +50,7 @@ export class KernelWalletFactory implements IWalletFactory {
       case 'kms':
         return kmsToAccount(kernelWalletConfig.signer);
       default:
-        throw new Error('Signer must be a eoa');
+        throw new Error(`Unsupported signer type: ${(kernelWalletConfig.signer as any).type}`);
     }
   }
 }

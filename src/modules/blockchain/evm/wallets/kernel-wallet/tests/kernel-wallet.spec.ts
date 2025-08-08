@@ -20,10 +20,8 @@ jest.mock('@zerodev/sdk', () => ({
   createKernelAccount: jest.fn(),
 }));
 
-jest.mock('@zerodev/sdk/constants', () => ({
-  KERNEL_V3_1: '0.3.1',
-  getEntryPoint: jest.fn().mockReturnValue('0xEntryPointAddress'),
-}));
+// Import mocked values from jest.setup.ts
+import { getEntryPoint } from '@zerodev/sdk/constants';
 
 jest.mock('@zerodev/ecdsa-validator', () => ({
   signerToEcdsaValidator: jest.fn(),
@@ -122,11 +120,12 @@ describe('KernelWallet', () => {
       await wallet.init();
 
       // Verify validator creation
+      const mockEntryPoint = (getEntryPoint as jest.Mock)();
       expect(signerToEcdsaValidator).toHaveBeenCalledWith(
         mockPublicClient,
         expect.objectContaining({
           signer: mockSigner,
-          entryPoint: '0xEntryPointAddress',
+          entryPoint: mockEntryPoint,
           kernelVersion: KERNEL_V3_1,
         }),
       );
@@ -135,7 +134,7 @@ describe('KernelWallet', () => {
       expect(createKernelAccount).toHaveBeenCalledWith(
         mockPublicClient,
         expect.objectContaining({
-          entryPoint: '0xEntryPointAddress',
+          entryPoint: mockEntryPoint,
           kernelVersion: KERNEL_V3_1,
           useMetaFactory: false,
           plugins: {
