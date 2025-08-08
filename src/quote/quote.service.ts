@@ -33,7 +33,7 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
-import { isInsufficient, deconvertNormalize, convertNormalize } from '../fee/utils'
+import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
@@ -68,7 +68,7 @@ export class QuoteService implements OnModuleInit {
     private readonly fulfillmentEstimateService: FulfillmentEstimateService,
     private readonly moduleRef: ModuleRef,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
@@ -577,23 +577,25 @@ export class QuoteService implements OnModuleInit {
 
       const reward = rewards.find((r) => r.address === fund.delta.address)
       if (reward) {
-        const amount = Mathb.min(
-          Mathb.min(Mathb.abs(fund.delta.balance), reward.balance),
-          left,
-        )
+        const amount = Mathb.min(Mathb.min(Mathb.abs(fund.delta.balance), reward.balance), left)
         if (amount > 0n) {
           fund.delta.balance += amount
           reward.balance -= amount
           filled += amount
           //add to quote record
-          const tokenToFund = quoteRecord[fund.delta.address] || {
-            token: fund.delta.address,
-            amount: 0n,
-          }
-          tokenToFund.amount += deconvertNormalize(amount, {...fund.token, chainID: BigInt(fund.config.chainId)}).balance
+          const originalRewardToken = (
+            quoteIntentModel.reward.tokens as QuoteRewardTokensDTO[]
+          )?.find((t) => t.token === fund.delta.address)
+          const tokenToFund =
+            quoteRecord[fund.delta.address] ||
+            ({
+              token: fund.delta.address,
+              amount: 0n,
+              decimals: originalRewardToken?.decimals,
+            } as QuoteRewardTokensDTO)
+          tokenToFund.amount += amount
           quoteRecord[fund.delta.address] = tokenToFund
         }
-
       }
     }
     //resort fundable to reflect first round of fills
@@ -667,38 +669,28 @@ export class QuoteService implements OnModuleInit {
       const originalCall = calls.find((call) => call.address === fund.delta.address)
 
       if (originalToken && originalCall) {
-        // Get the original amount from the token in its normalized form
-        const originalNormalizedAmount = convertNormalize(
-          BigInt(originalToken.balance),
-          {
-            chainID: intent.route.destination,
-            address: fund.delta.address,
-            decimals: fund.token.decimals,
-          },
-        ).balance
+        // Get the original amount from the token (already normalized by interceptor)
+        const originalNormalizedAmount = BigInt(originalToken.balance)
 
         // Calculate how much we can fill for this token
         // We cannot fill more than the original amount or the remaining amount to fill
         const amountToFill = Mathb.min(originalNormalizedAmount, remainingToFill)
 
         if (amountToFill > 0n) {
-          // Convert back to original decimals
-          const finalAmount = deconvertNormalize(amountToFill, {
-            chainID: intent.route.destination,
-            address: fund.delta.address,
-            decimals: fund.token.decimals,
-          }).balance
-
-          // Add to route tokens and calls
+          // Add to route tokens and calls (amount will be converted back by interceptor)
+          const originalRouteToken = (intent.route.tokens as QuoteRewardTokensDTO[])?.find(
+            (t) => t.token === originalToken.address,
+          )
           routeTokens.push({
             token: originalToken.address,
-            amount: finalAmount,
-          })
+            amount: amountToFill,
+            decimals: originalRouteToken?.decimals,
+          } as QuoteRewardTokensDTO)
 
           const newData = encodeFunctionData({
             abi: erc20Abi,
             functionName: 'transfer',
-            args: [originalCall.recipient, finalAmount],
+            args: [originalCall.recipient, amountToFill],
           })
 
           routeCalls.push({
@@ -720,6 +712,8 @@ export class QuoteService implements OnModuleInit {
         rewardTokens: intent.reward.tokens,
         rewardNative: totalAvailableAfterFeeNative,
         expiryTime: this.getQuoteExpiryTime(),
+        estimatedFulfillTimeSec: this.fulfillmentEstimateService.getEstimatedFulfillTime(intent),
+        gasOverhead: this.getGasOverhead(intent),
       } as QuoteDataEntryDTO,
     }
   }

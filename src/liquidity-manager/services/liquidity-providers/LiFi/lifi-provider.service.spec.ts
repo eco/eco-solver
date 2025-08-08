@@ -133,12 +133,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 1,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockRoute = {
         fromAmount: '1000000000000000000',
@@ -177,12 +177,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 999, // Unsupported chain
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 1,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock unsupported source chain
@@ -203,12 +203,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xUnsupportedToken' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 1,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock unsupported source token
@@ -231,12 +231,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock tokens not connected
@@ -254,12 +254,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock getRoutes to return no routes
@@ -277,12 +277,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockCoreToken = {
         token: '0xCoreToken',
@@ -314,7 +314,7 @@ describe('LiFiProviderService', () => {
             address: mockCoreToken.token,
             chainId: mockCoreToken.chainID,
           },
-          balance: { decimals: 18 },
+          balance: { decimals: { original: 18, current: 18 } },
         },
       ] as any)
 
@@ -389,12 +389,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const unsupportedCoreToken = {
         token: '0xUnsupportedCoreToken',
@@ -438,7 +438,7 @@ describe('LiFiProviderService', () => {
           tokens.map((token) => ({
             ...token,
             config: { address: '0xTokenOut' },
-            balance: { decimals: 1 },
+            balance: { decimals: { original: 1, current: 18 } },
           })) as any,
       )
 
@@ -466,12 +466,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockCoreTokens = [
         { token: '0xCoreToken1', chainID: 3 },
@@ -498,7 +498,7 @@ describe('LiFiProviderService', () => {
                     address: coreToken.token,
                     chainId: coreToken.chainID,
                   },
-                  balance: { decimals: 18 },
+                  balance: { decimals: { original: 18, current: 18 } },
                 },
               ] as any)
             }
@@ -523,12 +523,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockCoreTokens = [
         { token: '0xCoreToken1', chainID: 3 },
@@ -567,7 +567,7 @@ describe('LiFiProviderService', () => {
                     address: coreToken.token,
                     chainId: coreToken.chainID,
                   },
-                  balance: { decimals: 18 },
+                  balance: { decimals: { original: 18, current: 18 } },
                 },
               ] as any)
             }

@@ -22,7 +22,7 @@ export interface CheckCCTPAttestationJobData {
     originalTokenOut: {
       address: Hex
       chainId: number
-      decimals: number
+      decimals: { original: number; current: number }
     }
   }
   id?: string

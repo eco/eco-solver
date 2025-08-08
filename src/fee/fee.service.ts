@@ -7,23 +7,15 @@ import {
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
-  FeeAlgoLinear,
-  FeeAlgoQuadratic,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
 import {
   isInsufficient,
-  normalizeBalance,
   normalizeSum,
-  convertNormalize,
-  convertNormScalar,
-  convertNormScalarBase6,
-  deconvertNormalize,
-  getNormalizedMinBalance,
-  calculateDelta
+  convertNormScalar as baseScalar,
+  calculateDelta,
 } from '@/fee/utils'
 import {
-  BASE_DECIMALS,
   getFunctionCalls,
   getFunctionTargets,
   getNativeCalls,
@@ -50,7 +42,7 @@ export class FeeService implements OnModuleInit {
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
@@ -143,7 +135,7 @@ export class FeeService implements OnModuleInit {
   /**
    * Gets the ask for the quote
    *
-   * @param totalFulfill the total amount to fulfill, assumes base6
+   * @param totalFulfill the total amount to fulfill, normalized to 18 decimals
    * @param intent the quote intent
    * @returns a bigint representing the ask
    */
@@ -207,7 +199,8 @@ export class FeeService implements OnModuleInit {
   }
 
   /**
-   * Calculates the total normalized fill for the quote intent
+   * Calculates the total normalized fill for the quote intent.
+   * Token amounts are expected to be already normalized by the API layer interceptor.
    *
    * @param quote the quote intent
    * @returns
@@ -233,7 +226,8 @@ export class FeeService implements OnModuleInit {
   }
 
   /**
-   * Calculates the total normalized and acceoted rewards for the quote intent
+   * Calculates the total normalized and accepted rewards for the quote intent.
+   * Token amounts are expected to be already normalized by the API layer interceptor.
    * @param quote the quote intent
    * @returns
    */
@@ -302,7 +296,9 @@ export class FeeService implements OnModuleInit {
       throw QuoteError.FetchingCallTokensFailed(quote.route.source)
     }
     const srcDeficitDescending = srcBalance
-      .filter((solverSrcChainTokens) => quote.reward.tokens.map((t) => t.token).includes(solverSrcChainTokens.token.address))
+      .filter((solverSrcChainTokens) =>
+        quote.reward.tokens.map((t) => t.token).includes(solverSrcChainTokens.token.address),
+      )
       .map((token) => {
         return {
           ...token,
@@ -350,8 +346,8 @@ export class FeeService implements OnModuleInit {
   }
 
   /**
-   * Fetches the rewardes for the quote intent, grabs their info from the erc20 contracts and then converts
-   * and normalizes their values
+   * Gets the reward tokens for the quote intent. Token amounts are expected to be
+   * already normalized to 18 decimals by the API layer interceptor.
    * @param quote the quote intent
    */
   async getRewardsNormalized(
@@ -390,16 +386,22 @@ export class FeeService implements OnModuleInit {
         if (!token) {
           throw QuoteError.RewardTokenNotFound(tb.address)
         }
+        // Token amount is already normalized to 18 decimals by interceptor
         return {
           balance: token.amount,
           chainID: srcChainID,
           address: tb.address,
-          decimals: tb.decimals
+          decimals: tb.decimals,
         }
       }),
     }
   }
 
+  /**
+   * Gets the route tokens for the quote intent. Token amounts are expected to be
+   * already normalized to 18 decimals by the API layer interceptor.
+   * @param quote the quote intent
+   */
   async getTokensNormalized(
     quote: QuoteIntentDataInterface,
   ): Promise<{ tokens: NormalizedToken[]; error?: Error }> {
@@ -435,24 +437,24 @@ export class FeeService implements OnModuleInit {
         if (!token) {
           throw QuoteError.RouteTokenNotFound(tb.address)
         }
+        // Token amount is already normalized to 18 decimals by interceptor
         return {
           balance: token.amount,
           chainID: destChainID,
           address: tb.address,
-          decimals: tb.decimals
+          decimals: tb.decimals,
         }
       }),
     }
   }
 
   /**
-   * Fetches the call tokens for the quote intent, grabs their info from the erc20 contracts and then converts
-   * to a standard reserve value for comparisons
+   * Gets the call data for the quote intent using pre-parsed calls from the API layer interceptor.
+   * Token amounts and call data are expected to be already normalized and validated.
    *
    * Throws if there is not enough liquidity for the call
    *
-   * @param quote the quote intent
-   * @param solver the solver for the quote intent
+   * @param quote the quote intent with parsedCalls in route from interceptor
    * @returns
    */
   async getCallsNormalized(quote: QuoteIntentDataInterface): Promise<{
@@ -464,6 +466,100 @@ export class FeeService implements OnModuleInit {
       return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
     }
 
+    // Use parsedCalls from interceptor if available, otherwise fall back to legacy parsing
+    if (quote.route.parsedCalls) {
+      return this.getCallsFromParsedData(quote, solver)
+    }
+
+    // Legacy fallback - should be removed after full migration to interceptor
+    return this.getLegacyCallsNormalized(quote, solver)
+  }
+
+  private async getCallsFromParsedData(
+    quote: QuoteIntentDataInterface,
+    solver: any,
+  ): Promise<{ calls: NormalizedCall[]; error: Error | undefined }> {
+    const calls: NormalizedCall[] = []
+    let error: Error | undefined
+
+    try {
+      // Process ERC20 calls from interceptor
+      for (const erc20Call of quote.route.parsedCalls!.erc20Calls) {
+        // Fetch token balance for liquidity check
+        const tokenBalances = await this.balanceService.fetchTokenBalances(solver.chainID, [
+          erc20Call.token,
+        ])
+
+        const tokenBalance = tokenBalances[erc20Call.token]
+        if (!tokenBalance) {
+          throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), erc20Call.token)
+        }
+
+        const config = solver.targets[erc20Call.token]
+        if (!config) {
+          throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), erc20Call.token)
+        }
+
+        // Check liquidity (amount is already normalized to 18 decimals)
+        if (
+          !this.intentConfigs.skipBalanceCheck &&
+          erc20Call.amount > tokenBalance.balance - config.minBalance
+        ) {
+          const err = QuoteError.SolverLacksLiquidity(
+            solver.chainID,
+            erc20Call.token,
+            erc20Call.amount,
+            tokenBalance.balance,
+            config.minBalance,
+          )
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: QuoteError.SolverLacksLiquidity.name,
+              properties: { error: err, quote, tokenBalance, config },
+            }),
+          )
+          throw err
+        }
+
+        calls.push({
+          balance: erc20Call.amount,
+          chainID: BigInt(solver.chainID),
+          address: erc20Call.token,
+          decimals: tokenBalance.decimals,
+          recipient: erc20Call.recipient,
+          native: {
+            amount: erc20Call.value,
+          },
+        })
+      }
+
+      // Process native calls from interceptor
+      for (const nativeCall of quote.route.parsedCalls!.nativeCalls) {
+        calls.push({
+          recipient: nativeCall.recipient,
+          native: {
+            amount: nativeCall.value,
+          },
+          balance: 0n,
+          chainID: BigInt(solver.chainID),
+          address: zeroAddress,
+          decimals: {
+            original: 0,
+            current: 0,
+          },
+        })
+      }
+    } catch (e) {
+      error = e
+    }
+
+    return { calls, error }
+  }
+
+  private async getLegacyCallsNormalized(
+    quote: QuoteIntentDataInterface,
+    solver: any,
+  ): Promise<{ calls: NormalizedCall[]; error: Error | undefined }> {
     const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])
 
     // Function targets can be an empty array for a quote that only has native calls.
@@ -532,19 +628,20 @@ export class FeeService implements OnModuleInit {
         }
 
         const recipient = ttd.decodedFunctionData.args[0] as Hex
-        const transferAmount = convertNormScalar(ttd.decodedFunctionData.args[1] as bigint, callTarget.token.decimals.original)
-        const normMinBalance = getNormalizedMinBalance(callTarget)
-
+        const transferAmount = baseScalar(
+          ttd.decodedFunctionData.args[1] as bigint,
+          callTarget.token.decimals.original,
+        )
         if (
           !this.intentConfigs.skipBalanceCheck &&
-          transferAmount > callTarget.token.balance - normMinBalance
+          transferAmount > callTarget.token.balance - callTarget.config.minBalance
         ) {
           const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,
             call.target,
             transferAmount,
             callTarget.token.balance,
-            normMinBalance,
+            callTarget.config.minBalance,
           )
 
           this.logger.error(
@@ -600,12 +697,6 @@ export class FeeService implements OnModuleInit {
       },
     }))
   }
-
-
-
-
-
-
 
   private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
     const solverFee = this.getAskRouteDestinationSolver(route).fee

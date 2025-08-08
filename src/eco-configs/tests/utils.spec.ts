@@ -6,7 +6,15 @@ const mockRoutes = {
     '84523-pre': { name: 'development' },
   },
 }
-import { getNodeEnv, isPreEnv, getChainConfig, NodeEnv, ChainPrefix, recursiveConvertByKeys, recursiveConfigNormalizer } from '../utils'
+import {
+  getNodeEnv,
+  isPreEnv,
+  getChainConfig,
+  NodeEnv,
+  ChainPrefix,
+  recursiveConvertByKeys,
+  recursiveConfigNormalizer,
+} from '../utils'
 import { EcoError } from '../../common/errors/eco-error'
 import * as config from 'config'
 
@@ -102,7 +110,7 @@ describe('config utils tests', () => {
 
     it('should handle null and undefined values', () => {
       const keySet = new Set(['targetKey'])
-      
+
       expect(recursiveConvertByKeys(null, keySet, mockConverter)).toBe(null)
       expect(recursiveConvertByKeys(undefined, keySet, mockConverter)).toBe(undefined)
       expect(mockConverter).not.toHaveBeenCalled()
@@ -110,7 +118,7 @@ describe('config utils tests', () => {
 
     it('should handle primitive values', () => {
       const keySet = new Set(['targetKey'])
-      
+
       expect(recursiveConvertByKeys(42, keySet, mockConverter)).toBe(42)
       expect(recursiveConvertByKeys('hello', keySet, mockConverter)).toBe('hello')
       expect(recursiveConvertByKeys(true, keySet, mockConverter)).toBe(true)
@@ -122,7 +130,7 @@ describe('config utils tests', () => {
       const input = {
         targetKey: 10,
         stringKey: 'hello',
-        otherKey: 'unchanged'
+        otherKey: 'unchanged',
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
@@ -130,7 +138,7 @@ describe('config utils tests', () => {
       expect(result).toEqual({
         targetKey: 20, // 10 * 2
         stringKey: 'HELLO', // 'hello'.toUpperCase()
-        otherKey: 'unchanged'
+        otherKey: 'unchanged',
       })
       expect(mockConverter).toHaveBeenCalledWith(10, 'targetKey')
       expect(mockConverter).toHaveBeenCalledWith('hello', 'stringKey')
@@ -144,10 +152,10 @@ describe('config utils tests', () => {
           targetKey: 5,
           level2: {
             targetKey: 8,
-            normalKey: 'unchanged'
-          }
+            normalKey: 'unchanged',
+          },
         },
-        otherData: 'unchanged'
+        otherData: 'unchanged',
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
@@ -157,10 +165,10 @@ describe('config utils tests', () => {
           targetKey: 10, // 5 * 2
           level2: {
             targetKey: 16, // 8 * 2
-            normalKey: 'unchanged'
-          }
+            normalKey: 'unchanged',
+          },
         },
-        otherData: 'unchanged'
+        otherData: 'unchanged',
       })
       expect(mockConverter).toHaveBeenCalledWith(5, 'targetKey')
       expect(mockConverter).toHaveBeenCalledWith(8, 'targetKey')
@@ -173,8 +181,8 @@ describe('config utils tests', () => {
         items: [
           { targetKey: 3, name: 'item1' },
           { targetKey: 7, name: 'item2' },
-          { normalKey: 'no conversion', name: 'item3' }
-        ]
+          { normalKey: 'no conversion', name: 'item3' },
+        ],
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
@@ -183,8 +191,8 @@ describe('config utils tests', () => {
         items: [
           { targetKey: 6, name: 'item1' }, // 3 * 2
           { targetKey: 14, name: 'item2' }, // 7 * 2
-          { normalKey: 'no conversion', name: 'item3' }
-        ]
+          { normalKey: 'no conversion', name: 'item3' },
+        ],
       })
       expect(mockConverter).toHaveBeenCalledWith(3, 'targetKey')
       expect(mockConverter).toHaveBeenCalledWith(7, 'targetKey')
@@ -195,14 +203,14 @@ describe('config utils tests', () => {
       const keySet = new Set(['targetKey'])
       const input = {
         numbers: [1, 2, 3],
-        strings: ['a', 'b', 'c']
+        strings: ['a', 'b', 'c'],
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
 
       expect(result).toEqual({
         numbers: [1, 2, 3],
-        strings: ['a', 'b', 'c']
+        strings: ['a', 'b', 'c'],
       })
       expect(mockConverter).not.toHaveBeenCalled()
     })
@@ -213,22 +221,22 @@ describe('config utils tests', () => {
         config: {
           limits: {
             divideKey: 5000000,
-            targetKey: 100
+            targetKey: 100,
           },
           chains: [
             {
               id: 1,
               divideKey: 2000000,
               settings: {
-                targetKey: 50
-              }
+                targetKey: 50,
+              },
             },
             {
               id: 2,
-              normalValue: 'unchanged'
-            }
-          ]
-        }
+              normalValue: 'unchanged',
+            },
+          ],
+        },
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
@@ -237,22 +245,22 @@ describe('config utils tests', () => {
         config: {
           limits: {
             divideKey: 5000, // 5000000 / 1000
-            targetKey: 200   // 100 * 2
+            targetKey: 200, // 100 * 2
           },
           chains: [
             {
               id: 1,
               divideKey: 2000, // 2000000 / 1000
               settings: {
-                targetKey: 100 // 50 * 2
-              }
+                targetKey: 100, // 50 * 2
+              },
             },
             {
               id: 2,
-              normalValue: 'unchanged'
-            }
-          ]
-        }
+              normalValue: 'unchanged',
+            },
+          ],
+        },
       })
       expect(mockConverter).toHaveBeenCalledTimes(4)
     })
@@ -263,8 +271,8 @@ describe('config utils tests', () => {
         emptyObj: {},
         emptyArray: [],
         nested: {
-          emptyNested: {}
-        }
+          emptyNested: {},
+        },
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
@@ -273,8 +281,8 @@ describe('config utils tests', () => {
         emptyObj: {},
         emptyArray: [],
         nested: {
-          emptyNested: {}
-        }
+          emptyNested: {},
+        },
       })
       expect(mockConverter).not.toHaveBeenCalled()
     })
@@ -283,28 +291,28 @@ describe('config utils tests', () => {
       const keySet = new Set(['targetKey'])
       const input = {
         validKey: {
-          targetKey: 15
+          targetKey: 15,
         },
         nullValue: null,
         undefinedValue: undefined,
         nested: {
           nullNested: null,
-          targetKey: 25
-        }
+          targetKey: 25,
+        },
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
 
       expect(result).toEqual({
         validKey: {
-          targetKey: 30 // 15 * 2
+          targetKey: 30, // 15 * 2
         },
         nullValue: null,
         undefinedValue: undefined,
         nested: {
           nullNested: null,
-          targetKey: 50 // 25 * 2
-        }
+          targetKey: 50, // 25 * 2
+        },
       })
       expect(mockConverter).toHaveBeenCalledWith(15, 'targetKey')
       expect(mockConverter).toHaveBeenCalledWith(25, 'targetKey')
@@ -316,8 +324,8 @@ describe('config utils tests', () => {
       const input = {
         targetKey: 10,
         nested: {
-          value: 'original'
-        }
+          value: 'original',
+        },
       }
 
       const result = recursiveConvertByKeys(input, keySet, mockConverter)
@@ -345,42 +353,42 @@ describe('config utils tests', () => {
 
       const input = {
         solvers: {
-          "1": {
+          '1': {
             fee: {
               limit: {
                 tokenBase6: 5000000000,
-                nativeBase18: 10000000000000000
-              }
+                nativeBase18: 10000000000000000,
+              },
             },
             targets: {
-              "0x123": {
+              '0x123': {
                 minBalance: 75,
-                targetBalance: 150
-              }
-            }
-          }
-        }
+                targetBalance: 150,
+              },
+            },
+          },
+        },
       }
 
       const result = recursiveConvertByKeys(input, keySet, converter)
 
       expect(result).toEqual({
         solvers: {
-          "1": {
+          '1': {
             fee: {
               limit: {
-                tokenBase6: 5000000000,    // unchanged
-                nativeBase18: 10000        // 10000000000000000 / 1000000000000
-              }
+                tokenBase6: 5000000000, // unchanged
+                nativeBase18: 10000, // 10000000000000000 / 1000000000000
+              },
             },
             targets: {
-              "0x123": {
-                minBalance: 75000000,      // 75 * 1000000
-                targetBalance: 150         // unchanged (not in keySet)
-              }
-            }
-          }
-        }
+              '0x123': {
+                minBalance: 75000000, // 75 * 1000000
+                targetBalance: 150, // unchanged (not in keySet)
+              },
+            },
+          },
+        },
       })
     })
   })

@@ -4,10 +4,11 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
+import { encodeFunctionData, erc20Abi } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
 import { getSlippagePercent } from '@/liquidity-manager/utils/math'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
@@ -35,14 +36,14 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: bigint,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'Squid'>[]> {
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Squid: getting quote',
         id,
-        properties: { tokenIn, tokenOut, swapAmount },
+        properties: { tokenIn, tokenOut, swapAmountBased },
       }),
     )
 
@@ -53,7 +54,8 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       fromAddress: walletAddress,
       fromChain: tokenIn.chainId.toString(),
       fromToken: tokenIn.config.address,
-      fromAmount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
+      // swapAmountBased is already normalized to BASE_DECIMALS, so we need to convert back to original token decimals
+      fromAmount: deconvertNormScalar(swapAmountBased, tokenIn.balance.decimals.original).toString(),
       toChain: tokenOut.chainId.toString(),
       toToken: tokenOut.config.address,
       toAddress: walletAddress,
@@ -67,18 +69,18 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       const dstTokenMin = {
         address: tokenOut.config.address,
         decimals: tokenOut.balance.decimals,
-        balance: BigInt(route.estimate.toAmountMin),
+        balance: convertNormScalar(BigInt(route.estimate.toAmountMin), tokenOut.balance.decimals.original),
       }
       const srcToken = {
         address: tokenIn.config.address,
         decimals: tokenIn.balance.decimals,
-        balance: BigInt(route.estimate.fromAmount),
+        balance: convertNormScalar(BigInt(route.estimate.fromAmount), tokenIn.balance.decimals.original),
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       const quote: RebalanceQuote<'Squid'> = {
-        amountIn: BigInt(route.estimate.fromAmount),
-        amountOut: BigInt(route.estimate.toAmount),
+        amountIn: convertNormScalar(BigInt(route.estimate.fromAmount), tokenIn.balance.decimals.original),
+        amountOut: convertNormScalar(BigInt(route.estimate.toAmount), tokenOut.balance.decimals.original),
         slippage,
         tokenIn,
         tokenOut,

@@ -360,7 +360,7 @@ describe('QuotesService', () => {
         jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
 
         const { response: quoteDataEntry } = await quoteService.generateQuote({
-          route: { tokens: [], calls: [] },
+          route: { tokens: [], calls: [], source: '1', destination: '137' },
           reward: {},
         } as any)
         expect(quoteDataEntry).toEqual({
@@ -584,7 +584,7 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        
+
         // deconvertNormalize is now a utility function in utils, not a service method
 
         jest
@@ -594,10 +594,10 @@ describe('QuotesService', () => {
         jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
 
         const { response: quoteDataEntry } = await quoteService.generateQuote({
-          route: { tokens: [], calls: [] },
+          route: { tokens: [], calls: [], source: '1', destination: '137' },
           reward: {},
         } as any)
-        
+
         expect(quoteDataEntry).toEqual({
           routeTokens: [],
           routeCalls: [],
@@ -623,7 +623,7 @@ describe('QuotesService', () => {
               { delta: { balance: 1000000000000000000n, address: '0x2', decimals: 6 } }, // 1 token surplus
             ],
           } as any
-          
+
           // Expected: 1.5 tokens worth in 6 decimals = 1500000 (1.5 * 10^6)
           await generateDecimalHelper(calculated, [
             { token: '0x1', amount: 500000n }, // 0.5 tokens in 6 decimals
@@ -636,7 +636,7 @@ describe('QuotesService', () => {
             solver: {},
             rewards: [
               { address: '0x1', balance: 1000000000000000000n }, // 1 token in 18 decimal normalized form
-              { address: '0x2', balance: 2000000000000000000n }, // 2 tokens in 18 decimal normalized form  
+              { address: '0x2', balance: 2000000000000000000n }, // 2 tokens in 18 decimal normalized form
             ],
             calls: [{ balance: 1500000000000000000n, native: { amount: 0n } }], // 1.5 tokens needed
             srcDeficitDescending: [
@@ -644,7 +644,7 @@ describe('QuotesService', () => {
               { delta: { balance: 1000000000000000000n, address: '0x2', decimals: 18 } }, // 1 token surplus
             ],
           } as any
-          
+
           // Expected: amounts stay the same for 18 decimals
           await generateDecimalHelper(calculated, [
             { token: '0x1', amount: 500000000000000000n }, // 0.5 tokens in 18 decimals
@@ -665,7 +665,7 @@ describe('QuotesService', () => {
               { delta: { balance: -1500000000000000000n, address: '0x1', decimals: 6 } }, // 1.5 token deficit in 6 decimals
             ],
           } as any
-          
+
           // Expected: 1.5 tokens in 6 decimals = 1500000
           await generateDecimalHelper(calculated, [
             { token: '0x1', amount: 1500000n }, // 1.5 tokens converted to 6 decimals
@@ -683,7 +683,7 @@ describe('QuotesService', () => {
               { delta: { balance: -1500000000000000000n, address: '0x1', decimals: 18 } }, // 1.5 token deficit in 18 decimals
             ],
           } as any
-          
+
           // Expected: 1.5 tokens stay in 18 decimals
           await generateDecimalHelper(calculated, [
             { token: '0x1', amount: 1500000000000000000n }, // 1.5 tokens in 18 decimals
@@ -707,10 +707,10 @@ describe('QuotesService', () => {
               { delta: { balance: -500000000000000000n, address: '0x3', decimals: 18 } }, // 0.5 token deficit (18 decimals)
             ],
           } as any
-          
+
           await generateDecimalHelper(calculated, [
             { token: '0x1', amount: 1000000n }, // 1 token in 6 decimals
-            { token: '0x2', amount: 50000000n }, // 0.5 tokens in 8 decimals  
+            { token: '0x2', amount: 50000000n }, // 0.5 tokens in 8 decimals
             { token: '0x3', amount: 500000000000000000n }, // 0.5 tokens in 18 decimals
           ])
         })
@@ -719,7 +719,7 @@ describe('QuotesService', () => {
           const calculated = {
             solver: {},
             rewards: [
-              { address: '0x1', balance: 3000000000000000000n }, // 3 tokens (6 decimals) 
+              { address: '0x1', balance: 3000000000000000000n }, // 3 tokens (6 decimals)
               { address: '0x2', balance: 1000000000000000000n }, // 1 token (18 decimals)
             ],
             calls: [{ balance: 2500000000000000000n, native: { amount: 0n } }], // 2.5 tokens needed
@@ -728,7 +728,7 @@ describe('QuotesService', () => {
               { delta: { balance: -500000000000000000n, address: '0x2', decimals: 18 } }, // 0.5 token deficit (18 decimals)
             ],
           } as any
-          
+
           await generateDecimalHelper(calculated, [
             { token: '0x1', amount: 2000000n }, // 2 tokens in 6 decimals
             { token: '0x2', amount: 500000000000000000n }, // 0.5 tokens in 18 decimals
@@ -795,8 +795,11 @@ describe('QuotesService', () => {
         // deconvertNormalize is now a utility function in utils, not a service method
         // convertNormalize is now a utility function in utils, not a service method
 
+        // Mock the getGasOverhead method
+        jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
+
         const { response: quoteDataEntry } = await quoteService.generateReverseQuote({
-          route: {},
+          route: { source: '1', destination: '137' },
           reward: {},
         } as any)
         expect(quoteDataEntry).toBeDefined()

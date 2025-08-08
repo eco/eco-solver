@@ -25,7 +25,6 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { normalizeBalanceToBase } from '@/fee/utils'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -74,18 +73,14 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       throw new Error('Unsupported route')
     }
 
-    const amountIn = normalizeBalanceToBase({
-      balance: swapAmountBased,
-      decimal: tokenIn.balance.decimals,
-    })
-    const amountOut = normalizeBalanceToBase({
-      balance: swapAmountBased,
-      decimal: tokenOut.balance.decimals,
-    })
+    // swapAmountBased is already normalized to BASE_DECIMALS by the API layer
+    // CCTP is 1:1 transfer, so input and output amounts are the same
+    const amountIn = swapAmountBased
+    const amountOut = swapAmountBased
 
     return {
-      amountIn: amountIn.balance,
-      amountOut: amountOut.balance,
+      amountIn,
+      amountOut,
       slippage: 0,
       tokenIn: tokenIn,
       tokenOut: tokenOut,

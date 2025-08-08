@@ -1,7 +1,7 @@
 import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
-import { EcoConfigType, EcoConfigBase6Keys } from './eco-config.types'
+import { EcoConfigBase6Keys } from './eco-config.types'
 import { convertNormScalar } from '@/fee/utils'
 
 /**
@@ -57,7 +57,7 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
 /**
  * Recursively traverses an object (including nested objects and arrays) and applies
  * a conversion function to values whose keys are in the provided keySet.
- * 
+ *
  * @param obj - The object to traverse
  * @param keySet - Set of keys to match for conversion
  * @param converter - Function to convert the matched values
@@ -66,7 +66,7 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
 export function recursiveConvertByKeys<T = any>(
   obj: any,
   keySet: Set<string>,
-  converter: (value: any, key: string) => any
+  converter: (value: any, key: string) => any,
 ): T {
   if (obj === null || obj === undefined) {
     return obj
@@ -79,7 +79,7 @@ export function recursiveConvertByKeys<T = any>(
 
   // Handle arrays
   if (Array.isArray(obj)) {
-    return obj.map(item => recursiveConvertByKeys(item, keySet, converter)) as T
+    return obj.map((item) => recursiveConvertByKeys(item, keySet, converter)) as T
   }
 
   // Handle objects
@@ -102,13 +102,13 @@ export function recursiveConvertByKeys<T = any>(
 /**
  * Normalizes EcoConfig values from base 6 to base 18 for specific keys.
  * Converts values by multiplying by 10^12 (adding 12 zeros) for keys in EcoConfigBase6Keys.
- * 
+ *
  * @param config - The EcoConfig object to normalize
  * @returns A new EcoConfig object with normalized values
  */
 export function recursiveConfigNormalizer<T>(config: T): T {
   const base6KeySet = new Set(EcoConfigBase6Keys)
-  
+  // eslint-disable-next-line  @typescript-eslint/no-unused-vars
   const converter = (value: any, key: string): any => {
     // Convert numeric values from base 6 to base 18 by multiplying by 10^12
     if (typeof value === 'number' || typeof value === 'bigint') {

@@ -4,6 +4,8 @@ import { QuoteController } from '@/api/quote.controller'
 import { BalanceModule } from '@/balance/balance.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { QuoteModule } from '@/quote/quote.module'
+import { TokenDecimalsInterceptor } from '@/interceptors/token-decimals.interceptor'
+import { TokenCallsInterceptor } from '@/interceptors/token-calls.interceptor'
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
@@ -22,6 +24,14 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
     {
       provide: APP_INTERCEPTOR,
       useClass: CacheInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TokenDecimalsInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TokenCallsInterceptor,
     },
   ],
 })

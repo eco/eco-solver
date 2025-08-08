@@ -17,7 +17,7 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual, normalizeBalance, normalizeBalanceToBase } from '@/fee/utils'
+import { isGreaterEqual } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceService } from '@/balance/balance.service'
@@ -32,7 +32,7 @@ interface IntentModelWithHashInterface {
  */
 export interface ValidationIntentInterface
   extends QuoteIntentDataInterface,
-  IntentModelWithHashInterface { }
+    IntentModelWithHashInterface {}
 
 /**
  * Type that holds all the possible validations that can fail
@@ -86,7 +86,7 @@ export class ValidationService implements OnModuleInit {
     private readonly feeService: FeeService,
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
@@ -287,7 +287,8 @@ export class ValidationService implements OnModuleInit {
   }
 
   /**
-   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
+   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction.
+   * Token amounts are expected to be already normalized to 18 decimals by the API layer interceptor.
    * @param intent the source intent model
    * @returns true if the solver has sufficient balance
    */
@@ -314,6 +315,7 @@ export class ValidationService implements OnModuleInit {
       const solverTargets = solver.targets // Ensure the solver is initialized
 
       // Check if solver has enough token balances
+      // Token amounts are already normalized to 18 decimals by interceptor
       for (const routeToken of intent.route.tokens) {
         const balance = tokenBalances[routeToken.token]
         const target = solverTargets[routeToken.token]
@@ -331,15 +333,10 @@ export class ValidationService implements OnModuleInit {
           )
           return false
         }
-        const minReqDollar = target.minBalance || 0
+        const balanceMinReq = target.minBalance || 0n
 
-        // Normalize the balance to the token's decimals, configs have the minReq in dollar value
-        const balanceMinReq = normalizeBalance(
-          { balance: BigInt(minReqDollar), decimal: 0 },
-          balance.decimals,
-        )
-
-        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
+        // Both routeToken.amount and balance.balance are in 18 decimals (normalized)
+        if (!balance || balance.balance - balanceMinReq < routeToken.amount) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
               message: `hasSufficientBalance: Insufficient token balance`,

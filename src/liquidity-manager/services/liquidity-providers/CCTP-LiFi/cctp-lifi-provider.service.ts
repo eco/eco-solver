@@ -22,6 +22,10 @@ import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { BASE_DECIMALS } from '@/intent/utils'
+
+// USDC always has 6 decimals across all chains
+const USDC_DECIMALS = 6
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -446,7 +450,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       },
       balance: {
         address: usdcAddress,
-        decimals: 6, // USDC always has 6 decimals
+        decimals: { original: USDC_DECIMALS, current: BASE_DECIMALS },
         balance: 0n, // Not needed for quotes
       },
     }
@@ -483,7 +487,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         },
         balance: {
           address: sourceSwapQuote.fromToken.address as Hex,
-          decimals: sourceSwapQuote.fromToken.decimals,
+          decimals: { original: sourceSwapQuote.fromToken.decimals, current: BASE_DECIMALS },
           balance: 1000000000000000000n, // TODO: get balance from balance service
         },
       }
@@ -499,7 +503,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         },
         balance: {
           address: sourceSwapQuote.toToken.address as Hex,
-          decimals: sourceSwapQuote.toToken.decimals,
+          decimals: { original: sourceSwapQuote.toToken.decimals, current: BASE_DECIMALS },
           balance: 0n,
         },
       }

@@ -68,14 +68,14 @@ describe('SquidProviderService', () => {
       const mockTokenIn: TokenData = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       } as any
       const mockTokenOut: TokenData = {
         chainId: 10,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 6 },
+        balance: { decimals: { original: 6, current: 18 } },
       } as any
-      const mockSwapAmount = 100n
+      const mockSwapAmount = BigInt('100000000000000000000') // 100 tokens in BASE_DECIMALS (18)
 
       const mockRoute = {
         estimate: {
@@ -90,8 +90,11 @@ describe('SquidProviderService', () => {
       const quotes = await squidProviderService.getQuote(mockTokenIn, mockTokenOut, mockSwapAmount)
       const quote = quotes[0]
 
-      expect(quote.amountIn).toBe(BigInt(mockRoute.estimate.fromAmount))
-      expect(quote.amountOut).toBe(BigInt(mockRoute.estimate.toAmount))
+      // amountIn and amountOut are now normalized using convertNormScalar
+      // fromAmount: '100000000000000000000' with 18 decimals -> 100000000000000000000n 
+      // toAmount: '99000000' with 6 decimals -> 99000000000000000000n (normalized to 18 decimals)
+      expect(quote.amountIn).toBe(BigInt('100000000000000000000'))
+      expect(quote.amountOut).toBe(BigInt('99000000000000000000'))
       expect(quote.strategy).toBe('Squid')
       expect(quote.context).toBe(mockRoute)
       expect(mockSquidInstance.getRoute).toHaveBeenCalledWith({
@@ -112,12 +115,12 @@ describe('SquidProviderService', () => {
       const mockTokenIn: TokenData = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       } as any
       const mockTokenOut: TokenData = {
         chainId: 10,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 6 },
+        balance: { decimals: { original: 6, current: 18 } },
       } as any
       mockSquidInstance.getRoute.mockRejectedValue(new Error('No route found'))
 

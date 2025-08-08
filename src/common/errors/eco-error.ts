@@ -162,6 +162,13 @@ export class EcoError extends Error {
     return new EcoError(`Default gas overhead is undefined`)
   }
 
+  // Token Decimals Interceptor
+  static UnknownTokenError(tokenAddress: string, chainId: number) {
+    return new EcoError(
+      `Unknown token ${tokenAddress} not found in @eco-foundation/chains for chain ${chainId}`,
+    )
+  }
+
   // EcoConfig Service
 
   static isEcoError(error: any): boolean {

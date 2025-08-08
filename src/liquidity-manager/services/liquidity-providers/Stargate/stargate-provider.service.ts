@@ -9,6 +9,7 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
 import { getSlippagePercent } from '@/liquidity-manager/utils/math'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
 
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
@@ -71,8 +72,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         dstChainKey: dstChainKey,
         srcAddress: this.walletAddress,
         dstAddress: this.walletAddress,
-        srcAmount: amountIn.toString(),
-        dstAmountMin: amountMin.toString(),
+        srcAmount: deconvertNormScalar(amountIn, tokenIn.balance.decimals.original).toString(),
+        dstAmountMin: deconvertNormScalar(amountMin, tokenOut.balance.decimals.original).toString(),
       })
 
       this.logger.debug(
@@ -118,8 +119,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       return {
-        amountIn: BigInt(route.srcAmount),
-        amountOut: BigInt(route.dstAmountMin),
+        amountIn: convertNormScalar(BigInt(route.srcAmount), tokenIn.balance.decimals.original),
+        amountOut: convertNormScalar(BigInt(route.dstAmountMin), tokenOut.balance.decimals.original),
         slippage: slippage,
         tokenIn: tokenIn,
         tokenOut: tokenOut,

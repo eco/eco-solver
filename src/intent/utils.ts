@@ -106,7 +106,8 @@ export function equivalentNativeGas(intent: ValidationIntentInterface, logger: L
     )
     return false
   }
-  //Forge decimals to be 18 for now, even though it might change in future when we need to support native gas normalization
+  // Native token decimals should match across chains for cross-chain intents
+  // Token normalization to 18 decimals is now handled at the API layer interceptor level
   const sameDecimals =
     sourceChain.nativeCurrency.decimals == dstChain.nativeCurrency.decimals &&
     sourceChain.nativeCurrency.decimals == DEFAULT_NATIVE_DECIMALS

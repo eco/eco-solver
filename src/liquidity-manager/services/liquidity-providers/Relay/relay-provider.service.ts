@@ -12,6 +12,7 @@ import { adaptKernelWallet } from './wallet-adapter'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { SmartAccount } from 'viem/account-abstraction'
 import { getSlippagePercent } from '@/liquidity-manager/utils/math'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -71,7 +72,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         toChainId: tokenOut.chainId,
         currency: tokenIn.config.address,
         toCurrency: tokenOut.config.address,
-        amount: swapAmountBased.toString(),
+        amount: deconvertNormScalar(swapAmountBased, tokenIn.balance.decimals.original).toString(),
         wallet: adaptedWallet,
         tradeType: 'EXACT_INPUT',
         user: walletAddress,
@@ -89,12 +90,12 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       const dstTokenMin = {
         address: tokenOut.config.address,
         decimals: tokenOut.balance.decimals,
-        balance: BigInt(amountOut),
+        balance: convertNormScalar(BigInt(amountOut), tokenOut.balance.decimals.original),
       }
       const srcToken = {
         address: tokenIn.config.address,
         decimals: tokenIn.balance.decimals,
-        balance: BigInt(amountIn),
+        balance: convertNormScalar(BigInt(amountIn), tokenIn.balance.decimals.original),
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
@@ -102,8 +103,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         slippage,
         tokenIn,
         tokenOut,
-        amountIn: BigInt(amountIn),
-        amountOut: BigInt(amountOut),
+        amountIn: convertNormScalar(BigInt(amountIn), tokenIn.balance.decimals.original),
+        amountOut: convertNormScalar(BigInt(amountOut), tokenOut.balance.decimals.original),
         strategy: this.getStrategy(),
         context: relayQuote,
       }

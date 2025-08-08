@@ -36,7 +36,6 @@ import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
-import { normalizeAnalysisDiffToBase } from '@/fee/utils'
 import { Mathb } from '@/utils/bigint'
 import { ANALYTICS_EVENTS, EcoAnalyticsService } from '@/analytics'
 import { BalanceService } from '@/balance/balance.service'
@@ -227,7 +226,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     if (
       !deficitToken?.analysis?.diff ||
-      normalizeAnalysisDiffToBase(deficitToken) > surplusTokensTotal
+      deficitToken.analysis.diff > surplusTokensTotal
     ) {
       // Not enough surplus tokens to rebalance
       return []
@@ -243,8 +242,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         const swapAmountBased = Mathb.min(
-          normalizeAnalysisDiffToBase(deficitToken),
-          normalizeAnalysisDiffToBase(surplusToken),
+          deficitToken.analysis.diff,
+          surplusToken.analysis.diff,
         )
 
         const strategyQuotes = await this.liquidityProviderService.getLiquidityQuotes(
@@ -327,8 +326,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         const swapAmountBased = Mathb.min(
-          normalizeAnalysisDiffToBase(deficitToken),
-          normalizeAnalysisDiffToBase(surplusToken),
+          deficitToken.analysis.diff,
+          surplusToken.analysis.diff,
         )
 
         // Use the fallback method that routes through core tokens

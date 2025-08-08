@@ -14,6 +14,6 @@ export type TokenBalance = {
   decimals: {
     original: number
     current: number
-  },
+  }
   balance: bigint
 }

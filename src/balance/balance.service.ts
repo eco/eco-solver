@@ -38,7 +38,7 @@ export class BalanceService implements OnApplicationBootstrap {
     private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     // iterate over all tokens
@@ -176,7 +176,7 @@ export class BalanceService implements OnApplicationBootstrap {
         decimals: {
           original: decimals as number,
           current: BASE_DECIMALS as number,
-        }
+        },
       }
     })
     return tokenBalances

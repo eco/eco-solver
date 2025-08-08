@@ -13,6 +13,7 @@ import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
 import { BalanceService } from '@/balance/balance.service'
+import { BASE_DECIMALS } from '@/intent/utils'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -530,8 +531,9 @@ describe('ValidationService', () => {
         route: {
           destination: 10,
           tokens: [
-            { token: '0xToken1', amount: 1000n },
-            { token: '0xToken2', amount: 2000n },
+            // Token amounts already normalized to 18 decimals by API interceptor
+            { token: '0xToken1', amount: 1000000000000000000000n }, // 1000 tokens in 18 decimals
+            { token: '0xToken2', amount: 2000000000000000000000n }, // 2000 tokens in 18 decimals
           ],
           calls: [
             { target: '0x1', data: '0x', value: 100n },
@@ -543,8 +545,16 @@ describe('ValidationService', () => {
       it('should return false when solver doesnt exist', async () => {
         ecoConfigService.getSolver.mockReturnValue(undefined)
         balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
-          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+          '0xToken1': {
+            address: '0xToken1',
+            balance: 1500000000000000000000n, // 1500 tokens in 18 decimals (normalized)
+            decimals: { original: 6, current: BASE_DECIMALS },
+          },
+          '0xToken2': {
+            address: '0xToken2',
+            balance: 2500000000000000000000n, // 2500 tokens in 18 decimals (normalized)
+            decimals: { original: 6, current: BASE_DECIMALS },
+          },
         })
         balanceService.getNativeBalance.mockResolvedValue(500n)
 
@@ -554,8 +564,16 @@ describe('ValidationService', () => {
 
       it('should return false when solver has insufficient token balance', async () => {
         balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
-          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+          '0xToken1': {
+            address: '0xToken1',
+            balance: 500000000000000000000n, // 500 tokens in 18 decimals - insufficient for 1000 needed
+            decimals: { original: 6, current: BASE_DECIMALS },
+          },
+          '0xToken2': {
+            address: '0xToken2',
+            balance: 2500000000000000000000n, // 2500 tokens in 18 decimals (sufficient)
+            decimals: { original: 6, current: BASE_DECIMALS },
+          },
         })
         balanceService.getNativeBalance.mockResolvedValue(500n)
 
@@ -565,8 +583,16 @@ describe('ValidationService', () => {
 
       it('should return false when solver has insufficient native balance', async () => {
         balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
-          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+          '0xToken1': {
+            address: '0xToken1',
+            balance: 1500000000000000000000n, // 1500 tokens in 18 decimals (sufficient)
+            decimals: { original: 6, current: BASE_DECIMALS },
+          },
+          '0xToken2': {
+            address: '0xToken2',
+            balance: 2500000000000000000000n, // 2500 tokens in 18 decimals (sufficient)
+            decimals: { original: 6, current: BASE_DECIMALS },
+          },
         })
         balanceService.getNativeBalance.mockResolvedValue(250n) // insufficient for 300n total
 
@@ -576,7 +602,7 @@ describe('ValidationService', () => {
 
       it('should return false when token balance is missing', async () => {
         balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: { original: 6, current: BASE_DECIMALS } },
           // Missing '0xToken2'
         })
         balanceService.getNativeBalance.mockResolvedValue(500n)
@@ -621,8 +647,8 @@ describe('ValidationService', () => {
           }
 
           balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': { address: '0xToken1', balance: 1_500_000_000n, decimals: 6 },
-            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: 6 },
+            '0xToken1': { address: '0xToken1', balance: 1_500_000_000n, decimals: { original: 6, current: BASE_DECIMALS } },
+            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: { original: 6, current: BASE_DECIMALS } },
           })
 
           const result = await validationService['hasSufficientBalance'](intentWithoutNative)
@@ -644,8 +670,8 @@ describe('ValidationService', () => {
           }
 
           balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': { address: '0xToken1', balance: 1_500_000_000n, decimals: 6 },
-            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: 6 },
+            '0xToken1': { address: '0xToken1', balance: 1_500_000_000n, decimals: { original: 6, current: BASE_DECIMALS } },
+            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: { original: 6, current: BASE_DECIMALS } },
           })
           balanceService.getNativeBalance.mockResolvedValue(500n)
 
@@ -656,8 +682,8 @@ describe('ValidationService', () => {
 
         it('should return true when solver has sufficient token and native balances', async () => {
           balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': { address: '0xToken1', balance: 1_500_000_000n, decimals: 6 },
-            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: 6 },
+            '0xToken1': { address: '0xToken1', balance: 1_500_000_000n, decimals: { original: 6, current: BASE_DECIMALS } },
+            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: { original: 6, current: BASE_DECIMALS } },
           })
           balanceService.getNativeBalance.mockResolvedValue(500n)
 
@@ -670,16 +696,19 @@ describe('ValidationService', () => {
           expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
         })
 
-        it('should return true when solver has sufficient balances for tokens of different decimals', async () => {
-          const mockNormalizeBalance = jest.spyOn(require('@/fee/utils'), 'normalizeBalance')
-
+        it('should return true when solver has sufficient balances for tokens (amounts pre-normalized by API)', async () => {
+          // Token amounts in mockIntent are already normalized to 18 decimals by the API layer interceptor
           balanceService.fetchTokenBalances.mockResolvedValue({
             '0xToken1': {
               address: '0xToken1',
-              balance: 1_500_000_000_000_000_000_000n,
-              decimals: 18,
+              balance: 1_500_000_000_000_000_000_000n, // 1500 tokens in 18 decimals (normalized)
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
-            '0xToken2': { address: '0xToken2', balance: 2_500_000_000n, decimals: 6 },
+            '0xToken2': {
+              address: '0xToken2',
+              balance: 2_500_000_000_000_000_000_000n, // 2500 tokens in 18 decimals (normalized)
+              decimals: { original: 6, current: BASE_DECIMALS },
+            },
           })
           balanceService.getNativeBalance.mockResolvedValue(500n)
 
@@ -691,16 +720,7 @@ describe('ValidationService', () => {
           ])
           expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
 
-          // Verify normalizeBalance is called correctly for each token with different decimals
-          expect(mockNormalizeBalance).toHaveBeenCalledTimes(2)
-
-          // First call for Token1 (18 decimals): converts $50 from decimal 0 to decimal 18
-          expect(mockNormalizeBalance).toHaveBeenNthCalledWith(1, { balance: 50n, decimal: 0 }, 18)
-
-          // Second call for Token2 (6 decimals): converts $100 from decimal 0 to decimal 6
-          expect(mockNormalizeBalance).toHaveBeenNthCalledWith(2, { balance: 100n, decimal: 0 }, 6)
-
-          mockNormalizeBalance.mockRestore()
+          // No normalization calls should be made - amounts are already normalized by API interceptor
         })
 
         it('should correctly handle token minimum balance requirements with solver targets', async () => {
@@ -709,18 +729,28 @@ describe('ValidationService', () => {
             route: {
               ...mockIntent.route,
               tokens: [
-                { token: '0xToken1', amount: 1000n }, // requesting 1000 units
-                { token: '0xToken2', amount: 500n }, // requesting 500 units
+                // Token amounts are already normalized to 18 decimals by API interceptor
+                { token: '0xToken1', amount: 1000000000000000000000n }, // 1000 tokens in 18 decimals
+                { token: '0xToken2', amount: 500000000000000000000n }, // 500 tokens in 18 decimals
               ],
               calls: [], // no native calls
             },
           }
 
           balanceService.fetchTokenBalances.mockResolvedValue({
-            // Token1: balance 1100, minReq 50 (normalized to token decimals), available = 1100-50 = 1050, need 1000 ✓
-            '0xToken1': { address: '0xToken1', balance: 1100n, decimals: 6 },
-            // Token2: balance 550, minReq 100 (normalized to token decimals), available = 550-100 = 450, need 500 ✗
-            '0xToken2': { address: '0xToken2', balance: 550n, decimals: 6 },
+            // All balances are normalized to 18 decimals for comparison
+            // Token1: balance 1100, minReq 50, available = 1100-50 = 1050, need 1000 ✓
+            '0xToken1': {
+              address: '0xToken1',
+              balance: 1100000000000000000000n,
+              decimals: { original: 6, current: BASE_DECIMALS },
+            },
+            // Token2: balance 550, minReq 100, available = 550-100 = 450, need 500 ✗
+            '0xToken2': {
+              address: '0xToken2',
+              balance: 550000000000000000000n,
+              decimals: { original: 6, current: BASE_DECIMALS },
+            },
           })
 
           const result = await validationService['hasSufficientBalance'](intentWithTokens)
@@ -733,16 +763,25 @@ describe('ValidationService', () => {
             route: {
               ...mockIntent.route,
               tokens: [
-                { token: '0xToken1', amount: 1000n },
-                { token: '0xToken2', amount: 500n },
+                // Token amounts already normalized to 18 decimals by API interceptor
+                { token: '0xToken1', amount: 1000000000000000000000n }, // 1000 tokens in 18 decimals
+                { token: '0xToken2', amount: 500000000000000000000n }, // 500 tokens in 18 decimals
               ],
               calls: [],
             },
           }
 
           balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': { address: '0xToken1', balance: 1_000_000_000n, decimals: 6 }, // exactly enough
-            '0xToken2': { address: '0xToken2', balance: 500_000_000n, decimals: 6 }, // exactly enough
+            '0xToken1': {
+              address: '0xToken1',
+              balance: 1000000000000000000000n, // exactly enough (18 decimals)
+              decimals: { original: 6, current: BASE_DECIMALS },
+            },
+            '0xToken2': {
+              address: '0xToken2',
+              balance: 500000000000000000000n, // exactly enough (18 decimals)
+              decimals: { original: 6, current: BASE_DECIMALS },
+            },
           })
 
           const result = await validationService['hasSufficientBalance'](intentWithTokens)
@@ -817,7 +856,7 @@ describe('ValidationService', () => {
           } as any
 
           balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+            '0xToken1': { address: '0xToken1', balance: 500n, decimals: { original: 6, current: BASE_DECIMALS } },
           })
 
           const result = await validationService['hasSufficientBalance'](intentWithTokens)
@@ -851,7 +890,7 @@ describe('ValidationService', () => {
           } as any
 
           balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+            '0xToken1': { address: '0xToken1', balance: 1500n, decimals: { original: 6, current: BASE_DECIMALS } },
           })
 
           const result = await validationService['hasSufficientBalance'](intentWithTokens)

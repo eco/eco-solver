@@ -7,7 +7,7 @@ import {
   TokenBalanceAnalysis,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
-import { normalizeAnalysisDiffToBase, normalizeBalance } from '@/fee/utils'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 /**
  * Analyzes a token's balance against its configuration and returns the analysis.
@@ -22,7 +22,8 @@ export function analyzeToken(
   percentage: { down: number; up: number; targetSlippage: number },
 ): TokenAnalysis {
   const { decimals } = tokenBalance
-  const config = toTokenBalance(tokenConfig, decimals)
+  // Use current decimals since everything is normalized to BASE_DECIMALS
+  const config = toTokenBalance(tokenConfig, decimals.current)
   // Calculate the maximum and minimum acceptable balances
   const { min: minimum, max: maximum } = getRangeFromPercentage(config, percentage)
 
@@ -73,9 +74,9 @@ export function analyzeTokenGroup(group: TokenDataAnalyzed[]) {
   // Sort the group by diff in descending order
   const items = group.sort((a, b) =>
     Mathb.compare(
-      // Normalize the balances to base decimal for comparison
-      normalizeAnalysisDiffToBase(b),
-      normalizeAnalysisDiffToBase(a),
+      // Balances are already normalized to BASE_DECIMALS by balance service
+      b.analysis.diff,
+      a.analysis.diff,
     ),
   )
   // Calculate the total difference for the group
@@ -93,7 +94,7 @@ export function getGroupTotal(group: TokenDataAnalyzed[]) {
     return 0n
   }
   return group.reduce(
-    (acc, item) => acc + (item?.analysis?.diff ? normalizeAnalysisDiffToBase(item) : 0n),
+    (acc, item) => acc + (item?.analysis?.diff ?? 0n),
     0n,
   )
 }
@@ -110,24 +111,24 @@ export function getSortDescGroupByDiff(group: TokenDataAnalyzed[]) {
   // Sort the group by diff in descending order
   return [...group].sort((a, b) =>
     Mathb.compare(
-      // Normalize the balances to base decimal for comparison
-      normalizeAnalysisDiffToBase(b),
-      normalizeAnalysisDiffToBase(a),
+      // Balances are already normalized to BASE_DECIMALS by balance service
+      b.analysis.diff,
+      a.analysis.diff,
     ),
   )
 }
 
 /**
  * Converts a token configuration object to a token balance object with the specified number of decimals.
- * Assumes that the configuration object contains a target balance in the base decimal (0).
- * @param config The token configuration object.
- * @param decimals The number of decimals for the token.
+ * Since configs are already normalized in eco-config service, targetBalance is already in BASE_DECIMALS.
+ * @param config The token configuration object with normalized values.
+ * @param decimals The current number of decimals (should be BASE_DECIMALS).
  * @returns
  */
 export function toTokenBalance(config: TokenConfig, decimals: number): TokenBalance {
   return {
     address: config.address,
-    decimals,
-    balance: normalizeBalance({ balance: config.targetBalance, decimal: 0 }, decimals).balance,
+    decimals: { original: decimals, current: BASE_DECIMALS },
+    balance: config.targetBalance, // Already normalized by eco-config service
   }
 }

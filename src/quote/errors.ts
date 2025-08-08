@@ -245,4 +245,29 @@ export class QuoteError extends Error {
   static InvalidFunctionData(target: Hex) {
     return new EcoError(`Invalid function data for target ${target}: missing or invalid args`)
   }
+
+  // TokenCallsInterceptor errors
+  static CallTokenNotInRouteTokens(tokens: Hex[]) {
+    return new EcoError(
+      `Calls for tokens [${tokens.join(', ')}] do not have corresponding entries in route.tokens`,
+    )
+  }
+
+  static CallAmountMismatchTokenAmount(token: Hex, callAmount: bigint, tokenAmount: bigint) {
+    return new EcoError(
+      `Call amount ${callAmount} for token ${token} does not match token amount ${tokenAmount}`,
+    )
+  }
+
+  static TokenNotInRouteCalls(tokens: Hex[]) {
+    return new EcoError(
+      `Tokens [${tokens.join(', ')}] do not have corresponding calls in route.calls`,
+    )
+  }
+
+  static InvalidFunctionCall(target: Hex, contractType: string) {
+    return new EcoError(
+      `Invalid function call for ${contractType} target ${target}: call data is not a valid transfer function`,
+    )
+  }
 }

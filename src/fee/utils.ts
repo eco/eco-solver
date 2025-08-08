@@ -47,7 +47,7 @@ export function normalizeBalanceToBase(value: BalanceObject): BalanceObject {
 export function normalizeAnalysisDiffToBase(tokenAnalized: TokenDataAnalyzed): bigint {
   const normalizedDiff = normalizeBalanceToBase({
     balance: tokenAnalized.analysis.diff,
-    decimal: tokenAnalized.balance.decimals,
+    decimal: tokenAnalized.balance.decimals.current,
   })
 
   return normalizedDiff.balance
@@ -100,31 +100,35 @@ export function convertNormalize(
   value: bigint,
   token: { chainID: bigint; address: Hex; decimals: number },
 ): NormalizedToken {
-  const original = value
-  const newDecimals = BASE_DECIMALS
   //todo some conversion, assuming here 1-1
   return {
     ...token,
-    balance: normalizeBalance({ balance: original, decimal: token.decimals }, newDecimals)
-      .balance,
-    decimals: newDecimals,
+    balance: convertNormScalar(value, token.decimals),
+    decimals: {
+      original: token.decimals,
+      current: BASE_DECIMALS,
+    },
   }
 }
 
 /**
- * Converts a value from one decimal representation to another.
+ * Converts a value from its current decimals to the {@link BASE_DECIMALS}
  * @param value the value to convert
  * @param fromDecimals the current decimal representation
  * @returns the converted value
  */
-export function convertNormScalar(
-  value: bigint,
-  fromDecimals: number
-): bigint {
-  return normalizeBalance(
-    { balance: value, decimal: fromDecimals },
-    BASE_DECIMALS,
-  ).balance
+export function convertNormScalar(value: bigint, fromDecimals: number): bigint {
+  return normalizeBalance({ balance: value, decimal: fromDecimals }, BASE_DECIMALS).balance
+}
+
+/**
+ * Converts a value from BASE_DECIMALS back to its original decimals
+ * @param value the value to convert (in BASE_DECIMALS)
+ * @param toDecimals the target decimal representation
+ * @returns the converted value
+ */
+export function deconvertNormScalar(value: bigint, toDecimals: number): bigint {
+  return normalizeBalance({ balance: value, decimal: BASE_DECIMALS }, toDecimals).balance
 }
 
 /**
@@ -132,9 +136,7 @@ export function convertNormScalar(
  * @param value the value to convert
  * @returns the converted value
  */
-export function convertNormScalarBase6(
-  value: bigint,
-): bigint {
+export function convertNormScalarBase6(value: bigint): bigint {
   return convertNormScalar(value, 6)
 }
 
@@ -144,7 +146,10 @@ export function convertNormScalarBase6(
  * @param token the token to deconvert
  * @returns
  */
-export function deconvertNormalize(value: bigint, token: { chainID: bigint; address: Hex; decimals: number }) {
+export function deconvertNormalize(
+  value: bigint,
+  token: { chainID: bigint; address: Hex; decimals: number },
+) {
   //todo some conversion, assuming here 1-1
   return {
     ...token,
@@ -158,8 +163,7 @@ export function deconvertNormalize(value: bigint, token: { chainID: bigint; addr
  * @returns
  */
 export function calculateDelta(token: TokenFetchAnalysis): NormalizedToken {
-  const minBalance = token.token.balance
-  const delta = token.token.balance - minBalance
+  const delta = token.token.balance - token.config.minBalance
   return {
     balance: delta,
     chainID: BigInt(token.chainId),

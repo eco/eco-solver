@@ -8,6 +8,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { LiFiStrategyContext, RebalanceQuote } from '@/liquidity-manager/types/types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 export interface CCTPLiFiDestinationSwapJobData {
   messageHash: Hex
@@ -19,7 +20,7 @@ export interface CCTPLiFiDestinationSwapJobData {
   originalTokenOut: {
     address: Hex
     chainId: number
-    decimals: number
+    decimals: { original: number; current: number }
   }
   cctpTransactionHash?: Hex
   retryCount?: number
@@ -176,7 +177,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         },
         balance: {
           address: destinationSwapQuote.fromToken.address as Hex,
-          decimals: destinationSwapQuote.fromToken.decimals,
+          decimals: { original: destinationSwapQuote.fromToken.decimals, current: BASE_DECIMALS },
           balance: 1000000000000000000n, // TODO: get balance from balance service
         },
       },
@@ -191,7 +192,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         },
         balance: {
           address: destinationSwapQuote.toToken.address as Hex,
-          decimals: destinationSwapQuote.toToken.decimals,
+          decimals: { original: destinationSwapQuote.toToken.decimals, current: BASE_DECIMALS },
           balance: 0n,
         },
       },

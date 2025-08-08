@@ -188,7 +188,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     const header = ['Chain ID', 'Address', 'Balance', 'Target', 'Range', 'State']
     const cells = items.map((item) => {
       const format = (value: bigint) =>
-        formatter(parseFloat(formatUnits(value, item.balance.decimals)))
+        formatter(parseFloat(formatUnits(value, item.balance.decimals.current)))
       return [
         item.config.chainId,
         item.config.address,
@@ -236,11 +236,11 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
           quote.tokenOut.config.chainId,
           shortAddr(quote.tokenIn.config.address),
           quote.tokenIn.config.chainId,
-          format(quote.tokenOut.balance.balance, quote.tokenOut.balance.decimals),
+          format(quote.tokenOut.balance.balance, quote.tokenOut.balance.decimals.current),
           quote.tokenOut.config.targetBalance,
           quote.strategy,
-          format(quote.amountIn, quote.tokenIn.balance.decimals),
-          format(quote.amountOut, quote.tokenOut.balance.decimals),
+          format(quote.amountIn, quote.tokenIn.balance.decimals.current),
+          format(quote.amountOut, quote.tokenOut.balance.decimals.current),
           slippageFormatter(quote.slippage * 100) + '%',
         ]
       })

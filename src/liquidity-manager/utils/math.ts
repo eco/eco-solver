@@ -14,8 +14,16 @@ export function getRangeFromPercentage(
   tokenBalance: TokenBalance,
   percentage: { up: number; down: number },
 ): { min: bigint; max: bigint } {
-  const min = multiplyByPercentage(tokenBalance.balance, 1 - percentage.down, tokenBalance.decimals)
-  const max = multiplyByPercentage(tokenBalance.balance, 1 + percentage.up, tokenBalance.decimals)
+  const min = multiplyByPercentage(
+    tokenBalance.balance,
+    1 - percentage.down,
+    tokenBalance.decimals.current,
+  )
+  const max = multiplyByPercentage(
+    tokenBalance.balance,
+    1 + percentage.up,
+    tokenBalance.decimals.current,
+  )
 
   return { min, max }
 }
@@ -53,11 +61,11 @@ export function getTotalSlippage(slippages: number[]): number {
 export function getSlippagePercent(dstTokenMin: TokenBalance, srcToken: TokenBalance): number {
   // Normalize both balances to BASE_DECIMALS for comparison
   const normalizedDstToken = normalizeBalance(
-    { balance: dstTokenMin.balance, decimal: dstTokenMin.decimals },
+    { balance: dstTokenMin.balance, decimal: dstTokenMin.decimals.current },
     BASE_DECIMALS,
   )
   const normalizedSrcToken = normalizeBalance(
-    { balance: srcToken.balance, decimal: srcToken.decimals },
+    { balance: srcToken.balance, decimal: srcToken.decimals.current },
     BASE_DECIMALS,
   )
 

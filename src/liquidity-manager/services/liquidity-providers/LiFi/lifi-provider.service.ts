@@ -25,6 +25,7 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { getSlippagePercent } from '@/liquidity-manager/utils/math'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -135,7 +136,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
       fromTokenAddress: tokenIn.config.address,
-      fromAmount: swapAmountBased.toString(),
+      fromAmount: deconvertNormScalar(swapAmountBased, tokenIn.balance.decimals.original).toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
@@ -161,18 +162,18 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const dstTokenMin = {
       address: tokenOut.config.address,
       decimals: tokenOut.balance.decimals,
-      balance: BigInt(route.toAmountMin),
+      balance: convertNormScalar(BigInt(route.toAmountMin), tokenOut.balance.decimals.original),
     }
     const srcToken = {
       address: tokenIn.config.address,
       decimals: tokenIn.balance.decimals,
-      balance: BigInt(route.fromAmount),
+      balance: convertNormScalar(BigInt(route.fromAmount), tokenIn.balance.decimals.original),
     }
     const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
     return {
-      amountIn: BigInt(route.fromAmount),
-      amountOut: BigInt(route.toAmount),
+      amountIn: convertNormScalar(BigInt(route.fromAmount), tokenIn.balance.decimals.original),
+      amountOut: convertNormScalar(BigInt(route.toAmount), tokenOut.balance.decimals.original),
       slippage: slippage,
       tokenIn: tokenIn,
       tokenOut: tokenOut,

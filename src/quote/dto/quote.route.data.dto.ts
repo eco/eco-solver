@@ -6,6 +6,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
+import { ParsedCalls } from '@/interceptors/token-calls.interceptor'
 
 /**
  * The DTO for the route data that the sender wants to make.
@@ -67,4 +68,6 @@ export class QuoteCallDataDTO implements CallDataInterface {
   value: bigint
 }
 
-export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}
+export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {
+  parsedCalls?: ParsedCalls
+}
