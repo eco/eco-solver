@@ -277,6 +277,12 @@ export class EcoTester {
         tester.providersToOverride.push([this.provider, mock])
         return tester
       }
+
+      public useFactory(factory: () => any): EcoTester {
+        const value = factory()
+        tester.providersToOverride.push([this.provider, value])
+        return tester
+      }
     }
     return EcoTesterOverrideWith
   })()
@@ -298,6 +304,12 @@ export class EcoTester {
         tester.providersToOverride.push([this.provider, mock])
         return tester
       }
+
+      public useFactory(factory: () => any): EcoTester {
+        const value = factory()
+        tester.providersToOverride.push([this.provider, value])
+        return tester
+      }
     }
     return EcoTesterCustomImplementation
   })()
@@ -306,4 +318,5 @@ export class EcoTester {
 export interface EcoTesterWith {
   with(value: any): EcoTester
   withMock(): EcoTester
+  useFactory(factory: () => any): EcoTester
 }

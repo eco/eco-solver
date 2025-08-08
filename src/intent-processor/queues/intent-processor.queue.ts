@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq'
+import { Job, Queue } from 'bullmq'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
 import {
@@ -56,12 +56,12 @@ export class IntentProcessorQueue {
     return CheckSendBatchCronJobManager.start(this.queue, interval)
   }
 
-  addExecuteWithdrawalsJobs(jobsData: ExecuteWithdrawsJobData[]) {
+  addExecuteWithdrawalsJobs(jobsData: ExecuteWithdrawsJobData[]): Promise<Job[]> {
     const jobs = jobsData.map((data) => ExecuteWithdrawsJobManager.createJob(data))
     return this.queue.addBulk(jobs)
   }
 
-  addExecuteSendBatchJobs(jobsData: ExecuteSendBatchJobData[]) {
+  addExecuteSendBatchJobs(jobsData: ExecuteSendBatchJobData[]): Promise<Job[]> {
     const jobs = jobsData.map((data) => ExecuteSendBatchJobManager.createJob(data))
     return this.queue.addBulk(jobs)
   }
