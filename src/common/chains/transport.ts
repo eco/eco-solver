@@ -10,8 +10,8 @@ import {
 } from 'viem'
 
 export type TransportConfig =
-  | { isWebsocket: true; config?: WebSocketTransportConfig }
-  | { isWebsocket?: false; config?: HttpTransportConfig }
+  | { isWebsocketEnabled: true; config?: WebSocketTransportConfig }
+  | { isWebsocketEnabled: false; config?: HttpTransportConfig }
 
 /**
  * Returns a transport for the chain with the given rpc urls
@@ -25,7 +25,7 @@ export function getTransport(
   config?: TransportConfig,
 ): WebSocketTransport | HttpTransport | FallbackTransport {
   const transports: (WebSocketTransport | HttpTransport)[] = rpcUrls.map((url) => {
-    if (config?.isWebsocket) {
+    if (url.startsWith('ws://') || url.startsWith('wss://')) {
       return webSocket(url, { keepAlive: true, reconnect: true, ...config?.config })
     }
     return http(url, config?.config)
