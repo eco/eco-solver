@@ -28,7 +28,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    private readonly ecoConfigService: EcoConfigService,
+    private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
@@ -37,19 +37,19 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
   }
 
   async onModuleInit() {
-    this.config = this.ecoConfigService.getEverclear()
+    this.config = this.configService.getEverclear()
   }
 
   getStrategy() {
     return 'Everclear' as const
   }
 
-  @Cacheable()
-  private async getTokenSymbol(token: TokenData): Promise<string> {
-    const client = await this.kernelAccountClientService.getClient(token.chainId)
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
+  private async getTokenSymbol(chainId: number, address: Hex): Promise<string> {
+    const client = await this.kernelAccountClientService.getClient(chainId)
     return client.readContract({
       abi: erc20Abi,
-      address: token.config.address,
+      address,
       functionName: 'symbol',
     })
   }
@@ -60,32 +60,40 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'Everclear'>[]> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Everclear: getting quote',
+        id,
+        properties: { tokenIn, tokenOut, swapAmount },
+      }),
+    )
+
     const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
-      this.getTokenSymbol(tokenIn),
-      this.getTokenSymbol(tokenOut),
+      this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
+      this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
     ])
 
     if (tokenInSymbol !== tokenOutSymbol) {
       this.logger.warn(
         EcoLogMessage.withId({
-          message: 'Everclear: cross-token swaps are not supported',
+          message: `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
           id,
           properties: {
-            tokenIn: tokenInSymbol,
-            tokenOut: tokenOutSymbol,
+            tokenIn: {
+              symbol: tokenInSymbol,
+              address: tokenIn.config.address,
+              chainId: tokenIn.config.chainId,
+            },
+            tokenOut: {
+              symbol: tokenOutSymbol,
+              address: tokenOut.config.address,
+              chainId: tokenOut.config.chainId,
+            },
           },
         }),
       )
       return []
     }
-
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: getting quote',
-        id,
-        properties: { tokenIn, tokenOut, swapAmount, tokenInSymbol, tokenOutSymbol },
-      }),
-    )
 
     const walletAddress = await this.kernelAccountClientService.getAddress()
     const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString()
@@ -149,23 +157,25 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Everclear'>): Promise<string> {
-    const { tokenIn, tokenOut, amountIn, id } = quote
-    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
-      this.getTokenSymbol(tokenIn),
-      this.getTokenSymbol(tokenOut),
-    ])
-
-    if (tokenInSymbol !== tokenOutSymbol) {
-      throw new Error('Everclear: cross-token swaps are not supported')
-    }
-
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Everclear: executing quote',
-        id,
+        id: quote.id,
         properties: { walletAddress, quote },
       }),
     )
+
+    const { tokenIn, tokenOut, amountIn, id } = quote
+    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
+      this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
+      this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
+    ])
+
+    if (tokenInSymbol !== tokenOutSymbol) {
+      throw new Error(
+        `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
+      )
+    }
 
     const requestBody = {
       origin: tokenIn.chainId.toString(),
