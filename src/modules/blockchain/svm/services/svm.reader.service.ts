@@ -28,7 +28,11 @@ export class SvmReaderService extends BaseChainReader {
     return BigInt(balance);
   }
 
-  async getTokenBalance(tokenAddress: string, walletAddress: string, _chainId?: number | string): Promise<bigint> {
+  async getTokenBalance(
+    tokenAddress: string,
+    walletAddress: string,
+    _chainId?: number | string,
+  ): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
     }
@@ -101,7 +105,12 @@ export class SvmReaderService extends BaseChainReader {
     return signatureStatus?.value?.confirmationStatus === 'finalized';
   }
 
-  async fetchProverFee(_intent: Intent, _messageData: Hex, _chainId?: number | string, _claimant?: Address): Promise<bigint> {
+  async fetchProverFee(
+    _intent: Intent,
+    _messageData: Hex,
+    _chainId?: number | string,
+    _claimant?: Address,
+  ): Promise<bigint> {
     // Solana doesn't have prover contracts yet
     // This is a stub implementation
     this.logger.warn('Prover fee fetching not implemented for Solana');

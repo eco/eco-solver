@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Test, TestingModule } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
@@ -54,11 +54,11 @@ describe('EvmListenersManagerService', () => {
     evmConfigService = {
       networks: mockNetworks,
       getInboxAddress: jest.fn().mockImplementation((chainId: number) => {
-        const network = mockNetworks.find(n => n.chainId === chainId);
+        const network = mockNetworks.find((n) => n.chainId === chainId);
         return network?.inboxAddress;
       }),
       getIntentSourceAddress: jest.fn().mockImplementation((chainId: number) => {
-        const network = mockNetworks.find(n => n.chainId === chainId);
+        const network = mockNetworks.find((n) => n.chainId === chainId);
         return network?.intentSourceAddress;
       }),
     } as any;
@@ -102,7 +102,7 @@ describe('EvmListenersManagerService', () => {
           intentSourceAddress: '0xIntentSource1',
         },
         transportService,
-        eventEmitter
+        eventEmitter,
       );
 
       expect(ChainListener).toHaveBeenCalledWith(
@@ -113,7 +113,7 @@ describe('EvmListenersManagerService', () => {
           intentSourceAddress: '0xIntentSource10',
         },
         transportService,
-        eventEmitter
+        eventEmitter,
       );
 
       expect(ChainListener).toHaveBeenCalledWith(
@@ -124,7 +124,7 @@ describe('EvmListenersManagerService', () => {
           intentSourceAddress: '0xIntentSource137',
         },
         transportService,
-        eventEmitter
+        eventEmitter,
       );
 
       // Verify all listeners were started
@@ -175,7 +175,7 @@ describe('EvmListenersManagerService', () => {
 
       // Access private property for testing
       const listeners = (service as any).listeners as Map<number, ChainListener>;
-      
+
       expect(listeners.size).toBe(3);
       expect(listeners.has(1)).toBe(true);
       expect(listeners.has(10)).toBe(true);
@@ -222,7 +222,7 @@ describe('EvmListenersManagerService', () => {
       const newService = new EvmListenersManagerService(
         evmConfigService,
         transportService,
-        eventEmitter
+        eventEmitter,
       );
 
       await expect(newService.onModuleDestroy()).resolves.not.toThrow();
@@ -230,10 +230,8 @@ describe('EvmListenersManagerService', () => {
 
     it('should stop listeners in parallel', async () => {
       // Add delays to stop methods to test parallel execution
-      mockListenerInstances.forEach((listener, index) => {
-        listener.stop.mockImplementation(
-          () => new Promise(resolve => setTimeout(resolve, 100))
-        );
+      mockListenerInstances.forEach((listener) => {
+        listener.stop.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
       });
 
       const start = Date.now();
@@ -262,11 +260,11 @@ describe('EvmListenersManagerService', () => {
 
       // Update the mock functions to return the test values
       evmConfigService.getInboxAddress.mockImplementation((chainId: number) => {
-        const network = testNetworks.find(n => n.chainId === chainId);
+        const network = testNetworks.find((n) => n.chainId === chainId);
         return network?.inboxAddress;
       });
       evmConfigService.getIntentSourceAddress.mockImplementation((chainId: number) => {
-        const network = testNetworks.find(n => n.chainId === chainId);
+        const network = testNetworks.find((n) => n.chainId === chainId);
         return network?.intentSourceAddress;
       });
 
@@ -280,7 +278,7 @@ describe('EvmListenersManagerService', () => {
           intentSourceAddress: '0xTestIntentSource',
         },
         transportService,
-        eventEmitter
+        eventEmitter,
       );
     });
   });

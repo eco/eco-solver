@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { QuotesController } from '../quotes.controller';
 import { QuotesService } from '../quotes.service';
 import { QuoteRequest } from '../schemas/quote-request.schema';
-import { QuoteResponse, SuccessfulQuoteResponse } from '../schemas/quote-response.schema';
+import { SuccessfulQuoteResponse } from '../schemas/quote-response.schema';
 
 describe('QuotesController', () => {
   let controller: QuotesController;

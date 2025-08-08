@@ -1,7 +1,6 @@
-import { privateKeyToAccount } from 'viem/accounts';
-import { Address, Chain, Hex, encodeFunctionData } from 'viem';
+import { Address, Chain, encodeFunctionData, Hex } from 'viem';
 
-import { WriteContractsOptions, Call } from '@/common/interfaces/evm-wallet.interface';
+import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 
 import { BasicWallet } from '../basic-wallet';
 
@@ -33,10 +32,10 @@ describe('BasicWallet', () => {
     mockPublicClient = {
       chain: mockChain,
       simulateContract: jest.fn().mockImplementation((args) => {
-        return Promise.resolve({ 
+        return Promise.resolve({
           request: {
             ...args,
-          }
+          },
         });
       }),
       waitForTransactionReceipt: jest.fn().mockResolvedValue({ status: 'success' }),
@@ -132,7 +131,7 @@ describe('BasicWallet', () => {
             functionName: 'aggregate3Value',
             args: expect.any(Array),
             value: 0n,
-          })
+          }),
         );
       });
 
@@ -152,13 +151,13 @@ describe('BasicWallet', () => {
         expect(mockPublicClient.simulateContract).toHaveBeenCalledWith(
           expect.objectContaining({
             value: 2000000000000000000n,
-          })
+          }),
         );
 
         expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
           expect.objectContaining({
             value: 2000000000000000000n,
-          })
+          }),
         );
       });
 
@@ -182,7 +181,7 @@ describe('BasicWallet', () => {
         expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
           expect.objectContaining({
             value: 3000000000000000000n,
-          })
+          }),
         );
       });
 
@@ -196,7 +195,7 @@ describe('BasicWallet', () => {
         mockPublicClient.chain = { id: 1, name: 'Test' };
 
         await expect(wallet.writeContracts(mockParams)).rejects.toThrow(
-          'Multicall3 address not found for chain 1'
+          'Multicall3 address not found for chain 1',
         );
       });
     });
@@ -209,7 +208,7 @@ describe('BasicWallet', () => {
 
         expect(result).toEqual([mockTxHash, mockTxHash]);
         expect(mockWalletClient.sendTransaction).toHaveBeenCalledTimes(2);
-        
+
         // Should not use multicall
         expect(mockPublicClient.simulateContract).not.toHaveBeenCalled();
       });
@@ -230,8 +229,14 @@ describe('BasicWallet', () => {
 
         await wallet.writeContracts(paramsWithDifferentValues, options);
 
-        expect(mockWalletClient.sendTransaction).toHaveBeenNthCalledWith(1, paramsWithDifferentValues[0]);
-        expect(mockWalletClient.sendTransaction).toHaveBeenNthCalledWith(2, paramsWithDifferentValues[1]);
+        expect(mockWalletClient.sendTransaction).toHaveBeenNthCalledWith(
+          1,
+          paramsWithDifferentValues[0],
+        );
+        expect(mockWalletClient.sendTransaction).toHaveBeenNthCalledWith(
+          2,
+          paramsWithDifferentValues[1],
+        );
       });
 
       it('should handle errors in sequential execution', async () => {
@@ -239,8 +244,10 @@ describe('BasicWallet', () => {
           .mockResolvedValueOnce(mockTxHash)
           .mockRejectedValueOnce(new Error('Transaction failed'));
 
-        await expect(wallet.writeContracts(mockParams, options)).rejects.toThrow('Transaction failed');
-        
+        await expect(wallet.writeContracts(mockParams, options)).rejects.toThrow(
+          'Transaction failed',
+        );
+
         // Should have attempted both transactions
         expect(mockWalletClient.sendTransaction).toHaveBeenCalledTimes(2);
       });
@@ -255,7 +262,7 @@ describe('BasicWallet', () => {
 
       it('should handle single transaction', async () => {
         const result = await wallet.writeContracts([mockParams[0]]);
-        
+
         // Should still use multicall for consistency
         expect(result).toEqual([mockTxHash]);
         expect(mockWalletClient.writeContract).toHaveBeenCalledTimes(1);

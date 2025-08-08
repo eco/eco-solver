@@ -9,11 +9,20 @@ export abstract class BaseChainReader {
 
   abstract getBalance(address: string, chainId?: number | string): Promise<bigint>;
 
-  abstract getTokenBalance(tokenAddress: string, walletAddress: string, chainId?: number | string): Promise<bigint>;
+  abstract getTokenBalance(
+    tokenAddress: string,
+    walletAddress: string,
+    chainId?: number | string,
+  ): Promise<bigint>;
 
   abstract isAddressValid(address: string): boolean;
 
   abstract isIntentFunded(intent: Intent, chainId?: number | string): Promise<boolean>;
 
-  abstract fetchProverFee(intent: Intent, messageData: Hex, chainId?: number | string, claimant?: Address): Promise<bigint>;
+  abstract fetchProverFee(
+    intent: Intent,
+    messageData: Hex,
+    chainId?: number | string,
+    claimant?: Address,
+  ): Promise<bigint>;
 }

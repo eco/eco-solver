@@ -62,7 +62,8 @@ export class BasicWallet extends BaseEvmWallet {
         callData: call.data,
       }));
 
-      const totalValue = options?.value ?? multicallCalls.reduce((sum, p) => sum + (p.value || 0n), 0n);
+      const totalValue =
+        options?.value ?? multicallCalls.reduce((sum, p) => sum + (p.value || 0n), 0n);
 
       const { request } = await this.publicClient.simulateContract({
         address: multicall3Address,

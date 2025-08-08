@@ -3,7 +3,14 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-type SerializableValue = string | number | boolean | null | undefined | SerializableObject | SerializableValue[];
+type SerializableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | SerializableObject
+  | SerializableValue[];
 type SerializableObject = { [key: string]: SerializableValue };
 
 @Injectable()

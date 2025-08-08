@@ -1,8 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { Address } from 'viem';
-
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { EvmConfigService } from '@/modules/config/services';

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { hashIntent } from '@eco-foundation/routes-ts';
-import { Address, Hex, encodeFunctionData } from 'viem';
+import { Address, encodeFunctionData, Hex } from 'viem';
 
 import { ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -14,12 +14,12 @@ import { EvmWalletManager, WalletType } from '../evm-wallet-manager.service';
 
 jest.mock('@eco-foundation/routes-ts', () => ({
   ...jest.requireActual('@eco-foundation/routes-ts'),
-  hashIntent: jest.fn()
+  hashIntent: jest.fn(),
 }));
 
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
-  encodeFunctionData: jest.fn()
+  encodeFunctionData: jest.fn(),
 }));
 
 describe('EvmExecutorService', () => {
@@ -36,7 +36,7 @@ describe('EvmExecutorService', () => {
       creator: '0x0987654321098765432109876543210987654321' as Address,
       deadline: 1234567890n,
       nativeValue: 1000000000000000000n,
-      tokens: []
+      tokens: [],
     },
     route: {
       source: 1n,
@@ -47,50 +47,50 @@ describe('EvmExecutorService', () => {
       tokens: [
         {
           token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-          amount: 1000000n
-        }
-      ]
+          amount: 1000000n,
+        },
+      ],
     },
-    status: IntentStatus.PENDING
+    status: IntentStatus.PENDING,
   };
 
   const mockWallet = {
     getAddress: jest.fn().mockResolvedValue('0xWalletAddress'),
-    writeContracts: jest.fn().mockResolvedValue(['0xTransactionHash'])
+    writeContracts: jest.fn().mockResolvedValue(['0xTransactionHash']),
   };
 
   const mockProver = {
     getContractAddress: jest.fn().mockReturnValue('0xProverAddress'),
     getFee: jest.fn().mockResolvedValue(100000000000000000n),
-    getMessageData: jest.fn().mockResolvedValue('0xMessageData')
+    getMessageData: jest.fn().mockResolvedValue('0xMessageData'),
   };
 
   const mockPublicClient = {
     waitForTransactionReceipt: jest.fn().mockResolvedValue({ status: 'success' }),
     getBalance: jest.fn().mockResolvedValue(1000000000000000000n),
-    getTransactionReceipt: jest.fn().mockResolvedValue({ status: 'success' })
+    getTransactionReceipt: jest.fn().mockResolvedValue({ status: 'success' }),
   };
 
   beforeEach(async () => {
     evmConfigService = {
       getChain: jest.fn().mockReturnValue({
         chainId: 10,
-        inboxAddress: '0xInboxAddress'
+        inboxAddress: '0xInboxAddress',
       }),
-      getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address)
+      getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address),
     } as any;
 
     transportService = {
-      getPublicClient: jest.fn().mockReturnValue(mockPublicClient)
+      getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
     } as any;
 
     walletManager = {
       getWallet: jest.fn().mockReturnValue(mockWallet),
-      getWalletAddress: jest.fn().mockResolvedValue('0xWalletAddress')
+      getWalletAddress: jest.fn().mockResolvedValue('0xWalletAddress'),
     } as any;
 
     proverService = {
-      getProver: jest.fn().mockReturnValue(mockProver)
+      getProver: jest.fn().mockReturnValue(mockProver),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -99,8 +99,8 @@ describe('EvmExecutorService', () => {
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
         { provide: EvmWalletManager, useValue: walletManager },
-        { provide: ProverService, useValue: proverService }
-      ]
+        { provide: ProverService, useValue: proverService },
+      ],
     }).compile();
 
     service = module.get<EvmExecutorService>(EvmExecutorService);
@@ -109,7 +109,7 @@ describe('EvmExecutorService', () => {
     jest.clearAllMocks();
     (hashIntent as jest.Mock).mockReturnValue({
       intentHash: '0xIntentHash',
-      rewardHash: '0xRewardHash'
+      rewardHash: '0xRewardHash',
     });
     (encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedData');
   });
@@ -125,7 +125,7 @@ describe('EvmExecutorService', () => {
 
       expect(result).toEqual<ExecutionResult>({
         success: true,
-        txHash: '0xTransactionHash'
+        txHash: '0xTransactionHash',
       });
 
       // Verify wallet was retrieved
@@ -146,7 +146,7 @@ describe('EvmExecutorService', () => {
       // Verify transaction receipt was waited for
       expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({
         hash: '0xTransactionHash',
-        confirmations: 2
+        confirmations: 2,
       });
     });
 
@@ -155,8 +155,8 @@ describe('EvmExecutorService', () => {
         ...mockIntent,
         route: {
           ...mockIntent.route,
-          tokens: []
-        }
+          tokens: [],
+        },
       };
 
       const result = await service.fulfill(intentWithoutTokens, 'basic');
@@ -173,9 +173,9 @@ describe('EvmExecutorService', () => {
           ...mockIntent.route,
           tokens: [
             { token: '0xToken1' as Address, amount: 100n },
-            { token: '0xToken2' as Address, amount: 200n }
-          ]
-        }
+            { token: '0xToken2' as Address, amount: 200n },
+          ],
+        },
       };
 
       const result = await service.fulfill(intentWithMultipleTokens, 'basic');
@@ -192,7 +192,7 @@ describe('EvmExecutorService', () => {
 
       expect(result).toEqual<ExecutionResult>({
         success: false,
-        error: 'Prover not found.'
+        error: 'Prover not found.',
       });
     });
 
@@ -203,7 +203,7 @@ describe('EvmExecutorService', () => {
 
       expect(result).toEqual<ExecutionResult>({
         success: false,
-        error: 'Wallet error'
+        error: 'Wallet error',
       });
     });
 
@@ -215,7 +215,7 @@ describe('EvmExecutorService', () => {
 
       expect(result).toEqual<ExecutionResult>({
         success: false,
-        error: 'Receipt timeout'
+        error: 'Receipt timeout',
       });
     });
 

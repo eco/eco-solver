@@ -232,7 +232,8 @@ describe('QuotesService', () => {
             failed: [
               {
                 validation: 'StandardFeeValidation',
-                reason: 'Reward native value 500000000000000 is less than required fee 1050000000000000',
+                reason:
+                  'Reward native value 500000000000000 is less than required fee 1050000000000000',
               },
             ],
           },

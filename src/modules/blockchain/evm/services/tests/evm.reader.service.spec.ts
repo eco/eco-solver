@@ -12,7 +12,6 @@ import { EvmTransportService } from '../evm-transport.service';
 describe('EvmReaderService', () => {
   let service: EvmReaderService;
   let transportService: jest.Mocked<EvmTransportService>;
-  let evmConfigService: jest.Mocked<EvmConfigService>;
   let mockPublicClient: any;
 
   beforeEach(async () => {
@@ -48,7 +47,6 @@ describe('EvmReaderService', () => {
 
     service = module.get<EvmReaderService>(EvmReaderService);
     transportService = module.get(EvmTransportService);
-    evmConfigService = module.get(EvmConfigService);
   });
 
   describe('fetchProverFee', () => {

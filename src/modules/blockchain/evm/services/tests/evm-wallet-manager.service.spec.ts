@@ -132,14 +132,12 @@ describe('EvmWalletManager', () => {
     });
 
     it('should throw error for unsupported chain', () => {
-      expect(() => service.getWallet('basic', 999)).toThrow(
-        'No wallets configured for chain 999'
-      );
+      expect(() => service.getWallet('basic', 999)).toThrow('No wallets configured for chain 999');
     });
 
     it('should throw error for unknown wallet type', () => {
       expect(() => service.getWallet('unknown' as WalletType, 1)).toThrow(
-        "Wallet type 'unknown' not found for chain 1"
+        "Wallet type 'unknown' not found for chain 1",
       );
     });
   });
@@ -165,7 +163,7 @@ describe('EvmWalletManager', () => {
 
     it('should throw error for unsupported chain', async () => {
       await expect(service.getWalletAddress('basic', 999)).rejects.toThrow(
-        'No wallets configured for chain 999'
+        'No wallets configured for chain 999',
       );
     });
   });
@@ -174,10 +172,10 @@ describe('EvmWalletManager', () => {
     it('should handle concurrent wallet initialization', async () => {
       // Simulate slow wallet creation
       basicWalletFactory.createWallet.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(mockBasicWallet), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockBasicWallet), 100)),
       );
       kernelWalletFactory.createWallet.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(mockKernelWallet), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockKernelWallet), 100)),
       );
 
       const start = Date.now();

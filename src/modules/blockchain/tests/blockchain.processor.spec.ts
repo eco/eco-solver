@@ -8,15 +8,14 @@ import { QueueConfigService } from '@/modules/config/services/queue-config.servi
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
-import { BlockchainExecutorService } from '../blockchain-executor.service';
 import { BlockchainProcessor } from '../blockchain.processor';
+import { BlockchainExecutorService } from '../blockchain-executor.service';
 
 jest.mock('@/modules/queue/utils/queue-serializer');
 
 // Helper to serialize objects with BigInt
-const serializeWithBigInt = (obj: any) => JSON.stringify(obj, (_, value) =>
-  typeof value === 'bigint' ? value.toString() : value
-);
+const serializeWithBigInt = (obj: any) =>
+  JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value));
 
 describe('BlockchainProcessor', () => {
   let processor: BlockchainProcessor;
@@ -30,7 +29,7 @@ describe('BlockchainProcessor', () => {
       creator: '0x0987654321098765432109876543210987654321' as Address,
       deadline: 1234567890n,
       nativeValue: 1000000000000000000n,
-      tokens: []
+      tokens: [],
     },
     route: {
       source: 1n,
@@ -38,33 +37,33 @@ describe('BlockchainProcessor', () => {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       inbox: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
       calls: [],
-      tokens: []
+      tokens: [],
     },
-    status: IntentStatus.PENDING
+    status: IntentStatus.PENDING,
   };
 
   const mockJobData: ExecutionJobData = {
     intent: mockIntent,
     strategy: 'standard',
     chainId: 10n,
-    walletId: 'basic'
+    walletId: 'basic',
   };
 
   beforeEach(async () => {
     blockchainService = {
-      executeIntent: jest.fn().mockResolvedValue(undefined)
+      executeIntent: jest.fn().mockResolvedValue(undefined),
     } as any;
 
     queueConfig = {
-      executionConcurrency: 5
+      executionConcurrency: 5,
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainProcessor,
         { provide: BlockchainExecutorService, useValue: blockchainService },
-        { provide: QueueConfigService, useValue: queueConfig }
-      ]
+        { provide: QueueConfigService, useValue: queueConfig },
+      ],
     }).compile();
 
     processor = module.get<BlockchainProcessor>(BlockchainProcessor);
@@ -87,9 +86,9 @@ describe('BlockchainProcessor', () => {
       const mockWorker = { concurrency: 0 };
       Object.defineProperty(processor, 'worker', {
         get: jest.fn(() => mockWorker),
-        configurable: true
+        configurable: true,
       });
-      
+
       processor.onModuleInit();
 
       expect(mockWorker.concurrency).toBe(5);
@@ -99,7 +98,7 @@ describe('BlockchainProcessor', () => {
       // Mock the worker getter to return undefined
       Object.defineProperty(processor, 'worker', {
         get: jest.fn(() => undefined),
-        configurable: true
+        configurable: true,
       });
 
       expect(() => processor.onModuleInit()).not.toThrow();
@@ -109,7 +108,7 @@ describe('BlockchainProcessor', () => {
   describe('process', () => {
     it('should process job successfully', async () => {
       const mockJob: Job<string> = {
-        data: serializeWithBigInt(mockJobData)
+        data: serializeWithBigInt(mockJobData),
       } as any;
 
       await processor.process(mockJob);
@@ -121,7 +120,7 @@ describe('BlockchainProcessor', () => {
     it('should handle job without walletId', async () => {
       const jobDataWithoutWallet = { ...mockJobData, walletId: undefined };
       const mockJob: Job<string> = {
-        data: serializeWithBigInt(jobDataWithoutWallet)
+        data: serializeWithBigInt(jobDataWithoutWallet),
       } as any;
 
       (QueueSerializer.deserialize as jest.Mock).mockReturnValueOnce(jobDataWithoutWallet);
@@ -133,7 +132,7 @@ describe('BlockchainProcessor', () => {
 
     it('should handle execution errors', async () => {
       const mockJob: Job<string> = {
-        data: serializeWithBigInt(mockJobData)
+        data: serializeWithBigInt(mockJobData),
       } as any;
 
       const error = new Error('Execution failed');
@@ -159,18 +158,14 @@ describe('BlockchainProcessor', () => {
         .mockReturnValueOnce(jobData3);
 
       // Add delay to simulate async execution
-      let executionOrder: string[] = [];
+      const executionOrder: string[] = [];
       blockchainService.executeIntent.mockImplementation(async (intent) => {
         executionOrder.push(intent.intentHash);
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       });
 
       // Start all jobs concurrently
-      const promises = [
-        processor.process(job1),
-        processor.process(job2),
-        processor.process(job3)
-      ];
+      const promises = [processor.process(job1), processor.process(job2), processor.process(job3)];
 
       await Promise.all(promises);
 
@@ -180,9 +175,21 @@ describe('BlockchainProcessor', () => {
     });
 
     it('should allow parallel processing for different chains', async () => {
-      const jobData1 = { ...mockJobData, chainId: 1n, intent: { ...mockIntent, intentHash: '0xhash1' as Hex } };
-      const jobData2 = { ...mockJobData, chainId: 10n, intent: { ...mockIntent, intentHash: '0xhash2' as Hex } };
-      const jobData3 = { ...mockJobData, chainId: 137n, intent: { ...mockIntent, intentHash: '0xhash3' as Hex } };
+      const jobData1 = {
+        ...mockJobData,
+        chainId: 1n,
+        intent: { ...mockIntent, intentHash: '0xhash1' as Hex },
+      };
+      const jobData2 = {
+        ...mockJobData,
+        chainId: 10n,
+        intent: { ...mockIntent, intentHash: '0xhash2' as Hex },
+      };
+      const jobData3 = {
+        ...mockJobData,
+        chainId: 137n,
+        intent: { ...mockIntent, intentHash: '0xhash3' as Hex },
+      };
 
       const job1: Job<string> = { data: serializeWithBigInt(jobData1) } as any;
       const job2: Job<string> = { data: serializeWithBigInt(jobData2) } as any;
@@ -197,9 +204,9 @@ describe('BlockchainProcessor', () => {
       // Track execution timing
       const executionTimes: Record<string, number> = {};
       const startTime = Date.now();
-      
+
       blockchainService.executeIntent.mockImplementation(async (intent) => {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
         executionTimes[intent.intentHash] = Date.now() - startTime;
       });
 
@@ -207,14 +214,14 @@ describe('BlockchainProcessor', () => {
       await Promise.all([
         processor.process(job1),
         processor.process(job2),
-        processor.process(job3)
+        processor.process(job3),
       ]);
 
       // Verify all jobs completed around the same time (parallel execution)
       const times = Object.values(executionTimes);
       const maxTime = Math.max(...times);
       const minTime = Math.min(...times);
-      
+
       // If executed in parallel, the difference should be small
       expect(maxTime - minTime).toBeLessThan(30);
       expect(blockchainService.executeIntent).toHaveBeenCalledTimes(3);
@@ -222,7 +229,7 @@ describe('BlockchainProcessor', () => {
 
     it('should clean up chain locks after completion', async () => {
       const mockJob: Job<string> = {
-        data: serializeWithBigInt(mockJobData)
+        data: serializeWithBigInt(mockJobData),
       } as any;
 
       await processor.process(mockJob);
@@ -235,7 +242,7 @@ describe('BlockchainProcessor', () => {
     it('should handle bigint chainId', async () => {
       const jobDataWithBigInt = { ...mockJobData, chainId: 10n };
       const mockJob: Job<string> = {
-        data: serializeWithBigInt(jobDataWithBigInt)
+        data: serializeWithBigInt(jobDataWithBigInt),
       } as any;
 
       (QueueSerializer.deserialize as jest.Mock).mockReturnValueOnce(jobDataWithBigInt);

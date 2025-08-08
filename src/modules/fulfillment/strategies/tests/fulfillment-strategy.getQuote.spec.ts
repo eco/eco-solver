@@ -3,16 +3,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies/fulfillment-strategy.abstract';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { Validation } from '@/modules/fulfillment/validations';
-import { FeeCalculationValidation, FeeDetails } from '@/modules/fulfillment/validations/fee-calculation.interface';
-import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
+import {
+  FeeCalculationValidation,
+  FeeDetails,
+} from '@/modules/fulfillment/validations/fee-calculation.interface';
 
 // Test implementation of FulfillmentStrategy
 class TestFulfillmentStrategy extends FulfillmentStrategy {
   readonly name: FulfillmentStrategyName = 'standard' as FulfillmentStrategyName;
-  
+
   constructor(
     blockchainExecutor: BlockchainExecutorService,
     blockchainReader: BlockchainReaderService,
@@ -64,13 +67,15 @@ class MockFeeValidation implements FeeCalculationValidation {
   }
 
   async calculateFee(_intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
-    return this.feeDetails || {
-      baseFee: BigInt('1000000000000000'),
-      percentageFee: BigInt('50000000000000'),
-      totalRequiredFee: BigInt('1050000000000000'),
-      currentReward: BigInt('5000000000000000000'),
-      minimumRequiredReward: BigInt('1050000000000000'),
-    };
+    return (
+      this.feeDetails || {
+        baseFee: BigInt('1000000000000000'),
+        percentageFee: BigInt('50000000000000'),
+        totalRequiredFee: BigInt('1050000000000000'),
+        currentReward: BigInt('5000000000000000000'),
+        minimumRequiredReward: BigInt('1050000000000000'),
+      }
+    );
   }
 }
 
