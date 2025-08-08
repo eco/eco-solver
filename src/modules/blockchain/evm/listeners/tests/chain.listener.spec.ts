@@ -44,9 +44,7 @@ describe('ChainListener', () => {
           value: 0n,
         },
       ],
-      routeTokens: [
-        { token: '0xRouteToken1' as Address, amount: 300n },
-      ],
+      routeTokens: [{ token: '0xRouteToken1' as Address, amount: 300n }],
     },
   };
 
@@ -119,9 +117,7 @@ describe('ChainListener', () => {
                 value: 0n,
               },
             ],
-            tokens: [
-              { token: '0xRouteToken1', amount: 300n },
-            ],
+            tokens: [{ token: '0xRouteToken1', amount: 300n }],
           },
         },
         strategy: 'standard',
@@ -262,7 +258,7 @@ describe('ChainListener', () => {
       expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           address: '0xCustomIntentSource',
-        })
+        }),
       );
     });
 

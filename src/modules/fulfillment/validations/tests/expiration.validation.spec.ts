@@ -8,7 +8,6 @@ import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('ExpirationValidation', () => {
   let validation: ExpirationValidation;
-  let fulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
   let proverService: jest.Mocked<ProverService>;
 
   beforeEach(async () => {
@@ -37,7 +36,6 @@ describe('ExpirationValidation', () => {
     }).compile();
 
     validation = module.get<ExpirationValidation>(ExpirationValidation);
-    fulfillmentConfigService = module.get(FulfillmentConfigService);
     proverService = module.get(ProverService);
   });
 

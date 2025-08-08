@@ -1,7 +1,7 @@
-import { Address } from 'viem';
-import { toAccount } from 'viem/accounts';
 import { KMSProviderAWS } from '@eco-foundation/eco-kms-provider-aws';
 import { KMSWallets } from '@eco-foundation/eco-kms-wallets';
+import { Address } from 'viem';
+import { toAccount } from 'viem/accounts';
 
 import { kmsToAccount } from '../kms-account';
 
@@ -18,11 +18,11 @@ describe('kmsToAccount', () => {
   const mockAddress = '0x1234567890123456789012345678901234567890' as Address;
   const mockPublicKey = '0x04abcdef...';
   const mockProvider = { id: 'provider' };
-  const mockKmsWallet = { 
+  const mockKmsWallet = {
     getAddress: jest.fn().mockResolvedValue(mockAddress),
     publicKey: jest.fn().mockResolvedValue(mockPublicKey),
     getPublickey: jest.fn().mockResolvedValue(Buffer.from(mockPublicKey.slice(2), 'hex')),
-    getAddressHex: jest.fn().mockResolvedValue(mockAddress)
+    getAddressHex: jest.fn().mockResolvedValue(mockAddress),
   };
   const mockAccount = {
     address: mockAddress,
@@ -36,7 +36,7 @@ describe('kmsToAccount', () => {
 
     // Mock KMS provider
     (KMSProviderAWS as jest.Mock).mockImplementation(() => mockProvider);
-    
+
     // Mock KMS wallet
     (KMSWallets as jest.Mock).mockImplementation(() => mockKmsWallet);
 

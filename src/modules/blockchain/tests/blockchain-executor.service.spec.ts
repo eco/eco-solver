@@ -26,7 +26,7 @@ describe('BlockchainExecutorService', () => {
       creator: '0x0987654321098765432109876543210987654321' as Address,
       deadline: 1234567890n,
       nativeValue: 1000000000000000000n,
-      tokens: []
+      tokens: [],
     },
     route: {
       source: 1n,
@@ -34,31 +34,31 @@ describe('BlockchainExecutorService', () => {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       inbox: '0xabcdefabcdefabcdefabcdefabcdefabcd' as Address,
       calls: [],
-      tokens: []
+      tokens: [],
     },
-    status: IntentStatus.PENDING
+    status: IntentStatus.PENDING,
   };
 
   beforeEach(async () => {
     evmConfigService = {
       isConfigured: jest.fn().mockReturnValue(true),
-      supportedChainIds: [1, 10, 137]
+      supportedChainIds: [1, 10, 137],
     } as any;
 
     solanaConfigService = {
-      isConfigured: jest.fn().mockReturnValue(true)
+      isConfigured: jest.fn().mockReturnValue(true),
     } as any;
 
     intentsService = {
-      updateStatus: jest.fn().mockResolvedValue(undefined)
+      updateStatus: jest.fn().mockResolvedValue(undefined),
     } as any;
 
     evmExecutor = {
-      fulfill: jest.fn().mockResolvedValue({ success: true, txHash: '0x123' })
+      fulfill: jest.fn().mockResolvedValue({ success: true, txHash: '0x123' }),
     } as any;
 
     svmExecutor = {
-      fulfill: jest.fn().mockResolvedValue({ success: true, txHash: 'solana-tx-hash' })
+      fulfill: jest.fn().mockResolvedValue({ success: true, txHash: 'solana-tx-hash' }),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -68,8 +68,8 @@ describe('BlockchainExecutorService', () => {
         { provide: SolanaConfigService, useValue: solanaConfigService },
         { provide: IntentsService, useValue: intentsService },
         { provide: EvmExecutorService, useValue: evmExecutor },
-        { provide: SvmExecutorService, useValue: svmExecutor }
-      ]
+        { provide: SvmExecutorService, useValue: svmExecutor },
+      ],
     }).compile();
 
     service = module.get<BlockchainExecutorService>(BlockchainExecutorService);
@@ -104,8 +104,8 @@ describe('BlockchainExecutorService', () => {
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: IntentsService, useValue: intentsService },
           { provide: EvmExecutorService, useValue: evmExecutor },
-          { provide: SvmExecutorService, useValue: svmExecutor }
-        ]
+          { provide: SvmExecutorService, useValue: svmExecutor },
+        ],
       }).compile();
 
       const newService = module.get<BlockchainExecutorService>(BlockchainExecutorService);
@@ -118,8 +118,8 @@ describe('BlockchainExecutorService', () => {
           BlockchainExecutorService,
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
-          { provide: IntentsService, useValue: intentsService }
-        ]
+          { provide: IntentsService, useValue: intentsService },
+        ],
       }).compile();
 
       const newService = module.get<BlockchainExecutorService>(BlockchainExecutorService);
@@ -177,7 +177,7 @@ describe('BlockchainExecutorService', () => {
     it('should throw error for unsupported chains', () => {
       expect(() => service.getExecutorForChain(999)).toThrow('No executor for chain 999');
       expect(() => service.getExecutorForChain('unsupported-chain')).toThrow(
-        'No executor for chain unsupported-chain'
+        'No executor for chain unsupported-chain',
       );
     });
 
@@ -192,7 +192,10 @@ describe('BlockchainExecutorService', () => {
       await service.executeIntent(mockIntent, 'basic' as WalletType);
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, 'basic');
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(mockIntent.intentHash, IntentStatus.FULFILLED);
+      expect(intentsService.updateStatus).toHaveBeenCalledWith(
+        mockIntent.intentHash,
+        IntentStatus.FULFILLED,
+      );
     });
 
     it('should execute intent successfully on Solana chain', async () => {
@@ -200,14 +203,17 @@ describe('BlockchainExecutorService', () => {
         ...mockIntent,
         route: {
           ...mockIntent.route,
-          destination: 'solana-mainnet' as any
-        }
+          destination: 'solana-mainnet' as any,
+        },
       };
 
       await service.executeIntent(solanaIntent);
 
       expect(svmExecutor.fulfill).toHaveBeenCalledWith(solanaIntent, undefined);
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(mockIntent.intentHash, IntentStatus.FULFILLED);
+      expect(intentsService.updateStatus).toHaveBeenCalledWith(
+        mockIntent.intentHash,
+        IntentStatus.FULFILLED,
+      );
     });
 
     it('should handle failed execution', async () => {
@@ -216,7 +222,10 @@ describe('BlockchainExecutorService', () => {
       await service.executeIntent(mockIntent);
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, undefined);
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(mockIntent.intentHash, IntentStatus.FAILED);
+      expect(intentsService.updateStatus).toHaveBeenCalledWith(
+        mockIntent.intentHash,
+        IntentStatus.FAILED,
+      );
     });
 
     it('should handle execution errors', async () => {
@@ -225,7 +234,10 @@ describe('BlockchainExecutorService', () => {
       await service.executeIntent(mockIntent);
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, undefined);
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(mockIntent.intentHash, IntentStatus.FAILED);
+      expect(intentsService.updateStatus).toHaveBeenCalledWith(
+        mockIntent.intentHash,
+        IntentStatus.FAILED,
+      );
     });
 
     it('should handle unsupported chain errors', async () => {
@@ -233,13 +245,16 @@ describe('BlockchainExecutorService', () => {
         ...mockIntent,
         route: {
           ...mockIntent.route,
-          destination: 999n
-        }
+          destination: 999n,
+        },
       };
 
       await service.executeIntent(unsupportedIntent);
 
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(mockIntent.intentHash, IntentStatus.FAILED);
+      expect(intentsService.updateStatus).toHaveBeenCalledWith(
+        mockIntent.intentHash,
+        IntentStatus.FAILED,
+      );
     });
 
     it('should pass wallet ID to executor', async () => {

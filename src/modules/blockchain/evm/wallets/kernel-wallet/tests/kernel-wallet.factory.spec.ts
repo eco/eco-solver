@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Chain, Transport, createPublicClient, createWalletClient } from 'viem';
+import { Address, Chain, createPublicClient, createWalletClient, Transport } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { EvmConfigService } from '@/modules/config/services';
 
 import { EvmTransportService } from '../../../services/evm-transport.service';
-import { KernelWalletFactory } from '../kernel-wallet.factory';
 import { KernelWallet } from '../kernel-wallet';
+import { KernelWalletFactory } from '../kernel-wallet.factory';
 import { kmsToAccount } from '../kms/kms-account';
 
 jest.mock('viem', () => ({
@@ -153,7 +153,7 @@ describe('KernelWalletFactory', () => {
 
       // Signer should only be created once
       expect(privateKeyToAccount).toHaveBeenCalledTimes(1);
-      
+
       // All wallets should be created
       expect(wallets).toHaveLength(3);
       expect(KernelWallet).toHaveBeenCalledTimes(3);
@@ -285,7 +285,6 @@ describe('KernelWalletFactory', () => {
         signer: {
           type: 'kms',
           region: 'us-east-1',
-          keyId: 'test-key-id',
         },
       });
 

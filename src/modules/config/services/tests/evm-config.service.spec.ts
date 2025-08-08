@@ -1,14 +1,11 @@
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 
-import { Address } from 'viem';
-
 import { EvmNetworkConfig } from '@/config/schemas';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 
 describe('EvmConfigService', () => {
   let service: EvmConfigService;
-  let configService: ConfigService;
 
   const mockNetworks: EvmNetworkConfig[] = [
     {
@@ -75,7 +72,6 @@ describe('EvmConfigService', () => {
     }).compile();
 
     service = module.get<EvmConfigService>(EvmConfigService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('getIntentSourceAddress', () => {

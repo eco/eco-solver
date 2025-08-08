@@ -1,12 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ModuleRef } from '@nestjs/core';
-import { Address, Hex, encodeAbiParameters, pad } from 'viem';
+import { Test, TestingModule } from '@nestjs/testing';
 
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { Address, encodeAbiParameters, Hex, pad } from 'viem';
+
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
-import { MetalayerProver } from '../../provers/metalayer.prover';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
+
+import { MetalayerProver } from '../../provers/metalayer.prover';
 
 describe('MetalayerProver', () => {
   let prover: MetalayerProver;
@@ -67,7 +69,7 @@ describe('MetalayerProver', () => {
         getChain: jest.fn().mockReturnValue(undefined),
       } as unknown as jest.Mocked<EvmConfigService>;
       const emptyProver = new MetalayerProver(emptyConfigService, mockModuleRef);
-      
+
       expect(emptyProver.getContractAddress(137)).toBeUndefined();
       expect(emptyProver.isSupported(137)).toBe(false);
     });
@@ -82,7 +84,7 @@ describe('MetalayerProver', () => {
           return chainConfigs[chainId];
         }),
       } as unknown as jest.Mocked<EvmConfigService>;
-      
+
       const filteredProver = new MetalayerProver(mixedConfigService, mockModuleRef);
       expect(filteredProver.getContractAddress(137)).toBe(testAddress1);
       expect(filteredProver.getContractAddress(1)).toBeUndefined();
@@ -103,10 +105,7 @@ describe('MetalayerProver', () => {
       });
 
       const messageData = await prover.getMessageData(intent);
-      const expectedData = encodeAbiParameters(
-        [{ type: 'bytes32' }],
-        [pad(proverAddress)],
-      );
+      const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(proverAddress)]);
 
       expect(messageData).toBe(expectedData);
     });
@@ -119,21 +118,18 @@ describe('MetalayerProver', () => {
       ];
 
       for (const proverAddress of testCases) {
-        const intent = createMockIntent({ 
-          reward: { 
+        const intent = createMockIntent({
+          reward: {
             prover: proverAddress,
             creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
             deadline: BigInt(Date.now() + 86400000),
             nativeValue: BigInt(1000000000000000000),
             tokens: [],
-          }
+          },
         });
         const messageData = await prover.getMessageData(intent);
-        const expectedData = encodeAbiParameters(
-          [{ type: 'bytes32' }],
-          [pad(proverAddress)],
-        );
-        
+        const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(proverAddress)]);
+
         expect(messageData).toBe(expectedData);
       }
     });
@@ -187,7 +183,7 @@ describe('MetalayerProver', () => {
 
     it('should throw error when blockchain reader is not initialized', async () => {
       prover['blockchainReaderService'] = undefined;
-      
+
       const intent = createMockIntent();
 
       await expect(prover.getFee(intent, mockClaimant)).rejects.toThrow(
@@ -211,7 +207,7 @@ describe('MetalayerProver', () => {
 
     it('should initialize blockchain reader on module init', async () => {
       await prover.onModuleInit();
-      
+
       expect(mockModuleRef.get).toHaveBeenCalledWith(BlockchainReaderService, { strict: false });
       expect(prover['blockchainReaderService']).toBe(mockBlockchainReaderService);
     });
@@ -226,24 +222,29 @@ describe('MetalayerProver', () => {
           destination: 8453n,
           salt: '0xdeadbeef' as Hex,
           inbox: '0x7777777777777777777777777777777777777777' as Address,
-          calls: [{ target: '0x1111111111111111111111111111111111111111' as Address, data: '0x' as Hex, value: 100n }],
-          tokens: [{ token: '0x2222222222222222222222222222222222222222' as Address, amount: 1000n }],
+          calls: [
+            {
+              target: '0x1111111111111111111111111111111111111111' as Address,
+              data: '0x' as Hex,
+              value: 100n,
+            },
+          ],
+          tokens: [
+            { token: '0x2222222222222222222222222222222222222222' as Address, amount: 1000n },
+          ],
         },
       });
 
       const messageData = await prover.getMessageData(intent);
-      
+
       // MetalayerProver only uses reward.prover, ignoring other fields
-      const expectedData = encodeAbiParameters(
-        [{ type: 'bytes32' }],
-        [pad(intent.reward.prover)],
-      );
+      const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(intent.reward.prover)]);
       expect(messageData).toBe(expectedData);
     });
 
     it('should use source chain for fee lookup instead of destination', async () => {
       await prover.onModuleInit();
-      
+
       const intent = createMockIntent({
         route: {
           source: 137n,

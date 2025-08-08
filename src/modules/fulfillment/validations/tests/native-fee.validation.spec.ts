@@ -592,11 +592,13 @@ describe('NativeFeeValidation', () => {
         },
         route: {
           ...mockIntent.route,
-          calls: [{
-            target: '0x1234567890123456789012345678901234567890' as Address,
-            data: '0x' as `0x${string}`,
-            value: BigInt('500000000000000000'),
-          }],
+          calls: [
+            {
+              target: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0x' as `0x${string}`,
+              value: BigInt('500000000000000000'),
+            },
+          ],
         },
       });
 
@@ -626,11 +628,13 @@ describe('NativeFeeValidation', () => {
         },
         route: {
           ...mockIntent.route,
-          calls: [{
-            target: '0x1234567890123456789012345678901234567890' as Address,
-            data: '0x' as `0x${string}`,
-            value: BigInt('1234567890123456789'), // ~1.234 ETH
-          }],
+          calls: [
+            {
+              target: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0x' as `0x${string}`,
+              value: BigInt('1234567890123456789'), // ~1.234 ETH
+            },
+          ],
         },
       });
 
@@ -660,11 +664,13 @@ describe('NativeFeeValidation', () => {
         },
         route: {
           ...mockIntent.route,
-          calls: [{
-            target: '0x1234567890123456789012345678901234567890' as Address,
-            data: '0x' as `0x${string}`,
-            value: BigInt('1000000000000000000'), // 1 ETH native value
-          }],
+          calls: [
+            {
+              target: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0x' as `0x${string}`,
+              value: BigInt('1000000000000000000'), // 1 ETH native value
+            },
+          ],
         },
       });
 
@@ -703,11 +709,13 @@ describe('NativeFeeValidation', () => {
         },
         route: {
           ...mockIntent.route,
-          calls: [{
-            target: '0x1234567890123456789012345678901234567890' as Address,
-            data: '0x' as `0x${string}`,
-            value: BigInt('1000000000000000000'), // 1 ETH native value in call
-          }],
+          calls: [
+            {
+              target: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0x' as `0x${string}`,
+              value: BigInt('1000000000000000000'), // 1 ETH native value in call
+            },
+          ],
         },
       });
 
@@ -732,11 +740,13 @@ describe('NativeFeeValidation', () => {
         },
         route: {
           ...mockIntent.route,
-          calls: [{
-            target: '0x1234567890123456789012345678901234567890' as Address,
-            data: '0x' as `0x${string}`,
-            value: BigInt('1000000000000000000'), // 1 ETH native value
-          }],
+          calls: [
+            {
+              target: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0x' as `0x${string}`,
+              value: BigInt('1000000000000000000'), // 1 ETH native value
+            },
+          ],
         },
       });
 

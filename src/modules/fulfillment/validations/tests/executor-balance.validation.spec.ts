@@ -9,7 +9,6 @@ import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('ExecutorBalanceValidation', () => {
   let validation: ExecutorBalanceValidation;
-  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
   beforeEach(async () => {
     const mockBlockchainReaderService = {
@@ -27,7 +26,6 @@ describe('ExecutorBalanceValidation', () => {
     }).compile();
 
     validation = module.get<ExecutorBalanceValidation>(ExecutorBalanceValidation);
-    blockchainReaderService = module.get(BlockchainReaderService);
   });
 
   describe('validate', () => {
@@ -180,9 +178,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         const mockContext = createMockValidationContext({
-          getWalletBalance: jest
-            .fn()
-            .mockResolvedValue(BigInt(1000)), // All have sufficient balance
+          getWalletBalance: jest.fn().mockResolvedValue(BigInt(1000)), // All have sufficient balance
         });
 
         const result = await validation.validate(intentWithManyTokens, mockContext);
@@ -233,9 +229,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         const mockContext = createMockValidationContext({
-          getWalletBalance: jest
-            .fn()
-            .mockResolvedValue(BigInt('2000000000000000000000000')), // Even larger balance
+          getWalletBalance: jest.fn().mockResolvedValue(BigInt('2000000000000000000000000')), // Even larger balance
         });
 
         const result = await validation.validate(intentWithLargeAmounts, mockContext);
@@ -261,9 +255,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         const mockContext = createMockValidationContext({
-          getWalletBalance: jest
-            .fn()
-            .mockResolvedValue(BigInt(1000)), // Same balance returned for both calls
+          getWalletBalance: jest.fn().mockResolvedValue(BigInt(1000)), // Same balance returned for both calls
         });
 
         const result = await validation.validate(intentWithDuplicates, mockContext);
@@ -302,9 +294,7 @@ describe('ExecutorBalanceValidation', () => {
     describe('error handling', () => {
       it('should propagate errors from context.getWalletBalance', async () => {
         const mockContext = createMockValidationContext({
-          getWalletBalance: jest
-            .fn()
-            .mockRejectedValue(new Error('Failed to fetch balance')),
+          getWalletBalance: jest.fn().mockRejectedValue(new Error('Failed to fetch balance')),
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(

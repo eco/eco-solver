@@ -5,8 +5,11 @@ import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-execu
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
+import {
+  QuoteResult,
+  ValidationResult,
+} from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
-import { QuoteResult, ValidationResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { ValidationContextImpl } from '@/modules/fulfillment/validation-context.impl';
 import { Validation } from '@/modules/fulfillment/validations';
 import { FeeCalculationValidation } from '@/modules/fulfillment/validations/fee-calculation.interface';
@@ -102,7 +105,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
             validation: validationName,
             passed: true,
           });
-          
+
           // Extract fee information from the first fee calculation validation only
           if (!fees && this.isFeeCalculationValidation(validation)) {
             fees = await validation.calculateFee(intent, context);
@@ -133,7 +136,9 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
     };
   }
 
-  private isFeeCalculationValidation(validation: Validation): validation is FeeCalculationValidation {
+  private isFeeCalculationValidation(
+    validation: Validation,
+  ): validation is FeeCalculationValidation {
     return 'calculateFee' in validation;
   }
 }

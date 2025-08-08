@@ -9,11 +9,7 @@ import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 
 import { QuoteRequest } from './schemas/quote-request.schema';
-import {
-  FailedQuoteResponse,
-  QuoteResponse,
-  SuccessfulQuoteResponse,
-} from './schemas/quote-response.schema';
+import { FailedQuoteResponse, QuoteResponse } from './schemas/quote-response.schema';
 
 @Injectable()
 export class QuotesService {
@@ -91,17 +87,16 @@ export class QuotesService {
         : ('0x0000000000000000000000000000000000000000' as Address);
     const destinationToken = sourceToken; // Assuming same token for now
     const sourceAmount = intent.route.tokens.length > 0 ? intent.route.tokens[0].amount : BigInt(0);
-    const destinationAmount = sourceAmount; // Assuming 1:1 for now
-
+    // Assuming 1:1 for now
     // Build the response
-    const response: SuccessfulQuoteResponse = {
+    return {
       quoteResponse: {
         sourceChainID: sourceChainId,
         destinationChainID: destinationChainId,
         sourceToken: sourceToken as Hex,
         destinationToken: destinationToken as Hex,
         sourceAmount: sourceAmount.toString(),
-        destinationAmount: destinationAmount.toString(),
+        destinationAmount: sourceAmount.toString(),
         funder: intent.reward.creator as Hex,
         refundRecipient: intent.reward.creator as Hex,
         recipient:
@@ -131,8 +126,6 @@ export class QuotesService {
         inbox: inboxAddress as Hex,
       },
     };
-
-    return response;
   }
 
   private convertToIntent(input: QuoteRequest['intent']): Intent {

@@ -1,13 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ModuleRef } from '@nestjs/core';
+
 import { Address, Hex } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
-import { ProverType } from '@/common/interfaces/prover.interface';
-import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ProverType } from '@/common/interfaces/prover.interface';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 
 // Concrete implementation for testing
 class TestProver extends BaseProver {
@@ -31,12 +31,16 @@ class TestProver extends BaseProver {
     return this.testContractAddresses.has(chainId);
   }
 
-  async getMessageData(intent: Intent): Promise<Hex> {
+  async getMessageData(_intent: Intent): Promise<Hex> {
     return '0xtest' as Hex;
   }
 
-  async getFee(intent: Intent, claimant?: Address): Promise<bigint> {
+  async getFee(_intent: Intent, _claimant?: Address): Promise<bigint> {
     return 1000n;
+  }
+
+  getDeadlineBuffer(): bigint {
+    throw new Error('Method not implemented.');
   }
 }
 

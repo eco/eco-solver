@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Chain, Transport, createPublicClient, createWalletClient, http } from 'viem';
+import { Chain, createPublicClient, createWalletClient, Transport } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { EvmConfigService } from '@/modules/config/services';
 
 import { EvmTransportService } from '../../../services/evm-transport.service';
-import { BasicWalletFactory } from '../basic-wallet.factory';
 import { BasicWallet } from '../basic-wallet';
+import { BasicWalletFactory } from '../basic-wallet.factory';
 
 jest.mock('viem', () => ({
   createPublicClient: jest.fn(),
