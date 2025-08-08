@@ -13,6 +13,7 @@ import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('CCTPLiFiProviderService', () => {
   let service: CCTPLiFiProviderService
@@ -31,7 +32,7 @@ describe('CCTPLiFiProviderService', () => {
     },
     balance: {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
       balance: parseUnits('1000', 6),
     },
   }
@@ -47,7 +48,7 @@ describe('CCTPLiFiProviderService', () => {
     },
     balance: {
       address: '0x4200000000000000000000000000000000000042',
-      decimals: 18,
+      decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
       balance: 0n,
     },
   }
@@ -63,7 +64,7 @@ describe('CCTPLiFiProviderService', () => {
     },
     balance: {
       address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
       balance: parseUnits('1000', 6),
     },
   }
@@ -79,7 +80,7 @@ describe('CCTPLiFiProviderService', () => {
     },
     balance: {
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
       balance: 0n,
     },
   }
@@ -423,11 +424,11 @@ describe('CCTPLiFiProviderService', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
           cctpTransfer: {
@@ -445,11 +446,11 @@ describe('CCTPLiFiProviderService', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
           steps: ['sourceSwap', 'cctpBridge', 'destinationSwap'],

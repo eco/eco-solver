@@ -361,12 +361,24 @@ describe('QuotesService', () => {
 
         const { response: quoteDataEntry } = await quoteService.generateQuote({
           route: { tokens: [], calls: [], source: '1', destination: '137' },
-          reward: {},
+          reward: {
+            tokens: calculated.rewards.map((reward) => ({
+              token: reward.address,
+              amount: reward.balance,
+              decimals: 18, // Default to 18 decimals for tests
+            })),
+          },
         } as any)
         expect(quoteDataEntry).toEqual({
           routeTokens: [],
           routeCalls: [],
-          rewardTokens: expectedTokens,
+          rewardTokens: expectedTokens.map((token) => ({
+            ...token,
+            decimals: {
+              original: 18,
+              current: 18,
+            },
+          })),
           rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),
           estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
@@ -400,7 +412,7 @@ describe('QuotesService', () => {
             { delta: { balance: -50n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+        await generateHelper(calculated, [{ token: '0x2', amount: 50n }])
       })
 
       it('should fill surplus if no deficit', async () => {
@@ -445,7 +457,7 @@ describe('QuotesService', () => {
             { delta: { balance: 100n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+        await generateHelper(calculated, [{ token: '0x2', amount: 100n }])
       })
 
       it('should fill deficit as much as it can and then surplus', async () => {
@@ -485,7 +497,7 @@ describe('QuotesService', () => {
         } as any
         await generateHelper(calculated, [
           { token: '0x1', amount: 50n },
-          { token: '0x2', amount: 200n },
+          { token: '0x2', amount: 50n },
         ])
       })
 
@@ -503,8 +515,8 @@ describe('QuotesService', () => {
           ],
         } as any
         await generateHelper(calculated, [
-          { token: '0x1', amount: 150n },
-          { token: '0x2', amount: 100n },
+          { token: '0x1', amount: 10n },
+          { token: '0x2', amount: 20n },
         ])
       })
 
@@ -518,7 +530,7 @@ describe('QuotesService', () => {
             { delta: { balance: -50n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }], 0n, 0)
+        await generateHelper(calculated, [{ token: '0x2', amount: 50n }], 0n, 0)
       })
 
       it('should handle native gas token rewards correctly', async () => {
@@ -538,8 +550,8 @@ describe('QuotesService', () => {
         await generateHelper(
           calculated,
           [
-            { token: '0x1', amount: 100n },
-            { token: '0x2', amount: 50n },
+            { token: '0x1', amount: 50n },
+            { token: '0x2', amount: 100n },
           ],
           nativeGas,
         )
@@ -562,7 +574,7 @@ describe('QuotesService', () => {
 
       async function generateDecimalHelper(
         calculated: any,
-        expectedTokens: { token: string; amount: bigint }[],
+        expectedTokens: { token: string; amount: bigint; decimals?: number }[],
         expectedNativeReward?: bigint,
         expectedFulfillTimeSec?: number,
       ) {
@@ -593,15 +605,33 @@ describe('QuotesService', () => {
 
         jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
 
+        // Create mapping from token address to expected decimals
+        const tokenDecimalsMap = expectedTokens.reduce((acc, expectedToken) => {
+          acc[expectedToken.token] = expectedToken.decimals || 18
+          return acc
+        }, {} as Record<string, number>)
+
         const { response: quoteDataEntry } = await quoteService.generateQuote({
           route: { tokens: [], calls: [], source: '1', destination: '137' },
-          reward: {},
+          reward: {
+            tokens: calculated.rewards.map((reward) => ({
+              token: reward.address,
+              amount: reward.balance,
+              decimals: tokenDecimalsMap[reward.address] || 18,
+            })),
+          },
         } as any)
 
         expect(quoteDataEntry).toEqual({
           routeTokens: [],
           routeCalls: [],
-          rewardTokens: expectedTokens,
+          rewardTokens: expectedTokens.map((token) => ({
+            ...token,
+            decimals: {
+              original: token.decimals || 18,
+              current: 18,
+            },
+          })),
           rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),
           estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
@@ -626,8 +656,8 @@ describe('QuotesService', () => {
 
           // Expected: 1.5 tokens worth in 6 decimals = 1500000 (1.5 * 10^6)
           await generateDecimalHelper(calculated, [
-            { token: '0x1', amount: 500000n }, // 0.5 tokens in 6 decimals
-            { token: '0x2', amount: 1000000n }, // 1 token in 6 decimals
+            { token: '0x1', amount: 500000n, decimals: 6 }, // 0.5 tokens in 6 decimals
+            { token: '0x2', amount: 1000000n, decimals: 6 }, // 1 token in 6 decimals
           ])
         })
 
@@ -668,7 +698,7 @@ describe('QuotesService', () => {
 
           // Expected: 1.5 tokens in 6 decimals = 1500000
           await generateDecimalHelper(calculated, [
-            { token: '0x1', amount: 1500000n }, // 1.5 tokens converted to 6 decimals
+            { token: '0x1', amount: 1500000n, decimals: 6 }, // 1.5 tokens converted to 6 decimals
           ])
         })
 
@@ -686,7 +716,7 @@ describe('QuotesService', () => {
 
           // Expected: 1.5 tokens stay in 18 decimals
           await generateDecimalHelper(calculated, [
-            { token: '0x1', amount: 1500000000000000000n }, // 1.5 tokens in 18 decimals
+            { token: '0x1', amount: 1500000000000000000n, decimals: 18 }, // 1.5 tokens in 18 decimals
           ])
         })
       })
@@ -709,9 +739,9 @@ describe('QuotesService', () => {
           } as any
 
           await generateDecimalHelper(calculated, [
-            { token: '0x1', amount: 1000000n }, // 1 token in 6 decimals
-            { token: '0x2', amount: 50000000n }, // 0.5 tokens in 8 decimals
-            { token: '0x3', amount: 500000000000000000n }, // 0.5 tokens in 18 decimals
+            { token: '0x1', amount: 1000000n, decimals: 6 }, // 1 token in 6 decimals
+            { token: '0x2', amount: 50000000n, decimals: 8 }, // 0.5 tokens in 8 decimals
+            { token: '0x3', amount: 500000000000000000n, decimals: 18 }, // 0.5 tokens in 18 decimals
           ])
         })
 
@@ -730,8 +760,8 @@ describe('QuotesService', () => {
           } as any
 
           await generateDecimalHelper(calculated, [
-            { token: '0x1', amount: 2000000n }, // 2 tokens in 6 decimals
-            { token: '0x2', amount: 500000000000000000n }, // 0.5 tokens in 18 decimals
+            { token: '0x1', amount: 2000000n, decimals: 6 }, // 2 tokens in 6 decimals
+            { token: '0x2', amount: 500000000000000000n, decimals: 18 }, // 0.5 tokens in 18 decimals
           ])
         })
       })

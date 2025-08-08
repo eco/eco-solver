@@ -240,8 +240,8 @@ describe('Utils Tests', () => {
         config: {
           address: '0x123' as Hex,
           chainId: 10,
-          minBalance: 200_000_000_000_000_000_000n, // 200 normalized to 18 decimals
-          targetBalance: 500_000_000_000_000_000_000n, // 500 normalized to 18 decimals
+          minBalance: 200_000_000_000_000_000_000n, // 200 USDC already normalized to 18 decimals
+          targetBalance: 500_000_000_000_000_000_000n, // 500 USDC already normalized to 18 decimals
           type: 'erc20',
         },
         token: {
@@ -250,7 +250,7 @@ describe('Utils Tests', () => {
             original: 6,
             current: BASE_DECIMALS,
           },
-          balance: 300_000_000_000_000_000_000n, // 300 normalized to 18 decimals
+          balance: 300_000_000_000_000_000_000n, // 300 USDC already normalized to 18 decimals
         },
         chainId: 10,
       }
@@ -258,6 +258,7 @@ describe('Utils Tests', () => {
       const result = calculateDelta(tokenAnalysis)
 
       // delta = 300_000_000_000_000_000_000n - 200_000_000_000_000_000_000n = 100_000_000_000_000_000_000n
+      // No additional normalization is applied since inputs are already normalized
       expect(result).toEqual({
         chainID: 10n,
         address: '0x123',
@@ -274,8 +275,8 @@ describe('Utils Tests', () => {
         config: {
           address: '0xabc' as Hex,
           chainId: 1,
-          minBalance: 300_000_000_000_000_000_000n, // 300 normalized to 18 decimals
-          targetBalance: 500_000_000_000_000_000_000n, // 500 normalized to 18 decimals
+          minBalance: 300_000_000_000_000_000_000n, // 300 USDC already normalized to 18 decimals
+          targetBalance: 500_000_000_000_000_000_000n, // 500 USDC already normalized to 18 decimals
           type: 'erc20',
         },
         token: {
@@ -284,7 +285,7 @@ describe('Utils Tests', () => {
             original: 6,
             current: BASE_DECIMALS,
           },
-          balance: 200_000_000_000_000_000_000n, // 200 normalized to 18 decimals
+          balance: 200_000_000_000_000_000_000n, // 200 USDC already normalized to 18 decimals
         },
         chainId: 1,
       }
@@ -292,6 +293,7 @@ describe('Utils Tests', () => {
       const result = calculateDelta(tokenAnalysis)
 
       // delta = 200_000_000_000_000_000_000n - 300_000_000_000_000_000_000n = -100_000_000_000_000_000_000n
+      // No additional normalization is applied since inputs are already normalized
       expect(result).toEqual({
         chainID: 1n,
         address: '0xabc',

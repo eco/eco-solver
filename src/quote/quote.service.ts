@@ -33,11 +33,12 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
-import { isInsufficient } from '../fee/utils'
+import { isInsufficient, deconvertNormalize } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -568,7 +569,7 @@ export class QuoteService implements OnModuleInit {
     }
     let filled = 0n
     const totalTokenAsk = totalAsk.token
-    const quoteRecord: Record<Hex, RewardTokensInterface> = {}
+    const quoteRecord: Record<Hex, QuoteRewardTokensDTO> = {}
     for (const fund of fundable) {
       if (filled >= totalTokenAsk) {
         break
@@ -591,7 +592,12 @@ export class QuoteService implements OnModuleInit {
             ({
               token: fund.delta.address,
               amount: 0n,
-              decimals: originalRewardToken?.decimals,
+              decimals: originalRewardToken?.decimals 
+                ? {
+                    original: originalRewardToken.decimals,
+                    current: BASE_DECIMALS,
+                  }
+                : undefined,
             } as QuoteRewardTokensDTO)
           tokenToFund.amount += amount
           quoteRecord[fund.delta.address] = tokenToFund
@@ -606,11 +612,27 @@ export class QuoteService implements OnModuleInit {
 
     const gasOverhead = this.getGasOverhead(quoteIntentModel)
 
+    // Convert reward token amounts back to original decimal format
+    const rewardTokens = Object.values(quoteRecord).map((token) => {
+      if (token.decimals) {
+        const deconverted = deconvertNormalize(token.amount, {
+          chainID: BigInt(quoteIntentModel.route.source), 
+          address: token.token,
+          decimals: token.decimals.original,
+        })
+        return {
+          ...token,
+          amount: deconverted.balance,
+        }
+      }
+      return token
+    })
+
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
         routeCalls: quoteIntentModel.route.calls,
-        rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
+        rewardTokens: rewardTokens as QuoteRewardTokensDTO[],
         rewardNative: totalAsk.native,
         expiryTime: this.getQuoteExpiryTime(),
         estimatedFulfillTimeSec,
@@ -684,7 +706,12 @@ export class QuoteService implements OnModuleInit {
           routeTokens.push({
             token: originalToken.address,
             amount: amountToFill,
-            decimals: originalRouteToken?.decimals,
+            decimals: originalRouteToken?.decimals 
+              ? {
+                  original: originalRouteToken.decimals,
+                  current: BASE_DECIMALS,
+                }
+              : undefined,
           } as QuoteRewardTokensDTO)
 
           const newData = encodeFunctionData({

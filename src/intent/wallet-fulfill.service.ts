@@ -32,6 +32,9 @@ import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
+import { denormalizeTokenAmounts, NormalizableToken } from '@/quote/utils/token-normalization.utils'
+import { findTokenDecimals } from '@/interceptors/utils'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -172,12 +175,44 @@ export class WalletFulfillService implements IFulfillService {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-        // Approve the inbox to spend the amount, inbox contract pulls the funds
+
+        // Look up the token's original decimals
+        const originalDecimals = findTokenDecimals(target, solver.chainID)
+        if (originalDecimals === null) {
+          this.logger.error(
+            EcoLogMessage.withError({
+              message: `handleErc20: Unknown token decimals for ${target} on chain ${solver.chainID}`,
+              error: new Error('Unknown token decimals'),
+              properties: { target, chainID: solver.chainID },
+            }),
+          )
+          this.ecoAnalytics.trackErc20TransactionHandlingUnsupported(tt, solver, target)
+          return []
+        }
+
+        // Create a NormalizableToken object with the base 18 amount and decimal metadata
+        // This matches the structure created by normalizeTokenAmounts
+        const token: NormalizableToken = {
+          token: target,
+          amount: dstAmount,
+          decimals: {
+            original: originalDecimals,
+            current: BASE_DECIMALS,
+          },
+        }
+
+        // Use the same denormalization utility as the interceptor to convert back to original decimals
+        denormalizeTokenAmounts([token])
+
+        // After denormalization, the amount is now in original decimals and decimals metadata is removed
+        const originalAmount = BigInt(token.amount)
+
+        // Approve the inbox to spend the original amount, inbox contract pulls the funds
         // then does the transfer call for the target
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
-          args: [solver.inboxAddress, dstAmount], //spender, amount
+          args: [solver.inboxAddress, originalAmount], //spender, amount (converted back to original decimals)
         })
 
         const result = [{ to: target, value: 0n, data: transferFunctionData }]

@@ -503,7 +503,7 @@ export class FeeService implements OnModuleInit {
         // Check liquidity (amount is already normalized to 18 decimals)
         if (
           !this.intentConfigs.skipBalanceCheck &&
-          erc20Call.amount > tokenBalance.balance - config.minBalance
+          erc20Call.amount > tokenBalance.balance - BigInt(config.minBalance)
         ) {
           const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,
@@ -634,7 +634,7 @@ export class FeeService implements OnModuleInit {
         )
         if (
           !this.intentConfigs.skipBalanceCheck &&
-          transferAmount > callTarget.token.balance - callTarget.config.minBalance
+          transferAmount > callTarget.token.balance - BigInt(callTarget.config.minBalance)
         ) {
           const err = QuoteError.SolverLacksLiquidity(
             solver.chainID,

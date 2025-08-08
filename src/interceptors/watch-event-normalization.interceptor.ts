@@ -5,11 +5,11 @@ import { normalizeTokenAmounts } from '@/quote/utils/token-normalization.utils'
 /**
  * WatchEventNormalizationInterceptor handles decimal normalization for on-chain event data
  * before it enters Redis queues or database storage.
- * 
+ *
  * This interceptor ensures that all token amounts from blockchain events are normalized
  * to BASE_DECIMALS (18) consistently, similar to how the TokenDecimalsInterceptor handles
  * quote API endpoints.
- * 
+ *
  * Key responsibilities:
  * - Normalize token amounts in IntentCreatedLog events
  * - Add decimal metadata to track original decimals
@@ -17,7 +17,6 @@ import { normalizeTokenAmounts } from '@/quote/utils/token-normalization.utils'
  */
 @Injectable()
 export class WatchEventNormalizationInterceptor {
-  
   /**
    * Normalizes IntentCreated event data before Redis queue processing
    */
@@ -25,15 +24,12 @@ export class WatchEventNormalizationInterceptor {
     if (!log.args) return log
 
     const normalizedLog = { ...log }
-    
+
     // Normalize reward token amounts if present
     if (log.args.rewardTokens && log.args.rewardTokens.length > 0) {
       normalizedLog.args = {
         ...log.args,
-        rewardTokens: normalizeTokenAmounts(
-          log.args.rewardTokens as any[],
-          sourceChainId
-        ) as any
+        rewardTokens: normalizeTokenAmounts(log.args.rewardTokens as any[], sourceChainId) as any,
       }
     }
 
@@ -43,8 +39,8 @@ export class WatchEventNormalizationInterceptor {
         ...normalizedLog.args,
         routeTokens: normalizeTokenAmounts(
           log.args.routeTokens as any[],
-          Number(log.args.destination)
-        ) as any
+          Number(log.args.destination),
+        ) as any,
       }
     }
 

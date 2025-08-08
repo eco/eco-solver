@@ -93,10 +93,7 @@ export function getGroupTotal(group: TokenDataAnalyzed[]) {
   if (!group || !Array.isArray(group) || group.length === 0) {
     return 0n
   }
-  return group.reduce(
-    (acc, item) => acc + (item?.analysis?.diff ?? 0n),
-    0n,
-  )
+  return group.reduce((acc, item) => acc + (item?.analysis?.diff ?? 0n), 0n)
 }
 
 /**

@@ -91,7 +91,7 @@ describe('SquidProviderService', () => {
       const quote = quotes[0]
 
       // amountIn and amountOut are now normalized using convertNormScalar
-      // fromAmount: '100000000000000000000' with 18 decimals -> 100000000000000000000n 
+      // fromAmount: '100000000000000000000' with 18 decimals -> 100000000000000000000n
       // toAmount: '99000000' with 6 decimals -> 99000000000000000000n (normalized to 18 decimals)
       expect(quote.amountIn).toBe(BigInt('100000000000000000000'))
       expect(quote.amountOut).toBe(BigInt('99000000000000000000'))

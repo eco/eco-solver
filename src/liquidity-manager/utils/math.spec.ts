@@ -1,5 +1,6 @@
 import { getTotalSlippage, getSlippagePercent } from './math'
 import { TokenBalance } from '@/balance/types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('math utils', () => {
   describe('getTotalSlippage', () => {
@@ -65,12 +66,12 @@ describe('math utils', () => {
     it('should return 0 when fromAmount is 0', () => {
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 100n,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 0n,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -81,12 +82,12 @@ describe('math utils', () => {
       // (1000 - 995) / 1000 = 0.005
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 995n,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000n,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -96,12 +97,12 @@ describe('math utils', () => {
     it('should return 0 when toAmountMin equals fromAmount', () => {
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000n,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000n,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -113,12 +114,12 @@ describe('math utils', () => {
       const toAmountMin = 99500000000000000000n // 99.5 ETH in wei
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: toAmountMin,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: fromAmount,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -130,12 +131,12 @@ describe('math utils', () => {
       const toAmountMin = 90062985348155189007n // Represents a 0.01% slippage
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: toAmountMin,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: fromAmount,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -149,12 +150,12 @@ describe('math utils', () => {
       const toAmountMin = 99370n
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: toAmountMin,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: fromAmount,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -164,12 +165,12 @@ describe('math utils', () => {
     it('should return 1 for 100% slippage if toAmountMin is 0', () => {
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 0n,
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000n,
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
@@ -178,15 +179,17 @@ describe('math utils', () => {
 
     it('should handle different token decimals correctly', () => {
       // Test with different decimals for src and dst tokens
+      // Simulate: started with 1000 USDC (6 decimals), ended with 995 USDC (6 decimals)
+      // This should be 0.5% slippage: (1000-995)/1000 = 0.005
       const dstTokenMin: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 6, // USDC-like (6 decimals)
-        balance: 995000000n, // 995 USDC
+        decimals: { original: 6, current: BASE_DECIMALS }, // USDC-like (6 decimals)
+        balance: 995000000000000000000n, // 995 USDC normalized to 18 decimals
       }
       const srcToken: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18, // ETH-like (18 decimals)
-        balance: 1000000000000000000000n, // 1000 ETH
+        decimals: { original: 6, current: BASE_DECIMALS }, // USDC-like (6 decimals)
+        balance: 1000000000000000000000n, // 1000 USDC normalized to 18 decimals
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
       expect(slippage).toBe(0.005) // Still 0.5% slippage after normalization

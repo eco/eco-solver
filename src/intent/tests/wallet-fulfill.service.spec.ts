@@ -2,6 +2,7 @@ const mockEncodeFunctionData = jest.fn()
 const mockGetTransactionTargetData = jest.fn()
 const mockEncodeAbiParameters = jest.fn()
 const mockGetChainConfig = jest.fn()
+const mockFindTokenDecimals = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { CrowdLiquidityService } from '../crowd-liquidity.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -37,6 +38,13 @@ jest.mock('@/eco-configs/utils', () => {
   return {
     ...jest.requireActual('@/eco-configs/utils'),
     getChainConfig: mockGetChainConfig,
+  }
+})
+
+jest.mock('@/interceptors/utils', () => {
+  return {
+    ...jest.requireActual('@/interceptors/utils'),
+    findTokenDecimals: mockFindTokenDecimals,
   }
 })
 describe('WalletFulfillService', () => {
@@ -82,6 +90,9 @@ describe('WalletFulfillService', () => {
 
     // make sure it returns something real
     fulfillIntentService['getHyperlaneFee'] = jest.fn().mockReturnValue(0n)
+
+    // Mock findTokenDecimals to return 18 decimals by default (matches BASE_DECIMALS)
+    mockFindTokenDecimals.mockReturnValue(18)
   })
   const hash = address1
   const claimant = address2
@@ -111,8 +122,12 @@ describe('WalletFulfillService', () => {
     mockLogLog.mockClear()
     mockLogError.mockClear()
     mockEncodeFunctionData.mockClear()
+    mockFindTokenDecimals.mockClear()
     delete (model as any).status
     delete (model as any).receipt
+
+    // Reset default behavior
+    mockFindTokenDecimals.mockReturnValue(18)
   })
 
   describe('on fulfill', () => {
@@ -384,6 +399,45 @@ describe('WalletFulfillService', () => {
         functionName: 'approve',
         args: [inboxAddress, amount],
       })
+    })
+
+    it('should convert token amounts from base 18 decimals back to original decimals before fulfillment', async () => {
+      // Test data: USDC (6 decimals) amount normalized to base 18 decimals
+      const originalDecimals = 6
+      const base18Amount = 1000000000000000000n // 1 token in base 18 decimals
+      const expectedOriginalAmount = 1000000n // 1 token in original 6 decimals
+      const transferFunctionData = '0x9911'
+
+      mockEncodeFunctionData.mockReturnValue(transferFunctionData)
+      mockFindTokenDecimals.mockReturnValue(originalDecimals) // Mock to return 6 decimals for this test
+
+      const result = fulfillIntentService.handleErc20(
+        { selector, decodedFunctionData: { args: [, base18Amount] } } as any,
+        { inboxAddress, chainID: 1 } as any,
+        target,
+      )
+
+      // Verify the approve call uses the converted amount (back to original decimals)
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
+        abi: expect.anything(),
+        functionName: 'approve',
+        args: [inboxAddress, expectedOriginalAmount], // Should be converted back to original decimals
+      })
+
+      expect(result).toEqual([{ to: target, data: transferFunctionData, value: 0n }])
+    })
+
+    it('should return empty array when token decimals cannot be found', async () => {
+      mockFindTokenDecimals.mockReturnValue(null) // Mock to return null (unknown token)
+
+      const result = fulfillIntentService.handleErc20(
+        { selector, decodedFunctionData: { args: [, 100n] } } as any,
+        { inboxAddress, chainID: 1 } as any,
+        target,
+      )
+
+      expect(result).toEqual([])
+      expect(mockEncodeFunctionData).not.toHaveBeenCalled()
     })
   })
 

@@ -5,9 +5,9 @@ import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
-import { 
-  normalizeTokenAmounts, 
-  denormalizeTokenAmounts
+import {
+  normalizeTokenAmounts,
+  denormalizeTokenAmounts,
 } from '@/quote/utils/token-normalization.utils'
 
 /**

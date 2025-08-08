@@ -6,16 +6,17 @@ import { WalletClient } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { createClient, Execute as RelayQuote, getClient } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 // Mock the relay-sdk
 jest.mock('@reservoir0x/relay-sdk', () => {
   const mockQuote = {
     details: {
       currencyIn: {
-        amount: '1000000000000000000',
+        amount: '1000000', // 1 USDC in 6 decimals
       },
       currencyOut: {
-        minimumAmount: '990000000000000000',
+        minimumAmount: '990000', // 0.99 USDC in 6 decimals
       },
     },
   }
@@ -57,7 +58,7 @@ describe('RelayProviderService', () => {
     balance: {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       balance: 1000n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -73,7 +74,7 @@ describe('RelayProviderService', () => {
     balance: {
       address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
       balance: 500n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 

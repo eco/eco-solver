@@ -13,6 +13,7 @@ import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 import { EcoAnalyticsService } from '@/analytics'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 const walletAddr = '0xWalletAddress'
 

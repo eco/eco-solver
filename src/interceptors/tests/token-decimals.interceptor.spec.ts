@@ -27,23 +27,48 @@ describe('TokenDecimalsInterceptor', () => {
     jest
       .spyOn(tokenNormalizationUtils, 'normalizeTokenAmounts')
       .mockImplementation((tokens: any[], chainId: number) => {
-        return tokens.map(token => ({
-          ...token,
-          amount: BigInt(token.amount) * BigInt(10 ** (BASE_DECIMALS - (chainId === 1 ? 6 : BASE_DECIMALS))), // Simple mock transformation
-          decimals: {
-            original: chainId === 1 ? 6 : BASE_DECIMALS,
-            current: BASE_DECIMALS
+        return tokens.map((token) => {
+          // Simulate unknown token error for test cases
+          if (token.token === '0xunknown') {
+            throw new Error(`Unknown token ${token.token} not found in @eco-foundation/chains for chain ${chainId}`)
           }
-        }))
+          
+          // Determine original decimals based on known tokens - USDC has 6 decimals on all chains
+          const originalDecimals = token.token === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 6 : BASE_DECIMALS
+          
+          // Don't add decimals field for tokens that already have BASE_DECIMALS
+          if (originalDecimals === BASE_DECIMALS) {
+            return {
+              ...token,
+              // No transformation needed, keep original amount
+            }
+          }
+          
+          return {
+            ...token,
+            amount: BigInt(token.amount) * BigInt(10 ** (BASE_DECIMALS - originalDecimals)),
+            decimals: {
+              original: originalDecimals,
+              current: BASE_DECIMALS,
+            },
+          }
+        })
       })
-      
+
     jest
       .spyOn(tokenNormalizationUtils, 'denormalizeTokenAmounts')
       .mockImplementation((tokens: any[]) => {
-        tokens.forEach(token => {
+        tokens.forEach((token) => {
+          // Simulate unknown token error for test cases  
+          if (token.token === '0xunknown') {
+            throw new Error(`Unknown token ${token.token} not found in @eco-foundation/chains`)
+          }
+          
           if (token.decimals) {
             // Simple mock reverse transformation
-            token.amount = BigInt(token.amount) / BigInt(10 ** (token.decimals.current - token.decimals.original))
+            token.amount =
+              BigInt(token.amount) /
+              BigInt(10 ** (token.decimals.current - token.decimals.original))
             delete token.decimals
           }
         })
@@ -234,7 +259,7 @@ describe('TokenDecimalsInterceptor', () => {
           },
           error: (err) => {
             expect(err.message).toContain(
-              'Unknown token 0xunknown not found in @eco-foundation/chains for chain 1',
+              'Unknown token 0xunknown not found in @eco-foundation/chains',
             )
             done()
           },

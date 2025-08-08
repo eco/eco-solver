@@ -319,13 +319,12 @@ export class ValidationService implements OnModuleInit {
       for (const routeToken of intent.route.tokens) {
         const balance = tokenBalances[routeToken.token]
         const target = solverTargets[routeToken.token]
-        if (balance === undefined || balance === null || !target) {
+        if (balance === undefined || balance === null) {
           this.logger.warn(
             EcoLogMessage.fromDefault({
-              message: `hasSufficientBalance: Missing token data`,
+              message: `hasSufficientBalance: Missing token balance`,
               properties: {
                 token: routeToken.token,
-                target: target,
                 intentHash: intent.hash,
                 destination: destinationChain,
               },
@@ -333,7 +332,7 @@ export class ValidationService implements OnModuleInit {
           )
           return false
         }
-        const balanceMinReq = target.minBalance || 0n
+        const balanceMinReq = target?.minBalance || 0n
 
         // Both routeToken.amount and balance.balance are in 18 decimals (normalized)
         if (!balance || balance.balance - balanceMinReq < routeToken.amount) {

@@ -1,4 +1,5 @@
 import { createMock } from '@golevelup/ts-jest'
+import { Logger } from '@nestjs/common'
 import { EcoError } from '@/common/errors/eco-error'
 import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/permit-params.interface'
 import { PermitValidator } from '@/intent-initiation/permit-validation/permit-validator'
@@ -38,6 +39,12 @@ describe('PermitValidator', () => {
       readContract: jest.fn().mockResolvedValue(nonce),
     })
     ;(viem.verifyTypedData as jest.Mock).mockResolvedValue(true)
+    
+    // Mock Logger to avoid console output during tests
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
   })
 
   it('should validate a correct permit', async () => {

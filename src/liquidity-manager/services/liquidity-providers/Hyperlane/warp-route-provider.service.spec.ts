@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { DeepMocked, createMock } from '@golevelup/ts-jest'
-import { Hex, pad, parseUnits, getAbiItem, encodeEventTopics, keccak256, toHex } from 'viem'
+import { Hex, pad, parseUnits, keccak256, toHex } from 'viem'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { WarpRouteProviderService } from './warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -8,6 +8,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 
@@ -111,7 +112,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -126,7 +127,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -181,7 +182,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -196,7 +197,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -261,7 +262,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -276,7 +277,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x6200000000000000000000000000000000000062',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -338,7 +339,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -353,7 +354,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -379,7 +380,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const collateralToken2: TokenData = {
@@ -394,7 +395,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -439,7 +440,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const syntheticToken2: TokenData = {
@@ -454,7 +455,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -505,7 +506,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const collateralToken3: TokenData = {
@@ -520,7 +521,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -541,7 +542,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -556,7 +557,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x2222222222222222222222222222222222222222',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -580,7 +581,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const collateralTokenData: TokenData = {
@@ -595,7 +596,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const swapAmount = 100n
@@ -626,7 +627,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const syntheticTokenData: TokenData = {
@@ -641,7 +642,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const swapAmount = 100n
@@ -671,7 +672,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -686,7 +687,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -701,7 +702,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 500n,
         },
       }
@@ -736,7 +737,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -751,7 +752,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -766,7 +767,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 500n,
         },
       }
@@ -801,7 +802,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -816,7 +817,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -849,7 +850,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -865,7 +866,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -912,7 +913,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -928,7 +929,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -985,7 +986,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1001,7 +1002,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1048,7 +1049,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1064,7 +1065,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000044',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1119,7 +1120,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1135,7 +1136,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1167,7 +1168,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1183,7 +1184,7 @@ describe('WarpRouteProviderService', () => {
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1230,7 +1231,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1246,7 +1247,7 @@ describe('WarpRouteProviderService', () => {
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 

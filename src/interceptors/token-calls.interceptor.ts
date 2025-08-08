@@ -5,10 +5,9 @@ import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { CallDataInterface, ERC20Abi } from '@/contracts'
 import { getFunctionCalls, getNativeCalls } from '@/intent/utils'
-import { convertNormScalar } from '@/fee/utils'
 import { Hex, zeroAddress, getAddress, decodeFunctionData } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { findTokenDecimals } from './utils'
+import { normalizeTokenAmounts, NormalizableToken } from '@/quote/utils/token-normalization.utils'
 import * as _ from 'lodash'
 
 /**
@@ -143,26 +142,58 @@ export class TokenCallsInterceptor implements NestInterceptor {
     if (functionalCalls.length > 0) {
       this.validateTargetsInSolverConfig(functionalCalls, solver, chainId)
 
+      // Create tokens array for centralized normalization - only for ERC20 tokens
+      const tokensToNormalize: NormalizableToken[] = []
+      const erc20CallsData: Array<{ call: any; decodedCall: any }> = []
+
       functionalCalls.forEach((call) => {
-        // Get decoded call data (already validated in helper method)
-        const decodedCall = this.decodeTransferCallWithABI(call.data)!
+        // Check if this is an ERC20 target by looking up config
+        const targetAddress = getAddress(call.target)
+        const targetConfig = Object.entries(solver.targets).find(
+          ([address]) => getAddress(address) === targetAddress,
+        )?.[1] as { contractType: string } | undefined
 
-        // Get token decimals from config
-        const originalDecimals = findTokenDecimals(call.target, chainId)
-        if (originalDecimals === null) {
-          throw QuoteError.FailedToFetchTarget(BigInt(chainId), call.target)
+        // Only process ERC20 contracts
+        if (targetConfig?.contractType === 'erc20') {
+          // Get decoded call data (already validated in helper method)
+          const decodedCall = this.decodeTransferCallWithABI(call.data)!
+
+          tokensToNormalize.push({
+            token: call.target,
+            amount: decodedCall.amount,
+          })
+
+          erc20CallsData.push({ call, decodedCall })
         }
-
-        // Normalize amount to 18 decimals
-        const normalizedAmount = convertNormScalar(decodedCall.amount, originalDecimals)
-
-        erc20Calls.push({
-          token: call.target,
-          amount: normalizedAmount,
-          recipient: decodedCall.recipient,
-          value: call.value,
-        })
       })
+
+      // Use centralized normalization utility only if we have ERC20 tokens to process
+      if (tokensToNormalize.length > 0) {
+        try {
+          const normalizedTokens = normalizeTokenAmounts(tokensToNormalize, chainId)
+
+          // Build erc20Calls array with normalized amounts
+          erc20CallsData.forEach((item, index) => {
+            const normalizedToken = normalizedTokens[index]
+
+            erc20Calls.push({
+              token: item.call.target,
+              amount: normalizedToken.amount as bigint,
+              recipient: item.decodedCall.recipient,
+              value: item.call.value,
+            })
+          })
+        } catch (error) {
+          // Convert EcoError.UnknownTokenError to QuoteError for consistency
+          if (error instanceof Error && error.message.includes('Unknown token')) {
+            const tokenMatch = error.message.match(/token ([0-9a-fA-Fx]+) on chain (\d+)/)
+            if (tokenMatch) {
+              throw QuoteError.FailedToFetchTarget(BigInt(tokenMatch[2]), tokenMatch[1] as Hex)
+            }
+          }
+          throw error
+        }
+      }
     }
 
     // Parse native calls, these are 1-1 and only between the same gas token so decimal precision is not an issue
@@ -218,6 +249,20 @@ export class TokenCallsInterceptor implements NestInterceptor {
     if (tokensNotInCalls.length > 0) {
       throw QuoteError.TokenNotInRouteCalls(tokensNotInCalls as Hex[])
     }
+
+    // Validate that amounts match between parsed calls and route tokens (both are now normalized to 18 decimals)
+    parsedCalls.erc20Calls.forEach((call) => {
+      const matchingToken = routeTokens.find(
+        (token) => getAddress(token.token) === getAddress(call.token),
+      )
+      if (matchingToken && BigInt(matchingToken.amount) !== call.amount) {
+        throw QuoteError.CallAmountMismatchTokenAmount(
+          call.token,
+          call.amount,
+          BigInt(matchingToken.amount),
+        )
+      }
+    })
   }
 
   private validateTargetsInSolverConfig(calls: CallDataInterface[], solver: any, chainId: number) {

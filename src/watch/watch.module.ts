@@ -14,7 +14,11 @@ import { WatchEventNormalizationInterceptor } from '@/interceptors/watch-event-n
     TransactionModule,
     IntentFundedEventsModule,
   ],
-  providers: [WatchCreateIntentService, WatchFulfillmentService, WatchEventNormalizationInterceptor],
+  providers: [
+    WatchCreateIntentService,
+    WatchFulfillmentService,
+    WatchEventNormalizationInterceptor,
+  ],
   exports: [WatchCreateIntentService, WatchFulfillmentService, IntentFundedEventsModule],
 })
 export class WatchModule {}

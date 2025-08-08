@@ -1,4 +1,5 @@
 import { createMock } from '@golevelup/ts-jest'
+import { Logger } from '@nestjs/common'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { Permit2Validator } from '@/intent-initiation/permit-validation/permit2-validator'
@@ -75,6 +76,12 @@ describe('PermitValidationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    
+    // Mock Logger to avoid console output during tests
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
   })
 
   it('returns error if vault address is invalid', async () => {

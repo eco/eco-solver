@@ -1,6 +1,7 @@
 import { CCTPLiFiRoutePlanner } from './route-planner'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { parseUnits, Hex } from 'viem'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('CCTPLiFiRoutePlanner', () => {
   const createTokenData = (chainId: number, address: string): TokenData => ({
@@ -14,7 +15,7 @@ describe('CCTPLiFiRoutePlanner', () => {
     },
     balance: {
       address: address as Hex,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
       balance: parseUnits('1000', 6),
     },
   })

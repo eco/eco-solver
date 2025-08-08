@@ -16,6 +16,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -119,30 +120,48 @@ describe('LiquidityManagerService', () => {
       const mockTokens = [
         {
           chainId: 1,
-          config: { address: '0x1', chainId: 1, targetBalance: 10n, minBalance: 5n, type: 'erc20' },
-          balance: { address: '0x1', balance: 100000000000000000000n, decimals: 18 }, // 100 tokens in 18 decimals
+          config: {
+            address: '0x1',
+            chainId: 1,
+            targetBalance: 200000000000000000000n,
+            minBalance: 100000000000000000000n,
+            type: 'erc20',
+          }, // 200 tokens target, 100 tokens min
+          balance: {
+            address: '0x1',
+            balance: 50000000000000000000n,
+            decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
+          }, // 50 tokens - deficit
         },
         {
           chainId: 1,
           config: {
             address: '0x2',
             chainId: 1,
-            targetBalance: 100n,
-            minBalance: 50n,
+            targetBalance: 50000000000000000000n, // 50 tokens target
+            minBalance: 25000000000000000000n, // 25 tokens min
             type: 'erc20',
           },
-          balance: { address: '0x2', balance: 100000000000000000000n, decimals: 18 }, // 100 tokens in 18 decimals
+          balance: {
+            address: '0x2',
+            balance: 100000000000000000000n,
+            decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
+          }, // 100 tokens - surplus
         },
         {
           chainId: 1,
           config: {
             address: '0x3',
             chainId: 1,
-            targetBalance: 200n,
-            minBalance: 100n,
+            targetBalance: 75000000000000000000n, // 75 tokens target
+            minBalance: 50000000000000000000n, // 50 tokens min
             type: 'erc20',
           },
-          balance: { address: '0x3', balance: 100000000000000000000n, decimals: 18 }, // 100 tokens in 18 decimals
+          balance: {
+            address: '0x3',
+            balance: 75000000000000000000n,
+            decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
+          }, // 75 tokens - in range
         },
       ]
 
@@ -162,11 +181,15 @@ describe('LiquidityManagerService', () => {
     it('should return swap quotes if possible', async () => {
       const mockDeficitToken = {
         config: { chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
         analysis: { diff: 100n, balance: { current: 50 }, targetSlippage: { min: 150 } },
       }
       const mockSurplusTokens = [
-        { config: { chainId: 1 }, balance: { decimals: 18 }, analysis: { diff: 200n } },
+        {
+          config: { chainId: 1 },
+          balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
+          analysis: { diff: 200n },
+        },
       ]
 
       jest
@@ -188,7 +211,7 @@ describe('LiquidityManagerService', () => {
       // Mock tokens
       const mockDeficitToken = {
         config: { chainId: 2, address: '0xDeficit' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
         analysis: {
           diff: 100n,
           balance: { current: 50n },
@@ -198,12 +221,12 @@ describe('LiquidityManagerService', () => {
       const mockSurplusTokens = [
         {
           config: { chainId: 1, address: '0xSurplus1' },
-          balance: { decimals: 18 },
+          balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
           analysis: { diff: 50n },
         },
         {
           config: { chainId: 3, address: '0xSurplus2' },
-          balance: { decimals: 18 },
+          balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
           analysis: { diff: 150n },
         },
       ]
@@ -263,7 +286,7 @@ describe('LiquidityManagerService', () => {
       // Mock tokens
       const mockDeficitToken = {
         config: { chainId: 2, address: '0xDeficit' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
         analysis: {
           diff: 100n,
           balance: { current: 50n },
@@ -273,12 +296,12 @@ describe('LiquidityManagerService', () => {
       const mockSurplusTokens = [
         {
           config: { chainId: 1, address: '0xSurplus1' },
-          balance: { decimals: 18 },
+          balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
           analysis: { diff: 50n },
         },
         {
           config: { chainId: 3, address: '0xSurplus2' },
-          balance: { decimals: 18 },
+          balance: { decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS } },
           analysis: { diff: 150n },
         },
       ]
@@ -312,16 +335,49 @@ describe('LiquidityManagerService', () => {
 
   describe('executeRebalancing', () => {
     it('should execute rebalancing quotes', async () => {
+      // Create mock quotes that would be serialized
+      const mockQuote1 = {
+        amountIn: { type: 'BigInt', hex: '0x64' }, // 100n serialized
+        amountOut: { type: 'BigInt', hex: '0x5f' }, // 95n serialized
+        slippage: 0.05,
+        tokenIn: { chainId: 1, config: { address: '0x1' }, balance: {} },
+        tokenOut: { chainId: 2, config: { address: '0x2' }, balance: {} },
+        strategy: 'LiFi',
+        context: {},
+      }
+      
+      const mockQuote2 = {
+        amountIn: { type: 'BigInt', hex: '0xc8' }, // 200n serialized
+        amountOut: { type: 'BigInt', hex: '0xbe' }, // 190n serialized
+        slippage: 0.05,
+        tokenIn: { chainId: 1, config: { address: '0x3' }, balance: {} },
+        tokenOut: { chainId: 2, config: { address: '0x4' }, balance: {} },
+        strategy: 'CCTP',
+        context: undefined,
+      }
+
       const mockRebalanceData = {
+        walletAddress: '0xWallet',
+        network: '1',
         rebalance: {
-          quotes: ['quote1', 'quote2'],
+          token: { chainId: 1, config: { address: '0x1' }, balance: {} },
+          quotes: [JSON.stringify(mockQuote1), JSON.stringify(mockQuote2)],
         },
       }
+      
       jest.spyOn(liquidityProviderService, 'execute').mockResolvedValue(undefined as any)
 
       await liquidityManagerService.executeRebalancing(mockRebalanceData as any)
 
       expect(liquidityProviderService.execute).toHaveBeenCalledTimes(2)
+      expect(liquidityProviderService.execute).toHaveBeenCalledWith(
+        '0xWallet',
+        expect.objectContaining({
+          amountIn: 100n, // Deserialized bigint
+          amountOut: 95n, // Deserialized bigint
+          strategy: 'LiFi',
+        })
+      )
     })
   })
 })

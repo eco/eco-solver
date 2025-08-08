@@ -37,7 +37,10 @@ describe('WatchIntentService', () => {
         },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
-        { provide: WatchEventNormalizationInterceptor, useValue: createMock<WatchEventNormalizationInterceptor>() },
+        {
+          provide: WatchEventNormalizationInterceptor,
+          useValue: createMock<WatchEventNormalizationInterceptor>(),
+        },
       ],
       imports: [
         BullModule.registerQueue({
@@ -58,7 +61,7 @@ describe('WatchIntentService', () => {
     watchIntentService['logger'].debug = mockLogDebug
     watchIntentService['logger'].log = mockLogLog
     watchIntentService['logger'].error = mockLogError
-    
+
     // Mock the interceptor to return the input log (no transformation for tests)
     interceptor.normalizeIntentCreatedLog = jest.fn((log) => log)
   })

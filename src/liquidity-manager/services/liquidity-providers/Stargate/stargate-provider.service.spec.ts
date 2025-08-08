@@ -8,6 +8,7 @@ import { StargateQuote, StargateStep } from './types/stargate-quote.interface'
 import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { normalizeBalanceToBase } from '@/fee/utils'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 // Mock global fetch
 global.fetch = jest.fn()
@@ -30,7 +31,7 @@ describe('StargateProviderService', () => {
     balance: {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       balance: 1000n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -46,7 +47,7 @@ describe('StargateProviderService', () => {
     balance: {
       address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
       balance: 500n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -100,10 +101,10 @@ describe('StargateProviderService', () => {
     error: null,
     srcToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     dstToken: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
-    srcAmount: '10000000',
-    srcAmountMax: '74660843412',
-    dstAmount: '9900000',
-    dstAmountMin: '9900000',
+    srcAmount: '10000000', // 10 USDC in 6-decimal format (will be converted to 18 decimals by service)
+    srcAmountMax: '74660843412', // 6-decimal format 
+    dstAmount: '9900000', // 9.9 USDC in 6-decimal format (will be converted to 18 decimals by service)
+    dstAmountMin: '9900000', // 9.9 USDC in 6-decimal format
     duration: {
       estimated: 180.828,
     },
@@ -227,8 +228,8 @@ describe('StargateProviderService', () => {
 
       // Verify quote structure
       expect(quote).toMatchObject({
-        amountIn: BigInt(mockStargateQuote.srcAmount),
-        amountOut: BigInt(mockStargateQuote.dstAmountMin),
+        amountIn: 10000000000000000000n, // 10 USDC converted to 18-decimal format
+        amountOut: 9900000000000000000n, // 9.9 USDC converted to 18-decimal format
         tokenIn: mockTokenData,
         tokenOut: mockTokenDataOut,
         strategy: 'Stargate',
@@ -287,8 +288,8 @@ describe('StargateProviderService', () => {
 
     beforeEach(() => {
       mockQuote = {
-        amountIn: BigInt(mockStargateQuote.srcAmount),
-        amountOut: BigInt(mockStargateQuote.dstAmountMin),
+        amountIn: 10000000000000000000n, // 10 USDC in 18-decimal format (converted by service)
+        amountOut: 9900000000000000000n, // 9.9 USDC in 18-decimal format (converted by service)
         slippage: 0.01,
         tokenIn: mockTokenData,
         tokenOut: mockTokenDataOut,

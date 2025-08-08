@@ -120,7 +120,10 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
 
       return {
         amountIn: convertNormScalar(BigInt(route.srcAmount), tokenIn.balance.decimals.original),
-        amountOut: convertNormScalar(BigInt(route.dstAmountMin), tokenOut.balance.decimals.original),
+        amountOut: convertNormScalar(
+          BigInt(route.dstAmountMin),
+          tokenOut.balance.decimals.original,
+        ),
         slippage: slippage,
         tokenIn: tokenIn,
         tokenOut: tokenOut,

@@ -16,6 +16,7 @@ import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('CCTPLiFi Provider Integration Tests', () => {
   let service: CCTPLiFiProviderService
@@ -37,7 +38,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
     },
     balance: {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
       balance: parseUnits('10000', 6),
     },
   }
@@ -53,7 +54,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
     },
     balance: {
       address: '0x4200000000000000000000000000000000000042',
-      decimals: 18,
+      decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
       balance: 0n,
     },
   }
@@ -184,11 +185,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -206,11 +207,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -254,7 +255,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             originalTokenOut: expect.objectContaining({
               address: expect.any(String),
               chainId: 10,
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             }),
           }),
         }),
@@ -339,11 +340,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           toChainId: 1,
           fromToken: {
             address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-            decimals: 6,
+            decimals: { original: 6, current: BASE_DECIMALS },
           },
           toToken: {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-            decimals: 6,
+            decimals: { original: 6, current: BASE_DECIMALS },
           },
         },
       } as any)
@@ -391,11 +392,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -412,11 +413,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -450,11 +451,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -471,11 +472,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -520,7 +521,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           originalTokenOut: {
             address: '0x4200000000000000000000000000000000000042' as any,
             chainId: 10,
-            decimals: 18,
+            decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
           },
         },
       }
@@ -564,11 +565,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -585,11 +586,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)

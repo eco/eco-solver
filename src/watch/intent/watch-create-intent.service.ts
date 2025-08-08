@@ -113,7 +113,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // Normalize token decimals before serialization
         const normalizedLog = this.watchEventNormalizationInterceptor.normalizeIntentCreatedLog(
           log,
-          source.chainID
+          source.chainID,
         )
 
         // bigint as it can't serialize to JSON

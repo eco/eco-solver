@@ -1,5 +1,6 @@
 import { Address, Hex, PublicClient, verifyTypedData } from 'viem'
 import { createMock } from '@golevelup/ts-jest'
+import { Logger } from '@nestjs/common'
 import { EcoError } from '@/common/errors/eco-error'
 import { Permit2Params } from '@/intent-initiation/permit-validation/interfaces/permit2-params.interface'
 import { Permit2Validator } from '@/intent-initiation/permit-validation/permit2-validator'
@@ -42,6 +43,12 @@ describe('Permit2Validator', () => {
     })
 
     mockVerifyTypedData.mockResolvedValue(true)
+    
+    // Mock Logger to avoid console output during tests
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {})
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
   })
 
   afterEach(() => {

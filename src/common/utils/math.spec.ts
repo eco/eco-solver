@@ -1,6 +1,7 @@
 import { multiplyByPercentage, DEFAULT_DECIMAL_PRECISION } from './math'
 import { getRangeFromPercentage } from '@/liquidity-manager/utils/math'
 import { TokenBalance } from '@/balance/types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('multiplyByPercentage', () => {
   describe('basic functionality', () => {
@@ -158,7 +159,7 @@ describe('getRangeFromPercentage', () => {
     it('should calculate min and max range correctly with symmetric percentages', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18, // Use 18 decimals (standard ERC20)
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS }, // Use 18 decimals (standard ERC20)
         balance: 1000000000000000000000n, // 1000 tokens with 18 decimals
       }
       const percentage = { up: 0.1, down: 0.1 }
@@ -171,7 +172,7 @@ describe('getRangeFromPercentage', () => {
     it('should calculate min and max range correctly with asymmetric percentages', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18, // Use 18 decimals (standard ERC20)
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS }, // Use 18 decimals (standard ERC20)
         balance: 1000000000000000000000n, // 1000 tokens with 18 decimals
       }
       const percentage = { up: 0.2, down: 0.05 }
@@ -184,7 +185,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle zero balance', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 0n,
       }
       const percentage = { up: 0.1, down: 0.1 }
@@ -197,7 +198,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle zero percentages', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000000000000000000000n, // 1000 tokens with 18 decimals
       }
       const percentage = { up: 0, down: 0 }
@@ -212,7 +213,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle 100% down percentage', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000000000000000000000n, // 1000 tokens with 18 decimals
       }
       const percentage = { up: 0.1, down: 1.0 }
@@ -225,7 +226,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle large up percentage', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000000000000000000000n, // 1000 tokens with 18 decimals
       }
       const percentage = { up: 2.0, down: 0.1 }
@@ -238,7 +239,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle very small percentages with high precision', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000000000000000000000n, // 1000 tokens with 18 decimals
       }
       const percentage = { up: 0.000001, down: 0.000001 }
@@ -253,7 +254,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle typical slippage calculations for 18-decimal tokens', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1000000000000000000n, // 1 token with 18 decimals
       }
       const slippage = { up: 0.005, down: 0.005 } // 0.5% slippage
@@ -266,7 +267,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle price impact calculations', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 10000000000000000000n, // 10 tokens with 18 decimals
       }
       const priceImpact = { up: 0.02, down: 0.015 } // 2% up, 1.5% down
@@ -279,7 +280,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle basis points calculations', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 6, // USDC-like token with 6 decimals
+        decimals: { original: 6, current: BASE_DECIMALS }, // USDC-like token with 6 decimals
         balance: 1000000n, // 1 USDC with 6 decimals
       }
       const basisPoints = { up: 0.01, down: 0.01 } // 100 basis points each (1%)
@@ -294,7 +295,7 @@ describe('getRangeFromPercentage', () => {
     it('should maintain precision for small amounts with large percentages', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 1n, // 1 wei (smallest unit)
       }
       const percentage = { up: 0.5, down: 0.5 }
@@ -307,7 +308,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle large amounts with small percentages using token decimals', () => {
       const tokenBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 18,
+        decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
         balance: 999999999999999999999n, // 999.999999999999999999 tokens
       }
       const percentage = { up: 0.000001, down: 0.000001 }
@@ -320,7 +321,7 @@ describe('getRangeFromPercentage', () => {
     it('should handle different token decimals correctly', () => {
       const usdcBalance: TokenBalance = {
         address: '0x1234567890123456789012345678901234567890',
-        decimals: 6, // USDC has 6 decimals
+        decimals: { original: 6, current: BASE_DECIMALS }, // USDC has 6 decimals
         balance: 1000000n, // 1 USDC
       }
       const percentage = { up: 0.1, down: 0.1 } // 10% up/down

@@ -55,7 +55,10 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       fromChain: tokenIn.chainId.toString(),
       fromToken: tokenIn.config.address,
       // swapAmountBased is already normalized to BASE_DECIMALS, so we need to convert back to original token decimals
-      fromAmount: deconvertNormScalar(swapAmountBased, tokenIn.balance.decimals.original).toString(),
+      fromAmount: deconvertNormScalar(
+        swapAmountBased,
+        tokenIn.balance.decimals.original,
+      ).toString(),
       toChain: tokenOut.chainId.toString(),
       toToken: tokenOut.config.address,
       toAddress: walletAddress,
@@ -69,18 +72,30 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       const dstTokenMin = {
         address: tokenOut.config.address,
         decimals: tokenOut.balance.decimals,
-        balance: convertNormScalar(BigInt(route.estimate.toAmountMin), tokenOut.balance.decimals.original),
+        balance: convertNormScalar(
+          BigInt(route.estimate.toAmountMin),
+          tokenOut.balance.decimals.original,
+        ),
       }
       const srcToken = {
         address: tokenIn.config.address,
         decimals: tokenIn.balance.decimals,
-        balance: convertNormScalar(BigInt(route.estimate.fromAmount), tokenIn.balance.decimals.original),
+        balance: convertNormScalar(
+          BigInt(route.estimate.fromAmount),
+          tokenIn.balance.decimals.original,
+        ),
       }
       const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       const quote: RebalanceQuote<'Squid'> = {
-        amountIn: convertNormScalar(BigInt(route.estimate.fromAmount), tokenIn.balance.decimals.original),
-        amountOut: convertNormScalar(BigInt(route.estimate.toAmount), tokenOut.balance.decimals.original),
+        amountIn: convertNormScalar(
+          BigInt(route.estimate.fromAmount),
+          tokenIn.balance.decimals.original,
+        ),
+        amountOut: convertNormScalar(
+          BigInt(route.estimate.toAmount),
+          tokenOut.balance.decimals.original,
+        ),
         slippage,
         tokenIn,
         tokenOut,

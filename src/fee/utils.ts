@@ -165,9 +165,9 @@ export function deconvertNormalize(
 export function calculateDelta(token: TokenFetchAnalysis): NormalizedToken {
   const delta = token.token.balance - token.config.minBalance
   return {
-    balance: delta,
     chainID: BigInt(token.chainId),
     address: token.config.address,
+    balance: delta,
     decimals: token.token.decimals,
   }
 }

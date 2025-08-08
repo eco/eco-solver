@@ -130,22 +130,28 @@ describe('TokenCallsInterceptor', () => {
 
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler)
 
-      result$.subscribe((result) => {
-        // Verify parsedCalls was added to request body
-        expect((mockRequest.body as any).parsedCalls).toBeDefined()
-        expect((mockRequest.body as any).parsedCalls.erc20Calls).toHaveLength(1)
-        expect((mockRequest.body as any).parsedCalls.erc20Calls[0]).toEqual({
-          token: '0xA0b86a33E6441c7c7c73a6F7E5b20F58C0F5a892',
-          amount: BigInt(amount),
-          recipient: '0x742d35cc6634c0532925A3b8D2c9e2A0FC7bda86', // Use the actual returned value
-          value: 0n,
-        })
+      result$.subscribe({
+        next: (result) => {
+          // Verify parsedCalls was added to request body
+          expect((mockRequest.body as any).route.parsedCalls).toBeDefined()
+          expect((mockRequest.body as any).route.parsedCalls.erc20Calls).toHaveLength(1)
+          expect((mockRequest.body as any).route.parsedCalls.erc20Calls[0]).toEqual({
+            token: '0xA0b86a33E6441c7c7c73a6F7E5b20F58C0F5a892',
+            amount: BigInt(amount),
+            recipient: '0x742d35cc6634c0532925A3b8D2c9e2A0FC7bda86', // Use the actual returned value
+            value: 0n,
+          })
 
-        // Verify parsedCalls was removed from response
-        expect(result).toEqual({ success: true })
-        expect('parsedCalls' in result).toBe(false)
+          // Verify parsedCalls was removed from response
+          expect(result).toEqual({ success: true })
+          expect('parsedCalls' in result).toBe(false)
 
-        done()
+          done()
+        },
+        error: (error) => {
+          console.error('Error in interceptor:', error)
+          done(error)
+        },
       })
     })
 
@@ -171,7 +177,7 @@ describe('TokenCallsInterceptor', () => {
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler)
 
       result$.subscribe((result) => {
-        const parsedCalls = (mockRequest.body as any).parsedCalls
+        const parsedCalls = (mockRequest.body as any).route.parsedCalls
         expect(parsedCalls).toBeDefined()
         expect(parsedCalls.erc20Calls).toHaveLength(0)
         expect(parsedCalls.nativeCalls).toHaveLength(1)
@@ -333,7 +339,7 @@ describe('TokenCallsInterceptor', () => {
 
       result$.subscribe((result) => {
         // Should not add parsedCalls if no route
-        expect((mockRequest.body as any).parsedCalls).toBeUndefined()
+        expect((mockRequest.body as any).route?.parsedCalls).toBeUndefined()
         expect(result).toEqual({ success: true })
         done()
       })
@@ -477,7 +483,7 @@ describe('TokenCallsInterceptor', () => {
 
   describe('Response Transformation', () => {
     it('should remove parsedCalls from single object response', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
       const responseData = {
         quoteID: 'test-id',
         parsedCalls: {
@@ -498,7 +504,7 @@ describe('TokenCallsInterceptor', () => {
     })
 
     it('should remove parsedCalls from array response', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
       const responseData = [
         {
           quoteID: 'test-id-1',
@@ -524,7 +530,7 @@ describe('TokenCallsInterceptor', () => {
     })
 
     it('should handle response without parsedCalls', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
       const responseData = {
         quoteID: 'test-id',
         data: 'some-data',
@@ -536,7 +542,7 @@ describe('TokenCallsInterceptor', () => {
     })
 
     it('should handle array response with mixed objects', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
       const responseData = [
         {
           quoteID: 'test-id-1',
@@ -559,14 +565,14 @@ describe('TokenCallsInterceptor', () => {
     })
 
     it('should handle null/undefined response', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
 
       expect((interceptor as any).transformOutgoingResponse(null)).toBe(null)
       expect((interceptor as any).transformOutgoingResponse(undefined)).toBe(undefined)
     })
 
     it('should handle primitive response types', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
 
       expect((interceptor as any).transformOutgoingResponse('string')).toBe('string')
       expect((interceptor as any).transformOutgoingResponse(123)).toBe(123)
@@ -574,7 +580,7 @@ describe('TokenCallsInterceptor', () => {
     })
 
     it('should handle nested objects without parsedCalls', () => {
-      const interceptor = new TokenCallsInterceptor(mockEcoConfigService)
+      const interceptor = new TokenCallsInterceptor(mockEcoConfigService as any)
       const responseData = {
         quotes: [
           { id: '1', data: 'first' },

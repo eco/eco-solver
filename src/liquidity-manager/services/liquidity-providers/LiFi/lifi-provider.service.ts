@@ -136,7 +136,10 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       fromAddress: this.walletAddress,
       fromChainId: tokenIn.chainId,
       fromTokenAddress: tokenIn.config.address,
-      fromAmount: deconvertNormScalar(swapAmountBased, tokenIn.balance.decimals.original).toString(),
+      fromAmount: deconvertNormScalar(
+        swapAmountBased,
+        tokenIn.balance.decimals.original,
+      ).toString(),
 
       // Destination chain
       toAddress: this.walletAddress,
