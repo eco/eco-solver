@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { ApiKeyGuard } from '@/common/guards/api-key.guard';
 import { ConfigModule } from '@/modules/config/config.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 
@@ -9,7 +10,7 @@ import { QuotesService } from './quotes.service';
 @Module({
   imports: [ConfigModule, FulfillmentModule],
   controllers: [QuotesController],
-  providers: [QuotesService],
+  providers: [QuotesService, ApiKeyGuard],
   exports: [QuotesService],
 })
 export class QuotesModule {}

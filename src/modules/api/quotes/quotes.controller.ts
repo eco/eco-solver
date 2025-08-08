@@ -1,4 +1,7 @@
-import { Body, Controller, Post, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
+
+import { ApiKeyGuard } from '@/common/guards/api-key.guard';
 
 import { ValidateRequest } from './decorators/validate-request.decorator';
 import { BigIntSerializerInterceptor } from './interceptors/bigint-serializer.interceptor';
@@ -7,6 +10,7 @@ import { QuoteResponse } from './schemas/quote-response.schema';
 import { QuotesService } from './quotes.service';
 
 @Controller('api/v1/quotes')
+@UseGuards(ThrottlerGuard, ApiKeyGuard)
 @UseInterceptors(BigIntSerializerInterceptor)
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}

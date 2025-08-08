@@ -16,6 +16,18 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 - **Extensible Design**: Easy to add new chains, fulfillment strategies, and validations
 - **REST API**: Quoting API for intent validation and fee calculation
 
+### 🔒 Production-Ready Features
+
+- **Health Checks**: Comprehensive health monitoring endpoints (`/health`, `/health/live`, `/health/ready`)
+- **Global Exception Handling**: Consistent error responses with request tracking
+- **Graceful Shutdown**: Proper cleanup of connections and queue jobs on shutdown
+- **Security Hardening**: 
+  - Helmet for security headers
+  - Rate limiting (100 requests/minute by default)
+  - CORS configuration
+  - API key authentication
+- **Request Tracking**: Automatic request ID generation for tracing
+
 ## 📋 Prerequisites
 
 - Node.js 18+ 
@@ -261,6 +273,36 @@ Each strategy uses an immutable set of validations including funding checks, rou
 4. BlockchainProcessor executes on target chain
 
 ## 🌐 API Usage
+
+### API Authentication
+
+The API supports optional API key authentication. When API keys are configured, requests must include a valid key:
+
+```bash
+# Using header (recommended)
+curl -X POST http://localhost:3000/api/v1/quotes \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"intent": {...}}'
+
+# Using query parameter
+curl -X POST "http://localhost:3000/api/v1/quotes?api_key=your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"intent": {...}}'
+```
+
+To configure API keys:
+```bash
+# Single API key
+API_KEYS_0=your-secure-api-key
+
+# Multiple API keys
+API_KEYS_0=key1
+API_KEYS_1=key2
+API_KEYS_2=key3
+```
+
+If no API keys are configured, the endpoint allows open access (useful for development).
 
 ### Quotes Endpoint
 

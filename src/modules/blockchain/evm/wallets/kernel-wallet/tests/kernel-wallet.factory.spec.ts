@@ -68,7 +68,7 @@ describe('KernelWalletFactory', () => {
     (kmsToAccount as jest.Mock).mockResolvedValue(mockKmsAccount);
     (createPublicClient as jest.Mock).mockReturnValue(mockPublicClient);
     (createWalletClient as jest.Mock).mockReturnValue(mockWalletClient);
-    
+
     // Mock KernelWallet
     const mockKernelWalletInstance = {
       init: jest.fn().mockResolvedValue(undefined),
@@ -80,7 +80,7 @@ describe('KernelWalletFactory', () => {
     jest.clearAllMocks();
     // Reset singleton promise
     (factory as any).signerPromise = null;
-    
+
     // Reset KernelWallet mock to default behavior
     const mockKernelWalletInstance = {
       init: jest.fn().mockResolvedValue(undefined),
@@ -125,7 +125,7 @@ describe('KernelWalletFactory', () => {
         transportService,
       );
       expect(wallet).toBeDefined();
-      
+
       // Verify init was called by checking the mock
       const mockCalls = (KernelWallet as jest.Mock).mock.calls;
       expect(mockCalls.length).toBeGreaterThan(0);
@@ -139,7 +139,7 @@ describe('KernelWalletFactory', () => {
 
       // Signer should only be created once
       expect(privateKeyToAccount).toHaveBeenCalledTimes(1);
-      
+
       // Config is called once for signer creation and once per wallet instance
       expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalledTimes(3); // 1 for signer + 2 for wallets
 
@@ -201,7 +201,7 @@ describe('KernelWalletFactory', () => {
       );
 
       expect(wallet).toBeDefined();
-      
+
       // Verify init was called by checking the mock
       const mockCalls = (KernelWallet as jest.Mock).mock.calls;
       expect(mockCalls.length).toBeGreaterThan(0);
@@ -260,7 +260,7 @@ describe('KernelWalletFactory', () => {
       });
 
       const error = new Error('Transport not found');
-      
+
       // Mock KernelWallet to throw error during construction
       (KernelWallet as jest.Mock).mockImplementation(() => {
         throw error;

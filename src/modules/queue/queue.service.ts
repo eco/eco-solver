@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -15,7 +15,9 @@ import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Injectable()
-export class QueueService implements IQueueService {
+export class QueueService implements IQueueService, OnModuleDestroy {
+  private readonly logger = new Logger(QueueService.name);
+
   constructor(
     @InjectQueue('intent-fulfillment') private fulfillmentQueue: Queue,
     @InjectQueue('blockchain-execution') private executionQueue: Queue,
@@ -74,5 +76,38 @@ export class QueueService implements IQueueService {
     const queue = queueName === 'intent-fulfillment' ? this.fulfillmentQueue : this.executionQueue;
     const serializedData = QueueSerializer.serialize(data);
     await queue.add(queueName, serializedData, options);
+  }
+
+  async onModuleDestroy() {
+    this.logger.log('Gracefully shutting down queues...');
+
+    try {
+      // Pause queues to prevent new jobs from being processed
+      await Promise.all([this.fulfillmentQueue.pause(), this.executionQueue.pause()]);
+
+      // Wait for active jobs to complete (with timeout)
+      const timeout = 15000; // 15 seconds
+      const startTime = Date.now();
+
+      while (Date.now() - startTime < timeout) {
+        const [fulfillmentActive, executionActive] = await Promise.all([
+          this.fulfillmentQueue.getActiveCount(),
+          this.executionQueue.getActiveCount(),
+        ]);
+
+        if (fulfillmentActive === 0 && executionActive === 0) {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      // Close queue connections
+      await Promise.all([this.fulfillmentQueue.close(), this.executionQueue.close()]);
+
+      this.logger.log('Queues shutdown completed');
+    } catch (error) {
+      this.logger.error('Error during queue shutdown:', error);
+    }
   }
 }

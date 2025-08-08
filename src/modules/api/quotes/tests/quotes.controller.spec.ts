@@ -1,4 +1,9 @@
+import { APP_GUARD } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
+
+import { ApiKeyGuard } from '@/common/guards/api-key.guard';
+import { AppConfigService } from '@/modules/config/services/app-config.service';
 
 import { QuotesController } from '../quotes.controller';
 import { QuotesService } from '../quotes.service';
@@ -13,6 +18,10 @@ describe('QuotesController', () => {
     getQuote: jest.fn(),
   };
 
+  const mockAppConfigService = {
+    apiKeys: [],
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QuotesController],
@@ -21,8 +30,25 @@ describe('QuotesController', () => {
           provide: QuotesService,
           useValue: mockQuotesService,
         },
+        {
+          provide: AppConfigService,
+          useValue: mockAppConfigService,
+        },
+        {
+          provide: ApiKeyGuard,
+          useValue: { canActivate: () => true }, // Mock ApiKeyGuard
+        },
+        {
+          provide: ThrottlerGuard,
+          useValue: { canActivate: () => true }, // Mock ThrottlerGuard
+        },
       ],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(ApiKeyGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<QuotesController>(QuotesController);
     quotesService = module.get<QuotesService>(QuotesService);
