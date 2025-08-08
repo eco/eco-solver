@@ -1,4 +1,9 @@
-import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@/common/routes/constants'
+import {
+  API_ROOT,
+  API_V2_ROOT,
+  INTENT_INITIATION_ROUTE,
+  QUOTE_ROUTE,
+} from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -145,7 +150,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
-      quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
+      quotesUrl: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
       receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}`,
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
