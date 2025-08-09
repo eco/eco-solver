@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@anatine/zod-openapi": "^2.2.8",
     "@aws-sdk/client-secrets-manager": "^3.859.0",
     "@eco-foundation/eco-kms-core": "2.0.0",
     "@eco-foundation/eco-kms-provider-aws": "2.0.0",
@@ -33,6 +34,7 @@
     "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/mongoose": "^10.0.6",
     "@nestjs/platform-express": "^10.3.8",
+    "@nestjs/swagger": "^11.2.0",
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/throttler": "^6.4.0",
     "@opentelemetry/api": "^1.9.0",
@@ -66,6 +68,7 @@
     "reflect-metadata": "^0.2.2",
     "rimraf": "^5.0.7",
     "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
     "viem": "^2.28.1",
     "winston": "^3.17.0",
     "zod": "^3.23.8"

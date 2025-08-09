@@ -15,6 +15,8 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 - **Docker Ready**: Full containerization support for easy deployment
 - **Extensible Design**: Easy to add new chains, fulfillment strategies, and validations
 - **REST API**: Quoting API for intent validation and fee calculation
+- **API Documentation**: Interactive Swagger/OpenAPI documentation at `/api-docs`
+- **Zod-First API**: Single source of truth - Zod schemas used for both validation and Swagger docs (no DTOs!)
 
 ### 🔒 Production-Ready Features
 
@@ -336,7 +338,22 @@ API_KEYS_2=key3
 
 If no API keys are configured, the endpoint allows open access (useful for development).
 
-### Quotes Endpoint
+### API Documentation
+
+#### Interactive Documentation
+The API provides interactive documentation via Swagger/OpenAPI:
+- **Development**: `http://localhost:3000/api-docs`
+- **Production**: `https://api.solver.eco.com/api-docs`
+
+The Swagger UI provides:
+- Interactive API testing
+- Complete schema documentation  
+- Example requests and responses
+- Authentication testing
+
+For detailed API documentation, see [docs/API.md](./docs/API.md).
+
+#### Quotes Endpoint
 
 The quotes API allows external systems to validate intents and get fee requirements before submission.
 

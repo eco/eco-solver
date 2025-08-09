@@ -1,49 +1,95 @@
+import { extendApi } from '@anatine/zod-openapi';
 import { z } from 'zod';
 
-// Address validation regex
-const AddressRegex = /^0x[a-fA-F0-9]{40}$/;
-const HexRegex = /^0x[a-fA-F0-9]*$/;
+import { zodAddress, zodBigIntString, zodHex } from '@/common/utils/zod-to-swagger.util';
 
-// Intent schema based on the Intent interface
-export const IntentSchema = z.object({
-  reward: z.object({
-    prover: z.string().regex(AddressRegex, 'Invalid prover address'),
-    creator: z.string().regex(AddressRegex, 'Invalid creator address'),
-    deadline: z.string().transform((val) => BigInt(val)),
-    nativeValue: z.string().transform((val) => BigInt(val)),
-    tokens: z.array(
-      z.object({
-        amount: z.string().transform((val) => BigInt(val)),
-        token: z.string().regex(AddressRegex, 'Invalid token address'),
-      }),
+// Token schema with OpenAPI metadata
+const TokenSchema = extendApi(
+  z.object({
+    amount: zodBigIntString('Amount of the token'),
+    token: zodAddress('ERC20 token contract address'),
+  }),
+  {
+    description: 'Token transfer details',
+  },
+);
+
+// Call schema with OpenAPI metadata
+const CallSchema = extendApi(
+  z.object({
+    data: zodHex('Encoded function call data'),
+    target: zodAddress('Target contract address for the call'),
+    value: zodBigIntString('Native token value to send with the call'),
+  }),
+  {
+    description: 'Function call to execute on destination chain',
+  },
+);
+
+// Reward schema with OpenAPI metadata
+const RewardSchema = extendApi(
+  z.object({
+    prover: zodAddress('Address of the prover contract'),
+    creator: zodAddress('Address of the intent creator'),
+    deadline: zodBigIntString('Deadline timestamp for the intent'),
+    nativeValue: zodBigIntString('Native token reward value'),
+    tokens: extendApi(z.array(TokenSchema), {
+      description: 'Array of ERC20 token rewards',
+    }),
+  }),
+  {
+    description: 'Reward configuration for the intent',
+  },
+);
+
+// Route schema with OpenAPI metadata
+const RouteSchema = extendApi(
+  z.object({
+    source: zodBigIntString('Source chain ID'),
+    destination: zodBigIntString('Destination chain ID'),
+    salt: zodHex('Salt value for intent uniqueness'),
+    inbox: zodAddress('Inbox contract address on destination chain'),
+    calls: extendApi(z.array(CallSchema), {
+      description: 'Array of calls to execute on destination chain',
+    }),
+    tokens: extendApi(z.array(TokenSchema), {
+      description: 'Array of tokens to transfer on the route',
+    }),
+  }),
+  {
+    description: 'Route configuration for cross-chain execution',
+  },
+);
+
+// Intent schema with OpenAPI metadata
+export const IntentSchema = extendApi(
+  z.object({
+    reward: RewardSchema,
+    route: RouteSchema,
+  }),
+  {
+    description: 'Intent object containing reward and route information',
+  },
+);
+
+// Quote request schema with OpenAPI metadata
+export const QuoteRequestSchema = extendApi(
+  z.object({
+    intent: IntentSchema,
+    strategy: extendApi(
+      z
+        .enum(['standard', 'crowd-liquidity', 'native-intents', 'negative-intents', 'rhinestone'])
+        .optional(),
+      {
+        description:
+          'Strategy to use for fulfillment. If not specified, the default strategy is used.',
+        example: 'standard',
+      },
     ),
   }),
-  route: z.object({
-    source: z.string().transform((val) => BigInt(val)),
-    destination: z.string().transform((val) => BigInt(val)),
-    salt: z.string().regex(HexRegex, 'Invalid salt hex'),
-    inbox: z.string().regex(AddressRegex, 'Invalid inbox address'),
-    calls: z.array(
-      z.object({
-        data: z.string().regex(HexRegex, 'Invalid call data hex'),
-        target: z.string().regex(AddressRegex, 'Invalid target address'),
-        value: z.string().transform((val) => BigInt(val)),
-      }),
-    ),
-    tokens: z.array(
-      z.object({
-        amount: z.string().transform((val) => BigInt(val)),
-        token: z.string().regex(AddressRegex, 'Invalid token address'),
-      }),
-    ),
-  }),
-});
-
-export const QuoteRequestSchema = z.object({
-  intent: IntentSchema,
-  strategy: z
-    .enum(['standard', 'crowd-liquidity', 'native-intents', 'negative-intents', 'rhinestone'])
-    .optional(),
-});
+  {
+    description: 'Request body for getting a quote for an intent',
+  },
+);
 
 export type QuoteRequest = z.infer<typeof QuoteRequestSchema>;

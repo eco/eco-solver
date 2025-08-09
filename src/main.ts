@@ -7,6 +7,7 @@ import * as winston from 'winston';
 
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
+import { SwaggerConfig } from '@/common/swagger';
 import {
   AppConfigService,
   DataDogConfigService,
@@ -106,8 +107,12 @@ async function bootstrap() {
   // Enable shutdown hooks
   app.enableShutdownHooks();
 
+  // Setup Swagger documentation
+  SwaggerConfig.setup(app);
+
   await app.listen(port);
   logger.log(`Application is running on: ${await app.getUrl()}`);
+  logger.log(`Swagger documentation available at: ${await app.getUrl()}/api-docs`);
 }
 
 bootstrap();
