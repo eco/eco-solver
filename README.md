@@ -18,6 +18,7 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 
 ### 🔒 Production-Ready Features
 
+#### Phase 1: Critical Requirements ✅
 - **Health Checks**: Comprehensive health monitoring endpoints (`/health`, `/health/live`, `/health/ready`)
 - **Global Exception Handling**: Consistent error responses with request tracking
 - **Graceful Shutdown**: Proper cleanup of connections and queue jobs on shutdown
@@ -27,6 +28,26 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
   - CORS configuration
   - API key authentication
 - **Request Tracking**: Automatic request ID generation for tracing
+
+#### Phase 2: Observability & Monitoring ✅
+- **Structured Logging**: Production-ready Winston logger with:
+  - JSON format for machine parsing and log aggregation systems
+  - Automatic correlation IDs for request tracing
+  - Sensitive data masking (passwords, keys, tokens)
+  - Request-scoped and system-level loggers
+  - Integration as NestJS's default logger for unified logging
+- **Why Winston over NestJS Logger**: 
+  - Multiple transports (console, file, HTTP, custom)
+  - Structured metadata support for contextual logging
+  - Production features: async logging, error handling, query capabilities
+  - Enterprise-ready: Works with ELK stack, Splunk, DataDog
+  - Extensible with custom formatters and transports
+- **Metrics & Monitoring**: DataDog integration with comprehensive metrics:
+  - HTTP metrics (request rate, latency, status codes)
+  - Queue metrics (job processing time, depth, success/failure rates)
+  - Intent metrics (processing time, value distribution, chain-specific)
+  - Blockchain RPC metrics (call performance, error rates)
+  - Database query performance metrics
 
 ## 📋 Prerequisites
 
@@ -534,6 +555,87 @@ These parameters allow fine-tuning of validation thresholds and fees without cod
 - **Linting**: `pnpm run lint`
 - **Formatting**: `pnpm run format`
 - **Type Checking**: Built into the development workflow
+
+### Logging Best Practices
+
+The application uses enhanced Winston logging with custom logger services:
+
+- **LoggerService**: Request-scoped logger for HTTP contexts with automatic correlation IDs
+- **SystemLoggerService**: System-level logger for background tasks and non-request contexts
+
+Benefits of using the custom logger services:
+- Automatic request correlation ID tracking
+- Sensitive data masking (passwords, keys, tokens)
+- Structured JSON logging with metadata
+- Context-aware logging for better filtering
+
+Example usage:
+```typescript
+// For HTTP request contexts
+constructor(private readonly logger: LoggerService) {
+  this.logger.setContext(MyService.name);
+}
+
+// For background services
+constructor(private readonly logger: SystemLoggerService) {
+  this.logger.setContext(MyService.name);
+}
+```
+
+### Observability Usage
+
+#### DataDog Metrics (Optional)
+
+DataDog integration is optional and disabled by default. To enable DataDog metrics:
+
+```bash
+# Enable DataDog metrics
+DATADOG_ENABLED=true
+
+# DataDog Agent configuration (defaults shown)
+DATADOG_HOST=localhost
+DATADOG_PORT=8125
+DATADOG_PREFIX=blockchain_intent_solver.
+
+# Optional global tags
+DATADOG_GLOBAL_TAGS_ENV=production
+DATADOG_GLOBAL_TAGS_SERVICE=blockchain-intent-solver
+```
+
+When enabled, metrics are automatically sent via StatsD protocol and include:
+- **HTTP Metrics**: `http.requests.total`, `http.request.duration`, `http.errors.*`
+- **Queue Metrics**: `queue.jobs.total`, `queue.job.duration`, `queue.depth`
+- **Intent Metrics**: `intents.processed.total`, `intent.processing.duration`, `intent.value.usd`
+- **Blockchain RPC Metrics**: `blockchain.rpc.calls.total`, `blockchain.rpc.duration`
+- **Database Metrics**: `database.query.duration`
+
+All metrics include relevant tags for filtering (e.g., `method`, `route`, `chain`, `status`)
+
+#### Structured Logs
+```bash
+# View logs with pretty printing
+tail -f logs/application-*.log | jq '.'
+
+# Filter by request ID
+tail -f logs/application-*.log | jq 'select(.requestId == "abc-123")'
+
+# Filter by log level
+tail -f logs/application-*.log | jq 'select(.level == "error")'
+
+# Example log entry:
+{
+  "level": "info",
+  "message": "Intent validated successfully",
+  "timestamp": "2025-08-08 10:30:00",
+  "context": "StandardFulfillmentStrategy",
+  "requestId": "abc-123",
+  "data": {
+    "intentId": "0x123...",
+    "sourceChain": "1",
+    "destinationChain": "10"
+  }
+}
+```
 
 ### Testing
 

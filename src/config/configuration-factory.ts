@@ -5,6 +5,7 @@ import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.sch
 import {
   awsConfig,
   baseConfig,
+  dataDogConfig,
   evmConfig,
   fulfillmentConfig,
   mongodbConfig,
@@ -35,6 +36,7 @@ export const configurationFactory = async () => {
     queue: await queueConfig(),
     aws: await awsConfig(),
     fulfillment: await fulfillmentConfig(),
+    datadog: await dataDogConfig(),
   };
 
   // Transform all environment variables to nested configuration

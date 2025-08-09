@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { BasicWalletModule } from '@/modules/blockchain/evm/wallets';
 import { KernelWalletModule } from '@/modules/blockchain/evm/wallets';
 import { ConfigModule } from '@/modules/config/config.module';
+import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { EvmListenersManagerService } from './listeners/evm-listeners-manager.service';
 import { EvmExecutorService } from './services/evm.executor.service';
@@ -11,7 +12,7 @@ import { EvmWalletManager } from './services/evm-wallet-manager.service';
 import { EvmCoreModule } from './evm-core.module';
 
 @Module({
-  imports: [ConfigModule, EvmCoreModule, BasicWalletModule, KernelWalletModule],
+  imports: [ConfigModule, LoggingModule, EvmCoreModule, BasicWalletModule, KernelWalletModule],
   providers: [EvmExecutorService, EvmReaderService, EvmWalletManager, EvmListenersManagerService],
   exports: [EvmExecutorService, EvmReaderService],
 })

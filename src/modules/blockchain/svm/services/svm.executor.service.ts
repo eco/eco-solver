@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import {
   Connection,
@@ -16,16 +16,20 @@ import {
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
 export class SvmExecutorService extends BaseChainExecutor {
-  private readonly logger = new Logger(SvmExecutorService.name);
   private readonly connection: Connection;
   private readonly keypair: Keypair;
   private readonly programId: PublicKey;
 
-  constructor(private solanaConfigService: SolanaConfigService) {
+  constructor(
+    private solanaConfigService: SolanaConfigService,
+    private readonly logger: SystemLoggerService,
+  ) {
     super();
+    this.logger.setContext(SvmExecutorService.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
     this.keypair = Keypair.fromSecretKey(
       Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),

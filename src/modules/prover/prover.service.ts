@@ -1,21 +1,24 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { Address, isAddressEqual } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
 
 @Injectable()
 export class ProverService implements OnModuleInit {
-  private readonly logger = new Logger(ProverService.name);
   private readonly provers: Map<string, HyperProver | MetalayerProver> = new Map();
 
   constructor(
     private hyperProver: HyperProver,
     private metalayerProver: MetalayerProver,
-  ) {}
+    private readonly logger: SystemLoggerService,
+  ) {
+    this.logger.setContext(ProverService.name);
+  }
 
   onModuleInit() {
     this.initializeProvers();

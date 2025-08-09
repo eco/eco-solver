@@ -1,26 +1,28 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
 import { SvmExecutorService } from './svm/services/svm.executor.service';
 
 @Injectable()
 export class BlockchainExecutorService {
-  private readonly logger = new Logger(BlockchainExecutorService.name);
   private executors: Map<string | number, BaseChainExecutor> = new Map();
 
   constructor(
     private evmConfigService: EvmConfigService,
     private solanaConfigService: SolanaConfigService,
     private intentsService: IntentsService,
+    private readonly logger: SystemLoggerService,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
   ) {
+    this.logger.setContext(BlockchainExecutorService.name);
     this.initializeExecutors();
   }
 

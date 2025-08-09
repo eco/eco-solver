@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { hashIntent, InboxAbi } from '@eco-foundation/routes-ts';
 import { Address, encodeFunctionData, erc20Abi } from 'viem';
@@ -9,6 +9,7 @@ import {
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { EvmTransportService } from './evm-transport.service';
@@ -16,15 +17,15 @@ import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
-  private logger = new Logger(EvmTransportService.name);
-
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
     private walletManager: EvmWalletManager,
     private proverService: ProverService,
+    private readonly logger: SystemLoggerService,
   ) {
     super();
+    this.logger.setContext(EvmExecutorService.name);
   }
 
   async fulfill(intent: Intent, walletId: WalletType): Promise<ExecutionResult> {

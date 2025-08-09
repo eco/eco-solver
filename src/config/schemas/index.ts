@@ -1,5 +1,6 @@
 export * from './aws.schema';
 export * from './base.schema';
+export * from './datadog.schema';
 export * from './evm.schema';
 export * from './fulfillment.schema';
 export * from './mongodb.schema';

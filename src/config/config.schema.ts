@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   AwsSchema,
   BaseSchema,
+  DataDogSchema,
   EvmSchema,
   FulfillmentSchema,
   MongoDBSchema,
@@ -15,6 +16,7 @@ import {
 export {
   AwsSchema,
   BaseSchema,
+  DataDogSchema,
   EvmSchema,
   FulfillmentSchema,
   MongoDBSchema,
@@ -36,6 +38,7 @@ export const ConfigSchema = z
     queue: QueueSchema,
     aws: AwsSchema,
     fulfillment: FulfillmentSchema,
+    datadog: DataDogSchema,
   })
   .extend(BaseSchema.shape);
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { IMessageBridgeProverAbi, IntentSourceAbi } from '@eco-foundation/routes-ts';
 import { Address, erc20Abi, Hex, isAddress } from 'viem';
@@ -6,18 +6,19 @@ import { Address, erc20Abi, Hex, isAddress } from 'viem';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmTransportService } from './evm-transport.service';
 
 @Injectable()
 export class EvmReaderService extends BaseChainReader {
-  protected readonly logger = new Logger(EvmReaderService.name);
-
   constructor(
     private transportService: EvmTransportService,
     private evmConfigService: EvmConfigService,
+    protected readonly logger: SystemLoggerService,
   ) {
     super();
+    this.logger.setContext(EvmReaderService.name);
   }
 
   async getBalance(address: string, chainId: number): Promise<bigint> {

@@ -1,25 +1,27 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { Address, Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmReaderService } from './evm/services/evm.reader.service';
 import { SvmReaderService } from './svm/services/svm.reader.service';
 
 @Injectable()
 export class BlockchainReaderService {
-  private readonly logger = new Logger(BlockchainReaderService.name);
   private readers: Map<string | number, BaseChainReader> = new Map();
 
   constructor(
     private evmConfigService: EvmConfigService,
     private solanaConfigService: SolanaConfigService,
+    private readonly logger: SystemLoggerService,
     @Optional() private evmReader?: EvmReaderService,
     @Optional() private svmReader?: SvmReaderService,
   ) {
+    this.logger.setContext(BlockchainReaderService.name);
     this.initializeReaders();
   }
 

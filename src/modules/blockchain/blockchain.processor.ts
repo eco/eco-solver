@@ -1,10 +1,11 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
@@ -12,13 +13,14 @@ import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
   concurrency: 10, // Will be overridden by constructor
 })
 export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
-  private readonly logger = new Logger(BlockchainProcessor.name);
   private chainLocks: Map<string, Promise<void>> = new Map();
   constructor(
     private blockchainService: BlockchainExecutorService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
+    private readonly logger: SystemLoggerService,
   ) {
     super();
+    this.logger.setContext(BlockchainProcessor.name);
   }
 
   onModuleInit() {

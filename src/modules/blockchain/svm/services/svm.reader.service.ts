@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
@@ -7,14 +7,18 @@ import { Address, Hex } from 'viem';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { SolanaConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
 export class SvmReaderService extends BaseChainReader {
-  protected readonly logger = new Logger(SvmReaderService.name);
   private readonly connection: Connection;
 
-  constructor(private solanaConfigService: SolanaConfigService) {
+  constructor(
+    private solanaConfigService: SolanaConfigService,
+    protected readonly logger: SystemLoggerService,
+  ) {
     super();
+    this.logger.setContext(SvmReaderService.name);
     const rpcUrl = this.solanaConfigService.rpcUrl;
     this.connection = new Connection(rpcUrl, 'confirmed');
   }

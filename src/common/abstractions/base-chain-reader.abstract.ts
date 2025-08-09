@@ -1,11 +1,10 @@
-import { Logger } from '@nestjs/common';
-
 import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 export abstract class BaseChainReader {
-  protected abstract readonly logger: Logger;
+  protected abstract readonly logger: SystemLoggerService;
 
   abstract getBalance(address: string, chainId?: number | string): Promise<bigint>;
 

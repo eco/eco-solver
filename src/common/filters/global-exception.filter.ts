@@ -1,7 +1,7 @@
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
@@ -38,7 +38,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
       const response = exception.getResponse();
-      
+
       if (typeof response === 'string') {
         message = response;
       } else if (typeof response === 'object' && response !== null) {
@@ -49,28 +49,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       message = exception.message;
       error = exception.name;
-      
+
       // Log full error details for non-HTTP exceptions
-      this.logger.error(
-        `Unhandled exception: ${exception.message}`,
-        exception.stack,
-        {
-          requestId,
-          path: request.url,
-          method: request.method,
-        },
-      );
+      this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack, {
+        requestId,
+        path: request.url,
+        method: request.method,
+      });
     } else {
       // Log unknown exception types
-      this.logger.error(
-        'Unknown exception type',
-        exception,
-        {
-          requestId,
-          path: request.url,
-          method: request.method,
-        },
-      );
+      this.logger.error('Unknown exception type', exception, {
+        requestId,
+        path: request.url,
+        method: request.method,
+      });
     }
 
     const errorResponse: ErrorResponse = {

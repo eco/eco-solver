@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -9,6 +9,7 @@ import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -16,12 +17,13 @@ import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Injectable()
 export class QueueService implements IQueueService, OnModuleDestroy {
-  private readonly logger = new Logger(QueueService.name);
-
   constructor(
     @InjectQueue('intent-fulfillment') private fulfillmentQueue: Queue,
     @InjectQueue('blockchain-execution') private executionQueue: Queue,
-  ) {}
+    private readonly logger: SystemLoggerService,
+  ) {
+    this.logger.setContext(QueueService.name);
+  }
 
   async addIntentToFulfillmentQueue(
     intent: Intent,

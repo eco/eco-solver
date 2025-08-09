@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
@@ -6,10 +6,10 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { FulfillmentConfigService, SolanaConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
 export class SolanaListener extends BaseChainListener {
-  private readonly logger = new Logger(SolanaListener.name);
   private connection: Connection;
   private programId: PublicKey;
   private subscriptionId: number;
@@ -19,8 +19,10 @@ export class SolanaListener extends BaseChainListener {
     private solanaConfigService: SolanaConfigService,
     private eventEmitter: EventEmitter2,
     private fulfillmentConfigService: FulfillmentConfigService,
+    private readonly logger: SystemLoggerService,
   ) {
     super();
+    this.logger.setContext(SolanaListener.name);
   }
 
   async start(): Promise<void> {

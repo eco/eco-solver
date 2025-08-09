@@ -1,10 +1,11 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 import { KernelWalletFactory } from '../wallets/kernel-wallet';
@@ -13,7 +14,6 @@ export type WalletType = 'basic' | 'kernel';
 
 @Injectable()
 export class EvmWalletManager implements OnModuleInit {
-  private readonly logger = new Logger(EvmWalletManager.name);
   // Map of chainId -> walletType -> wallet
   private wallets: Map<number, Map<WalletType, IEvmWallet>> = new Map();
   private defaultWalletType: WalletType = 'basic';
@@ -23,7 +23,9 @@ export class EvmWalletManager implements OnModuleInit {
     private evmConfigService: EvmConfigService,
     private basicWalletFactory: BasicWalletFactory,
     private kernelWalletFactory: KernelWalletFactory,
+    private readonly logger: SystemLoggerService,
   ) {
+    this.logger.setContext(EvmWalletManager.name);
     this.walletFactories = [this.basicWalletFactory, this.kernelWalletFactory];
   }
 

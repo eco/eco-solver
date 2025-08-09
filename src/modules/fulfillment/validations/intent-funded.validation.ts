@@ -1,16 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class IntentFundedValidation implements Validation {
-  private readonly logger = new Logger(IntentFundedValidation.name);
-
-  constructor(private readonly blockchainReader: BlockchainReaderService) {}
+  constructor(
+    private readonly blockchainReader: BlockchainReaderService,
+    private readonly logger: SystemLoggerService,
+  ) {
+    this.logger.setContext(IntentFundedValidation.name);
+  }
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
     const sourceChainId = intent.route.source;

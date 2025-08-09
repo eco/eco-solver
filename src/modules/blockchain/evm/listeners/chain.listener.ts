@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { IntentSourceAbi } from '@eco-foundation/routes-ts';
@@ -7,18 +6,19 @@ import { PublicClient } from 'viem';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 export class ChainListener extends BaseChainListener {
   private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
-  private logger: Logger;
 
   constructor(
     private readonly config: EvmChainConfig,
     private readonly transportService: EvmTransportService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly logger: SystemLoggerService,
   ) {
     super();
-    this.logger = new Logger(`${ChainListener.name}:${config.chainId}`);
+    this.logger.setContext(`${ChainListener.name}:${config.chainId}`);
   }
 
   async start(): Promise<void> {

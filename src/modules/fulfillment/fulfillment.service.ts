@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { DataDogService } from '@/modules/datadog';
 import {
   CrowdLiquidityFulfillmentStrategy,
   FulfillmentStrategy,
@@ -13,12 +14,12 @@ import {
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
 export class FulfillmentService {
-  private readonly logger = new Logger(FulfillmentService.name);
   private strategies: Map<FulfillmentStrategyName, FulfillmentStrategy> = new Map();
 
   constructor(
@@ -30,7 +31,10 @@ export class FulfillmentService {
     private nativeIntentsStrategy: NativeIntentsFulfillmentStrategy,
     private negativeIntentsStrategy: NegativeIntentsFulfillmentStrategy,
     private rhinestoneStrategy: RhinestoneFulfillmentStrategy,
+    private dataDogService: DataDogService,
+    private readonly logger: SystemLoggerService,
   ) {
+    this.logger.setContext(FulfillmentService.name);
     // Register strategies by name
     this.strategies.set(this.standardStrategy.name, this.standardStrategy);
     this.strategies.set(this.crowdLiquidityStrategy.name, this.crowdLiquidityStrategy);
@@ -59,6 +63,14 @@ export class FulfillmentService {
         `New intent ${intent.intentHash} added to fulfillment queue with strategy: ${strategy}`,
       );
 
+      // Record metrics
+      this.dataDogService.recordIntent(
+        'submitted',
+        intent.route.source.toString(),
+        intent.route.destination.toString(),
+        strategy,
+      );
+
       return interfaceIntent;
     } catch (error) {
       this.logger.error(`Error submitting intent ${intent.intentHash}:`, error);
@@ -67,6 +79,8 @@ export class FulfillmentService {
   }
 
   async processIntent(intent: Intent, strategyName: FulfillmentStrategyName): Promise<void> {
+    const startTime = Date.now();
+
     try {
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.VALIDATING);
 
@@ -75,6 +89,13 @@ export class FulfillmentService {
       if (!strategy) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(`Unknown fulfillment strategy: ${strategyName}`);
+        this.dataDogService.recordIntent(
+          'failed',
+          intent.route.source.toString(),
+          intent.route.destination.toString(),
+          strategyName,
+          Date.now() - startTime,
+        );
         return;
       }
 
@@ -82,17 +103,37 @@ export class FulfillmentService {
       if (!strategy.canHandle(intent)) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(`Strategy ${strategyName} cannot handle this intent`);
+        this.dataDogService.recordIntent(
+          'failed',
+          intent.route.source.toString(),
+          intent.route.destination.toString(),
+          strategyName,
+          Date.now() - startTime,
+        );
         return;
       }
 
       // Run strategy validation (which includes all configured validations)
       try {
         await strategy.validate(intent);
+        this.dataDogService.recordIntent(
+          'validated',
+          intent.route.source.toString(),
+          intent.route.destination.toString(),
+          strategyName,
+        );
       } catch (validationError) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(
           `Validation failed for intent ${intent.intentHash}:`,
           validationError.message,
+        );
+        this.dataDogService.recordIntent(
+          'failed',
+          intent.route.source.toString(),
+          intent.route.destination.toString(),
+          strategyName,
+          Date.now() - startTime,
         );
         return;
       }
@@ -101,9 +142,25 @@ export class FulfillmentService {
       await strategy.execute(intent);
 
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.EXECUTING);
+
+      // Record successful fulfillment metric
+      this.dataDogService.recordIntent(
+        'fulfilled',
+        intent.route.source.toString(),
+        intent.route.destination.toString(),
+        strategyName,
+        Date.now() - startTime,
+      );
     } catch (error) {
       this.logger.error(`Error processing intent ${intent.intentHash}:`, error);
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+      this.dataDogService.recordIntent(
+        'failed',
+        intent.route.source.toString(),
+        intent.route.destination.toString(),
+        strategyName,
+        Date.now() - startTime,
+      );
     }
   }
 

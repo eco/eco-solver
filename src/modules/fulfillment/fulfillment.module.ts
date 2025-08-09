@@ -27,12 +27,14 @@ import {
   StandardFeeValidation,
 } from '@/modules/fulfillment/validations';
 import { IntentsModule } from '@/modules/intents/intents.module';
+import { LoggingModule } from '@/modules/logging/logging.module';
 import { ProverModule } from '@/modules/prover/prover.module';
 import { QueueModule } from '@/modules/queue/queue.module';
 
 @Module({
   imports: [
     ConfigModule,
+    LoggingModule,
     IntentsModule,
     QueueModule,
     ProverModule,

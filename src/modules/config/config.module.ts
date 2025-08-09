@@ -6,6 +6,7 @@ import {
   AppConfigService,
   AwsConfigService,
   DatabaseConfigService,
+  DataDogConfigService,
   EvmConfigService,
   FulfillmentConfigService,
   QueueConfigService,
@@ -24,6 +25,7 @@ const configProviders = [
   AwsConfigService,
   AwsSecretsService,
   FulfillmentConfigService,
+  DataDogConfigService,
 ];
 
 @Global()

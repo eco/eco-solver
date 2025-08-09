@@ -4,6 +4,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { configurationFactory } from '@/config/configuration-factory';
 import { ConfigModule } from '@/modules/config/config.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
+import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { EvmModule } from './evm/evm.module';
 import { SvmModule } from './svm/svm.module';
@@ -19,6 +20,7 @@ export class BlockchainModule {
     const imports: any[] = [
       ConfigModule,
       IntentsModule,
+      LoggingModule,
       BullModule.registerQueue({
         name: 'blockchain-execution',
       }),

@@ -1,14 +1,51 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+
 import helmet from 'helmet';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
 
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
-import { AppConfigService } from '@/modules/config/services';
+import { AppConfigService, DataDogConfigService } from '@/modules/config/services';
+import { DataDogInterceptor } from '@/modules/datadog';
 
 async function bootstrap() {
+  // Determine environment for winston configuration
+  const env = process.env.ENV || process.env.NODE_ENV || 'development';
+  const isProduction = env === 'production';
+
+  // Configure winston transports
+  const format = winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json(),
+  );
+
+  const transports: winston.transport[] = [
+    new winston.transports.Console({
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    }),
+  ];
+
+  // Create winston logger configuration
+  const loggerConfig = {
+    level: isProduction ? 'info' : 'debug',
+    format,
+    defaultMeta: {
+      service: 'blockchain-intent-solver',
+      environment: env,
+    },
+    transports,
+    exitOnError: false,
+  };
+
+  // Create app with winston logger
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(loggerConfig),
+  });
+
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
 
   const appConfig = app.get(AppConfigService);
   const port = appConfig.port;
@@ -36,6 +73,14 @@ async function bootstrap() {
   // Global exception filter
   const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new GlobalExceptionFilter(httpAdapter));
+
+  // Global DataDog metrics interceptor (if enabled)
+  const dataDogConfig = app.get(DataDogConfigService);
+  if (dataDogConfig.enabled) {
+    const dataDogInterceptor = app.get(DataDogInterceptor);
+    app.useGlobalInterceptors(dataDogInterceptor);
+    logger.log('DataDog metrics interceptor enabled');
+  }
 
   // Enable shutdown hooks
   app.enableShutdownHooks();
