@@ -787,7 +787,7 @@ describe('FeeService', () => {
       // The actual result shows only tokens '0x1', '0x2', '0x3' appear in both src and dest
       // This suggests the system filters by some intersection of source/dest tokens and reward tokens
       const extendedTokenAnalysis = [
-        ...tokenAnalysis, // Contains '0x1', '0x2', '0x3' 
+        ...tokenAnalysis, // Contains '0x1', '0x2', '0x3'
         {
           token: {
             address: '0x4', // This token will be filtered out
@@ -805,7 +805,9 @@ describe('FeeService', () => {
       jest.spyOn(balanceService, 'fetchTokenData').mockResolvedValue(extendedTokenAnalysis)
       const cal = jest.spyOn(utils, 'calculateDelta').mockImplementation((token) => {
         // Use a simple index-based delta for testing
-        return BigInt(extendedTokenAnalysis.findIndex(ta => ta.token.address === token.token.address) + 1) as any
+        return BigInt(
+          extendedTokenAnalysis.findIndex((ta) => ta.token.address === token.token.address) + 1,
+        ) as any
       })
       const rewards = { stuff: 'asdf' } as any
       const rew = jest.spyOn(feeService, 'getRewardsNormalized').mockReturnValue({ rewards } as any)
@@ -819,17 +821,17 @@ describe('FeeService', () => {
       // Since none of the token addresses ('0x1', '0x2', '0x3', '0x4', '0x5') are in quote.reward.tokens,
       // srcDeficitDescending should be empty due to filtering
       expect(result.calculated?.srcDeficitDescending).toEqual([])
-      
+
       // destDeficitDescending should contain only the first 3 tokens that are in destination.tokens
       const expectedDestTokens = [
         { ...tokenAnalysis[0], delta: 1n }, // '0x1' -> delta 1
         { ...tokenAnalysis[1], delta: 2n }, // '0x2' -> delta 2
-        { ...tokenAnalysis[2], delta: 3n }  // '0x3' -> delta 3
+        { ...tokenAnalysis[2], delta: 3n }, // '0x3' -> delta 3
       ]
       expect(result.calculated?.destDeficitDescending).toEqual(expectedDestTokens)
 
       // calculateDelta called only for destDeficitDescending tokens (src is empty due to filtering)
-      expect(cal).toHaveBeenCalledTimes(expectedDestTokens.length) 
+      expect(cal).toHaveBeenCalledTimes(expectedDestTokens.length)
       expect(rew).toHaveBeenCalledTimes(1)
       expect(tok).toHaveBeenCalledTimes(1)
       expect(call).toHaveBeenCalledTimes(1)
@@ -1423,7 +1425,7 @@ describe('FeeService', () => {
         },
       }
       expect(normToken).toEqual(expectedNorm)
-      
+
       // Verify the calculation logic: 300_000_000_000_000_000_000n - 200_000_000_000_000_000_000n = 100_000_000_000_000_000_000n
       // No additional normalization is applied since inputs are already normalized
     })
@@ -1441,7 +1443,7 @@ describe('FeeService', () => {
         },
       }
       expect(normToken).toEqual(expectedNorm)
-      
+
       // Verify the calculation logic: 100_000_000_000_000_000_000n - 200_000_000_000_000_000_000n = -100_000_000_000_000_000_000n
       // No additional normalization is applied since inputs are already normalized
     })
@@ -1462,7 +1464,7 @@ describe('FeeService', () => {
         },
       }
       expect(normToken).toEqual(expectedNorm)
-      
+
       // Verify the calculation logic: 300_000_000_000_000_000_000n - 200_000_000_000_000_000_000n = 100_000_000_000_000_000_000n
       // No additional normalization is applied since inputs are already normalized
     })

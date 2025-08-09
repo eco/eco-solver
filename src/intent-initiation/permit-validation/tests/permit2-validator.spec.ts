@@ -43,7 +43,7 @@ describe('Permit2Validator', () => {
     })
 
     mockVerifyTypedData.mockResolvedValue(true)
-    
+
     // Mock Logger to avoid console output during tests
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {})

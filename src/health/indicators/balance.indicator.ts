@@ -6,6 +6,7 @@ import { entries, keyBy } from 'lodash'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { serialize } from '@/common/utils/serialize'
 
 type TokenType = {
   token: Hex
@@ -51,9 +52,9 @@ export class BalanceHealthIndicator extends HealthIndicator {
     })
 
     if (isHealthy) {
-      return results
+      return serialize(results)
     }
-    throw new HealthCheckError('Balances failed', results)
+    throw new HealthCheckError('Balances failed', serialize(results))
   }
 
   private async getAccount(): Promise<any[]> {
@@ -63,7 +64,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
       eocAddress: `0x${string}`
       chainID: number
       balance: string
-      minEthBalanceWei: bigint
+      minEthBalanceWei: string
     }[] = []
     const solvers = this.configService.getSolvers()
     const balanceTasks = entries(solvers).map(async ([, solver]) => {
@@ -78,7 +79,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
           eocAddress,
           chainID: solver.chainID,
           balance: '        ' + BigInt(bal).toString(), //makes comparing easier in json
-          minEthBalanceWei,
+          minEthBalanceWei: minEthBalanceWei.toString(),
         })
       }
     })

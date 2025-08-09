@@ -8,6 +8,7 @@ import { MongoDBHealthIndicator } from './indicators/mongodb.indicator'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { GitCommitHealthIndicator } from './indicators/git-commit.indicator'
 import { EcoAnalyticsService } from '@/analytics'
+import { serialize } from '@/common/utils/serialize'
 
 @Injectable()
 export class HealthService {
@@ -33,7 +34,7 @@ export class HealthService {
       EcoLogMessage.fromDefault({
         message: `HealthService.checkHealth()`,
         properties: {
-          healthCheck: healthCheck,
+          healthCheck: serialize(healthCheck),
         },
       }),
     )

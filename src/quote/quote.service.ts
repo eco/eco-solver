@@ -1,5 +1,4 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
@@ -592,7 +591,7 @@ export class QuoteService implements OnModuleInit {
             ({
               token: fund.delta.address,
               amount: 0n,
-              decimals: originalRewardToken?.decimals 
+              decimals: originalRewardToken?.decimals
                 ? {
                     original: originalRewardToken.decimals,
                     current: BASE_DECIMALS,
@@ -616,7 +615,7 @@ export class QuoteService implements OnModuleInit {
     const rewardTokens = Object.values(quoteRecord).map((token) => {
       if (token.decimals) {
         const deconverted = deconvertNormalize(token.amount, {
-          chainID: BigInt(quoteIntentModel.route.source), 
+          chainID: BigInt(quoteIntentModel.route.source),
           address: token.token,
           decimals: token.decimals.original,
         })
@@ -706,7 +705,7 @@ export class QuoteService implements OnModuleInit {
           routeTokens.push({
             token: originalToken.address,
             amount: amountToFill,
-            decimals: originalRouteToken?.decimals 
+            decimals: originalRouteToken?.decimals
               ? {
                   original: originalRouteToken.decimals,
                   current: BASE_DECIMALS,

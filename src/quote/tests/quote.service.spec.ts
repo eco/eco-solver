@@ -606,10 +606,13 @@ describe('QuotesService', () => {
         jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
 
         // Create mapping from token address to expected decimals
-        const tokenDecimalsMap = expectedTokens.reduce((acc, expectedToken) => {
-          acc[expectedToken.token] = expectedToken.decimals || 18
-          return acc
-        }, {} as Record<string, number>)
+        const tokenDecimalsMap = expectedTokens.reduce(
+          (acc, expectedToken) => {
+            acc[expectedToken.token] = expectedToken.decimals || 18
+            return acc
+          },
+          {} as Record<string, number>,
+        )
 
         const { response: quoteDataEntry } = await quoteService.generateQuote({
           route: { tokens: [], calls: [], source: '1', destination: '137' },

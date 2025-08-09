@@ -345,7 +345,7 @@ describe('LiquidityManagerService', () => {
         strategy: 'LiFi',
         context: {},
       }
-      
+
       const mockQuote2 = {
         amountIn: { type: 'BigInt', hex: '0xc8' }, // 200n serialized
         amountOut: { type: 'BigInt', hex: '0xbe' }, // 190n serialized
@@ -364,7 +364,7 @@ describe('LiquidityManagerService', () => {
           quotes: [JSON.stringify(mockQuote1), JSON.stringify(mockQuote2)],
         },
       }
-      
+
       jest.spyOn(liquidityProviderService, 'execute').mockResolvedValue(undefined as any)
 
       await liquidityManagerService.executeRebalancing(mockRebalanceData as any)
@@ -376,7 +376,7 @@ describe('LiquidityManagerService', () => {
           amountIn: 100n, // Deserialized bigint
           amountOut: 95n, // Deserialized bigint
           strategy: 'LiFi',
-        })
+        }),
       )
     })
   })

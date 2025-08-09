@@ -102,7 +102,7 @@ describe('StargateProviderService', () => {
     srcToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     dstToken: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
     srcAmount: '10000000', // 10 USDC in 6-decimal format (will be converted to 18 decimals by service)
-    srcAmountMax: '74660843412', // 6-decimal format 
+    srcAmountMax: '74660843412', // 6-decimal format
     dstAmount: '9900000', // 9.9 USDC in 6-decimal format (will be converted to 18 decimals by service)
     dstAmountMin: '9900000', // 9.9 USDC in 6-decimal format
     duration: {

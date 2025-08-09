@@ -86,7 +86,7 @@ describe('CCTPV2ProviderService', () => {
 
     ecoConfigService.getCCTPV2.mockReturnValue(mockV2Config as any)
     service['config'] = mockV2Config as any
-    
+
     // Mock Logger to avoid console output during tests
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {})

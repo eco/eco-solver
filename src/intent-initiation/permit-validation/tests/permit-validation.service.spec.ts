@@ -76,7 +76,7 @@ describe('PermitValidationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    
+
     // Mock Logger to avoid console output during tests
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {})

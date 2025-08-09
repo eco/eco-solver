@@ -110,7 +110,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT on Ethereum
       chainId: 1,
       targetBalance: 1000000000000000000000n, // 1000 tokens in base 18 decimals
-      minBalance: 800000000000000000000n, // 800 tokens in base 18 decimals  
+      minBalance: 800000000000000000000n, // 800 tokens in base 18 decimals
       type: 'erc20' as const,
     },
     {
