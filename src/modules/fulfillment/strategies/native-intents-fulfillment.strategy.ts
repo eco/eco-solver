@@ -7,6 +7,7 @@ import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
@@ -33,6 +34,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   constructor(
     protected readonly blockchainExecutor: BlockchainExecutorService,
     protected readonly blockchainReader: BlockchainReaderService,
+    protected readonly otelService: OpenTelemetryService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for native intents strategy
     private readonly intentFundedValidation: IntentFundedValidation,
@@ -45,7 +47,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly nativeFeeValidation: NativeFeeValidation,
   ) {
-    super(blockchainExecutor, blockchainReader);
+    super(blockchainExecutor, blockchainReader, otelService);
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.intentFundedValidation,
@@ -70,16 +72,49 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   async execute(intent: Intent): Promise<void> {
-    // Get wallet ID for this intent
-    const walletId = await this.getWalletIdForIntent(intent);
-
-    // Native intents fulfillment uses EVM executor for native token handling
-    await this.queueService.addIntentToExecutionQueue({
-      strategy: this.name,
-      intent,
-      chainId: intent.route.destination,
-      walletId,
+    const span = this.otelService.startSpan('native-intents-strategy.execute', {
+      attributes: {
+        'intent.id': intent.intentHash,
+        'intent.source_chain': intent.route.source.toString(),
+        'intent.destination_chain': intent.route.destination.toString(),
+        'intent.native_value': intent.reward.nativeValue.toString(),
+        'intent.has_tokens': false,
+        'strategy.name': this.name,
+      },
     });
+
+    try {
+      // Get wallet ID for this intent
+      const walletId = await this.getWalletIdForIntent(intent);
+
+      span.setAttributes({
+        'wallet.id': walletId,
+      });
+
+      // Native intents fulfillment uses EVM executor for native token handling
+      await this.queueService.addIntentToExecutionQueue({
+        strategy: this.name,
+        intent,
+        chainId: intent.route.destination,
+        walletId,
+      });
+
+      span.addEvent('intent-queued', {
+        queue: 'execution',
+        strategy: this.name,
+      });
+
+      span.setStatus({ code: 1 }); // Success
+    } catch (error) {
+      span.setStatus({
+        code: 2, // Error
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+      span.recordException(error as Error);
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

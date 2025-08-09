@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -10,6 +10,7 @@ import {
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -21,6 +22,7 @@ export class QueueService implements IQueueService, OnModuleDestroy {
     @InjectQueue('intent-fulfillment') private fulfillmentQueue: Queue,
     @InjectQueue('blockchain-execution') private executionQueue: Queue,
     private readonly logger: SystemLoggerService,
+    @Optional() private readonly queueTracing?: QueueTracingService,
   ) {
     this.logger.setContext(QueueService.name);
   }
@@ -36,29 +38,47 @@ export class QueueService implements IQueueService, OnModuleDestroy {
 
     const serializedData = QueueSerializer.serialize(jobData);
 
-    await this.fulfillmentQueue.add('process-intent', serializedData, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 5000,
-      },
-    });
+    const addJob = async () => {
+      await this.fulfillmentQueue.add('process-intent', serializedData, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+      });
+    };
+
+    if (this.queueTracing) {
+      await this.queueTracing.traceQueueAdd(
+        'intent-fulfillment',
+        'process-intent',
+        jobData,
+        addJob,
+      );
+    } else {
+      await addJob();
+    }
   }
 
   async addIntentToExecutionQueue(jobData: ExecutionJobData): Promise<void> {
     const serializedData = QueueSerializer.serialize(jobData);
+    const jobName = `${QueueNames.INTENT_EXECUTION}-chain-${jobData.chainId}`;
 
-    await this.executionQueue.add(
-      `${QueueNames.INTENT_EXECUTION}-chain-${jobData.chainId}`,
-      serializedData,
-      {
+    const addJob = async () => {
+      await this.executionQueue.add(jobName, serializedData, {
         attempts: 3,
         backoff: {
           type: 'exponential',
           delay: 2000,
         },
-      },
-    );
+      });
+    };
+
+    if (this.queueTracing) {
+      await this.queueTracing.traceQueueAdd('blockchain-execution', jobName, jobData, addJob);
+    } else {
+      await addJob();
+    }
   }
 
   async getQueueStatus(queueName: string): Promise<any> {

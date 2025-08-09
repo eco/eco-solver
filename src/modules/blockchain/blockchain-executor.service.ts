@@ -6,6 +6,7 @@ import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager
 import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
 import { SvmExecutorService } from './svm/services/svm.executor.service';
@@ -19,6 +20,7 @@ export class BlockchainExecutorService {
     private solanaConfigService: SolanaConfigService,
     private intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
+    private readonly otelService: OpenTelemetryService,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
   ) {
@@ -77,21 +79,58 @@ export class BlockchainExecutorService {
   }
 
   async executeIntent(intent: Intent, walletId?: WalletType): Promise<void> {
+    const span = this.otelService.startSpan('intent.blockchain.execute', {
+      attributes: {
+        'intent.id': intent.intentHash,
+        'intent.destination_chain': intent.route.destination.toString(),
+        'intent.wallet_type': walletId || 'default',
+        'intent.route.tokens_count': intent.route.tokens.length,
+        'intent.route.calls_count': intent.route.calls.length,
+      },
+    });
+
     try {
       const executor = this.getExecutorForChain(intent.route.destination);
+      span.addEvent('intent.executor.selected', {
+        executor: executor.constructor.name,
+      });
 
       const result = await executor.fulfill(intent, walletId);
 
       if (result.success) {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
         this.logger.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
+
+        span.setAttributes({
+          'intent.tx_hash': result.txHash,
+          'intent.fulfilled': true,
+        });
+        span.addEvent('intent.fulfilled', {
+          txHash: result.txHash,
+        });
+        span.setStatus({ code: 0 }); // OK
       } else {
         await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
+
+        span.setAttributes({
+          'intent.error': result.error,
+          'intent.fulfilled': false,
+        });
+        span.addEvent('intent.failed', {
+          error: result.error,
+        });
+        span.setStatus({ code: 2, message: result.error });
       }
+
+      span.end();
     } catch (error) {
       this.logger.error(`Error executing intent ${intent.intentHash}:`, error.message);
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+
+      span.recordException(error as Error);
+      span.setStatus({ code: 2, message: (error as Error).message });
+      span.end();
     }
   }
 }

@@ -7,6 +7,7 @@ import {
   EvmSchema,
   FulfillmentSchema,
   MongoDBSchema,
+  OpenTelemetrySchema,
   QueueSchema,
   RedisSchema,
   SolanaSchema,
@@ -20,6 +21,7 @@ export {
   EvmSchema,
   FulfillmentSchema,
   MongoDBSchema,
+  OpenTelemetrySchema,
   QueueSchema,
   RedisSchema,
   SolanaSchema,
@@ -39,6 +41,7 @@ export const ConfigSchema = z
     aws: AwsSchema,
     fulfillment: FulfillmentSchema,
     datadog: DataDogSchema,
+    opentelemetry: OpenTelemetrySchema,
   })
   .extend(BaseSchema.shape);
 

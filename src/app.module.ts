@@ -13,11 +13,15 @@ import { DataDogModule } from '@/modules/datadog/datadog.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
+import { LoggingModule } from '@/modules/logging/logging.module';
+import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
 
 @Module({
   imports: [
     ConfigModule,
+    LoggingModule,
+    OpenTelemetryModule.forRootAsync(),
     DataDogModule.forRootAsync(),
     EventEmitterModule.forRoot(),
     ThrottlerModule.forRoot([

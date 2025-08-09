@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import * as api from '@opentelemetry/api';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
@@ -13,12 +15,14 @@ import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-na
 import { ValidationContextImpl } from '@/modules/fulfillment/validation-context.impl';
 import { Validation } from '@/modules/fulfillment/validations';
 import { FeeCalculationValidation } from '@/modules/fulfillment/validations/fee-calculation.interface';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 @Injectable()
 export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
   constructor(
     protected readonly blockchainExecutor: BlockchainExecutorService,
     protected readonly blockchainReader: BlockchainReaderService,
+    protected readonly otelService: OpenTelemetryService,
   ) {}
 
   /**
@@ -33,22 +37,72 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
    * @throws Error if any validation fails
    */
   async validate(intent: Intent): Promise<boolean> {
-    // Create a single immutable context for all validations
-    const context = new ValidationContextImpl(
-      intent,
-      this,
-      this.blockchainExecutor,
-      this.blockchainReader,
-    );
+    const span = this.otelService.startSpan(`strategy.${this.name}.validate`, {
+      attributes: {
+        'strategy.name': this.name,
+        'intent.id': intent.intentHash,
+        'intent.source_chain': intent.route.source.toString(),
+        'intent.destination_chain': intent.route.destination.toString(),
+      },
+    });
 
-    const validations = this.getValidations();
-    for (const validation of validations) {
-      const result = await validation.validate(intent, context);
-      if (!result) {
-        throw new Error(`Validation failed: ${validation.constructor.name}`);
+    try {
+      // Create a single immutable context for all validations
+      const context = new ValidationContextImpl(
+        intent,
+        this,
+        this.blockchainExecutor,
+        this.blockchainReader,
+      );
+
+      const validations = this.getValidations();
+      span.setAttribute('strategy.validation_count', validations.length);
+
+      for (const validation of validations) {
+        const validationName = validation.constructor.name;
+        const validationSpan = this.otelService.startSpan(`validation.${validationName}`, {
+          attributes: {
+            'validation.name': validationName,
+            'intent.id': intent.intentHash,
+          },
+        });
+
+        try {
+          const result = await api.context.with(
+            api.trace.setSpan(api.context.active(), span),
+            async () => {
+              return await validation.validate(intent, context);
+            },
+          );
+
+          if (!result) {
+            validationSpan.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: 'Validation returned false',
+            });
+            validationSpan.end();
+            throw new Error(`Validation failed: ${validationName}`);
+          }
+
+          validationSpan.setStatus({ code: api.SpanStatusCode.OK });
+          validationSpan.end();
+        } catch (error) {
+          validationSpan.recordException(error as Error);
+          validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+          validationSpan.end();
+          throw error;
+        }
       }
+
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return true;
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
     }
-    return true;
   }
 
   /**
@@ -84,56 +138,129 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
    * @returns Quote result with validation details and fees
    */
   async getQuote(intent: Intent): Promise<QuoteResult> {
-    const context = new ValidationContextImpl(
-      intent,
-      this,
-      this.blockchainExecutor,
-      this.blockchainReader,
-    );
+    const span = this.otelService.startSpan(`strategy.${this.name}.getQuote`, {
+      attributes: {
+        'strategy.name': this.name,
+        'intent.id': intent.intentHash,
+        'intent.source_chain': intent.route.source.toString(),
+        'intent.destination_chain': intent.route.destination.toString(),
+      },
+    });
 
-    const validations = this.getValidations();
-    const validationResults: ValidationResult[] = [];
-    let valid = true;
-    let fees = undefined;
+    try {
+      const context = new ValidationContextImpl(
+        intent,
+        this,
+        this.blockchainExecutor,
+        this.blockchainReader,
+      );
 
-    for (const validation of validations) {
-      const validationName = validation.constructor.name;
-      try {
-        const result = await validation.validate(intent, context);
-        if (result) {
-          validationResults.push({
-            validation: validationName,
-            passed: true,
-          });
+      const validations = this.getValidations();
+      const validationResults: ValidationResult[] = [];
+      let valid = true;
+      let fees = undefined;
 
-          // Extract fee information from the first fee calculation validation only
-          if (!fees && this.isFeeCalculationValidation(validation)) {
-            fees = await validation.calculateFee(intent, context);
+      span.setAttribute('strategy.validation_count', validations.length);
+
+      for (const validation of validations) {
+        const validationName = validation.constructor.name;
+        const validationSpan = this.otelService.startSpan(`quote.validation.${validationName}`, {
+          attributes: {
+            'validation.name': validationName,
+            'intent.id': intent.intentHash,
+          },
+        });
+
+        try {
+          const result = await api.context.with(
+            api.trace.setSpan(api.context.active(), span),
+            async () => {
+              return await validation.validate(intent, context);
+            },
+          );
+
+          if (result) {
+            validationResults.push({
+              validation: validationName,
+              passed: true,
+            });
+
+            // Extract fee information from the first fee calculation validation only
+            if (!fees && this.isFeeCalculationValidation(validation)) {
+              const feeSpan = this.otelService.startSpan(`quote.calculateFee.${validationName}`);
+              try {
+                fees = await api.context.with(
+                  api.trace.setSpan(api.context.active(), span),
+                  async () => {
+                    return await validation.calculateFee(intent, context);
+                  },
+                );
+                if (fees) {
+                  feeSpan.setAttributes({
+                    'fee.base': fees.baseFee.toString(),
+                    'fee.percentage': fees.percentageFee.toString(),
+                    'fee.total': fees.totalFee.toString(),
+                  });
+                }
+                feeSpan.setStatus({ code: api.SpanStatusCode.OK });
+              } catch (error) {
+                feeSpan.recordException(error as Error);
+                feeSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+                throw error;
+              } finally {
+                feeSpan.end();
+              }
+            }
+
+            validationSpan.setAttribute('validation.passed', true);
+            validationSpan.setStatus({ code: api.SpanStatusCode.OK });
+          } else {
+            validationResults.push({
+              validation: validationName,
+              passed: false,
+              error: 'Validation returned false',
+            });
+            valid = false;
+            validationSpan.setAttribute('validation.passed', false);
+            validationSpan.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: 'Validation returned false',
+            });
           }
-        } else {
+        } catch (error) {
           validationResults.push({
             validation: validationName,
             passed: false,
-            error: 'Validation returned false',
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
           valid = false;
+          validationSpan.recordException(error as Error);
+          validationSpan.setAttribute('validation.passed', false);
+          validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+        } finally {
+          validationSpan.end();
         }
-      } catch (error) {
-        validationResults.push({
-          validation: validationName,
-          passed: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        valid = false;
       }
-    }
 
-    return {
-      valid,
-      strategy: this.name,
-      fees,
-      validationResults,
-    };
+      span.setAttributes({
+        'quote.valid': valid,
+        'quote.has_fees': !!fees,
+      });
+      span.setStatus({ code: api.SpanStatusCode.OK });
+
+      return {
+        valid,
+        strategy: this.name,
+        fees,
+        validationResults,
+      };
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   private isFeeCalculationValidation(

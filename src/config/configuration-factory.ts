@@ -9,6 +9,7 @@ import {
   evmConfig,
   fulfillmentConfig,
   mongodbConfig,
+  openTelemetryConfig,
   queueConfig,
   redisConfig,
   solanaConfig,
@@ -37,6 +38,7 @@ export const configurationFactory = async () => {
     aws: await awsConfig(),
     fulfillment: await fulfillmentConfig(),
     datadog: await dataDogConfig(),
+    opentelemetry: await openTelemetryConfig(),
   };
 
   // Transform all environment variables to nested configuration

@@ -1,11 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleInit, Optional } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
@@ -18,6 +19,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     private blockchainService: BlockchainExecutorService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
     private readonly logger: SystemLoggerService,
+    @Optional() private readonly queueTracing?: QueueTracingService,
   ) {
     super();
     this.logger.setContext(BlockchainProcessor.name);
@@ -31,41 +33,53 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
   }
 
   async process(job: Job<string>) {
-    const jobData = QueueSerializer.deserialize<ExecutionJobData>(job.data);
-    const { intent, strategy, chainId, walletId } = jobData;
-    const chainKey = chainId.toString();
+    const processFn = async (j: Job<string>) => {
+      const jobData = QueueSerializer.deserialize<ExecutionJobData>(j.data);
+      const { intent, strategy, chainId, walletId } = jobData;
+      const chainKey = chainId.toString();
 
-    this.logger.log(
-      `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
-    );
+      this.logger.log(
+        `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
+      );
 
-    // Ensure sequential processing per chain
-    const currentLock = this.chainLocks.get(chainKey) || Promise.resolve();
+      // Ensure sequential processing per chain
+      const currentLock = this.chainLocks.get(chainKey) || Promise.resolve();
 
-    // Create a new lock for this chain
-    const newLock = currentLock.then(async () => {
-      try {
-        this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
-        await this.blockchainService.executeIntent(intent, walletId);
-        this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
-      } catch (error) {
-        this.logger.error(
-          `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
-          error,
-        );
-        throw error;
+      // Create a new lock for this chain
+      const newLock = currentLock.then(async () => {
+        try {
+          this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
+          await this.blockchainService.executeIntent(intent, walletId);
+          this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
+        } catch (error) {
+          this.logger.error(
+            `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
+            error,
+          );
+          throw error;
+        }
+      });
+
+      // Update the lock for this chain
+      this.chainLocks.set(chainKey, newLock);
+
+      // Wait for execution to complete
+      await newLock;
+
+      // Clean up completed locks to prevent memory leaks
+      if (this.chainLocks.get(chainKey) === newLock) {
+        this.chainLocks.delete(chainKey);
       }
-    });
+    };
 
-    // Update the lock for this chain
-    this.chainLocks.set(chainKey, newLock);
-
-    // Wait for execution to complete
-    await newLock;
-
-    // Clean up completed locks to prevent memory leaks
-    if (this.chainLocks.get(chainKey) === newLock) {
-      this.chainLocks.delete(chainKey);
+    if (this.queueTracing) {
+      return this.queueTracing.wrapProcessor(
+        'BlockchainProcessor',
+        'blockchain-execution',
+        processFn,
+      )(job);
+    } else {
+      return processFn(job);
     }
   }
 }

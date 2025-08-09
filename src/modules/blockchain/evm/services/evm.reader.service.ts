@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
 import { IMessageBridgeProverAbi, IntentSourceAbi } from '@eco-foundation/routes-ts';
+import * as api from '@opentelemetry/api';
 import { Address, erc20Abi, Hex, isAddress } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from './evm-transport.service';
 
@@ -16,14 +18,35 @@ export class EvmReaderService extends BaseChainReader {
     private transportService: EvmTransportService,
     private evmConfigService: EvmConfigService,
     protected readonly logger: SystemLoggerService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     super();
     this.logger.setContext(EvmReaderService.name);
   }
 
   async getBalance(address: string, chainId: number): Promise<bigint> {
-    const client = this.transportService.getPublicClient(chainId);
-    return client.getBalance({ address: address as Address });
+    const span = this.otelService.startSpan('evm.reader.getBalance', {
+      attributes: {
+        'evm.chain_id': chainId,
+        'evm.address': address,
+        'evm.operation': 'getBalance',
+      },
+    });
+
+    try {
+      const client = this.transportService.getPublicClient(chainId);
+      const balance = await client.getBalance({ address: address as Address });
+
+      span.setAttribute('evm.balance', balance.toString());
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return balance;
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   async getTokenBalance(
@@ -31,15 +54,34 @@ export class EvmReaderService extends BaseChainReader {
     walletAddress: string,
     chainId: number,
   ): Promise<bigint> {
-    const client = this.transportService.getPublicClient(chainId);
-    const balance = await client.readContract({
-      address: tokenAddress as Address,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [walletAddress as Address],
+    const span = this.otelService.startSpan('evm.reader.getTokenBalance', {
+      attributes: {
+        'evm.chain_id': chainId,
+        'evm.token_address': tokenAddress,
+        'evm.wallet_address': walletAddress,
+        'evm.operation': 'getTokenBalance',
+      },
     });
 
-    return balance as bigint;
+    try {
+      const client = this.transportService.getPublicClient(chainId);
+      const balance = await client.readContract({
+        address: tokenAddress as Address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [walletAddress as Address],
+      });
+
+      span.setAttribute('evm.token_balance', balance.toString());
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return balance as bigint;
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   isAddressValid(address: string): boolean {
@@ -47,13 +89,27 @@ export class EvmReaderService extends BaseChainReader {
   }
 
   async isIntentFunded(intent: Intent, chainId: number): Promise<boolean> {
+    const span = this.otelService.startSpan('evm.reader.isIntentFunded', {
+      attributes: {
+        'evm.chain_id': chainId,
+        'evm.intent_id': intent.intentHash,
+        'evm.operation': 'isIntentFunded',
+        'evm.source_chain': intent.route.source.toString(),
+        'evm.destination_chain': intent.route.destination.toString(),
+      },
+    });
+
     try {
       const intentSourceAddress = this.evmConfigService.getIntentSourceAddress(chainId);
       if (!intentSourceAddress) {
         this.logger.warn(`No IntentSource address configured for chain ${chainId}`);
+        span.setAttribute('evm.intent_source_configured', false);
+        span.setStatus({ code: api.SpanStatusCode.OK });
+        span.end();
         return false;
       }
 
+      span.setAttribute('evm.intent_source_address', intentSourceAddress);
       const client = this.transportService.getPublicClient(chainId);
 
       // The isIntentFunded function expects the full Intent struct
@@ -82,10 +138,16 @@ export class EvmReaderService extends BaseChainReader {
         ],
       });
 
+      span.setAttribute('evm.intent_funded', isFunded);
+      span.setStatus({ code: api.SpanStatusCode.OK });
       return isFunded as boolean;
     } catch (error) {
       this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, error);
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to check intent funding status: ${error.message}`);
+    } finally {
+      span.end();
     }
   }
 
@@ -117,6 +179,16 @@ export class EvmReaderService extends BaseChainReader {
     chainId: number,
     claimant?: Address,
   ): Promise<bigint> {
+    const span = this.otelService.startSpan('evm.reader.fetchProverFee', {
+      attributes: {
+        'evm.chain_id': chainId,
+        'evm.intent_id': intent.intentHash,
+        'evm.prover_address': intent.reward.prover,
+        'evm.operation': 'fetchProverFee',
+        'evm.has_claimant': !!claimant,
+      },
+    });
+
     try {
       const client = this.transportService.getPublicClient(chainId);
 
@@ -133,10 +205,16 @@ export class EvmReaderService extends BaseChainReader {
         ],
       });
 
+      span.setAttribute('evm.prover_fee', fee.toString());
+      span.setStatus({ code: api.SpanStatusCode.OK });
       return fee as bigint;
     } catch (error) {
       this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${error.message}`);
+    } finally {
+      span.end();
     }
   }
 }

@@ -9,6 +9,7 @@ import {
   DataDogConfigService,
   EvmConfigService,
   FulfillmentConfigService,
+  OpenTelemetryConfigService,
   QueueConfigService,
   RedisConfigService,
   SolanaConfigService,
@@ -26,6 +27,7 @@ const configProviders = [
   AwsSecretsService,
   FulfillmentConfigService,
   DataDogConfigService,
+  OpenTelemetryConfigService,
 ];
 
 @Global()

@@ -49,6 +49,17 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
   - Blockchain RPC metrics (call performance, error rates)
   - Database query performance metrics
 
+#### Phase 2.3: Distributed Tracing ✅
+- **OpenTelemetry Integration**: Complete distributed tracing implementation:
+  - Automatic HTTP request tracing with correlation IDs
+  - Queue job tracing for BullMQ workers
+  - MongoDB and Redis instrumentation
+  - NestJS framework instrumentation
+  - Custom spans for intent processing flow
+  - Multiple exporter support (OTLP, Jaeger)
+  - Configurable sampling rates
+  - Context propagation across services
+
 ## 📋 Prerequisites
 
 - Node.js 18+ 
@@ -610,6 +621,45 @@ When enabled, metrics are automatically sent via StatsD protocol and include:
 - **Database Metrics**: `database.query.duration`
 
 All metrics include relevant tags for filtering (e.g., `method`, `route`, `chain`, `status`)
+
+#### OpenTelemetry Distributed Tracing (Optional)
+
+Enable distributed tracing to monitor request flows across services:
+
+```bash
+# Enable OpenTelemetry
+OPENTELEMETRY_ENABLED=true
+
+# OTLP Exporter (default)
+OPENTELEMETRY_OTLP_ENDPOINT=http://localhost:4318
+OPENTELEMETRY_OTLP_PROTOCOL=http  # or grpc
+
+# Or use Jaeger
+OPENTELEMETRY_JAEGER_ENABLED=true
+OPENTELEMETRY_JAEGER_ENDPOINT=http://localhost:14268/api/traces
+
+# Sampling configuration
+OPENTELEMETRY_SAMPLING_RATIO=1.0  # 100% sampling for development
+```
+
+**Features**:
+- **Automatic Instrumentation**: HTTP, MongoDB, Redis, and NestJS are automatically instrumented
+- **Queue Tracing**: BullMQ jobs are traced with parent-child span relationships
+- **Context Propagation**: Trace context flows through the entire request lifecycle
+- **Custom Spans**: Intent processing includes custom spans for detailed visibility
+- **Multiple Exporters**: Support for OTLP (compatible with many backends) and Jaeger
+
+**Running with Jaeger**:
+```bash
+# Start Jaeger
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 14268:14268 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+
+# View traces at http://localhost:16686
+```
 
 #### Structured Logs
 ```bash

@@ -5,6 +5,7 @@ import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../services/evm-transport.service';
 
@@ -17,6 +18,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private transportService: EvmTransportService,
     private eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(EvmListenersManagerService.name);
   }
@@ -36,6 +38,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         this.transportService,
         this.eventEmitter,
         this.logger,
+        this.otelService,
       );
 
       await listener.start();

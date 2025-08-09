@@ -4,6 +4,7 @@ export * from './datadog.schema';
 export * from './evm.schema';
 export * from './fulfillment.schema';
 export * from './mongodb.schema';
+export * from './opentelemetry.schema';
 export * from './queue.schema';
 export * from './redis.schema';
 export * from './solana.schema';

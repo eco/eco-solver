@@ -1,12 +1,14 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { IntentSourceAbi } from '@eco-foundation/routes-ts';
+import * as api from '@opentelemetry/api';
 import { PublicClient } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 export class ChainListener extends BaseChainListener {
   private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
@@ -16,6 +18,7 @@ export class ChainListener extends BaseChainListener {
     private readonly transportService: EvmTransportService,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     super();
     this.logger.setContext(`${ChainListener.name}:${config.chainId}`);
@@ -37,6 +40,16 @@ export class ChainListener extends BaseChainListener {
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
+          const span = this.otelService.startSpan('evm.listener.processIntentEvent', {
+            attributes: {
+              'evm.chain_id': this.config.chainId,
+              'evm.event_name': 'IntentCreated',
+              'evm.intent_source_address': evmConfig.intentSourceAddress,
+              'evm.block_number': log.blockNumber?.toString(),
+              'evm.transaction_hash': log.transactionHash,
+            },
+          });
+
           try {
             const intent = {
               intentHash: log.args.hash,
@@ -57,9 +70,24 @@ export class ChainListener extends BaseChainListener {
               },
             };
 
+            span.setAttributes({
+              'evm.intent_id': intent.intentHash,
+              'evm.source_chain': log.args.source.toString(),
+              'evm.destination_chain': log.args.destination.toString(),
+              'evm.creator': log.args.creator,
+              'evm.prover': log.args.prover,
+            });
+
             this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+
+            span.addEvent('intent.emitted');
+            span.setStatus({ code: api.SpanStatusCode.OK });
           } catch (error) {
             this.logger.error(`Error processing intent event: ${error.message}`, error);
+            span.recordException(error as Error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+          } finally {
+            span.end();
           }
         });
       },

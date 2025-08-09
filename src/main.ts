@@ -7,8 +7,13 @@ import * as winston from 'winston';
 
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
-import { AppConfigService, DataDogConfigService } from '@/modules/config/services';
+import {
+  AppConfigService,
+  DataDogConfigService,
+  OpenTelemetryConfigService,
+} from '@/modules/config/services';
 import { DataDogInterceptor } from '@/modules/datadog';
+import { TraceInterceptor } from '@/modules/opentelemetry';
 
 async function bootstrap() {
   // Determine environment for winston configuration
@@ -74,12 +79,28 @@ async function bootstrap() {
   const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new GlobalExceptionFilter(httpAdapter));
 
-  // Global DataDog metrics interceptor (if enabled)
+  // Global interceptors
+  const interceptors = [];
+
+  // DataDog metrics interceptor (if enabled)
   const dataDogConfig = app.get(DataDogConfigService);
   if (dataDogConfig.enabled) {
     const dataDogInterceptor = app.get(DataDogInterceptor);
-    app.useGlobalInterceptors(dataDogInterceptor);
+    interceptors.push(dataDogInterceptor);
     logger.log('DataDog metrics interceptor enabled');
+  }
+
+  // OpenTelemetry trace interceptor (if enabled)
+  const otelConfig = app.get(OpenTelemetryConfigService);
+  if (otelConfig.enabled) {
+    const traceInterceptor = app.get(TraceInterceptor);
+    interceptors.push(traceInterceptor);
+    logger.log('OpenTelemetry trace interceptor enabled');
+  }
+
+  // Apply all interceptors
+  if (interceptors.length > 0) {
+    app.useGlobalInterceptors(...interceptors);
   }
 
   // Enable shutdown hooks

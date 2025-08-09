@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Optional } from '@nestjs/common';
 
 import {
   Chain,
@@ -13,6 +13,7 @@ import * as chains from 'viem/chains';
 
 import { EvmRpcSchema, EvmWsSchema } from '@/config/schemas';
 import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainTracingService } from '@/modules/opentelemetry/blockchain-tracing.service';
 
 interface ChainTransport {
   chain: Chain;
@@ -24,7 +25,10 @@ export class EvmTransportService implements OnModuleInit {
   private chainTransports: Map<number, ChainTransport> = new Map();
   private allChains: Chain[];
 
-  constructor(private evmConfigService: EvmConfigService) {
+  constructor(
+    private evmConfigService: EvmConfigService,
+    @Optional() private readonly blockchainTracing?: BlockchainTracingService,
+  ) {
     this.allChains = Object.values(chains) as Chain[];
   }
 
@@ -96,6 +100,11 @@ export class EvmTransportService implements OnModuleInit {
       } else {
         transport = http(urls[0], options);
       }
+    }
+
+    // Wrap transport with OpenTelemetry tracing if available
+    if (this.blockchainTracing) {
+      transport = this.blockchainTracing.wrapTransport(transport, chain);
     }
 
     this.chainTransports.set(chainId, {

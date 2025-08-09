@@ -19,6 +19,7 @@ import {
   StandardFeeValidation,
   Validation,
 } from '@/modules/fulfillment/validations';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
@@ -32,6 +33,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   constructor(
     protected readonly blockchainExecutor: BlockchainExecutorService,
     protected readonly blockchainReader: BlockchainReaderService,
+    protected readonly otelService: OpenTelemetryService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for a standard strategy
     private readonly intentFundedValidation: IntentFundedValidation,
@@ -44,7 +46,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly standardFeeValidation: StandardFeeValidation,
   ) {
-    super(blockchainExecutor, blockchainReader);
+    super(blockchainExecutor, blockchainReader, otelService);
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.intentFundedValidation,
@@ -66,16 +68,36 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   async execute(intent: Intent): Promise<void> {
-    // Get wallet ID for this intent
-    const walletId = await this.getWalletIdForIntent(intent);
-
-    // Add to execution queue with standard execution data
-    await this.queueService.addIntentToExecutionQueue({
-      strategy: this.name,
-      intent,
-      chainId: intent.route.destination,
-      walletId,
+    const span = this.otelService.startSpan(`strategy.${this.name}.execute`, {
+      attributes: {
+        'strategy.name': this.name,
+        'intent.id': intent.intentHash,
+        'intent.destination_chain': intent.route.destination.toString(),
+      },
     });
+
+    try {
+      // Get wallet ID for this intent
+      const walletId = await this.getWalletIdForIntent(intent);
+      span.setAttribute('intent.wallet_type', walletId);
+
+      // Add to execution queue with standard execution data
+      await this.queueService.addIntentToExecutionQueue({
+        strategy: this.name,
+        intent,
+        chainId: intent.route.destination,
+        walletId,
+      });
+
+      span.addEvent('intent.queued_for_execution');
+      span.setStatus({ code: 1 }); // OK
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: 2 }); // ERROR
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   protected getValidations(): ReadonlyArray<Validation> {
