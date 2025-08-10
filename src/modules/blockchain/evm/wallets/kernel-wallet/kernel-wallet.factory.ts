@@ -9,6 +9,7 @@ import { KernelWallet } from '@/modules/blockchain/evm/wallets';
 import { kmsToAccount } from '@/modules/blockchain/evm/wallets/kernel-wallet/kms/kms-account';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../../services/evm-transport.service';
 
@@ -21,6 +22,7 @@ export class KernelWalletFactory implements IWalletFactory {
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
     private logger: SystemLoggerService,
+    private otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(KernelWalletFactory.name);
   }
@@ -40,6 +42,7 @@ export class KernelWalletFactory implements IWalletFactory {
       this.evmConfigService.getChain(chainId),
       this.transportService,
       this.logger,
+      this.otelService,
     );
 
     await kernelWallet.init();

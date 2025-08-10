@@ -5,6 +5,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../../../services/evm-transport.service';
 import { KernelWallet } from '../kernel-wallet';
@@ -28,6 +29,7 @@ describe('KernelWalletFactory', () => {
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
   let mockLogger: any;
+  let mockOtelService: any;
 
   const mockEoaPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
   const mockAccount = {
@@ -64,12 +66,23 @@ describe('KernelWalletFactory', () => {
       warn: jest.fn(),
     };
 
+    mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         KernelWalletFactory,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
         { provide: SystemLoggerService, useValue: mockLogger },
+        { provide: OpenTelemetryService, useValue: mockOtelService },
       ],
     }).compile();
 
@@ -151,6 +164,7 @@ describe('KernelWalletFactory', () => {
         mockNetworkConfig,
         transportService,
         mockLogger,
+        mockOtelService,
       );
       expect(wallet).toBeDefined();
 
@@ -286,6 +300,7 @@ describe('KernelWalletFactory', () => {
         mockNetworkConfig,
         transportService,
         mockLogger,
+        mockOtelService,
       );
 
       expect(wallet).toBeDefined();
