@@ -10,8 +10,10 @@ import {
   encodeAbiParameters,
   encodeFunctionData,
   Hash,
+  Hex,
   keccak256,
   LocalAccount,
+  PublicClient,
   Transport,
   WalletClient,
 } from 'viem';
@@ -93,6 +95,7 @@ export class KernelWallet extends BaseEvmWallet {
       // Create Kernel Wallet Client
       let ecdsaValidator;
       try {
+        // Note: Type assertion needed due to Zerodev SDK type incompatibility with viem v2
         ecdsaValidator = await signerToEcdsaValidator(this.publicClient as any, {
           signer: this.signer,
           entryPoint: entryPoint!,
@@ -105,6 +108,7 @@ export class KernelWallet extends BaseEvmWallet {
       }
 
       try {
+        // Note: Type assertion needed due to Zerodev SDK type incompatibility with viem v2
         this.kernelAccount = await createKernelAccount(this.publicClient as any, {
           entryPoint,
           kernelVersion,
@@ -384,12 +388,12 @@ export class KernelWallet extends BaseEvmWallet {
       const nonceKey = 0n;
       let nonce: bigint;
       try {
-        nonce = await this.publicClient.readContract({
+        nonce = (await this.publicClient.readContract({
           address: this.ecdsaExecutorAddr,
           abi: ecdsaExecutorAbi,
           functionName: 'getNonce',
           args: [this.kernelAccount.address, nonceKey],
-        });
+        })) as bigint;
       } catch (error) {
         const msg = `Failed to get nonce from ECDSA executor`;
         this.logger.error(msg, error as Error);
@@ -419,7 +423,7 @@ export class KernelWallet extends BaseEvmWallet {
         ),
       );
 
-      let signature: Hash;
+      let signature: Hex;
       try {
         signature = await this.signerWalletClient.signMessage({
           message: { raw: executionHash },
@@ -432,7 +436,7 @@ export class KernelWallet extends BaseEvmWallet {
 
       // Send transaction using the signer wallet client
       const hash = await this.signerWalletClient.writeContract({
-        address: this.ecdsaExecutorAddr,
+        address: this.ecdsaExecutorAddr!,
         abi: ecdsaExecutorAbi,
         functionName: 'execute',
         value: totalValue,
