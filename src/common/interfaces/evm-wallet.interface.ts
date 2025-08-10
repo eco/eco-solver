@@ -17,6 +17,7 @@ export interface WriteContractsOptions {
   value?: bigint; // If not defined, it's equal to the sum of values from txs
   keepSender?: boolean; // If false (default), use multicall3 to batch transactions
   skipWait?: boolean;
+  forceMode?: 'executor' | 'signer'; // Force specific execution mode for KernelWallet
 }
 
 export interface IEvmWallet {

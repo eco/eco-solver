@@ -280,6 +280,43 @@ export class KernelWallet extends BaseEvmWallet {
     return this.executorEnabled;
   }
 
+  /**
+   * Determine execution mode based on executor availability and options
+   * @param options - Write contracts options
+   * @returns 'executor' or 'signer' mode
+   */
+  private determineExecutionMode(options?: WriteContractsOptions): 'executor' | 'signer' {
+    // If force mode is specified, validate and use it
+    if (options?.forceMode) {
+      if (options.forceMode === 'executor' && !this.executorEnabled) {
+        throw new Error('Cannot force executor mode: ECDSA executor module not installed');
+      }
+      return options.forceMode;
+    }
+
+    // Default to executor if enabled, otherwise signer
+    return this.executorEnabled ? 'executor' : 'signer';
+  }
+
+  /**
+   * Get current execution mode
+   * @returns Current execution mode based on executor status
+   */
+  getExecutionMode(): 'executor' | 'signer' {
+    return this.executorEnabled ? 'executor' : 'signer';
+  }
+
+  /**
+   * Get executor details
+   * @returns Executor address and enabled status
+   */
+  getExecutorDetails(): { address?: Address; enabled: boolean } {
+    return {
+      address: this.ecdsaExecutorAddr,
+      enabled: this.executorEnabled,
+    };
+  }
+
   async writeContract(call: Call): Promise<Hash> {
     if (!call || !call.to) {
       throw new Error('Invalid call parameters: missing required fields');
@@ -306,7 +343,8 @@ export class KernelWallet extends BaseEvmWallet {
       }
     }
 
-    const mode = this.executorEnabled ? 'executor' : 'signer';
+    // Determine execution mode based on executor availability and options
+    const mode = this.determineExecutionMode(options);
     const activeSpan = api.trace.getActiveSpan();
     const span = activeSpan || this.otelService.startSpan('kernel.wallet.writeContracts', {
       attributes: {
@@ -314,6 +352,7 @@ export class KernelWallet extends BaseEvmWallet {
         'kernel.calls_count': calls.length,
         'kernel.total_value': options?.value?.toString() ?? '0',
         'kernel.chain_id': this.chainId,
+        'kernel.forced_mode': options?.forceMode,
       },
     });
 
@@ -322,9 +361,10 @@ export class KernelWallet extends BaseEvmWallet {
         mode,
         callsCount: calls.length,
         totalValue: options?.value?.toString(),
+        forcedMode: options?.forceMode,
       });
 
-      const result = await (this.executorEnabled
+      const result = await (mode === 'executor'
         ? this.writeWithExecutor(calls, options)
         : this.writeWithSigner(calls, options));
       
@@ -476,21 +516,35 @@ export class KernelWallet extends BaseEvmWallet {
         throw new Error(`${msg}: ${(error as Error).message}`);
       }
 
-      // Send transaction using the signer wallet client
-      const hash = await this.signerWalletClient.writeContract({
-        address: this.ecdsaExecutorAddr!,
-        abi: ecdsaExecutorAbi,
-        functionName: 'execute',
-        value: totalValue,
-        args: [
-          this.kernelAccount.address,
-          execution.mode,
-          execution.callData,
-          nonce,
-          expiration,
-          signature,
-        ],
-      } as any);
+      let hash: Hash;
+      try {
+        // Send transaction using the signer wallet client
+        hash = await this.signerWalletClient.writeContract({
+          address: this.ecdsaExecutorAddr!,
+          abi: ecdsaExecutorAbi,
+          functionName: 'execute',
+          value: totalValue,
+          args: [
+            this.kernelAccount.address,
+            execution.mode,
+            execution.callData,
+            nonce,
+            expiration,
+            signature,
+          ],
+        } as any);
+      } catch (error) {
+        // Check if error is due to executor issues
+        const errorMessage = (error as Error).message.toLowerCase();
+        if (errorMessage.includes('expired') || errorMessage.includes('invalid signature')) {
+          this.logger.warn('Executor transaction failed, may need to retry', {
+            error: errorMessage,
+            nonce: nonce.toString(),
+            expiration: expiration.toString(),
+          });
+        }
+        throw error;
+      }
 
       if (!activeSpan) {
         span.setAttributes({
@@ -516,6 +570,13 @@ export class KernelWallet extends BaseEvmWallet {
           message: (error as Error).message,
         });
       }
+      
+      // Log executor-specific error details
+      this.logger.error('Executor transaction failed', error as Error, {
+        executorAddress: this.ecdsaExecutorAddr,
+        totalValue: totalValue.toString(),
+      });
+      
       throw error;
     } finally {
       if (!activeSpan) {
