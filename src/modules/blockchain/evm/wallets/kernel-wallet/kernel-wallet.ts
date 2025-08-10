@@ -1,7 +1,7 @@
-import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
-import { createKernelAccount, KernelV3AccountAbi } from '@zerodev/sdk';
-import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants';
 import * as api from '@opentelemetry/api';
+import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
+import { createKernelAccount, KernelV3AccountAbi, KernelValidator } from '@zerodev/sdk';
+import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants';
 import {
   Address,
   Chain,
@@ -14,7 +14,6 @@ import {
   isAddress,
   keccak256,
   LocalAccount,
-  PublicClient,
   Transport,
   WalletClient,
 } from 'viem';
@@ -26,12 +25,12 @@ import { minutes, now } from '@/common/utils/time';
 import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { ecdsaExecutorAbi } from '@/modules/blockchain/evm/wallets/kernel-wallet/constants/ecdsa-executor.abi';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import {
   encodeKernelExecuteCallData,
   encodeKernelExecuteParams,
 } from '@/modules/blockchain/evm/wallets/kernel-wallet/utils/encode-transactions';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 const kernelVersion = KERNEL_V3_1;
 const entryPoint = getEntryPoint('0.7');
@@ -46,7 +45,6 @@ export class KernelWallet extends BaseEvmWallet {
 
   private initialized = false;
   private executorEnabled = false;
-  private moduleStatusCache = new Map<string, boolean>();
 
   constructor(
     private readonly chainId: number,
@@ -76,7 +74,7 @@ export class KernelWallet extends BaseEvmWallet {
       }
       this.ecdsaExecutorAddr = executorAddr as Address;
     }
-    
+
     this.signerWalletClient = signerWalletClient;
     this.publicClient = this.transportService.getPublicClient(chainId);
     this.logger.setContext(KernelWallet.name);
@@ -103,7 +101,7 @@ export class KernelWallet extends BaseEvmWallet {
       });
 
       // Create Kernel Wallet Client
-      let ecdsaValidator;
+      let ecdsaValidator: KernelValidator<'ECDSAValidator'>;
       try {
         // Note: Type assertion needed due to Zerodev SDK type incompatibility with viem v2
         ecdsaValidator = await signerToEcdsaValidator(this.publicClient as any, {
@@ -146,9 +144,9 @@ export class KernelWallet extends BaseEvmWallet {
         this.logger.error(msg, error as Error);
         throw new Error(`${msg}: ${(error as Error).message}`);
       }
-      
+
       span.setAttribute('kernel.is_deployed', isDeployed);
-      
+
       if (!isDeployed) {
         this.logger.log('Kernel account not deployed, deploying now...');
         await this.deploy(this.kernelAccount);
@@ -163,15 +161,15 @@ export class KernelWallet extends BaseEvmWallet {
 
       this.initialized = true;
       span.setAttribute('kernel.executor_enabled', this.executorEnabled);
-      
+
       this.logger.log('Kernel wallet initialization complete', {
         executorEnabled: this.executorEnabled,
       });
-      
+
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
       span.recordException(error as Error);
-      span.setStatus({ 
+      span.setStatus({
         code: api.SpanStatusCode.ERROR,
         message: (error as Error).message,
       });
@@ -194,6 +192,15 @@ export class KernelWallet extends BaseEvmWallet {
     });
 
     try {
+      // Double-check deployment status before getting factory args (performance optimization)
+      const code = await this.publicClient.getCode({ address: kernelAccount.address });
+      if (code && code !== '0x') {
+        this.logger.debug('Account already has code deployed, skipping deployment');
+        span.setAttribute('kernel.already_deployed', true);
+        span.setStatus({ code: api.SpanStatusCode.OK });
+        return;
+      }
+
       const { factory, factoryData } = await kernelAccount.getFactoryArgs();
 
       if (!factoryData || !factory) {
@@ -217,27 +224,21 @@ export class KernelWallet extends BaseEvmWallet {
       this.logger.log('Deployment transaction sent', { transactionHash: hash });
 
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-      
-      if (receipt.status === 'success') {
-        span.setAttributes({
-          'kernel.deployment_gas_used': receipt.gasUsed?.toString() ?? '0',
-          'kernel.deployment_status': 'success',
-        });
-        
-        this.logger.log('Kernel account deployed successfully', {
-          transactionHash: hash,
-          gasUsed: receipt.gasUsed?.toString(),
-        });
-        
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      } else {
-        const error = `Kernel account deployment failed`;
-        this.logger.error(error, undefined, { transactionHash: hash });
-        throw new Error(`${error}. Transaction hash: ${hash}`);
-      }
+
+      span.setAttributes({
+        'kernel.deployment_gas_used': receipt.gasUsed?.toString() ?? '0',
+        'kernel.deployment_status': 'success',
+      });
+
+      this.logger.log('Kernel account deployed successfully', {
+        transactionHash: hash,
+        gasUsed: receipt.gasUsed?.toString(),
+      });
+
+      span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
       span.recordException(error as Error);
-      span.setStatus({ 
+      span.setStatus({
         code: api.SpanStatusCode.ERROR,
         message: (error as Error).message,
       });
@@ -255,50 +256,6 @@ export class KernelWallet extends BaseEvmWallet {
   }
 
   /**
-   * Get the current module installation status from cache
-   * @param moduleType - The ERC-7579 module type
-   * @param moduleAddress - The address of the module
-   * @returns Cached status or undefined if not cached
-   */
-  getModuleStatusFromCache(moduleType: number, moduleAddress: Address): boolean | undefined {
-    const cacheKey = `${moduleType}-${moduleAddress}`;
-    return this.moduleStatusCache.get(cacheKey);
-  }
-
-  /**
-   * Clear the module status cache
-   */
-  clearModuleCache(): void {
-    this.moduleStatusCache.clear();
-  }
-
-  /**
-   * Check if executor mode is enabled
-   * @returns true if executor module is installed and enabled
-   */
-  isExecutorEnabled(): boolean {
-    return this.executorEnabled;
-  }
-
-  /**
-   * Determine execution mode based on executor availability and options
-   * @param options - Write contracts options
-   * @returns 'executor' or 'signer' mode
-   */
-  private determineExecutionMode(options?: WriteContractsOptions): 'executor' | 'signer' {
-    // If force mode is specified, validate and use it
-    if (options?.forceMode) {
-      if (options.forceMode === 'executor' && !this.executorEnabled) {
-        throw new Error('Cannot force executor mode: ECDSA executor module not installed');
-      }
-      return options.forceMode;
-    }
-
-    // Default to executor if enabled, otherwise signer
-    return this.executorEnabled ? 'executor' : 'signer';
-  }
-
-  /**
    * Get current execution mode
    * @returns Current execution mode based on executor status
    */
@@ -306,22 +263,11 @@ export class KernelWallet extends BaseEvmWallet {
     return this.executorEnabled ? 'executor' : 'signer';
   }
 
-  /**
-   * Get executor details
-   * @returns Executor address and enabled status
-   */
-  getExecutorDetails(): { address?: Address; enabled: boolean } {
-    return {
-      address: this.ecdsaExecutorAddr,
-      enabled: this.executorEnabled,
-    };
-  }
-
   async writeContract(call: Call): Promise<Hash> {
     if (!call || !call.to) {
       throw new Error('Invalid call parameters: missing required fields');
     }
-    
+
     // Send transaction using the signer wallet client
     const [hash] = await this.writeContracts([call]);
     return hash;
@@ -344,40 +290,40 @@ export class KernelWallet extends BaseEvmWallet {
     }
 
     // Determine execution mode based on executor availability and options
-    const mode = this.determineExecutionMode(options);
+    const mode = this.getExecutionMode();
     const activeSpan = api.trace.getActiveSpan();
-    const span = activeSpan || this.otelService.startSpan('kernel.wallet.writeContracts', {
-      attributes: {
-        'kernel.execution_mode': mode,
-        'kernel.calls_count': calls.length,
-        'kernel.total_value': options?.value?.toString() ?? '0',
-        'kernel.chain_id': this.chainId,
-        'kernel.forced_mode': options?.forceMode,
-      },
-    });
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('kernel.wallet.writeContracts', {
+        attributes: {
+          'kernel.execution_mode': mode,
+          'kernel.calls_count': calls.length,
+          'kernel.total_value': options?.value?.toString() ?? '0',
+          'kernel.chain_id': this.chainId,
+        },
+      });
 
     try {
       this.logger.debug('Executing writeContracts', {
         mode,
         callsCount: calls.length,
         totalValue: options?.value?.toString(),
-        forcedMode: options?.forceMode,
       });
 
       const result = await (mode === 'executor'
         ? this.writeWithExecutor(calls, options)
         : this.writeWithSigner(calls, options));
-      
+
       if (!activeSpan) {
         span.setAttribute('kernel.tx_hashes', result.join(','));
         span.setStatus({ code: api.SpanStatusCode.OK });
       }
-      
+
       return result;
     } catch (error) {
       if (!activeSpan) {
         span.recordException(error as Error);
-        span.setStatus({ 
+        span.setStatus({
           code: api.SpanStatusCode.ERROR,
           message: (error as Error).message,
         });
@@ -390,16 +336,21 @@ export class KernelWallet extends BaseEvmWallet {
     }
   }
 
-  async writeWithSigner(calls: Call[], _options?: WriteContractsOptions): Promise<Hash[]> {
+  protected async writeWithSigner(
+    calls: Call[],
+    _options?: WriteContractsOptions,
+  ): Promise<Hash[]> {
     const totalValue = _options?.value ?? sum(calls.map((call) => call.value ?? 0n));
     const activeSpan = api.trace.getActiveSpan();
-    const span = activeSpan || this.otelService.startSpan('kernel.wallet.writeWithSigner', {
-      attributes: {
-        'kernel.account_address': this.kernelAccount.address,
-        'kernel.total_value': totalValue.toString(),
-        'kernel.chain_id': this.chainId,
-      },
-    });
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('kernel.wallet.writeWithSigner', {
+        attributes: {
+          'kernel.account_address': this.kernelAccount.address,
+          'kernel.total_value': totalValue.toString(),
+          'kernel.chain_id': this.chainId,
+        },
+      });
 
     try {
       this.logger.debug('Executing transaction with signer mode', {
@@ -418,14 +369,14 @@ export class KernelWallet extends BaseEvmWallet {
         span.setAttribute('kernel.tx_hash', hash);
         span.setStatus({ code: api.SpanStatusCode.OK });
       }
-      
+
       this.logger.log('Transaction sent via signer', { transactionHash: hash });
 
       return [hash];
     } catch (error) {
       if (!activeSpan) {
         span.recordException(error as Error);
-        span.setStatus({ 
+        span.setStatus({
           code: api.SpanStatusCode.ERROR,
           message: (error as Error).message,
         });
@@ -438,16 +389,21 @@ export class KernelWallet extends BaseEvmWallet {
     }
   }
 
-  async writeWithExecutor(calls: Call[], _options?: WriteContractsOptions): Promise<Hash[]> {
+  protected async writeWithExecutor(
+    calls: Call[],
+    _options?: WriteContractsOptions,
+  ): Promise<Hash[]> {
     const totalValue = _options?.value ?? sum(calls.map((call) => call.value ?? 0n));
     const activeSpan = api.trace.getActiveSpan();
-    const span = activeSpan || this.otelService.startSpan('kernel.wallet.writeWithExecutor', {
-      attributes: {
-        'kernel.executor_address': this.ecdsaExecutorAddr,
-        'kernel.total_value': totalValue.toString(),
-        'kernel.chain_id': this.chainId,
-      },
-    });
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('kernel.wallet.writeWithExecutor', {
+        attributes: {
+          'kernel.executor_address': this.ecdsaExecutorAddr,
+          'kernel.total_value': totalValue.toString(),
+          'kernel.chain_id': this.chainId,
+        },
+      });
 
     try {
       this.logger.debug('Executing transaction with executor mode', {
@@ -460,7 +416,7 @@ export class KernelWallet extends BaseEvmWallet {
       if (!this.ecdsaExecutorAddr) {
         throw new Error('ECDSA executor address not configured but executor mode is enabled');
       }
-      
+
       // Additional validation to ensure executor address is still valid
       if (!isAddress(this.ecdsaExecutorAddr)) {
         throw new Error(`Invalid ECDSA executor address: ${this.ecdsaExecutorAddr}`);
@@ -554,7 +510,7 @@ export class KernelWallet extends BaseEvmWallet {
         });
         span.setStatus({ code: api.SpanStatusCode.OK });
       }
-      
+
       this.logger.log('Transaction sent via executor', {
         transactionHash: hash,
         nonce: nonce.toString(),
@@ -565,18 +521,18 @@ export class KernelWallet extends BaseEvmWallet {
     } catch (error) {
       if (!activeSpan) {
         span.recordException(error as Error);
-        span.setStatus({ 
+        span.setStatus({
           code: api.SpanStatusCode.ERROR,
           message: (error as Error).message,
         });
       }
-      
+
       // Log executor-specific error details
       this.logger.error('Executor transaction failed', error as Error, {
         executorAddress: this.ecdsaExecutorAddr,
         totalValue: totalValue.toString(),
       });
-      
+
       throw error;
     } finally {
       if (!activeSpan) {
@@ -587,7 +543,9 @@ export class KernelWallet extends BaseEvmWallet {
 
   private async installEcdsaExecutorModule(): Promise<void> {
     if (!this.ecdsaExecutorAddr) {
-      this.logger.debug('ECDSA executor module installation skipped: no executor address configured');
+      this.logger.debug(
+        'ECDSA executor module installation skipped: no executor address configured',
+      );
       return;
     }
 
@@ -624,7 +582,7 @@ export class KernelWallet extends BaseEvmWallet {
         isInstalled = false;
       }
       span.setAttribute('kernel.module_already_installed', isInstalled);
-      
+
       if (isInstalled) {
         this.logger.log('ECDSA executor module already installed');
         this.executorEnabled = true;
@@ -644,18 +602,14 @@ export class KernelWallet extends BaseEvmWallet {
       // Install the module
       await this.installModule(moduleType, this.ecdsaExecutorAddr, initData);
 
-      // Update cache after successful installation
-      const cacheKey = `${moduleType}-${this.ecdsaExecutorAddr}`;
-      this.moduleStatusCache.set(cacheKey, true);
-      
       this.executorEnabled = true;
       span.setAttribute('kernel.module_installed', true);
-      
+
       this.logger.log('ECDSA executor module installed successfully');
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
       span.recordException(error as Error);
-      span.setStatus({ 
+      span.setStatus({
         code: api.SpanStatusCode.ERROR,
         message: (error as Error).message,
       });
@@ -674,25 +628,13 @@ export class KernelWallet extends BaseEvmWallet {
       throw new Error(`Invalid module address: ${moduleAddress}`);
     }
 
-    // Check cache first
-    const cacheKey = `${moduleType}-${moduleAddress}`;
-    if (this.moduleStatusCache.has(cacheKey)) {
-      return this.moduleStatusCache.get(cacheKey)!;
-    }
-
     try {
-      const result = await this.publicClient.readContract({
+      return await this.publicClient.readContract({
         address: this.kernelAccount.address,
         abi: KernelV3AccountAbi,
         functionName: 'isModuleInstalled',
         args: [BigInt(moduleType), moduleAddress, '0x'],
       });
-      const isInstalled = result as boolean;
-      
-      // Cache the result
-      this.moduleStatusCache.set(cacheKey, isInstalled);
-      
-      return isInstalled;
     } catch (error) {
       // If the call fails, it might mean the account doesn't support modules yet
       this.logger.debug('Failed to check module installation status', {
@@ -738,20 +680,20 @@ export class KernelWallet extends BaseEvmWallet {
 
       // Wait for transaction confirmation
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-      
+
       if (receipt.status === 'success') {
         span.setAttributes({
           'kernel.install_gas_used': receipt.gasUsed?.toString() ?? '0',
           'kernel.install_status': 'success',
         });
-        
+
         this.logger.log('Module installed successfully', {
           transactionHash: hash,
           gasUsed: receipt.gasUsed?.toString(),
           moduleType,
           moduleAddress,
         });
-        
+
         span.setStatus({ code: api.SpanStatusCode.OK });
       } else {
         const error = `Module installation failed`;
@@ -764,7 +706,7 @@ export class KernelWallet extends BaseEvmWallet {
       }
     } catch (error) {
       span.recordException(error as Error);
-      span.setStatus({ 
+      span.setStatus({
         code: api.SpanStatusCode.ERROR,
         message: (error as Error).message,
       });

@@ -1,6 +1,7 @@
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
 import { createKernelAccount, KernelV3AccountAbi } from '@zerodev/sdk';
-import { KERNEL_V3_1 } from '@zerodev/sdk/constants';
+// Import mocked values from jest.setup.ts
+import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants';
 import {
   Address,
   createWalletClient,
@@ -15,7 +16,10 @@ import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 
 import { KernelWallet } from '../kernel-wallet';
-import { encodeKernelExecuteCallData, encodeKernelExecuteParams } from '../utils/encode-transactions';
+import {
+  encodeKernelExecuteCallData,
+  encodeKernelExecuteParams,
+} from '../utils/encode-transactions';
 
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
@@ -51,9 +55,6 @@ jest.mock('@zerodev/sdk', () => ({
     },
   ],
 }));
-
-// Import mocked values from jest.setup.ts
-import { getEntryPoint } from '@zerodev/sdk/constants';
 
 jest.mock('@zerodev/ecdsa-validator', () => ({
   signerToEcdsaValidator: jest.fn(),
@@ -354,6 +355,25 @@ describe('KernelWallet', () => {
       expect(mockSignerWalletClient.sendTransaction).not.toHaveBeenCalled();
     });
 
+    it('should skip deployment if code already exists', async () => {
+      // Mock account not deployed according to isDeployed
+      mockKernelAccount.isDeployed.mockResolvedValue(false);
+
+      // But code exists on chain (edge case)
+      mockPublicClient.getCode = jest.fn().mockResolvedValue('0x1234567890');
+
+      await wallet.init();
+
+      // Should check code before getting factory args
+      expect(mockPublicClient.getCode).toHaveBeenCalledWith({
+        address: mockAddress,
+      });
+
+      // Should not attempt deployment
+      expect(mockKernelAccount.getFactoryArgs).not.toHaveBeenCalled();
+      expect(mockSignerWalletClient.sendTransaction).not.toHaveBeenCalled();
+    });
+
     it('should only initialize once', async () => {
       await wallet.init();
       await wallet.init();
@@ -366,7 +386,9 @@ describe('KernelWallet', () => {
       const error = new Error('Failed to create kernel account');
       (createKernelAccount as jest.Mock).mockRejectedValue(error);
 
-      await expect(wallet.init()).rejects.toThrow('Failed to create kernel account: Failed to create kernel account');
+      await expect(wallet.init()).rejects.toThrow(
+        'Failed to create kernel account: Failed to create kernel account',
+      );
     });
 
     describe('ECDSA Executor Module Installation', () => {
@@ -400,7 +422,7 @@ describe('KernelWallet', () => {
 
         // Mock encodeAbiParameters for init data
         (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
-        
+
         // Mock encodeFunctionData for installModule
         (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
 
@@ -516,7 +538,7 @@ describe('KernelWallet', () => {
 
         // Mock encodeAbiParameters for init data
         (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
-        
+
         // Mock encodeFunctionData for installModule
         (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
 
@@ -552,7 +574,7 @@ describe('KernelWallet', () => {
 
         // We can't directly test private methods, but the validation is tested through the flow
         await walletWithExecutor.init();
-        
+
         // The validation happens internally
         expect(mockPublicClient.readContract).toHaveBeenCalled();
       });
@@ -577,7 +599,7 @@ describe('KernelWallet', () => {
 
         // First check - not installed
         mockPublicClient.readContract.mockResolvedValueOnce(false);
-        
+
         // Mock installation
         (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
         (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
@@ -586,60 +608,7 @@ describe('KernelWallet', () => {
 
         // readContract should be called once for the check
         expect(mockPublicClient.readContract).toHaveBeenCalledTimes(1);
-        
-        // Check cache - should be set to true after installation
-        const cachedStatus = walletWithExecutor.getModuleStatusFromCache(2, mockEcdsaExecutorAddress);
-        expect(cachedStatus).toBe(true);
       });
-    });
-  });
-
-  describe('module cache methods', () => {
-    it('should return undefined for uncached module status', async () => {
-      await wallet.init();
-      const status = wallet.getModuleStatusFromCache(2, '0x1234567890123456789012345678901234567890' as Address);
-      expect(status).toBeUndefined();
-    });
-
-    it('should clear module cache', async () => {
-      const networkConfigWithExecutor = {
-        ...mockNetworkConfig,
-        contracts: {
-          ecdsaExecutor: mockEcdsaExecutorAddress,
-        },
-      };
-
-      // Mock public client with readContract method
-      const mockPublicClientWithRead = {
-        ...mockPublicClient,
-        readContract: jest.fn().mockResolvedValueOnce(true),
-      };
-
-      const mockTransportServiceWithRead = {
-        ...mockTransportService,
-        getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
-      } as any;
-
-      const walletWithExecutor = new KernelWallet(
-        mockChainId,
-        mockSigner,
-        mockKernelWalletConfig,
-        networkConfigWithExecutor,
-        mockTransportServiceWithRead,
-        mockLogger,
-        mockOtelService,
-      );
-
-      await walletWithExecutor.init();
-      
-      // Should have cached status
-      expect(walletWithExecutor.getModuleStatusFromCache(2, mockEcdsaExecutorAddress)).toBe(true);
-      
-      // Clear cache
-      walletWithExecutor.clearModuleCache();
-      
-      // Should be undefined after clearing
-      expect(walletWithExecutor.getModuleStatusFromCache(2, mockEcdsaExecutorAddress)).toBeUndefined();
     });
   });
 
@@ -683,94 +652,6 @@ describe('KernelWallet', () => {
     });
   });
 
-  describe('getExecutorDetails', () => {
-    it('should return disabled status when executor not configured', async () => {
-      await wallet.init();
-      const details = wallet.getExecutorDetails();
-      expect(details).toEqual({
-        address: undefined,
-        enabled: false,
-      });
-    });
-
-    it('should return executor details when configured and installed', async () => {
-      const networkConfigWithExecutor = {
-        ...mockNetworkConfig,
-        contracts: {
-          ecdsaExecutor: mockEcdsaExecutorAddress,
-        },
-      };
-
-      // Mock public client with readContract method
-      const mockPublicClientWithRead = {
-        ...mockPublicClient,
-        readContract: jest.fn().mockResolvedValueOnce(true),
-      };
-
-      const mockTransportServiceWithRead = {
-        ...mockTransportService,
-        getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
-      } as any;
-
-      const walletWithExecutor = new KernelWallet(
-        mockChainId,
-        mockSigner,
-        mockKernelWalletConfig,
-        networkConfigWithExecutor,
-        mockTransportServiceWithRead,
-        mockLogger,
-        mockOtelService,
-      );
-
-      await walletWithExecutor.init();
-      const details = walletWithExecutor.getExecutorDetails();
-      expect(details).toEqual({
-        address: mockEcdsaExecutorAddress,
-        enabled: true,
-      });
-    });
-  });
-
-  describe('isExecutorEnabled', () => {
-    it('should return false when executor not configured', async () => {
-      await wallet.init();
-      expect(wallet.isExecutorEnabled()).toBe(false);
-    });
-
-    it('should return true when executor is installed', async () => {
-      const networkConfigWithExecutor = {
-        ...mockNetworkConfig,
-        contracts: {
-          ecdsaExecutor: mockEcdsaExecutorAddress,
-        },
-      };
-
-      // Mock public client with readContract method
-      const mockPublicClientWithRead = {
-        ...mockPublicClient,
-        readContract: jest.fn().mockResolvedValueOnce(true),
-      };
-
-      const mockTransportServiceWithRead = {
-        ...mockTransportService,
-        getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
-      } as any;
-
-      const walletWithExecutor = new KernelWallet(
-        mockChainId,
-        mockSigner,
-        mockKernelWalletConfig,
-        networkConfigWithExecutor,
-        mockTransportServiceWithRead,
-        mockLogger,
-        mockOtelService,
-      );
-
-      await walletWithExecutor.init();
-      expect(walletWithExecutor.isExecutorEnabled()).toBe(true);
-    });
-  });
-
   describe('getAddress', () => {
     it('should return kernel account address after init', async () => {
       await wallet.init();
@@ -780,7 +661,9 @@ describe('KernelWallet', () => {
     });
 
     it('should throw error if wallet not initialized', async () => {
-      await expect(wallet.getAddress()).rejects.toThrow('Kernel wallet not initialized. Call init() first.');
+      await expect(wallet.getAddress()).rejects.toThrow(
+        'Kernel wallet not initialized. Call init() first.',
+      );
     });
 
     it('should return kernel account address if initialized', async () => {
@@ -809,8 +692,12 @@ describe('KernelWallet', () => {
 
     it('should throw error for invalid call parameters', async () => {
       await wallet.init();
-      await expect(wallet.writeContract({} as any)).rejects.toThrow('Invalid call parameters: missing required fields');
-      await expect(wallet.writeContract({ to: null } as any)).rejects.toThrow('Invalid call parameters: missing required fields');
+      await expect(wallet.writeContract({} as any)).rejects.toThrow(
+        'Invalid call parameters: missing required fields',
+      );
+      await expect(wallet.writeContract({ to: null } as any)).rejects.toThrow(
+        'Invalid call parameters: missing required fields',
+      );
     });
 
     beforeEach(async () => {
@@ -907,13 +794,19 @@ describe('KernelWallet', () => {
         mockLogger,
         mockOtelService,
       );
-      
-      await expect(uninitializedWallet.writeContracts(mockParams)).rejects.toThrow('Kernel wallet not initialized. Call init() first.');
+
+      await expect(uninitializedWallet.writeContracts(mockParams)).rejects.toThrow(
+        'Kernel wallet not initialized. Call init() first.',
+      );
     });
 
     it('should throw error for invalid calls', async () => {
-      await expect(wallet.writeContracts([{ to: null } as any])).rejects.toThrow('Invalid call at index 0: missing \'to\' address');
-      await expect(wallet.writeContracts([mockParams[0], { data: '0x' } as any])).rejects.toThrow('Invalid call at index 1: missing \'to\' address');
+      await expect(wallet.writeContracts([{ to: null } as any])).rejects.toThrow(
+        "Invalid call at index 0: missing 'to' address",
+      );
+      await expect(wallet.writeContracts([mockParams[0], { data: '0x' } as any])).rejects.toThrow(
+        "Invalid call at index 1: missing 'to' address",
+      );
     });
 
     it('should ignore keepSender option', async () => {
@@ -922,57 +815,6 @@ describe('KernelWallet', () => {
 
       expect(result).toEqual([mockTxHash]);
       // Should still use kernel encoding, not multicall
-    });
-
-    it('should force signer mode when specified', async () => {
-      const networkConfigWithExecutor = {
-        ...mockNetworkConfig,
-        contracts: {
-          ecdsaExecutor: mockEcdsaExecutorAddress,
-        },
-      };
-
-      // Mock public client with readContract method
-      const mockPublicClientWithRead = {
-        ...mockPublicClient,
-        readContract: jest.fn().mockResolvedValueOnce(true),
-      };
-
-      const mockTransportServiceWithRead = {
-        ...mockTransportService,
-        getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
-      } as any;
-
-      const walletWithExecutor = new KernelWallet(
-        mockChainId,
-        mockSigner,
-        mockKernelWalletConfig,
-        networkConfigWithExecutor,
-        mockTransportServiceWithRead,
-        mockLogger,
-        mockOtelService,
-      );
-
-      await walletWithExecutor.init();
-      
-      // Force signer mode even though executor is enabled
-      const result = await walletWithExecutor.writeContracts(mockParams, { forceMode: 'signer' });
-
-      expect(result).toEqual([mockTxHash]);
-      expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: mockAddress,
-          data: '0xBatchEncodedData',
-        }),
-      );
-      // Verify we're using signer mode (sendTransaction) not executor mode
-    });
-
-    it('should throw error when forcing executor mode without module', async () => {
-      await wallet.init();
-      
-      await expect(wallet.writeContracts(mockParams, { forceMode: 'executor' }))
-        .rejects.toThrow('Cannot force executor mode: ECDSA executor module not installed');
     });
 
     it('should throw error when account deployment fails', async () => {
@@ -1015,7 +857,8 @@ describe('KernelWallet', () => {
       // Mock public client with readContract method
       const mockPublicClientWithRead = {
         ...mockPublicClient,
-        readContract: jest.fn()
+        readContract: jest
+          .fn()
           .mockResolvedValueOnce(true) // isModuleInstalled
           .mockResolvedValueOnce(BigInt(1)), // getNonce
       };
@@ -1024,7 +867,7 @@ describe('KernelWallet', () => {
         ...mockTransportService,
         getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
       } as any;
-      
+
       // Mock encodeAbiParameters and encodeKernelExecuteParams for executor mode
       (encodeAbiParameters as jest.Mock).mockReturnValue('0xEncodedParams');
       (encodeKernelExecuteParams as jest.Mock).mockReturnValue({
@@ -1044,8 +887,9 @@ describe('KernelWallet', () => {
 
       await walletWithExecutor.init();
 
-      await expect(walletWithExecutor.writeContracts(mockParams))
-        .rejects.toThrow('Transaction expired');
+      await expect(walletWithExecutor.writeContracts(mockParams)).rejects.toThrow(
+        'Transaction expired',
+      );
 
       // Verify warning was logged
       expect(mockLogger.warn).toHaveBeenCalledWith(
