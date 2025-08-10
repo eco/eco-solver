@@ -4,6 +4,7 @@ import { Address, Chain, createPublicClient, createWalletClient, Transport } fro
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmTransportService } from '../../../services/evm-transport.service';
 import { KernelWallet } from '../kernel-wallet';
@@ -26,6 +27,7 @@ describe('KernelWalletFactory', () => {
   let factory: KernelWalletFactory;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
+  let mockLogger: any;
 
   const mockEoaPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
   const mockAccount = {
@@ -54,11 +56,20 @@ describe('KernelWalletFactory', () => {
       getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
     } as any;
 
+    mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      warn: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         KernelWalletFactory,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
+        { provide: SystemLoggerService, useValue: mockLogger },
       ],
     }).compile();
 
@@ -79,8 +90,10 @@ describe('KernelWalletFactory', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    // Reset singleton promise
-    (factory as any).signerPromise = null;
+    // Reset singleton promise if factory is defined
+    if (factory) {
+      (factory as any).signerPromise = null;
+    }
 
     // Reset KernelWallet mock to default behavior
     const mockKernelWalletInstance = {
@@ -137,6 +150,7 @@ describe('KernelWalletFactory', () => {
         evmConfigService.getKernelWalletConfig(),
         mockNetworkConfig,
         transportService,
+        mockLogger,
       );
       expect(wallet).toBeDefined();
 
@@ -271,6 +285,7 @@ describe('KernelWalletFactory', () => {
         evmConfigService.getKernelWalletConfig(),
         mockNetworkConfig,
         transportService,
+        mockLogger,
       );
 
       expect(wallet).toBeDefined();

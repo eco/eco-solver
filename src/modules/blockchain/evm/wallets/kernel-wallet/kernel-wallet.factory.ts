@@ -8,6 +8,7 @@ import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-facto
 import { KernelWallet } from '@/modules/blockchain/evm/wallets';
 import { kmsToAccount } from '@/modules/blockchain/evm/wallets/kernel-wallet/kms/kms-account';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmTransportService } from '../../services/evm-transport.service';
 
@@ -19,7 +20,10 @@ export class KernelWalletFactory implements IWalletFactory {
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
-  ) {}
+    private logger: SystemLoggerService,
+  ) {
+    this.logger.setContext(KernelWalletFactory.name);
+  }
 
   async createWallet(chainId: number): Promise<IEvmWallet> {
     // Lazy initialization with promise caching to prevent race conditions
@@ -35,6 +39,7 @@ export class KernelWalletFactory implements IWalletFactory {
       this.evmConfigService.getKernelWalletConfig(),
       this.evmConfigService.getChain(chainId),
       this.transportService,
+      this.logger,
     );
 
     await kernelWallet.init();

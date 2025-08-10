@@ -72,6 +72,7 @@ describe('KernelWallet', () => {
   let mockPublicClient: any;
   let mockSignerWalletClient: any;
   let mockKernelAccount: any;
+  let mockLogger: any;
 
   const mockChainId = 1;
   const mockAddress = '0xKernelAccountAddress' as Address;
@@ -148,6 +149,15 @@ describe('KernelWallet', () => {
     // Mock createWalletClient from viem
     (createWalletClient as jest.Mock).mockReturnValue(mockSignerWalletClient);
 
+    // Mock logger
+    mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      warn: jest.fn(),
+    };
+
     // Create wallet instance
     wallet = new KernelWallet(
       mockChainId,
@@ -155,6 +165,7 @@ describe('KernelWallet', () => {
       mockKernelWalletConfig,
       mockNetworkConfig,
       mockTransportService,
+      mockLogger,
     );
   });
 
@@ -265,6 +276,7 @@ describe('KernelWallet', () => {
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
+          mockLogger,
         );
 
         // Mock module not installed
@@ -324,6 +336,7 @@ describe('KernelWallet', () => {
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
+          mockLogger,
         );
 
         // Mock module already installed
@@ -377,6 +390,7 @@ describe('KernelWallet', () => {
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
+          mockLogger,
         );
 
         // Mock module check failure (assume not installed)
@@ -537,6 +551,7 @@ describe('KernelWallet', () => {
         mockKernelWalletConfig,
         mockNetworkConfig,
         mockTransportService,
+        mockLogger,
       );
 
       // Mock deployment failure
