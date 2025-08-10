@@ -46,6 +46,7 @@ export class KernelWallet extends BaseEvmWallet {
 
   private initialized = false;
   private executorEnabled = false;
+  private moduleStatusCache = new Map<string, boolean>();
 
   constructor(
     private readonly chainId: number,
@@ -251,6 +252,32 @@ export class KernelWallet extends BaseEvmWallet {
       throw new Error('Kernel wallet not initialized. Call init() first.');
     }
     return this.kernelAccount.address;
+  }
+
+  /**
+   * Get the current module installation status from cache
+   * @param moduleType - The ERC-7579 module type
+   * @param moduleAddress - The address of the module
+   * @returns Cached status or undefined if not cached
+   */
+  getModuleStatusFromCache(moduleType: number, moduleAddress: Address): boolean | undefined {
+    const cacheKey = `${moduleType}-${moduleAddress}`;
+    return this.moduleStatusCache.get(cacheKey);
+  }
+
+  /**
+   * Clear the module status cache
+   */
+  clearModuleCache(): void {
+    this.moduleStatusCache.clear();
+  }
+
+  /**
+   * Check if executor mode is enabled
+   * @returns true if executor module is installed and enabled
+   */
+  isExecutorEnabled(): boolean {
+    return this.executorEnabled;
   }
 
   async writeContract(call: Call): Promise<Hash> {
@@ -556,6 +583,10 @@ export class KernelWallet extends BaseEvmWallet {
       // Install the module
       await this.installModule(moduleType, this.ecdsaExecutorAddr, initData);
 
+      // Update cache after successful installation
+      const cacheKey = `${moduleType}-${this.ecdsaExecutorAddr}`;
+      this.moduleStatusCache.set(cacheKey, true);
+      
       this.executorEnabled = true;
       span.setAttribute('kernel.module_installed', true);
       
@@ -582,6 +613,12 @@ export class KernelWallet extends BaseEvmWallet {
       throw new Error(`Invalid module address: ${moduleAddress}`);
     }
 
+    // Check cache first
+    const cacheKey = `${moduleType}-${moduleAddress}`;
+    if (this.moduleStatusCache.has(cacheKey)) {
+      return this.moduleStatusCache.get(cacheKey)!;
+    }
+
     try {
       const result = await this.publicClient.readContract({
         address: this.kernelAccount.address,
@@ -589,7 +626,12 @@ export class KernelWallet extends BaseEvmWallet {
         functionName: 'isModuleInstalled',
         args: [BigInt(moduleType), moduleAddress, '0x'],
       });
-      return result as boolean;
+      const isInstalled = result as boolean;
+      
+      // Cache the result
+      this.moduleStatusCache.set(cacheKey, isInstalled);
+      
+      return isInstalled;
     } catch (error) {
       // If the call fails, it might mean the account doesn't support modules yet
       this.logger.debug('Failed to check module installation status', {
@@ -645,6 +687,8 @@ export class KernelWallet extends BaseEvmWallet {
         this.logger.log('Module installed successfully', {
           transactionHash: hash,
           gasUsed: receipt.gasUsed?.toString(),
+          moduleType,
+          moduleAddress,
         });
         
         span.setStatus({ code: api.SpanStatusCode.OK });

@@ -64,7 +64,81 @@ jest.mock('../utils/encode-transactions', () => ({
 }));
 
 describe('KernelWallet', () => {
+  let wallet: KernelWallet;
+  let mockTransportService: jest.Mocked<EvmTransportService>;
+  let mockSigner: jest.Mocked<LocalAccount>;
+  let mockKernelWalletConfig: KernelWalletConfig;
+  let mockNetworkConfig: EvmNetworkConfig;
+  let mockPublicClient: any;
+  let mockSignerWalletClient: any;
+  let mockKernelAccount: any;
+  let mockLogger: any;
+  let mockOtelService: any;
+
+  const mockChainId = 1;
+  const mockAddress = '0xKernelAccountAddress' as Address;
+  const mockTxHash = '0xTransactionHash' as Hex;
+  const mockEcdsaExecutorAddress = '0x0000000000000000000000000000000000000003' as Address;
+
   describe('constructor validation', () => {
+    beforeEach(() => {
+      // Mock network config
+      mockNetworkConfig = {
+        chainId: mockChainId,
+        rpc: { urls: ['http://localhost:8545'] },
+        intentSourceAddress: '0x0000000000000000000000000000000000000001',
+        inboxAddress: '0x0000000000000000000000000000000000000002',
+        tokens: [],
+        fee: {
+          tokens: { flatFee: '0', scalarBps: 0 },
+        },
+        provers: {},
+      } as any;
+
+      // Mock logger
+      mockLogger = {
+        setContext: jest.fn(),
+        log: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        warn: jest.fn(),
+      };
+
+      // Mock OpenTelemetry service
+      mockOtelService = {
+        startSpan: jest.fn().mockReturnValue({
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        }),
+      };
+
+      // Mock transport service
+      mockTransportService = {
+        getPublicClient: jest.fn(),
+        getTransport: jest.fn().mockReturnValue('http'),
+        getViemChain: jest.fn().mockReturnValue({ id: 1, name: 'mainnet' }),
+      } as any;
+
+      // Mock signer
+      mockSigner = {
+        address: '0xSignerAddress' as Address,
+        signMessage: jest.fn(),
+        signTransaction: jest.fn(),
+        signTypedData: jest.fn(),
+      } as any;
+
+      // Mock kernel wallet config
+      mockKernelWalletConfig = {
+        signer: {
+          type: 'eoa',
+          privateKey: '0xPrivateKey',
+        },
+      } as any;
+    });
+
     it('should throw error for invalid executor address', () => {
       const invalidNetworkConfig = {
         ...mockNetworkConfig,
@@ -107,20 +181,6 @@ describe('KernelWallet', () => {
       }).not.toThrow();
     });
   });
-  let wallet: KernelWallet;
-  let mockTransportService: jest.Mocked<EvmTransportService>;
-  let mockSigner: jest.Mocked<LocalAccount>;
-  let mockKernelWalletConfig: KernelWalletConfig;
-  let mockNetworkConfig: EvmNetworkConfig;
-  let mockPublicClient: any;
-  let mockSignerWalletClient: any;
-  let mockKernelAccount: any;
-  let mockLogger: any;
-  let mockOtelService: any;
-
-  const mockChainId = 1;
-  const mockAddress = '0xKernelAccountAddress' as Address;
-  const mockTxHash = '0xTransactionHash' as Hex;
 
   beforeEach(() => {
     // Mock public client
@@ -309,8 +369,6 @@ describe('KernelWallet', () => {
     });
 
     describe('ECDSA Executor Module Installation', () => {
-      const mockEcdsaExecutorAddress = '0x0000000000000000000000000000000000000003' as Address;
-
       beforeEach(() => {
         // Mock readContract for isModuleInstalled check
         mockPublicClient.readContract = jest.fn();
@@ -497,6 +555,130 @@ describe('KernelWallet', () => {
         // The validation happens internally
         expect(mockPublicClient.readContract).toHaveBeenCalled();
       });
+
+      it('should cache module installation status', async () => {
+        const networkConfigWithExecutor = {
+          ...mockNetworkConfig,
+          contracts: {
+            ecdsaExecutor: mockEcdsaExecutorAddress,
+          },
+        };
+
+        const walletWithExecutor = new KernelWallet(
+          mockChainId,
+          mockSigner,
+          mockKernelWalletConfig,
+          networkConfigWithExecutor,
+          mockTransportService,
+          mockLogger,
+          mockOtelService,
+        );
+
+        // First check - not installed
+        mockPublicClient.readContract.mockResolvedValueOnce(false);
+        
+        // Mock installation
+        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
+        (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
+
+        await walletWithExecutor.init();
+
+        // readContract should be called once for the check
+        expect(mockPublicClient.readContract).toHaveBeenCalledTimes(1);
+        
+        // Check cache - should be set to true after installation
+        const cachedStatus = walletWithExecutor.getModuleStatusFromCache(2, mockEcdsaExecutorAddress);
+        expect(cachedStatus).toBe(true);
+      });
+    });
+  });
+
+  describe('module cache methods', () => {
+    it('should return undefined for uncached module status', async () => {
+      await wallet.init();
+      const status = wallet.getModuleStatusFromCache(2, '0x1234567890123456789012345678901234567890' as Address);
+      expect(status).toBeUndefined();
+    });
+
+    it('should clear module cache', async () => {
+      const networkConfigWithExecutor = {
+        ...mockNetworkConfig,
+        contracts: {
+          ecdsaExecutor: mockEcdsaExecutorAddress,
+        },
+      };
+
+      // Mock public client with readContract method
+      const mockPublicClientWithRead = {
+        ...mockPublicClient,
+        readContract: jest.fn().mockResolvedValueOnce(true),
+      };
+
+      const mockTransportServiceWithRead = {
+        ...mockTransportService,
+        getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
+      } as any;
+
+      const walletWithExecutor = new KernelWallet(
+        mockChainId,
+        mockSigner,
+        mockKernelWalletConfig,
+        networkConfigWithExecutor,
+        mockTransportServiceWithRead,
+        mockLogger,
+        mockOtelService,
+      );
+
+      await walletWithExecutor.init();
+      
+      // Should have cached status
+      expect(walletWithExecutor.getModuleStatusFromCache(2, mockEcdsaExecutorAddress)).toBe(true);
+      
+      // Clear cache
+      walletWithExecutor.clearModuleCache();
+      
+      // Should be undefined after clearing
+      expect(walletWithExecutor.getModuleStatusFromCache(2, mockEcdsaExecutorAddress)).toBeUndefined();
+    });
+  });
+
+  describe('isExecutorEnabled', () => {
+    it('should return false when executor not configured', async () => {
+      await wallet.init();
+      expect(wallet.isExecutorEnabled()).toBe(false);
+    });
+
+    it('should return true when executor is installed', async () => {
+      const networkConfigWithExecutor = {
+        ...mockNetworkConfig,
+        contracts: {
+          ecdsaExecutor: mockEcdsaExecutorAddress,
+        },
+      };
+
+      // Mock public client with readContract method
+      const mockPublicClientWithRead = {
+        ...mockPublicClient,
+        readContract: jest.fn().mockResolvedValueOnce(true),
+      };
+
+      const mockTransportServiceWithRead = {
+        ...mockTransportService,
+        getPublicClient: jest.fn().mockReturnValue(mockPublicClientWithRead),
+      } as any;
+
+      const walletWithExecutor = new KernelWallet(
+        mockChainId,
+        mockSigner,
+        mockKernelWalletConfig,
+        networkConfigWithExecutor,
+        mockTransportServiceWithRead,
+        mockLogger,
+        mockOtelService,
+      );
+
+      await walletWithExecutor.init();
+      expect(walletWithExecutor.isExecutorEnabled()).toBe(true);
     });
   });
 
