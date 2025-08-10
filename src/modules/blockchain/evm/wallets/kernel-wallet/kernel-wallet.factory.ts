@@ -33,6 +33,7 @@ export class KernelWalletFactory implements IWalletFactory {
       chainId,
       signer,
       this.evmConfigService.getKernelWalletConfig(),
+      this.evmConfigService.getChain(chainId),
       this.transportService,
     );
 

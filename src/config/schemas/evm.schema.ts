@@ -144,6 +144,11 @@ const EvmNetworkSchema = z.object({
     z.enum(['hyper', 'metalayer'] as const),
     z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   ),
+  contracts: z
+    .object({
+      ecdsaExecutor: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+    })
+    .optional(),
 });
 
 /**

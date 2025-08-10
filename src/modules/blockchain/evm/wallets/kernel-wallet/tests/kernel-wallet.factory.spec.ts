@@ -45,6 +45,7 @@ describe('KernelWalletFactory', () => {
   beforeEach(async () => {
     evmConfigService = {
       getKernelWalletConfig: jest.fn(),
+      getChain: jest.fn(),
     } as any;
 
     transportService = {
@@ -109,10 +110,22 @@ describe('KernelWalletFactory', () => {
 
     it('should create wallet with EOA signer', async () => {
       const chainId = 1;
+      const mockNetworkConfig = {
+        chainId,
+        rpc: { urls: ['http://localhost:8545'] },
+        intentSourceAddress: '0x0000000000000000000000000000000000000001',
+        inboxAddress: '0x0000000000000000000000000000000000000002',
+        tokens: [],
+        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        provers: {},
+      };
+      evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
+
       const wallet = await factory.createWallet(chainId);
 
       // Verify configuration was retrieved
       expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalled();
+      expect(evmConfigService.getChain).toHaveBeenCalledWith(chainId);
 
       // Verify EOA account was created
       expect(privateKeyToAccount).toHaveBeenCalledWith(mockEoaPrivateKey);
@@ -122,6 +135,7 @@ describe('KernelWalletFactory', () => {
         chainId,
         mockAccount,
         evmConfigService.getKernelWalletConfig(),
+        mockNetworkConfig,
         transportService,
       );
       expect(wallet).toBeDefined();
@@ -134,6 +148,21 @@ describe('KernelWalletFactory', () => {
     });
 
     it('should reuse signer for multiple wallets', async () => {
+      const mockNetworkConfig1 = {
+        chainId: 1,
+        rpc: { urls: ['http://localhost:8545'] },
+        intentSourceAddress: '0x0000000000000000000000000000000000000001',
+        inboxAddress: '0x0000000000000000000000000000000000000002',
+        tokens: [],
+        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        provers: {},
+      };
+      const mockNetworkConfig10 = { ...mockNetworkConfig1, chainId: 10 };
+      
+      evmConfigService.getChain.mockImplementation((chainId) => {
+        return chainId === 1 ? mockNetworkConfig1 : mockNetworkConfig10;
+      });
+
       await factory.createWallet(1);
       await factory.createWallet(10);
 
@@ -148,6 +177,38 @@ describe('KernelWalletFactory', () => {
     });
 
     it('should handle concurrent wallet creation', async () => {
+      const mockNetworkConfigs = {
+        1: {
+          chainId: 1,
+          rpc: { urls: ['http://localhost:8545'] },
+          intentSourceAddress: '0x0000000000000000000000000000000000000001',
+          inboxAddress: '0x0000000000000000000000000000000000000002',
+          tokens: [],
+          fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+          provers: {},
+        },
+        10: {
+          chainId: 10,
+          rpc: { urls: ['http://localhost:8545'] },
+          intentSourceAddress: '0x0000000000000000000000000000000000000001',
+          inboxAddress: '0x0000000000000000000000000000000000000002',
+          tokens: [],
+          fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+          provers: {},
+        },
+        137: {
+          chainId: 137,
+          rpc: { urls: ['http://localhost:8545'] },
+          intentSourceAddress: '0x0000000000000000000000000000000000000001',
+          inboxAddress: '0x0000000000000000000000000000000000000002',
+          tokens: [],
+          fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+          provers: {},
+        },
+      };
+      
+      evmConfigService.getChain.mockImplementation((chainId) => mockNetworkConfigs[chainId]);
+
       // Create multiple wallets concurrently
       const promises = [
         factory.createWallet(1),
@@ -183,6 +244,17 @@ describe('KernelWalletFactory', () => {
 
     it('should create wallet with KMS signer', async () => {
       const chainId = 1;
+      const mockNetworkConfig = {
+        chainId,
+        rpc: { urls: ['http://localhost:8545'] },
+        intentSourceAddress: '0x0000000000000000000000000000000000000001',
+        inboxAddress: '0x0000000000000000000000000000000000000002',
+        tokens: [],
+        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        provers: {},
+      };
+      evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
+
       const wallet = await factory.createWallet(chainId);
 
       // Verify KMS account was created
@@ -197,6 +269,7 @@ describe('KernelWalletFactory', () => {
         chainId,
         mockKmsAccount,
         evmConfigService.getKernelWalletConfig(),
+        mockNetworkConfig,
         transportService,
       );
 
@@ -222,6 +295,17 @@ describe('KernelWalletFactory', () => {
           ...kmsConfigWithOptions,
         },
       });
+
+      const mockNetworkConfig = {
+        chainId: 1,
+        rpc: { urls: ['http://localhost:8545'] },
+        intentSourceAddress: '0x0000000000000000000000000000000000000001',
+        inboxAddress: '0x0000000000000000000000000000000000000002',
+        tokens: [],
+        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        provers: {},
+      };
+      evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
 
       await factory.createWallet(1);
 

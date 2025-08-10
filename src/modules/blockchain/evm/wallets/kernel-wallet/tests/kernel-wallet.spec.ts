@@ -1,10 +1,17 @@
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
-import { createKernelAccount } from '@zerodev/sdk';
+import { createKernelAccount, KernelV3AccountAbi } from '@zerodev/sdk';
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants';
-import { Address, createWalletClient, encodeFunctionData, Hex, LocalAccount } from 'viem';
+import {
+  Address,
+  createWalletClient,
+  encodeAbiParameters,
+  encodeFunctionData,
+  Hex,
+  LocalAccount,
+} from 'viem';
 
 import { Call } from '@/common/interfaces/evm-wallet.interface';
-import { KernelWalletConfig } from '@/config/schemas';
+import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 
 import { KernelWallet } from '../kernel-wallet';
@@ -13,11 +20,36 @@ import { encodeKernelExecuteCallData } from '../utils/encode-transactions';
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
   encodeFunctionData: jest.fn(),
+  encodeAbiParameters: jest.fn(),
   createWalletClient: jest.fn(),
 }));
 
 jest.mock('@zerodev/sdk', () => ({
   createKernelAccount: jest.fn(),
+  KernelV3AccountAbi: [
+    {
+      name: 'isModuleInstalled',
+      type: 'function',
+      inputs: [
+        { name: 'moduleType', type: 'uint256' },
+        { name: 'module', type: 'address' },
+        { name: 'additionalContext', type: 'bytes' },
+      ],
+      outputs: [{ name: 'isInstalled', type: 'bool' }],
+      stateMutability: 'view',
+    },
+    {
+      name: 'installModule',
+      type: 'function',
+      inputs: [
+        { name: 'moduleType', type: 'uint256' },
+        { name: 'module', type: 'address' },
+        { name: 'initData', type: 'bytes' },
+      ],
+      outputs: [],
+      stateMutability: 'nonpayable',
+    },
+  ],
 }));
 
 // Import mocked values from jest.setup.ts
@@ -36,6 +68,7 @@ describe('KernelWallet', () => {
   let mockTransportService: jest.Mocked<EvmTransportService>;
   let mockSigner: jest.Mocked<LocalAccount>;
   let mockKernelWalletConfig: KernelWalletConfig;
+  let mockNetworkConfig: EvmNetworkConfig;
   let mockPublicClient: any;
   let mockSignerWalletClient: any;
   let mockKernelAccount: any;
@@ -79,6 +112,19 @@ describe('KernelWallet', () => {
       },
     } as any;
 
+    // Mock network config
+    mockNetworkConfig = {
+      chainId: mockChainId,
+      rpc: { urls: ['http://localhost:8545'] },
+      intentSourceAddress: '0x0000000000000000000000000000000000000001',
+      inboxAddress: '0x0000000000000000000000000000000000000002',
+      tokens: [],
+      fee: {
+        tokens: { flatFee: '0', scalarBps: 0 },
+      },
+      provers: {},
+    } as any;
+
     // Mock kernel account
     mockKernelAccount = {
       address: mockAddress,
@@ -107,6 +153,7 @@ describe('KernelWallet', () => {
       mockChainId,
       mockSigner,
       mockKernelWalletConfig,
+      mockNetworkConfig,
       mockTransportService,
     );
   });
@@ -192,6 +239,165 @@ describe('KernelWallet', () => {
       (createKernelAccount as jest.Mock).mockRejectedValue(error);
 
       await expect(wallet.init()).rejects.toThrow(error);
+    });
+
+    describe('ECDSA Executor Module Installation', () => {
+      const mockEcdsaExecutorAddress = '0x0000000000000000000000000000000000000003' as Address;
+
+      beforeEach(() => {
+        // Mock readContract for isModuleInstalled check
+        mockPublicClient.readContract = jest.fn();
+      });
+
+      it('should install ECDSA executor module when configured and not installed', async () => {
+        // Configure network with ECDSA executor
+        const networkConfigWithExecutor = {
+          ...mockNetworkConfig,
+          contracts: {
+            ecdsaExecutor: mockEcdsaExecutorAddress,
+          },
+        };
+
+        // Create new wallet with executor config
+        const walletWithExecutor = new KernelWallet(
+          mockChainId,
+          mockSigner,
+          mockKernelWalletConfig,
+          networkConfigWithExecutor,
+          mockTransportService,
+        );
+
+        // Mock module not installed
+        mockPublicClient.readContract.mockResolvedValue(false);
+
+        // Mock encodeAbiParameters for init data
+        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
+        
+        // Mock encodeFunctionData for installModule
+        (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
+
+        await walletWithExecutor.init();
+
+        // Verify module installation check
+        expect(mockPublicClient.readContract).toHaveBeenCalledWith({
+          address: mockAddress,
+          abi: KernelV3AccountAbi,
+          functionName: 'isModuleInstalled',
+          args: [BigInt(2), mockEcdsaExecutorAddress, '0x'],
+        });
+
+        // Verify init data encoding
+        expect(encodeAbiParameters).toHaveBeenCalledWith(
+          [{ type: 'address' }],
+          [mockSigner.address],
+        );
+
+        // Verify installModule encoding
+        expect(encodeFunctionData).toHaveBeenCalledWith({
+          abi: KernelV3AccountAbi,
+          functionName: 'installModule',
+          args: [BigInt(2), mockEcdsaExecutorAddress, '0xInitData'],
+        });
+
+        // Verify module installation transaction
+        expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: mockAddress,
+            data: '0xInstallModuleData',
+          }),
+        );
+      });
+
+      it('should skip installation when module is already installed', async () => {
+        // Configure network with ECDSA executor
+        const networkConfigWithExecutor = {
+          ...mockNetworkConfig,
+          contracts: {
+            ecdsaExecutor: mockEcdsaExecutorAddress,
+          },
+        };
+
+        // Create new wallet with executor config
+        const walletWithExecutor = new KernelWallet(
+          mockChainId,
+          mockSigner,
+          mockKernelWalletConfig,
+          networkConfigWithExecutor,
+          mockTransportService,
+        );
+
+        // Mock module already installed
+        mockPublicClient.readContract.mockResolvedValue(true);
+
+        await walletWithExecutor.init();
+
+        // Verify module installation check
+        expect(mockPublicClient.readContract).toHaveBeenCalledWith({
+          address: mockAddress,
+          abi: KernelV3AccountAbi,
+          functionName: 'isModuleInstalled',
+          args: [BigInt(2), mockEcdsaExecutorAddress, '0x'],
+        });
+
+        // Verify no installation transaction was sent
+        expect(mockSignerWalletClient.sendTransaction).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.stringContaining('installModule'),
+          }),
+        );
+      });
+
+      it('should skip installation when ECDSA executor is not configured', async () => {
+        // Network config without contracts field
+        expect(mockNetworkConfig.contracts).toBeUndefined();
+
+        await wallet.init();
+
+        // Verify no module check or installation
+        expect(mockPublicClient.readContract).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            functionName: 'isModuleInstalled',
+          }),
+        );
+      });
+
+      it('should handle module check failure gracefully', async () => {
+        // Configure network with ECDSA executor
+        const networkConfigWithExecutor = {
+          ...mockNetworkConfig,
+          contracts: {
+            ecdsaExecutor: mockEcdsaExecutorAddress,
+          },
+        };
+
+        // Create new wallet with executor config
+        const walletWithExecutor = new KernelWallet(
+          mockChainId,
+          mockSigner,
+          mockKernelWalletConfig,
+          networkConfigWithExecutor,
+          mockTransportService,
+        );
+
+        // Mock module check failure (assume not installed)
+        mockPublicClient.readContract.mockRejectedValue(new Error('Contract read failed'));
+
+        // Mock encodeAbiParameters for init data
+        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
+        
+        // Mock encodeFunctionData for installModule
+        (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
+
+        await walletWithExecutor.init();
+
+        // Should proceed with installation despite check failure
+        expect(mockSignerWalletClient.sendTransaction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: mockAddress,
+            data: '0xInstallModuleData',
+          }),
+        );
+      });
     });
   });
 
@@ -329,6 +535,7 @@ describe('KernelWallet', () => {
         mockChainId,
         mockSigner,
         mockKernelWalletConfig,
+        mockNetworkConfig,
         mockTransportService,
       );
 
