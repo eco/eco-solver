@@ -262,7 +262,7 @@ describe('KernelWallet', () => {
       const error = new Error('Failed to create kernel account');
       (createKernelAccount as jest.Mock).mockRejectedValue(error);
 
-      await expect(wallet.init()).rejects.toThrow(error);
+      await expect(wallet.init()).rejects.toThrow('Failed to create kernel account: Failed to create kernel account');
     });
 
     describe('ECDSA Executor Module Installation', () => {
@@ -439,6 +439,10 @@ describe('KernelWallet', () => {
       expect(address).toBe(mockAddress);
     });
 
+    it('should throw error if wallet not initialized', async () => {
+      await expect(wallet.getAddress()).rejects.toThrow('Kernel wallet not initialized. Call init() first.');
+    });
+
     it('should return kernel account address if initialized', async () => {
       await wallet.init();
       const address = await wallet.getAddress();
@@ -461,6 +465,12 @@ describe('KernelWallet', () => {
 
       // Should use writeContracts internally
       expect(encodeKernelExecuteCallData).toHaveBeenCalledWith([mockParams]);
+    });
+
+    it('should throw error for invalid call parameters', async () => {
+      await wallet.init();
+      await expect(wallet.writeContract({} as any)).rejects.toThrow('Invalid call parameters: missing required fields');
+      await expect(wallet.writeContract({ to: null } as any)).rejects.toThrow('Invalid call parameters: missing required fields');
     });
 
     beforeEach(async () => {
@@ -543,12 +553,27 @@ describe('KernelWallet', () => {
       );
     });
 
-    it('should handle empty params', async () => {
-      const result = await wallet.writeContracts([]);
+    it('should throw error for empty calls', async () => {
+      await expect(wallet.writeContracts([])).rejects.toThrow('No calls provided for execution');
+    });
 
-      expect(result).toEqual([mockTxHash]);
+    it('should throw error if wallet not initialized', async () => {
+      const uninitializedWallet = new KernelWallet(
+        mockChainId,
+        mockSigner,
+        mockKernelWalletConfig,
+        mockNetworkConfig,
+        mockTransportService,
+        mockLogger,
+        mockOtelService,
+      );
+      
+      await expect(uninitializedWallet.writeContracts(mockParams)).rejects.toThrow('Kernel wallet not initialized. Call init() first.');
+    });
 
-      expect(encodeKernelExecuteCallData).toHaveBeenCalledWith([]);
+    it('should throw error for invalid calls', async () => {
+      await expect(wallet.writeContracts([{ to: null } as any])).rejects.toThrow('Invalid call at index 0: missing \'to\' address');
+      await expect(wallet.writeContracts([mockParams[0], { data: '0x' } as any])).rejects.toThrow('Invalid call at index 1: missing \'to\' address');
     });
 
     it('should ignore keepSender option', async () => {

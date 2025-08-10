@@ -91,27 +91,48 @@ export class KernelWallet extends BaseEvmWallet {
       });
 
       // Create Kernel Wallet Client
-      const ecdsaValidator = await signerToEcdsaValidator(this.publicClient as any, {
-        signer: this.signer,
-        entryPoint: entryPoint!,
-        kernelVersion,
-      });
+      let ecdsaValidator;
+      try {
+        ecdsaValidator = await signerToEcdsaValidator(this.publicClient as any, {
+          signer: this.signer,
+          entryPoint: entryPoint!,
+          kernelVersion,
+        });
+      } catch (error) {
+        const msg = `Failed to create ECDSA validator for kernel wallet`;
+        this.logger.error(msg, error as Error);
+        throw new Error(`${msg}: ${(error as Error).message}`);
+      }
 
-      this.kernelAccount = await createKernelAccount(this.publicClient as any, {
-        entryPoint,
-        kernelVersion,
-        useMetaFactory: false,
-        plugins: {
-          sudo: ecdsaValidator,
-        },
-      });
+      try {
+        this.kernelAccount = await createKernelAccount(this.publicClient as any, {
+          entryPoint,
+          kernelVersion,
+          useMetaFactory: false,
+          plugins: {
+            sudo: ecdsaValidator,
+          },
+        });
+      } catch (error) {
+        const msg = `Failed to create kernel account`;
+        this.logger.error(msg, error as Error);
+        throw new Error(`${msg}: ${(error as Error).message}`);
+      }
 
       span.setAttribute('kernel.account_address', this.kernelAccount.address);
       this.logger.log('Kernel account created', {
         accountAddress: this.kernelAccount.address,
       });
 
-      const isDeployed = await this.kernelAccount.isDeployed();
+      let isDeployed: boolean;
+      try {
+        isDeployed = await this.kernelAccount.isDeployed();
+      } catch (error) {
+        const msg = `Failed to check kernel account deployment status`;
+        this.logger.error(msg, error as Error);
+        throw new Error(`${msg}: ${(error as Error).message}`);
+      }
+      
       span.setAttribute('kernel.is_deployed', isDeployed);
       
       if (!isDeployed) {
@@ -139,6 +160,10 @@ export class KernelWallet extends BaseEvmWallet {
       span.setStatus({ 
         code: api.SpanStatusCode.ERROR,
         message: (error as Error).message,
+      });
+      this.logger.error('Kernel wallet initialization failed', error as Error, {
+        chainId: this.chainId,
+        signerAddress: this.signer.address,
       });
       throw error;
     } finally {
@@ -209,16 +234,38 @@ export class KernelWallet extends BaseEvmWallet {
   }
 
   async getAddress(): Promise<Address> {
+    if (!this.initialized || !this.kernelAccount) {
+      throw new Error('Kernel wallet not initialized. Call init() first.');
+    }
     return this.kernelAccount.address;
   }
 
   async writeContract(call: Call): Promise<Hash> {
+    if (!call || !call.to) {
+      throw new Error('Invalid call parameters: missing required fields');
+    }
+    
     // Send transaction using the signer wallet client
     const [hash] = await this.writeContracts([call]);
     return hash;
   }
 
   async writeContracts(calls: Call[], options?: WriteContractsOptions): Promise<Hash[]> {
+    if (!this.initialized || !this.kernelAccount) {
+      throw new Error('Kernel wallet not initialized. Call init() first.');
+    }
+
+    if (!calls || calls.length === 0) {
+      throw new Error('No calls provided for execution');
+    }
+
+    // Validate all calls have required fields
+    for (let i = 0; i < calls.length; i++) {
+      if (!calls[i].to) {
+        throw new Error(`Invalid call at index ${i}: missing 'to' address`);
+      }
+    }
+
     const mode = this.executorEnabled ? 'executor' : 'signer';
     const activeSpan = api.trace.getActiveSpan();
     const span = activeSpan || this.otelService.startSpan('kernel.wallet.writeContracts', {
@@ -330,40 +377,58 @@ export class KernelWallet extends BaseEvmWallet {
 
       const execution = encodeKernelExecuteParams(calls);
 
-    const nonceKey = 0n;
-    const nonce = await this.publicClient.readContract({
-      address: this.ecdsaExecutorAddr,
-      abi: ecdsaExecutorAbi,
-      functionName: 'getNonce',
-      args: [this.kernelAccount.address, nonceKey],
-    });
+      if (!this.ecdsaExecutorAddr) {
+        throw new Error('ECDSA executor address not configured but executor mode is enabled');
+      }
 
-    const expiration = BigInt(now() + minutes(5));
+      const nonceKey = 0n;
+      let nonce: bigint;
+      try {
+        nonce = await this.publicClient.readContract({
+          address: this.ecdsaExecutorAddr,
+          abi: ecdsaExecutorAbi,
+          functionName: 'getNonce',
+          args: [this.kernelAccount.address, nonceKey],
+        });
+      } catch (error) {
+        const msg = `Failed to get nonce from ECDSA executor`;
+        this.logger.error(msg, error as Error);
+        throw new Error(`${msg}: ${(error as Error).message}`);
+      }
 
-    const executionHash = keccak256(
-      encodeAbiParameters(
-        [
-          { type: 'address' },
-          { type: 'bytes32' },
-          { type: 'bytes' },
-          { type: 'uint256' },
-          { type: 'uint256' },
-          { type: 'uint256' },
-        ],
-        [
-          this.kernelAccount.address,
-          execution.mode,
-          execution.callData,
-          nonce,
-          expiration,
-          BigInt(this.chainId),
-        ],
-      ),
-    );
+      const expiration = BigInt(now() + minutes(5));
 
-    const signature = await this.signerWalletClient.signMessage({
-      message: { raw: executionHash },
-    } as any);
+      const executionHash = keccak256(
+        encodeAbiParameters(
+          [
+            { type: 'address' },
+            { type: 'bytes32' },
+            { type: 'bytes' },
+            { type: 'uint256' },
+            { type: 'uint256' },
+            { type: 'uint256' },
+          ],
+          [
+            this.kernelAccount.address,
+            execution.mode,
+            execution.callData,
+            nonce,
+            expiration,
+            BigInt(this.chainId),
+          ],
+        ),
+      );
+
+      let signature: Hash;
+      try {
+        signature = await this.signerWalletClient.signMessage({
+          message: { raw: executionHash },
+        } as any);
+      } catch (error) {
+        const msg = `Failed to sign execution hash`;
+        this.logger.error(msg, error as Error);
+        throw new Error(`${msg}: ${(error as Error).message}`);
+      }
 
       // Send transaction using the signer wallet client
       const hash = await this.signerWalletClient.writeContract({
@@ -436,7 +501,16 @@ export class KernelWallet extends BaseEvmWallet {
       span.setAttribute('kernel.module_type', moduleType);
 
       // Check if the module is already installed
-      const isInstalled = await this.isModuleInstalled(moduleType, this.ecdsaExecutorAddr);
+      let isInstalled: boolean;
+      try {
+        isInstalled = await this.isModuleInstalled(moduleType, this.ecdsaExecutorAddr);
+      } catch (error) {
+        this.logger.warn('Failed to check module installation status, assuming not installed', {
+          error: (error as Error).message,
+          moduleAddress: this.ecdsaExecutorAddr,
+        });
+        isInstalled = false;
+      }
       span.setAttribute('kernel.module_already_installed', isInstalled);
       
       if (isInstalled) {
@@ -476,6 +550,10 @@ export class KernelWallet extends BaseEvmWallet {
   }
 
   private async isModuleInstalled(moduleType: number, moduleAddress: Address): Promise<boolean> {
+    if (!this.kernelAccount?.address) {
+      throw new Error('Kernel account not initialized');
+    }
+
     try {
       const result = await this.publicClient.readContract({
         address: this.kernelAccount.address,
@@ -484,8 +562,13 @@ export class KernelWallet extends BaseEvmWallet {
         args: [BigInt(moduleType), moduleAddress, '0x'],
       });
       return result as boolean;
-    } catch {
-      // If the call fails, assume module is not installed
+    } catch (error) {
+      // If the call fails, it might mean the account doesn't support modules yet
+      this.logger.debug('Failed to check module installation status', {
+        error: (error as Error).message,
+        moduleType,
+        moduleAddress,
+      });
       return false;
     }
   }
