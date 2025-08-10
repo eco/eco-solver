@@ -11,6 +11,7 @@ import {
   encodeFunctionData,
   Hash,
   Hex,
+  isAddress,
   keccak256,
   LocalAccount,
   PublicClient,
@@ -66,7 +67,15 @@ export class KernelWallet extends BaseEvmWallet {
       transport,
     });
 
-    this.ecdsaExecutorAddr = this.networkConfig.contracts?.ecdsaExecutor as Address;
+    // Validate executor address if provided
+    const executorAddr = this.networkConfig.contracts?.ecdsaExecutor;
+    if (executorAddr) {
+      if (!isAddress(executorAddr)) {
+        throw new Error(`Invalid ECDSA executor address: ${executorAddr}`);
+      }
+      this.ecdsaExecutorAddr = executorAddr as Address;
+    }
+    
     this.signerWalletClient = signerWalletClient;
     this.publicClient = this.transportService.getPublicClient(chainId);
     this.logger.setContext(KernelWallet.name);
@@ -384,6 +393,11 @@ export class KernelWallet extends BaseEvmWallet {
       if (!this.ecdsaExecutorAddr) {
         throw new Error('ECDSA executor address not configured but executor mode is enabled');
       }
+      
+      // Additional validation to ensure executor address is still valid
+      if (!isAddress(this.ecdsaExecutorAddr)) {
+        throw new Error(`Invalid ECDSA executor address: ${this.ecdsaExecutorAddr}`);
+      }
 
       const nonceKey = 0n;
       let nonce: bigint;
@@ -400,6 +414,7 @@ export class KernelWallet extends BaseEvmWallet {
         throw new Error(`${msg}: ${(error as Error).message}`);
       }
 
+      // TODO: Make expiration time configurable
       const expiration = BigInt(now() + minutes(5));
 
       const executionHash = keccak256(
@@ -488,6 +503,11 @@ export class KernelWallet extends BaseEvmWallet {
       return;
     }
 
+    // Validate executor address format
+    if (!isAddress(this.ecdsaExecutorAddr)) {
+      throw new Error(`Invalid ECDSA executor address format: ${this.ecdsaExecutorAddr}`);
+    }
+
     const span = this.otelService.startSpan('kernel.wallet.installEcdsaExecutorModule', {
       attributes: {
         'kernel.executor_address': this.ecdsaExecutorAddr,
@@ -558,6 +578,10 @@ export class KernelWallet extends BaseEvmWallet {
       throw new Error('Kernel account not initialized');
     }
 
+    if (!isAddress(moduleAddress)) {
+      throw new Error(`Invalid module address: ${moduleAddress}`);
+    }
+
     try {
       const result = await this.publicClient.readContract({
         address: this.kernelAccount.address,
@@ -580,8 +604,11 @@ export class KernelWallet extends BaseEvmWallet {
   private async installModule(
     moduleType: number,
     moduleAddress: Address,
-    initData: Hash,
+    initData: Hex,
   ): Promise<void> {
+    if (!isAddress(moduleAddress)) {
+      throw new Error(`Invalid module address: ${moduleAddress}`);
+    }
     const span = this.otelService.startSpan('kernel.wallet.installModule', {
       attributes: {
         'kernel.module_type': moduleType,
