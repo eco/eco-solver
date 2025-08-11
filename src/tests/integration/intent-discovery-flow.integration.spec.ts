@@ -18,6 +18,7 @@ import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsModule } from '@/modules/intents/intents.module';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueModule } from '@/modules/queue/queue.module';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
@@ -102,8 +103,8 @@ describe('Intent Discovery Flow Integration', () => {
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
     intentsService = module.get<IntentsService>(IntentsService);
     _fulfillmentService = module.get<FulfillmentService>(FulfillmentService);
-    fulfillmentQueue = module.get<Queue>(getQueueToken('intent-fulfillment'));
-    executionQueue = module.get<Queue>(getQueueToken('blockchain-execution'));
+    fulfillmentQueue = module.get<Queue>(getQueueToken(QueueNames.INTENT_FULFILLMENT));
+    executionQueue = module.get<Queue>(getQueueToken(QueueNames.INTENT_EXECUTION));
 
     // Ensure queues are clean
     await fulfillmentQueue.obliterate({ force: true });

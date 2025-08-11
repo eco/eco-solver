@@ -107,6 +107,7 @@ export class BlockchainExecutorService {
         });
         span.addEvent('intent.fulfilled', {
           txHash: result.txHash,
+          chainId: intent.route.destination.toString(),
         });
         span.setStatus({ code: 0 }); // OK
       } else {

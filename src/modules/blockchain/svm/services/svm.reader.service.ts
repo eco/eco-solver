@@ -35,7 +35,7 @@ export class SvmReaderService extends BaseChainReader {
   async getTokenBalance(
     tokenAddress: string,
     walletAddress: string,
-    _chainId?: number | string,
+    _chainId: number | string,
   ): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');

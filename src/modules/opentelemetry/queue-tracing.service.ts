@@ -97,8 +97,8 @@ export class QueueTracingService {
         if (jobData.chainId) {
           span.setAttribute('queue.job.chainId', jobData.chainId);
         }
-        if (jobData.intent?.intentId) {
-          span.setAttribute('intent.id', jobData.intent.intentId);
+        if (jobData.intent?.intentHash) {
+          span.setAttribute('intent.id', jobData.intent.intentHash);
         }
 
         try {

@@ -4,14 +4,15 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 import { DataDogService } from '@/modules/datadog';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 
 @Injectable()
 export class QueueMetricsService implements OnModuleInit, OnModuleDestroy {
   private depthMonitoringInterval: NodeJS.Timeout;
 
   constructor(
-    @InjectQueue('intent-fulfillment') private fulfillmentQueue: Queue,
-    @InjectQueue('blockchain-execution') private executionQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
     private dataDogService: DataDogService,
   ) {}
 

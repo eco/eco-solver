@@ -34,7 +34,7 @@ export class ValidationContextImpl implements ValidationContext {
     const reader = await this.blockchainReader.getReaderForChain(chainId);
 
     if (tokenAddress) {
-      return reader.getTokenBalance(tokenAddress, walletAddress);
+      return reader.getTokenBalance(tokenAddress, walletAddress, Number(chainId));
     }
     return reader.getBalance(walletAddress);
   }

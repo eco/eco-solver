@@ -44,6 +44,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
           host: redisConfig.host,
           port: redisConfig.port,
           password: redisConfig.password,
+          maxRetriesPerRequest: null,
         },
       }),
       inject: [RedisConfigService],

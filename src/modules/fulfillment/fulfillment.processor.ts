@@ -7,11 +7,12 @@ import { Job } from 'bullmq';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 
-@Processor('intent-fulfillment')
+@Processor(QueueNames.INTENT_FULFILLMENT)
 export class FulfillmentProcessor extends WorkerHost {
   constructor(
     private fulfillmentService: FulfillmentService,
@@ -35,7 +36,7 @@ export class FulfillmentProcessor extends WorkerHost {
       if (this.queueTracing) {
         return this.queueTracing.wrapProcessor(
           'FulfillmentProcessor',
-          'intent-fulfillment',
+          QueueNames.INTENT_FULFILLMENT,
           processFn,
         )(job);
       } else {

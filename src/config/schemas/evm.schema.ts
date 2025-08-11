@@ -146,7 +146,10 @@ const EvmNetworkSchema = z.object({
   ),
   contracts: z
     .object({
-      ecdsaExecutor: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      ecdsaExecutor: z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{40}$/)
+        .optional(),
     })
     .optional(),
 });

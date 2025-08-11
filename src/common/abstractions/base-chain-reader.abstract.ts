@@ -11,7 +11,7 @@ export abstract class BaseChainReader {
   abstract getTokenBalance(
     tokenAddress: string,
     walletAddress: string,
-    chainId?: number | string,
+    chainId: number | string,
   ): Promise<bigint>;
 
   abstract isAddressValid(address: string): boolean;

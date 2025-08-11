@@ -7,10 +7,11 @@ import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-execu
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
-@Processor('blockchain-execution', {
+@Processor(QueueNames.INTENT_EXECUTION, {
   concurrency: 10, // Will be overridden by constructor
 })
 export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
@@ -75,7 +76,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     if (this.queueTracing) {
       return this.queueTracing.wrapProcessor(
         'BlockchainProcessor',
-        'blockchain-execution',
+        QueueNames.INTENT_EXECUTION,
         processFn,
       )(job);
     } else {

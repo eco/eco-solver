@@ -3,5 +3,6 @@ import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-na
 
 export interface FulfillmentJobData {
   intent: Intent;
+  chainId: number;
   strategy: FulfillmentStrategyName;
 }

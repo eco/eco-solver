@@ -186,7 +186,7 @@ describe('KernelWalletFactory', () => {
         provers: {},
       };
       const mockNetworkConfig10 = { ...mockNetworkConfig1, chainId: 10 };
-      
+
       evmConfigService.getChain.mockImplementation((chainId) => {
         return chainId === 1 ? mockNetworkConfig1 : mockNetworkConfig10;
       });
@@ -234,7 +234,7 @@ describe('KernelWalletFactory', () => {
           provers: {},
         },
       };
-      
+
       evmConfigService.getChain.mockImplementation((chainId) => mockNetworkConfigs[chainId]);
 
       // Create multiple wallets concurrently

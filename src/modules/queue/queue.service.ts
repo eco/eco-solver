@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -17,14 +17,36 @@ import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Injectable()
-export class QueueService implements IQueueService, OnModuleDestroy {
+export class QueueService implements IQueueService, OnModuleInit, OnModuleDestroy {
   constructor(
-    @InjectQueue('intent-fulfillment') private fulfillmentQueue: Queue,
-    @InjectQueue('blockchain-execution') private executionQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
     private readonly logger: SystemLoggerService,
     @Optional() private readonly queueTracing?: QueueTracingService,
   ) {
     this.logger.setContext(QueueService.name);
+  }
+
+  async onModuleInit() {
+    this.logger.log('Checking queue states on startup...');
+
+    // Check and resume fulfillment queue if paused
+    const fulfillmentPaused = await this.fulfillmentQueue.isPaused();
+    if (fulfillmentPaused) {
+      await this.fulfillmentQueue.resume();
+      this.logger.log('Resumed paused fulfillment queue on startup');
+    } else {
+      this.logger.log('Fulfillment queue is already running');
+    }
+
+    // Check and resume execution queue if paused
+    const executionPaused = await this.executionQueue.isPaused();
+    if (executionPaused) {
+      await this.executionQueue.resume();
+      this.logger.log('Resumed paused execution queue on startup');
+    } else {
+      this.logger.log('Execution queue is already running');
+    }
   }
 
   async addIntentToFulfillmentQueue(
@@ -34,6 +56,7 @@ export class QueueService implements IQueueService, OnModuleDestroy {
     const jobData: FulfillmentJobData = {
       intent,
       strategy,
+      chainId: Number(intent.route.destination),
     };
 
     const serializedData = QueueSerializer.serialize(jobData);
@@ -50,7 +73,7 @@ export class QueueService implements IQueueService, OnModuleDestroy {
 
     if (this.queueTracing) {
       await this.queueTracing.traceQueueAdd(
-        'intent-fulfillment',
+        QueueNames.INTENT_FULFILLMENT,
         'process-intent',
         jobData,
         addJob,
@@ -75,7 +98,7 @@ export class QueueService implements IQueueService, OnModuleDestroy {
     };
 
     if (this.queueTracing) {
-      await this.queueTracing.traceQueueAdd('blockchain-execution', jobName, jobData, addJob);
+      await this.queueTracing.traceQueueAdd(QueueNames.INTENT_EXECUTION, jobName, jobData, addJob);
     } else {
       await addJob();
     }
@@ -95,7 +118,8 @@ export class QueueService implements IQueueService, OnModuleDestroy {
   }
 
   async addJob(queueName: string, data: any, options?: any): Promise<void> {
-    const queue = queueName === 'intent-fulfillment' ? this.fulfillmentQueue : this.executionQueue;
+    const queue =
+      queueName === QueueNames.INTENT_FULFILLMENT ? this.fulfillmentQueue : this.executionQueue;
     const serializedData = QueueSerializer.serialize(data);
     await queue.add(queueName, serializedData, options);
   }

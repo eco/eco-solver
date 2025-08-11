@@ -3,6 +3,7 @@ import { Global, Module } from '@nestjs/common';
 
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueService } from '@/modules/queue/queue.service';
 import { QueueMetricsService } from '@/modules/queue/queue-metrics.service';
 
@@ -12,10 +13,10 @@ import { QueueMetricsService } from '@/modules/queue/queue-metrics.service';
     LoggingModule,
     BullModule.registerQueue(
       {
-        name: 'intent-fulfillment',
+        name: QueueNames.INTENT_FULFILLMENT,
       },
       {
-        name: 'blockchain-execution',
+        name: QueueNames.INTENT_EXECUTION,
       },
     ),
   ],
