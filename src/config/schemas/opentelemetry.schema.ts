@@ -14,15 +14,6 @@ export const OpenTelemetrySchema = z.object({
     .object({
       endpoint: z.string().default('http://localhost:4318'),
       headers: z.record(z.string()).default({}),
-      protocol: z.enum(['http', 'grpc']).default('http'),
-    })
-    .default({}),
-
-  // Jaeger exporter configuration (alternative to OTLP)
-  jaeger: z
-    .object({
-      enabled: z.boolean().default(false),
-      endpoint: z.string().default('http://localhost:14268/api/traces'),
     })
     .default({}),
 
@@ -80,53 +71,38 @@ export type OpenTelemetryConfig = z.infer<typeof OpenTelemetrySchema>;
  */
 export const openTelemetryConfig = registerAs('opentelemetry', () => {
   const envVars = {
-    enabled: process.env.OPENTELEMETRY_ENABLED === 'true',
-    serviceName: process.env.OPENTELEMETRY_SERVICE_NAME || 'blockchain-intent-solver',
+    enabled: true,
+    serviceName: 'blockchain-intent-solver',
 
     otlp: {
-      endpoint: process.env.OPENTELEMETRY_OTLP_ENDPOINT || 'http://localhost:4318',
-      headers: process.env.OPENTELEMETRY_OTLP_HEADERS
-        ? JSON.parse(process.env.OPENTELEMETRY_OTLP_HEADERS)
-        : {},
-      protocol: (process.env.OPENTELEMETRY_OTLP_PROTOCOL || 'http') as 'http' | 'grpc',
-    },
-
-    jaeger: {
-      enabled: process.env.OPENTELEMETRY_JAEGER_ENABLED === 'true',
-      endpoint: process.env.OPENTELEMETRY_JAEGER_ENDPOINT || 'http://localhost:14268/api/traces',
+      endpoint: 'http://localhost:4318',
+      protocol: 'http',
     },
 
     resource: {
       attributes: {
-        'deployment.environment': process.env.NODE_ENV || 'development',
-        ...(process.env.OPENTELEMETRY_RESOURCE_ATTRIBUTES
-          ? JSON.parse(process.env.OPENTELEMETRY_RESOURCE_ATTRIBUTES)
-          : {}),
+        'deployment.environment': 'development',
       },
     },
 
     instrumentation: {
       http: {
-        enabled: process.env.OPENTELEMETRY_INSTRUMENTATION_HTTP_ENABLED !== 'false',
-        ignoreIncomingPaths: process.env.OPENTELEMETRY_INSTRUMENTATION_HTTP_IGNORE_PATHS
-          ? process.env.OPENTELEMETRY_INSTRUMENTATION_HTTP_IGNORE_PATHS.split(',')
-          : ['/health', '/health/live', '/health/ready'],
+        enabled: true,
+        ignoreIncomingPaths: ['/health', '/health/live', '/health/ready'],
       },
       mongodb: {
-        enabled: process.env.OPENTELEMETRY_INSTRUMENTATION_MONGODB_ENABLED !== 'false',
+        enabled: true,
       },
       redis: {
-        enabled: process.env.OPENTELEMETRY_INSTRUMENTATION_REDIS_ENABLED !== 'false',
+        enabled: true,
       },
       nestjs: {
-        enabled: process.env.OPENTELEMETRY_INSTRUMENTATION_NESTJS_ENABLED !== 'false',
+        enabled: true,
       },
     },
 
     sampling: {
-      ratio: process.env.OPENTELEMETRY_SAMPLING_RATIO
-        ? parseFloat(process.env.OPENTELEMETRY_SAMPLING_RATIO)
-        : 1.0,
+      ratio: 1.0,
     },
   };
 

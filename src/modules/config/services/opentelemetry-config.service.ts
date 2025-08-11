@@ -31,10 +31,6 @@ export class OpenTelemetryConfigService {
     return this.config.otlp;
   }
 
-  get jaeger() {
-    return this.config.jaeger;
-  }
-
   get resource() {
     return this.config.resource;
   }

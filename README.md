@@ -58,7 +58,7 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
   - MongoDB and Redis instrumentation
   - NestJS framework instrumentation
   - Custom spans for intent processing flow
-  - Multiple exporter support (OTLP, Jaeger)
+  - Multiple exporter support (OTLP)
   - Configurable sampling rates
   - Context propagation across services
 
@@ -649,11 +649,6 @@ OPENTELEMETRY_ENABLED=true
 
 # OTLP Exporter (default)
 OPENTELEMETRY_OTLP_ENDPOINT=http://localhost:4318
-OPENTELEMETRY_OTLP_PROTOCOL=http  # or grpc
-
-# Or use Jaeger
-OPENTELEMETRY_JAEGER_ENABLED=true
-OPENTELEMETRY_JAEGER_ENDPOINT=http://localhost:14268/api/traces
 
 # Sampling configuration
 OPENTELEMETRY_SAMPLING_RATIO=1.0  # 100% sampling for development
@@ -664,19 +659,7 @@ OPENTELEMETRY_SAMPLING_RATIO=1.0  # 100% sampling for development
 - **Queue Tracing**: BullMQ jobs are traced with parent-child span relationships
 - **Context Propagation**: Trace context flows through the entire request lifecycle
 - **Custom Spans**: Intent processing includes custom spans for detailed visibility
-- **Multiple Exporters**: Support for OTLP (compatible with many backends) and Jaeger
-
-**Running with Jaeger**:
-```bash
-# Start Jaeger
-docker run -d --name jaeger \
-  -p 16686:16686 \
-  -p 14268:14268 \
-  -p 4318:4318 \
-  jaegertracing/all-in-one:latest
-
-# View traces at http://localhost:16686
-```
+- **Multiple Exporters**: Support for OTLP (compatible with many backends)
 
 #### Structured Logs
 ```bash
