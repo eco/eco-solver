@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
-import { hashIntent, hashRoute } from '@eco-foundation/routes-ts'
+import { hashIntent, hashRoute, IntentType } from '@eco-foundation/routes-ts'
 import { Address, encodePacked, Hex, isAddressEqual, keccak256 } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -34,50 +34,58 @@ export class RhinestoneValidatorService {
   /**
    * Validate a relayer action message including fill and claim validation
    * @param message The relayer action message to validate
-   * @returns The validated intent and fill data
+   * @returns The validated fill data and claim fill data with intents
    * @throws {EcoError} If validation fails
    */
   async validateRelayerAction(message: RhinestoneRelayerActionV1) {
     const { fill, claims } = message
 
-    if (claims.length !== 1) {
-      // TODO: Limit claims to only one while testing
-      throw new EcoError('Invalid claims length')
-    }
+    const decodedFills = await this.validateFill(fill)
 
-    const [claim] = claims
-
-    const decodedFill = await this.validateFill(fill)
-    const { intent, fillData } = await this.validateClaim(claim)
-
-    const { intentHash: claimIntentHash } = hashIntent(intent)
-    const fillRouteHash = hashRoute(decodedFill.route)
-    const fillIntentHash = keccak256(
-      encodePacked(['bytes32', 'bytes32'], [fillRouteHash, decodedFill.rewardHash]),
-    )
-
-    if (fillIntentHash !== claimIntentHash) {
-      throw new EcoError('Intent hash for fill and claim do not match')
-    }
-
-    if (intent.route.source === intent.route.destination) {
-      throw new EcoError('Cannot execute same chain intetns')
-    }
-
-    if (fillData.order.targetChainId !== intent.route.destination) {
-      throw new EcoError('Intent destination does not match order target chainID')
-    }
-
-    const isValidIntent = await this.validateIntentService.validateFullIntent(intent, {
-      skipIntentFunded: true,
-      skipTransactionValidation: true,
-      useRouteTokens: true,
+    const fillIntentHashes = decodedFills.map((decodedFill) => {
+      const fillRouteHash = hashRoute(decodedFill.route)
+      return keccak256(
+        encodePacked(['bytes32', 'bytes32'], [fillRouteHash, decodedFill.rewardHash]),
+      )
     })
-    if (!isValidIntent) {
-      throw new EcoError('Intent failed validations')
+
+    const claimFills: Array<{
+      intent: IntentType
+      fillData: ReturnType<typeof decodeAdapterClaim>
+    }> = []
+
+    for (const claim of claims) {
+      const claimResults = await this.validateClaim(claim)
+
+      for (const { intent, fillData } of claimResults) {
+        const { intentHash: claimIntentHash } = hashIntent(intent)
+
+        if (!fillIntentHashes.includes(claimIntentHash)) {
+          throw new EcoError('Intent hash for fill and claim do not match')
+        }
+
+        if (intent.route.source === intent.route.destination) {
+          throw new EcoError('Cannot execute same chain intents')
+        }
+
+        if (fillData.order.targetChainId !== intent.route.destination) {
+          throw new EcoError('Intent destination does not match order target chainID')
+        }
+
+        const isValidIntent = await this.validateIntentService.validateFullIntent(intent, {
+          skipIntentFunded: true,
+          skipTransactionValidation: true,
+          useRouteTokens: true,
+        })
+        if (!isValidIntent) {
+          throw new EcoError('Intent failed validations')
+        }
+
+        claimFills.push({ intent, fillData })
+      }
     }
 
-    return { intent, fillData }
+    return { fills: decodedFills, claimFills }
   }
 
   /**
@@ -91,27 +99,29 @@ export class RhinestoneValidatorService {
     const chainID = chainAction.call.chainId
 
     const { decodedCall } = this.validateRouterCall(chainAction.call)
-    const { adapterCalldata } = this.extractRouteCall(decodedCall, 'routeFill')
+    const routeCalls = this.extractRouteCall(decodedCall, 'routeFill')
 
-    // TODO: We need to update the solverContext to the claimant
+    const requests = routeCalls.map(async (routeCall) => {
+      const { type, selector } = decodeRouteFillCall(routeCall.adapterCalldata)
 
-    const { type, selector } = decodeRouteFillCall(adapterCalldata)
+      if (type !== 'adapterCall') {
+        throw new EcoError('Fill is not an adapter call')
+      }
 
-    if (type !== 'adapterCall') {
-      throw new EcoError('Fill is not an adapter call')
-    }
+      await this.validateAdapterAndArbiter(chainID, router, 'fill', selector)
 
-    await this.validateAdapterAndArbiter(chainID, router, 'fill', selector)
+      const [fillData] = decodeAdapterFill(routeCall.adapterCalldata)
 
-    const [fillData] = decodeAdapterFill(adapterCalldata)
+      return fillData
+    })
 
-    return fillData
+    return Promise.all(requests)
   }
 
   /**
    * Validate a claim action from a relayer message
    * @param chainAction The chain action containing the claim
-   * @returns The extracted intent and fill data
+   * @returns Array of extracted intents and fill data
    * @throws {EcoError} If claim validation fails
    */
   private async validateClaim(chainAction: ChainAction) {
@@ -131,30 +141,42 @@ export class RhinestoneValidatorService {
     const router = chainAction.call.to
 
     const { decodedCall } = this.validateRouterCall(chainAction.call)
-    const { adapterCalldata } = this.extractRouteCall(decodedCall, 'routeClaim')
+    const routeCalls = this.extractRouteCall(decodedCall, 'routeClaim')
 
-    const { type, selector } = decodeRouteFillCall(adapterCalldata)
+    const results: Array<{ intent: IntentType; fillData: ReturnType<typeof decodeAdapterClaim> }> =
+      []
 
-    if (type !== 'adapterCall') {
-      throw new EcoError('Claim is not an adapter call')
+    for (const { adapterCalldata } of routeCalls) {
+      const { type, selector } = decodeRouteFillCall(adapterCalldata)
+
+      if (type !== 'adapterCall') {
+        throw new EcoError('Claim is not an adapter call')
+      }
+
+      const { arbiterAddr } = await this.validateAdapterAndArbiter(
+        chainID,
+        router,
+        'claim',
+        selector,
+      )
+
+      const fillData = decodeAdapterClaim(adapterCalldata)
+      const { order, claimHash } = fillData
+
+      const claimHashOracle = await this.rhinestoneContractsService.getClaimHashOracle(
+        chainID,
+        arbiterAddr,
+      )
+
+      const route = toRoute(order, claimHash, chainID, claimHashOracle)
+      const reward = toReward(order)
+
+      const intent = { route, reward }
+
+      results.push({ intent, fillData })
     }
 
-    const { arbiterAddr } = await this.validateAdapterAndArbiter(chainID, router, 'claim', selector)
-
-    const fillData = decodeAdapterClaim(adapterCalldata)
-    const { order, claimHash } = fillData
-
-    const claimHashOracle = await this.rhinestoneContractsService.getClaimHashOracle(
-      chainID,
-      arbiterAddr,
-    )
-
-    const route = toRoute(order, claimHash, chainID, claimHashOracle)
-    const reward = toReward(order)
-
-    const intent = { route, reward }
-
-    return { intent, fillData }
+    return results
   }
 
   /**
@@ -252,16 +274,16 @@ export class RhinestoneValidatorService {
   }
 
   /**
-   * Extract and validate a single route call from decoded router data
+   * Extract and validate route calls from decoded router data
    * @param decodedCall The decoded function call data
    * @param functionName The expected function name (routeFill or routeClaim)
-   * @returns The solver context and adapter calldata
-   * @throws {EcoError} If not exactly one route call is found
+   * @returns Array of solver context and adapter calldata
+   * @throws {EcoError} If function name doesn't match
    */
   private extractRouteCall(
     decodedCall: { functionName: string; args?: unknown } | RhinestoneRouterRouteFn,
     functionName: 'routeFill' | 'routeClaim',
-  ): { solverContext: Address; adapterCalldata: Hex } {
+  ): Array<{ solverContext: Address; adapterCalldata: Hex }> {
     const isRouteCall = (call: {
       functionName: string
       args?: unknown
@@ -286,16 +308,16 @@ export class RhinestoneValidatorService {
       }),
     )
 
-    if (routeCalls.length !== 1) {
+    if (routeCalls.length === 0) {
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Invalid route call - Only one call allowed`,
+          message: `Invalid route call - No calls found`,
           properties: { calls: routeCalls.length },
         }),
       )
       throw EcoError.InvalidRhinestoneRelayerAction
     }
 
-    return routeCalls[0]
+    return routeCalls
   }
 }

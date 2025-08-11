@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { encodeFunctionData, erc20Abi, Hash } from 'viem'
+import * as _ from 'lodash'
 
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
@@ -19,7 +20,7 @@ import {
   RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
-import { IntentType, hashIntent } from '@eco-foundation/routes-ts'
+import { hashIntent, IntentType } from '@eco-foundation/routes-ts'
 
 /**
  * Main service for handling Rhinestone WebSocket events and executing transactions.
@@ -82,56 +83,37 @@ export class RhinestoneService implements OnModuleInit {
     this.logger.log(`Received RhinestoneRelayerActionV1`)
 
     // Throws if the message is invalid
-    const { intent } = await this.rhinestoneValidatorService.validateRelayerAction(message)
+    const { claimFills } = await this.rhinestoneValidatorService.validateRelayerAction(message)
 
-    // Get intent hash for analytics tracking
-    const { intentHash } = hashIntent(intent)
+    const intents = claimFills.map((item) => item.intent)
 
-    // Track feasibility check start
-    this.ecoAnalytics.trackIntentFeasibilityCheckStarted(intentHash)
+    for (const intent of intents) {
+      // Get intent hash for analytics tracking
+      const { intentHash } = hashIntent(intent)
 
-    // Check if the route is feasible
-    const { error: feasibilityError } = await this.feeService.isRouteFeasible(intent)
+      // Track feasibility check start
+      this.ecoAnalytics.trackIntentFeasibilityCheckStarted(intentHash)
 
-    if (feasibilityError) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Relayer action is not feasible',
-          properties: {
-            actionId: message.id,
-            intentHash,
-            error: feasibilityError.message,
-          },
-        }),
-      )
+      // Check if the route is feasible
+      const { error: feasibilityError } = await this.feeService.isRouteFeasible(intent)
 
-      // For Rhinestone, we don't have IntentSourceModel, so we skip the model-based tracking
-      // Just log the error
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Intent is infeasible',
-          properties: {
-            intentHash,
-            error: feasibilityError,
-          },
-        }),
-      )
-      return
+      if (feasibilityError) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: 'Intent is not feasible',
+            properties: {
+              actionId: message.id,
+              intentHash,
+              error: feasibilityError.message,
+            },
+          }),
+        )
+        throw new Error('Intent feasibility failed')
+      }
     }
 
-    // Track feasible intent - for Rhinestone we skip model-based tracking
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Intent is feasible and ready for execution',
-        properties: {
-          actionId: message.id,
-          intentHash,
-        },
-      }),
-    )
-
     try {
-      const result = await this.executeRelayerAction(message, intent)
+      const result = await this.executeRelayerAction(message, intents)
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Relayer action processed successfully',
@@ -139,6 +121,7 @@ export class RhinestoneService implements OnModuleInit {
             actionId: message.id,
             fillTxHash: result.fillTxHash,
             claimsExecuted: result.claimTxHashes.length,
+            claimFills: claimFills.length,
           },
         }),
       )
@@ -167,12 +150,12 @@ export class RhinestoneService implements OnModuleInit {
   /**
    * Execute a relayer action's fill and claims in order
    * @param action The relayer action containing the fill details and claims
-   * @param intent
+   * @param intents Array of validated intents for the claims
    * @returns Object containing all transaction hashes
    */
   async executeRelayerAction(
     action: RhinestoneRelayerActionV1,
-    intent: IntentType,
+    intents: IntentType[],
   ): Promise<{
     fillTxHash: Hash
     claimTxHashes: { id: number; txHash: Hash; beforeFill: boolean }[]
@@ -248,7 +231,7 @@ export class RhinestoneService implements OnModuleInit {
         }),
       )
 
-      fillTxHash = await this.executeFillWithApproval(action.fill, intent)
+      fillTxHash = await this.executeFillWithApproval(action.fill, intents)
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -391,15 +374,24 @@ export class RhinestoneService implements OnModuleInit {
   /**
    * Execute a fill transaction with approval
    * @param fill The fill action details
-   * @param intent
+   * @param intents
    * @returns The transaction hash
    */
-  private async executeFillWithApproval(fill: FillAction, intent: IntentType): Promise<Hash> {
+  private async executeFillWithApproval(fill: FillAction, intents: IntentType[]): Promise<Hash> {
     try {
       const transactions: ExecuteSmartWalletArg[] = []
 
+      // Aggregate route token approvals
+      const routeTokens = intents.flatMap((intent) => intent.route.tokens)
+      const routeTokenGroups = _.groupBy(routeTokens, 'token')
+      const routeTokenTotal = Object.values(routeTokenGroups).map((group) => {
+        const { token } = group[0]
+        const amount = group.reduce((acc, token) => acc + token.amount, 0n)
+        return { token, amount }
+      })
+
       // Construct approval transactions
-      intent.route.tokens.forEach(({ token, amount }) => {
+      routeTokenTotal.forEach(({ token, amount }) => {
         const approvalTx: ExecuteSmartWalletArg = {
           to: token,
           value: 0n,
