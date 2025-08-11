@@ -20,8 +20,8 @@ import { BASE_DECIMALS } from '@/intent/utils'
 function getFeeConfig(): FeeConfigType {
   return {
     limit: {
-      token: 1000n * 10n ** 6n,
-      native: 1n * 10n ** 18n,
+      tokenLimit: 1000n * 10n ** 6n,
+      nativeLimit: 1n * 10n ** 18n,
     },
     algorithm: 'linear',
   } as FeeConfigType
@@ -78,8 +78,8 @@ describe('FeeService', () => {
 
   const defaultFee: FeeConfigType<'linear'> = {
     limit: {
-      token: 1000n * 10n ** 6n,
-      native: 1000n * 10n ** 18n,
+      tokenLimit: 1000n * 10n ** 6n,
+      nativeLimit: 1000n * 10n ** 18n,
     },
     algorithm: 'linear',
     constants: {

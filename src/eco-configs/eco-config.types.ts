@@ -94,8 +94,8 @@ export const EcoConfigBase6Keys = [
   'minBalance',
   'targetBalance',
   'maxBalance',
-  'token',
-  'native',
+  'tokenLimit',
+  'nativeLimit',
   'baseFee',
   'unitFee',
   'unitSize',
@@ -236,9 +236,9 @@ export type KmsConfig = {
 export type V2Limits = {
   // The maximum amount of tokens that can be filled in a single transaction,
   // defaults to 1000 USDC decimal 6 equivalent
-  token: bigint
+  tokenLimit: bigint
   // The max native gas that can be filled in a single transaction
-  native: bigint
+  nativeLimit: bigint
 }
 
 export type FeeConfigType<T extends FeeAlgorithm = 'linear'> = {

@@ -72,10 +72,13 @@ export function denormalizeTokenAmounts(tokens: NormalizableToken[]): void {
     if (token.decimals) {
       // Reverse transform amount from current decimals back to original decimals using stored metadata
       if (token.amount) {
-        token.amount = normalizeBalance(
+        const denormalizedBalance = normalizeBalance(
           { balance: BigInt(token.amount), decimal: token.decimals.current },
           token.decimals.original,
         ).balance
+        
+        // Convert to string for JSON serialization
+        token.amount = denormalizedBalance.toString()
       }
 
       // Remove the decimals field from the token
@@ -107,10 +110,13 @@ export function denormalizeTokenAmountsWithValidation(
 
       // Reverse transform amount from current decimals back to original decimals
       if (token.amount) {
-        token.amount = normalizeBalance(
+        const denormalizedBalance = normalizeBalance(
           { balance: BigInt(token.amount), decimal: token.decimals.current },
           token.decimals.original,
         ).balance
+        
+        // Convert to string for JSON serialization
+        token.amount = denormalizedBalance.toString()
       }
 
       // Remove decimals field from token

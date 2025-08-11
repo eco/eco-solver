@@ -68,10 +68,11 @@ describe('TokenDecimalsInterceptor', () => {
           }
 
           if (token.decimals) {
-            // Simple mock reverse transformation
-            token.amount =
+            // Simple mock reverse transformation - convert to string for JSON serialization
+            const denormalizedAmount =
               BigInt(token.amount) /
               BigInt(10 ** (token.decimals.current - token.decimals.original))
+            token.amount = denormalizedAmount.toString()
             delete token.decimals
           }
         })
@@ -206,9 +207,9 @@ describe('TokenDecimalsInterceptor', () => {
         interceptor.intercept(mockContext, mockCallHandler).subscribe((result) => {
           const rewardToken = result.quoteEntries[0].rewardTokens[0]
           const routeToken = result.quoteEntries[0].routeTokens[0]
-          expect(rewardToken.amount).toBe(1000000n)
+          expect(rewardToken.amount).toBe('1000000')
           expect(rewardToken.decimals).toBeUndefined()
-          expect(routeToken.amount).toBe(2000000n)
+          expect(routeToken.amount).toBe('2000000')
           expect(routeToken.decimals).toBeUndefined()
           done()
         })
@@ -290,6 +291,51 @@ describe('TokenDecimalsInterceptor', () => {
 
         interceptor.intercept(mockContext, mockCallHandler).subscribe((result) => {
           expect(result.quoteEntries[0].rewardTokens[0].decimals).toBeUndefined()
+          done()
+        })
+      })
+    })
+
+    describe('JSON serialization', () => {
+      it('should produce JSON serializable results without BigInt values', (done) => {
+        // Use the real denormalizeTokenAmounts function instead of mock for this test
+        jest.restoreAllMocks()
+
+        const responseData = {
+          quoteEntries: [
+            {
+              rewardTokens: [
+                {
+                  token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+                  amount: '750000000000000000',
+                  decimals: { original: 6, current: 18 },
+                },
+              ],
+              routeTokens: [
+                {
+                  token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+                  amount: '780000000000000000',
+                  decimals: { original: 6, current: 18 },
+                },
+              ],
+            },
+          ],
+        }
+
+        mockCallHandler.handle = () => of(responseData)
+
+        interceptor.intercept(mockContext, mockCallHandler).subscribe((result) => {
+          // Test that result can be JSON serialized without throwing BigInt error
+          expect(() => JSON.stringify(result)).not.toThrow()
+          
+          // Verify amounts are strings, not BigInts
+          expect(typeof result.quoteEntries[0].rewardTokens[0].amount).toBe('string')
+          expect(typeof result.quoteEntries[0].routeTokens[0].amount).toBe('string')
+          
+          // Verify decimals metadata is removed
+          expect(result.quoteEntries[0].rewardTokens[0].decimals).toBeUndefined()
+          expect(result.quoteEntries[0].routeTokens[0].decimals).toBeUndefined()
+          
           done()
         })
       })

@@ -528,7 +528,7 @@ export class FeeService implements OnModuleInit {
           decimals: tokenBalance.decimals,
           recipient: erc20Call.recipient,
           native: {
-            amount: erc20Call.value,
+            amount: BigInt(erc20Call.value),
           },
         })
       }

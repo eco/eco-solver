@@ -365,7 +365,10 @@ describe('QuotesService', () => {
             tokens: calculated.rewards.map((reward) => ({
               token: reward.address,
               amount: reward.balance,
-              decimals: 18, // Default to 18 decimals for tests
+              decimals: {
+                original: 18,
+                current: 18,
+              },
             })),
           },
         } as any)
@@ -620,7 +623,10 @@ describe('QuotesService', () => {
             tokens: calculated.rewards.map((reward) => ({
               token: reward.address,
               amount: reward.balance,
-              decimals: tokenDecimalsMap[reward.address] || 18,
+              decimals: {
+                original: tokenDecimalsMap[reward.address] || 18,
+                current: 18,
+              },
             })),
           },
         } as any)

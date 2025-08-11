@@ -32,7 +32,7 @@ import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interf
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
-import { isInsufficient, deconvertNormalize } from '../fee/utils'
+import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
@@ -593,7 +593,7 @@ export class QuoteService implements OnModuleInit {
               amount: 0n,
               decimals: originalRewardToken?.decimals
                 ? {
-                    original: originalRewardToken.decimals,
+                    original: originalRewardToken.decimals.original,
                     current: BASE_DECIMALS,
                   }
                 : undefined,
@@ -611,21 +611,9 @@ export class QuoteService implements OnModuleInit {
 
     const gasOverhead = this.getGasOverhead(quoteIntentModel)
 
-    // Convert reward token amounts back to original decimal format
-    const rewardTokens = Object.values(quoteRecord).map((token) => {
-      if (token.decimals) {
-        const deconverted = deconvertNormalize(token.amount, {
-          chainID: BigInt(quoteIntentModel.route.source),
-          address: token.token,
-          decimals: token.decimals.original,
-        })
-        return {
-          ...token,
-          amount: deconverted.balance,
-        }
-      }
-      return token
-    })
+    // Keep reward token amounts in normalized format (18 decimals) with decimals metadata
+    // The TokenDecimalsInterceptor will handle conversion back to original decimals in the response
+    const rewardTokens = Object.values(quoteRecord)
 
     return {
       response: {

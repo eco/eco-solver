@@ -7,3 +7,11 @@ console.warn = (...args) => {
   }
   originalWarn(...args)
 }
+
+// Add BigInt serialization support for Jest
+Object.defineProperty(BigInt.prototype, 'toJSON', {
+  value: function() {
+    return this.toString() + 'n'
+  },
+  configurable: true
+})

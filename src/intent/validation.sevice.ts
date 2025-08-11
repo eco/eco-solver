@@ -270,7 +270,7 @@ export class ValidationService implements OnModuleInit {
       return false
     }
 
-    const { token, native } = this.feeService.getFeeConfig({ intent }).limit
+    const { tokenLimit: token, nativeLimit: native } = this.feeService.getFeeConfig({ intent }).limit
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
