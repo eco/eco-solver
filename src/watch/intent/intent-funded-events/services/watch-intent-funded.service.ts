@@ -80,11 +80,20 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         prover: source.provers,
       },
       onLogs: async (logs: Log[]): Promise<void> => {
-        // Track intent funded events detected
-        if (logs.length > 0) {
-          this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
+        try {
+          // Track intent funded events detected
+          if (logs.length > 0) {
+            this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
+          }
+          await this.addJob(source, { doValidation: true })(logs)
+        } catch (error) {
+          this.logger.error(
+            EcoLogMessage.withError({
+              message: 'watch intent-funded onLogs handler error',
+              error,
+            }),
+          )
         }
-        await this.addJob(source, { doValidation: true })(logs)
       },
     })
   }

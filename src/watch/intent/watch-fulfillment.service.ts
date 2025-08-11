@@ -90,55 +90,64 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
 
   addJob(solver?: Solver) {
     return async (logs: FulfillmentLog[]) => {
-      // Track batch of fulfillment events detected
-      if (logs.length > 0 && solver) {
-        this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
-      }
+      try {
+        // Track batch of fulfillment events detected
+        if (logs.length > 0 && solver) {
+          this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
+        }
 
-      for (const log of logs) {
-        // bigint as it can't serialize to JSON
-        const fulfillment = convertBigIntsToStrings(log)
-        const jobId = getIntentJobId(
-          'watch-fulfillement',
-          fulfillment.args._hash ?? zeroHash,
-          fulfillment.logIndex ?? 0,
-        )
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `watch fulfillment`,
-            properties: {
-              fulfillment,
+        for (const log of logs) {
+          // bigint as it can't serialize to JSON
+          const fulfillment = convertBigIntsToStrings(log)
+          const jobId = getIntentJobId(
+            'watch-fulfillement',
+            fulfillment.args._hash ?? zeroHash,
+            fulfillment.logIndex ?? 0,
+          )
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `watch fulfillment`,
+              properties: {
+                fulfillment,
+                jobId,
+              },
+            }),
+          )
+
+          try {
+            // add to processing queue
+            await this.inboxQueue.add(QUEUES.INBOX.jobs.fulfillment, fulfillment, {
               jobId,
-            },
+              ...this.watchJobConfig,
+            })
+
+            // Track successful job addition
+            if (solver) {
+              this.ecoAnalytics.trackWatchFulfillmentJobQueued(fulfillment, jobId, solver)
+            }
+          } catch (error) {
+            // Track job queue failure with complete context
+            this.ecoAnalytics.trackWatchJobQueueError(
+              error,
+              ERROR_EVENTS.FULFILLMENT_JOB_QUEUE_FAILED,
+              {
+                fulfillment,
+                jobId,
+                solver,
+                transactionHash: fulfillment.transactionHash,
+                logIndex: fulfillment.logIndex,
+              },
+            )
+            throw error
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: 'watch fulfillment onLogs handler error',
+            error,
           }),
         )
-
-        try {
-          // add to processing queue
-          await this.inboxQueue.add(QUEUES.INBOX.jobs.fulfillment, fulfillment, {
-            jobId,
-            ...this.watchJobConfig,
-          })
-
-          // Track successful job addition
-          if (solver) {
-            this.ecoAnalytics.trackWatchFulfillmentJobQueued(fulfillment, jobId, solver)
-          }
-        } catch (error) {
-          // Track job queue failure with complete context
-          this.ecoAnalytics.trackWatchJobQueueError(
-            error,
-            ERROR_EVENTS.FULFILLMENT_JOB_QUEUE_FAILED,
-            {
-              fulfillment,
-              jobId,
-              solver,
-              transactionHash: fulfillment.transactionHash,
-              logIndex: fulfillment.logIndex,
-            },
-          )
-          throw error
-        }
       }
     }
   }
