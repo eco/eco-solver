@@ -8,6 +8,8 @@ import * as crypto from 'crypto'
 import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData } from 'viem'
 import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute, VmType } from '@eco-foundation/routes-ts'
+
+// Note: VmType import from @eco-foundation/routes-ts was failing, using string literals directly
 import config from '../config/solana'
 
 // Load environment variables from .env file
@@ -248,12 +250,20 @@ async function publishSolanaIntent() {
     if (!inboxAddress) {
       throw new Error(`No inbox address found for chain ID ${destinationChainId}`);
     }
+    if (!intent.destination) {
+      throw new Error('Intent destination is undefined');
+    }
+    if (!route.deadline) {
+      throw new Error('Route deadline is undefined');
+    }
     
-    const routeData: RouteType<VmType.EVM> = {
-        vm: VmType.EVM,
+    const routeData = {
+        vm: 'EVM' as VmType.EVM,
         salt: `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`,
         deadline: BigInt(route.deadline),
         portal: inboxAddress as `0x${string}`,
+        source: BigInt(1399811150),
+        destination: BigInt(intent.destination),
         tokens: route.tokens.map(token => ({
           token: config.intentSources[1].tokens[0] as `0x${string}`, // Use destination chain token (Optimism USDC)
           amount: BigInt(token.amount)
@@ -264,8 +274,86 @@ async function publishSolanaIntent() {
           value: BigInt(call.value)
         }))
     }
-    
-    const routeBytes = Buffer.from(encodeRoute(routeData), 'hex')
+
+    // Replace the encodeRoute call with this manual encoding using the exact ABI structure
+    const routeBytes = Buffer.from(
+      encodeAbiParameters(
+        [{
+          type: 'tuple',
+          components: [
+            {
+              internalType: "bytes32",
+              name: "salt", 
+              type: "bytes32"
+            },
+            {
+              internalType: "uint64",
+              name: "deadline",
+              type: "uint64"
+            },
+            {
+              internalType: "address", 
+              name: "portal",
+              type: "address"
+            },
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "token",
+                  type: "address"
+                },
+                {
+                  internalType: "uint256", 
+                  name: "amount",
+                  type: "uint256"
+                }
+              ],
+              internalType: "struct TokenAmount[]",
+              name: "tokens",
+              type: "tuple[]"
+            },
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "target", 
+                  type: "address"
+                },
+                {
+                  internalType: "bytes",
+                  name: "data",
+                  type: "bytes"
+                },
+                {
+                  internalType: "uint256",
+                  name: "value",
+                  type: "uint256"
+                }
+              ],
+              internalType: "struct Call[]",
+              name: "calls", 
+              type: "tuple[]"
+            }
+          ]
+        }],
+        [{
+          salt: `0x${now.toString(16).padStart(64, '0')}`,
+          deadline: BigInt(route.deadline),
+          portal: inboxAddress,
+          tokens: [{
+            token: config.intentSources[1].tokens[0] as `0x${string}`,
+            amount: BigInt(1000000)
+          }],
+          calls: [{
+            target: targetAddress as `0x${string}`,
+            data: callData,
+            value: 0n
+          }]
+        }]
+      ).slice(2), // remove 0x prefix
+      'hex'
+    )
     
     // Call the Portal program's publish instruction with new structure
     const signature = await program.methods

@@ -23,7 +23,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
-import { Address, getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { Address, getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 
 @Injectable()
@@ -50,8 +50,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const [intentSource] = this.ecoConfigService.getIntentSources()
 
     // Check if this is an SVM chain and use SVM client
-    const vmType = getVMType(intentSource.chainID)
-    if (vmType === VMType.SVM) {
+    const vmType = getVmType(intentSource.chainID)
+    if (vmType === VmType.SVM) {
       this.walletAddress = await this.svmMultichainClientService.getAddress().toString()
       return;
     }

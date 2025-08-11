@@ -8,7 +8,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
-import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 
 @Injectable()
@@ -31,8 +31,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     const [intentSource] = this.ecoConfigService.getIntentSources()
 
     // Check if this is an SVM chain and use SVM client
-    const vmType = getVMType(intentSource.chainID)
-    if (vmType === VMType.SVM) {
+    const vmType = getVmType(intentSource.chainID)
+    if (vmType === VmType.SVM) {
       this.walletAddress = await this.svmMultichainClientService.getAddress().toString()
       return
     }

@@ -24,7 +24,7 @@ import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
-import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -57,6 +57,7 @@ export class CreateIntentService implements OnModuleInit {
    */
   async createIntent(serializedIntentWs: Serialize<IntentCreatedLog>) {
     const intentWs = deserialize(serializedIntentWs);
+    console.log("SAQUON intentWs", intentWs);
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -69,18 +70,35 @@ export class CreateIntentService implements OnModuleInit {
     )
 
     let ei: any;
-    if (getVMType(Number(intentWs.sourceChainID)) === VMType.SVM) {
+    if (getVmType(Number(intentWs.sourceChainID)) === VmType.SVM) {
       ei = decodeSolanaIntentLogForCreateIntent(intentWs)
     } else {
       ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
     }
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    console.log("SAQUON CreateIntentService", intent);
 
     try {
       //check db if the intent is already filled
-      const model = await this.intentModel.findOne({
-        'intent.hash': intent.hash,
-      })
+      let model;
+      try {
+        model = await this.intentModel.findOne({
+          'intent.hash': intent.hash,
+        })
+        console.log("SAQUON model", model);
+      } catch (dbError) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Database query failed for intent hash ${intent.hash}`,
+            properties: {
+              intentHash: intent.hash,
+              queryError: dbError instanceof Error ? { message: dbError.message, stack: dbError.stack } : dbError,
+              query: { 'intent.hash': intent.hash },
+            },
+          }),
+        )
+        throw dbError;
+      }
 
       if (model) {
         // Record already exists, do nothing and return
@@ -96,12 +114,16 @@ export class CreateIntentService implements OnModuleInit {
         return
       }
 
-      const validWallet = this.flagService.getFlagValue('bendWalletOnly')
+      // Skip smart wallet validation for Solana (SVM) chains
+      const isSolanaChain = getVmType(Number(intentWs.sourceChainID)) === VmType.SVM
+      const validWallet = this.flagService.getFlagValue('bendWalletOnly') && !isSolanaChain
         ? await this.validSmartWalletService.validateSmartWallet(
             intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
+
+      intentWs.data = JSON.stringify(intentWs.data) as Hex
 
       //create db record
       const record = await this.intentModel.create({
@@ -110,6 +132,7 @@ export class CreateIntentService implements OnModuleInit {
         receipt: null,
         status: validWallet ? 'PENDING' : 'NON-BEND-WALLET',
       })
+      console.log("SAQUON record", record);
 
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
       if (validWallet) {
@@ -137,7 +160,8 @@ export class CreateIntentService implements OnModuleInit {
           message: `Error in createIntent ${intentWs.transactionHash}`,
           properties: {
             intentHash: intentWs.transactionHash,
-            error: e,
+            error: e instanceof Error ? { message: e.message, stack: e.stack, name: e.name } : e,
+            intentData: intent,
           },
         }),
       )

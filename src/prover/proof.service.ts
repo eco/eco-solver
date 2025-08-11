@@ -8,7 +8,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { Address, getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { Address, getVmType, VmType } from '@/eco-configs/eco-config.types'
 
 interface ProverMetadata {
   address: Hex
@@ -65,7 +65,7 @@ export class ProofService implements OnModuleInit {
    */
   getProvers(proofType: ProofType): Hex[] {
     const proverAddresses = this.provers
-      .filter((prover) => prover.type === proofType && getVMType(prover.chainID) !== VMType.SVM)
+      .filter((prover) => prover.type === proofType && getVmType(prover.chainID) !== VmType.SVM)
       .map((prover) => getAddress(prover.address))
 
     return _.uniq(proverAddresses)
@@ -146,8 +146,8 @@ export class ProofService implements OnModuleInit {
    */
   private async getProofTypes(chainID: number, provers: Hex[]): Promise<ProverMetadata[]> {
     // TODO (for kunal): come back and fix this - need proper SVM support
-    const vmType = getVMType(chainID)
-    if (vmType === VMType.SVM) {
+    const vmType = getVmType(chainID)
+    if (vmType === VmType.SVM) {
       // For SVM chains, return hyperprover type as default
       return provers.map((proverAddress) => ({
         address: proverAddress,

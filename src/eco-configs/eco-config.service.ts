@@ -184,7 +184,14 @@ export class EcoConfigService {
     _.entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
       solver.inboxAddress = config.Inbox
-      solver.targets = addressKeys(solver.targets) ?? {}
+      // Use chain-aware address normalization instead of generic addressKeys
+      if (solver.targets) {
+        solver.targets = Object.entries(solver.targets).reduce((carry, [address, value]) => {
+          const normalizedAddress = getChainAddress(solver.chainID, address as Address)
+          carry[normalizedAddress.toString()] = value
+          return carry
+        }, {} as Record<string, any>)
+      }
     })
     return solvers
   }

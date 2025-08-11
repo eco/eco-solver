@@ -10,8 +10,8 @@ import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { getVMType, VMType } from '@/eco-configs/eco-config.types'
-import { Address, SerializableAddress, VmType } from '@eco-foundation/routes-ts'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
+import { Address, SerializableAddress } from '@eco-foundation/routes-ts'
 import { EvmBalanceService } from './services/evm-balance.service'
 import { SvmBalanceService } from './services/svm-balance.service'
 
@@ -140,14 +140,14 @@ export class BalanceService implements OnApplicationBootstrap {
     chainID: number,
     tokenAddresses: Address[],
   ): Promise<Record<SerializableAddress, TokenBalance>> {
-    const vmType = getVMType(chainID)
+    const vmType = getVmType(chainID)
     
     switch (vmType) {
-      case VMType.EVM: {
+      case VmType.EVM: {
         const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
         return await this.evmBalanceService.fetchTokenBalances(chainID, evmAddresses)
       }
-      case VMType.SVM: {
+      case VmType.SVM: {
         const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
         return await this.svmBalanceService.fetchTokenBalances(chainID, svmAddresses)
       }
@@ -168,15 +168,15 @@ export class BalanceService implements OnApplicationBootstrap {
     walletAddress: Address,
     tokenAddresses: Address[],
   ): Promise<Record<SerializableAddress, TokenBalance>> {
-    const vmType = getVMType(chainID)
+    const vmType = getVmType(chainID)
     
     switch (vmType) {
-      case VMType.EVM: {
+      case VmType.EVM: {
         const evmWallet = walletAddress as Address<VmType.EVM>
         const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
         return await this.evmBalanceService.fetchWalletTokenBalances(chainID, evmWallet, evmAddresses)
       }
-      case VMType.SVM: {
+      case VmType.SVM: {
         const svmWallet = walletAddress as Address<VmType.SVM>
         const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
         return await this.svmBalanceService.fetchWalletTokenBalances(chainID, svmWallet, svmAddresses)
@@ -245,12 +245,12 @@ export class BalanceService implements OnApplicationBootstrap {
    */
   @Cacheable()
   async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
-    const vmType = getVMType(chainID)
+    const vmType = getVmType(chainID)
     
     switch (vmType) {
-      case VMType.EVM:
+      case VmType.EVM:
         return this.evmBalanceService.getNativeBalance(chainID, account)
-      case VMType.SVM:
+      case VmType.SVM:
         return this.svmBalanceService.getNativeBalance(chainID, account)
       default:
         throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)

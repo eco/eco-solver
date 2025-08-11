@@ -13,7 +13,7 @@ import { Log, PublicClient } from 'viem'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
-import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { Connection, PublicKey, Commitment } from '@solana/web3.js'
 import * as anchor from "@coral-xyz/anchor";
 
@@ -42,12 +42,12 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
    */
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
-      const vmType = getVMType(source.chainID)
+      const vmType = getVmType(source.chainID)
       
-      if (vmType === VMType.EVM) {
+      if (vmType === VmType.EVM) {
         const client = await this.publicClientService.getClient(source.chainID)
         await this.subscribeTo(client, source)
-      } else if (vmType === VMType.SVM) {
+      } else if (vmType === VmType.SVM) {
         await this.subscribeToSvm(source)
       } else {
         throw new Error(`Unsupported VM type for chain ${source.chainID}`)
@@ -148,7 +148,11 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
 
               const solanaLog = {
                 transactionHash: signature,
-                slot: context.slot,
+                logIndex: 0,
+                removed: false,
+                blockHash: signature,
+                transactionIndex: 0,
+                blockNumber: BigInt(context.slot),
                 sourceChainID: BigInt(source.chainID),
                 sourceNetwork: source.network,
                 args: {

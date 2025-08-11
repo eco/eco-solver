@@ -30,16 +30,21 @@ export class RouteDataModel {
   deadline: bigint
 
   constructor(
+    vm: VmType,
     salt: Hex,
+    deadline: bigint,
     source: bigint,
     destination: bigint,
     inbox: Hex,
     routeTokens: TokenAmountDataModel[],
     calls: TargetCallDataModel[],
   ) {
+    this.vm = vm
     this.salt = salt
-    this.source = source
+    this.deadline = deadline
     this.destination = destination
+    this.source = source
+
     this.tokens = routeTokens
     this.portal = inbox
     this.calls = calls

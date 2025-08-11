@@ -6,7 +6,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedLog } from '@/contracts'
-import { IntentSource, getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { IntentSource, getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -55,9 +55,9 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @returns
    */
   async getMissingTxs(source: IntentSource): Promise<IntentFundedLog[]> {
-    const vmType = getVMType(source.chainID)
+    const vmType = getVmType(source.chainID)
     
-    if (vmType === VMType.SVM) {
+    if (vmType === VmType.SVM) {
       // Do nothing for Solana chains
       return []
     }

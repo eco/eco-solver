@@ -1,9 +1,67 @@
 import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify, decodeAbiParameters } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
-import { IntentSourceAbi, decodeRoute, VmType } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi, decodeRoute } from '@eco-foundation/routes-ts'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
 import { deserialize } from '@/common/utils/serialize'
+
+// Define RouteStruct since it's not exported from @eco-foundation/routes-ts
+const RouteStruct = [
+  {
+    internalType: "bytes32",
+    name: "salt", 
+    type: "bytes32"
+  },
+  {
+    internalType: "uint64",
+    name: "deadline",
+    type: "uint64"
+  },
+  {
+    internalType: "address", 
+    name: "portal",
+    type: "address"
+  },
+  {
+    components: [
+      {
+        internalType: "address",
+        name: "token",
+        type: "address"
+      },
+      {
+        internalType: "uint256", 
+        name: "amount",
+        type: "uint256"
+      }
+    ],
+    internalType: "struct TokenAmount[]",
+    name: "tokens",
+    type: "tuple[]"
+  },
+  {
+    components: [
+      {
+        internalType: "address",
+        name: "target", 
+        type: "address"
+      },
+      {
+        internalType: "bytes",
+        name: "data",
+        type: "bytes"
+      },
+      {
+        internalType: "uint256",
+        name: "value",
+        type: "uint256"
+      }
+    ],
+    internalType: "struct Call[]",
+    name: "calls", 
+    type: "tuple[]"
+  }
+]
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<
@@ -59,15 +117,17 @@ export function decodeCreateIntentLog(data: Hex, topics: [signature: Hex, ...arg
 export function decodeSolanaIntentLogForCreateIntent(log: any) {
   
   const routeBuffer = Buffer.from(log.data.route.data);
-  // decoding the EVM ABI-encoded route struct using decodeRoute from eco-foundation/routes-ts
-  const decodedRoute = decodeRoute(VmType.EVM, `0x${routeBuffer.toString('hex')}`);
+  const decodedRoute = decodeAbiParameters(
+    [{ type: 'tuple', components: RouteStruct }],
+    `0x${routeBuffer.toString('hex')}` as `0x${string}`, 
+  )[0]
   
   return {
     args: {
       hash: `0x${Buffer.from(log.data.intent_hash[0]).toString('hex')}` as `0x${string}`,
       salt: decodedRoute.salt as `0x${string}`,
       source: 1399811150n, // legacy field
-      destination: log.data.destination as bigint,
+      destination: BigInt(`0x${log.data.destination}`),
       inbox: decodedRoute.portal as `0x${string}`,
       routeTokens: decodedRoute.tokens as readonly { token: `0x${string}`; amount: bigint }[],
       calls: decodedRoute.calls as readonly { target: `0x${string}`; data: `0x${string}`; value: bigint }[],
@@ -75,7 +135,10 @@ export function decodeSolanaIntentLogForCreateIntent(log: any) {
       prover: log.data.reward.prover as `0x${string}`, // base58 encoded TODO fix later
       deadline: BigInt(`0x${log.data.reward.deadline}`),
       nativeValue: BigInt(`0x${log.data.reward.native_amount}`),
-      rewardTokens: log.data.reward.tokens, // Proper type
+      rewardTokens: log.data.reward.tokens.map((token: any) => ({
+        token: token.token as `0x${string}`,
+        amount: BigInt(`0x${token.amount}`)
+      })),
     },
     eventName: 'IntentCreated' as const,
   };

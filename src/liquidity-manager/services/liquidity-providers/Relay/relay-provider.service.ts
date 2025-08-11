@@ -11,7 +11,7 @@ import { ChainsSupported } from '@/common/chains/supported'
 import { adaptKernelWallet } from './wallet-adapter'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { SmartAccount } from 'viem/account-abstraction'
-import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -159,7 +159,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
   private getRelayChains() {
     return this.ecoConfigService
       .getSupportedChains()
-      .filter((chain) => getVMType(Number(chain)) === VMType.EVM) // Filter out SVM chains
+      .filter((chain) => getVmType(Number(chain)) === VmType.EVM) // Filter out SVM chains
       .map((chain) =>
         convertViemChainToRelayChain(extractChain({ chains: ChainsSupported, id: Number(chain) })),
       )

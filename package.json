@@ -67,7 +67,7 @@
     "@rhinestone/module-sdk": "^0.2.7",
     "@shelf/jest-mongodb": "^4.1.7",
     "@solana-program/token": "^0.5.1",
-    "@solana/kit": "^2.3.0",
+
     "@solana/spl-token": "^0.4.13",
     "@web3-kms-signer/core": "1.0.6",
     "@web3-kms-signer/kms-provider-aws": "1.0.6",

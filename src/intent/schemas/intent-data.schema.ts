@@ -4,8 +4,9 @@ import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType, RewardType, VmType } from '@eco-foundation/routes-ts'
+import { encodeIntent, hashIntent, IntentType, RewardType } from '@eco-foundation/routes-ts'
 import { getChainAddress } from '@/eco-configs/utils'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -70,6 +71,9 @@ export class IntentDataModel implements IntentType {
       funder,
     } = params
 
+    const sourceVmType = getVmType(Number(source))
+    const destinationVmType = getVmType(Number(destination))
+
     if (calls.length == 0) {
       throw EcoError.IntentSourceDataInvalidParams
     }
@@ -85,7 +89,9 @@ export class IntentDataModel implements IntentType {
     this.hash = hash
 
     this.route = new RouteDataModel(
+      destinationVmType,
       salt,
+      deadline,
       source,
       destination,
       getAddress(inbox),
@@ -99,20 +105,24 @@ export class IntentDataModel implements IntentType {
       }) as any,
     )
 
+    
     this.reward = new RewardDataModel(
-      VmType.EVM,
+      sourceVmType,
       getChainAddress(source, creator).toString() as `0x${string}`,
       getChainAddress(source, prover).toString() as `0x${string}`,
       deadline,
       nativeValue,
       rewardTokens.map((token) => {
-        token.token = getChainAddress(destination, token.token).toString() as `0x${string}`;
+        token.token = getChainAddress(source, token.token).toString() as `0x${string}`;
         return token
       }),
     )
 
     this.logIndex = logIndex
     this.funder = funder
+
+    this.destination = destination
+    this.source = source
   }
 
   static isNativeIntent(params: CreateIntentDataModelParams): boolean {

@@ -15,20 +15,20 @@ import { Strategy } from '@/liquidity-manager/types/types'
 import { SerializableAddress } from '@eco-foundation/routes-ts'
 
 // VM Types for different blockchain architectures
-export enum VMType {
-  EVM = 'evm',
-  SVM = 'svm'
+export enum VmType {
+  EVM = 'EVM',
+  SVM = 'SVM'
 }
 
 // Mapping of chainId to VM type
-export const CHAIN_VM_TYPE_MAP: Record<number, VMType> = {
+export const CHAIN_VM_TYPE_MAP: Record<number, VmType> = {
   // Optimism
-  10: VMType.EVM,
+  10: VmType.EVM,
   // Solana Mainnet
-  1399811150: VMType.SVM,
+  1399811150: VmType.SVM,
 } as const
 
-export function getVMType(chainId: number): VMType {
+export function getVmType(chainId: number): VmType {
   return CHAIN_VM_TYPE_MAP[chainId]
 }
 

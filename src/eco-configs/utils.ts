@@ -1,5 +1,5 @@
 import { Address, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
-import { EcoChainConfig, getVMType, VMType } from './eco-config.types'
+import { EcoChainConfig, getVmType, VmType } from './eco-config.types'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 import { Address as EvmAddress, getAddress } from 'viem'
@@ -41,8 +41,8 @@ export function isPreEnv(): boolean {
 }
 
 export function getChainAddress(chainID: number | bigint, address: Address): Address {
-  const vm = getVMType(Number(chainID))
-  if (vm === VMType.EVM) {
+  const vm = getVmType(Number(chainID))
+  if (vm === VmType.EVM) {
     return getAddress(address as EvmAddress)
   } else 
   return address

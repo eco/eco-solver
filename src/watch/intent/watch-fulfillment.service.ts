@@ -4,7 +4,7 @@ import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
 import { getIntentJobId } from '@/common/utils/strings'
-import { Solver, VMType, getVMType } from '@/eco-configs/eco-config.types'
+import { Solver, VmType, getVmType } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { PublicClient, zeroHash } from 'viem'
@@ -37,9 +37,9 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
    */
   async subscribe(): Promise<void> {
     const subscribeTasks = entries(this.ecoConfigService.getSolvers()).map(async ([, solver]) => {
-      const vmType = getVMType(solver.chainID)
+      const vmType = getVmType(solver.chainID)
       
-      if (vmType === VMType.SVM) {
+      if (vmType === VmType.SVM) {
         // Do nothing for Solana chains
         return
       }

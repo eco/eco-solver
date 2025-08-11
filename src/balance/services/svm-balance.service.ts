@@ -91,17 +91,37 @@ export class SvmBalanceService implements BalanceProvider {
           decimals: mintInfo.decimals,
         }
       } catch (error) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: `Failed to fetch balance for token ${tokenAddress}`,
-            properties: {
-              chainID,
-              tokenAddress,
-              walletAddress,
-              error: error.message,
-            },
-          }),
-        )
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorType = error?.constructor?.name || 'Unknown'
+        
+        if (errorType === 'TokenAccountNotFoundError') {
+          // This is normal - token account doesn't exist until first tokens are received
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `Token account not found for ${tokenAddress} (balance: 0)`,
+              properties: {
+                chainID,
+                tokenAddress,
+                walletAddress,
+                reason: 'Associated Token Account not yet created',
+              },
+            }),
+          )
+        } else {
+          // Log unexpected errors as warnings
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `Failed to fetch balance for token ${tokenAddress}`,
+              properties: {
+                chainID,
+                tokenAddress,
+                walletAddress,
+                error: errorMessage,
+                errorType,
+              },
+            }),
+          )
+        }
         
         // If account doesn't exist, set balance to 0
         tokenBalances[tokenAddress.toString()] = {

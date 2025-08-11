@@ -11,7 +11,7 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { getVMType, VMType } from '@/eco-configs/eco-config.types'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { SvmMultichainClientService } from '../transaction/svm-multichain-client.service'
 import { PublicKey, Connection } from '@solana/web3.js'
 
@@ -81,9 +81,9 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
     const websocketTasks = Object.entries(this.ecoConfigService.getSolvers()).map(
       async ([, solver]) => {
-        const vmType = getVMType(solver.chainID)
+        const vmType = getVmType(solver.chainID)
         
-        if (vmType === VMType.SVM) {
+        if (vmType === VmType.SVM) {
           await this.subscribeSolanaTransfers(solver)
         } else {
           const client = await this.kernelAccountClientService.getClient(solver.chainID)
