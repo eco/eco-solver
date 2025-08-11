@@ -3,6 +3,7 @@
 ## Current State Analysis
 
 The workspace is currently a **single NestJS application** with:
+
 - **One project**: `eco-solver` (root-level app)
 - **Minimal Nx integration**: Only ESLint and Jest plugins installed
 - **NestJS-based**: Uses `@nestjs/schematics` for code generation
@@ -14,10 +15,11 @@ The workspace is currently a **single NestJS application** with:
 Based on the current Nx configuration and available plugins, here's the refined strategy:
 
 ### Recommended Nx Plugin Stack
+
 ```bash
-# Core backend infrastructure plugins  
+# Core backend infrastructure plugins
 nx add @nx/nest        # NestJS applications & libraries
-nx add @nx/node        # Node.js utilities & executors  
+nx add @nx/node        # Node.js utilities & executors
 nx add @nx/js          # JavaScript/TypeScript support
 nx add @nx/workspace   # Workspace utilities
 
@@ -86,7 +88,7 @@ libs/
 │   └── errors/            # Error definitions
 │   └── project.json       # Buildable library
 │
-├── domain/                 # TypeScript library  
+├── domain/                 # TypeScript library
 │   ├── entities/          # Core business entities
 │   ├── value-objects/     # Domain value objects
 │   ├── repositories/      # Repository interfaces
@@ -132,6 +134,7 @@ tools/
 ### Nx Configuration Enhancements
 
 #### Enhanced `nx.json`
+
 ```json
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
@@ -194,6 +197,7 @@ tools/
 #### Individual Project Configurations
 
 **Example: `apps/intent-engine/project.json`**
+
 ```json
 {
   "name": "intent-engine",
@@ -236,10 +240,11 @@ tools/
 ```
 
 **Example: `libs/shared/project.json`**
+
 ```json
 {
   "name": "shared",
-  "type": "library", 
+  "type": "library",
   "root": "libs/shared",
   "sourceRoot": "libs/shared/src",
   "targets": {
@@ -264,6 +269,7 @@ tools/
 ### Nx-Specific Benefits & Features
 
 #### 1. **Dependency Graph Management**
+
 ```bash
 # Visualize project dependencies
 nx graph
@@ -276,6 +282,7 @@ nx build --affected
 ```
 
 #### 2. **Code Generation with NestJS Schematics**
+
 ```bash
 # Generate new service in intent-engine
 nx g @nestjs/schematics:service validation --project=intent-engine
@@ -283,11 +290,12 @@ nx g @nestjs/schematics:service validation --project=intent-engine
 # Generate new library
 nx g @nx/nest:library pricing --directory=libs/domain
 
-# Generate new application  
+# Generate new application
 nx g @nx/nest:application analytics-service
 ```
 
 #### 3. **Advanced Task Orchestration**
+
 ```json
 // In project.json
 {
@@ -295,11 +303,7 @@ nx g @nx/nest:application analytics-service
     "serve-with-deps": {
       "executor": "nx:run-commands",
       "options": {
-        "commands": [
-          "nx build shared",
-          "nx build domain", 
-          "nx serve intent-engine"
-        ],
+        "commands": ["nx build shared", "nx build domain", "nx serve intent-engine"],
         "parallel": false
       }
     }
@@ -308,6 +312,7 @@ nx g @nx/nest:application analytics-service
 ```
 
 #### 4. **Module Boundary Enforcement**
+
 ```json
 // .eslintrc.json
 {
@@ -322,7 +327,7 @@ nx g @nx/nest:application analytics-service
             "onlyDependOnLibsWithTags": ["scope:shared"]
           },
           {
-            "sourceTag": "type:application", 
+            "sourceTag": "type:application",
             "onlyDependOnLibsWithTags": ["type:library", "scope:shared"]
           },
           {
@@ -339,19 +344,21 @@ nx g @nx/nest:application analytics-service
 ### Migration Strategy Using Nx
 
 #### Phase 1: Backend Foundation (Week 1)
+
 ```bash
 # Add required plugins for NestJS backend
 nx add @nx/nest @nx/node @nx/js
 
 # Extract shared backend libraries first
 nx g @nx/nest:library shared --directory=libs
-nx g @nx/nest:library domain --directory=libs  
+nx g @nx/nest:library domain --directory=libs
 nx g @nx/nest:library messaging --directory=libs
 nx g @nx/nest:library database --directory=libs
 nx g @nx/nest:library security --directory=libs
 ```
 
 #### Phase 2: Backend Service Extraction (Weeks 2-3)
+
 ```bash
 # Generate NestJS applications using Nx
 nx g @nx/nest:application api-gateway --directory=apps
@@ -368,6 +375,7 @@ nx g @nx/node:application cli-tools --directory=apps
 ```
 
 #### Phase 3: Backend Optimization & Script Migration (Week 4)
+
 ```bash
 # Set up proper caching for backend services
 nx reset  # Clear cache
@@ -390,9 +398,10 @@ nx affected -t test --base=main --head=HEAD
 ### Redis Queue Integration with Nx
 
 #### Enhanced Queue Configuration
+
 ```typescript
 // libs/messaging/src/queues/queue.config.ts
-import { registerAs } from '@nestjs/config';
+import { registerAs } from '@nestjs/config'
 
 export const queueConfig = registerAs('queue', () => ({
   redis: {
@@ -416,14 +425,15 @@ export const queueConfig = registerAs('queue', () => ({
     chain: { name: 'chain-monitoring' },
     analytics: { name: 'analytics-collection' },
   },
-}));
+}))
 ```
 
 #### Nx-Generated Backend Queue Services
+
 ```bash
 # Generate queue services using Nx for backend message handling
 nx g @nestjs/schematics:service queue/intent --project=messaging
-nx g @nestjs/schematics:service queue/liquidity --project=messaging  
+nx g @nestjs/schematics:service queue/liquidity --project=messaging
 nx g @nestjs/schematics:provider queue/redis-connection --project=messaging
 nx g @nestjs/schematics:processor queue/chain-events --project=messaging
 ```
@@ -431,18 +441,21 @@ nx g @nestjs/schematics:processor queue/chain-events --project=messaging
 ### Key Advantages of Nx-Based Backend Approach
 
 #### Development Experience
+
 - **Fast builds**: Only rebuild affected backend services
 - **Integrated tooling**: Single command for all NestJS operations
 - **Code generation**: Consistent NestJS project structure via generators
 - **Dependency tracking**: Automatic dependency graph management for backend services
 
-#### Architectural Benefits  
+#### Architectural Benefits
+
 - **Module boundaries**: Enforced via ESLint rules for backend architecture
 - **Shared code**: Reusable backend libraries with proper versioning
 - **Independent deployment**: Each NestJS service can deploy separately
 - **Scalable testing**: Run tests only for affected backend services
 
 #### Backend-Specific Benefits
+
 - **NestJS optimization**: Built-in support for NestJS applications and libraries
 - **Microservices ready**: Each service can scale independently
 - **Queue management**: Centralized Redis queue configuration across services
@@ -450,6 +463,7 @@ nx g @nestjs/schematics:processor queue/chain-events --project=messaging
 - **Database abstraction**: Unified database access patterns
 
 #### Operational Excellence
+
 - **CI optimization**: Build only changed backend services
 - **Cache efficiency**: Shared computation cache for backend builds
 - **Service insights**: Visual dependency graph for service architecture
@@ -463,6 +477,7 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
 ### Current Script Analysis
 
 **Current Issues with Scripts:**
+
 - `"build": "nest build"` - Single application pattern, needs Nx build orchestration
 - `"start": "NODE_OPTIONS='--max-old-space-size=4096' nest start"` - Missing project-specific targeting
 - Service scripts assume monolithic structure - need project scoping
@@ -476,34 +491,31 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
   "name": "eco-solver-monorepo",
   "version": "1.5.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "libs/*"
-  ],
+  "workspaces": ["apps/*", "libs/*"],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    
+
     // Workspace-wide operations
     "build": "nx run-many -t build",
     "build:affected": "nx affected -t build",
     "build:all": "nx run-many -t build --all",
     "build:services": "nx run-many -t build --projects=tag:service",
     "build:libs": "nx run-many -t build --projects=tag:lib",
-    
+
     // Testing strategies
     "test": "nx run-many -t test",
     "test:affected": "nx affected -t test",
     "test:watch": "nx run-many -t test --watch",
     "test:e2e": "nx run-many -t e2e",
     "test:coverage": "nx run-many -t test --coverage",
-    
+
     // Code quality
     "lint": "nx run-many -t lint",
     "lint:affected": "nx affected -t lint",
     "lint:fix": "nx run-many -t lint --fix",
     "format": "nx run-many -t format",
     "format:check": "nx run-many -t format --check",
-    
+
     // Service management
     "start:api-gateway": "nx serve api-gateway",
     "start:intent-engine": "nx serve intent-engine",
@@ -511,22 +523,22 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
     "start:chain-indexer": "nx serve chain-indexer",
     "start:solver-registry": "nx serve solver-registry",
     "cli": "nx serve cli-tools",
-    
+
     // Development workflows
     "dev": "nx run-many -t serve --parallel=6",
     "dev:affected": "nx affected -t serve --parallel",
     "setup": "pnpm install && nx run-many -t build --projects=tag:lib",
     "setup:db": "docker-compose up -d mongodb redis",
-    
+
     // CI/CD optimized
     "ci:build": "nx affected -t build --base=origin/main",
     "ci:test": "nx affected -t test --base=origin/main --parallel=4",
     "ci:lint": "nx affected -t lint --base=origin/main",
-    
+
     // Docker operations
     "docker:build": "nx run-many -t docker-build --parallel=3",
     "docker:services": "nx run-many -t docker-build --projects=tag:service",
-    
+
     // Utilities
     "clean": "nx reset && rm -rf dist node_modules/.cache",
     "graph": "nx graph",
@@ -538,6 +550,7 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
 ### Individual Service Configuration Examples
 
 #### API Gateway Service (apps/api-gateway/project.json)
+
 ```json
 {
   "name": "api-gateway",
@@ -589,6 +602,7 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
 ```
 
 #### Shared Library Configuration (libs/shared/project.json)
+
 ```json
 {
   "name": "shared",
@@ -706,19 +720,23 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
 ### Script Migration Benefits
 
 **Workspace Operations:**
+
 - `nx run-many -t build` - Build all projects with dependency management
 - `nx affected -t build` - Build only changed projects (efficient CI/CD)
 - `nx run-many -t build --projects=tag:service` - Build only services
 
 **Service Management:**
+
 - `nx serve api-gateway` - Start specific service with proper dependency resolution
 - `nx run-many -t serve --parallel=6` - Start all services in parallel
 
 **Testing Optimization:**
+
 - `nx affected -t test` - Test only affected projects
 - `nx run-many -t test --parallel=4` - Parallel test execution
 
 **Development Workflow:**
+
 - Proper dependency tracking between services and libraries
 - Intelligent caching across all operations
 - Visual dependency graph with `nx graph`
@@ -728,27 +746,32 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
 ### Current Architecture Issues Addressed
 
 **1. Monolithic Service Boundaries**
+
 - All functionality currently lives in a single NestJS application (`/Users/stoyan/git/worktree/nx_mono/src/`)
 - Services are tightly coupled through direct imports using `@/` path aliases
 - Mixed responsibilities within single modules (e.g., liquidity-manager contains multiple provider implementations)
 
 **2. Inconsistent Queue Architecture**
+
 - Basic BullMQ implementation exists but lacks structured queue taxonomy
 - Queue definitions show minimal organization
 - No clear separation between command, event, and scheduled operations
 
 **3. Database Coupling**
+
 - Direct MongoDB access throughout services without proper abstraction
 - Mixed data access patterns between repositories and direct service queries
 
 ### Service Consolidation & Boundaries
 
 **Merged Services for Better Cohesion:**
+
 - **intent-engine**: Combines intent processing + quote generation (high cohesion)
 - **liquidity-orchestrator**: Unifies liquidity management + balance tracking (shared context)
 - **chain-indexer**: Focused on blockchain data ingestion and event processing
 
 **Benefits:**
+
 - Reduces inter-service communication overhead
 - Eliminates artificial boundaries between related functionality
 - Maintains single responsibility at the business domain level
@@ -756,27 +779,29 @@ This Nx-optimized approach leverages your existing NestJS expertise while provid
 ### Event-Driven Architecture
 
 **Enhanced Messaging System:**
+
 ```typescript
 // libs/messaging/events/domain.events.ts
 export interface IntentCreatedEvent {
-  intentId: string;
-  chainId: number;
-  creator: Address;
-  timestamp: Date;
-  metadata: IntentMetadata;
+  intentId: string
+  chainId: number
+  creator: Address
+  timestamp: Date
+  metadata: IntentMetadata
 }
 
 export interface BalanceUpdatedEvent {
-  walletAddress: Address;
-  chainId: number;
-  tokenAddress: Address;
-  previousBalance: bigint;
-  newBalance: bigint;
-  source: 'rpc' | 'transaction' | 'rebalance';
+  walletAddress: Address
+  chainId: number
+  tokenAddress: Address
+  previousBalance: bigint
+  newBalance: bigint
+  source: 'rpc' | 'transaction' | 'rebalance'
 }
 ```
 
 **Queue Architecture:**
+
 ```
 messaging/queues/
 ├── commands/                   # Direct service operations
@@ -785,7 +810,7 @@ messaging/queues/
 │   └── solver.commands.ts     # RegisterSolver, UpdateCapabilities
 ├── events/                     # Broadcast notifications
 │   ├── domain.events.ts       # Business domain events
-│   ├── integration.events.ts  # External system events  
+│   ├── integration.events.ts  # External system events
 │   └── analytics.events.ts    # Metrics and tracking events
 └── patterns/                   # Queue management utilities
     ├── retry.strategies.ts    # Exponential backoff, circuit breakers
@@ -796,6 +821,7 @@ messaging/queues/
 ### Domain-Driven Design Implementation
 
 **Intent Management Domain (intent-engine):**
+
 ```typescript
 // Domain structure within intent-engine
 src/
@@ -829,8 +855,9 @@ src/
 ```
 
 **Liquidity Management Domain (liquidity-orchestrator):**
+
 ```typescript
-// Domain structure within liquidity-orchestrator  
+// Domain structure within liquidity-orchestrator
 src/
 ├── domain/
 │   ├── entities/
@@ -866,13 +893,14 @@ src/
 ### Enhanced Shared Libraries
 
 **Database Abstraction Layer:**
+
 ```typescript
 // libs/database/repositories/base.repository.ts
 export abstract class BaseRepository<T> {
-  abstract findById(id: string): Promise<T | null>;
-  abstract save(entity: T): Promise<T>;
-  abstract delete(id: string): Promise<void>;
-  abstract findBy(criteria: Partial<T>): Promise<T[]>;
+  abstract findById(id: string): Promise<T | null>
+  abstract save(entity: T): Promise<T>
+  abstract delete(id: string): Promise<void>
+  abstract findBy(criteria: Partial<T>): Promise<T[]>
 }
 
 // libs/database/entities/intent.entity.ts
@@ -883,27 +911,32 @@ export class Intent {
     public readonly source: ChainConfig,
     public readonly destination: ChainConfig,
     public status: IntentStatus,
-    public readonly createdAt: Date
+    public readonly createdAt: Date,
   ) {}
 
-  canBeFulfilled(): boolean { /* business logic */ }
-  markAsFulfilled(txHash: string): void { /* state transition */ }
+  canBeFulfilled(): boolean {
+    /* business logic */
+  }
+  markAsFulfilled(txHash: string): void {
+    /* state transition */
+  }
 }
 ```
 
 **Security Layer Enhancement:**
+
 ```typescript
 // libs/security/signing/transaction-signer.ts
 export interface TransactionSigner {
-  signTransaction(tx: UnsignedTransaction): Promise<SignedTransaction>;
-  signTypedData(data: TypedData): Promise<Signature>;
-  getAddress(): Promise<Address>;
+  signTransaction(tx: UnsignedTransaction): Promise<SignedTransaction>
+  signTypedData(data: TypedData): Promise<Signature>
+  getAddress(): Promise<Address>
 }
 
-// libs/security/auth/service-auth.ts  
+// libs/security/auth/service-auth.ts
 export class ServiceAuthenticator {
-  verifyServiceToken(token: string): Promise<ServiceIdentity>;
-  generateServiceToken(serviceId: string): Promise<string>;
+  verifyServiceToken(token: string): Promise<ServiceIdentity>
+  generateServiceToken(serviceId: string): Promise<string>
 }
 ```
 

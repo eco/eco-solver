@@ -1,0 +1,18 @@
+{
+  "name": "database",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "mongoose": "^8.9.5",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/mongoose": "^11.0.1",
+    "shared": "0.0.1",
+    "integrations": "0.0.1",
+    "domain": "0.0.1",
+    "viem": "^2.31.7"
+  }
+}

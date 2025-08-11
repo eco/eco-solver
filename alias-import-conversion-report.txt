@@ -1,0 +1,658 @@
+FILE: apps/api-gateway/src/controllers/api.module.ts
+  @app/api-gateway/controllers/balance.controller -> ./balance.controller
+  @app/api-gateway/controllers/intent-initiation.controller -> ./intent-initiation.controller
+  @app/api-gateway/controllers/quote.controller -> ./quote.controller
+  domain -> ../../../../libs/domain/src
+  integrations -> ../../../../libs/integrations/src
+  domain -> ../../../../libs/domain/src
+FILE: apps/api-gateway/src/controllers/balance.controller.ts
+  domain -> ../../../../libs/domain/src
+  domain -> ../../../../libs/domain/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+FILE: apps/api-gateway/src/controllers/health.controller.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/api-gateway/src/controllers/health.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/api-gateway/src/controllers/indicators/balance.indicator.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/api-gateway/src/controllers/intent-initiation.controller.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  domain -> ../../../../libs/domain/src
+FILE: apps/api-gateway/src/controllers/quote.controller.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  domain -> ../../../../libs/domain/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/api-gateway/src/controllers/tests/intent-initiation.controller.spec.ts
+  shared -> ../../../../../libs/shared/src
+  database -> ../../../../../libs/database/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/api-gateway/src/controllers/tests/quote.controller.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/intent-funded-events/repositories/intent-funded-event.repository.ts
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/chain-indexer/src/listeners/intent/intent-funded-events/services/watch-intent-funded.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  database -> ../../../../../../../libs/database/src
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/intent-funded-events/services/watch-intent-funded.service.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/tests/watch-create-intent.service.spec.ts
+  integrations -> ../../../../../../libs/integrations/src
+  shared -> ../../../../../../libs/shared/src
+  shared -> ../../../../../../libs/shared/src
+  shared -> ../../../../../../libs/shared/src
+  integrations -> ../../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/tests/watch-fulfillment.service.spec.ts
+  integrations -> ../../../../../../libs/integrations/src
+  integrations -> ../../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/watch-create-intent.service.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/watch-event.service.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/listeners/intent/watch-fulfillment.service.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/processors/chain-sync.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+FILE: apps/chain-indexer/src/processors/intent-created-chain-sync.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+FILE: apps/chain-indexer/src/processors/intent-funded-chain-sync.service.ts
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/synchronizers/services/indexer.service.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/chain-indexer/src/synchronizers/tests/indexer.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/cli-tools/src/commands/balance/balance.command.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/cli-tools/src/commands/commander-app.module.ts
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/cli-tools/src/commands/eco-config.command.ts
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/cli-tools/src/commands/transfer/client.command.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/application/jobs/execute-send-batch.job.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/jobs/execute-withdraws.job.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/jobs/fulfill-intent.job.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/jobs/send-batches-cron.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/jobs/withdraw-rewards-cron.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/permit-validation.service.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/permit-validator.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/permit2-validator.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/signing-utils.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/tests/permit-validation.service.spec.ts
+  shared -> ../../../../../../libs/shared/src
+  database -> ../../../../../../libs/database/src
+FILE: apps/intent-engine/src/application/permit-validation/tests/permit-validator.spec.ts
+  shared -> ../../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/tests/permit2-validator.spec.ts
+  shared -> ../../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/permit-validation/vault-funding-validator.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/services/intent-initiation-integration-test.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  database -> ../../../../../libs/database/src
+FILE: apps/intent-engine/src/application/services/intent-initiation.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  database -> ../../../../../libs/database/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/application/services/intent-initiation.service.ts
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/services/intent-processor.service.ts
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/application/services/tests/intent-processor.service.spec.ts
+  integrations -> ../../../../../../libs/integrations/src
+  integrations -> ../../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/application/tests/fulfill-intent.job.spec.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/tests/intent-fulfillment.processor.spec.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/application/utils/hyperlane.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/application/utils/tests/hyperlane.spec.ts
+  integrations -> ../../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/additional-quote.service.spec.ts
+  integrations -> ../../../../libs/integrations/src
+  database -> ../../../../libs/database/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/create-intent.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+  shared/utils/strings -> ../../../../libs/shared/src/utils/strings
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/crowd-liquidity.service.ts
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/dto/quote.reward.data.dto.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/dto/quote.route.data.dto.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/errors.ts
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/feasable-intent.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+  shared/utils/strings -> ../../../../libs/shared/src/utils/strings
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/fulfill-intent.service.ts
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/intent.controller.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+FILE: apps/intent-engine/src/domain/interfaces/fulfill-service.interface.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/quote.repository.spec.ts
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  database -> ../../../../libs/database/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/quote.repository.ts
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/quote.service.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/schemas/intent-call-data.schema.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/schemas/intent-data.schema.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/schemas/intent-token-amount.schema.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/schemas/quote-call.schema.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/schemas/quote-token.schema.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/tests/create-intent.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/tests/feasable-intent.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/tests/fulfill-intent.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/tests/quote.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/tests/utils-intent.service.spec.ts
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/tests/utils.spec.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/tests/validate-intent.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/tests/validation.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/tests/wallet-fulfill.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/utils-intent.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+  shared/errors/eco-error -> ../../../../libs/shared/src/errors/eco-error
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/utils.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+FILE: apps/intent-engine/src/domain/validate-intent.service.ts
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/domain/validation.sevice.ts
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+FILE: apps/intent-engine/src/domain/wallet-fulfill.service.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/intent-engine/src/infrastructure/proof.service.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/application/retry-infeasable-intents.service.ts
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/application/tests/retry-infeasable-intents.service.spec.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/balance.service.ts
+  integrations -> ../../../../libs/integrations/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  shared -> ../../../../libs/shared/src
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/balance.ws.service.ts
+  shared/logging/eco-log-message -> ../../../../libs/shared/src/logging/eco-log-message
+  shared/utils/strings -> ../../../../libs/shared/src/utils/strings
+  shared -> ../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/cctp-lifi-destination-swap.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/check-balances-cron.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/check-cctp-attestation.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/check-cctpv2-attestation.job.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/check-everclear-intent.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/eco-cron-job-manager.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/execute-cctp-mint.job.ts
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/execute-cctpv2-mint.job.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/jobs/rebalance.job.ts
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-manager.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-manager.service.ts
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-provider.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-provider.service.ts
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP/cctp-provider.service.ts
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.integration.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service.ts
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP-LiFi/cctp-lifi-rebalancing.integration.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP-V2/cctpv2-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/CCTP-V2/cctpv2-provider.service.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Everclear/everclear-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Everclear/everclear-provider.service.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Hyperlane/warp-route-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Hyperlane/warp-route-provider.service.ts
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Hyperlane/warp-route.utils.ts
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/LiFi/lifi-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/LiFi/lifi-provider.service.ts
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/LiFi/utils/get-transaction-hashes.ts
+  shared -> ../../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/LiFi/utils/token-cache-manager.spec.ts
+  integrations -> ../../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/LiFi/utils/token-cache-manager.ts
+  shared -> ../../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Relay/relay-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Relay/relay-provider.service.ts
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Squid/squid-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Squid/squid-provider.service.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Stargate/stargate-provider.service.spec.ts
+  integrations -> ../../../../../../../libs/integrations/src
+  shared -> ../../../../../../../libs/shared/src
+FILE: apps/liquidity-orchestrator/src/domain/services/liquidity-providers/Stargate/stargate-provider.service.ts
+  shared -> ../../../../../../../libs/shared/src
+  shared -> ../../../../../../../libs/shared/src
+  integrations -> ../../../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/tests/liquidity-manager.service.spec.ts
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+  integrations -> ../../../../../libs/integrations/src
+FILE: apps/liquidity-orchestrator/src/domain/types.ts
+  integrations -> ../../../../libs/integrations/src
+FILE: apps/solver-registry/src/registration/services/solver-registration.service.ts
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+  shared -> ../../../../../libs/shared/src
+  integrations -> ../../../../../libs/integrations/src
+  shared -> ../../../../../libs/shared/src
+FILE: libs/database/src/index.ts
+  @lib/database/schemas -> ./schemas
+  @lib/database/repositories -> ./repositories
+  @lib/database/migrations -> ./migrations
+  @lib/database/connections -> ./connections
+FILE: libs/database/src/repositories/intent-funded-event.repository.ts
+  shared -> ../../../shared/src
+FILE: libs/database/src/repositories/quote.repository.ts
+  shared -> ../../../shared/src
+  integrations -> ../../../integrations/src
+FILE: libs/domain/src/index.ts
+  @lib/domain/entities -> ./entities
+  @lib/domain/value-objects -> ./value-objects
+  @lib/domain/repositories -> ./repositories
+  @lib/domain/services -> ./services
+FILE: libs/domain/src/services/fee.service.ts
+  integrations -> ../../../integrations/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  integrations -> ../../../integrations/src
+  integrations -> ../../../integrations/src
+FILE: libs/domain/src/services/fulfillment-estimate.service.spec.ts
+  integrations -> ../../../integrations/src
+FILE: libs/domain/src/services/fulfillment-estimate.service.ts
+  integrations -> ../../../integrations/src
+  integrations -> ../../../integrations/src
+FILE: libs/domain/src/services/tests/fee.service.spec.ts
+  integrations -> ../../../../integrations/src
+FILE: libs/domain/src/services/types.ts
+  integrations -> ../../../integrations/src
+FILE: libs/integrations/src/aws/eco-config.service.ts
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+FILE: libs/integrations/src/blockchain/smart-wallets/kernel/kernel-account-client.service.ts
+  shared -> ../../../../../shared/src
+FILE: libs/integrations/src/blockchain/viem_multichain_client.service.ts
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  @lib/integrations/aws/eco-config.service -> ../aws/eco-config.service
+FILE: libs/integrations/src/external-apis/eco-analytics.service.ts
+  database -> ../../../database/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  @lib/integrations/aws/eco-config.types -> ../aws/eco-config.types
+FILE: libs/integrations/src/external-apis/posthog.service.ts
+  shared -> ../../../shared/src
+FILE: libs/integrations/src/index.ts
+  @lib/integrations/blockchain -> ./blockchain
+  @lib/integrations/defi -> ./defi
+  @lib/integrations/aws -> ./aws
+  @lib/integrations/external-apis -> ./external-apis
+FILE: libs/messaging/src/events/index.ts
+  @lib/messaging/events/constants -> ./constants
+  @lib/messaging/events/viem -> ./viem
+FILE: libs/messaging/src/index.ts
+  @lib/messaging/events -> ./events
+  @lib/messaging/commands -> ./commands
+  @lib/messaging/queues -> ./queues
+  @lib/messaging/publishers -> ./publishers
+  @lib/messaging/subscribers -> ./subscribers
+FILE: libs/messaging/src/queues/base.processor.ts
+  shared -> ../../../shared/src
+FILE: libs/messaging/src/queues/bullmq.helper.ts
+  integrations -> ../../../integrations/src
+  @lib/messaging/redis/redis-connection-utils -> ../redis/redis-connection-utils
+  @lib/messaging/redis/constants -> ../redis/constants
+FILE: libs/messaging/src/queues/grouped-jobs.processor.ts
+  shared -> ../../../shared/src
+FILE: libs/messaging/src/queues/index.ts
+  @lib/messaging/queues/bullmq.helper -> ./bullmq.helper
+  @lib/messaging/queues/nest-redlock.config -> ./nest-redlock.config
+  @lib/messaging/queues/nest-redlock.interface -> ./nest-redlock.interface
+  @lib/messaging/queues/nest-redlock.module -> ./nest-redlock.module
+  @lib/messaging/queues/nest-redlock.service -> ./nest-redlock.service
+FILE: libs/messaging/src/queues/nest-redlock.config.ts
+  @lib/messaging/queues/nest-redlock.interface -> ./nest-redlock.interface
+FILE: libs/messaging/src/queues/nest-redlock.interface.ts
+  @lib/messaging/queues/nest-redlock.config -> ./nest-redlock.config
+FILE: libs/messaging/src/queues/nest-redlock.module.ts
+  @lib/messaging/queues/nest-redlock.config -> ./nest-redlock.config
+  @lib/messaging/queues/nest-redlock.config -> ./nest-redlock.config
+  @lib/messaging/queues/nest-redlock.interface -> ./nest-redlock.interface
+  @lib/messaging/queues/nest-redlock.service -> ./nest-redlock.service
+FILE: libs/messaging/src/queues/nest-redlock.service.ts
+  @lib/messaging/queues/nest-redlock.config -> ./nest-redlock.config
+  @lib/messaging/redis/redis-connection-utils -> ../redis/redis-connection-utils
+FILE: libs/messaging/src/queues/processors/eth-ws.processor.ts
+  shared/logging/eco-log-message -> ../../../../shared/src/logging/eco-log-message
+FILE: libs/messaging/src/queues/processors/inbox.processor.ts
+  @lib/messaging/redis/constants -> ../../redis/constants
+  shared -> ../../../../shared/src
+  domain -> ../../../../domain/src
+  shared -> ../../../../shared/src
+FILE: libs/messaging/src/queues/processors/interval.processor.ts
+  @lib/messaging/redis/constants -> ../../redis/constants
+  shared -> ../../../../shared/src
+  domain -> ../../../../domain/src
+  @app/liquidity-orchestrator/application/retry-infeasable-intents.service -> ../../../../../apps/liquidity-orchestrator/src/application/retry-infeasable-intents.service
+FILE: libs/messaging/src/queues/processors/processor.module.ts
+  @lib/messaging/queues/processors/eth-ws.processor -> ./eth-ws.processor
+  @lib/messaging/queues/processors/signer.processor -> ./signer.processor
+  @lib/messaging/queues/processors/solve-intent.processor -> ./solve-intent.processor
+  domain -> ../../../../domain/src
+  domain -> ../../../../domain/src
+  security -> ../../../../security/src
+  domain -> ../../../../domain/src
+  domain -> ../../../../domain/src
+  security -> ../../../../security/src
+  @lib/messaging/queues/processors/inbox.processor -> ./inbox.processor
+FILE: libs/messaging/src/queues/processors/signer.processor.ts
+  shared/logging/eco-log-message -> ../../../../shared/src/logging/eco-log-message
+FILE: libs/messaging/src/queues/processors/solve-intent.processor.ts
+  @lib/messaging/redis/constants -> ../../redis/constants
+  shared -> ../../../../shared/src
+  domain -> ../../../../domain/src
+  domain -> ../../../../domain/src
+  domain -> ../../../../domain/src
+  domain -> ../../../../domain/src
+  shared -> ../../../../shared/src
+  shared -> ../../../../shared/src
+  integrations -> ../../../../integrations/src
+  integrations -> ../../../../integrations/src
+FILE: libs/messaging/src/redis/redis-connection-utils.ts
+  @lib/messaging/events/constants -> ../events/constants
+FILE: libs/security/src/auth/signature-verification.service.ts
+  shared -> ../../../shared/src
+FILE: libs/security/src/index.ts
+  @lib/security/kms -> ./kms
+  @lib/security/signing -> ./signing
+  @lib/security/auth -> ./auth
+  @lib/security/encryption -> ./encryption
+FILE: libs/security/src/permit-processing/interfaces/permit-processing-params.interface.ts
+  shared -> ../../../../shared/src
+FILE: libs/security/src/permit-processing/permit-processor.spec.ts
+  integrations -> ../../../integrations/src
+  shared -> ../../../shared/src
+  database -> ../../../database/src
+  integrations -> ../../../integrations/src
+  integrations -> ../../../integrations/src
+  @lib/security/signing/signer-kms.service -> ../signing/signer-kms.service
+FILE: libs/security/src/permit-processing/permit-processor.ts
+  shared -> ../../../shared/src
+  integrations -> ../../../integrations/src
+  integrations -> ../../../integrations/src
+FILE: libs/security/src/permit-processing/permit-tx-builder.spec.ts
+  database -> ../../../database/src
+  shared -> ../../../shared/src
+FILE: libs/security/src/permit-processing/permit-tx-builder.ts
+  shared -> ../../../shared/src
+  integrations -> ../../../integrations/src
+  shared -> ../../../shared/src
+FILE: libs/security/src/permit-processing/permit2-processor.spec.ts
+  integrations -> ../../../integrations/src
+  database -> ../../../database/src
+  integrations -> ../../../integrations/src
+  integrations -> ../../../integrations/src
+  shared -> ../../../shared/src
+  @lib/security/signing/signer-kms.service -> ../signing/signer-kms.service
+FILE: libs/security/src/permit-processing/permit2-processor.ts
+  shared -> ../../../shared/src
+  integrations -> ../../../integrations/src
+  integrations -> ../../../integrations/src
+  shared -> ../../../shared/src
+FILE: libs/security/src/permit-processing/permit2-tx-builder.spec.ts
+  database -> ../../../database/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+FILE: libs/security/src/permit-processing/permit2-tx-builder.ts
+  integrations -> ../../../integrations/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+  shared -> ../../../shared/src
+FILE: libs/shared/src/constants/index.ts
+  @lib/shared/constants -> .
+FILE: libs/shared/src/contracts/ERC20.contract.ts
+  @lib/shared/utils -> ../utils
+  integrations -> ../../../integrations/src
+  @lib/shared/errors/eco-error -> ../errors/eco-error
+  domain -> ../../../domain/src
+FILE: libs/shared/src/contracts/index.ts
+  @lib/shared/utils -> ../utils
+FILE: libs/shared/src/contracts/intent-source.ts
+  @lib/shared/constants/definitions/anvil -> ../constants/definitions/anvil
+  shared -> ..
+FILE: libs/shared/src/contracts/interfaces/prover.interface.ts
+  @lib/shared/utils -> ../../utils
+FILE: libs/shared/src/errors/eco-error.ts
+  @lib/shared/constants/definitions/anvil -> ../constants/definitions/anvil
+  @lib/shared/logging/eco-log-message -> ../logging/eco-log-message
+  integrations -> ../../../integrations/src
+  @lib/shared/contracts -> ../contracts
+FILE: libs/shared/src/errors/eco-service-exception.ts
+  @lib/shared/errors/eco-error -> ./eco-error
+  @lib/shared/logging/eco-log-message -> ../logging/eco-log-message
+  @lib/shared/errors/http-exception-generator -> ./http-exception-generator
+FILE: libs/shared/src/index.ts
+  @lib/shared/contracts -> ./contracts
+  @lib/shared/types -> ./types
+  @lib/shared/utils -> ./utils
+  @lib/shared/errors -> ./errors
+  @lib/shared/constants -> ./constants
+FILE: libs/shared/src/logging/eco-log-message.ts
+  @lib/shared/errors/eco-error -> ../errors/eco-error
+FILE: libs/shared/src/utils/cacheable.decorator.ts
+  integrations -> ../../../integrations/src
+  @lib/shared/utils -> .
+FILE: libs/shared/src/utils/index.ts
+  @lib/shared/types -> ../types
+FILE: libs/shared/src/utils/serialize.spec.ts
+  @lib/shared/utils/serialize -> ./serialize
+FILE: libs/shared/src/utils/tests/utils.spec.ts
+  @lib/shared/utils -> ..
+FILE: libs/shared/src/utils/utils.spec.ts
+  @lib/shared/utils/utils -> ./utils

@@ -26,7 +26,7 @@ module.exports = {
   coverageDirectory: '../coverage',
   watchman: false, // ✅ disables Watchman and uses node-based file crawling
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>//$1',
+    // Legacy @/ imports have been updated to use proper library paths
   },
   globals: {
     mongodbMemoryServerOptions, // 👈 Inject manually here!

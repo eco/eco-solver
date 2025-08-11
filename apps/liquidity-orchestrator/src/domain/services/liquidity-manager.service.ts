@@ -1,0 +1,365 @@
+import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common'
+import { InjectQueue, InjectFlowProducer } from '@nestjs/bull'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
+import { FlowProducer } from 'bullmq'
+import { groupBy } from 'lodash'
+import { v4 as uuid } from 'uuid'
+import { BalanceService } from '../balance.service'
+import { LiquidityProviderService } from './liquidity-provider.service'
+import { EcoConfigService, LiquidityManagerConfig } from '@libs/integrations/aws'
+import { KernelAccountClientService } from '@libs/integrations/blockchain'
+import { EcoAnalyticsService, ANALYTICS_EVENTS } from '@libs/integrations/external-apis'
+import { CrowdLiquidityService } from '@libs/domain'
+import { TokenConfig } from '@libs/contracts'
+import { EcoLogMessage } from '@libs/shared/logging'
+import { EcoError } from '@libs/shared/errors'
+import { removeJobSchedulers, deserialize } from '@libs/shared/utils'
+import { RebalanceModel, RebalanceTokenModel } from '../schemas/rebalance.schema'
+import { TokenState } from '../types/token-state.enum'
+import { RebalanceJobManager } from '../jobs/rebalance.job'
+import {
+  analyzeToken,
+  analyzeTokenGroup,
+  getGroupTotal,
+  getSortGroupByDiff,
+} from '../utils/token'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueue,
+  LiquidityManagerQueueType,
+} from '../queues/liquidity-manager.queue'
+import {
+  RebalanceQuote,
+  RebalanceRequest,
+  TokenData,
+  TokenDataAnalyzed,
+  RebalanceJobData,
+} from '../types/types'
+
+@Injectable()
+export class LiquidityManagerService implements OnApplicationBootstrap {
+  private logger = new Logger(LiquidityManagerService.name)
+
+  private config: LiquidityManagerConfig
+  private readonly liquidityManagerQueue: LiquidityManagerQueue
+
+  private readonly tokensPerWallet: Record<string, TokenConfig[]> = {}
+
+  constructor(
+    @InjectQueue(LiquidityManagerQueue.queueName)
+    private readonly queue: LiquidityManagerQueueType,
+    @InjectFlowProducer(LiquidityManagerQueue.flowName)
+    protected liquidityManagerFlowProducer: FlowProducer,
+    @InjectModel(RebalanceModel.name)
+    private readonly rebalanceModel: Model<RebalanceModel>,
+    public readonly balanceService: BalanceService,
+    private readonly ecoConfigService: EcoConfigService,
+    public readonly liquidityProviderManager: LiquidityProviderService,
+    public readonly kernelAccountClientService: KernelAccountClientService,
+    public readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
+  ) {
+    this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
+  }
+
+  async onApplicationBootstrap() {
+    // Remove existing job schedulers for CHECK_BALANCES
+    await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
+
+    // Get wallet addresses we'll be monitoring
+    this.config = this.ecoConfigService.getLiquidityManager()
+
+    if (this.config.enabled !== false) {
+      await this.initializeRebalances()
+    }
+  }
+
+  async initializeRebalances() {
+    // Use OP as the default chain assuming the Kernel wallet is the same across all chains
+    const opChainId = 10
+    const client = await this.kernelAccountClientService.getClient(opChainId)
+    const kernelAddress = client.kernelAccount.address
+
+    // Track rebalances for Solver
+    await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
+    this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
+
+    if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
+      // Track rebalances for Crowd Liquidity
+      const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
+      await this.liquidityManagerQueue.startCronJobs(
+        this.config.intervalDuration,
+        crowdLiquidityPoolAddress,
+      )
+      this.tokensPerWallet[crowdLiquidityPoolAddress] =
+        this.crowdLiquidityService.getSupportedTokens()
+    }
+  }
+
+  async analyzeTokens(walletAddress: string) {
+    const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
+      walletAddress,
+      this.tokensPerWallet[walletAddress],
+    )
+    const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({
+      ...item,
+      analysis: this.analyzeToken(item),
+    }))
+
+    const groups = groupBy(analysis, (item) => item.analysis.state)
+    return {
+      items: analysis,
+      surplus: analyzeTokenGroup(groups[TokenState.SURPLUS] ?? []),
+      inrange: analyzeTokenGroup(groups[TokenState.IN_RANGE] ?? []),
+      deficit: analyzeTokenGroup(groups[TokenState.DEFICIT] ?? []),
+    }
+  }
+
+  analyzeToken(token: TokenData) {
+    return analyzeToken(token.config, token.balance, {
+      up: this.config.thresholds.surplus,
+      down: this.config.thresholds.deficit,
+      targetSlippage: this.config.targetSlippage,
+    })
+  }
+
+  /**
+   * Gets the optimized rebalancing for the deficit and surplus tokens.
+   * @dev The rebalancing is more efficient if done within the same chain.
+   *      If it's not possible, other chains are considered.
+   * @param walletAddress
+   * @param deficitToken
+   * @param surplusTokens
+   */
+  async getOptimizedRebalancing(
+    walletAddress: string,
+    deficitToken: TokenDataAnalyzed,
+    surplusTokens: TokenDataAnalyzed[],
+  ) {
+    const swapQuotes = await this.getSwapQuotes(walletAddress, deficitToken, surplusTokens)
+
+    // Continue with swap quotes if possible
+    if (swapQuotes.length) return swapQuotes
+
+    return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokens)
+  }
+
+  startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
+    if (!rebalances.length) return
+
+    const jobs = rebalances.map((rebalance) =>
+      RebalanceJobManager.createJob(walletAddress, rebalance, this.liquidityManagerQueue.name),
+    )
+    return this.liquidityManagerFlowProducer.add({
+      name: 'rebalance-batch',
+      queueName: this.liquidityManagerQueue.name,
+      children: jobs,
+    })
+  }
+
+  async executeRebalancing(rebalanceData: RebalanceJobData) {
+    const { walletAddress, rebalance } = rebalanceData
+    for (const quote of rebalance.quotes) {
+      await this.liquidityProviderManager.execute(walletAddress, deserialize(quote))
+    }
+  }
+
+  async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
+    const groupId = uuid()
+    for (const quote of request.quotes) {
+      await this.rebalanceModel.create({
+        groupId,
+        wallet: walletAddress,
+        amountIn: quote.amountIn,
+        amountOut: quote.amountOut,
+        slippage: quote.slippage,
+        strategy: quote.strategy,
+        context: quote.context,
+        tokenIn: RebalanceTokenModel.fromTokenData(quote.tokenIn),
+        tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
+      })
+    }
+  }
+
+  /**
+   * Checks if a swap is possible between the deficit and surplus tokens.
+   * @dev swaps are possible if the deficit is compensated by the surplus of tokens in the same chain.
+   * @param walletAddress
+   * @param deficitToken
+   * @param surplusTokens
+   * @private
+   */
+  private async getSwapQuotes(
+    walletAddress: string,
+    deficitToken: TokenDataAnalyzed,
+    surplusTokens: TokenDataAnalyzed[],
+  ) {
+    const surplusTokensSameChain = surplusTokens.filter(
+      (token) => token.config.chainId === deficitToken.config.chainId,
+    )
+
+    return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokensSameChain)
+  }
+
+  /**
+   * Checks if a rebalancing is possible between the deficit and surplus tokens.
+   * @param walletAddress
+   * @param deficitToken
+   * @param surplusTokens
+   * @private
+   */
+  private async getRebalancingQuotes(
+    walletAddress: string,
+    deficitToken: TokenDataAnalyzed,
+    surplusTokens: TokenDataAnalyzed[],
+  ) {
+    if (!Array.isArray(surplusTokens) || surplusTokens.length === 0) {
+      return []
+    }
+
+    const sortedSurplusTokens = getSortGroupByDiff(surplusTokens)
+    const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
+
+    if (!deficitToken?.analysis?.diff || deficitToken.analysis.diff > surplusTokensTotal) {
+      // Not enough surplus tokens to rebalance
+      return []
+    }
+
+    const quotes: RebalanceQuote[] = []
+    const failedSurplusTokens: TokenDataAnalyzed[] = []
+    let currentBalance = deficitToken.analysis.balance.current
+
+    // First try all direct routes from surplus tokens to deficit token
+    for (const surplusToken of sortedSurplusTokens) {
+      let swapAmount = 0
+      try {
+        // Calculate the amount to swap
+        swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+
+        const strategyQuotes = await this.liquidityProviderManager.getQuote(
+          walletAddress,
+          surplusToken,
+          deficitToken,
+          swapAmount,
+        )
+
+        this.logger.log(
+          EcoLogMessage.fromDefault({
+            message: 'Quotes from strategies',
+            properties: {
+              strategyQuotes,
+              surplusToken,
+              deficitToken,
+              swapAmount,
+              walletAddress,
+            },
+          }),
+        )
+
+        for (const quote of strategyQuotes) {
+          quotes.push(quote)
+          currentBalance += quote.amountOut
+        }
+
+        if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+      } catch (error) {
+        // Track failed surplus tokens
+        failedSurplusTokens.push(surplusToken)
+
+        this.ecoAnalytics.trackError(ANALYTICS_EVENTS.LIQUIDITY_MANAGER.QUOTE_ROUTE_ERROR, error, {
+          surplusToken: surplusToken.config,
+          deficitToken: deficitToken.config,
+          swapAmount,
+          walletAddress,
+          operation: 'direct_route_quote',
+          service: this.constructor.name,
+        })
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Direct route not found, will try with fallback',
+            properties: {
+              surplusToken: surplusToken.config,
+              deficitToken: deficitToken.config,
+              error: {
+                message: error.message,
+                stack: error.stack,
+              },
+            },
+          }),
+        )
+      }
+    }
+
+    // If we've reached the target balance or have no more tokens to try, return what we've got
+    if (currentBalance >= deficitToken.analysis.targetSlippage.min || !failedSurplusTokens.length) {
+      return quotes
+    }
+
+    // Try the failed surplus tokens with the fallback (core token) strategies
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'Still below target balance, trying fallback routes with core tokens',
+        properties: {
+          currentBalance: currentBalance.toString(),
+          targetMin: deficitToken.analysis.targetSlippage.min.toString(),
+          failedTokensCount: failedSurplusTokens.length,
+        },
+      }),
+    )
+
+    // Try each failed token with the fallback method
+    for (const surplusToken of failedSurplusTokens) {
+      // Skip if we've already reached target balance
+      if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+      let swapAmount = 0
+      try {
+        // Calculate the amount to swap
+        swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+
+        // Use the fallback method that routes through core tokens
+        const quotes = await this.liquidityProviderManager.fallback(
+          surplusToken,
+          deficitToken,
+          swapAmount,
+        )
+
+        quotes.push(...quotes)
+        quotes.forEach((quote) => {
+          currentBalance += quote.amountOut
+        })
+      } catch (fallbackError) {
+        this.ecoAnalytics.trackError(
+          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,
+          fallbackError,
+          {
+            surplusToken: surplusToken.config,
+            deficitToken: deficitToken.config,
+            swapAmount,
+            currentBalance,
+            targetBalance: deficitToken.analysis.targetSlippage.min,
+            operation: 'fallback_route_quote',
+            service: this.constructor.name,
+          },
+        )
+
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: 'Unable to find fallback route',
+            properties: {
+              surplusToken: surplusToken.config,
+              deficitToken: deficitToken.config,
+              error: {
+                message: fallbackError.message,
+                stack: fallbackError.stack,
+              },
+            },
+          }),
+        )
+      }
+    }
+
+    return quotes
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "security",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "viem": "^2.31.7",
+    "@nestjs/common": "^11.0.0",
+    "canonicalize": "^2.1.0",
+    "shared": "0.0.1",
+    "@eco-foundation/eco-kms-provider-aws": "^2.0.0",
+    "@eco-foundation/eco-kms-wallets": "^2.0.0",
+    "@eco-foundation/eco-kms-core": "^2.0.0",
+    "@nestjs/bullmq": "^10.1.1",
+    "bullmq": "^5.8.5",
+    "mongoose": "^8.9.5",
+    "@nestjs/mongoose": "^11.0.1",
+    "lodash": "^4.17.21"
+  }
+}

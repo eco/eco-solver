@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@app/api-gateway": ["apps/api-gateway/src"],
+      "@app/api-gateway/*": ["apps/api-gateway/src/*"],
+      "@app/chain-indexer": ["apps/chain-indexer/src"],
+      "@app/chain-indexer/*": ["apps/chain-indexer/src/*"],
+      "@app/cli-tools": ["apps/cli-tools/src"],
+      "@app/cli-tools/*": ["apps/cli-tools/src/*"],
+      "@app/intent-engine": ["apps/intent-engine/src"],
+      "@app/intent-engine/*": ["apps/intent-engine/src/*"],
+      "@app/liquidity-orchestrator": ["apps/liquidity-orchestrator/src"],
+      "@app/liquidity-orchestrator/*": ["apps/liquidity-orchestrator/src/*"],
+      "@app/solver-registry": ["apps/solver-registry/src"],
+      "@app/solver-registry/*": ["apps/solver-registry/src/*"],
+      "@libs/database": ["libs/database/src/index.ts"],
+      "@libs/database/*": ["libs/database/src/*"],
+      "@libs/domain": ["libs/domain/src/index.ts"],
+      "@libs/domain/*": ["libs/domain/src/*"],
+      "@libs/integrations": ["libs/integrations/src/index.ts"],
+      "@libs/integrations/*": ["libs/integrations/src/*"],
+      "@libs/messaging": ["libs/messaging/src/index.ts"],
+      "@libs/messaging/*": ["libs/messaging/src/*"],
+      "@libs/security": ["libs/security/src/index.ts"],
+      "@libs/security/*": ["libs/security/src/*"],
+      "@libs/shared": ["libs/shared/src/index.ts"],
+      "@libs/shared/*": ["libs/shared/src/*"]
+    }
+  },
+  "extends": "../../../../libs/messaging/tsconfig.lib.json"
+}

@@ -1,0 +1,113 @@
+{
+  "root": true,
+  "ignorePatterns": ["**/*"],
+  "plugins": ["@nx"],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "rules": {
+        "@nx/enforce-module-boundaries": [
+          "error",
+          {
+            "enforceBuildableLibDependency": true,
+            "allow": [],
+            "depConstraints": [
+              {
+                "sourceTag": "scope:shared",
+                "onlyDependOnLibsWithTags": ["scope:shared"]
+              },
+              {
+                "sourceTag": "type:application",
+                "onlyDependOnLibsWithTags": ["type:library", "scope:shared"]
+              },
+              {
+                "sourceTag": "scope:api",
+                "onlyDependOnLibsWithTags": [
+                  "scope:shared",
+                  "scope:domain",
+                  "scope:messaging",
+                  "scope:security",
+                  "type:library"
+                ]
+              },
+              {
+                "sourceTag": "scope:intent",
+                "onlyDependOnLibsWithTags": [
+                  "scope:shared",
+                  "scope:domain",
+                  "scope:messaging",
+                  "scope:database",
+                  "scope:security",
+                  "scope:integrations",
+                  "type:library"
+                ]
+              },
+              {
+                "sourceTag": "scope:liquidity",
+                "onlyDependOnLibsWithTags": [
+                  "scope:shared",
+                  "scope:domain",
+                  "scope:messaging",
+                  "scope:database",
+                  "scope:security",
+                  "scope:integrations",
+                  "type:library"
+                ]
+              },
+              {
+                "sourceTag": "scope:chain",
+                "onlyDependOnLibsWithTags": [
+                  "scope:shared",
+                  "scope:domain",
+                  "scope:messaging",
+                  "scope:database",
+                  "scope:integrations",
+                  "type:library"
+                ]
+              },
+              {
+                "sourceTag": "scope:solver",
+                "onlyDependOnLibsWithTags": [
+                  "scope:shared",
+                  "scope:domain",
+                  "scope:messaging",
+                  "scope:database",
+                  "type:library"
+                ]
+              },
+              {
+                "sourceTag": "scope:cli",
+                "onlyDependOnLibsWithTags": [
+                  "scope:shared",
+                  "scope:domain",
+                  "scope:messaging",
+                  "scope:database",
+                  "scope:security",
+                  "scope:integrations",
+                  "type:library"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "extends": ["plugin:@nx/typescript"],
+      "rules": {}
+    },
+    {
+      "files": ["*.js", "*.jsx"],
+      "extends": ["plugin:@nx/javascript"],
+      "rules": {}
+    },
+    {
+      "files": ["*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx"],
+      "env": {
+        "jest": true
+      },
+      "rules": {}
+    }
+  ]
+}
