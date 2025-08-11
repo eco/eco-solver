@@ -339,15 +339,13 @@ export class EcoConfigService {
     // Fallback to default RPC URLs
     rpcs.push(...rpcUrls)
 
-    const config: TransportConfig['config'] = customRpcUrls?.config
-
     if (!rpcs.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
     return {
       rpcUrls: [...new Set(rpcs)], // Ensure unique URLs
-      config: { isWebsocketEnabled: isWebSocketEnabled, config },
+      config: customRpcUrls?.config,
     }
   }
 
