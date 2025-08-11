@@ -85,12 +85,23 @@ describe('NegativeIntentRebalanceService', () => {
           provide: EcoConfigService,
           useValue: {
             getLiquidityManager: jest.fn().mockReturnValue({
+              targetSlippage: 0.02,
+              maxQuoteSlippage: 0.05,
+              swapSlippage: 0.01,
+              intervalDuration: 300000,
+              thresholds: {
+                surplus: 0.1,
+                deficit: 0.1,
+              },
+              walletStrategies: {},
+              coreTokens: [],
               negativeIntents: {
                 deadlineDuration: 5_400,
                 rebalancingPercentage: 0.05,
               },
             }),
             getIntentSources: jest.fn(),
+            getIntentSource: jest.fn(),
             getCrowdLiquidity: jest.fn().mockReturnValue({
               kernel: { address: '0x1234567890123456789012345678901234567890' },
               pkp: {
@@ -173,6 +184,7 @@ describe('NegativeIntentRebalanceService', () => {
       ecoConfigService.getLiquidityManager.mockReturnValue({
         targetSlippage: 0.02,
         maxQuoteSlippage: 0.05,
+        swapSlippage: 0.01,
         intervalDuration: 300000,
         thresholds: {
           surplus: 0.1,
@@ -220,6 +232,7 @@ describe('NegativeIntentRebalanceService', () => {
 
     beforeEach(() => {
       ecoConfigService.getIntentSources.mockReturnValue([mockIntentSource])
+      ecoConfigService.getIntentSource.mockReturnValue(mockIntentSource)
       kernelAccountClientService.getClient.mockResolvedValue(mockKernelClient as any)
       walletClientDefaultSignerService.getClient.mockResolvedValue(mockWalletClient as any)
       publicClient.getClient.mockResolvedValue(mockPublicClient as any)
@@ -320,10 +333,11 @@ describe('NegativeIntentRebalanceService', () => {
 
     it('should throw error if no intent source found', async () => {
       ecoConfigService.getIntentSources.mockReturnValue([])
+      ecoConfigService.getIntentSource.mockReturnValue(undefined as any)
 
       await expect(
         service.execute('0x1234567890123456789012345678901234567890', mockQuote),
-      ).rejects.toThrow('No intent source found for chain 1')
+      ).rejects.toThrow('Could not find an intent source for chain 1')
     })
 
     it('should handle withdrawal transaction failure', async () => {
