@@ -9,6 +9,7 @@ import {
   createWalletClient,
   encodeAbiParameters,
   encodeFunctionData,
+  encodePacked,
   Hash,
   Hex,
   isAddress,
@@ -31,6 +32,8 @@ import {
 } from '@/modules/blockchain/evm/wallets/kernel-wallet/utils/encode-transactions';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
+import { constructInitDataWithHook } from './utils/encode-module';
 
 const kernelVersion = KERNEL_V3_1;
 const entryPoint = getEntryPoint('0.7');
@@ -417,7 +420,7 @@ export class KernelWallet extends BaseEvmWallet {
         throw new Error('ECDSA executor address not configured but executor mode is enabled');
       }
 
-      // Additional validation to ensure executor address is still valid
+      // Additional validation to ensure the executor address is still valid
       if (!isAddress(this.ecdsaExecutorAddr)) {
         throw new Error(`Invalid ECDSA executor address: ${this.ecdsaExecutorAddr}`);
       }
@@ -597,10 +600,11 @@ export class KernelWallet extends BaseEvmWallet {
       });
 
       // Encode the signer address as the owner for the ECDSA executor module
-      const initData = encodeAbiParameters([{ type: 'address' }], [this.signer.address]);
+      const executorInitData = encodePacked(['address'], [this.signer.address]);
+      const moduleInitData = constructInitDataWithHook(executorInitData);
 
       // Install the module
-      await this.installModule(moduleType, this.ecdsaExecutorAddr, initData);
+      await this.installModule(moduleType, this.ecdsaExecutorAddr, moduleInitData);
 
       this.executorEnabled = true;
       span.setAttribute('kernel.module_installed', true);
@@ -716,3 +720,17 @@ export class KernelWallet extends BaseEvmWallet {
     }
   }
 }
+
+// 0000000000000000000000000000000000000000
+// 0000000000000000000000000000000000000000000000000000000000000040
+// 0000000000000000000000000000000000000000000000000000000000000080
+// 0000000000000000000000000000000000000000000000000000000000000014
+// bcfd22419ec47d3affb2e5bd307193d6bb6bf71d000000000000000000000000
+// 0000000000000000000000000000000000000000000000000000000000000000
+
+// 0000000000000000000000000000000000000000
+// 0000000000000000000000000000000000000000000000000000000000000000
+// 0000000000000000000000000000000000000000000000000000000000000034
+// 0000000000000000000000000000000000000000000000000000000000000014
+// 256b70644f5d77bc8e2bb82c731ddf747ecb1471000000000000000000000000
+// 0000000000000000000000000000000000000000000000000000000000000000
