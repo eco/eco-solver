@@ -60,9 +60,11 @@ describe('NegativeIntentMonitorService', () => {
     const sourceChainId = 1
     const destinationChainId = 137
     const balanceTransactionHash = '0x5678' as Hex
+    const mockProverAddress = '0xprover' as Hex
     const mockIntentSource = {
       chainID: sourceChainId,
       sourceAddress: '0xintentSource' as Hex,
+      provers: [mockProverAddress],
     }
 
     beforeEach(() => {
@@ -107,7 +109,7 @@ describe('NegativeIntentMonitorService', () => {
         hash: balanceTransactionHash,
       })
       expect(mockClient.watchContractEvent).toHaveBeenCalledWith({
-        address: mockIntentSource.sourceAddress,
+        address: mockProverAddress,
         abi: IProverAbi,
         eventName: 'IntentProven',
         strict: true,

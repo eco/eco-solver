@@ -61,7 +61,7 @@ export class NegativeIntentMonitorService {
 
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: 'Starting negative intent monitoring',
+          message: 'Negative intent monitoring: Rebalance transaction confirmed',
           properties: {
             intentHash,
             sourceChainId,
@@ -147,6 +147,13 @@ export class NegativeIntentMonitorService {
       throw new Error(`No intent source found for chain ${context.sourceChainId}`)
     }
 
+    if (!intentSource.provers || intentSource.provers.length === 0) {
+      throw new Error(`No provers found for intent source on chain ${context.sourceChainId}`)
+    }
+
+    // The rebalance service uses the first prover in the list
+    const proverAddress = intentSource.provers[0]
+
     const client = await this.publicClient.getClient(context.sourceChainId)
 
     this.logger.log(
@@ -155,23 +162,36 @@ export class NegativeIntentMonitorService {
         properties: {
           intentHash: context.intentHash,
           sourceChainId: context.sourceChainId,
-          intentSourceAddress: intentSource.sourceAddress,
+          proverAddress,
         },
       }),
     )
 
-    // Set up watcher with a timeout
+    // Set up watcher with a timeout and ensure cleanup
     const timeout = 300_000 // 5 minutes
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
+    let unwatch: (() => void) | undefined
+    let timeoutId: NodeJS.Timeout | undefined
+
+    const safeUnwatch = () => {
+      if (unwatch) {
+        try {
+          unwatch()
+        } finally {
+          unwatch = undefined
+        }
+      }
+    }
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
         () => reject(new Error(`IntentProven event not detected after ${timeout}ms`)),
         timeout,
-      ),
-    )
+      )
+    })
 
     const eventPromise = new Promise<void>((resolve, reject) => {
-      const unwatch = client.watchContractEvent({
-        address: intentSource.sourceAddress as Hex,
+      unwatch = client.watchContractEvent({
+        address: proverAddress,
         abi: IProverAbi,
         eventName: 'IntentProven',
         strict: true,
@@ -190,7 +210,7 @@ export class NegativeIntentMonitorService {
               },
             }),
           )
-          unwatch()
+          safeUnwatch()
           resolve()
         },
         onError: (error) => {
@@ -203,14 +223,20 @@ export class NegativeIntentMonitorService {
               },
             }),
           )
-          unwatch()
+          safeUnwatch()
           reject(error)
         },
       })
     })
 
-    // Wait for either the event or timeout
-    await Promise.race([eventPromise, timeoutPromise])
+    try {
+      await Promise.race([eventPromise, timeoutPromise])
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      safeUnwatch()
+    }
   }
 
   private getIntentSource(chainId: number) {
