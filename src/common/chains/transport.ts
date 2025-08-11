@@ -1,3 +1,4 @@
+import { isWebsocket } from '@/common/chains/utils'
 import {
   http,
   HttpTransport,
@@ -23,7 +24,7 @@ export function getTransport(
   config?: TransportConfig,
 ): WebSocketTransport | HttpTransport | FallbackTransport {
   const transports: (WebSocketTransport | HttpTransport)[] = rpcUrls.map((url) => {
-    if (url.startsWith('ws://') || url.startsWith('wss://')) {
+    if (isWebsocket(url)) {
       return webSocket(url, { keepAlive: true, reconnect: true, ...config })
     }
     return http(url, config)
