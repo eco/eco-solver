@@ -1,5 +1,6 @@
 export * from './chain-support.validation';
 export * from './crowd-liquidity-fee.validation';
+export * from './duplicate-reward-tokens.validation';
 export * from './executor-balance.validation';
 export * from './expiration.validation';
 export * from './fee-calculation.interface';

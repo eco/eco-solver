@@ -9,6 +9,7 @@ import {
 } from '@/modules/fulfillment/types/strategy-name.type';
 import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -36,6 +37,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for rhinestone strategy (excluding route calls)
     private readonly intentFundedValidation: IntentFundedValidation,
+    private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     // Note: RouteCallsValidation is intentionally excluded
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
@@ -49,6 +51,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     // Define immutable validations for this strategy (skips route calls validation)
     this.validations = Object.freeze([
       this.intentFundedValidation,
+      this.duplicateRewardTokensValidation,
       this.routeTokenValidation,
       // RouteCallsValidation is intentionally skipped for Rhinestone
       this.routeAmountLimitValidation,

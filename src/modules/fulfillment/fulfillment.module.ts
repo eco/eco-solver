@@ -16,6 +16,7 @@ import {
 import {
   ChainSupportValidation,
   CrowdLiquidityFeeValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -62,6 +63,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
     StandardFeeValidation,
     CrowdLiquidityFeeValidation,
     NativeFeeValidation,
+    DuplicateRewardTokensValidation,
   ],
   exports: [FulfillmentService],
 })

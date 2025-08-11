@@ -13,6 +13,7 @@ import { QueueService } from '@/modules/queue/interfaces/queue-service.interface
 
 import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -38,6 +39,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for native intents strategy
     private readonly intentFundedValidation: IntentFundedValidation,
+    private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
@@ -51,6 +53,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.intentFundedValidation,
+      this.duplicateRewardTokensValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
       this.routeAmountLimitValidation,

@@ -9,6 +9,7 @@ import {
 } from '@/modules/fulfillment/types/strategy-name.type';
 import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -37,6 +38,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     // Inject all validations needed for a standard strategy
     private readonly intentFundedValidation: IntentFundedValidation,
+    private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
     private readonly routeCallsValidation: RouteCallsValidation,
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
@@ -50,6 +52,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     // Define immutable validations for this strategy
     this.validations = Object.freeze([
       this.intentFundedValidation,
+      this.duplicateRewardTokensValidation,
       this.routeTokenValidation,
       this.routeCallsValidation,
       this.routeAmountLimitValidation,
