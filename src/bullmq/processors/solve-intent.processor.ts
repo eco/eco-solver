@@ -107,4 +107,29 @@ export class SolveIntentProcessor extends WorkerHost {
       }),
     )
   }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev?: string) {
+    this.logger.warn(
+      EcoLogMessage.fromDefault({
+        message: `SolveIntentProcessor: Job stalled`,
+        properties: {
+          jobId,
+          prev,
+        },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('error')
+  onWorkerError(error: Error) {
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `SolveIntentProcessor: Worker error`,
+        properties: {
+          error,
+        },
+      }),
+    )
+  }
 }

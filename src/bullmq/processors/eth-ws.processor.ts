@@ -57,4 +57,29 @@ export class EthWebsocketProcessor extends WorkerHost {
       }),
     )
   }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev?: string) {
+    this.logger.warn(
+      EcoLogMessage.fromDefault({
+        message: `EthWebsocketProcessor: Job stalled`,
+        properties: {
+          jobId,
+          prev,
+        },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('error')
+  onWorkerError(error: Error) {
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `EthWebsocketProcessor: Worker error`,
+        properties: {
+          error,
+        },
+      }),
+    )
+  }
 }

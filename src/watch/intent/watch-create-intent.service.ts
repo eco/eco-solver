@@ -99,13 +99,14 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
 
   addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
     return async (logs: IntentCreatedLog[]) => {
-      try {
-        // Track batch of events detected
-        if (logs.length > 0) {
-          this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
-        }
+      // Track batch of events detected
+      if (logs.length > 0) {
+        this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
+      }
 
-        for (const log of logs) {
+      await this.processLogsResiliently(
+        logs,
+        async (log) => {
           log.sourceChainID = BigInt(source.chainID)
           log.sourceNetwork = source.network
 
@@ -147,15 +148,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             )
             throw error
           }
-        }
-      } catch (error) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: 'watch create-intent onLogs handler error',
-            error,
-          }),
-        )
-      }
+        },
+        'watch create-intent',
+      )
     }
   }
 }

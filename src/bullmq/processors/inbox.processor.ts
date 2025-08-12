@@ -52,4 +52,29 @@ export class InboxProcessor extends WorkerHost {
       }),
     )
   }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev?: string) {
+    this.logger.warn(
+      EcoLogMessage.fromDefault({
+        message: `InboxProcessor: Job stalled`,
+        properties: {
+          jobId,
+          prev,
+        },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('error')
+  onWorkerError(error: Error) {
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `InboxProcessor: Worker error`,
+        properties: {
+          error,
+        },
+      }),
+    )
+  }
 }

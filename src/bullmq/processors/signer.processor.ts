@@ -51,4 +51,29 @@ export class SignerProcessor extends WorkerHost {
       }),
     )
   }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev?: string) {
+    this.logger.warn(
+      EcoLogMessage.fromDefault({
+        message: `SignerProcessor: Job stalled`,
+        properties: {
+          jobId,
+          prev,
+        },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('error')
+  onWorkerError(error: Error) {
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `SignerProcessor: Worker error`,
+        properties: {
+          error,
+        },
+      }),
+    )
+  }
 }
