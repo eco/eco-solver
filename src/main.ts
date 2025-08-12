@@ -72,9 +72,7 @@ function setupProcessHandlers(app: NestExpressApplication) {
     if (pinoLogger) {
       // Log with pino if available
       const asError =
-        error instanceof Error
-          ? { msg: message, err: error.stack || error.message }
-          : { msg: message, err: String(error) }
+        error instanceof Error ? { msg: message, err: error } : { msg: message, err: String(error) }
       pinoLogger.error(asError)
     } else {
       // Fallback to console
@@ -123,9 +121,10 @@ function setupProcessHandlers(app: NestExpressApplication) {
       logError('[process] error during graceful shutdown', closeError)
     } finally {
       // ensure logs are flushed before exiting
+      // We explicitly exit the process after closing Nest to avoid the app
+      // lingering in an undefined state or keeping event loops alive due to
+      // open handles. Exiting ensures k8s/systemd can restart us cleanly.
       await flushLogger()
-      // fallback hard-exit timer in case something hangs
-      setTimeout(() => process.exit(exitCode), 200).unref()
       process.exit(exitCode)
     }
   }

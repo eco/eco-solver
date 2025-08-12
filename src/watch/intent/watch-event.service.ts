@@ -133,6 +133,31 @@ export abstract class WatchEventService<T extends { chainID: number }>
   }
 
   /**
+   * Process a batch of logs resiliently, ensuring a single failure does not halt the batch.
+   * Logs a concise failure summary when any items fail.
+   */
+  protected async processLogsResiliently<L>(
+    logs: L[],
+    handleOne: (log: L) => Promise<void>,
+    summaryLabel: string,
+  ): Promise<void> {
+    const results = await Promise.allSettled(logs.map((log) => handleOne(log)))
+    const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+    if (failures.length > 0) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `${summaryLabel}: ${failures.length}/${logs.length} jobs failed to be added to queue`,
+          properties: {
+            failures: failures.map((f) =>
+              f.reason instanceof Error ? f.reason.message : String(f.reason),
+            ),
+          },
+        }),
+      )
+    }
+  }
+
+  /**
    * Unsubscribes from a specific chain
    * @param chainID the chain id to unsubscribe from
    */

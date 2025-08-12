@@ -81,38 +81,72 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
   addJob(network: Network, chainID: number) {
     return async (logs: ViemEventLog[]) => {
-      try {
-        const logTasks = logs.map((transferEvent) => {
-          transferEvent.sourceChainID = BigInt(chainID)
-          //add network to the event
-          transferEvent.sourceNetwork = network
+      const tasks: Promise<any>[] = []
+      const jobIds: string[] = []
 
-          //bigint as it cant serialize to json
-          transferEvent = convertBigIntsToStrings(transferEvent)
-          this.logger.debug(
+      for (let i = 0; i < logs.length; i++) {
+        let transferEvent = logs[i]
+        transferEvent.sourceChainID = BigInt(chainID)
+        transferEvent.sourceNetwork = network
+
+        transferEvent = convertBigIntsToStrings(transferEvent)
+        const jobId = getIntentJobId(
+          'websocket',
+          transferEvent.transactionHash ?? zeroHash,
+          transferEvent.logIndex ?? 0,
+        )
+        jobIds.push(jobId)
+
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `ws: balance transfer`,
+            properties: {
+              transferEvent: transferEvent,
+              jobId,
+            },
+          }),
+        )
+
+        tasks.push(
+          this.ethQueue.add(QUEUES.ETH_SOCKET.jobs.erc20_balance_socket, transferEvent, {
+            jobId,
+            ...this.intentJobConfig,
+          }),
+        )
+      }
+
+      const results = await Promise.allSettled(tasks)
+      const failures = results
+        .map((r, idx) => ({ r, idx }))
+        .filter((x) => x.r.status === 'rejected') as unknown as {
+        r: PromiseRejectedResult
+        idx: number
+      }[]
+
+      if (failures.length > 0) {
+        // Log each failed item with its jobId
+        for (const f of failures) {
+          const reason = f.r.reason instanceof Error ? f.r.reason.message : String(f.r.reason)
+          this.logger.error(
             EcoLogMessage.fromDefault({
-              message: `ws: balance transfer`,
+              message: `ws: balance queue add failed`,
               properties: {
-                transferEvent: transferEvent,
+                jobId: jobIds[f.idx],
+                reason,
               },
             }),
           )
-          //add to processing queue
-          return this.ethQueue.add(QUEUES.ETH_SOCKET.jobs.erc20_balance_socket, transferEvent, {
-            jobId: getIntentJobId(
-              'websocket',
-              transferEvent.transactionHash ?? zeroHash,
-              transferEvent.logIndex ?? 0,
-            ),
-            ...this.intentJobConfig,
-          })
-        })
-        await Promise.all(logTasks)
-      } catch (error) {
+        }
+
+        // Log summarized failure counts
         this.logger.error(
-          EcoLogMessage.withError({
-            message: 'ws: balance addJob error',
-            error,
+          EcoLogMessage.fromDefault({
+            message: `ws: balance addJob: ${failures.length}/${logs.length} jobs failed to be added to queue`,
+            properties: {
+              failures: failures.map((f) =>
+                f.r.reason instanceof Error ? f.r.reason.message : String(f.r.reason),
+              ),
+            },
           }),
         )
       }

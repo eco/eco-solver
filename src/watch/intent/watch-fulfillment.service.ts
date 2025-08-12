@@ -90,13 +90,14 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
 
   addJob(solver?: Solver) {
     return async (logs: FulfillmentLog[]) => {
-      try {
-        // Track batch of fulfillment events detected
-        if (logs.length > 0 && solver) {
-          this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
-        }
+      // Track batch of fulfillment events detected
+      if (logs.length > 0 && solver) {
+        this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
+      }
 
-        for (const log of logs) {
+      await this.processLogsResiliently(
+        logs,
+        async (log) => {
           // bigint as it can't serialize to JSON
           const fulfillment = convertBigIntsToStrings(log)
           const jobId = getIntentJobId(
@@ -140,15 +141,9 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
             )
             throw error
           }
-        }
-      } catch (error) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: 'watch fulfillment onLogs handler error',
-            error,
-          }),
-        )
-      }
+        },
+        'watch fulfillment',
+      )
     }
   }
 }
