@@ -14,7 +14,10 @@ import {
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { ValidationContextImpl } from '@/modules/fulfillment/validation-context.impl';
 import { Validation } from '@/modules/fulfillment/validations';
-import { FeeCalculationValidation } from '@/modules/fulfillment/validations/fee-calculation.interface';
+import {
+  FeeCalculationValidation,
+  FeeDetails,
+} from '@/modules/fulfillment/validations/fee-calculation.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 @Injectable()
@@ -58,7 +61,8 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
       const validations = this.getValidations();
       span.setAttribute('strategy.validation_count', validations.length);
 
-      for (const validation of validations) {
+      // Execute all validations in parallel
+      const validationPromises = validations.map(async (validation) => {
         const validationName = validation.constructor.name;
         const validationSpan = this.otelService.startSpan(`validation.${validationName}`, {
           attributes: {
@@ -81,17 +85,41 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
               message: 'Validation returned false',
             });
             validationSpan.end();
-            throw new Error(`Validation failed: ${validationName}`);
+            return {
+              status: 'rejected' as const,
+              reason: new Error(`Validation failed: ${validationName}`),
+            };
           }
 
           validationSpan.setStatus({ code: api.SpanStatusCode.OK });
           validationSpan.end();
+          return { status: 'fulfilled' as const, value: true };
         } catch (error) {
           validationSpan.recordException(error as Error);
           validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
           validationSpan.end();
-          throw error;
+          return {
+            status: 'rejected' as const,
+            reason: error instanceof Error ? error : new Error(String(error)),
+          };
         }
+      });
+
+      // Wait for all validations to complete
+      const results = await Promise.allSettled(validationPromises);
+
+      // Collect all failures
+      const failures = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => result.reason);
+
+      // If any validation failed, throw an aggregated error
+      if (failures.length > 0) {
+        const errorMessages = failures.map((error) => error.message).join('; ');
+        const aggregatedError = new Error(`Validation failures: ${errorMessages}`);
+        span.recordException(aggregatedError);
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+        throw aggregatedError;
       }
 
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -156,91 +184,110 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
       );
 
       const validations = this.getValidations();
-      const validationResults: ValidationResult[] = [];
-      let valid = true;
-      let fees = undefined;
-
       span.setAttribute('strategy.validation_count', validations.length);
 
-      for (const validation of validations) {
-        const validationName = validation.constructor.name;
-        const validationSpan = this.otelService.startSpan(`quote.validation.${validationName}`, {
-          attributes: {
-            'validation.name': validationName,
-            'intent.id': intent.intentHash,
-          },
-        });
+      // Define type for intermediate validation results
+      interface ValidationResultWithFee extends ValidationResult {
+        fee?: FeeDetails;
+      }
 
-        try {
-          const result = await api.context.with(
-            api.trace.setSpan(api.context.active(), span),
-            async () => {
-              return await validation.validate(intent, context);
+      // Execute all validations and fee calculations in parallel
+      const validationPromises = validations.map(
+        async (validation): Promise<ValidationResultWithFee> => {
+          const validationName = validation.constructor.name;
+          const validationSpan = this.otelService.startSpan(`quote.validation.${validationName}`, {
+            attributes: {
+              'validation.name': validationName,
+              'intent.id': intent.intentHash,
             },
-          );
+          });
 
-          if (result) {
-            validationResults.push({
-              validation: validationName,
-              passed: true,
-            });
+          try {
+            const result = await api.context.with(
+              api.trace.setSpan(api.context.active(), span),
+              async () => {
+                return await validation.validate(intent, context);
+              },
+            );
 
-            // Extract fee information from the first fee calculation validation only
-            if (!fees && this.isFeeCalculationValidation(validation)) {
-              const feeSpan = this.otelService.startSpan(`quote.calculateFee.${validationName}`);
-              try {
-                fees = await api.context.with(
-                  api.trace.setSpan(api.context.active(), span),
-                  async () => {
-                    return await validation.calculateFee(intent, context);
-                  },
-                );
-                if (fees) {
-                  feeSpan.setAttributes({
-                    'fee.base': fees.baseFee.toString(),
-                    'fee.percentage': fees.percentageFee.toString(),
-                    'fee.total': fees.totalFee.toString(),
-                  });
+            let feeResult = undefined;
+
+            if (result) {
+              // Calculate fee if this is a fee calculation validation
+              if (this.isFeeCalculationValidation(validation)) {
+                const feeSpan = this.otelService.startSpan(`quote.calculateFee.${validationName}`);
+                try {
+                  feeResult = await api.context.with(
+                    api.trace.setSpan(api.context.active(), span),
+                    async () => {
+                      return await validation.calculateFee(intent, context);
+                    },
+                  );
+                  if (feeResult) {
+                    feeSpan.setAttributes({
+                      'fee.base': feeResult.baseFee.toString(),
+                      'fee.percentage': feeResult.percentageFee.toString(),
+                      'fee.total': feeResult.totalRequiredFee.toString(),
+                    });
+                  }
+                  feeSpan.setStatus({ code: api.SpanStatusCode.OK });
+                } catch (error) {
+                  feeSpan.recordException(error as Error);
+                  feeSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+                  throw error;
+                } finally {
+                  feeSpan.end();
                 }
-                feeSpan.setStatus({ code: api.SpanStatusCode.OK });
-              } catch (error) {
-                feeSpan.recordException(error as Error);
-                feeSpan.setStatus({ code: api.SpanStatusCode.ERROR });
-                throw error;
-              } finally {
-                feeSpan.end();
               }
-            }
 
-            validationSpan.setAttribute('validation.passed', true);
-            validationSpan.setStatus({ code: api.SpanStatusCode.OK });
-          } else {
-            validationResults.push({
+              validationSpan.setAttribute('validation.passed', true);
+              validationSpan.setStatus({ code: api.SpanStatusCode.OK });
+              return {
+                validation: validationName,
+                passed: true,
+                fee: feeResult,
+              };
+            } else {
+              validationSpan.setAttribute('validation.passed', false);
+              validationSpan.setStatus({
+                code: api.SpanStatusCode.ERROR,
+                message: 'Validation returned false',
+              });
+              return {
+                validation: validationName,
+                passed: false,
+                error: 'Validation returned false',
+              };
+            }
+          } catch (error) {
+            validationSpan.recordException(error as Error);
+            validationSpan.setAttribute('validation.passed', false);
+            validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+            return {
               validation: validationName,
               passed: false,
-              error: 'Validation returned false',
-            });
-            valid = false;
-            validationSpan.setAttribute('validation.passed', false);
-            validationSpan.setStatus({
-              code: api.SpanStatusCode.ERROR,
-              message: 'Validation returned false',
-            });
+              error: error instanceof Error ? error.message : 'Unknown error',
+            };
+          } finally {
+            validationSpan.end();
           }
-        } catch (error) {
-          validationResults.push({
-            validation: validationName,
-            passed: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          });
-          valid = false;
-          validationSpan.recordException(error as Error);
-          validationSpan.setAttribute('validation.passed', false);
-          validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
-        } finally {
-          validationSpan.end();
-        }
-      }
+        },
+      );
+
+      // Wait for all validations to complete
+      const results = await Promise.all(validationPromises);
+
+      // Process results
+      const validationResults: ValidationResult[] = results.map((result) => ({
+        validation: result.validation,
+        passed: result.passed,
+        error: result.error,
+      }));
+
+      const valid = results.every((result) => result.passed);
+
+      // Extract the first fee result from fee calculation validations
+      const fees = results.find((result: ValidationResultWithFee) => result.fee)?.fee;
 
       span.setAttributes({
         'quote.valid': valid,

@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import * as api from '@opentelemetry/api';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
@@ -11,6 +13,7 @@ import {
   FeeCalculationValidation,
   FeeDetails,
 } from '@/modules/fulfillment/validations/fee-calculation.interface';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 // Test implementation of FulfillmentStrategy
 class TestFulfillmentStrategy extends FulfillmentStrategy {
@@ -19,9 +22,10 @@ class TestFulfillmentStrategy extends FulfillmentStrategy {
   constructor(
     blockchainExecutor: BlockchainExecutorService,
     blockchainReader: BlockchainReaderService,
+    otelService: OpenTelemetryService,
     private validations: ReadonlyArray<Validation>,
   ) {
-    super(blockchainExecutor, blockchainReader);
+    super(blockchainExecutor, blockchainReader, otelService);
   }
 
   canHandle(_intent: Intent): boolean {
@@ -82,6 +86,17 @@ class MockFeeValidation implements FeeCalculationValidation {
 describe('FulfillmentStrategy - getQuote', () => {
   let blockchainExecutor: BlockchainExecutorService;
   let blockchainReader: BlockchainReaderService;
+  let otelService: OpenTelemetryService;
+
+  const mockOtelService = {
+    startSpan: jest.fn().mockReturnValue({
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    }),
+  };
 
   const mockIntent: Intent = {
     intentHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
@@ -103,6 +118,12 @@ describe('FulfillmentStrategy - getQuote', () => {
   };
 
   beforeEach(async () => {
+    // Mock OpenTelemetry context API
+    jest.spyOn(api.context, 'with').mockImplementation((_context, fn) => {
+      return fn();
+    });
+    jest.spyOn(api.trace, 'setSpan').mockImplementation(() => api.context.active());
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
@@ -113,11 +134,20 @@ describe('FulfillmentStrategy - getQuote', () => {
           provide: BlockchainReaderService,
           useValue: {},
         },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
       ],
     }).compile();
 
     blockchainExecutor = module.get<BlockchainExecutorService>(BlockchainExecutorService);
     blockchainReader = module.get<BlockchainReaderService>(BlockchainReaderService);
+    otelService = module.get<OpenTelemetryService>(OpenTelemetryService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('with all validations passing', () => {
@@ -131,6 +161,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -180,6 +211,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -200,6 +232,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -237,6 +270,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -268,6 +302,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -289,6 +324,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -316,6 +352,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       const strategy = new TestFulfillmentStrategy(
         blockchainExecutor,
         blockchainReader,
+        otelService,
         validations,
       );
 
@@ -327,6 +364,54 @@ describe('FulfillmentStrategy - getQuote', () => {
         passed: false,
         error: 'Unknown error',
       });
+    });
+  });
+
+  describe('parallel execution', () => {
+    it('should execute validations in parallel', async () => {
+      const executionOrder: string[] = [];
+      
+      class SlowValidation implements Validation {
+        constructor(private name: string, private delay: number) {}
+        
+        async validate(_intent: Intent, _context: ValidationContext): Promise<boolean> {
+          executionOrder.push(`${this.name}-start`);
+          await new Promise(resolve => setTimeout(resolve, this.delay));
+          executionOrder.push(`${this.name}-end`);
+          return true;
+        }
+      }
+
+      const validations = [
+        new SlowValidation('validation1', 50),
+        new SlowValidation('validation2', 30),
+        new SlowValidation('validation3', 10),
+      ];
+
+      const strategy = new TestFulfillmentStrategy(
+        blockchainExecutor,
+        blockchainReader,
+        otelService,
+        validations,
+      );
+
+      const startTime = Date.now();
+      await strategy.getQuote(mockIntent);
+      const duration = Date.now() - startTime;
+
+      // If validations ran sequentially, it would take 90ms+
+      // In parallel, it should take around 50ms (the longest validation)
+      expect(duration).toBeLessThan(80);
+
+      // All validations should start before any finish
+      expect(executionOrder).toEqual([
+        'validation1-start',
+        'validation2-start',
+        'validation3-start',
+        'validation3-end',
+        'validation2-end',
+        'validation1-end',
+      ]);
     });
   });
 });
