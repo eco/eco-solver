@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { encodeFunctionData, erc20Abi, Hash } from 'viem'
+import { encodeAbiParameters, encodeFunctionData, erc20Abi, Hash, pad, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -9,8 +9,6 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { FeeService } from '@/fee/fee.service'
 import { EcoAnalyticsService } from '@/analytics'
-
-import { RhinestoneApiService } from './rhinestone-api.service'
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service'
 import {
   ChainExecution,
@@ -20,7 +18,11 @@ import {
   RhinestoneRelayerActionV1,
 } from '../types/rhinestone-websocket.types'
 import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-validator.service'
-import { hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { hashIntent, InboxAbi, IntentType } from '@eco-foundation/routes-ts'
+import { getChainConfig } from '@/eco-configs/utils'
+import { ProofService } from '@/prover/proof.service'
+import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 /**
  * Main service for handling Rhinestone WebSocket events and executing transactions.
@@ -31,13 +33,15 @@ export class RhinestoneService implements OnModuleInit {
   private readonly logger = new Logger(RhinestoneService.name)
 
   constructor(
+    private readonly ecoConfigService: EcoConfigService,
     private readonly walletClient: WalletClientDefaultSignerService,
     private readonly kernelAccountClient: KernelAccountClientService,
-    private readonly rhinestoneApi: RhinestoneApiService,
     private readonly rhinestoneWebsocketService: RhinestoneWebsocketService,
     private readonly rhinestoneValidatorService: RhinestoneValidatorService,
     private readonly feeService: FeeService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly proofService: ProofService,
+    private readonly walletFulfillService: WalletFulfillService,
   ) {}
 
   /**
@@ -231,7 +235,7 @@ export class RhinestoneService implements OnModuleInit {
         }),
       )
 
-      fillTxHash = await this.executeFillWithApproval(action.fill, intents)
+      fillTxHash = await this.executeFill(action.fill, intents)
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -377,7 +381,7 @@ export class RhinestoneService implements OnModuleInit {
    * @param intents
    * @returns The transaction hash
    */
-  private async executeFillWithApproval(fill: FillAction, intents: IntentType[]): Promise<Hash> {
+  private async executeFill(fill: FillAction, intents: IntentType[]): Promise<Hash> {
     try {
       const transactions: ExecuteSmartWalletArg[] = []
 
@@ -411,6 +415,48 @@ export class RhinestoneService implements OnModuleInit {
         data: fill.call.data,
       }
       transactions.push(fillTx)
+
+      // Prove transactions
+      const requests = intents.map(async (intent) => {
+        const proverType = this.proofService.getProverType(
+          Number(intent.route.source),
+          intent.reward.prover,
+        )
+        if (!proverType?.isHyperlane()) throw new Error('Rhinestone: Invalid prover type')
+
+        const { HyperProver: hyperProverAddr } = getChainConfig(Number(intent.route.destination))
+
+        const { intentHash } = hashIntent(intent)
+
+        const messageData = encodeAbiParameters(
+          [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+          [pad(intent.reward.prover), '0x', zeroAddress],
+        )
+
+        const txData = encodeFunctionData({
+          abi: InboxAbi,
+          functionName: 'initiateProving',
+          args: [intent.route.source, [intentHash], hyperProverAddr, messageData],
+        })
+
+        const claimant = this.ecoConfigService.getEth().claimant
+
+        const proverFee = await this.walletFulfillService.getProverFee(
+          intent,
+          claimant,
+          hyperProverAddr,
+          messageData,
+        )
+
+        transactions.push({
+          to: intent.route.inbox,
+          data: txData,
+          value: proverFee,
+        })
+      })
+
+      // Wait for the proving transactions
+      await Promise.all(requests)
 
       this.logger.log(
         EcoLogMessage.fromDefault({

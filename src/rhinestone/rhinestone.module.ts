@@ -13,12 +13,14 @@ import { RhinestoneValidatorService } from '@/rhinestone/services/rhinestone-val
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RhinestoneContractsService } from '@/rhinestone/services/rhinestone-contracts.service'
 import { ONE_HOUR } from '@/common/time'
+import { ProverModule } from '@/prover/prover.module'
 
 @Module({
   imports: [
     TransactionModule,
     IntentModule,
     FeeModule,
+    ProverModule,
     AnalyticsModule,
     EventEmitterModule.forRoot(),
     CacheModule.registerAsync({

@@ -8,7 +8,12 @@ import {
   pad,
   zeroAddress,
 } from 'viem'
-import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import {
+  hashIntent,
+  IMessageBridgeProverAbi,
+  InboxAbi,
+  IntentType,
+} from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -190,6 +195,38 @@ export class WalletFulfillService implements IFulfillService {
   }
 
   /**
+   * Calculates the fee required for a transaction by calling the prover contract.
+   *
+   * @param {IntentType} intent - The intent details, including route and reward information.
+   * @param claimant - The claimant address
+   * @param proverAddr - The address of the prover contract
+   * @param messageData - The message data to send
+   * @return {Promise<bigint>} A promise that resolves to the fee amount
+   */
+  async getProverFee(
+    intent: IntentType,
+    claimant: Hex,
+    proverAddr: Hex,
+    messageData: Hex,
+  ): Promise<bigint> {
+    const client = await this.kernelAccountClientService.getClient(Number(intent.route.destination))
+
+    const { intentHash } = hashIntent(intent)
+
+    const callData = encodeFunctionData({
+      abi: IMessageBridgeProverAbi,
+      functionName: 'fetchFee',
+      args: [intent.route.source, [intentHash], [claimant], messageData],
+    })
+
+    const proverData = await client.call({
+      to: proverAddr,
+      data: callData,
+    })
+    return BigInt(proverData.data ?? 0)
+  }
+
+  /**
    * Generates transactions for specified intent targets by processing the intent source model and solver.
    *
    * @param {IntentSourceModel} model - The intent source model containing call data and routing information.
@@ -364,7 +401,7 @@ export class WalletFulfillService implements IFulfillService {
       [pad(model.intent.reward.prover), '0x', zeroAddress],
     )
 
-    const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
+    const fee = await this.getProverFee(model.intent, claimant, hyperProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -413,7 +450,7 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     // Metalayer may use the same fee structure as Hyperlane
-    const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
+    const fee = await this.getProverFee(model.intent, claimant, metalayerProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
@@ -433,42 +470,5 @@ export class WalletFulfillService implements IFulfillService {
       data: fulfillIntentData,
       value: fee,
     }
-  }
-
-  /**
-   * Calculates the fee required for a transaction by calling the prover contract.
-   *
-   * @param {IntentSourceModel} model - The model containing intent details, including route, hash, and reward information.
-   * @param claimant - The claimant address
-   * @param proverAddr - The address of the prover contract
-   * @param messageData - The message data to send
-   * @return {Promise<bigint>} A promise that resolves to the fee amount
-   */
-  private async getProverFee(
-    model: IntentSourceModel,
-    claimant: Hex,
-    proverAddr: Hex,
-    messageData: Hex,
-  ): Promise<bigint> {
-    const client = await this.kernelAccountClientService.getClient(
-      Number(model.intent.route.destination),
-    )
-
-    const callData = encodeFunctionData({
-      abi: IMessageBridgeProverAbi,
-      functionName: 'fetchFee',
-      args: [
-        IntentSourceModel.getSource(model), //_sourceChainID
-        [model.intent.hash],
-        [claimant],
-        messageData,
-      ],
-    })
-
-    const proverData = await client.call({
-      to: proverAddr,
-      data: callData,
-    })
-    return BigInt(proverData.data ?? 0)
   }
 }
