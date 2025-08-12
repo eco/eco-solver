@@ -6,9 +6,9 @@ import { EcoError } from '@/common/errors/eco-error'
 /**
  * Shared utility functions for normalizing token amounts across the application.
  *
- * These utilities handle decimal transformations consistently between:
+ * These utilities handle decimal transformations consistently across:
  * - Quote API interceptors (TokenDecimalsInterceptor)
- * - Watch event interceptors (WatchEventNormalizationInterceptor)
+ * - Intent creation services (CreateIntentService)
  */
 
 /**
@@ -38,7 +38,7 @@ export function normalizeTokenAmounts(
   return tokens.map((token) => {
     if (!token.token || !token.amount) return token
 
-    const originalDecimals = findTokenDecimals(token.token, chainId)
+    const originalDecimals = findTokenDecimals(token.token, Number(chainId))
 
     if (originalDecimals === null) {
       throw EcoError.UnknownTokenError(token.token, chainId)

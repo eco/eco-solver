@@ -5,6 +5,7 @@ import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from 
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { denormalizeTokenAmounts } from '@/intent/utils/intent-denormalization.utils'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -117,11 +118,11 @@ export class IntentDataModel implements IntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    return hashIntent(intentDataModel)
+    return hashIntent(intentDataModel.toDenormalizedIntent())
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    return encodeIntent(intentDataModel)
+    return encodeIntent(intentDataModel.toDenormalizedIntent())
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
@@ -144,10 +145,27 @@ export class IntentDataModel implements IntentType {
   }
 
   static toChainIntent(intent: IntentDataModel): IntentType {
+    // Convert Mongoose document to plain object if needed
+    const plainIntent = (intent as any).toObject ? (intent as any).toObject() : intent
+    
     return {
-      route: intent.route,
-      reward: intent.reward,
+      route: {
+        ...plainIntent.route,
+        tokens: denormalizeTokenAmounts(plainIntent.route?.tokens || [], Number(plainIntent.route.destination)),
+      },
+      reward: {
+        ...plainIntent.reward,
+        tokens: denormalizeTokenAmounts(plainIntent.reward?.tokens || [], Number(plainIntent.route.source)),
+      },
     }
+  }
+
+  /**
+   * Returns a denormalized copy of this intent for hashing and encoding operations.
+   * This ensures that token amounts are in their original decimals for consistent hashing.
+   */
+  toDenormalizedIntent(): IntentType {
+    return IntentDataModel.toChainIntent(this)
   }
 }
 
@@ -163,9 +181,13 @@ IntentSourceDataSchema.methods.getHash = function (): {
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  return hashIntent(this.toDenormalizedIntent())
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  return encodeIntent(this.toDenormalizedIntent())
+}
+
+IntentSourceDataSchema.methods.toDenormalizedIntent = function (): IntentType {
+  return IntentDataModel.toChainIntent(this)
 }

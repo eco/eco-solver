@@ -5,7 +5,6 @@ import { WatchCreateIntentService } from '@/watch/intent/watch-create-intent.ser
 import { TransactionModule } from '@/transaction/transaction.module'
 import { WatchFulfillmentService } from '@/watch/intent/watch-fulfillment.service'
 import { IntentFundedEventsModule } from '@/watch/intent/intent-funded-events/intent-funded-events.module'
-import { WatchEventNormalizationInterceptor } from '@/interceptors/watch-event-normalization.interceptor'
 
 @Module({
   imports: [
@@ -17,7 +16,6 @@ import { WatchEventNormalizationInterceptor } from '@/interceptors/watch-event-n
   providers: [
     WatchCreateIntentService,
     WatchFulfillmentService,
-    WatchEventNormalizationInterceptor,
   ],
   exports: [WatchCreateIntentService, WatchFulfillmentService, IntentFundedEventsModule],
 })

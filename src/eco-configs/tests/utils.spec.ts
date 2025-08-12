@@ -339,11 +339,11 @@ describe('config utils tests', () => {
     })
 
     it('should work with real-world config transformation example', () => {
-      const keySet = new Set(['tokenBase6', 'nativeBase18', 'minBalance'])
+      const keySet = new Set(['tokenLimit', 'nativeLimit', 'minBalance'])
       const converter = (value: any, key: string) => {
-        if (key === 'tokenBase6') {
+        if (key === 'tokenLimit') {
           return value // Keep same value (key renaming handled elsewhere)
-        } else if (key === 'nativeBase18') {
+        } else if (key === 'nativeLimit') {
           return value / 1000000000000 // Remove 12 zeros
         } else if (key === 'minBalance') {
           return value * 1000000 // Add 6 zeros
@@ -356,8 +356,8 @@ describe('config utils tests', () => {
           '1': {
             fee: {
               limit: {
-                tokenBase6: 5000000000,
-                nativeBase18: 10000000000000000,
+                tokenLimit: 5000000000,
+                nativeLimit: 10000000000000000,
               },
             },
             targets: {
@@ -377,8 +377,8 @@ describe('config utils tests', () => {
           '1': {
             fee: {
               limit: {
-                tokenBase6: 5000000000, // unchanged
-                nativeBase18: 10000, // 10000000000000000 / 1000000000000
+                tokenLimit: 5000000000, // unchanged
+                nativeLimit: 10000, // 10000000000000000 / 1000000000000
               },
             },
             targets: {

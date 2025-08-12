@@ -373,7 +373,7 @@ export class WalletFulfillService implements IFulfillService {
       functionName: 'fulfill',
       args: [
         model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
+        RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
         hyperProverAddr,
@@ -406,7 +406,7 @@ export class WalletFulfillService implements IFulfillService {
       functionName: 'fulfillAndProve',
       args: [
         model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
+        RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
         hyperProverAddr,
@@ -455,7 +455,7 @@ export class WalletFulfillService implements IFulfillService {
       functionName: 'fulfillAndProve',
       args: [
         model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
+        RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
         metalayerProverAddr,

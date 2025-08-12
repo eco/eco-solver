@@ -14,7 +14,6 @@ import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
-import { WatchEventNormalizationInterceptor } from '@/interceptors/watch-event-normalization.interceptor'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -30,7 +29,6 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     protected readonly publicClientService: MultichainPublicClientService,
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
-    private readonly watchEventNormalizationInterceptor: WatchEventNormalizationInterceptor,
   ) {
     super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
@@ -110,14 +108,8 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
 
-        // Normalize token decimals before serialization
-        const normalizedLog = this.watchEventNormalizationInterceptor.normalizeIntentCreatedLog(
-          log,
-          source.chainID,
-        )
-
-        // bigint as it can't serialize to JSON
-        const createIntent = BigIntSerializer.serialize(normalizedLog)
+        // bigint as it can't serialize to JSON  
+        const createIntent = BigIntSerializer.serialize(log)
         const jobId = getIntentJobId(
           'watch-create-intent',
           createIntent.args.hash,

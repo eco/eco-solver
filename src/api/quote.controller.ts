@@ -1,5 +1,5 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
-import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
+import { Body, Controller, InternalServerErrorException, Logger, Post, UseInterceptors } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
@@ -8,8 +8,11 @@ import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { TokenDecimalsInterceptor } from '@/interceptors/token-decimals.interceptor'
+import { TokenCallsInterceptor } from '@/interceptors/token-calls.interceptor'
 
 @Controller(API_ROOT + QUOTE_ROUTE)
+@UseInterceptors(TokenDecimalsInterceptor, TokenCallsInterceptor)
 export class QuoteController {
   private logger = new Logger(QuoteController.name)
 

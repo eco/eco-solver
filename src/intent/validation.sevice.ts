@@ -278,8 +278,8 @@ export class ValidationService implements OnModuleInit {
         properties: {
           tokenTotalFillNormalized: totalFillNormalized.token.toString(),
           nativeTotalFillNormalized: totalFillNormalized.native.toString(),
-          tokenBase6: token.toString(),
-          nativeBase18: native.toString(),
+          tokenLimit: token.toString(),
+          nativeLimit: native.toString(),
         },
       }),
     )

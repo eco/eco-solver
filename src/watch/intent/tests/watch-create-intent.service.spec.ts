@@ -10,7 +10,6 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { serialize } from '@/common/utils/serialize'
 import { IntentCreatedLog } from '@/contracts'
 import { EcoAnalyticsService } from '@/analytics'
-import { WatchEventNormalizationInterceptor } from '@/interceptors/watch-event-normalization.interceptor'
 
 describe('WatchIntentService', () => {
   let watchIntentService: WatchCreateIntentService
@@ -37,10 +36,6 @@ describe('WatchIntentService', () => {
         },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
-        {
-          provide: WatchEventNormalizationInterceptor,
-          useValue: createMock<WatchEventNormalizationInterceptor>(),
-        },
       ],
       imports: [
         BullModule.registerQueue({
@@ -56,14 +51,10 @@ describe('WatchIntentService', () => {
     publicClientService = chainMod.get(MultichainPublicClientService)
     ecoConfigService = chainMod.get(EcoConfigService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
-    const interceptor = chainMod.get(WatchEventNormalizationInterceptor)
 
     watchIntentService['logger'].debug = mockLogDebug
     watchIntentService['logger'].log = mockLogLog
     watchIntentService['logger'].error = mockLogError
-
-    // Mock the interceptor to return the input log (no transformation for tests)
-    interceptor.normalizeIntentCreatedLog = jest.fn((log) => log)
   })
 
   afterEach(async () => {

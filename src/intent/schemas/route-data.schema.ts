@@ -6,6 +6,7 @@ import {
 import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { denormalizeTokenAmounts } from '@/intent/utils/intent-denormalization.utils'
 
 @Schema({ timestamps: true })
 export class RouteDataModel implements RouteType {
@@ -36,6 +37,20 @@ export class RouteDataModel implements RouteType {
     this.tokens = routeTokens
     this.inbox = inbox
     this.calls = calls
+  }
+
+  /**
+   * Returns a denormalized copy of this route for hashing and encoding operations.
+   */
+  static toDenormalizedRoute(routeDataModel: RouteDataModel): RouteType {
+    return {
+      salt: routeDataModel.salt,
+      source: routeDataModel.source,
+      destination: routeDataModel.destination,
+      inbox: routeDataModel.inbox,
+      tokens: denormalizeTokenAmounts(routeDataModel.tokens || [], Number(routeDataModel.destination)),
+      calls: routeDataModel.calls,
+    }
   }
 }
 

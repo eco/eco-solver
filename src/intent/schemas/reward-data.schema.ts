@@ -5,6 +5,7 @@ import {
 import { encodeReward, hashReward, RewardType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { denormalizeTokenAmounts } from '@/intent/utils/intent-denormalization.utils'
 
 @Schema({ timestamps: true })
 export class RewardDataModel implements RewardType {
@@ -33,12 +34,26 @@ export class RewardDataModel implements RewardType {
     this.tokens = tokens
   }
 
-  static getHash(intentDataModel: RewardDataModel) {
-    return hashReward(intentDataModel)
+  static getHash(rewardModel: RewardDataModel, sourceChainId: number) {
+    return hashReward(RewardDataModel.toDenormalizedReward(rewardModel, sourceChainId))
   }
 
-  static encode(intentDataModel: RewardDataModel) {
-    return encodeReward(intentDataModel)
+  static encode(rewardModel: RewardDataModel, sourceChainId: number) {
+    return encodeReward(RewardDataModel.toDenormalizedReward(rewardModel, sourceChainId))
+  }
+
+  /**
+   * Returns a denormalized copy of this reward for hashing and encoding operations.
+   * @param sourceChainId Source chain ID for token decimal lookup
+   */
+  static toDenormalizedReward(rewardModel: RewardDataModel, sourceChainId: number): RewardType {
+    return {
+      creator: rewardModel.creator,
+      prover: rewardModel.prover,
+      deadline: rewardModel.deadline,
+      nativeValue: rewardModel.nativeValue,
+      tokens: denormalizeTokenAmounts(rewardModel.tokens || [], sourceChainId),
+    }
   }
 }
 
