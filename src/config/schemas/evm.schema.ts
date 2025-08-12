@@ -20,12 +20,12 @@ export const EvmRpcSchema = z.object({
             wait: z.number().int().positive().optional(),
           }),
         ])
-        .optional(),
+        .default(true),
       timeout: z.number().int().positive().optional(),
       retryCount: z.number().int().min(0).optional(),
       retryDelay: z.number().int().positive().optional(),
     })
-    .optional(),
+    .default({}),
 });
 
 /**
