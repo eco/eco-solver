@@ -216,8 +216,8 @@ export class FeeService implements OnModuleInit {
     const totalFillNormalized: NormalizedTotal = calls.reduce(
       (acc, call) => {
         return {
-          token: acc.token + call.balance,
-          native: acc.native + call.native.amount,
+          token: acc.token + BigInt(call.balance),
+          native: acc.native + BigInt(call.native.amount),
         }
       },
       { token: 0n, native: 0n },

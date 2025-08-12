@@ -25,7 +25,7 @@ import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoAnalyticsService } from '@/analytics'
 import { normalizeTokenAmounts } from '@/quote/utils/token-normalization.utils'
-import { TokenAmountDataModel } from '@/intent/schemas/intent-token-amount.schema'
+import { normalizeRouteCalls } from '@/intent/utils/normalize-calls.utils'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -93,6 +93,21 @@ export class CreateIntentService implements OnModuleInit {
         token: getAddress(token.token),
         amount: BigInt(token.amount),
       }))
+    }
+
+    // Normalize calls before saving to database
+    if (intent.route && intent.route.calls && intent.route.calls.length > 0) {
+      const parsedCalls = normalizeRouteCalls(
+        {
+          calls: intent.route.calls,
+          chainId: Number(intent.route.destination),
+          tokens: intent.route.tokens || [],
+        },
+        this.ecoConfigService,
+      )
+      
+      // Store parsed calls data in the intent for database storage
+      intent.route.parsedCalls = parsedCalls
     }
 
     try {
@@ -204,6 +219,16 @@ export class CreateIntentService implements OnModuleInit {
         reward,
       )
 
+      // Generate parsedCalls for gasless intent creation
+      const parsedCalls = normalizeRouteCalls(
+        {
+          calls: calls as CallDataInterface[],
+          chainId: Number(destination),
+          tokens: routeTokens as any[],
+        },
+        this.ecoConfigService,
+      )
+
       const intent = new IntentDataModel({
         quoteID,
         hash: intentHash,
@@ -220,6 +245,7 @@ export class CreateIntentService implements OnModuleInit {
         rewardTokens,
         logIndex: 0,
         funder,
+        parsedCalls,
       })
 
       await this.intentModel.create({

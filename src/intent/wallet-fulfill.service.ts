@@ -29,12 +29,10 @@ import {
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
+import { RouteDataModel } from '@/intent/schemas/route-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
-import { denormalizeTokenAmounts, NormalizableToken } from '@/quote/utils/token-normalization.utils'
-import { findTokenDecimals } from '@/interceptors/utils'
-import { BASE_DECIMALS } from '@/intent/utils'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -50,7 +48,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) {}
+  ) { }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -175,44 +173,12 @@ export class WalletFulfillService implements IFulfillService {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-
-        // Look up the token's original decimals
-        const originalDecimals = findTokenDecimals(target, solver.chainID)
-        if (originalDecimals === null) {
-          this.logger.error(
-            EcoLogMessage.withError({
-              message: `handleErc20: Unknown token decimals for ${target} on chain ${solver.chainID}`,
-              error: new Error('Unknown token decimals'),
-              properties: { target, chainID: solver.chainID },
-            }),
-          )
-          this.ecoAnalytics.trackErc20TransactionHandlingUnsupported(tt, solver, target)
-          return []
-        }
-
-        // Create a NormalizableToken object with the base 18 amount and decimal metadata
-        // This matches the structure created by normalizeTokenAmounts
-        const token: NormalizableToken = {
-          token: target,
-          amount: dstAmount,
-          decimals: {
-            original: originalDecimals,
-            current: BASE_DECIMALS,
-          },
-        }
-
-        // Use the same denormalization utility as the interceptor to convert back to original decimals
-        denormalizeTokenAmounts([token])
-
-        // After denormalization, the amount is now in original decimals and decimals metadata is removed
-        const originalAmount = BigInt(token.amount)
-
         // Approve the inbox to spend the original amount, inbox contract pulls the funds
         // then does the transfer call for the target
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
-          args: [solver.inboxAddress, originalAmount], //spender, amount (converted back to original decimals)
+          args: [solver.inboxAddress, dstAmount], //spender, amount
         })
 
         const result = [{ to: target, value: 0n, data: transferFunctionData }]
@@ -372,7 +338,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fulfill',
       args: [
-        model.intent.route,
+        RouteDataModel.toDenormalizedRoute(model.intent.route),
         RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
@@ -400,15 +366,17 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
-
+    const droute = RouteDataModel.toDenormalizedRoute(model.intent.route)
+    const drewardHash = RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source))
+    const dhash = IntentDataModel.getHash(model.intent).intentHash
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
       args: [
-        model.intent.route,
-        RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
+        droute,
+        drewardHash,
         claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
+        dhash,
         hyperProverAddr,
         messageData,
       ],
@@ -454,7 +422,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
       args: [
-        model.intent.route,
+        RouteDataModel.toDenormalizedRoute(model.intent.route),
         RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,

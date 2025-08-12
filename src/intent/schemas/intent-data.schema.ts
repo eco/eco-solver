@@ -6,6 +6,7 @@ import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.sch
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
 import { denormalizeTokenAmounts } from '@/intent/utils/intent-denormalization.utils'
+import { ParsedCallsModel } from '@/intent/schemas/parsed-calls.schema'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -23,6 +24,7 @@ export interface CreateIntentDataModelParams {
   rewardTokens: RewardTokensInterface[]
   logIndex: number
   funder?: Hex
+  parsedCalls?: ParsedCallsModel
 }
 
 @Schema({ timestamps: true })
@@ -63,6 +65,7 @@ export class IntentDataModel implements IntentType {
       rewardTokens,
       logIndex,
       funder,
+      parsedCalls,
     } = params
 
     if (calls.length == 0) {
@@ -79,6 +82,9 @@ export class IntentDataModel implements IntentType {
     this.quoteID = quoteID
     this.hash = hash
 
+    // Create empty parsedCalls if not provided - will be set later by the calling service
+    const defaultParsedCalls = parsedCalls || { erc20Calls: [], nativeCalls: [] }
+
     this.route = new RouteDataModel(
       salt,
       source,
@@ -92,6 +98,7 @@ export class IntentDataModel implements IntentType {
         call.target = getAddress(call.target)
         return call
       }),
+      defaultParsedCalls,
     )
 
     this.reward = new RewardDataModel(
