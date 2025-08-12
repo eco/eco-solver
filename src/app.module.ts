@@ -49,7 +49,7 @@ import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment
     }),
     BalanceModule,
     ChainMonitorModule,
-    EcoConfigModule.withAWS(),
+    EcoConfigModule.withAll(),
     FeeModule,
     FlagsModule,
     HealthModule,

@@ -69,6 +69,7 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
       }
     } catch (err) {
       this.logger.error(EcoError.getErrorMessage({ message: err.message }))
+      throw new EcoError(`Failed to retrieve AWS secrets: ${err.message}`)
     }
     return {}
   }
