@@ -48,7 +48,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) {}
+  ) { }
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -96,7 +96,7 @@ export class WalletFulfillService implements IFulfillService {
 
       // set the status and receipt for the model
       model.receipt = receipt as any
-      if (receipt.status === 'reverted') {
+      if (!receipt.status || receipt.status !== 'success') {
         this.ecoAnalytics.trackIntentFulfillmentTransactionReverted(model, solver, receipt)
         throw EcoError.FulfillIntentRevertError(receipt)
       }

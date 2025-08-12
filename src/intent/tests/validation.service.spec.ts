@@ -14,6 +14,8 @@ import { FeeService } from '@/fee/fee.service'
 import { FeeConfigType } from '@/eco-configs/eco-config.types'
 import { BalanceService } from '@/balance/balance.service'
 import { BASE_DECIMALS } from '@/intent/utils'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -27,6 +29,8 @@ describe('ValidationService', () => {
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let utilsIntentService: DeepMocked<UtilsIntentService>
+  let crowdLiquidityService: DeepMocked<CrowdLiquidityService>
+  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   const mockLogLog = jest.fn()
 
   beforeEach(async () => {
@@ -38,6 +42,8 @@ describe('ValidationService', () => {
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: UtilsIntentService, useValue: createMock<UtilsIntentService>() },
+        { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
       ],
     }).compile()
 
@@ -47,6 +53,8 @@ describe('ValidationService', () => {
     balanceService = mod.get(BalanceService)
     ecoConfigService = mod.get(EcoConfigService)
     utilsIntentService = mod.get(UtilsIntentService)
+    crowdLiquidityService = mod.get(CrowdLiquidityService)
+    kernelAccountClientService = mod.get(KernelAccountClientService)
 
     // Mock Logger to avoid console output during tests
     validationService['logger'].log = mockLogLog
@@ -78,6 +86,18 @@ describe('ValidationService', () => {
     }
     proofService.getProverType.mockReturnValue(mockProofType as any)
     proofService.isIntentExpirationWithinProofMinimumDate.mockReturnValue(true)
+
+    // Mock fulfillment type - default to non-crowd-liquidity
+    ecoConfigService.getFulfill.mockReturnValue({ type: 'smart-wallet-account' } as any)
+
+    // Mock kernel account client service
+    kernelAccountClientService.getAddress.mockResolvedValue('0xKernelAddress' as any)
+
+    // Mock crowd liquidity service
+    crowdLiquidityService.getPoolAddress.mockReturnValue('0xPoolAddress' as any)
+
+    // Initialize the service
+    validationService.onModuleInit()
   })
 
   afterEach(async () => {
@@ -546,38 +566,154 @@ describe('ValidationService', () => {
         },
       } as any
 
-      it('should return false when solver doesnt exist', async () => {
-        ecoConfigService.getSolver.mockReturnValue(undefined)
-        balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': {
-            address: '0xToken1',
-            balance: 1500000000000000000000n, // 1500 tokens in 18 decimals (normalized)
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
-          '0xToken2': {
-            address: '0xToken2',
-            balance: 2500000000000000000000n, // 2500 tokens in 18 decimals (normalized)
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
+      it('should return true when solver has sufficient token and native balances', async () => {
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
         balanceService.getNativeBalance.mockResolvedValue(500n)
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
+        expect(result).toBe(true)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
+          10,
+          '0xKernelAddress',
+          ['0xToken1', '0xToken2'],
+        )
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xKernelAddress')
+      })
+
+      it('should validate multiple wallet addresses in parallel and return true if any has sufficient balance', async () => {
+        // Configure for crowd liquidity mode with multiple addresses
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        // Mock so that first wallet fails but second succeeds
+        let callCount = 0
+        balanceService.fetchWalletTokenBalances.mockImplementation(() => {
+          callCount++
+          if (callCount === 1) {
+            // First wallet - insufficient balance
+            return Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+            })
+          } else {
+            // Second wallet - sufficient balance
+            return Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+            })
+          }
+        })
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+
+        expect(result).toBe(true)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+      })
+
+      it('should return false when all wallet addresses have insufficient balance', async () => {
+        // Configure for crowd liquidity mode with multiple addresses
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 2000n }],
+            calls: [],
+          },
+        } as any
+
+        // Mock all wallets to have insufficient balance
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+
         expect(result).toBe(false)
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+      })
+
+      it('should use Promise.all and return true if any address validation succeeds', async () => {
+        // Configure for crowd liquidity mode
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [{ target: '0x1', data: '0x', value: 100n }],
+          },
+        } as any
+
+        // Mock different results for different addresses
+        // First address has insufficient token balance (fails early)
+        // Second address has sufficient balance for both tokens and native
+        balanceService.fetchWalletTokenBalances
+          .mockImplementationOnce(() =>
+            Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+            }),
+          )
+          .mockImplementationOnce(() =>
+            Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+            }),
+          )
+
+        balanceService.getNativeBalance
+          .mockImplementationOnce(() => Promise.resolve(150n)) // sufficient (but won't be called for first address)
+          .mockImplementationOnce(() => Promise.resolve(150n)) // sufficient
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+
+        expect(result).toBe(true) // Should return true because second address has sufficient balance
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+        expect(balanceService.getNativeBalance).toHaveBeenCalledTimes(1) // Only called for second address
+      })
+
+      it('should handle errors in parallel validation and still return true if any succeeds', async () => {
+        // Configure for crowd liquidity mode
+        ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
+
+        const mockIntent = {
+          hash: '0x123',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        // First wallet throws error, second succeeds
+        balanceService.fetchWalletTokenBalances
+          .mockImplementationOnce(() => Promise.reject(new Error('Network error')))
+          .mockImplementationOnce(() =>
+            Promise.resolve({
+              '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+            }),
+          )
+
+        const result = await validationService['hasSufficientBalance'](mockIntent)
+
+        expect(result).toBe(true) // Should return true because second address validation succeeds
+        expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
       })
 
       it('should return false when solver has insufficient token balance', async () => {
-        balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': {
-            address: '0xToken1',
-            balance: 500000000000000000000n, // 500 tokens in 18 decimals - insufficient for 1000 needed
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
-          '0xToken2': {
-            address: '0xToken2',
-            balance: 2500000000000000000000n, // 2500 tokens in 18 decimals (sufficient)
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
         balanceService.getNativeBalance.mockResolvedValue(500n)
 
@@ -586,17 +722,9 @@ describe('ValidationService', () => {
       })
 
       it('should return false when solver has insufficient native balance', async () => {
-        balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': {
-            address: '0xToken1',
-            balance: 1500000000000000000000n, // 1500 tokens in 18 decimals (sufficient)
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
-          '0xToken2': {
-            address: '0xToken2',
-            balance: 2500000000000000000000n, // 2500 tokens in 18 decimals (sufficient)
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
         })
         balanceService.getNativeBalance.mockResolvedValue(250n) // insufficient for 300n total
 
@@ -605,12 +733,8 @@ describe('ValidationService', () => {
       })
 
       it('should return false when token balance is missing', async () => {
-        balanceService.fetchTokenBalances.mockResolvedValue({
-          '0xToken1': {
-            address: '0xToken1',
-            balance: 1500n,
-            decimals: { original: 6, current: BASE_DECIMALS },
-          },
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
           // Missing '0xToken2'
         })
         balanceService.getNativeBalance.mockResolvedValue(500n)
@@ -619,234 +743,362 @@ describe('ValidationService', () => {
         expect(result).toBe(false)
       })
 
+      it('should return true when there are no native value calls', async () => {
+        const intentWithoutNative = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            calls: [
+              { target: '0x1', data: '0x', value: 0n },
+              { target: '0x2', data: '0x', value: 0n },
+            ],
+          },
+        }
+
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithoutNative)
+        expect(result).toBe(true)
+        expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
+      })
+
       it('should return false when balance service throws an error', async () => {
-        balanceService.fetchTokenBalances.mockRejectedValue(new Error('Network error'))
+        balanceService.fetchWalletTokenBalances.mockRejectedValue(new Error('Network error'))
 
         const result = await validationService['hasSufficientBalance'](mockIntent)
         expect(result).toBe(false)
       })
 
-      describe('when solver exists', () => {
+      it('should handle calls without value property', async () => {
+        const intentWithMixedCalls = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            calls: [
+              { target: '0x1', data: '0x', value: 100n },
+              { target: '0x2', data: '0x' }, // no value property
+              { target: '0x3', data: '0x', value: 200n },
+            ],
+          },
+        }
+
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+          '0xToken2': { address: '0xToken2', balance: 2500n, decimals: 6 },
+        })
+        balanceService.getNativeBalance.mockResolvedValue(500n)
+
+        const result = await validationService['hasSufficientBalance'](intentWithMixedCalls)
+        expect(result).toBe(true)
+        expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xKernelAddress')
+      })
+
+      it('should correctly handle token minimum balance requirements with solver targets', async () => {
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {
+            '0xToken1': { minBalance: 50 }, // $50 minimum
+            '0xToken2': { minBalance: 100 }, // $100 minimum
+          },
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithTokens = {
+          ...mockIntent,
+          route: {
+            ...mockIntent.route,
+            tokens: [
+              { token: '0xToken1', amount: 1000n }, // requesting 1000 units
+              { token: '0xToken2', amount: 500n }, // requesting 500 units
+            ],
+            calls: [], // no native calls
+          },
+        }
+
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          // Token1: balance 1100, minReq 50 (normalized to token decimals), available = 1100-50 = 1050, need 1000 ✓
+          '0xToken1': { address: '0xToken1', balance: 1100n, decimals: 6 },
+          // Token2: balance 550, minReq 100 (normalized to token decimals), available = 550-100 = 450, need 500 ✗
+          '0xToken2': { address: '0xToken2', balance: 550n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+        expect(result).toBe(false) // Should fail because Token2 insufficient after min balance
+      })
+
+      it('should log warning when native balance is insufficient', async () => {
+        const mockLogWarn = jest.fn()
+        validationService['logger'].warn = mockLogWarn
+
+        // Mock solver
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {},
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithNativeValue = {
+          hash: '0xTestHash',
+          route: {
+            destination: 10,
+            tokens: [],
+            calls: [{ target: '0x1', data: '0x', value: 100n }],
+          },
+        } as any
+
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({})
+        // Only 50n available, but need 100n
+        balanceService.getNativeBalance.mockResolvedValue(50n)
+
+        const result = await validationService['hasSufficientBalance'](intentWithNativeValue)
+
+        expect(result).toBe(false)
+        expect(mockLogWarn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: 'hasSufficientBalance: Insufficient native balance',
+            intentHash: '0xTestHash',
+            destination: 10,
+          }),
+        )
+      })
+
+      it('should log warning when token balance is insufficient after minimum balance check', async () => {
+        const mockLogWarn = jest.fn()
+        validationService['logger'].warn = mockLogWarn
+
+        const mockSolver = {
+          inboxAddress: '0x123',
+          network: 'mainnet',
+          fee: {},
+          chainID: 10n,
+          averageBlockTime: 12000,
+          targets: {
+            '0xToken1': { minBalance: 100 },
+          },
+        } as any
+        ecoConfigService.getSolver.mockReturnValue(mockSolver)
+
+        const intentWithTokens = {
+          hash: '0xTestHash',
+          route: {
+            destination: 10,
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+
+        expect(result).toBe(false)
+        expect(mockLogWarn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: 'hasSufficientBalance: Insufficient token balance',
+            intentHash: '0xTestHash',
+            destination: 10,
+          }),
+        )
+      })
+
+      it('should return false and log warning when no solver configured for destination chain', async () => {
+        const mockLogWarn = jest.fn()
+        validationService['logger'].warn = mockLogWarn
+
+        ecoConfigService.getSolver.mockReturnValue(undefined) // No solver found
+
+        const intentWithTokens = {
+          hash: '0xTestHash',
+          route: {
+            destination: 999, // non-existent chain
+            tokens: [{ token: '0xToken1', amount: 1000n }],
+            calls: [],
+          },
+        } as any
+
+        balanceService.fetchWalletTokenBalances.mockResolvedValue({
+          '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 },
+        })
+
+        const result = await validationService['hasSufficientBalance'](intentWithTokens)
+
+        expect(result).toBe(false)
+        expect(mockLogWarn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: 'hasSufficientBalance: No solver configured for destination chain',
+            intentHash: '0xTestHash',
+            destination: 999,
+          }),
+        )
+      })
+
+      it('should return true when no tokens and no native value required', async () => {
+        const intentWithNothing = {
+          hash: '0xTestHash',
+          route: {
+            destination: 10,
+            tokens: [],
+            calls: [
+              { target: '0x1', data: '0x', value: 0n },
+              { target: '0x2', data: '0x', value: 0n },
+            ],
+          },
+        } as any
+
+        const result = await validationService['hasSufficientBalance'](intentWithNothing)
+
+        expect(result).toBe(true)
+        expect(balanceService.fetchWalletTokenBalances).not.toHaveBeenCalled()
+        expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
+      })
+
+      describe('crowd liquidity pool balance checking', () => {
         beforeEach(() => {
-          const mockSolver = {
-            inboxAddress: '0x123',
-            network: 'mainnet',
-            fee: {},
-            chainID: 10n,
-            averageBlockTime: 12000,
-            targets: {
-              '0xToken1': { minBalance: 50000000000000000000n }, // 50 dollars converted: 50 * 10^6 * 10^12 = 50 * 10^18
-              '0xToken2': { minBalance: 100000000000000000000n }, // 100 dollars converted: 100 * 10^6 * 10^12 = 100 * 10^18
-            },
-          } as any
-          ecoConfigService.getSolver.mockReturnValue(mockSolver)
+          // Configure for crowd liquidity mode
+          ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
         })
 
-        it('should return true when there are no native value calls', async () => {
-          const intentWithoutNative = {
-            ...mockIntent,
+        it('should check balances for all addresses in parallel and return true if any has sufficient balance', async () => {
+          const mockIntent = {
+            hash: '0xTestHash',
             route: {
-              ...mockIntent.route,
-              calls: [
-                { target: '0x1', data: '0x', value: 0n },
-                { target: '0x2', data: '0x', value: 0n },
-              ],
-            },
-          }
-
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1500000000000000000000n, // 1500 tokens in base 18 (sufficient for 1000 + 50 min)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-            '0xToken2': {
-              address: '0xToken2',
-              balance: 2500000000000000000000n, // 2500 tokens in base 18 (sufficient for 2000 + 100 min)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-          })
-
-          const result = await validationService['hasSufficientBalance'](intentWithoutNative)
-          expect(result).toBe(true)
-          expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
-        })
-
-        it('should handle calls without value property', async () => {
-          const intentWithMixedCalls = {
-            ...mockIntent,
-            route: {
-              ...mockIntent.route,
-              calls: [
-                { target: '0x1', data: '0x', value: 100n },
-                { target: '0x2', data: '0x' }, // no value property
-                { target: '0x3', data: '0x', value: 200n },
-              ],
-            },
-          }
-
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1500000000000000000000n, // 1500 tokens in base 18 (sufficient for 1000 + 50 min)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-            '0xToken2': {
-              address: '0xToken2',
-              balance: 2500000000000000000000n, // 2500 tokens in base 18 (sufficient for 2000 + 100 min)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-          })
-          balanceService.getNativeBalance.mockResolvedValue(500n)
-
-          const result = await validationService['hasSufficientBalance'](intentWithMixedCalls)
-          expect(result).toBe(true)
-          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
-        })
-
-        it('should return true when solver has sufficient token and native balances', async () => {
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1500000000000000000000n, // 1500 tokens in base 18 (sufficient for 1000 + 50 min)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-            '0xToken2': {
-              address: '0xToken2',
-              balance: 2500000000000000000000n, // 2500 tokens in base 18 (sufficient for 2000 + 100 min)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-          })
-          balanceService.getNativeBalance.mockResolvedValue(500n)
-
-          const result = await validationService['hasSufficientBalance'](mockIntent)
-          expect(result).toBe(true)
-          expect(balanceService.fetchTokenBalances).toHaveBeenCalledWith(10, [
-            '0xToken1',
-            '0xToken2',
-          ])
-          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
-        })
-
-        it('should return true when solver has sufficient balances for tokens (amounts pre-normalized by API)', async () => {
-          // Token amounts in mockIntent are already normalized to 18 decimals by the API layer interceptor
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1_500_000_000_000_000_000_000n, // 1500 tokens in 18 decimals (normalized)
-              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
-            },
-            '0xToken2': {
-              address: '0xToken2',
-              balance: 2_500_000_000_000_000_000_000n, // 2500 tokens in 18 decimals (normalized)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-          })
-          balanceService.getNativeBalance.mockResolvedValue(500n)
-
-          const result = await validationService['hasSufficientBalance'](mockIntent)
-          expect(result).toBe(true)
-          expect(balanceService.fetchTokenBalances).toHaveBeenCalledWith(10, [
-            '0xToken1',
-            '0xToken2',
-          ])
-          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, 'kernel')
-
-          // No normalization calls should be made - amounts are already normalized by API interceptor
-        })
-
-        it('should correctly handle token minimum balance requirements with solver targets', async () => {
-          const intentWithTokens = {
-            ...mockIntent,
-            route: {
-              ...mockIntent.route,
-              tokens: [
-                // Token amounts are already normalized to 18 decimals by API interceptor
-                { token: '0xToken1', amount: 1000000000000000000000n }, // 1000 tokens in 18 decimals
-                { token: '0xToken2', amount: 500000000000000000000n }, // 500 tokens in 18 decimals
-              ],
-              calls: [], // no native calls
-            },
-          }
-
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            // All balances are normalized to 18 decimals for comparison
-            // Token1: balance 1100, minReq 50, available = 1100-50 = 1050, need 1000 ✓
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1100000000000000000000n,
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-            // Token2: balance 550, minReq 100, available = 550-100 = 450, need 500 ✗
-            '0xToken2': {
-              address: '0xToken2',
-              balance: 550000000000000000000n,
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-          })
-
-          const result = await validationService['hasSufficientBalance'](intentWithTokens)
-          expect(result).toBe(false) // Should fail because Token2 insufficient after min balance
-        })
-
-        it('should pass when solver has no specific minimum balance requirements for tokens', async () => {
-          // Override solver mock to have no minimum balance requirements
-          const mockSolverNoMinBalance = {
-            inboxAddress: '0x123',
-            network: 'mainnet',
-            fee: {},
-            chainID: 10n,
-            averageBlockTime: 12000,
-            targets: {}, // No minimum balance requirements
-          } as any
-          ecoConfigService.getSolver.mockReturnValue(mockSolverNoMinBalance)
-
-          const intentWithTokens = {
-            ...mockIntent,
-            route: {
-              ...mockIntent.route,
-              tokens: [
-                // Token amounts already normalized to 18 decimals by API interceptor
-                { token: '0xToken1', amount: 1000000000000000000000n }, // 1000 tokens in 18 decimals
-                { token: '0xToken2', amount: 500000000000000000000n }, // 500 tokens in 18 decimals
-              ],
+              destination: 10,
+              tokens: [{ token: '0xToken1', amount: 1000n }],
               calls: [],
             },
-          }
+          } as any
 
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1000000000000000000000n, // exactly enough (18 decimals)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-            '0xToken2': {
-              address: '0xToken2',
-              balance: 500000000000000000000n, // exactly enough (18 decimals)
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
+          // First address has insufficient, second has sufficient
+          balanceService.fetchWalletTokenBalances.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+              })
+            } else {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+              })
+            }
           })
 
-          const result = await validationService['hasSufficientBalance'](intentWithTokens)
+          const result = await validationService['hasSufficientBalance'](mockIntent)
+
           expect(result).toBe(true)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
+            10,
+            '0xKernelAddress',
+            ['0xToken1'],
+          )
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
+            10,
+            '0xPoolAddress',
+            ['0xToken1'],
+          )
+        })
+      })
+
+      it('should return true when no tokens and no native value required', async () => {
+        const intentWithNothing = {
+          hash: '0xTestHash',
+          route: {
+            destination: 10,
+            tokens: [],
+            calls: [
+              { target: '0x1', data: '0x', value: 0n },
+              { target: '0x2', data: '0x', value: 0n },
+            ],
+          },
+        } as any
+
+        const result = await validationService['hasSufficientBalance'](intentWithNothing)
+
+        expect(result).toBe(true)
+        expect(balanceService.fetchWalletTokenBalances).not.toHaveBeenCalled()
+        expect(balanceService.getNativeBalance).not.toHaveBeenCalled()
+      })
+
+      describe('crowd liquidity pool balance checking', () => {
+        beforeEach(() => {
+          // Configure for crowd liquidity mode
+          ecoConfigService.getFulfill.mockReturnValue({ type: 'crowd-liquidity' } as any)
         })
 
-        it('should log warning when native balance is insufficient', async () => {
-          const mockLogWarn = jest.fn()
-          validationService['logger'].warn = mockLogWarn
-
-          // Mock solver
-          const mockSolver = {
-            inboxAddress: '0x123',
-            network: 'mainnet',
-            fee: {},
-            chainID: 10n,
-            averageBlockTime: 12000,
-            targets: {},
+        it('should check balances for all addresses in parallel and return true if any has sufficient balance', async () => {
+          const mockIntent = {
+            hash: '0xTestHash',
+            route: {
+              destination: 10,
+              tokens: [{ token: '0xToken1', amount: 1000n }],
+              calls: [],
+            },
           } as any
-          ecoConfigService.getSolver.mockReturnValue(mockSolver)
 
-          const intentWithNativeValue = {
+          // First address has insufficient, second has sufficient
+          balanceService.fetchWalletTokenBalances.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 500n, decimals: 6 }, // insufficient
+              })
+            } else {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+              })
+            }
+          })
+
+          const result = await validationService['hasSufficientBalance'](mockIntent)
+
+          expect(result).toBe(true)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
+            10,
+            '0xKernelAddress',
+            ['0xToken1'],
+          )
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledWith(
+            10,
+            '0xPoolAddress',
+            ['0xToken1'],
+          )
+        })
+
+        it('should fail if all addresses have insufficient balance in crowd-liquidity mode', async () => {
+          const mockIntent = {
+            hash: '0xTestHash',
+            route: {
+              destination: 10,
+              tokens: [{ token: '0xToken1', amount: 1000n }],
+              calls: [],
+            },
+          } as any
+
+          // Both addresses have insufficient balance
+          balanceService.fetchWalletTokenBalances.mockResolvedValue({
+            '0xToken1': { address: '0xToken1', balance: 400n, decimals: 6 },
+          })
+
+          const result = await validationService['hasSufficientBalance'](mockIntent)
+
+          expect(result).toBe(false)
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
+        })
+
+        it('should check native balances for all addresses in parallel and return true if any has sufficient', async () => {
+          const mockIntent = {
             hash: '0xTestHash',
             route: {
               destination: 10,
@@ -855,41 +1107,25 @@ describe('ValidationService', () => {
             },
           } as any
 
-          balanceService.fetchTokenBalances.mockResolvedValue({})
-          // Only 50n available, but need 100n
-          balanceService.getNativeBalance.mockResolvedValue(50n)
+          // First address insufficient, second sufficient
+          balanceService.getNativeBalance.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.resolve(50n) // insufficient
+            } else {
+              return Promise.resolve(150n) // sufficient
+            }
+          })
 
-          const result = await validationService['hasSufficientBalance'](intentWithNativeValue)
+          const result = await validationService['hasSufficientBalance'](mockIntent)
 
-          expect(result).toBe(false)
-          expect(mockLogWarn).toHaveBeenCalledWith(
-            expect.objectContaining({
-              msg: 'hasSufficientBalance: Insufficient native balance',
-              required: '100',
-              available: '50',
-              intentHash: '0xTestHash',
-              destination: 10,
-            }),
-          )
+          expect(result).toBe(true)
+          expect(balanceService.getNativeBalance).toHaveBeenCalledTimes(2)
+          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xKernelAddress')
+          expect(balanceService.getNativeBalance).toHaveBeenCalledWith(10, '0xPoolAddress')
         })
 
-        it('should log warning when token balance is insufficient after minimum balance check', async () => {
-          const mockLogWarn = jest.fn()
-          validationService['logger'].warn = mockLogWarn
-
-          const mockSolver = {
-            inboxAddress: '0x123',
-            network: 'mainnet',
-            fee: {},
-            chainID: 10n,
-            averageBlockTime: 12000,
-            targets: {
-              '0xToken1': { minBalance: 100000000000000000000n }, // 100 dollars converted: 100 * 10^6 * 10^12 = 100 * 10^18
-            },
-          } as any
-          ecoConfigService.getSolver.mockReturnValue(mockSolver)
-
-          const intentWithTokens = {
+        it('should validate all addresses in parallel even if one throws an error', async () => {
+          const mockIntent = {
             hash: '0xTestHash',
             route: {
               destination: 10,
@@ -898,62 +1134,21 @@ describe('ValidationService', () => {
             },
           } as any
 
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 500n,
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
+          // First address throws error, second has sufficient balance
+          balanceService.fetchWalletTokenBalances.mockImplementation((chainId, address) => {
+            if (address === '0xKernelAddress') {
+              return Promise.reject(new Error('Network error'))
+            } else {
+              return Promise.resolve({
+                '0xToken1': { address: '0xToken1', balance: 1500n, decimals: 6 }, // sufficient
+              })
+            }
           })
 
-          const result = await validationService['hasSufficientBalance'](intentWithTokens)
+          const result = await validationService['hasSufficientBalance'](mockIntent)
 
-          expect(result).toBe(false)
-          expect(mockLogWarn).toHaveBeenCalledWith(
-            expect.objectContaining({
-              msg: 'hasSufficientBalance: Insufficient token balance',
-              token: '0xToken1',
-              required: '1000',
-              available: '500',
-              intentHash: '0xTestHash',
-              destination: 10,
-            }),
-          )
-        })
-
-        it('should return false and log warning when no solver found for destination chain', async () => {
-          const mockLogWarn = jest.fn()
-          validationService['logger'].warn = mockLogWarn
-
-          ecoConfigService.getSolver.mockReturnValue(undefined) // No solver found
-
-          const intentWithTokens = {
-            hash: '0xTestHash',
-            route: {
-              destination: 999, // non-existent chain
-              tokens: [{ token: '0xToken1', amount: 1000n }],
-              calls: [],
-            },
-          } as any
-
-          balanceService.fetchTokenBalances.mockResolvedValue({
-            '0xToken1': {
-              address: '0xToken1',
-              balance: 1500n,
-              decimals: { original: 6, current: BASE_DECIMALS },
-            },
-          })
-
-          const result = await validationService['hasSufficientBalance'](intentWithTokens)
-
-          expect(result).toBe(false)
-          expect(mockLogWarn).toHaveBeenCalledWith(
-            expect.objectContaining({
-              msg: 'hasSufficientBalance: No solver targets found',
-              intentHash: '0xTestHash',
-              destination: 999,
-            }),
-          )
+          expect(result).toBe(true) // Should still pass because second address has sufficient balance
+          expect(balanceService.fetchWalletTokenBalances).toHaveBeenCalledTimes(2)
         })
       })
     })

@@ -20,6 +20,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 // Types & Models
 import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
@@ -33,6 +34,7 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { BASE_DECIMALS } from '@/intent/utils'
+import { serialize } from '@/common/utils/serialize'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -177,6 +179,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: CCTPV2ProviderService,
           useValue: createMock<CCTPV2ProviderService>(),
+        },
+        {
+          provide: EverclearProviderService,
+          useValue: createMock<EverclearProviderService>(),
         },
         {
           provide: BalanceService,
@@ -513,7 +519,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       await liquidityManagerService.executeRebalancing({
         walletAddress,
         network: '1',
-        rebalance: { quotes: quotes } as any,
+        rebalance: { quotes: serialize(quotes), token: {} as any },
       })
 
       // Verify execution calls
@@ -1277,7 +1283,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         liquidityManagerService.executeRebalancing({
           walletAddress,
           network: '1',
-          rebalance: { quotes } as any,
+          rebalance: { quotes: serialize(quotes) } as any,
         }),
       ).rejects.toThrow('Transaction failed')
 

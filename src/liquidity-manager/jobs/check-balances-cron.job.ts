@@ -1,14 +1,15 @@
-import { Queue, JobsOptions } from 'bullmq'
-import { formatUnits, Hex } from 'viem'
-import { table } from 'table'
+import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { formatUnits, Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
+import { table } from 'table'
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -25,6 +26,8 @@ type CheckBalancesCronJob = LiquidityManagerJob<
  */
 export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
   static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
+  // static ecoCronJobManager: EcoCronJobManager
+  private static ecoCronJobManagers: Record<string, EcoCronJobManager> = {}
 
   /**
    * Gets the unique job scheduler name for a specific wallet
@@ -42,25 +45,19 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param walletAddress - Wallet address
    */
   static async start(queue: Queue, interval: number, walletAddress: string): Promise<void> {
-    const job: {
-      name: CheckBalancesCronJob['name']
-      data: CheckBalancesCronJob['data']
-      opts?: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
-    } = {
-      name: LiquidityManagerJobName.CHECK_BALANCES,
-      data: {
-        wallet: walletAddress,
-      },
-      opts: {
-        removeOnComplete: true,
-      },
+    if (!this.ecoCronJobManagers[walletAddress]) {
+      this.ecoCronJobManagers[walletAddress] = new EcoCronJobManager(
+        LiquidityManagerJobName.CHECK_BALANCES,
+        `check-balances-${walletAddress}`,
+      )
     }
 
-    await queue.upsertJobScheduler(
-      CheckBalancesCronJobManager.getJobSchedulerName(walletAddress),
-      { every: interval },
-      job,
-    )
+    await this.ecoCronJobManagers[walletAddress].start(queue, interval, walletAddress)
+  }
+
+  static stop(walletAddress: string) {
+    this.ecoCronJobManagers[walletAddress]?.stop()
+    delete this.ecoCronJobManagers[walletAddress]
   }
 
   /**

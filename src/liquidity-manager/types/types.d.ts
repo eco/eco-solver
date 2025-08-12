@@ -39,6 +39,7 @@ type WarpRouteStrategyContext = undefined
 type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
 type SquidStrategyContext = SquidRoute
+type EverclearStrategyContext = undefined
 
 interface CCTPV2StrategyContext {
   transferType: 'standard' | 'fast'
@@ -79,6 +80,7 @@ type Strategy =
   | 'Stargate'
   | 'Squid'
   | 'CCTPV2'
+  | 'Everclear'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -95,7 +97,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
               ? SquidStrategyContext
               : S extends 'CCTPV2'
                 ? CCTPV2StrategyContext
-                : never
+                : S extends 'Everclear'
+                  ? EverclearStrategyContext
+                  : never
 
 // Quote
 
