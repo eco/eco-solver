@@ -57,7 +57,6 @@ export class CreateIntentService implements OnModuleInit {
    */
   async createIntent(serializedIntentWs: Serialize<IntentCreatedLog>) {
     const intentWs = deserialize(serializedIntentWs);
-    console.log("SAQUON intentWs", intentWs);
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -76,7 +75,6 @@ export class CreateIntentService implements OnModuleInit {
       ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
     }
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
-    console.log("SAQUON CreateIntentService", intent);
 
     try {
       //check db if the intent is already filled
@@ -85,7 +83,6 @@ export class CreateIntentService implements OnModuleInit {
         model = await this.intentModel.findOne({
           'intent.hash': intent.hash,
         })
-        console.log("SAQUON model", model);
       } catch (dbError) {
         this.logger.error(
           EcoLogMessage.fromDefault({

@@ -239,7 +239,7 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
 
-    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+    if (model.intent.destination === 1399811150n) {
       throw new Error('Fulfill not yet supported for solana');
     }
 
@@ -336,7 +336,7 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
-    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+    if (model.intent.destination === 1399811150n) {
       throw new Error('Hyperprover not yet supported for solana')
     }
 

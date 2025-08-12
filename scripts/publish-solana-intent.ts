@@ -94,7 +94,7 @@ async function publishSolanaIntent() {
   const routeTokens: TokenAmount[] = [
     {
       token: config.intentSources[0].tokens[0], // USDC on Solana
-      amount: 1_000_000 // 1 USDC (6 decimals)
+      amount: 10_000 // 0.01 USDC (6 decimals)
     }
   ]
 
@@ -102,16 +102,16 @@ async function publishSolanaIntent() {
   const rewardTokens: TokenAmount[] = [
     {
       token: config.intentSources[0].tokens[0], // USDC on Solana
-      amount: 100_000 // 0.1 USDC reward (6 decimals)
+      amount: 45_000 // 0.01 USDC reward (6 decimals)
     }
   ]
 
   // Create the reward
   const reward: Reward = {
-    deadline: now + 3600, // 1 hour from now
+    deadline: now + 36000, // 10 hour from now
     creator: keypair.publicKey.toString(),
-    prover: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Placeholder prover address
-    native_amount: 0, // 0.1 SOL
+    prover: 'B4pMQaAGPZ7Mza9XnDxJfXZ1cUa4aa67zrNkv8zYAjx4', 
+    native_amount: 0, 
     tokens: rewardTokens
   }
 
@@ -151,7 +151,7 @@ async function publishSolanaIntent() {
     functionName: 'transfer',
     args: [
       '0x0000000000000000000000000000000000000000', // Placeholder recipient
-      BigInt(1000000) // 1 USDC (6 decimals)
+      BigInt(10000) // 0.01 USDC (6 decimals)
     ]
   });
 
@@ -246,7 +246,7 @@ async function publishSolanaIntent() {
     
     // Get the proper inbox address for the destination chain
     const destinationChainId = intent.destination;
-    const inboxAddress = EcoProtocolAddresses[destinationChainId]?.Inbox;
+    const inboxAddress = '0x716eE96c0fd9167de5943d9952C0a859E50f1B3F';
     if (!inboxAddress) {
       throw new Error(`No inbox address found for chain ID ${destinationChainId}`);
     }
@@ -343,7 +343,7 @@ async function publishSolanaIntent() {
           portal: inboxAddress,
           tokens: [{
             token: config.intentSources[1].tokens[0] as `0x${string}`,
-            amount: BigInt(1000000)
+            amount: BigInt(10000)
           }],
           calls: [{
             target: targetAddress as `0x${string}`,

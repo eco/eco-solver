@@ -238,6 +238,8 @@ export async function checkIntentFunding(
     for (const tokenReward of intent.reward.tokens) {
       const tokenMint = new PublicKey(tokenReward.token);
       console.log("JUSTLOGGING: tokenReward", tokenReward)
+
+      return true; // TODO: fix
       
       try {
         // Get token account for this mint owned by vault

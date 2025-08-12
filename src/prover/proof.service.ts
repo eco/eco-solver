@@ -9,9 +9,11 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Address, getVmType, VmType } from '@/eco-configs/eco-config.types'
+import { PublicKey } from '@solana/web3.js'
+import { getChainAddress } from '@/eco-configs/utils'
 
 interface ProverMetadata {
-  address: Hex
+  address: Address
   type: ProofType
   chainID: number
 }
@@ -63,10 +65,10 @@ export class ProofService implements OnModuleInit {
    * @param proofType the proof type
    * @returns
    */
-  getProvers(proofType: ProofType): Hex[] {
+  getProvers(proofType: ProofType): Address[] {
     const proverAddresses = this.provers
       .filter((prover) => prover.type === proofType && getVmType(prover.chainID) !== VmType.SVM)
-      .map((prover) => getAddress(prover.address))
+      .map((prover) => getChainAddress(prover.chainID, prover.address))
 
     return _.uniq(proverAddresses)
   }
@@ -79,7 +81,10 @@ export class ProofService implements OnModuleInit {
    */
   getProverType(chainID: number, proverAddr: Address): ProofType | undefined {
     return this.provers.find(
-      (prover) => prover.chainID === chainID && prover.address === proverAddr,
+      (prover) => prover.chainID === chainID && 
+        (getVmType(chainID) === VmType.SVM 
+          ? (prover.address as PublicKey).equals(new PublicKey(proverAddr)) 
+          : prover.address === proverAddr)
     )?.type
   }
 
@@ -97,6 +102,7 @@ export class ProofService implements OnModuleInit {
     expirationDate: Date,
   ): boolean {
     const proofType = this.getProverType(chainID, prover)
+    console.log("SAQUON isIntentExpirationWithinProofMinimumDate", chainID, prover, expirationDate, proofType);
     if (!proofType) {
       return false
     }

@@ -63,6 +63,13 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
       MetaProver: '0x0000000000000000000000000000000000000000',
       HyperProver: new PublicKey('B4pMQaAGPZ7Mza9XnDxJfXZ1cUa4aa67zrNkv8zYAjx4'),
     }
+  } else if (id === '10-pre') {
+    return {
+      IntentSource: "0x716eE96c0fd9167de5943d9952C0a859E50f1B3F",
+      Inbox: "0x716eE96c0fd9167de5943d9952C0a859E50f1B3F",
+      MetaProver: '0x0000000000000000000000000000000000000000',
+      HyperProver: '0x04C1Ae70A2ca34D983aEdc8Bd9e173fa5D78e09B',
+    }
   }
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {

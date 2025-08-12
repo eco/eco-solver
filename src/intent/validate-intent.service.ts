@@ -121,6 +121,7 @@ export class ValidateIntentService implements OnModuleInit {
       solver,
     )) as IntentValidations
     validations.intentFunded = await this.intentFunded(model)
+    console.log("SAQUON: validations", validations);
 
     if (validationsFailed(validations)) {
       await this.utilsIntentService.updateInvalidIntentModel(model, validations)
@@ -213,6 +214,7 @@ export class ValidateIntentService implements OnModuleInit {
             connection,
             IntentDataModel.toChainIntent(model.intent)
           );
+          console.log("JUSTLOGGING: isIntentFunded", isIntentFunded);
         } catch (error) {
           this.logger.error(`Error checking Solana intent funding: ${error}`);
           isIntentFunded = false;

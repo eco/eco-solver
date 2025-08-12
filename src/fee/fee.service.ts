@@ -151,6 +151,7 @@ export class FeeService implements OnModuleInit {
    * @returns the error is undefined, error is defined if its not feasible
    */
   async isRouteFeasible(quote: QuoteIntentDataInterface): Promise<{ error?: Error }> {
+    console.log("SAQUON isRouteFeasible", quote);
     if (quote.route.calls.length != 1) {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
@@ -162,18 +163,21 @@ export class FeeService implements OnModuleInit {
     }
 
     const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
+    console.log("SAQUON totalFillNormalized", totalFillNormalized);
 
     if (Boolean(totalFillError)) {
       return { error: totalFillError }
     }
 
     const { totalRewardsNormalized, error: totalRewardsError } = await this.getTotalRewards(quote)
+    console.log("SAQUON totalRewardsNormalized", totalRewardsNormalized);
 
     if (Boolean(totalRewardsError)) {
       return { error: totalRewardsError }
     }
 
     const ask = this.getAsk(totalFillNormalized, quote)
+    console.log("SAQUON ask", ask);
 
     return {
       error: isInsufficient(ask, totalRewardsNormalized)
@@ -207,6 +211,7 @@ export class FeeService implements OnModuleInit {
     quote: QuoteIntentDataInterface,
   ): Promise<{ totalFillNormalized: NormalizedTotal; error?: Error }> {
     const { calls, error } = await this.getCallsNormalized(quote)
+    console.log("SAQUON calls", calls);
     if (error) {
       return { totalFillNormalized: { token: 0n, native: 0n }, error }
     }
@@ -465,6 +470,7 @@ export class FeeService implements OnModuleInit {
       solver.chainID,
       functionTargets,
     )
+    console.log("SAQUON callERC20Balances", callERC20Balances);
 
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
