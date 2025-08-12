@@ -4,12 +4,10 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { encodeFunctionData, erc20Abi } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
 import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
-import { parseUnits } from 'viem'
 import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 
 @Injectable()
