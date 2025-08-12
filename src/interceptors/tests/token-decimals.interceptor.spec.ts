@@ -327,15 +327,15 @@ describe('TokenDecimalsInterceptor', () => {
         interceptor.intercept(mockContext, mockCallHandler).subscribe((result) => {
           // Test that result can be JSON serialized without throwing BigInt error
           expect(() => JSON.stringify(result)).not.toThrow()
-          
+
           // Verify amounts are strings, not BigInts
           expect(typeof result.quoteEntries[0].rewardTokens[0].amount).toBe('string')
           expect(typeof result.quoteEntries[0].routeTokens[0].amount).toBe('string')
-          
+
           // Verify decimals metadata is removed
           expect(result.quoteEntries[0].rewardTokens[0].decimals).toBeUndefined()
           expect(result.quoteEntries[0].routeTokens[0].decimals).toBeUndefined()
-          
+
           done()
         })
       })

@@ -154,15 +154,21 @@ export class IntentDataModel implements IntentType {
   static toChainIntent(intent: IntentDataModel): IntentType {
     // Convert Mongoose document to plain object if needed
     const plainIntent = (intent as any).toObject ? (intent as any).toObject() : intent
-    
+
     return {
       route: {
         ...plainIntent.route,
-        tokens: denormalizeTokenAmounts(plainIntent.route?.tokens || [], Number(plainIntent.route.destination)),
+        tokens: denormalizeTokenAmounts(
+          plainIntent.route?.tokens || [],
+          Number(plainIntent.route.destination),
+        ),
       },
       reward: {
         ...plainIntent.reward,
-        tokens: denormalizeTokenAmounts(plainIntent.reward?.tokens || [], Number(plainIntent.route.source)),
+        tokens: denormalizeTokenAmounts(
+          plainIntent.reward?.tokens || [],
+          Number(plainIntent.route.source),
+        ),
       },
     }
   }

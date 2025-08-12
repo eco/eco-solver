@@ -176,13 +176,11 @@ describe('FeeService', () => {
     it('should return the source chain creator default fee without merge if its complete', async () => {
       const creatorDefault = {
         limit: {
-          tokenBase6: 10n,
-          nativeBase18: 20n,
+          tokenLimit: 10n,
+          nativeLimit: 20n,
           // These normalized values are added by the recursive config normalizer
           token: 1000000000n, // 10 * 10^8 (base6 to base18 conversion but normalized to 10 decimals for token)
-          native: 1000000000000000000000n, // 20 * 10^12 (nativeBase18 to base18 conversion)
-          tokenLimit: 1000000000n, // Alias for 'token'
-          nativeLimit: 1000000000000000000000n, // Alias for 'native'
+          native: 1000000000000000000000n, // 20 * 10^12 (nativeLimit to base18 conversion)
         },
         algorithm: 'linear',
         constants: {

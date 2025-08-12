@@ -48,7 +48,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) { }
+  ) {}
 
   /**
    * Executes the fulfill intent process for an intent. It creates the transaction for fulfillment, and posts it
@@ -367,19 +367,15 @@ export class WalletFulfillService implements IFulfillService {
 
     const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
     const droute = RouteDataModel.toDenormalizedRoute(model.intent.route)
-    const drewardHash = RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source))
+    const drewardHash = RewardDataModel.getHash(
+      model.intent.reward,
+      Number(model.intent.route.source),
+    )
     const dhash = IntentDataModel.getHash(model.intent).intentHash
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
-      args: [
-        droute,
-        drewardHash,
-        claimant,
-        dhash,
-        hyperProverAddr,
-        messageData,
-      ],
+      args: [droute, drewardHash, claimant, dhash, hyperProverAddr, messageData],
     })
 
     return {

@@ -53,7 +53,10 @@ export class RouteDataModel implements RouteType {
       source: routeDataModel.source,
       destination: routeDataModel.destination,
       inbox: routeDataModel.inbox,
-      tokens: denormalizeTokenAmounts(routeDataModel.tokens || [], Number(routeDataModel.destination)),
+      tokens: denormalizeTokenAmounts(
+        routeDataModel.tokens || [],
+        Number(routeDataModel.destination),
+      ),
       calls: routeDataModel.calls,
     }
   }
@@ -62,7 +65,6 @@ export class RouteDataModel implements RouteType {
 export const RouteDataSchema = SchemaFactory.createForClass(RouteDataModel)
 RouteDataSchema.index({ source: 1 }, { unique: false })
 RouteDataSchema.index({ destination: 1 }, { unique: false })
-
 
 RouteDataSchema.methods.getHash = function (): Hex {
   return hashRoute(this)

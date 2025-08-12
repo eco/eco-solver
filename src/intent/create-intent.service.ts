@@ -44,7 +44,7 @@ export class CreateIntentService implements OnModuleInit {
     private readonly flagService: FlagService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
@@ -79,9 +79,9 @@ export class CreateIntentService implements OnModuleInit {
         intent.reward.tokens as any[],
         Number(intent.route.source),
       ).map((token) => ({
-          token: getAddress(token.token),
-          amount: BigInt(token.amount),
-        }))
+        token: getAddress(token.token),
+        amount: BigInt(token.amount),
+      }))
     }
 
     // Normalize route tokens (use destination chain since route tokens are on the destination chain)
@@ -105,7 +105,7 @@ export class CreateIntentService implements OnModuleInit {
         },
         this.ecoConfigService,
       )
-      
+
       // Store parsed calls data in the intent for database storage
       intent.route.parsedCalls = parsedCalls
     }
@@ -135,9 +135,9 @@ export class CreateIntentService implements OnModuleInit {
 
       const validWallet = this.flagService.getFlagValue('bendWalletOnly')
         ? await this.validSmartWalletService.validateSmartWallet(
-          intent.reward.creator as Hex,
-          intentWs.sourceChainID,
-        )
+            intent.reward.creator as Hex,
+            intentWs.sourceChainID,
+          )
         : true
 
       //create db record

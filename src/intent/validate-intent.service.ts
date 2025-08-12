@@ -57,7 +57,7 @@ export class ValidateIntentService implements OnModuleInit {
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig

@@ -13,10 +13,7 @@ import { IntentFundedEventsModule } from '@/watch/intent/intent-funded-events/in
     TransactionModule,
     IntentFundedEventsModule,
   ],
-  providers: [
-    WatchCreateIntentService,
-    WatchFulfillmentService,
-  ],
+  providers: [WatchCreateIntentService, WatchFulfillmentService],
   exports: [WatchCreateIntentService, WatchFulfillmentService, IntentFundedEventsModule],
 })
 export class WatchModule {}

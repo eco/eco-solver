@@ -76,7 +76,7 @@ export function denormalizeTokenAmounts(tokens: NormalizableToken[]): void {
           { balance: BigInt(token.amount), decimal: token.decimals.current },
           token.decimals.original,
         ).balance
-        
+
         // Convert to string for JSON serialization
         token.amount = denormalizedBalance.toString()
       }
@@ -114,7 +114,7 @@ export function denormalizeTokenAmountsWithValidation(
           { balance: BigInt(token.amount), decimal: token.decimals.current },
           token.decimals.original,
         ).balance
-        
+
         // Convert to string for JSON serialization
         token.amount = denormalizedBalance.toString()
       }

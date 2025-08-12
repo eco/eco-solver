@@ -1,4 +1,5 @@
 import { CallDataInterface } from '@/contracts'
+import { ParsedCalls } from '@/intent/utils/normalize-calls.utils'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco-foundation/routes-ts'
@@ -6,7 +7,6 @@ import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
-import { ParsedCalls } from '@/interceptors/token-calls.interceptor'
 
 /**
  * The DTO for the route data that the sender wants to make.

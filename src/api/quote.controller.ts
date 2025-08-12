@@ -1,5 +1,12 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
-import { Body, Controller, InternalServerErrorException, Logger, Post, UseInterceptors } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  InternalServerErrorException,
+  Logger,
+  Post,
+  UseInterceptors,
+} from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'

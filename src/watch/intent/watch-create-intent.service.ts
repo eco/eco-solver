@@ -108,7 +108,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
 
-        // bigint as it can't serialize to JSON  
+        // bigint as it can't serialize to JSON
         const createIntent = BigIntSerializer.serialize(log)
         const jobId = getIntentJobId(
           'watch-create-intent',

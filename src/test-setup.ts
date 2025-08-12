@@ -4,10 +4,10 @@
 
 // Add BigInt serialization support for Jest
 Object.defineProperty(BigInt.prototype, 'toJSON', {
-  value: function() {
+  value: function () {
     return this.toString() + 'n'
   },
-  configurable: true
+  configurable: true,
 })
 
 // Optionally, you can also add custom matchers or global test utilities here
