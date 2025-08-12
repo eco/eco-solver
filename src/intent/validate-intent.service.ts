@@ -3,9 +3,9 @@ import { Address as EvmAddress, Hex } from 'viem'
 import { PublicKey, Connection } from '@solana/web3.js'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { checkIntentFunding, SolanaReward } from './check-funded-solana'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { IntentSourceAbi, RewardType } from '@eco-foundation/routes-ts'
+import { checkIntentFunding } from './check-funded-solana'
+import { Solver, VmType } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
 import { delay } from '@/common/utils/time'
@@ -17,6 +17,7 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
+import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -56,6 +57,7 @@ export class ValidateIntentService implements OnModuleInit {
     private readonly multichainPublicClientService: MultichainPublicClientService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly svmMultichainClientService: SvmMultichainClientService,
   ) {}
 
   onModuleInit() {
@@ -146,7 +148,13 @@ export class ValidateIntentService implements OnModuleInit {
    */
   async intentFunded(model: IntentSourceModel): Promise<boolean> {
     const sourceChainID = Number(model.intent.route.source)
-    const client = await this.multichainPublicClientService.getClient(sourceChainID)
+
+    let client;
+    if (sourceChainID === 1399811150) {
+      client = await this.svmMultichainClientService.getConnection(sourceChainID)
+    } else {
+      client = await this.multichainPublicClientService.getClient(sourceChainID)
+    }
     const intentSource = this.ecoConfigService.getIntentSource(sourceChainID)
     if (!intentSource) {
       this.logger.error(
@@ -179,21 +187,22 @@ export class ValidateIntentService implements OnModuleInit {
       }
 
       // Check if the intent is funded
-      if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+      if (sourceChainID === 1399811150) {
         console.log("JUSTLOGGING: intentFunded called for solana", model.intent.route)
         // Solana intent funding check
         try {
-          const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
+          const connection = await this.svmMultichainClientService.getConnection(sourceChainID)
           
           // Convert intent model to SolanaReward format
-          const solanaReward: SolanaReward = {
-            deadline: Number(model.intent.reward.deadline),
-            creator: model.intent.reward.creator.toString(),
-            prover: model.intent.reward.prover.toString(),
-            native_amount: Number(model.intent.reward.nativeAmount),
+          const solanaReward: RewardType<VmType.SVM> = {
+            vm: VmType.SVM,
+            deadline: BigInt(model.intent.reward.deadline),
+            creator: new PublicKey(model.intent.reward.creator),
+            prover: new PublicKey(model.intent.reward.prover),
+            nativeAmount: BigInt(model.intent.reward.nativeAmount),
             tokens: model.intent.reward.tokens.map(token => ({
-              token: token.token.toString(),
-              amount: Number(token.amount)
+              token: new PublicKey(token.token),
+              amount: BigInt(token.amount)
             }))
           };
 
@@ -202,9 +211,7 @@ export class ValidateIntentService implements OnModuleInit {
           
           isIntentFunded = await checkIntentFunding(
             connection,
-            Number(model.intent.route.destination),
-            routeHash as any, // TODO: fix this
-            solanaReward
+            IntentDataModel.toChainIntent(model.intent)
           );
         } catch (error) {
           this.logger.error(`Error checking Solana intent funding: ${error}`);

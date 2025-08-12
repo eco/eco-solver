@@ -170,13 +170,7 @@ export class IntentDataModel implements IntentType {
     return {
       destination: intent.route.destination,
       source: intent.route.source,
-      route: {
-        ...intent.route,
-        vm: VmType.EVM,
-        deadline: intent.reward.deadline,
-
-        portal: intent.route.portal,
-      },
+      route: intent.route,
       reward: intent.reward,
 
     }

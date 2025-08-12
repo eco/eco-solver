@@ -1,46 +1,87 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
-import { keccak256, encodePacked } from 'viem';
-import { hashReward } from '@eco-foundation/routes-ts';
+import { keccak256, encodePacked, encodeAbiParameters, Hex } from 'viem';
+import { IntentType, RewardType, RouteType } from '@eco-foundation/routes-ts';
+import { VmType } from '@/eco-configs/eco-config.types';
+import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
 
 // Constants
 const VAULT_SEED = Buffer.from("vault");
 const PROGRAM_ID = new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6');
+
+// Create BorshCoder instance for Solana reward serialization
+const portalIdl = require('src/solana/program/portal.json');
+const svmCoder = new BorshCoder(portalIdl as Idl);
+
+// Define the RewardStruct for EVM encoding
+const RewardStruct = [
+  {
+    "internalType": "uint64",
+    "name": "deadline",
+    "type": "uint64"
+  },
+  {
+    "internalType": "address",
+    "name": "creator",
+    "type": "address"
+  },
+  {
+    "internalType": "address",
+    "name": "prover",
+    "type": "address"
+  },
+  {
+    "internalType": "uint256",
+    "name": "nativeValue",
+    "type": "uint256"
+  },
+  {
+    "components": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "internalType": "struct TokenAmount[]",
+    "name": "tokens",
+    "type": "tuple[]"
+  }
+];
+
+export const RouteStruct = [
+  { internalType: 'bytes32', name: 'salt', type: 'bytes32' },
+  { internalType: 'uint64', name: 'deadline', type: 'uint64' },
+  { internalType: 'address', name: 'portal', type: 'address' },
+  {
+    type: 'tuple[]',
+    name: 'tokens',
+    components: [
+      { internalType: 'address', name: 'token', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'tuple[]',
+    name: 'calls',
+    components: [
+      { internalType: 'address', name: 'target', type: 'address' },
+      { internalType: 'bytes', name: 'data', type: 'bytes' },
+      { internalType: 'uint256', name: 'value', type: 'uint256' }
+    ]
+  }
+]
 
 export interface SolanaTokenAmount {
   token: string; // pubkey
   amount: number; // u64
 }
 
-export interface SolanaReward {
-  deadline: number;
-  creator: string; // pubkey
-  prover: string; // pubkey
-  native_amount: number;
-  tokens: SolanaTokenAmount[];
-}
-
-/**
- * Calculate intent hash matching the Rust implementation
- * intent_hash(destination, &route_hash, &reward.hash())
- */
-export function calculateIntentHash(
-  destination: number, 
-  routeHash: Uint8Array, 
-  rewardHash: Uint8Array
-): Uint8Array {
-  const intentHashHex = keccak256(
-    encodePacked(
-      ['uint64', 'bytes32', 'bytes32'],
-      [
-        BigInt(destination),
-        `0x${Buffer.from(routeHash).toString('hex')}` as `0x${string}`,
-        `0x${Buffer.from(rewardHash).toString('hex')}` as `0x${string}`
-      ]
-    )
-  );
-  return new Uint8Array(Buffer.from(intentHashHex.slice(2), 'hex'));
-}
 
 /**
  * Derive vault PDA from intent hash
@@ -57,7 +98,7 @@ export function getVaultPda(intentHashBytes: Uint8Array): [PublicKey, number] {
  * Calculate reward hash for Solana reward structure
  * This should match your Solana reward encoding logic
  */
-export function calculateSolanaRewardHash(reward: SolanaReward): Uint8Array {
+export function calculateSolanaRewardHash(reward: RewardType<VmType.SVM>): Uint8Array {
   // TODO: Implement proper Solana reward encoding/hashing
   // This should match the reward.hash() implementation in your Solana program
   const rewardData = encodePacked(
@@ -66,7 +107,7 @@ export function calculateSolanaRewardHash(reward: SolanaReward): Uint8Array {
       BigInt(reward.deadline),
       `0x${Buffer.from(new PublicKey(reward.creator).toBytes()).toString('hex')}` as `0x${string}`,
       `0x${Buffer.from(new PublicKey(reward.prover).toBytes()).toString('hex')}` as `0x${string}`,
-      BigInt(reward.native_amount)
+      BigInt(reward.nativeAmount)
     ]
   );
   
@@ -74,24 +115,113 @@ export function calculateSolanaRewardHash(reward: SolanaReward): Uint8Array {
   return new Uint8Array(Buffer.from(hash.slice(2), 'hex'));
 }
 
+export function hashReward(reward: RewardType): Hex {
+  return keccak256(encodeReward(reward))
+}
+
+
+export function encodeRoute(route: RouteType): Hex {
+  switch (route.vm) {
+    case VmType.EVM:
+      return encodeAbiParameters(
+        [{ type: 'tuple', components: RouteStruct }],
+        [route],
+      )
+    case VmType.SVM:
+      // Use Anchor's BorshCoder for proper Solana serialization
+      const { salt, deadline, portal, tokens, calls } = route;
+      
+      const encoded = svmCoder.types.encode('Route', {
+        salt: Array.from(Buffer.from(salt.slice(2), 'hex')), // Convert hex string to 32-byte array
+        deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
+        portal: Array.from(Buffer.from(new PublicKey(portal).toBytes())), // Convert PublicKey to 32-byte array
+        tokens: tokens.map(({ token, amount }) => ({
+          token: new PublicKey(token),
+          amount: new BN(amount.toString()) // Convert BigInt to BN for u64
+        })),
+        calls: calls.map(({ target, data, value }) => ({
+          target: Array.from(Buffer.from(new PublicKey(target).toBytes())), // Convert PublicKey to 32-byte array for Bytes32
+          data: Array.from(Buffer.from(data.slice(2), 'hex')), // Convert hex string to byte array
+          value: new BN(value.toString()) // Convert BigInt to BN for u64
+        }))
+      });
+      
+      return `0x${encoded.toString('hex')}` as Hex;
+    default:
+      throw new Error(`Unsupported VM type: ${route.vm}`)
+  }
+}
+
+export function hashRoute(route: RouteType): Hex {
+  const encoded = encodeRoute(route)
+  return keccak256(encoded)
+}
+
+
+export function encodeReward(reward: RewardType): Hex {
+  switch (reward.vm) {
+    case VmType.EVM:
+      return encodeAbiParameters(
+        [{ type: 'tuple', components: RewardStruct }],
+        [{ ...reward, nativeValue: reward.nativeAmount } as any], // need to cast to any because of nativeAmount -> nativeValue
+      )
+    case VmType.SVM:
+      // Use Anchor's BorshCoder for proper Solana serialization
+      // This matches the AnchorSerialize trait implementation in Rust
+      const { deadline, creator, prover, nativeAmount, tokens } = reward;
+      
+      const encoded = svmCoder.types.encode('Reward', {
+        deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
+        creator: new PublicKey(creator),
+        prover: new PublicKey(prover),
+        native_amount: new BN(nativeAmount.toString()), // Convert BigInt to BN for u64
+        tokens: tokens.map(({ token, amount }) => ({
+          token: new PublicKey(token),
+          amount: new BN(amount.toString()) // Convert BigInt to BN for u64
+        }))
+      });
+      
+      return `0x${encoded.toString('hex')}` as Hex;
+    default:
+      throw new Error(`Unsupported VM type: ${reward.vm}`)
+  }
+}
+
+export function hashIntent(destination: bigint, route: RouteType, reward: RewardType): {
+  routeHash: Hex
+  rewardHash: Hex
+  intentHash: Hex
+} {
+  const routeHash = hashRoute(route)
+  const rewardHash = hashReward(reward)
+
+  console.log("hashIntent: ", destination, routeHash, rewardHash)
+
+  const intentHash = keccak256(
+    encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, routeHash, rewardHash]),
+  )
+
+  return {
+    routeHash,
+    rewardHash,
+    intentHash,
+  }
+}
+
 /**
  * Check if a Solana intent is fully funded by examining vault balances
  */
 export async function checkIntentFunding(
   connection: Connection,
-  destination: number,
-  routeHash: Uint8Array,
-  reward: SolanaReward
+  intent: IntentType
 ): Promise<boolean> {
   try {
     // 1. Calculate reward hash
-    const rewardHash = calculateSolanaRewardHash(reward);
+    const rewardHash = calculateSolanaRewardHash(intent.reward as RewardType<VmType.SVM>);
     console.log("JUSTLOGGING: rewardHash", rewardHash)
-    const rewardHashLib = hashReward(reward as any); // TODO: fix this
-    console.log("JUSTLOGGING: rewardHashLib", rewardHashLib)
     
-    // 2. Calculate intent hash
-    const intentHashBytes = calculateIntentHash(destination, routeHash, rewardHash);
+    const { intentHash } = hashIntent(intent.destination, intent.route, intent.reward);
+    const intentHashBytes = new Uint8Array(Buffer.from(intentHash.slice(2), 'hex'));
     
     // 3. Get vault PDA
     const [vaultPda] = getVaultPda(intentHashBytes);
@@ -99,13 +229,13 @@ export async function checkIntentFunding(
     // 4. Check SOL balance (native_amount is in lamports)
     const solBalance = await connection.getBalance(vaultPda);
     console.log("JUSTLOGGING: solBalance", solBalance)
-    console.log("JUSTLOGGING: reward.native_amount", reward.native_amount)
-    if (solBalance < reward.native_amount) {
+    console.log("JUSTLOGGING: intent.reward.nativeAmount", intent.reward.nativeAmount)
+    if (solBalance < Number(intent.reward.nativeAmount)) {
       return false;
     }
     
     // 5. Check token balances
-    for (const tokenReward of reward.tokens) {
+    for (const tokenReward of intent.reward.tokens) {
       const tokenMint = new PublicKey(tokenReward.token);
       console.log("JUSTLOGGING: tokenReward", tokenReward)
       
@@ -136,20 +266,4 @@ export async function checkIntentFunding(
     console.error('Error checking intent funding:', error);
     return false;
   }
-}
-
-/**
- * Utility function to create intent hash from route and reward data
- */
-export function createIntentHash(
-  destination: number,
-  routeHash: string | Uint8Array,
-  reward: SolanaReward
-): Uint8Array {
-  const routeHashBytes = typeof routeHash === 'string' 
-    ? new Uint8Array(Buffer.from(routeHash.replace('0x', ''), 'hex'))
-    : routeHash;
-    
-  const rewardHash = calculateSolanaRewardHash(reward);
-  return calculateIntentHash(destination, routeHashBytes, rewardHash);
 }
