@@ -28,5 +28,10 @@ export class SolverRegistrationDTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
+  quotesUrlV2: string
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
   receiveSignedIntentUrl: string
 }
