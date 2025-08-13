@@ -12,19 +12,42 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress } from 'viem'
-import { addressKeys, getRpcUrl } from '@/common/viem/utils'
+import { Chain, getAddress, Hex, zeroAddress } from 'viem'
+import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
+import { EcoChains } from '@eco-foundation/chains'
+import { EcoError } from '@/common/errors/eco-error'
+import { TransportConfig } from '@/common/chains/transport'
 
 /**
- * Service class for getting configs for the app
+ * Service class for managing application configuration from multiple sources.
+ *
+ * Configuration hierarchy and merging strategy:
+ * 1. External configs (injected via ConfigSource providers) - lowest priority
+ * 2. Static configs from config package (from /config directory) - medium priority
+ * 3. Environment variables and runtime configs - highest priority
+ *
+ * The EcoConfigService works with the following sources:
+ * - Static JSON/TS configs in the config/ directory
+ * - External configs injected via ConfigSource providers (e.g. AWS secrets)
+ * - EcoChains package for blockchain RPC configuration
+ *
+ * The EcoChains integration:
+ * - EcoChains is initialized with RPC API keys from the config
+ * - Provides chain-specific configurations including RPC URLs
+ * - Handles custom endpoints (Caldera/Alchemy) vs default endpoints
+ * - Manages both HTTP and WebSocket connections
+ *
+ * Config values are merged using deep extend, with latter sources overriding
+ * earlier ones when conflicts exist, while preserving non-conflicting values.
  */
 @Injectable()
 export class EcoConfigService {
   private logger = new Logger(EcoConfigService.name)
   private externalConfigs: any = {}
   private ecoConfig: config.IConfig
+  private ecoChains: EcoChains
 
   constructor(private readonly sources: ConfigSource[]) {
     this.sources.reduce((prev, curr) => {
@@ -55,6 +78,9 @@ export class EcoConfigService {
 
     // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
+
+    // Set the eco chain rpc token api keys
+    this.ecoChains = new EcoChains(this.getRpcConfig().keys)
   }
 
   // Generic getter for key/val of config object
@@ -63,8 +89,8 @@ export class EcoConfigService {
   }
 
   // Returns the alchemy configs
-  getAlchemy(): EcoConfigType['alchemy'] {
-    return this.get('alchemy')
+  getRpcConfig(): EcoConfigType['rpcs'] {
+    return this.get('rpcs')
   }
 
   // Returns the aws configs
@@ -82,6 +108,11 @@ export class EcoConfigService {
     return this.get('fulfillment')
   }
 
+  getGaslessIntentdAppIDs(): string[] {
+    const gaslessIntentdAppIDs = this.get<string[]>('gaslessIntentdAppIDs') || []
+    return gaslessIntentdAppIDs
+  }
+
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
@@ -89,15 +120,16 @@ export class EcoConfigService {
       intent.sourceAddress = config.IntentSource
       intent.inbox = config.Inbox
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
-      // todo add metaprover when package supports it
-      const ecoNpmProvers = [config.HyperProver]
+      const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
+        (prover) => getAddress(prover) !== zeroAddress,
+      )
       switch (ecoNpm) {
         case 'replace':
           intent.provers = ecoNpmProvers
           break
         case 'append':
         default:
-          intent.provers = [...intent.provers, ...ecoNpmProvers]
+          intent.provers = [...(intent.provers || []), ...ecoNpmProvers]
           break
       }
       //remove duplicates
@@ -150,6 +182,10 @@ export class EcoConfigService {
     return this.get('launchDarkly')
   }
 
+  getAnalyticsConfig(): EcoConfigType['analytics'] {
+    return this.get('analytics')
+  }
+
   getDatabaseConfig(): EcoConfigType['database'] {
     return this.get('database')
   }
@@ -171,6 +207,16 @@ export class EcoConfigService {
   // Returns the intent configs
   getIntentConfigs(): EcoConfigType['intentConfigs'] {
     return this.get('intentConfigs')
+  }
+
+  // Returns the quote configs
+  getQuotesConfig(): EcoConfigType['quotesConfig'] {
+    return this.get('quotesConfig')
+  }
+
+  // Returns the solver registration config
+  getSolverRegistrationConfig(): EcoConfigType['solverRegistrationConfig'] {
+    return this.get('solverRegistrationConfig')
   }
 
   // Returns the external APIs config
@@ -199,32 +245,31 @@ export class EcoConfigService {
     return this.get('server')
   }
 
+  getGasEstimationsConfig(): EcoConfigType['gasEstimations'] {
+    return this.get('gasEstimations')
+  }
+
   // Returns the liquidity manager config
   getLiquidityManager(): EcoConfigType['liquidityManager'] {
     return this.get('liquidityManager')
   }
 
-  // Returns the liquidity manager config
   getWhitelist(): EcoConfigType['whitelist'] {
     return this.get('whitelist')
   }
 
-  // Returns the liquidity manager config
   getHyperlane(): EcoConfigType['hyperlane'] {
     return this.get('hyperlane')
   }
 
-  // Returns the liquidity manager config
   getWithdraws(): EcoConfigType['withdraws'] {
     return this.get('withdraws')
   }
 
-  // Returns the liquidity manager config
   getSendBatch(): EcoConfigType['sendBatch'] {
     return this.get('sendBatch')
   }
 
-  // Returns the liquidity manager config
   getIndexer(): EcoConfigType['indexer'] {
     return this.get('indexer')
   }
@@ -233,35 +278,80 @@ export class EcoConfigService {
     return this.get('hats')
   }
   
-  // Returns the liquidity manager config
   getCCTP(): EcoConfigType['CCTP'] {
     return this.get('CCTP')
   }
 
-  // Returns the liquidity manager config
+  getCCTPV2(): EcoConfigType['CCTPV2'] {
+    return this.get('CCTPV2')
+  }
+
   getCrowdLiquidity(): EcoConfigType['crowdLiquidity'] {
     return this.get('crowdLiquidity')
   }
 
-  // Returns the liquidity manager config
   getWarpRoutes(): EcoConfigType['warpRoutes'] {
     return this.get('warpRoutes')
   }
 
-  getRpcUrls(): EcoConfigType['rpcUrls'] {
-    return this.get('rpcUrls')
+  getLiFi(): EcoConfigType['liFi'] {
+    return this.get('liFi')
   }
 
-  getChainRPCs() {
-    const entries = ChainsSupported.map((chain) => [chain.id, this.getRpcUrl(chain).url])
-    return Object.fromEntries(entries) as Record<number, string>
+  getSquid(): EcoConfigType['squid'] {
+    return this.get('squid')
   }
 
-  getRpcUrl(chain: Chain, websocketEnabled?: boolean) {
-    const alchemy = this.getAlchemy()
-    const rpcUrls = this.getRpcUrls()[chain.id.toString()]
-    const options = { alchemyApiKey: alchemy.apiKey, rpcUrls, websocketEnabled }
-    return getRpcUrl(chain, options)
+  getEverclear(): EcoConfigType['everclear'] {
+    return this.get('everclear')
+  }
+
+  // Returns the liquidity manager config
+  getChainRpcs(): Record<number, string[]> {
+    const entries = ChainsSupported.map(
+      (chain) => [chain.id, this.getRpcUrls(chain).rpcUrls] as const,
+    )
+    return Object.fromEntries(entries)
+  }
+
+  getCustomRPCUrl(chainID: string) {
+    return this.getRpcConfig().custom?.[chainID]
+  }
+
+  /**
+   * Returns the RPC URL for a given chain, prioritizing custom endpoints (like Caldera or Alchemy)
+   * over default ones when available. For WebSocket connections, returns WebSocket URLs when available.
+   * @param chain The chain object to get the RPC URL for
+   * @returns The RPC URL string for the specified chain
+   */
+  getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
+    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
+
+    const rpcChain = this.ecoChains.getChain(chain.id)
+    const custom = rpcChain.rpcUrls.custom
+    const def = rpcChain.rpcUrls.default
+
+    const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
+
+    let rpcs: string[] = []
+    if (isWebSocketEnabled) {
+      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
+    } else {
+      rpcs = [...(custom?.http || def?.http || [])]
+    }
+
+    const config: TransportConfig['config'] = customRpcUrls?.config
+
+    if (customRpcUrls?.http) {
+      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
+      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
+    }
+
+    if (!rpcs.length) {
+      throw EcoError.ChainRPCNotFound(chain.id)
+    }
+
+    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
   }
 
   /**
@@ -270,5 +360,28 @@ export class EcoConfigService {
    */
   getSupportedChains(): bigint[] {
     return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+  }
+
+  /**
+   * Returns the fulfillment estimate config
+   * @returns the fulfillment estimate config
+   */
+  getFulfillmentEstimateConfig(): EcoConfigType['fulfillmentEstimate'] {
+    return this.get('fulfillmentEstimate')
+  }
+
+  getCCTPLiFiConfig(): EcoConfigType['cctpLiFi'] {
+    const liquidityManager = this.getLiquidityManager()
+    const cctp = this.getCCTP()
+    return {
+      maxSlippage: liquidityManager.maxQuoteSlippage,
+      usdcAddresses: cctp.chains.reduce(
+        (acc, chain) => {
+          acc[chain.chainId] = getAddress(chain.token)
+          return acc
+        },
+        {} as Record<number, Hex>,
+      ),
+    }
   }
 }

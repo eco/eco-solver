@@ -55,6 +55,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'CCTP'>> {
     if (
       !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
@@ -74,13 +75,15 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       tokenOut: tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
+      id,
     }
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: 'CCTPProviderService: executing quote',
+        id: quote.id,
         properties: {
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
@@ -103,11 +106,66 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       destinationChainId: quote.tokenOut.chainId,
       messageHash,
       messageBody,
+      id: quote.id,
     })
   }
 
+  /**
+   * Execute method that returns transaction metadata for CCTPLiFi integration
+   * This does not start the CCTP attestation check job
+   * @param walletAddress Wallet address
+   * @param quote CCTP quote
+   * @returns Transaction metadata including hash, messageHash, and messageBody
+   */
+  async executeWithMetadata(
+    walletAddress: string,
+    quote: RebalanceQuote<'CCTP'>,
+  ): Promise<{ txHash: Hex; messageHash: Hex; messageBody: Hex }> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'CCTPProviderService: executing quote with metadata',
+        id: quote.id,
+        properties: {
+          tokenIn: quote.tokenIn.config.address,
+          chainIn: quote.tokenIn.config.chainId,
+          tokenOut: quote.tokenOut.config.address,
+          chainOut: quote.tokenOut.config.chainId,
+          amountIn: quote.amountIn,
+          amountOut: quote.amountOut,
+          slippage: quote.slippage,
+        },
+      }),
+    )
+
+    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
+    const txHash = await this._execute(walletAddress, quote)
+    const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
+    const messageBody = this.getMessageBytes(txReceipt)
+    const messageHash = this.getMessageHash(messageBody)
+
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'CCTPProviderService: Transaction metadata extracted',
+        id: quote.id,
+        properties: {
+          txHash,
+          messageHash,
+          messageBodyLength: messageBody.length,
+        },
+      }),
+    )
+
+    return {
+      txHash,
+      messageHash,
+      messageBody,
+    }
+  }
+
   private _execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
-    const crowdLiquidityPoolWallet = this.crowdLiquidityService.getPoolAddress()
+    const { stablePool: crowdLiquidityPoolWallet } = this.crowdLiquidityService.getAddresses(
+      quote.tokenOut.chainId,
+    )
     if (isAddressEqual(crowdLiquidityPoolWallet, walletAddress as Hex)) {
       return this.crowdLiquidityService.rebalanceCCTP(quote.tokenIn, quote.tokenOut)
     }
@@ -122,13 +180,13 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       quote.amountOut,
     )
 
-    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
-
+    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
     // Make sure the Kernel wallet is used
-    if (walletAddress !== client.account?.address) {
+    if (walletAddress !== kernelWalletAddress) {
       throw new Error('Unexpected wallet during CCTP execution')
     }
 
+    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
     return client.execute(
       transactions.map((tx) => ({ to: tx.to!, data: tx.data ?? '0x', value: tx.value })),
     )

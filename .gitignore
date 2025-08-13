@@ -3,6 +3,14 @@
 /node_modules
 /build
 
+# Package managers
+.yarn-offline-cache/
+.pnpm-store/
+.pnpm-debug.log*
+.pnpm-audit.log*
+package-lock.json
+yarn.lock
+
 # Logs
 logs
 *.log
@@ -18,6 +26,7 @@ lerna-debug.log*
 # Tests
 /coverage
 /.nyc_output
+globalConfig.json
 
 # IDEs and editors
 /.idea
@@ -66,3 +75,9 @@ config/*
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
+
+#AI
+CLAUDE.md
+**/.claude/settings.local.json
+.env*
+!.env-cmdrc.test

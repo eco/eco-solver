@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [],
+    "deny": [
+      "mcp__mongodb-preprod__insert-many",
+      "mcp__mongodb-preprod__update-many",
+      "mcp__mongodb-preprod__delete-many",
+      "mcp__mongodb-preprod__drop-database",
+      "mcp__mongodb-preprod__drop-collection",
+      "mcp__mongodb-preprod__create-collection",
+      "mcp__mongodb-preprod__create-index",
+      "mcp__mongodb-preprod__rename-collection",
+      "mcp__mongodb-prod__insert-many",
+      "mcp__mongodb-prod__update-many",
+      "mcp__mongodb-prod__delete-many",
+      "mcp__mongodb-prod__drop-database",
+      "mcp__mongodb-prod__drop-collection",
+      "mcp__mongodb-prod__create-collection",
+      "mcp__mongodb-prod__create-index",
+      "mcp__mongodb-prod__rename-collection"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

@@ -11,6 +11,8 @@ import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
+import { EcoAnalyticsService } from '@/analytics'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 /**
  * Composite data from fetching the token balances for a chain
@@ -34,6 +36,7 @@ export class BalanceService implements OnApplicationBootstrap {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -92,9 +95,31 @@ export class BalanceService implements OnApplicationBootstrap {
     chainID: number,
     tokenAddresses: Hex[],
   ): Promise<Record<Hex, TokenBalance>> {
-    const client = await this.kernelAccountClientService.getClient(chainID)
-    const walletAddress = client.kernelAccount.address
-    return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+    const startTime = Date.now()
+
+    try {
+      const client = await this.kernelAccountClientService.getClient(chainID)
+      const walletAddress = client.kernelAccount.address
+      const result = await this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
+
+      // Track successful balance fetch
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.BALANCE.FETCH_SUCCESS, {
+        chainID,
+        walletAddress,
+        tokenCount: tokenAddresses.length,
+        processingTimeMs: Date.now() - startTime,
+      })
+
+      return result
+    } catch (error) {
+      // Track balance fetch error
+      this.ecoAnalytics.trackError(ANALYTICS_EVENTS.BALANCE.FETCH_FAILED, error, {
+        chainID,
+        tokenCount: tokenAddresses.length,
+        processingTimeMs: Date.now() - startTime,
+      })
+      throw error
+    }
   }
 
   /**
@@ -102,12 +127,15 @@ export class BalanceService implements OnApplicationBootstrap {
    * @param chainID the chain id
    * @param walletAddress wallet address
    * @param tokenAddresses the tokens to fetch balances for
+   * @param cache Flag to enable or disable caching
    * @returns
    */
+  @Cacheable({ bypassArgIndex: 3 })
   async fetchWalletTokenBalances(
     chainID: number,
     walletAddress: string,
     tokenAddresses: Hex[],
+    cache = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<Record<Hex, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
 
@@ -218,6 +246,20 @@ export class BalanceService implements OnApplicationBootstrap {
     })
 
     return Promise.all(balancesPerChainIdPromise).then((result) => result.flat())
+  }
+
+  /**
+   * Gets the native token balance (ETH, MATIC, etc.) for the solver's EOA wallet on the specified chain.
+   * This is used to check if the solver has sufficient native funds to cover gas costs and native value transfers.
+   *
+   * @param chainID - The chain ID to check the native balance on
+   * @param address
+   * @returns The native token balance in wei (base units), or 0n if no EOA address is found
+   */
+  @Cacheable()
+  async getNativeBalance(chainID: number, address: Hex): Promise<bigint> {
+    const client = await this.kernelAccountClientService.getClient(chainID)
+    return client.getBalance({ address })
   }
 
   async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {

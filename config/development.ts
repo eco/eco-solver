@@ -1,4 +1,8 @@
 export default {
+  server: {
+    url: 'http://localhost:3000',
+  },
+
   logger: {
     usePino: false,
   },
@@ -41,7 +45,6 @@ export default {
         '0xd3F4Bef596a04e2be4fbeB17Dd70f02F717c5a6c',
         '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a',
       ],
-      provers: ['0x9592E6bA1Cec5d85D0EeF477703814857acFa921'],
     },
     {
       network: 'base-sepolia',
@@ -51,7 +54,6 @@ export default {
         '0x8bDa9F5C33FBCB04Ea176ea5Bc1f5102e934257f',
         '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a',
       ],
-      provers: ['0x9592E6bA1Cec5d85D0EeF477703814857acFa921'],
     },
   ],
   solvers: {
@@ -77,6 +79,8 @@ export default {
       },
       network: 'base-sepolia',
       chainID: 84532,
+      averageBlockTime: 2,
+      gasOverhead: 145_000,
     },
     //op sepolia
     11155420: {
@@ -90,6 +94,14 @@ export default {
       },
       network: 'opt-sepolia',
       chainID: 11155420,
+      averageBlockTime: 2,
+      gasOverhead: 145_000,
+    },
+  },
+
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: 'http://localhost:4000',
     },
   },
 }

@@ -7,6 +7,7 @@ import { EcoRedisHealthIndicator } from './indicators/eco-redis.indicator'
 import { MongoDBHealthIndicator } from './indicators/mongodb.indicator'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { GitCommitHealthIndicator } from './indicators/git-commit.indicator'
+import { EcoAnalyticsService } from '@/analytics'
 
 @Injectable()
 export class HealthService {
@@ -18,6 +19,7 @@ export class HealthService {
     private readonly gitCommitHealthIndicator: GitCommitHealthIndicator,
     private readonly mongoDBHealthIndicator: MongoDBHealthIndicator,
     private readonly redisIndicator: EcoRedisHealthIndicator,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   async checkHealth() {

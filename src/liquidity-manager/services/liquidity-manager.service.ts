@@ -5,7 +5,6 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -36,6 +35,9 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { BalanceService } from '@/balance/balance.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -58,6 +60,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly liquidityProviderManager: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
@@ -69,6 +72,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     // Get wallet addresses we'll be monitoring
     this.config = this.ecoConfigService.getLiquidityManager()
 
+    if (this.config.enabled !== false) {
+      await this.initializeRebalances()
+    }
+  }
+
+  async initializeRebalances() {
     // Use OP as the default chain assuming the Kernel wallet is the same across all chains
     const opChainId = 10
     const client = await this.kernelAccountClientService.getClient(opChainId)
@@ -80,7 +89,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
-      const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
+      const { stablePool: crowdLiquidityPoolAddress } =
+        this.crowdLiquidityService.getAddresses(opChainId)
       await this.liquidityManagerQueue.startCronJobs(
         this.config.intervalDuration,
         crowdLiquidityPoolAddress,
@@ -225,9 +235,10 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     // First try all direct routes from surplus tokens to deficit token
     for (const surplusToken of sortedSurplusTokens) {
+      let swapAmount = 0
       try {
         // Calculate the amount to swap
-        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
         const strategyQuotes = await this.liquidityProviderManager.getQuote(
           walletAddress,
@@ -258,6 +269,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       } catch (error) {
         // Track failed surplus tokens
         failedSurplusTokens.push(surplusToken)
+
+        this.ecoAnalytics.trackError(ANALYTICS_EVENTS.LIQUIDITY_MANAGER.QUOTE_ROUTE_ERROR, error, {
+          surplusToken: surplusToken.config,
+          deficitToken: deficitToken.config,
+          swapAmount,
+          walletAddress,
+          operation: 'direct_route_quote',
+          service: this.constructor.name,
+        })
 
         this.logger.debug(
           EcoLogMessage.fromDefault({
@@ -296,21 +316,37 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     for (const surplusToken of failedSurplusTokens) {
       // Skip if we've already reached target balance
       if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
-
+      let swapAmount = 0
       try {
         // Calculate the amount to swap
-        const swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
         // Use the fallback method that routes through core tokens
-        const quote = await this.liquidityProviderManager.fallback(
+        const quotes = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
           swapAmount,
         )
 
-        quotes.push(quote)
-        currentBalance += quote.amountOut
+        quotes.push(...quotes)
+        quotes.forEach((quote) => {
+          currentBalance += quote.amountOut
+        })
       } catch (fallbackError) {
+        this.ecoAnalytics.trackError(
+          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,
+          fallbackError,
+          {
+            surplusToken: surplusToken.config,
+            deficitToken: deficitToken.config,
+            swapAmount,
+            currentBalance,
+            targetBalance: deficitToken.analysis.targetSlippage.min,
+            operation: 'fallback_route_quote',
+            service: this.constructor.name,
+          },
+        )
+
         this.logger.error(
           EcoLogMessage.fromDefault({
             message: 'Unable to find fallback route',

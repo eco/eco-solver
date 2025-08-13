@@ -5,24 +5,31 @@ import {
   webSocket,
   WebSocketTransport,
   WebSocketTransportConfig,
+  FallbackTransport,
+  fallback,
 } from 'viem'
 
-export type TransportOptions =
-  | { isWebsocket: true; options?: WebSocketTransportConfig }
-  | { isWebsocket?: false; options?: HttpTransportConfig }
+export type TransportConfig =
+  | { isWebsocket: true; config?: WebSocketTransportConfig }
+  | { isWebsocket?: false; config?: HttpTransportConfig }
 
 /**
- * Returns transport for the chain with the given api key
+ * Returns a transport for the chain with the given rpc urls
  *
- * @param rpcUrl RPC URL.
- * @param options
- * @returns the websocket or http transport
+ * @param rpcUrls RPC URLs.
+ * @param config Transport configuration.
+ * @returns the websocket or http transport or a fallback transport if there are multiple rpc urls
  */
 export function getTransport(
-  rpcUrl: string,
-  options?: TransportOptions,
-): WebSocketTransport | HttpTransport {
-  return options?.isWebsocket
-    ? webSocket(rpcUrl, { keepAlive: true, reconnect: true, ...options?.options })
-    : http(rpcUrl, options?.options)
+  rpcUrls: string[],
+  config?: TransportConfig,
+): WebSocketTransport | HttpTransport | FallbackTransport {
+  const transports: (WebSocketTransport | HttpTransport)[] = rpcUrls.map((url) => {
+    if (config?.isWebsocket) {
+      return webSocket(url, { keepAlive: true, reconnect: true, ...config?.config })
+    }
+    return http(url, config?.config)
+  })
+
+  return transports.length > 1 ? fallback(transports, { rank: true }) : transports[0]
 }

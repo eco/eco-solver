@@ -15,6 +15,7 @@ import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { QuoteError } from '@/quote/errors'
+import { EcoAnalyticsService } from '@/analytics'
 
 jest.mock('viem', () => {
   return {
@@ -41,6 +42,7 @@ describe('UtilsIntentService', () => {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),
         },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
     })
       .overrideProvider(getQueueToken(QUEUES.SOURCE_INTENT.queue))
@@ -88,11 +90,14 @@ describe('UtilsIntentService', () => {
       it('should updateOne the model as invalid', async () => {
         const invalidCause = {
           supportedProver: false,
+          supportedNative: true,
           supportedTargets: true,
-          supportedSelectors: true,
+          supportedTransaction: true,
+          validTransferLimit: true,
           validExpirationTime: true,
           validDestination: true,
           fulfillOnDifferentChain: true,
+          sufficientBalance: true,
         } as ValidationChecks
         await utilsIntentService.updateInvalidIntentModel(model, invalidCause)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
@@ -105,7 +110,10 @@ describe('UtilsIntentService', () => {
 
     describe('on updateInfeasableIntentModel', () => {
       it('should updateOne the model as infeasable', async () => {
-        const error = QuoteError.RouteIsInfeasable(10n, 9n)
+        const error = QuoteError.RouteIsInfeasable(
+          { token: 11n, native: 22n },
+          { token: 1n, native: 2n },
+        )
         await utilsIntentService.updateInfeasableIntentModel(model, error)
         expect(mockUpdateOne).toHaveBeenCalledTimes(1)
         expect(mockUpdateOne).toHaveBeenCalledWith(
@@ -225,7 +233,7 @@ describe('UtilsIntentService', () => {
   describe('on getIntentProcessData', () => {
     const intentHash = address1
     const model = {
-      intent: { route: { hash: intentHash, destination: '85432' } },
+      intent: { route: { hash: intentHash, source: 'opt-sepolia', destination: '85432' } },
       event: { sourceNetwork: 'opt-sepolia' },
     } as any
     it('should return undefined if it could not find the model in the db', async () => {
@@ -245,7 +253,7 @@ describe('UtilsIntentService', () => {
       expect(mockLogLog).toHaveBeenCalledWith({
         msg: `No solver found for chain ${model.intent.route.destination}`,
         intentHash: intentHash,
-        sourceNetwork: model.event.sourceNetwork,
+        sourceNetwork: IntentSourceModel.getSource(model),
       })
     })
 

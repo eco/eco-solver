@@ -1,5 +1,9 @@
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import * as LiFi from '@lifi/sdk'
+import { Hex } from 'viem'
+import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
+import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { Route as SquidRoute } from '@0xsquid/sdk'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'
 
@@ -32,15 +36,70 @@ interface TokenDataAnalyzed extends TokenData {
 type LiFiStrategyContext = LiFi.Route
 type CCTPStrategyContext = undefined
 type WarpRouteStrategyContext = undefined
+type RelayStrategyContext = RelayQuote
+type StargateStrategyContext = StargateQuote
+type SquidStrategyContext = SquidRoute
+type EverclearStrategyContext = undefined
 
-type Strategy = 'LiFi' | 'CCTP' | 'WarpRoute'
+interface CCTPV2StrategyContext {
+  transferType: 'standard' | 'fast'
+  fee: bigint
+  feeBps: number
+  minFinalityThreshold: number
+  messageHash?: Hex
+  messageBody?: Hex
+}
+
+// CCTPLiFi strategy context for tracking multi-step operations
+interface CCTPLiFiStrategyContext {
+  sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → USDC
+  cctpTransfer: {
+    sourceChain: number
+    destinationChain: number
+    amount: bigint
+    messageHash?: Hex
+    messageBody?: Hex
+  }
+  destinationSwapQuote?: LiFiStrategyContext // LiFi route for USDC → token
+  steps: ('sourceSwap' | 'cctpBridge' | 'destinationSwap')[]
+  gasEstimation?: {
+    sourceChainGas: bigint
+    destinationChainGas: bigint
+    totalGasUSD: number
+    gasWarnings: string[]
+  }
+  id?: string
+}
+
+type Strategy =
+  | 'LiFi'
+  | 'CCTP'
+  | 'WarpRoute'
+  | 'CCTPLiFi'
+  | 'Relay'
+  | 'Stargate'
+  | 'Squid'
+  | 'CCTPV2'
+  | 'Everclear'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
     ? CCTPStrategyContext
     : S extends 'WarpRoute'
       ? WarpRouteStrategyContext
-      : never
+      : S extends 'Relay'
+        ? RelayStrategyContext
+        : S extends 'Stargate'
+          ? StargateStrategyContext
+          : S extends 'CCTPLiFi'
+            ? CCTPLiFiStrategyContext
+            : S extends 'Squid'
+              ? SquidStrategyContext
+              : S extends 'CCTPV2'
+                ? CCTPV2StrategyContext
+                : S extends 'Everclear'
+                  ? EverclearStrategyContext
+                  : never
 
 // Quote
 
@@ -52,6 +111,7 @@ interface RebalanceQuote<S extends Strategy = Strategy> {
   tokenOut: TokenData
   strategy: S
   context: StrategyContext<S>
+  id?: string
 }
 
 interface RebalanceRequest {

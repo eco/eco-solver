@@ -12,6 +12,7 @@ import { CreateIntentService } from '../create-intent.service'
 import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
 import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 jest.mock('../../contracts', () => {
   return {
@@ -37,6 +38,7 @@ describe('CreateIntentService', () => {
         { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
         { provide: FlagService, useValue: createMock<FlagService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),
@@ -79,6 +81,9 @@ describe('CreateIntentService', () => {
       transactionHash: '0x123',
       topics: ['0x456'],
       sourceChainID: 85432,
+      args: {
+        hash: '0x9494',
+      },
     }
     const mockIntent = {
       reward: { creator: '0xaaa' },
@@ -96,7 +101,8 @@ describe('CreateIntentService', () => {
       createIntentService.createIntent(mockEvent as any)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `createIntent ${mockEvent.transactionHash}`,
-        intentHash: mockEvent.transactionHash,
+        transactionHash: mockEvent.transactionHash,
+        intentHash: mockEvent.args.hash,
       })
       expect(mockDecodeCreateIntentLog).toHaveBeenCalledWith(mockEvent.data, mockEvent.topics)
     })

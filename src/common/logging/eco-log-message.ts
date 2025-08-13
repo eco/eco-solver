@@ -17,6 +17,14 @@ interface LoggingDataParamsWithErrorAndUser extends LoggingDataParamsWithError {
   userID: string
 }
 
+interface LoggingDataParamsWithErrorAndId extends LoggingDataParamsWithError {
+  id?: string
+}
+
+interface LoggingDataParamsWithId extends BaseLoggingDataParams {
+  id?: string
+}
+
 export class EcoLogMessage {
   private readonly _content: object
 
@@ -69,6 +77,24 @@ export class EcoLogMessage {
         error: error.toString(),
         ...properties,
       },
+    })
+  }
+
+  static withId(params: LoggingDataParamsWithId): object {
+    const { message, id, properties } = params
+
+    return this.fromDefault({
+      message,
+      properties: { id, ...properties },
+    })
+  }
+
+  static withErrorAndId(params: LoggingDataParamsWithErrorAndId): object {
+    const { message, id, error, properties } = params
+
+    return this.fromDefault({
+      message,
+      properties: { id, error: error.toString(), ...properties },
     })
   }
 }

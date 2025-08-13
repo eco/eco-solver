@@ -4,6 +4,7 @@ import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
 import { AwsCredential } from '@/eco-configs/eco-config.types'
+import { ProofType } from '@/contracts'
 
 export class EcoError extends Error {
   // Alchemy Service
@@ -54,6 +55,10 @@ export class EcoError extends Error {
     return new EcoError(`Chain config not found for chain ${chainID}`)
   }
 
+  static ChainRPCNotFound(chainID: number) {
+    return new EcoError(`Chain rpc not found for chain ${chainID}`)
+  }
+
   static InvalidSimpleAccountConfig() {
     return new EcoError(`The simple account config is invalid`)
   }
@@ -62,12 +67,46 @@ export class EcoError extends Error {
     return new EcoError(`The kernel account config is invalid`)
   }
 
+  static ProverNotSupported(pt: ProofType) {
+    return new Error(`The prover type ${pt} is not supported`)
+  }
+
+  static ProverNotAllowed(source: number, destination: number, prover: string) {
+    return new Error(`The prover ${prover} is not supported on route ${source} to ${destination}`)
+  }
+
   static RebalancingRouteNotFound() {
     return new EcoError(`A rebalancing route not found`)
   }
 
+  static IntentNotFound = new Error('Intent not found')
+  static QuoteNotFound = new Error('Quote not found')
+  static QuoteDBUpdateError = new Error('Quote not found')
+  static GaslessIntentsNotSupported = new Error('Gasless intents are not supported')
+  static NoPermitsProvided = new Error('At least one permit must be provided')
+  static AllPermitsMustBeOnSameChain = new Error(
+    `All Permits must be on the same chain for batching`,
+  )
+
+  // Permit Validations
+  static InvalidVaultAddress = new EcoError('Permit spender does not match expected vault address')
+  static InvalidPermit2Address = new EcoError('Permit2 contract is not whitelisted')
+  static InvalidPermitSignature = new EcoError('Invalid permit signature for owner')
+  static InvalidPermitNonce = new EcoError('Nonce mismatch for token')
+  static PermitExpired = new EcoError('Permit expired for token')
+  static PermitExpirationMismatch = new EcoError(
+    'On-chain expiration is earlier than signed expiration',
+  )
+  static PermitSimulationsFailed = new EcoError(`One or more permit simulations failed`)
+  static VaultAlreadyClaimed = new EcoError(`Vault for intent has already been claimed`)
+  static VaultAlreadyFunded = new EcoError(`Vault for intent is already fully funded`)
+  static VaultNotFullyFundedAfterPermit = new EcoError('Vault not fully funded after permit')
+
+  static GasEstimationError = new Error('Error estimating gas')
+
   static FeasibilityIntentNoTransactionError = new Error('No transaction data found')
   static FulfillIntentNoTransactionError = new Error('No transaction data found')
+  static FulfillIntentProverNotFound = new Error('Storage prover not found')
   static FulfillIntentBatchError = new Error('Could not fulfill batch transaction')
   static FulfillIntentRevertError(receipt: TransactionReceipt) {
     const msg = JSON.stringify(receipt, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
@@ -108,6 +147,23 @@ export class EcoError extends Error {
 
   static CrowdLiquidityPoolNotSolvent(intentHash: string) {
     return new EcoError(`CrowdLiquidity pool is not solvent for intent: ${intentHash}`)
+  }
+
+  // Solver Registration
+  static SolverRegistrationError = new EcoError()
+
+  // Signature Validations
+  static TypedDataVerificationFailed = new EcoError()
+  static SignatureExpired = new EcoError()
+  static InvalidSignature = new EcoError()
+
+  // Quote Service
+  static NegativeGasOverhead(gasOverhead: number) {
+    return new EcoError(`Gas overhead is negative: ${gasOverhead}`)
+  }
+
+  static DefaultGasOverheadUndefined() {
+    return new EcoError(`Default gas overhead is undefined`)
   }
 
   // EcoConfig Service

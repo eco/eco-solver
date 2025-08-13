@@ -14,9 +14,15 @@ import * as MulticallUtils from '@/intent-processor/utils/multicall'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
+import { RouteType } from '@eco-foundation/routes-ts'
 
 jest.mock('@/intent-processor/utils/hyperlane')
 jest.mock('@/intent-processor/utils/multicall')
+jest.mock('viem', () => ({
+  ...jest.requireActual('viem'),
+  encodeFunctionData: jest.fn(),
+  encodeAbiParameters: jest.fn(),
+}))
 
 describe('IntentProcessorService', () => {
   let service: IntentProcessorService
@@ -162,6 +168,14 @@ describe('IntentProcessorService', () => {
       writable: false,
       configurable: true,
     }) as any
+
+    jest
+      .spyOn(require('@/eco-configs/utils'), 'getChainConfig')
+      .mockReturnValue({ HyperProver: '0x0000000000000000000000000000000000000010' })
+
+    // Setup default mocks for indexer service methods
+    indexerService.getNextBatchWithdrawals = jest.fn().mockResolvedValue([])
+    indexerService.getNextSendBatch = jest.fn().mockResolvedValue([])
 
     // Call onApplicationBootstrap to initialize config
     await service.onApplicationBootstrap()
@@ -569,13 +583,25 @@ describe('IntentProcessorService', () => {
 
   describe('executeWithdrawals', () => {
     it('should send batch withdraw transaction', async () => {
+      const route: RouteType = {
+        destination: 1n,
+        salt: '0xSalt',
+        source: 10n,
+        inbox: '0xInbox',
+        tokens: [],
+        calls: [
+          { target: '0x1' as Hex, data: '0x3' as Hex, value: 100n },
+          { target: '0x4' as Hex, data: '0x6' as Hex, value: 200n },
+        ],
+      }
+
       // Mock data
       const data = {
         chainId: 1,
         intentSourceAddr: mockIntentSource,
         intents: [
           {
-            routeHash: '0xRouteHash1' as Hex,
+            route: route,
             reward: {
               creator: '0xCreator1' as Hex,
               prover: '0xProver1' as Hex,
@@ -585,7 +611,7 @@ describe('IntentProcessorService', () => {
             },
           },
           {
-            routeHash: '0xRouteHash2' as Hex,
+            route: route,
             reward: {
               creator: '0xCreator2' as Hex,
               prover: '0xProver2' as Hex,
@@ -609,21 +635,26 @@ describe('IntentProcessorService', () => {
         abi: expect.any(Array),
         address: mockIntentSource,
         args: [
-          ['0xRouteHash1', '0xRouteHash2'],
           [
             {
-              creator: '0xCreator1',
-              prover: '0xProver1',
-              deadline: 1000n,
-              nativeValue: 100n,
-              tokens: [{ token: '0xToken1', amount: 200n }],
+              route: route,
+              reward: {
+                creator: '0xCreator1',
+                prover: '0xProver1',
+                deadline: 1000n,
+                nativeValue: 100n,
+                tokens: [{ token: '0xToken1', amount: 200n }],
+              },
             },
             {
-              creator: '0xCreator2',
-              prover: '0xProver2',
-              deadline: 2000n,
-              nativeValue: 200n,
-              tokens: [{ token: '0xToken2', amount: 300n }],
+              route: route,
+              reward: {
+                creator: '0xCreator2',
+                prover: '0xProver2',
+                deadline: 2000n,
+                nativeValue: 200n,
+                tokens: [{ token: '0xToken2', amount: 300n }],
+              },
             },
           ],
         ],
@@ -642,11 +673,15 @@ describe('IntentProcessorService', () => {
       // Mock data - single batch
       const data = {
         chainId: 1,
+        intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         proves: [
           {
             hash: '0x1111' as Hex,
             prover: '0xProver1' as Hex,
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
         ],
       }
@@ -691,21 +726,29 @@ describe('IntentProcessorService', () => {
       // Mock data - multiple batches with different prover-source combinations
       const data = {
         chainId: 1,
+        intentSourceAddr: mockIntentSource,
+        inbox: mockInbox,
         proves: [
           {
             hash: '0x1111' as Hex,
             prover: '0xProver1' as Hex,
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
           {
             hash: '0x2222' as Hex,
             prover: '0xProver2' as Hex, // Different prover
             source: 2,
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
           {
             hash: '0x3333' as Hex,
             prover: '0xProver1' as Hex,
             source: 3, // Different source
+            intentSourceAddr: mockIntentSource,
+            inbox: mockInbox,
           },
         ],
       }
@@ -909,16 +952,17 @@ describe('IntentProcessorService', () => {
   })
 
   describe('getIntentSource and getInbox', () => {
-    it('should return the intent source address', () => {
+    it('should return array of intent source addresses', () => {
       const result = service['getIntentSource']()
-      expect(result).toBe(mockIntentSource)
+      expect(result).toEqual([mockIntentSource])
     })
 
-    it('should throw error if multiple intent sources', () => {
+    it('should return array of unique intent sources when multiple provided', () => {
       // Mock multiple intent sources
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValueOnce([
         {
           sourceAddress: '0xSource1' as Hex,
+          stablePoolAddress: '0xStablePoolAddress2',
           inbox: '0xInbox1' as Hex,
           network: Network.ETH_MAINNET,
           chainID: 1,
@@ -927,17 +971,17 @@ describe('IntentProcessorService', () => {
         },
         {
           sourceAddress: '0xSource2' as Hex,
-          inbox: '0xInbox1' as Hex,
-          network: Network.ETH_MAINNET,
-          chainID: 1,
-          tokens: ['0xToken1' as Hex],
-          provers: ['0xProver1' as Hex],
+          stablePoolAddress: '0xStablePoolAddress2',
+          inbox: '0xInbox2' as Hex,
+          network: Network.ARB_MAINNET,
+          chainID: 42161,
+          tokens: ['0xToken2' as Hex],
+          provers: ['0xProver2' as Hex],
         },
       ])
 
-      expect(() => service['getIntentSource']()).toThrow(
-        'Implementation has to be refactor to support multiple intent source addresses.',
-      )
+      const result = service['getIntentSource']()
+      expect(result).toEqual(['0xSource1', '0xSource2'])
     })
 
     it('should return the inbox address', () => {
@@ -951,6 +995,7 @@ describe('IntentProcessorService', () => {
         {
           sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox1' as Hex,
+          stablePoolAddress: '0xStablePoolAddress1',
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],
@@ -959,6 +1004,7 @@ describe('IntentProcessorService', () => {
         {
           sourceAddress: '0xSource1' as Hex,
           inbox: '0xInbox2' as Hex,
+          stablePoolAddress: '0xStablePoolAddress2',
           network: Network.ETH_MAINNET,
           chainID: 1,
           tokens: ['0xToken1' as Hex],

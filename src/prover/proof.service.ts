@@ -1,17 +1,19 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import * as _ from 'lodash'
+import { getAddress, Hex } from 'viem'
+import { IProverAbi } from '@eco-foundation/routes-ts'
 import { addSeconds, compareAsc } from 'date-fns'
-import { MultichainPublicClientService } from '../transaction/multichain-public-client.service'
-import { Hex } from 'viem'
-import {
-  PROOF_HYPERLANE,
-  PROOF_STORAGE,
-  ProofCall,
-  ProofType,
-  ProverInterfaceAbi,
-} from '../contracts'
-import { entries } from 'lodash'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { ProofCall, ProofType } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+
+interface ProverMetadata {
+  address: Hex
+  type: ProofType
+  chainID: number
+}
 
 /**
  * Service class for getting information about the provers and their configurations.
@@ -24,7 +26,7 @@ export class ProofService implements OnModuleInit {
    * Variable storing the proof type for each prover address. Used to determine
    * what function to call on the Inbox contract
    */
-  private proofContracts: Record<Hex, ProofType> = {}
+  private provers: ProverMetadata[] = []
 
   constructor(
     private readonly publicClient: MultichainPublicClientService,
@@ -36,31 +38,23 @@ export class ProofService implements OnModuleInit {
   }
 
   /**
-   * Returns the proof type for a given prover address
-   *
-   * @param proverAddress
-   * @returns the proof type, defaults to {@link PROOF_STORAGE}
-   */
-  getProofType(proverAddress: Hex): ProofType {
-    return this.proofContracts[proverAddress]
-  }
-
-  /**
    * Checks if the prover is a hyperlane prover
+   * @param chainID
    * @param proverAddress the prover address
    * @returns
    */
-  isHyperlaneProver(proverAddress: Hex): boolean {
-    return this.getProofType(proverAddress) === PROOF_HYPERLANE
+  isHyperlaneProver(chainID: number, proverAddress: Hex): boolean {
+    return Boolean(this.getProverType(chainID, proverAddress)?.isHyperlane())
   }
 
   /**
-   * Checks if the prover is a storage prover
+   * Checks if the prover is a metalayer prover
+   * @param chainID
    * @param proverAddress the prover address
    * @returns
    */
-  isStorageProver(proverAddress: Hex): boolean {
-    return this.getProofType(proverAddress) === PROOF_STORAGE
+  isMetalayerProver(chainID: number, proverAddress: Hex): boolean {
+    return Boolean(this.getProverType(chainID, proverAddress)?.isMetalayer())
   }
 
   /**
@@ -69,18 +63,52 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   getProvers(proofType: ProofType): Hex[] {
-    return entries(this.proofContracts)
-      .filter(([, type]) => type === proofType)
-      .map(([address]) => address as Hex)
+    const proverAddresses = this.provers
+      .filter((prover) => prover.type === proofType)
+      .map((prover) => getAddress(prover.address))
+
+    return _.uniq(proverAddresses)
   }
 
   /**
    * Returns the prover type for a given prover address
-   * @param prover the prover address
+   * @param chainID
+   * @param proverAddr the prover address
    * @returns
    */
-  getProverType(prover: Hex): ProofType {
-    return this.proofContracts[prover]
+  getProverType(chainID: number, proverAddr: Hex): ProofType | undefined {
+    return this.provers.find(
+      (prover) => prover.chainID === chainID && prover.address === proverAddr,
+    )?.type
+  }
+
+  /**
+   * Check to see if the expiration of an intent is after the minimum proof time from now.
+   *
+   * @param chainID
+   * @param prover the address of the prover
+   * @param expirationDate the expiration date
+   * @returns true if the intent can be proven before the minimum proof time, false otherwise
+   */
+  isIntentExpirationWithinProofMinimumDate(
+    chainID: number,
+    prover: Hex,
+    expirationDate: Date,
+  ): boolean {
+    const proofType = this.getProverType(chainID, prover)
+    if (!proofType) {
+      return false
+    }
+    return compareAsc(expirationDate, this.getProofMinimumDate(proofType)) === 1
+  }
+
+  /**
+   * Gets the minimum date that a proof can be generated for a given chain id.
+   * @param prover
+   * @returns
+   */
+  getProofMinimumDate(prover: ProofType): Date {
+    return addSeconds(new Date(), this.getProofMinimumDurationSeconds(prover))
   }
 
   /**
@@ -89,26 +117,20 @@ export class ProofService implements OnModuleInit {
    * hex address is the same.
    */
   private async loadProofTypes() {
-    const proofPromises = this.ecoConfigService.getIntentSources().map(async (source) => {
-      return await this.getProofTypes(source.chainID, source.provers)
-    })
+    const proofPromises = this.ecoConfigService
+      .getIntentSources()
+      .map((source) => this.getProofTypes(source.chainID, source.provers))
 
     // get the proof types for each prover address from on chain
     const proofs = await Promise.all(proofPromises)
 
-    // reduce the array of proof objects into a single object, removing duplicates
-    proofs.reduce((acc, proof) => {
-      entries(proof).forEach(([proverAddress, proofType]) => {
-        acc[proverAddress] = proofType
-      })
-      return acc
-    }, this.proofContracts)
+    this.provers = proofs.flat()
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `loadProofTypes loaded all the proof types`,
         properties: {
-          proofs: this.proofContracts,
+          proofs: this.provers,
         },
       }),
     )
@@ -121,48 +143,55 @@ export class ProofService implements OnModuleInit {
    * @param provers the prover addresses
    * @returns
    */
-  private async getProofTypes(chainID: number, provers: Hex[]): Promise<Record<Hex, ProofType>> {
+  private async getProofTypes(chainID: number, provers: Hex[]): Promise<ProverMetadata[]> {
     const client = await this.publicClient.getClient(Number(chainID))
-    const proofCalls: ProofCall[] = provers.map((proverAddress) => {
-      return {
-        address: proverAddress,
-        abi: ProverInterfaceAbi,
-        functionName: 'getProofType',
-      }
-    })
+    const proofCalls: ProofCall[] = provers.map((proverAddress) => ({
+      address: proverAddress,
+      abi: IProverAbi,
+      functionName: 'getProofType',
+    }))
 
-    const proofs = (await client.multicall({
-      contracts: proofCalls.flat(),
-    })) as any
-    let proof: ProofType = 0,
-      i = 0
-    const proofObj: Record<Hex, ProofType> = {}
-    while (proofs.length > 0 && ([{ result: proof }] = [proofs.shift()])) {
-      proofObj[provers[i]] = proof
-      i++
+    const proofTypeResults = await client.multicall({ contracts: proofCalls })
+
+    const proofs: ProverMetadata[] = []
+
+    for (const proverIndex in provers) {
+      const proverAddr = provers[proverIndex]
+      const { result: proofType, error } = proofTypeResults[proverIndex]
+
+      if (error) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `getProofTypes: error fetching proof type`,
+            properties: {
+              chainID,
+              proverAddr,
+              error: error.message,
+            },
+          }),
+        )
+        continue
+      }
+
+      if (proofType) {
+        proofs.push({
+          chainID,
+          address: proverAddr,
+          type: this.getProofTypeFromString(proofType),
+        })
+      }
     }
 
-    return proofObj
+    return proofs
   }
 
   /**
-   * Check to see if the expiration of an intent is after the minimum proof time from now.
-   *
-   * @param prover the address of the prover
-   * @param expirationDate the expiration date
-   * @returns true if the intent can be proven before the minimum proof time, false otherwise
+   * Get ProofType from string
+   * @param proof
+   * @private
    */
-  isIntentExpirationWithinProofMinimumDate(prover: Hex, expirationDate: Date): boolean {
-    return compareAsc(expirationDate, this.getProofMinimumDate(this.proofContracts[prover])) == 1
-  }
-
-  /**
-   * Gets the minimum date that a proof can be generated for a given chain id.
-   * @param chainID  the chain id
-   * @returns
-   */
-  getProofMinimumDate(prover: ProofType): Date {
-    return addSeconds(new Date(), this.getProofMinimumDurationSeconds(prover))
+  private getProofTypeFromString(proof: string): ProofType {
+    return ProofType.fromProviderValue(proof)
   }
 
   /**
@@ -173,12 +202,13 @@ export class ProofService implements OnModuleInit {
    */
   private getProofMinimumDurationSeconds(prover: ProofType): number {
     const proofs = this.ecoConfigService.getIntentConfigs().proofs
-    switch (prover) {
-      case PROOF_HYPERLANE:
+    switch (true) {
+      case prover.isHyperlane():
         return proofs.hyperlane_duration_seconds
-      case PROOF_STORAGE:
+      case prover.isMetalayer():
+        return proofs.metalayer_duration_seconds
       default:
-        return proofs.storage_duration_seconds
+        throw EcoError.ProverNotSupported(prover)
     }
   }
 }

@@ -12,6 +12,12 @@ import {
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
+import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
+import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
+import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -31,12 +37,18 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
     public readonly queue: LiquidityManagerQueueType,
     public readonly liquidityManagerService: LiquidityManagerService,
     public readonly cctpProviderService: CCTPProviderService,
+    public readonly cctpv2ProviderService: CCTPV2ProviderService,
+    public readonly everclearProviderService: EverclearProviderService,
   ) {
     super(LiquidityManagerProcessor.name, [
       new CheckBalancesCronJobManager(),
       new RebalanceJobManager(),
       new ExecuteCCTPMintJobManager(),
       new CheckCCTPAttestationJobManager(),
+      new CCTPLiFiDestinationSwapJobManager(),
+      new CheckCCTPV2AttestationJobManager(),
+      new ExecuteCCTPV2MintJobManager(),
+      new CheckEverclearIntentJobManager(),
     ])
   }
 }

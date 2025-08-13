@@ -2,12 +2,27 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { FeeService } from '@/fee/fee.service'
-import { getTransactionTargetData } from '@/intent/utils'
+import {
+  equivalentNativeGas,
+  getFunctionCalls,
+  getFunctionTargets,
+  getNativeFulfill,
+  getTransactionTargetData,
+  isNativeETH,
+  isNativeIntent,
+} from '@/intent/utils'
+import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
+import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
+import { CallDataInterface } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
+import { BalanceService } from '@/balance/balance.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex
@@ -26,18 +41,20 @@ export interface ValidationIntentInterface
  */
 export type ValidationChecks = {
   supportedProver: boolean
+  supportedNative: boolean
   supportedTargets: boolean
-  supportedSelectors: boolean
+  supportedTransaction: boolean
   validTransferLimit: boolean
   validExpirationTime: boolean
   validDestination: boolean
   fulfillOnDifferentChain: boolean
+  sufficientBalance: boolean
 }
 
 /**
- * Validates that all of the validations succeeded
+ * Validates that all the validations succeeded
  * @param validations  the validations to check
- * @returns true if all of the validations passed
+ * @returns true if all the validations passed
  */
 export function validationsSucceeded(validations: ValidationType): boolean {
   return Object.values(validations).every((v) => v)
@@ -56,107 +73,142 @@ export function validationsFailed(validations: ValidationType): boolean {
  * Type that holds all the possible validations that can fail
  */
 export type ValidationType = {
-  [key: string]: boolean
+  [key in keyof ValidationChecks]: boolean
 }
 
+export type TxValidationFn = (tx: TransactionTargetData) => boolean
+
 @Injectable()
-export class ValidationService {
+export class ValidationService implements OnModuleInit {
+  private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
+  private minEthBalanceWei: bigint
 
   constructor(
     private readonly proofService: ProofService,
     private readonly feeService: FeeService,
+    private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
+
+  onModuleInit() {
+    this.isNativeETHSupported = this.ecoConfigService.getIntentConfigs().isNativeETHSupported
+    this.minEthBalanceWei = BigInt(this.ecoConfigService.getEth().simpleAccount.minEthBalanceWei)
+  }
 
   /**
    * Executes all the validations we have on the model and solver
    *
    * @param intent the source intent model
    * @param solver the solver for the source chain
+   * @param txValidationFn
    * @returns true if they all pass, false otherwise
    */
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
+    txValidationFn: TxValidationFn = () => true,
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
-      sourceChainID: intent.route.source,
       prover: intent.reward.prover,
+      source: Number(intent.route.source),
+      destination: Number(intent.route.destination),
     })
+    const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
-    const supportedSelectors = this.supportedSelectors(intent, solver)
+    const supportedTransaction = this.supportedTransaction(intent, solver, txValidationFn)
     const validTransferLimit = await this.validTransferLimit(intent)
     const validExpirationTime = this.validExpirationTime(intent)
     const validDestination = this.validDestination(intent)
     const fulfillOnDifferentChain = this.fulfillOnDifferentChain(intent)
+    const sufficientBalance = await this.hasSufficientBalance(intent)
 
     return {
+      supportedNative,
       supportedProver,
       supportedTargets,
-      supportedSelectors,
+      supportedTransaction,
       validTransferLimit,
       validExpirationTime,
       validDestination,
       fulfillOnDifferentChain,
+      sufficientBalance,
     }
   }
 
   /**
-   * Checks if the IntentCreated event is using a supported prover. It first finds the source intent contract that is on the
-   * source chain of the event. Then it checks if the prover is supported by the source intent. In the
-   * case that there are multiple matching source intent contracts on the same chain, as long as any of
-   * them support the prover, the function will return true.
+   * Checks if a given source chain ID and prover are supported within the available intent sources.
    *
-   * @param ops the intent info
-   * @returns
+   * @param {Object} opts - The operation parameters.
+   * @param {bigint} opts.chainID - The ID of the chain to check for support.
+   * @param {Hex} opts.prover - The prover to validate against the intent sources.
+   * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
-  supportedProver(ops: { sourceChainID: bigint; prover: Hex }): boolean {
-    const srcSolvers = this.ecoConfigService.getIntentSources().filter((intent) => {
-      return BigInt(intent.chainID) == ops.sourceChainID
-    })
+  supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
+    const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
-    return srcSolvers.some((intent) => {
-      return intent.provers.some((prover) => prover == ops.prover)
-    })
-  }
+    if (!isWhitelisted) return false
 
-  /**
-   * Verifies that the intent targets and data arrays are equal in length, and
-   * that every target-data can be decoded
-   *
-   * @param intent the intent model
-   * @param solver the solver for the intent
-   * @returns
-   */
-  supportedSelectors(intent: ValidationIntentInterface, solver: Solver): boolean {
-    if (intent.route.calls.length == 0) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `supportedSelectors: Target/data invalid`,
-        }),
-      )
+    const type = this.proofService.getProverType(Number(opts.source), opts.prover)
+
+    if (!type) {
       return false
     }
-    return intent.route.calls.every((call) => {
-      const tx = getTransactionTargetData(solver, call)
-      return tx
-    })
+
+    switch (true) {
+      case type.isHyperlane():
+      case type.isMetalayer():
+        return this.checkProverWhitelisted(opts.source, opts.prover)
+      default:
+        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover)
+    }
+  }
+
+  checkProverWhitelisted(chainID: number, prover: Hex): boolean {
+    return this.ecoConfigService
+      .getIntentSources()
+      .some(
+        (intent) =>
+          intent.chainID === chainID && intent.provers.some((_prover) => _prover == prover),
+      )
   }
 
   /**
-   * Verifies that all the intent targets are supported by the solver
+   * Verifies that the intent is a supported native.
+   *
+   * If native intents are enabled, it checks that the native token is the same on both chains
+   * If native intents are disabled, it checks that the intent is not a native intent and has no native value components
+   *
+   * @param intent the intent model
+   * @returns
+   */
+  supportedNative(intent: ValidationIntentInterface): boolean {
+    if (this.isNativeETHSupported) {
+      if (isNativeIntent(intent)) {
+        return equivalentNativeGas(intent, this.logger) && isNativeETH(intent)
+      }
+      return true
+    } else {
+      return !isNativeIntent(intent)
+    }
+  }
+
+  /**
+   * Verifies that all the intent targets are supported by the solver. The targets must
+   * have data in the transaction in order to be checked. Non-data targets are expected to be
+   * pure gas token transfers
    *
    * @param intent the intent model
    * @param solver the solver for the intent
    * @returns
    */
   supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
-    const intentTargets = intent.route.calls.map((call) => call.target)
+    const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
-    const exist = solverTargets.length > 0 && intentTargets.length > 0
-    const targetsSupported = exist && difference(intentTargets, solverTargets).length == 0
+    const targetsSupported = difference(intentFunctionTargets, solverTargets).length == 0
 
     if (!targetsSupported) {
       this.logger.debug(
@@ -175,6 +227,34 @@ export class ValidationService {
   }
 
   /**
+   * Verifies that the intent calls that are function calls are supported by the solver.
+   *
+   * @param intent the intent model
+   * @param solver the solver for the intent
+   * @param txValidationFn
+   * @returns
+   */
+  supportedTransaction(
+    intent: ValidationIntentInterface,
+    solver: Solver,
+    txValidationFn: TxValidationFn = () => true,
+  ): boolean {
+    if (intent.route.calls.length == 0) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `supportedSelectors: Target/data invalid`,
+        }),
+      )
+      return false
+    }
+    const functionCalls = getFunctionCalls(intent.route.calls as CallDataInterface[])
+    return functionCalls.every((call) => {
+      const tx = getTransactionTargetData(solver, call)
+      return tx && txValidationFn(tx)
+    })
+  }
+
+  /**
    * Checks if the transfer total is within the bounds of the solver, ie below a certain threshold
    * @param intent the source intent model
    * @returns  true if the transfer is within the bounds
@@ -182,23 +262,172 @@ export class ValidationService {
   async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
     const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
     if (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `validTransferLimit: Error getting total fill`,
+          properties: {
+            error: error.message,
+            intentHash: intent.hash,
+            source: intent.route.source,
+          },
+        }),
+      )
       return false
     }
-    const limitFillBase6 = this.feeService.getFeeConfig({ intent }).limitFillBase6
-    return totalFillNormalized <= limitFillBase6
+
+    const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `validTransferLimit: Total fill normalized`,
+        properties: {
+          tokenTotalFillNormalized: totalFillNormalized.token.toString(),
+          nativeTotalFillNormalized: totalFillNormalized.native.toString(),
+          tokenBase6: tokenBase6.toString(),
+          nativeBase18: nativeBase18.toString(),
+        },
+      }),
+    )
+
+    // convert to a normalized total to use utils compare function
+    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+  }
+
+  /**
+   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
+   * @param intent the source intent model
+   * @returns true if the solver has sufficient balance
+   */
+  async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
+    const destinationChain = Number(intent.route.destination)
+
+    try {
+      // Early return if no solver configured for destination chain
+      const solver = this.ecoConfigService.getSolver(destinationChain)
+      if (!solver) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `hasSufficientBalance: No solver configured for destination chain`,
+            properties: {
+              intentHash: intent.hash,
+              destination: destinationChain,
+            },
+          }),
+        )
+        return false
+      }
+
+      // Early return if no tokens to check and no native value
+      const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
+      if (intent.route.tokens.length === 0 && totalFulfillNativeValue === 0n) {
+        return true
+      }
+
+      const walletAddresses =
+        this.ecoConfigService.getFulfill().type === 'crowd-liquidity'
+          ? [
+              await this.kernelAccountClientService.getAddress(),
+              this.crowdLiquidityService.getAddresses(destinationChain).stablePool,
+            ]
+          : [await this.kernelAccountClientService.getAddress()]
+
+      const responses = walletAddresses.map(async (walletAddress) => {
+        try {
+          // Validate token balances if tokens present
+          if (intent.route.tokens.length > 0) {
+            const hasSufficientTokenBalance = await this.checkTokenBalances(
+              walletAddress,
+              intent,
+              destinationChain,
+              solver.targets,
+            )
+            if (!hasSufficientTokenBalance) {
+              this.logger.warn(
+                EcoLogMessage.fromDefault({
+                  message: `hasSufficientBalance: Insufficient token balance`,
+                  properties: {
+                    intentHash: intent.hash,
+                    destination: destinationChain,
+                  },
+                }),
+              )
+
+              return false
+            }
+          }
+
+          // Validate native balance if native value required
+          if (totalFulfillNativeValue > 0n) {
+            const hasSufficientNativeBalance = await this.sufficientNativeBalance(
+              walletAddress,
+              destinationChain,
+              totalFulfillNativeValue,
+            )
+            if (!hasSufficientNativeBalance) {
+              this.logger.warn(
+                EcoLogMessage.fromDefault({
+                  message: `hasSufficientBalance: Insufficient native balance`,
+                  properties: {
+                    intentHash: intent.hash,
+                    destination: destinationChain,
+                  },
+                }),
+              )
+
+              return false
+            }
+          }
+          return true
+        } catch (error) {
+          // If validation fails for this address, return false but continue checking others
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: 'hasSufficientBalance: Error checking balance for address',
+              properties: {
+                error: error.message,
+                errorStack: error.stack,
+                walletAddress,
+                intentHash: intent.hash,
+                destination: intent.route.destination,
+              },
+            }),
+          )
+          return false
+        }
+      })
+
+      const results = await Promise.all(responses)
+      return results.some(Boolean)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `hasSufficientBalance: Error checking balance`,
+          properties: {
+            error: error?.message || String(error),
+            errorStack: error?.stack,
+            intentHash: intent.hash,
+            destination: destinationChain,
+          },
+        }),
+      )
+      return false
+    }
   }
 
   /**
    *
    * @param intent the source intent model
-   * @param solver the solver for the source chain
    * @returns
    */
   validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
-    const time = Number.parseInt(`${intent.reward.deadline as bigint}`) * 1000
+    const time = Number(intent.reward.deadline) * 1000
     const expires = new Date(time)
-    return this.proofService.isIntentExpirationWithinProofMinimumDate(intent.reward.prover, expires)
+    return this.proofService.isIntentExpirationWithinProofMinimumDate(
+      Number(intent.route.source),
+      intent.reward.prover,
+      expires,
+    )
   }
 
   /**
@@ -214,10 +443,72 @@ export class ValidationService {
    * Checks that the intent fulfillment is on a different chain than its source
    * Needed since some proving methods(Hyperlane) cant prove same chain
    * @param intent the source intent
-   * @param solver the solver used to fulfill
    * @returns
    */
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
     return intent.route.destination !== intent.route.source
+  }
+
+  /**
+   * Checks if the solver has sufficient token balances
+   * @private
+   */
+  private async checkTokenBalances(
+    walletAddr: Hex,
+    intent: ValidationIntentInterface,
+    destinationChain: number,
+    solverTargets: Record<string, any>,
+  ): Promise<boolean> {
+    const tokens = intent.route.tokens.map((t) => t.token)
+    const tokenBalances = await this.balanceService.fetchWalletTokenBalances(
+      destinationChain,
+      walletAddr,
+      tokens,
+    )
+
+    for (const routeToken of intent.route.tokens) {
+      const balance = tokenBalances[routeToken.token]
+
+      if (!balance) {
+        return false // Insufficient balance
+      }
+
+      // Calculate minimum required balance
+      const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
+      const balanceMinReq = normalizeBalance(
+        { balance: BigInt(minReqDollar), decimal: 0 },
+        balance.decimals,
+      )
+
+      // Check if the available balance (after the minimum) is enough
+      const availableBalance = balance.balance - balanceMinReq.balance
+
+      if (availableBalance < routeToken.amount) {
+        return false // Insufficient balance
+      }
+    }
+
+    return true // All token balances sufficient
+  }
+
+  /**
+   * Checks if the solver has sufficient native balance
+   * @private
+   */
+  private async sufficientNativeBalance(
+    walletAddr: Hex,
+    destinationChain: number,
+    requiredAmount: bigint,
+  ): Promise<boolean> {
+    const solverNativeBalance = await this.balanceService.getNativeBalance(
+      destinationChain,
+      walletAddr,
+    )
+
+    // Account for minimum ETH balance requirement
+    const effectiveBalance =
+      solverNativeBalance > this.minEthBalanceWei ? solverNativeBalance - this.minEthBalanceWei : 0n
+
+    return effectiveBalance >= requiredAmount
   }
 }

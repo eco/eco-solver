@@ -32,7 +32,6 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   inbox: Hex
 
   @IsArray()
-  @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteRewardTokensDTO)

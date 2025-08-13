@@ -1,14 +1,21 @@
 import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import * as _ from 'lodash'
-import { Chain, encodeFunctionData, Hex, PublicClient, TransactionRequest, Transport } from 'viem'
+import {
+  Chain,
+  encodeAbiParameters,
+  encodeFunctionData,
+  Hex,
+  pad,
+  PublicClient,
+  TransactionRequest,
+  Transport,
+} from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { DeepReadonly } from '@/common/types/deep-readonly'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IndexerService } from '@/indexer/services/indexer.service'
-import { RewardInterface } from '@/indexer/interfaces/reward.interface'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
@@ -21,6 +28,7 @@ import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-ba
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
 import { HatsService } from '@/hats/hats.service'
+import { getChainConfig } from '@/eco-configs/utils'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -57,9 +65,43 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   }
 
   async getNextBatchWithdrawals() {
-    const intentSourceAddr = this.getIntentSource()
+    const intentSourceAddrs = this.getIntentSource()
 
-    const batchWithdrawals = await this.indexerService.getNextBatchWithdrawals(intentSourceAddr)
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Intent source addresses`,
+        properties: {
+          intentSourceAddrs,
+          count: intentSourceAddrs.length,
+        },
+      }),
+    )
+
+    const batches = await Promise.all(
+      intentSourceAddrs.map(async (addr) => {
+        const withdrawals = await this.indexerService.getNextBatchWithdrawals(addr)
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Per address result`,
+            properties: {
+              addr,
+              withdrawalsCount: withdrawals.length,
+            },
+          }),
+        )
+        return withdrawals.map((withdrawal) => ({ ...withdrawal, intentSourceAddr: addr }))
+      }),
+    )
+    const batchWithdrawals = batches.flat()
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Flattened results`,
+        properties: {
+          totalWithdrawals: batchWithdrawals.length,
+        },
+      }),
+    )
     const batchWithdrawalsPerSource = _.groupBy(
       batchWithdrawals,
       (withdrawal) => withdrawal.intent.source,
@@ -69,7 +111,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       EcoLogMessage.fromDefault({
         message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Withdrawals`,
         properties: {
-          intentSourceAddr,
+          intentSourceAddrs,
           intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.intent.hash),
         },
       }),
@@ -78,15 +120,26 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const jobsData: ExecuteWithdrawsJobData[] = []
 
     for (const sourceChainId in batchWithdrawalsPerSource) {
-      const batchWithdrawalsData = batchWithdrawalsPerSource[sourceChainId].map(({ intent }) =>
-        getWithdrawData(intent),
-      )
+      const withdrawalsForChain = batchWithdrawalsPerSource[sourceChainId]
+      const batchWithdrawalsData = withdrawalsForChain.map(({ intent }) => getWithdrawData(intent))
 
       const chunkWithdrawals = _.chunk(batchWithdrawalsData, this.config.withdrawals.chunkSize)
+      const chunkWithdrawalsWithAddr = _.chunk(
+        withdrawalsForChain,
+        this.config.withdrawals.chunkSize,
+      )
 
       // Set a maximum number of withdrawals per transaction
-      chunkWithdrawals.forEach((chunk) => {
-        jobsData.push({ chainId: parseInt(sourceChainId), intentSourceAddr, intents: chunk })
+      chunkWithdrawals.forEach((chunk, index) => {
+        const withdrawalChunk = chunkWithdrawalsWithAddr[index]
+        if (withdrawalChunk && withdrawalChunk.length > 0) {
+          const intentSourceAddr = withdrawalChunk[0].intentSourceAddr
+          jobsData.push({
+            chainId: parseInt(sourceChainId),
+            intentSourceAddr,
+            intents: chunk,
+          })
+        }
       })
     }
 
@@ -94,16 +147,50 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   }
 
   async getNextSendBatch() {
-    const intentSourceAddr = this.getIntentSource()
+    const intentSourceAddrs = this.getIntentSource()
 
-    const proves = await this.indexerService.getNextSendBatch(intentSourceAddr)
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `${IntentProcessorService.name}.getNextSendBatch(): Intent source addresses`,
+        properties: {
+          intentSourceAddrs,
+          count: intentSourceAddrs.length,
+        },
+      }),
+    )
+
+    const allProvesWithAddr = await Promise.all(
+      intentSourceAddrs.map(async (addr) => {
+        const proves = await this.indexerService.getNextSendBatch(addr)
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `${IntentProcessorService.name}.getNextSendBatch(): Per address result`,
+            properties: {
+              addr,
+              provesCount: proves.length,
+            },
+          }),
+        )
+        return proves.map((prove) => ({ ...prove, intentSourceAddr: addr }))
+      }),
+    )
+    const proves = allProvesWithAddr.flat()
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `${IntentProcessorService.name}.getNextSendBatch(): Flattened results`,
+        properties: {
+          totalProves: proves.length,
+        },
+      }),
+    )
     const batchProvesPerChain = _.groupBy(proves, (prove) => prove.destinationChainId)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${IntentProcessorService.name}.getNextSendBatch(): Send batches`,
         properties: {
-          intentSourceAddr,
+          intentSourceAddrs,
           intentHashes: _.map(proves, (prove) => prove.hash),
         },
       }),
@@ -112,29 +199,46 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const jobsData: ExecuteSendBatchJobData[] = []
 
     for (const chainId in batchProvesPerChain) {
-      const sendBatchData = batchProvesPerChain[chainId].map((prove) => ({
-        hash: prove.hash,
-        prover: prove.prover,
-        source: prove.chainId,
-      }))
+      const provesForChain = batchProvesPerChain[chainId]
 
-      // A Batch must contain the same prover and destination
-      // Batch is sorted to contain as many send batches as possible per chunk
-      const sortedBatch = _.sortBy(sendBatchData, (data) => [data.prover, data.source].join('-'))
+      // Group by intent source address to ensure each job has a single intent source
+      const provesByIntentSource = _.groupBy(provesForChain, (prove) => prove.intentSourceAddr)
 
-      const chunkExecutions = _.chunk(sortedBatch, this.config.sendBatch.chunkSize)
+      for (const intentSourceAddr in provesByIntentSource) {
+        const provesForSource = provesByIntentSource[intentSourceAddr]
+        const inbox = this.getInboxForIntentSource(intentSourceAddr as Hex)
 
-      // Set a maximum number of withdrawals per transaction
-      chunkExecutions.forEach((chunkExecution) => {
-        jobsData.push({ chainId: parseInt(chainId), proves: chunkExecution })
-      })
+        const sendBatchData = provesForSource.map((prove) => ({
+          hash: prove.hash,
+          prover: prove.prover,
+          source: prove.chainId,
+          intentSourceAddr: prove.intentSourceAddr,
+          inbox,
+        }))
+
+        // A Batch must contain the same prover and destination
+        // Batch is sorted to contain as many send batches as possible per chunk
+        const sortedBatch = _.sortBy(sendBatchData, (data) => [data.prover, data.source].join('-'))
+
+        const chunkExecutions = _.chunk(sortedBatch, this.config.sendBatch.chunkSize)
+
+        // Set a maximum number of withdrawals per transaction
+        chunkExecutions.forEach((chunkExecution) => {
+          jobsData.push({
+            chainId: parseInt(chainId),
+            intentSourceAddr: intentSourceAddr as Hex,
+            inbox,
+            proves: chunkExecution,
+          })
+        })
+      }
     }
 
     await this.intentProcessorQueue.addExecuteSendBatchJobs(jobsData)
   }
 
   async executeWithdrawals(data: ExecuteWithdrawsJobData) {
-    const { intents, intentSourceAddr, chainId } = data
+    const { intents: intentsData, intentSourceAddr, chainId } = data
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -142,7 +246,6 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         properties: {
           chainId: data.chainId,
           intentSourceAddr: data.intentSourceAddr,
-          routeHash: data.intents.map((intent) => intent.routeHash),
         },
       }),
     )
@@ -150,13 +253,12 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
 
-    const routeHashes = _.map(intents, 'routeHash')
-    const rewards: DeepReadonly<RewardInterface[]> = _.map(intents, 'reward')
+    const intents = intentsData.map((item) => item.intent)
 
     const txHash = await walletClient.writeContract({
       abi: IntentSourceAbi,
       address: intentSourceAddr,
-      args: [routeHashes, rewards],
+      args: [intents],
       functionName: 'batchWithdraw',
     })
 
@@ -173,16 +275,13 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     await publicClient.waitForTransactionReceipt({ hash: txHash })
 
     // update hats distribution amount
-    const feeAccuired = intents.reduce(
-      (acc, { fee }) => acc + fee,
-      BigInt(0),
-    )
+    const feeAcquired = intentsData.reduce((acc, { fee }) => acc + fee, BigInt(0))
 
-    this.hatsService.incrementDistributionAmount(feeAccuired)
+    this.hatsService.incrementDistributionAmount(feeAcquired)
   }
 
   async executeSendBatch(data: ExecuteSendBatchJobData) {
-    const { proves, chainId } = data
+    const { proves, chainId, inbox: inboxAddr } = data
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -191,7 +290,6 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }),
     )
 
-    const inboxAddr = this.getInbox()
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
 
@@ -262,15 +360,18 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
   private getIntentSource() {
     const intentSources = this.ecoConfigService.getIntentSources()
-    const uniqIntentSources = _.uniq(_.map(intentSources, 'sourceAddress'))
+    return _.uniq(_.map(intentSources, 'sourceAddress'))
+  }
 
-    if (uniqIntentSources.length > 1) {
-      throw new Error(
-        'Implementation has to be refactor to support multiple intent source addresses.',
-      )
+  private getInboxForIntentSource(intentSourceAddr: Hex): Hex {
+    const intentSources = this.ecoConfigService.getIntentSources()
+    const intentSource = intentSources.find((source) => source.sourceAddress === intentSourceAddr)
+
+    if (!intentSource) {
+      throw new Error(`Intent source not found for address: ${intentSourceAddr}`)
     }
 
-    return uniqIntentSources[0]
+    return intentSource.inbox
   }
 
   private getInbox() {
@@ -301,14 +402,14 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     intentHashes: Hex[],
   ): Promise<TransactionRequest> {
     const { claimant } = this.ecoConfigService.getEth()
-    const messageData = Hyperlane.getMessageData(claimant, intentHashes)
+    const message = Hyperlane.getMessageData(claimant, intentHashes)
 
     const messageGasLimit = await this.estimateMessageGas(
       inbox,
       prover,
       publicClient.chain.id,
       source,
-      messageData,
+      message,
       intentHashes.length,
     )
 
@@ -339,15 +440,22 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       mailbox as Hex,
       source,
       prover,
-      messageData,
+      message,
       metadata,
       aggregationHook,
     )
 
+    const { HyperProver: hyperProverAddr } = getChainConfig(Number(publicClient.chain.id))
+
+    const messageData = encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+      [pad(prover), metadata, aggregationHook],
+    )
+
     const data = encodeFunctionData({
       abi: InboxAbi,
-      functionName: 'sendBatchWithRelayer',
-      args: [BigInt(source), prover, intentHashes, metadata, aggregationHook],
+      functionName: 'initiateProving',
+      args: [BigInt(source), intentHashes, hyperProverAddr, messageData],
     })
 
     return {
