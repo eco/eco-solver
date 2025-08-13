@@ -1,4 +1,5 @@
 import { getAddress, Hex } from 'viem'
+import { BigIntsToStrings } from '@/common/types/generics'
 
 /**
  * Lowercase all top-level keys of the given `object` to lowercase.
@@ -18,17 +19,17 @@ export function addressKeys(obj: Record<Hex, any>): Record<Hex, any> {
  * @param {Object} obj - The object to process.
  * @returns {Object} - The new object with BigInt values as strings.
  */
-export function convertBigIntsToStrings(obj: any): any {
+export function convertBigIntsToStrings<T>(obj: T): BigIntsToStrings<T> {
   if (obj === null || obj === undefined) {
-    return obj
+    return obj as BigIntsToStrings<T>
   }
 
   if (typeof obj === 'bigint') {
-    return obj.toString()
+    return obj.toString() as BigIntsToStrings<T>
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(convertBigIntsToStrings)
+    return obj.map(convertBigIntsToStrings) as BigIntsToStrings<T>
   }
 
   if (typeof obj === 'object') {
@@ -38,10 +39,10 @@ export function convertBigIntsToStrings(obj: any): any {
         return carry
       },
       {} as Record<string, any>,
-    )
+    ) as BigIntsToStrings<T>
   }
 
-  return obj
+  return obj as BigIntsToStrings<T>
 }
 
 /**

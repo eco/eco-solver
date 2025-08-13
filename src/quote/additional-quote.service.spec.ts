@@ -11,6 +11,8 @@ import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { createMock } from '@golevelup/ts-jest'
 
 const logger = new Logger('QuoteServiceSpec')
 
@@ -64,21 +66,16 @@ describe('QuoteService', () => {
             assertValidations: mockAssertValidations,
           },
         },
+        {
+          provide: CrowdLiquidityService,
+          useValue: createMock<CrowdLiquidityService>(),
+        },
       ])
       .withMocks([
         IntentInitiationService,
         FulfillmentEstimateService,
         QuoteRepository,
         EcoAnalyticsService,
-        {
-          provide: EcoConfigService,
-          useValue: {
-            getQuotesConfig: () => ({
-              intentExecutionTypes: ['GASLESS', 'SELF_PUBLISH'],
-            }),
-            getSolver: () => ({ chainID: 31337 }), // basic stub
-          },
-        },
       ])
 
     quoteService = await $.init()
@@ -98,7 +95,7 @@ describe('QuoteService', () => {
       })
 
       jest.spyOn(feeService, 'isRewardFeasible').mockResolvedValue({})
-      jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('50'))
+      jest.spyOn(intentInitiationService, 'getGasPrice').mockResolvedValue(parseGwei('35'))
 
       const successfulValidations: ValidationChecks = {
         supportedProver: true,
@@ -330,7 +327,7 @@ describe('QuoteService', () => {
       const expectedFee = expectedGas * mockGasPrice
 
       expect(result).toBe(expectedFee)
-      expect(intentInitiationService.getGasPrice).toHaveBeenCalled()
+      expect(intentInitiationService.getGasPrice).toHaveBeenCalledWith(chainID, parseGwei('30'))
     })
   })
 })

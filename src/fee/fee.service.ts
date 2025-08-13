@@ -1,5 +1,6 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { convertNormalize } from '@/common/utils/normalize'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
@@ -21,32 +22,32 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress, Hex, zeroAddress } from 'viem'
+import { Address, getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { EcoAnalyticsService } from '@/analytics'
-
-/**
- * The base decimal number for erc20 tokens.
- */
-export const BASE_DECIMALS: number = 6
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { ModuleRef } from '@nestjs/core'
 
 @Injectable()
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
   private intentConfigs: IntentConfig
   private whitelist: WhitelistFeeRecord
+  private crowdLiquidityService: CrowdLiquidityService
 
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
     this.whitelist = this.ecoConfigService.getWhitelist()
+    this.crowdLiquidityService = this.moduleRef.get(CrowdLiquidityService, { strict: false })
   }
 
   /**
@@ -382,7 +383,7 @@ export class FeeService implements OnModuleInit {
         if (!token) {
           throw QuoteError.RewardTokenNotFound(tb.address)
         }
-        return this.convertNormalize(token.amount, {
+        return convertNormalize(token.amount, {
           chainID: srcChainID,
           address: tb.address,
           decimals: tb.decimals,
@@ -426,7 +427,7 @@ export class FeeService implements OnModuleInit {
         if (!token) {
           throw QuoteError.RouteTokenNotFound(tb.address)
         }
-        return this.convertNormalize(token.amount, {
+        return convertNormalize(token.amount, {
           chainID: destChainID,
           address: tb.address,
           decimals: tb.decimals,
@@ -462,10 +463,7 @@ export class FeeService implements OnModuleInit {
       return { calls: nativeCalls, error: undefined }
     }
 
-    const callERC20Balances = await this.balanceService.fetchTokenBalances(
-      solver.chainID,
-      functionTargets,
-    )
+    const callERC20Balances = await this.getBalances(solver.chainID, functionTargets)
 
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
@@ -550,7 +548,7 @@ export class FeeService implements OnModuleInit {
         }
 
         return {
-          ...this.convertNormalize(transferAmount, {
+          ...convertNormalize(transferAmount, {
             chainID: BigInt(solver.chainID),
             address: call.target,
             decimals: callTarget.token.decimals,
@@ -596,7 +594,7 @@ export class FeeService implements OnModuleInit {
   calculateDelta(token: TokenFetchAnalysis) {
     const minBalance = this.getNormalizedMinBalance(token)
     const delta = token.token.balance - minBalance
-    return this.convertNormalize(delta, {
+    return convertNormalize(delta, {
       chainID: BigInt(token.chainId),
       address: token.config.address,
       decimals: token.token.decimals,
@@ -614,41 +612,6 @@ export class FeeService implements OnModuleInit {
       { balance: BigInt(tokenAnalysis.config.minBalance), decimal: 0 },
       tokenAnalysis.token.decimals,
     ).balance
-  }
-
-  /**
-   * Converts and normalizes the token to a standard reserve value for comparisons
-   * @param value the value to convert
-   * @param token the token to us
-   * @returns
-   */
-  convertNormalize(
-    value: bigint,
-    token: { chainID: bigint; address: Hex; decimals: number },
-  ): NormalizedToken {
-    const original = value
-    const newDecimals = BASE_DECIMALS
-    //todo some conversion, assuming here 1-1
-    return {
-      ...token,
-      balance: normalizeBalance({ balance: original, decimal: token.decimals }, newDecimals)
-        .balance,
-      decimals: newDecimals,
-    }
-  }
-
-  /**
-   * Deconverts and denormalizes the token form a standard reserve value for comparisons
-   * @param value the value to deconvert
-   * @param token the token to deconvert
-   * @returns
-   */
-  deconvertNormalize(value: bigint, token: { chainID: bigint; address: Hex; decimals: number }) {
-    //todo some conversion, assuming here 1-1
-    return {
-      ...token,
-      balance: normalizeBalance({ balance: value, decimal: BASE_DECIMALS }, token.decimals).balance,
-    }
   }
 
   private getRouteDestinationSolverFee(route: QuoteRouteDataInterface): FeeConfigType {
@@ -684,5 +647,14 @@ export class FeeService implements OnModuleInit {
       throw QuoteError.NoSolverForDestination(destination)
     }
     return solver
+  }
+
+  private async getBalances(chainID: number, tokens: Address[]) {
+    const isCrowdLiquidity = this.ecoConfigService.getFulfill().type === 'crowd-liquidity'
+    if (isCrowdLiquidity) {
+      const poolAddr = this.crowdLiquidityService.getAddresses(chainID).stablePool
+      return this.balanceService.fetchWalletTokenBalances(chainID, poolAddr, tokens)
+    }
+    return this.balanceService.fetchTokenBalances(chainID, tokens)
   }
 }

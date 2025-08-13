@@ -1,8 +1,9 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { convertNormalize, deconvertNormalize } from '@/common/utils/normalize'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
+import { TxValidationFn, ValidationService, validationsSucceeded } from '@/intent/validation.sevice'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
@@ -21,7 +22,7 @@ import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
 import { EcoResponse } from '@/common/eco-response'
-import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
+import { GasEstimationsConfig } from '@/eco-configs/eco-config.types'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
@@ -32,16 +33,16 @@ import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
-
-const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { getGaslessIntentRequest, quoteIntentToIntentSource } from '@/quote/utils/transformers'
 
 type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{ error?: Error }>
+
 interface GenerateQuoteParams {
   quoteIntent: QuoteIntentDataInterface
   intentExecutionType: IntentExecutionType
@@ -56,9 +57,7 @@ interface GenerateQuoteParams {
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
 
-  private quotesConfig: QuotesConfig
   private gasEstimationsConfig: GasEstimationsConfig
-  private intentInitiationService: IntentInitiationService
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
@@ -66,16 +65,13 @@ export class QuoteService implements OnModuleInit {
     private readonly validationService: ValidationService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly fulfillmentEstimateService: FulfillmentEstimateService,
-    private readonly moduleRef: ModuleRef,
+    private readonly intentInitiationService: IntentInitiationService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
   ) {}
 
   onModuleInit() {
-    this.quotesConfig = this.ecoConfigService.getQuotesConfig()
     this.gasEstimationsConfig = this.ecoConfigService.getGasEstimationsConfig()
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
-      strict: false,
-    })
   }
 
   /**
@@ -212,7 +208,7 @@ export class QuoteService implements OnModuleInit {
           quoteIntent,
           intentExecutionType: IntentExecutionType.fromString(quoteIntent.intentExecutionType)!,
           isReverseQuote,
-          gaslessIntentRequest: this.getGaslessIntentRequest(quoteIntentDataDTO),
+          gaslessIntentRequest: getGaslessIntentRequest(quoteIntentDataDTO),
         })
 
       if (quoteError) {
@@ -275,17 +271,6 @@ export class QuoteService implements OnModuleInit {
     return { response: quoteDataDTO }
   }
 
-  private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
-    return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
-      salt: ZERO_SALT,
-      route: quoteIntentDataDTO.route,
-      reward: quoteIntentDataDTO.reward,
-      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
-    }
-  }
-
   /**
    * Stores the quote into the db
    * @param quoteIntentDataDTO the quote intent data
@@ -307,19 +292,12 @@ export class QuoteService implements OnModuleInit {
   }
 
   /**
-   * Fetch a quote from the db
-   * @param query the quote intent data
-   * @returns the quote or an error
-   */
-  async quoteExists(query: object): Promise<boolean> {
-    return this.quoteRepository.quoteExists(query)
-  }
-
-  /**
    * Validates that the quote intent data is valid.
    * Checks that there is a solver, that the assert validations pass,
    * and that the quote intent is feasible.
    * @param quoteIntentModel the model to validate
+   * @param txValidationFn
+   * @param quoteFeasibilityCheckFn
    * @returns an res 400, or undefined if the quote intent is valid
    */
   async validateQuoteIntentData(
@@ -418,6 +396,9 @@ export class QuoteService implements OnModuleInit {
       case intentExecutionType.isGasless():
         return this.generateQuoteForGasless(params)
 
+      case intentExecutionType.isCrowdLiquidity():
+        return this.generateQuoteForCrowdLiquidity(params)
+
       default:
         return {
           error: InternalQuoteError(
@@ -453,8 +434,8 @@ export class QuoteService implements OnModuleInit {
 
   /**
    * Generates a quote for the gasless case.
-   * @param quoteIntentModel parameters for the quote
    * @returns the quote or an error
+   * @param params
    */
   async generateQuoteForGasless(
     params: GenerateQuoteParams,
@@ -468,9 +449,8 @@ export class QuoteService implements OnModuleInit {
       }),
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { quoteIntent, isReverseQuote } = params
-    const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
+    // const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -485,12 +465,11 @@ export class QuoteService implements OnModuleInit {
 
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const flatFee = await this.estimateFlatFee(
-      gaslessIntentRequest.getSourceChainID!(),
-      quoteDataEntry!,
-    )
+    //
+    // const flatFee = await this.estimateFlatFee(
+    //   gaslessIntentRequest.getSourceChainID!(),
+    //   quoteDataEntry!,
+    // )
 
     return { response: quoteDataEntry }
   }
@@ -521,6 +500,28 @@ export class QuoteService implements OnModuleInit {
     )
 
     return gas * gasPrice
+  }
+
+  private async generateQuoteForCrowdLiquidity(
+    params: GenerateQuoteParams,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { quoteIntent } = params
+    const crowdLiquidityConfig = this.ecoConfigService.getCrowdLiquidity()
+
+    if (!crowdLiquidityConfig.enabled) {
+      return { error: InternalQuoteError(new Error('CrowdLiquidity quoting is disabled')) }
+    }
+
+    const intentSourceModel = quoteIntentToIntentSource(quoteIntent as QuoteIntentModel)
+    if (!this.crowdLiquidityService.isRouteSupported(intentSourceModel)) {
+      return { error: InternalQuoteError(new Error('Route not supported by CrowdLiquidity')) }
+    }
+
+    if (!(await this.crowdLiquidityService.isPoolSolvent(intentSourceModel))) {
+      return { error: InternalQuoteError(new Error('CrowdLiquidity pool is not solvent')) }
+    }
+
+    return this._generateCrowdLiquidityQuote(quoteIntent as QuoteIntentModel)
   }
 
   /**
@@ -591,7 +592,7 @@ export class QuoteService implements OnModuleInit {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
+            tokenToFund.amount += deconvertNormalize(amount, deficit.delta)
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -619,9 +620,7 @@ export class QuoteService implements OnModuleInit {
               token: deficit.delta.address,
               amount: 0n,
             }
-            tokenToFund.amount += Mathb.abs(
-              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
-            )
+            tokenToFund.amount += Mathb.abs(deconvertNormalize(amount, deficit.delta))
             quoteRecord[deficit.delta.address] = tokenToFund
           }
         }
@@ -697,14 +696,11 @@ export class QuoteService implements OnModuleInit {
 
       if (originalToken && originalCall) {
         // Get the original amount from the token in its normalized form
-        const originalNormalizedAmount = this.feeService.convertNormalize(
-          BigInt(originalToken.balance),
-          {
-            chainID: intent.route.destination,
-            address: deficit.delta.address,
-            decimals: deficit.token.decimals,
-          },
-        ).balance
+        const originalNormalizedAmount = convertNormalize(BigInt(originalToken.balance), {
+          chainID: intent.route.destination,
+          address: deficit.delta.address,
+          decimals: deficit.token.decimals,
+        }).balance
 
         // Calculate how much we can fill for this token
         // We cannot fill more than the original amount or the remaining amount to fill
@@ -712,11 +708,11 @@ export class QuoteService implements OnModuleInit {
 
         if (amountToFill > 0n) {
           // Convert back to original decimals
-          const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
+          const finalAmount = deconvertNormalize(amountToFill, {
             chainID: intent.route.destination,
             address: deficit.delta.address,
             decimals: deficit.token.decimals,
-          }).balance
+          })
 
           // Add to route tokens and calls
           routeTokens.push({
@@ -813,5 +809,46 @@ export class QuoteService implements OnModuleInit {
     updateQuoteParams: UpdateQuoteParams,
   ): Promise<EcoResponse<QuoteIntentModel>> {
     return this.quoteRepository.updateQuoteDb(quoteIntentModel, updateQuoteParams)
+  }
+
+  private async _generateCrowdLiquidityQuote(
+    quoteIntentModel: QuoteIntentModel,
+  ): Promise<EcoResponse<QuoteDataEntryDTO>> {
+    const { route, reward } = quoteIntentModel
+    const { totalFillNormalized, error: totalFillError } =
+      await this.feeService.getTotalFill(quoteIntentModel)
+    if (Boolean(totalFillError)) {
+      return { error: totalFillError }
+    }
+
+    const intentSourceModel = quoteIntentToIntentSource(quoteIntentModel)
+    const executionFee = await this.crowdLiquidityService.getExecutionFee(
+      intentSourceModel.intent,
+      totalFillNormalized.token,
+    )
+
+    const requiredReward = totalFillNormalized.token + executionFee
+
+    const rewardTokens: QuoteRewardTokensDTO[] = reward.tokens.map((t) => ({
+      token: t.token,
+      amount: requiredReward,
+    }))
+
+    const estimatedFulfillTimeSec =
+      this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
+    const gasOverhead = this.getGasOverhead(quoteIntentModel)
+
+    return {
+      response: {
+        intentExecutionType: IntentExecutionType.CROWD_LIQUIDITY.toString(),
+        routeTokens: route.tokens,
+        routeCalls: route.calls,
+        rewardTokens,
+        rewardNative: reward.nativeValue,
+        expiryTime: this.getQuoteExpiryTime(),
+        estimatedFulfillTimeSec,
+        gasOverhead,
+      },
+    }
   }
 }
