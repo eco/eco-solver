@@ -8,7 +8,9 @@ import {
   pad,
   zeroAddress,
 } from 'viem'
-import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import { prepareEncodedProofs } from '@/utils/encodeProofs'
+import { InboxAbi } from '@eco-foundation/routes-ts'
+import { IMessageBridgeProverAbi } from '@/utils/IMessageBridgeProver'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -439,14 +441,29 @@ export class WalletFulfillService implements IFulfillService {
       Number(model.intent.route.destination),
     )
 
+    const data = encodeAbiParameters(
+      [{ type: 'tuple', components: [
+        { type: 'bytes32' },
+        { type: 'bytes' },
+        { type: 'address' }
+      ]}],
+      [[
+        '0x70f46a20db062880c4a4d21737d3effd3247b78cc48fdd2a08050f3a26285b69', // hyerprover on solana mainnet
+        '0x', // emoty metadata
+        '0xd4C1905BB1D26BC93DAC913e13CaCC278CdCC80D', // hyperlane mailbox on optimism
+      ]]
+    )
+
+    const encodedProofs = prepareEncodedProofs([model.intent.hash], [claimant])
+    console.log("SAQUON encodedProofs", model.intent.hash, claimant, encodedProofs);
+
     const callData = encodeFunctionData({
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        IntentSourceModel.getSource(model), //_sourceChainID
-        [model.intent.hash],
-        [claimant],
-        messageData,
+        model.intent.route.source, //_sourceChainID
+        encodedProofs,
+        data,
       ],
     })
 
