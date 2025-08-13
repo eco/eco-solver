@@ -16,7 +16,7 @@ import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
-import { EcoChains } from '@eco-foundation/chains'
+import { EcoChains } from '@eco/foundation-eco-adapter'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
 

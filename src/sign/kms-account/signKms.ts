@@ -1,4 +1,4 @@
-import { Signer } from '@eco-foundation/eco-kms-core'
+import { Signer } from '@eco/foundation-eco-adapter'
 import { Hex, parseSignature } from 'viem'
 import { SignReturnType } from 'viem/accounts'
 

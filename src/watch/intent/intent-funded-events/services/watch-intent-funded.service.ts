@@ -8,7 +8,7 @@ import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/sche
 import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi } from '@eco/foundation-eco-adapter'
 import { Log, PublicClient } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Queue } from 'bullmq'

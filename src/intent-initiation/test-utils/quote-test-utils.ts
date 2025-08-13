@@ -9,7 +9,7 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
+import { RouteType, hashRoute } from '@eco/foundation-eco-adapter'
 import * as crypto from 'crypto'
 
 const AddressLen = 40

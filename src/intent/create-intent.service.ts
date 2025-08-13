@@ -19,7 +19,7 @@ import {
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { hashIntent, RouteType } from '@eco/foundation-eco-adapter'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'

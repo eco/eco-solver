@@ -1,5 +1,5 @@
 import { Hex } from 'viem'
-import { IntentType } from '@eco-foundation/routes-ts'
+import { IntentType } from '@eco/foundation-eco-adapter'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 

@@ -9,7 +9,7 @@ import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
-import { ConfigRegex } from '@eco-foundation/chains'
+import { ConfigRegex } from '@eco/foundation-eco-adapter'
 import { Strategy } from '@/liquidity-manager/types/types'
 import { AnalyticsConfig } from '@/analytics'
 

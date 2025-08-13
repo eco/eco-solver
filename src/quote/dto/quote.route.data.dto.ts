@@ -1,7 +1,7 @@
 import { CallDataInterface } from '@/contracts'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
-import { RouteType } from '@eco-foundation/routes-ts'
+import { RouteType } from '@eco/foundation-eco-adapter'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'

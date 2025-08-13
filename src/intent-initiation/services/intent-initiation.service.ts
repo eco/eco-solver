@@ -23,7 +23,7 @@ import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { RouteType, hashRoute, IntentSourceAbi } from '@eco/foundation-eco-adapter'
 import * as _ from 'lodash'
 
 @Injectable()

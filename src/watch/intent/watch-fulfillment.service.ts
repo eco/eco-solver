@@ -10,7 +10,7 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { PublicClient, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { entries } from 'lodash'
-import { InboxAbi } from '@eco-foundation/routes-ts'
+import { InboxAbi } from '@eco/foundation-eco-adapter'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { EcoAnalyticsService } from '@/analytics'

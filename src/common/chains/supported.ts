@@ -1,4 +1,4 @@
-import { EcoRoutesChains } from '@eco-foundation/chains'
+import { EcoRoutesChains } from '@eco/foundation-eco-adapter'
 import { Chain } from 'viem'
 
 /**

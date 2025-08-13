@@ -4,7 +4,7 @@ import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { encodeIntent, hashIntent, IntentType } from '@eco/foundation-eco-adapter'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string

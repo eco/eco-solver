@@ -8,7 +8,7 @@ import {
   IntentProcessorJob,
   IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
-import { IntentType } from '@eco-foundation/routes-ts'
+import { IntentType } from '@eco/foundation-eco-adapter'
 
 export type ExecuteWithdrawsJobData = {
   chainId: number

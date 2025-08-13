@@ -3,7 +3,7 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
+import { encodeRoute, hashRoute, RouteType } from '@eco/foundation-eco-adapter'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

@@ -26,7 +26,8 @@
       "@eco/infrastructure-blockchain": ["libs/infrastructure/blockchain/src/index.ts"],
       "@eco/infrastructure-database": ["libs/infrastructure/database/src/index.ts"],
       "@eco/infrastructure-external-apis": ["libs/infrastructure/external-apis/src/index.ts"],
-      "@eco/infrastructure-logging": ["libs/infrastructure/logging/src/index.ts"]
+      "@eco/infrastructure-logging": ["libs/infrastructure/logging/src/index.ts"],
+      "@eco/foundation-eco-adapter": ["libs/foundation/eco-adapter/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

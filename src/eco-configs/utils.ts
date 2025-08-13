@@ -1,4 +1,4 @@
-import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoChainConfig, EcoProtocolAddresses } from '@eco/foundation-eco-adapter'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 

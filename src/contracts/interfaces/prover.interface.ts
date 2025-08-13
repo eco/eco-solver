@@ -1,4 +1,4 @@
-import { IProverAbi } from '@eco-foundation/routes-ts'
+import { IProverAbi } from '@eco/foundation-eco-adapter'
 import { ViemCall } from '../utils'
 
 /**

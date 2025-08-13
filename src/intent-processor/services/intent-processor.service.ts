@@ -11,7 +11,7 @@ import {
   TransactionRequest,
   Transport,
 } from 'viem'
-import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { InboxAbi, IntentSourceAbi } from '@eco/foundation-eco-adapter'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'

@@ -14,7 +14,7 @@ import * as MulticallUtils from '@/intent-processor/utils/multicall'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
-import { RouteType } from '@eco-foundation/routes-ts'
+import { RouteType } from '@eco/foundation-eco-adapter'
 
 jest.mock('@/intent-processor/utils/hyperlane')
 jest.mock('@/intent-processor/utils/multicall')

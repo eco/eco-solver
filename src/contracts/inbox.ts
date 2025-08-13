@@ -1,4 +1,4 @@
-import { InboxAbi } from '@eco-foundation/routes-ts'
+import { InboxAbi } from '@eco/foundation-eco-adapter'
 import { ExtractAbiEvent } from 'abitype'
 import { Prettify, Log } from 'viem'
 

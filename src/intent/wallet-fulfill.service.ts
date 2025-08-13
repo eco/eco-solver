@@ -8,7 +8,7 @@ import {
   pad,
   zeroAddress,
 } from 'viem'
-import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import { IMessageBridgeProverAbi, InboxAbi } from '@eco/foundation-eco-adapter'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
