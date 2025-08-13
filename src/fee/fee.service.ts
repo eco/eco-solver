@@ -28,23 +28,26 @@ import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { EcoAnalyticsService } from '@/analytics'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { ModuleRef } from '@nestjs/core'
 
 @Injectable()
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
   private intentConfigs: IntentConfig
   private whitelist: WhitelistFeeRecord
+  private crowdLiquidityService: CrowdLiquidityService
 
   constructor(
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
-    private readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
     this.intentConfigs = this.ecoConfigService.getIntentConfigs()
     this.whitelist = this.ecoConfigService.getWhitelist()
+    this.crowdLiquidityService = this.moduleRef.get(CrowdLiquidityService, { strict: false })
   }
 
   /**
