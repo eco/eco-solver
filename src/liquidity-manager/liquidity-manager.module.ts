@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { CacheModule } from '@nestjs/cache-manager'
 import { MongooseModule } from '@nestjs/mongoose'
 import { BalanceModule } from '@/balance/balance.module'
 import { IntentModule } from '@/intent/intent.module'
@@ -16,9 +17,11 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 @Module({
   imports: [
+    CacheModule.register(),
     BalanceModule,
     IntentModule,
     TransactionModule,
@@ -39,6 +42,7 @@ import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-pr
     StargateProviderService,
     SquidProviderService,
     CCTPV2ProviderService,
+    EverclearProviderService,
   ],
   exports: [LiquidityManagerService],
 })
