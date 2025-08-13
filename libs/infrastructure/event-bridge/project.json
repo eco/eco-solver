@@ -1,0 +1,19 @@
+{
+  "name": "infrastructure-event-bridge",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/infrastructure/event-bridge/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/infrastructure/event-bridge/jest.config.ts"
+      }
+    }
+  },
+  "tags": ["type:infrastructure", "scope:event-bridge"]
+}
