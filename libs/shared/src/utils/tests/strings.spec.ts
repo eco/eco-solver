@@ -1,3 +1,5 @@
+import { obscureCenter } from '../strings'
+
 describe('obscureCenter', () => {
   it('should obscure the center of a string with default visible characters', () => {
     expect(obscureCenter('hello world')).toBe('he*******ld')

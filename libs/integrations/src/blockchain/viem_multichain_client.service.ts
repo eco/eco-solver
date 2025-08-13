@@ -93,4 +93,3 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
     )
   }
 }
-EOF < /dev/null

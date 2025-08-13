@@ -278,4 +278,3 @@ export async function executorTransferERC20Token<
 function getLogger() {
   return new Logger('OwnableExecutor')
 }
-EOF < /dev/null

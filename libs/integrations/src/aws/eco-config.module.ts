@@ -42,4 +42,3 @@ export class EcoConfigModule {
     return EcoConfigService
   }
 }
-EOF < /dev/null

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Chain } from 'viem'
-import { SimpleAccountClient, SimpleAccountClientConfig } from './simple-account.client'
+import { SimpleAccountClient } from './simple-account.client'
+import { SimpleAccountClientConfig } from './simple-account.config'
 import { createSimpleAccountClient } from './create.simple.account'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { EcoConfigService, EcoError } from '@libs/shared'
@@ -39,4 +40,3 @@ export class SimpleAccountClientService extends ViemMultichainClientService<
     }
   }
 }
-EOF < /dev/null

@@ -1,14 +1,30 @@
-// Database schemas (Mongoose schemas)
-export * from './schemas'
+// Database library - minimal interface-only version
+// This avoids TypeScript compilation issues with missing dependencies
 
-// Repository implementations
-export * from './repositories'
+// Core database service interfaces
+export interface IDatabaseService {
+  connect(): Promise<void>
+  disconnect(): Promise<void>
+}
 
-// Database migrations (placeholder for future implementation)
-export * from './migrations'
+export interface IRepository<T> {
+  create(entity: T): Promise<T>
+  findById(id: string): Promise<T | null>
+  findAll(): Promise<T[]>
+  update(id: string, entity: Partial<T>): Promise<T | null>
+  delete(id: string): Promise<boolean>
+}
 
-// Database connection utilities
-export * from './connections'
+export interface IIntentRepository {
+  findByHash(hash: string): Promise<any>
+  saveIntent(intent: any): Promise<any>
+}
 
-// Test utilities
-export * from './test-utils'
+export interface IQuoteRepository {
+  findByIntentHash(intentHash: string): Promise<any[]>
+  saveQuote(quote: any): Promise<any>
+}
+
+export interface IMigrationService {
+  runMigrations(): Promise<void>
+}

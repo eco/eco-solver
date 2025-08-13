@@ -26,4 +26,3 @@ import { WalletClientDefaultSignerService } from './smart-wallets/wallet-client.
   ],
 })
 export class TransactionModule {}
-EOF < /dev/null

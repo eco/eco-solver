@@ -1,3 +1,5 @@
+import { serializeObject } from '../objects'
+
 describe('serializeObject', () => {
   it('should serialize an object with sorted keys', () => {
     const obj = { b: 2, a: 1 }

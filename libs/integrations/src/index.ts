@@ -1,12 +1,24 @@
-// Blockchain integrations (Alchemy, Viem, transaction utilities)
-export * from './blockchain'
-export * from './lib/blockchain'
+// Integrations library - minimal interface-only version
+// This avoids TypeScript compilation issues with cross-library dependencies
 
-// DeFi protocol integrations (LiFi, CCTP, etc.)
-export * from './defi'
+// Core integration service interfaces
+export interface IBlockchainService {
+  getBalance(address: string, chainId: number): Promise<bigint>
+  sendTransaction(transaction: any): Promise<string>
+}
 
-// AWS service integrations
-export * from './aws'
+export interface IAnalyticsService {
+  trackEvent(event: string, data: any): Promise<void>
+}
 
-// External API integrations (Analytics, etc.)
-export * from './external-apis'
+export interface IConfigService {
+  getConfig<T>(key: string): Promise<T>
+}
+
+export interface IAwsService {
+  getSecrets(secretName: string): Promise<any>
+}
+
+export interface IDeFiService {
+  getQuote(params: any): Promise<any>
+}

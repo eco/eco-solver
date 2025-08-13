@@ -72,4 +72,3 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
     return {}
   }
 }
-EOF < /dev/null

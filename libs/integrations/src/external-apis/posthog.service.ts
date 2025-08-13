@@ -4,7 +4,6 @@ import { AnalyticsService, AnalyticsConfig } from './analytics.interface'
 import { AnalyticsError, AnalyticsLogger, AnalyticsMessages } from './errors'
 import { convertBigIntsToStrings } from '@libs/shared'
 
-EOF < /dev/null
 /**
  * PostHog analytics service implementation for backend event tracking
  *

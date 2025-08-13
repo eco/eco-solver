@@ -10,7 +10,7 @@ import {   encodeFunctionData,
 import {   ExecuteSmartWalletArgs,
   SmartWalletActions,
   SmartWalletClient,
-} from '@libs/integrations/smart-wallet.types'
+} from '../smart-wallet.types'
 
 export type SimpleAccountClient<
   transport extends Transport = Transport,

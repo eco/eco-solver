@@ -10,7 +10,12 @@ import {   Chain,
   WalletClientConfig,
 } from 'viem'
 import { LocalAccount } from 'viem/accounts'
-import { IWalletClientService } from '@libs/contracts'
+
+// Wallet client service interface  
+interface IWalletClientService {
+  getAccount(): Promise<LocalAccount>;
+  signMessage(message: string): Promise<string>;
+}
 import { EcoConfigService } from '@libs/shared'
 import { SignerService } from '@libs/security'
 

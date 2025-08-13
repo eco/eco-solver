@@ -83,7 +83,7 @@ CLAUDE.md
 !.env-cmdrc.test
 
 
-
+tmp/
 .nx/cache
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc

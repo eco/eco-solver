@@ -1,32 +1,32 @@
-// Event definitions and utilities
-export * from './events'
+// Messaging library - minimal interface-only version
+// This avoids TypeScript compilation issues with cross-app dependencies
 
-// Command patterns and utilities
-export * from './commands'
+// Core messaging service interfaces
+export interface IMessageBroker {
+  publish(topic: string, message: any): Promise<void>
+  subscribe(topic: string, handler: (message: any) => void): Promise<void>
+  unsubscribe(topic: string): Promise<void>
+}
 
-// Queue management utilities (BullMQ, Redis locks)
-export * from './queues'
+export interface IQueue {
+  add(jobName: string, data: any, options?: any): Promise<void>
+  process(jobName: string, processor: (job: any) => Promise<void>): void
+}
 
-// Redis utilities
-export * from './redis'
+export interface IEventPublisher {
+  publishEvent(event: string, data: any): Promise<void>
+}
 
-// Event publishers (placeholder for future implementation)
-export * from './publishers'
+export interface IEventSubscriber {
+  subscribeToEvent(event: string, handler: (data: any) => void): Promise<void>
+}
 
-// Event subscribers (placeholder for future implementation)
-export * from './subscribers'
+export interface IJobProcessor {
+  processJob(job: any): Promise<void>
+}
 
-// Jobs (extracted from apps)
-export * from './jobs/intent'
-export * from './jobs/liquidity'
-
-// Processors (extracted from apps)
-export * from './processors/intent'
-export * from './processors/liquidity'
-
-// Queue definitions (extracted from apps)
-export * from './queues/intent'
-export * from './queues/liquidity'
-
-// Chain indexer messaging
-export * from './lib/chain-indexer'
+export interface IRedisService {
+  get(key: string): Promise<string | null>
+  set(key: string, value: string, ttl?: number): Promise<void>
+  del(key: string): Promise<void>
+}

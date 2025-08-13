@@ -1,5 +1,32 @@
-// Utility functions moved to serialize.ts to avoid conflicts
-// This file is kept for potential future utility functions
+/**
+ * Returns the selector hash of the data, which is the first 4 bytes of the data
+ *
+ * @param data the hex encoded data
+ * @returns
+ */
+export function getSelectorHash(data: string | undefined): string {
+  if (!data || data.length < 10) {
+    throw new Error('Data is too short')
+  }
+  if (!isHex(data)) {
+    throw new Error('Data is not hex encoded')
+  }
+  return '0x' + data.slice(2, 10)
+}
 
-// Export nothing for now
-export {}
+/**
+ * Check if a string is valid hex
+ * @param hex the string to check if it is hex
+ * @returns
+ */
+export function isHex(num: string): boolean {
+  return Boolean(num.match(/^0x[0-9a-f]+$/i))
+}
+
+export function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size))
+  }
+  return chunks
+}

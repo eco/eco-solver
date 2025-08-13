@@ -1,6 +1,6 @@
 import { createWalletClient, publicActions } from 'viem'
-import { SimpleAccountClient, SimpleAccountClientConfig } from './simple-account.client'
-import { SimpleAccountActions } from './simple-account.client'
+import { SimpleAccountClient, SimpleAccountActions } from './simple-account.client'
+import { SimpleAccountClientConfig } from './simple-account.config'
 
 export function createSimpleAccountClient(
   parameters: SimpleAccountClientConfig,
@@ -17,4 +17,3 @@ export function createSimpleAccountClient(
   client = client.extend(SimpleAccountActions).extend(publicActions) as any
   return client
 }
-EOF < /dev/null

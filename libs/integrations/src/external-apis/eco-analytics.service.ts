@@ -1,7 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { AnalyticsService } from './analytics.interface'
 import { ANALYTICS_SERVICE, ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
-EOF < /dev/null
 /**
  * Centralized analytics service for the eco-solver application.
  * Handles all data extraction and event tracking to keep business logic clean.

@@ -1,3 +1,5 @@
+import { serialize, deserialize } from './serialize'
+
 describe('Serialize BigInt', () => {
   it('serialize arrays correctly', () => {
     const obj = { array: [1, 2, 3] }
