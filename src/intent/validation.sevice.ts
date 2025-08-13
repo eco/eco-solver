@@ -327,7 +327,7 @@ export class ValidationService implements OnModuleInit {
         this.ecoConfigService.getFulfill().type === 'crowd-liquidity'
           ? [
               await this.kernelAccountClientService.getAddress(),
-              this.crowdLiquidityService.getPoolAddress(),
+              this.crowdLiquidityService.getAddresses(destinationChain).stablePool,
             ]
           : [await this.kernelAccountClientService.getAddress()]
 
