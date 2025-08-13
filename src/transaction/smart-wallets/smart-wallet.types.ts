@@ -9,7 +9,7 @@ import {
   WalletRpcSchema,
   PublicActions,
 } from 'viem'
-import { DeployFactoryArgs } from './kernel'
+import { DeployFactoryArgs } from './shared-types'
 
 // The type that simple account executes arrays of
 export type ExecuteSmartWalletArg = { to: Hex; data?: Hex; value?: bigint }

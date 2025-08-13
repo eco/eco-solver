@@ -7,9 +7,11 @@ import {
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
-import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
-import { ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
+import { ILiquidityManagerProcessor, IExecuteCCTPV2MintJobManager } from '../interfaces/processor.interface'
 import { deserialize, Serialize } from '@/common/utils/serialize'
+
+// Forward reference for job manager - will be properly injected
+declare const ExecuteCCTPV2MintJobManager: IExecuteCCTPV2MintJobManager
 
 export interface CheckCCTPV2AttestationJobData {
   sourceDomain: number
@@ -54,7 +56,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
 
   async process(
     job: CheckCCTPV2AttestationJob,
-    processor: LiquidityManagerProcessor,
+    processor: ILiquidityManagerProcessor,
   ): Promise<CheckCCTPV2AttestationJob['returnvalue']> {
     const { transactionHash, sourceDomain } = job.data
     return processor.cctpv2ProviderService.fetchV2Attestation(
@@ -66,7 +68,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
 
   async onComplete(
     job: CheckCCTPV2AttestationJob,
-    processor: LiquidityManagerProcessor,
+    processor: ILiquidityManagerProcessor,
   ): Promise<void> {
     const deserializedContext = deserialize(job.data.context)
     if (job.returnvalue.status === 'complete') {
@@ -104,7 +106,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     }
   }
 
-  onFailed(job: CheckCCTPV2AttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: CheckCCTPV2AttestationJob, processor: ILiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withId({
         message: `CCTPV2: CheckCCTPV2AttestationJob Failed`,

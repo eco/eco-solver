@@ -13,12 +13,9 @@ import { ToEcdsaKernelSmartAccountReturnType } from 'permissionless/accounts'
 import { KernelWalletActions } from './kernel-account.config'
 import { encodeKernelExecuteCallData } from './actions/encodeData.kernel'
 
-export type DeployFactoryArgs = {
-  factory?: Hex | undefined
-  factoryData?: Hex | undefined
-  deployReceipt?: Hex | undefined
-  chainID?: number
-}
+import { DeployFactoryArgs } from '../shared-types'
+
+export { DeployFactoryArgs }
 
 export type KernelAccountClient<
   entryPointVersion extends '0.6' | '0.7',

@@ -6,7 +6,7 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
-import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
+import { ILiquidityManagerProcessor } from '../interfaces/processor.interface'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 
@@ -44,7 +44,7 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     return job.name === LiquidityManagerJobName.EXECUTE_CCTPV2_MINT
   }
 
-  async process(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  async process(job: ExecuteCCTPV2MintJob, processor: ILiquidityManagerProcessor): Promise<Hex> {
     const { destinationChainId, messageBody, attestation } = job.data
     processor.logger.debug(
       EcoLogMessage.withId({
@@ -66,7 +66,7 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     )
   }
 
-  async onComplete(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor) {
+  async onComplete(job: ExecuteCCTPV2MintJob, processor: ILiquidityManagerProcessor) {
     processor.logger.log(
       EcoLogMessage.withId({
         message: `CCTPV2: ExecuteCCTPV2MintJob: Completed!`,
@@ -80,7 +80,7 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     )
   }
 
-  onFailed(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: ExecuteCCTPV2MintJob, processor: ILiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withId({
         message: `CCTPV2: ExecuteCCTPV2MintJob: Failed`,

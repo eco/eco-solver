@@ -1,4 +1,4 @@
-import { EcoError } from '../errors/eco-error'
+import { ErrorLike } from '../types/error.interface'
 
 interface BaseLoggingDataParams {
   message: string
@@ -10,7 +10,7 @@ interface LoggingDataParamsWithUser extends BaseLoggingDataParams {
 }
 
 interface LoggingDataParamsWithError extends BaseLoggingDataParams {
-  error: EcoError
+  error: ErrorLike
 }
 
 interface LoggingDataParamsWithErrorAndUser extends LoggingDataParamsWithError {

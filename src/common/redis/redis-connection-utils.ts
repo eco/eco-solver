@@ -5,7 +5,9 @@ import { EcoError } from '../errors/eco-error'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { QueueMetadata } from './constants'
 import { RedisConfig } from '../../eco-configs/eco-config.types'
-import { RedlockRedisClient } from '../../nest-redlock/nest-redlock.service'
+import { Redis as IORedisClient, Cluster as IORedisCluster } from 'ioredis'
+
+type RedlockRedisClient = IORedisClient | IORedisCluster
 
 export class RedisConnectionUtils {
   private static logger = new Logger(RedisConnectionUtils.name)

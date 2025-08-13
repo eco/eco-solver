@@ -10,7 +10,7 @@ import {
   WalletClientConfig,
 } from 'viem'
 import { SmartWalletActions } from '../smart-wallet.types'
-import { DeployFactoryArgs } from './kernel-account.client'
+import { DeployFactoryArgs } from '../shared-types'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
 
 export type KernelAccountClientConfig<
