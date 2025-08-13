@@ -22,11 +22,12 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress, Hex, zeroAddress } from 'viem'
+import { Address, getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { EcoAnalyticsService } from '@/analytics'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 @Injectable()
 export class FeeService implements OnModuleInit {
@@ -38,6 +39,7 @@ export class FeeService implements OnModuleInit {
     private readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly crowdLiquidityService: CrowdLiquidityService,
   ) {}
 
   onModuleInit() {
@@ -458,10 +460,7 @@ export class FeeService implements OnModuleInit {
       return { calls: nativeCalls, error: undefined }
     }
 
-    const callERC20Balances = await this.balanceService.fetchTokenBalances(
-      solver.chainID,
-      functionTargets,
-    )
+    const callERC20Balances = await this.getBalances(solver.chainID, functionTargets)
 
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
@@ -645,5 +644,14 @@ export class FeeService implements OnModuleInit {
       throw QuoteError.NoSolverForDestination(destination)
     }
     return solver
+  }
+
+  private async getBalances(chainID: number, tokens: Address[]) {
+    const isCrowdLiquidity = this.ecoConfigService.getFulfill().type === 'crowd-liquidity'
+    if (isCrowdLiquidity) {
+      const poolAddr = this.crowdLiquidityService.getAddresses(chainID).stablePool
+      return this.balanceService.fetchWalletTokenBalances(chainID, poolAddr, tokens)
+    }
+    return this.balanceService.fetchTokenBalances(chainID, tokens)
   }
 }
