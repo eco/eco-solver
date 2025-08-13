@@ -166,22 +166,24 @@ libs/infrastructure/
     └── Notification providers
 ```
 
-#### 4. Foundation Adapters (libs/foundation-adapters/)
-Thin wrappers around @eco-foundation libraries to maintain clean architecture.
+#### 4. Unified Foundation Adapter (libs/foundation-adapters/)
+**SIMPLIFIED**: Single unified adapter to reduce Claude Code implementation complexity.
 
 ```
 libs/foundation-adapters/
-├── chains-adapter/      # Wrapper around @eco-foundation/chains
-│   ├── Chain configuration service
-│   ├── RPC URL management
-│   ├── Supported chains provider
-│   └── Environment-aware configs
-└── routes-adapter/      # Wrapper around @eco-foundation/routes-ts  
-    ├── Protocol types re-exports
-    ├── Contract ABI providers
-    ├── Intent encoding/hashing utilities
-    └── Protocol address resolution
+└── eco-adapter/         # Single unified wrapper for all @eco-foundation libraries
+    ├── chains.service.ts    # Wraps @eco-foundation/chains
+    ├── routes.service.ts    # Wraps @eco-foundation/routes-ts
+    ├── types.service.ts     # Re-exports all protocol types
+    ├── config.service.ts    # Protocol address resolution
+    └── index.ts             # Single point export for all eco-foundation functionality
 ```
+
+**Claude Code Benefits**:
+- Single decision point for foundation integration (instead of 2 libraries)
+- Reduces import complexity and dependency management
+- Simpler dependency graph for systematic extraction
+- All eco-foundation functionality accessible via `@eco/adapter`
 
 #### 5. Shared Libraries (libs/shared/)
 Common utilities and application-specific types (reduced scope due to eco-foundation libraries).
@@ -218,61 +220,118 @@ libs/shared/
 ```
 
 #### 6. Event Libraries (libs/events/)
-Event-driven architecture components for cross-chain orchestration.
+Event-driven architecture components that **enhance** your existing Redis/BullMQ infrastructure for cross-chain orchestration.
+
+**Integration with Current Redis Setup:**
+- Event Libraries **wrap and enhance** your existing Redis queues (not replace them)
+- Current BullMQ processors become standardized event handlers
+- Redis remains the reliable transport layer, events provide semantic layer
 
 ```
 libs/events/
-├── domain-events/       # Domain event definitions
-│   ├── Intent lifecycle events
-│   ├── Fulfillment progress events
-│   ├── Settlement events
-│   └── Chain state events
-├── event-handlers/      # Event processing logic
-│   ├── Intent status handlers
-│   ├── Notification handlers
-│   ├── Analytics handlers
-│   └── Error recovery handlers
-└── event-bus/          # Event distribution system
-    ├── Cross-chain event dispatchers
-    ├── Event subscribers
-    ├── Event middleware
-    └── Retry mechanisms
+├── domain-events/       # Strongly-typed domain event definitions
+│   ├── IntentCreatedEvent, IntentFundedEvent
+│   ├── PathFoundEvent, FulfillmentStartedEvent  
+│   ├── TransactionSubmittedEvent, SettlementCompletedEvent
+│   ├── ChainTransactionConfirmedEvent, ChainReorgDetectedEvent
+│   └── BridgeMessageRelayedEvent, EventProcessingFailedEvent
+├── event-handlers/      # Event processing logic (BullMQ processors)
+│   ├── Intent lifecycle handlers
+│   ├── Cross-chain coordination handlers
+│   ├── Real-time notification handlers
+│   ├── Analytics and audit handlers
+│   └── Error recovery and retry handlers
+└── event-bus/          # Event distribution system using Redis
+    ├── RedisEventBus (wraps your existing queues)
+    ├── CrossChainEventBus (specialized for multi-chain events)
+    ├── Event routing logic (determines which Redis queue)
+    ├── Type-safe event emission and subscription
+    └── Enhanced retry mechanisms with semantic events
+```
+
+**Key Benefits:**
+- **Breaks Circular Dependencies**: Intent → Event → Solver (no direct coupling)
+- **Enables Independent App Scaling**: Each app processes its own event queues
+- **Maintains Redis Reliability**: Leverages your existing BullMQ infrastructure
+- **Adds Type Safety**: Strongly-typed events vs generic job data
+- **Improves Testing**: Mock event handlers instead of complex services
+- **Supports Real-time Updates**: WebSocket notifications via event emission
+
+**Current Queue Enhancement:**
+```typescript
+// Current: Direct queue operations
+await this.intentQueue.add('process-intent', intentData)
+
+// Enhanced: Semantic event emission (still uses Redis underneath)
+await this.eventBus.emit(new IntentCreatedEvent(intent))
+
+// Your existing BullMQ processors become event handlers:
+@Processor('source-intent') // Your existing queue
+export class IntentCreatedHandler {
+  @Process('IntentCreatedEvent')
+  async handle(job: Job<IntentCreatedEventData>) {
+    // Process intent, emit next event
+    await this.eventBus.emit(new PathCalculationStartedEvent(intent.id))
+  }
+}
 ```
 
 ## Migration Strategy & Timeline
 
-### Pre-Migration: Critical Architecture Fixes (Week 0 - MANDATORY)
+### Pre-Migration: Architecture Cleanup (Week 0 - CRITICAL BLOCKER)
 
-#### **CRITICAL**: Address Circular Dependencies
-Before starting Nx migration, resolve existing architectural issues:
+#### **CRITICAL**: Fix 9 Identified Circular Dependencies
+Architecture analysis revealed **9 circular dependency chains** that will break automated extraction:
 
 ```bash
-# 1. Analyze current dependency structure
-nx graph --file=current-deps.json
+# 1. Identify all circular dependencies
+npx madge --circular --extensions ts src/ --image deps-circular.png
 
-# 2. Identify circular imports
-npx madge --circular --extensions ts src/
-
-# 3. Document current coupling issues
+# 2. Critical circular chains found:
+# - Intent ↔ IntentFulfillment (forwardRef pattern)  
+# - Smart wallet circular chains (3 separate cycles)
+# - Sign service atomicity cycles
+# - Redis connection utility cycles
+# - Liquidity manager processor cycles
 ```
 
-#### Required Pre-Migration Actions:
-1. **Break Circular Dependencies**: 
-   - Replace `forwardRef()` patterns with event-driven communication
-   - Extract shared interfaces to eliminate circular imports
-   - Implement dependency injection for tightly coupled modules
+#### **MANDATORY Pre-Migration Fixes**:
 
-2. **Establish Clean Interfaces**:
-   - Create abstractions for Intent->Solver->Prover interactions  
-   - Implement repository pattern for data access
-   - Add event bus for cross-module communication
+1. **Fix Intent ↔ IntentFulfillment Circular Import**:
+   ```typescript
+   // Replace forwardRef with interface abstraction
+   interface IIntentFulfillmentService {
+     processFulfillment(intent: Intent): Promise<void>
+   }
+   
+   // Inject interface instead of concrete class
+   constructor(
+     @Inject('IIntentFulfillmentService') 
+     private fulfillmentService: IIntentFulfillmentService
+   ) {}
+   ```
 
-3. **Validate Architecture Health**:
-   - Ensure no circular dependencies remain
-   - Confirm modules have single responsibilities
-   - Validate separation of concerns
+2. **Break Smart Wallet Circular Chains**:
+   - Extract shared wallet interfaces
+   - Use repository pattern for wallet data access
+   - Implement service locator for optional dependencies
 
-**⚠️ Migration CANNOT proceed until circular dependencies are resolved.**
+3. **Simplify Constructor Injection (8+ dependencies per service)**:
+   - Use factory pattern for complex dependencies
+   - Extract service interfaces to break tight coupling
+   - Implement optional injection for non-critical services
+
+4. **Validate Circular Dependency Resolution**:
+   ```bash
+   # Must return zero circular dependencies
+   npx madge --circular --extensions ts src/
+   echo $? # Must be 0
+   
+   # Validate TypeScript compilation
+   npx tsc --noEmit --skipLibCheck
+   ```
+
+**🚫 BLOCKER: Migration CANNOT proceed until ALL circular dependencies are resolved.**
 
 ### Phase 1: Nx Workspace Setup (Week 1)
 
@@ -297,41 +356,53 @@ npm install -D @nx/nest @nx/node @nx/jest @nx/eslint-plugin
 - Set up affected command configurations
 - Configure test and lint targets
 
-### Phase 2: Create Foundation Adapters (Week 2)
+### Phase 2: Shared Utilities (Week 2 - Low Risk First)
 
 #### Week 2 Goals:
-- Create thin wrappers around @eco-foundation libraries
-- Eliminate redundant type definitions and configurations
-- Establish clean architecture boundaries
+- **CORRECTED ORDER**: Start with zero-dependency utilities
+- Establish systematic extraction pattern
+- Validate Nx tooling and processes
 
-#### Day 1-2: Foundation Adapter Libraries (CRITICAL FIRST STEP)
+#### Day 1-2: Core Utilities (Zero Dependencies)
 ```bash
-nx g @nx/nest:lib chains-adapter --directory=libs/foundation-adapters --buildable --tags=type:foundation-adapters
-nx g @nx/nest:lib routes-adapter --directory=libs/foundation-adapters --buildable --tags=type:foundation-adapters
+# Use Nx generators with consistent patterns
+nx g @nx/node:library logger --directory=libs/shared --importPath=@eco/logger --buildable
+nx g @nx/node:library utils --directory=libs/shared --importPath=@eco/utils --buildable
+nx g @nx/node:library encryption --directory=libs/shared --importPath=@eco/encryption --buildable
 ```
-- **PRIORITY**: Create clean abstractions before extracting core logic
-- Create EcoChainAdapter service wrapping @eco-foundation/chains
-- Create EcoRoutesAdapter service wrapping @eco-foundation/routes-ts
-- Implement protocol address and configuration resolution
-- **Architecture Benefit**: Eliminates 95% of custom protocol types
+- Move pure utility functions (no dependencies)
+- Establish consistent import path pattern `@eco/*`
+- **Claude Code Validation**: 
+  ```bash
+  nx build @eco/logger @eco/utils @eco/encryption
+  nx test @eco/logger @eco/utils @eco/encryption --passWithNoTests
+  ```
 
-#### Day 3-4: Shared Utilities (Reduced Scope)
+#### Day 3-4: Shared Types and DTOs
 ```bash
-nx g @nx/nest:lib shared-utils --directory=libs/shared --buildable
-nx g @nx/nest:lib shared-dto --directory=libs/shared --buildable
+nx g @nx/node:library shared-types --directory=libs/shared --importPath=@eco/shared-types --buildable
+nx g @nx/node:library shared-dto --directory=libs/shared --importPath=@eco/shared-dto --buildable
 ```
-- Move only non-protocol utilities (general helpers, calculations)
-- Create API-specific DTOs (not protocol types)
-- Remove duplicate types now available in eco-foundation libraries
+- **Systematic Import Updates**:
+  ```bash
+  # Use find/replace patterns for consistency
+  find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]../shared/types['"'"'"]|from "@eco/shared-types"|g' {} +
+  find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]../shared/dto['"'"'"]|from "@eco/shared-dto"|g' {} +
+  ```
 
-#### Day 5: NestJS Common Components
+#### Day 5: Validation and NestJS Components
 ```bash
-nx g @nx/nest:lib shared-guards --directory=libs/shared --buildable
-nx g @nx/nest:lib shared-pipes --directory=libs/shared --buildable
-nx g @nx/nest:lib shared-interceptors --directory=libs/shared --buildable
+nx g @nx/node:library shared-guards --directory=libs/shared --importPath=@eco/shared-guards --buildable
+nx g @nx/node:library shared-pipes --directory=libs/shared --importPath=@eco/shared-pipes --buildable
 ```
-- Focus on API-level guards and validation (not protocol-specific)
-- Create general-purpose pipes and interceptors
+- **Phase 2 Validation Script**:
+  ```bash
+  # Ensure all shared libraries build independently
+  nx build --all
+  nx lint --all
+  # Verify no circular dependencies
+  npx madge --circular --extensions ts libs/
+  ```
 
 ### Phase 3: Extract Infrastructure Libraries (Week 3)
 
@@ -365,34 +436,99 @@ nx g @nx/nest:lib logging --directory=libs/infrastructure --buildable
 - Move bridge protocol APIs and price oracle clients
 - Set up cross-chain tracing and intent audit logging
 
-### Phase 4: Extract Core Domain Libraries (Week 4)
+### Phase 4: Create Unified Foundation Adapter (Week 4)
 
 #### Week 4 Goals:
-- Extract pure intent fulfillment business logic
-- Integrate with foundation adapters for protocol interactions
-- Create domain libraries that depend on eco-foundation wrappers
+- **CORRECTED ORDER**: Create foundation adapter after infrastructure is established
+- Simplify to single unified adapter for Claude Code reliability
+- Integrate @eco-foundation libraries systematically
 
-#### Day 1-2: Intent Core and Solver Engine
+#### Day 1-3: Single Unified Foundation Adapter
 ```bash
-nx g @nx/nest:lib intent-core --directory=libs/core --buildable
-nx g @nx/nest:lib solver-engine --directory=libs/core --buildable
+nx g @nx/node:library eco-adapter --directory=libs/foundation-adapters --importPath=@eco/adapter --buildable
 ```
-- Move intent validation and lifecycle logic (using routes-adapter for types)
-- Extract path-finding algorithms (using chains-adapter for RPC management)
-- Replace custom types with @eco-foundation/routes-ts imports
+- **Single Unified Approach** (Architecture Agent Recommendation):
+  ```typescript
+  // libs/foundation-adapters/eco-adapter/src/index.ts
+  export { EcoChainsService } from './chains.service'
+  export { EcoRoutesService } from './routes.service'
+  export { EcoTypesService } from './types.service'
+  export * from '@eco-foundation/routes-ts' // Re-export types
+  export * from '@eco-foundation/chains' // Re-export chains
+  ```
 
-#### Day 3-4: Chain Abstractions and Settlement Core  
-```bash
-nx g @nx/nest:lib chain-abstractions --directory=libs/core --buildable
-nx g @nx/nest:lib settlement-core --directory=libs/core --buildable
-```
-- Create blockchain service abstractions (using chains-adapter)
-- Extract settlement verification (using routes-adapter for prover ABIs)
-- Remove duplicate protocol configurations
+#### Day 4-5: Systematic Foundation Integration
+- **Replace Direct @eco-foundation Imports**:
+  ```bash
+  # Replace all 25+ direct imports systematically
+  find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]@eco-foundation/routes-ts['"'"'"]|from "@eco/adapter"|g' {} +
+  find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]@eco-foundation/chains['"'"'"]|from "@eco/adapter"|g' {} +
+  ```
+- **Phase 4 Validation**:
+  ```bash
+  nx build @eco/adapter
+  nx build --all # Ensure all imports work
+  nx test --all --passWithNoTests
+  ```
 
-### Phase 5: Create Feature Libraries (Week 5)
+### Phase 5: Extract Single Domain (Week 5 - Proof of Concept)
 
 #### Week 5 Goals:
+- **CONSERVATIVE APPROACH**: Extract only intent-core as proof of concept
+- Validate domain extraction pattern before expanding
+- Ensure end-to-end functionality maintained
+
+#### Day 1-3: Intent Core Only (Proof of Concept)
+```bash
+nx g @nx/node:library intent-core --directory=libs/core --importPath=@eco/intent-core --buildable
+```
+- Extract intent validation and lifecycle logic only
+- Use foundation adapter (`@eco/adapter`) for protocol interactions
+- **Critical Validation**: Ensure complete intent flow still works
+
+#### Day 4-5: Validation and Testing
+- **End-to-End Validation**:
+  ```bash
+  # Test complete intent creation flow
+  npm run test:e2e
+  # Validate no performance regression
+  nx build --all
+  ```
+- **Only proceed to Phase 6 if intent-core extraction is successful**
+
+### Phase 6: Simplified Event Enhancement (Week 6)
+
+#### Week 6 Goals:
+- **SIMPLIFIED APPROACH**: Enhance existing Redis/BullMQ (not replace)
+- Add type-safe event layer over current queue system
+- Maintain reliability while improving semantics
+
+#### Day 1-3: Event Bridge Over Existing Redis
+```bash
+nx g @nx/node:library event-bridge --directory=libs/events --importPath=@eco/event-bridge --buildable
+```
+- **Simple Enhancement** (Architecture Agent Recommendation):
+  ```typescript
+  // Wrap existing BullMQ queues with type-safe events
+  @Injectable()
+  export class EventBridge {
+    constructor(
+      @InjectQueue('source-intent') private intentQueue: Queue // Keep existing queue
+    ) {}
+    
+    async emitIntentCreated(intent: Intent) {
+      // Emit to existing queue with typed payload
+      await this.intentQueue.add('IntentCreatedEvent', { intent })
+    }
+  }
+  ```
+
+#### Day 4-5: Gradual Event Integration
+- **Keep Existing BullMQ Processors**: Don't break current system
+- **Add Event Types**: Create strongly-typed event definitions
+- **Incremental Adoption**: Use events alongside existing queue operations
+
+### Phase 7: Remaining Domain Libraries (Week 7+ - Conservative Expansion)
 - Combine domain logic with infrastructure to create complete features
 - Prepare for application extraction
 
@@ -554,6 +690,89 @@ nx g @nx/nest:app webhook-processor
 }
 ```
 
+### Claude Code Validation Scripts
+
+#### Comprehensive Phase Validation Script
+```bash
+#!/bin/bash
+# validation-after-phase.sh - Run after each migration phase
+
+echo "🔍 Phase Validation Starting..."
+
+# 1. Critical: Check for circular dependencies
+echo "🔄 Checking for circular dependencies..."
+CIRCULAR_DEPS=$(npx madge --circular --extensions ts src/ libs/ 2>/dev/null)
+if [ ! -z "$CIRCULAR_DEPS" ]; then
+    echo "❌ CRITICAL: Circular dependencies detected!"
+    echo "$CIRCULAR_DEPS"
+    exit 1
+fi
+
+# 2. TypeScript compilation
+echo "📝 Validating TypeScript compilation..."
+npx tsc --noEmit --skipLibCheck || exit 1
+
+# 3. Build all projects
+echo "📦 Building all projects..."
+nx build --all || exit 1
+
+# 4. Run tests with no breaking changes
+echo "🧪 Running tests..."
+nx test --all --passWithNoTests || exit 1
+
+# 5. Lint check
+echo "🔍 Running linter..."
+nx lint --all || exit 1
+
+# 6. Check for relative imports in libs
+echo "📝 Checking for relative imports in libs..."
+RELATIVE_IMPORTS=$(grep -r "from ['\"]\.\./" --include="*.ts" libs/ 2>/dev/null)
+if [ ! -z "$RELATIVE_IMPORTS" ]; then
+    echo "⚠️  WARNING: Relative imports found in libs:"
+    echo "$RELATIVE_IMPORTS"
+fi
+
+# 7. Dependency graph health
+echo "🔗 Generating dependency graph..."
+nx graph --file=temp-graph.json
+echo "📊 Dependency graph generated at temp-graph.json"
+
+echo "✅ Phase validation completed successfully!"
+rm -f temp-graph.json
+```
+
+#### Pre-Migration Dependency Health Check
+```bash
+#!/bin/bash
+# pre-migration-health-check.sh - Must pass before starting migration
+
+echo "🏥 Pre-Migration Health Check..."
+
+# 1. CRITICAL: Zero circular dependencies required
+echo "🔄 Checking for circular dependencies (MUST BE ZERO)..."
+CIRCULAR_COUNT=$(npx madge --circular --extensions ts src/ 2>/dev/null | wc -l)
+if [ $CIRCULAR_COUNT -gt 0 ]; then
+    echo "🚫 BLOCKER: ${CIRCULAR_COUNT} circular dependencies found"
+    npx madge --circular --extensions ts src/
+    echo "Migration CANNOT proceed until ALL circular dependencies are resolved"
+    exit 1
+fi
+
+# 2. TypeScript health
+echo "📝 TypeScript compilation check..."
+npx tsc --noEmit --skipLibCheck || exit 1
+
+# 3. Test suite health
+echo "🧪 Test suite health check..."
+npm test || exit 1
+
+# 4. Build health
+echo "📦 Build health check..."
+npm run build || exit 1
+
+echo "✅ Pre-migration health check PASSED - Safe to proceed with migration"
+```
+
 ### Build and Deployment Strategy
 
 #### Build Configuration
@@ -704,27 +923,44 @@ nx g @nx/nest:app webhook-processor
 
 ## Conclusion
 
-This comprehensive migration plan, **validated by architectural review (Score: 78/100)**, transforms the existing NestJS cross-chain intent fulfillment solver into a scalable, maintainable Nx monorepo.
+This comprehensive migration plan, **optimized for Claude Code implementation** through dual agent analysis (Nx Score: 85/100, Architecture Score: 62/100), transforms the existing NestJS cross-chain intent fulfillment solver into a scalable, maintainable Nx monorepo.
+
+### Critical Claude Code Optimizations:
+- 🚫 **MANDATORY Pre-Migration**: Fix 9 identified circular dependencies (migration blocker)
+- 🔧 **Simplified Foundation Adapter**: Single unified adapter reduces complexity
+- 📋 **Corrected Extraction Order**: Utilities first, foundation adapters last  
+- ✅ **Automated Validation**: Comprehensive scripts after each phase
+- 🎯 **Conservative Approach**: One library per week with full validation
 
 ### Architecture Review Key Findings:
-- ✅ **Excellent domain modeling** with proper bounded contexts
-- ✅ **Foundation adapter pattern** provides exceptional value (95% code reduction)
-- ✅ **Strong horizontal scaling design** supporting independent deployment
-- ⚠️ **Critical**: Must address circular dependencies before migration
-- ⚠️ **High Priority**: Implement module boundary enforcement from Day 1
+- ✅ **Well-defined domain boundaries** with proper separation of concerns
+- ✅ **Single foundation adapter** provides 95% code reduction with less complexity
+- ✅ **Enhanced Redis integration** maintains reliability while adding type safety
+- 🚫 **Critical Blocker**: 9 circular dependencies must be resolved first
+- 🔄 **Systematic Approach**: Use Nx generators and automated tooling
 
-### Final Architecture Benefits:
-- **Independent team development** with clear module ownership
-- **Scalable application architecture** supporting multi-chain operations  
-- **95% reduction in protocol-related code** through @eco-foundation integration
-- **Zero-maintenance smart contract integration** with automatic updates
-- **Guaranteed type safety** between solver and on-chain contracts
-- **Future microservices extraction capabilities** with event-driven patterns
+### Claude Code Implementation Benefits:
+- **Automated Reliability**: Validation scripts catch issues early
+- **Systematic Extraction**: Nx generators ensure consistency
+- **Zero Circular Dependencies**: Maintained throughout migration
+- **Import Path Management**: Automated find/replace patterns
+- **Rollback Capability**: Each phase is independently committable
+- **Test Continuity**: Working system maintained throughout
 
-### Success Requirements:
-1. **Pre-Migration Week 0**: Resolve circular dependencies (MANDATORY)
-2. **Foundation-First Approach**: Create adapters before extracting core logic
-3. **Strict Module Boundaries**: Zero tolerance for architectural violations
-4. **Event-Driven Communication**: Break tight coupling between modules
+### Required Success Criteria:
+1. **Pre-Migration Dependency Health**: Zero circular dependencies (validated script)
+2. **Automated Tooling**: Use Nx generators over manual file creation
+3. **Phase Validation**: Comprehensive validation after each phase
+4. **Conservative Pace**: Prove each extraction pattern before expanding
+5. **Event Enhancement**: Keep existing Redis, add type-safe events gradually
 
-The migration will position the cross-chain intent fulfillment platform for long-term scalability and maintainability while dramatically improving developer experience through reduced technical debt and enhanced architectural integrity.
+### Implementation Timeline (Claude Code Optimized):
+- **Week 0**: Resolve 9 circular dependencies (BLOCKER)
+- **Week 1**: Nx workspace setup with validation scripts
+- **Week 2**: Shared utilities (zero dependencies)
+- **Week 3**: Infrastructure libraries
+- **Week 4**: Unified foundation adapter
+- **Week 5**: Single domain extraction (proof of concept)
+- **Week 6+**: Conservative expansion with continuous validation
+
+This **Claude Code-optimized approach** prioritizes implementation reliability over ambitious architectural goals, ensuring a successful migration with maintained system stability throughout the process. The systematic validation and automated tooling provide the safety net needed for AI-driven refactoring success.
