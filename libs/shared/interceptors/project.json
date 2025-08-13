@@ -1,0 +1,33 @@
+{
+  "name": "shared-interceptors",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/interceptors/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared/interceptors",
+        "main": "libs/shared/interceptors/src/index.ts",
+        "tsConfig": "libs/shared/interceptors/tsconfig.lib.json",
+        "assets": ["libs/shared/interceptors/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/shared/interceptors/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/shared/interceptors"],
+      "options": {
+        "jestConfig": "libs/shared/interceptors/jest.config.ts"
+      }
+    }
+  },
+  "tags": ["type:shared"]
+}

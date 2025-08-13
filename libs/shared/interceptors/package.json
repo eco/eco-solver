@@ -1,0 +1,8 @@
+{
+  "name": "@eco/shared-interceptors",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "dependencies": {
+    "@nestjs/common": "*"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "shared-dto",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/dto/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared/dto",
+        "main": "libs/shared/dto/src/index.ts",
+        "tsConfig": "libs/shared/dto/tsconfig.lib.json",
+        "assets": ["libs/shared/dto/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/shared/dto/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/shared/dto"],
+      "options": {
+        "jestConfig": "libs/shared/dto/jest.config.ts"
+      }
+    }
+  },
+  "tags": ["type:shared"]
+}

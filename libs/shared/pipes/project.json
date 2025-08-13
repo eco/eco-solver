@@ -1,0 +1,33 @@
+{
+  "name": "shared-pipes",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/pipes/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared/pipes",
+        "main": "libs/shared/pipes/src/index.ts",
+        "tsConfig": "libs/shared/pipes/tsconfig.lib.json",
+        "assets": ["libs/shared/pipes/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/shared/pipes/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/shared/pipes"],
+      "options": {
+        "jestConfig": "libs/shared/pipes/jest.config.ts"
+      }
+    }
+  },
+  "tags": ["type:shared"]
+}

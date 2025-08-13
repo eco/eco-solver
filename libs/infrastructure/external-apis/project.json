@@ -1,0 +1,19 @@
+{
+  "name": "infrastructure-external-apis",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/infrastructure/external-apis/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/infrastructure/external-apis/jest.config.ts"
+      }
+    }
+  },
+  "tags": ["type:infrastructure", "scope:external-apis"]
+}

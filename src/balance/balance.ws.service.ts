@@ -8,7 +8,7 @@ import { ViemEventLog } from '../common/events/viem'
 import { erc20Abi, Hex, WatchContractEventReturnType, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '../common/viem/utils'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { getIntentJobId } from '../common/utils/strings'
+import { getIntentJobId } from "@eco/utils"
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EcoError } from '@/common/errors/eco-error'
 
