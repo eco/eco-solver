@@ -5,16 +5,16 @@ import { formatUnits, Hex } from 'viem'
 @Schema()
 export class RebalanceTokenModel {
   @Prop({ required: true })
-  chainId: number
+  chainId!: number
+
+  @Prop({ type: String, required: true })
+  tokenAddress!: Hex
 
   @Prop({ required: true })
-  tokenAddress: Hex
+  currentBalance!: number
 
   @Prop({ required: true })
-  currentBalance: number
-
-  @Prop({ required: true })
-  targetBalance: number
+  targetBalance!: number
 
   static fromTokenData(tokenData: TokenData): RebalanceTokenModel {
     const currentBalance = parseFloat(

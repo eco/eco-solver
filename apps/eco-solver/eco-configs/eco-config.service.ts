@@ -47,9 +47,9 @@ export class EcoConfigService {
   private logger = new Logger(EcoConfigService.name)
   private externalConfigs: any = {}
   private ecoConfig: config.IConfig
-  private ecoChains: EcoChains
+  private ecoChains!: EcoChains
 
-  constructor(private readonly sources: ConfigSource[]) {
+  constructor(private readonly sources: ConfigSource[] = []) {
     this.sources.reduce((prev, curr) => {
       return config.util.extendDeep(prev, curr.getConfig())
     }, this.externalConfigs)
@@ -79,8 +79,15 @@ export class EcoConfigService {
     // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
 
-    // Set the eco chain rpc token api keys
-    this.ecoChains = new EcoChains(this.getRpcConfig().keys)
+    // Set the eco chain rpc token api keys (only if RPC config exists)
+    try {
+      const rpcConfig = this.getRpcConfig()
+      if (rpcConfig?.keys) {
+        this.ecoChains = new EcoChains(rpcConfig.keys)
+      }
+    } catch (error) {
+      this.logger.warn('RPC config not found, skipping EcoChains initialization')
+    }
   }
 
   // Generic getter for key/val of config object
@@ -230,6 +237,12 @@ export class EcoConfigService {
 
   getMongooseUri() {
     const config = this.getDatabaseConfig()
+    if (!config) {
+      throw new Error('Database configuration is not defined')
+    }
+    if (!config.auth) {
+      throw new Error('Database auth configuration is not defined. Available config keys: ' + Object.keys(config).join(', '))
+    }
     return config.auth.enabled
       ? `${config.uriPrefix}${config.auth.username}:${config.auth.password}@${config.uri}/${config.dbName}`
       : `${config.uriPrefix}${config.uri}/${config.dbName}`

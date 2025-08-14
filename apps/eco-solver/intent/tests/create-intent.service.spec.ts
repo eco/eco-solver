@@ -12,7 +12,7 @@ import { CreateIntentService } from '../create-intent.service'
 import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
 import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 jest.mock('../../contracts', () => {
   return {

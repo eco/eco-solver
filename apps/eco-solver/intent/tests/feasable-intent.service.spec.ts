@@ -9,7 +9,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { FeeService } from '@/fee/fee.service'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 import { QuoteError } from '@/quote/errors'
 

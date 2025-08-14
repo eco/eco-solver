@@ -1,4 +1,4 @@
 export class RouteTokensDTO {
-  send: string
-  receive: string[]
+  send!: string
+  receive!: string[]
 }

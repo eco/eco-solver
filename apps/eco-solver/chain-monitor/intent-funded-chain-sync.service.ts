@@ -23,7 +23,7 @@ import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/se
 @Injectable()
 export class IntentFundedChainSyncService extends ChainSyncService {
   static MAX_BLOCK_RANGE = 10_000n
-  private createIntentService: CreateIntentService
+  private createIntentService!: CreateIntentService
 
   constructor(
     @InjectModel(IntentSourceModel.name) protected intentModel: Model<IntentSourceModel>,

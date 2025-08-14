@@ -18,14 +18,14 @@ export class QuoteDataEntryDTO {
   @IsString()
   @IsIn(IntentExecutionType.enumKeys)
   @IsNotEmpty()
-  intentExecutionType: string
+  intentExecutionType!: string
 
   @IsNotEmpty()
   @IsArray()
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRewardTokensDTO)
-  routeTokens: QuoteRewardTokensDTO[]
+  routeTokens!: QuoteRewardTokensDTO[]
 
   @IsNotEmpty()
   @ArrayNotEmpty()
@@ -33,32 +33,32 @@ export class QuoteDataEntryDTO {
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRouteDataDTO)
-  routeCalls: QuoteCallDataDTO[]
+  routeCalls!: QuoteCallDataDTO[]
 
   @IsNotEmpty()
   @IsArray()
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRewardTokensDTO)
-  rewardTokens: QuoteRewardTokensDTO[]
+  rewardTokens!: QuoteRewardTokensDTO[]
 
   @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
-  rewardNative: bigint
+  rewardNative!: bigint
 
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  expiryTime: string
+  expiryTime!: string
 
   @IsNotEmpty()
   @IsNumber()
   @ApiProperty()
-  estimatedFulfillTimeSec: number
+  estimatedFulfillTimeSec!: number
 
   @IsNotEmpty()
   @IsNumber()
   @ApiProperty()
-  gasOverhead: number
+  gasOverhead!: number
 }

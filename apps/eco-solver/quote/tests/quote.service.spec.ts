@@ -27,7 +27,7 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { Chain, PublicClient, Transport } from 'viem'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { EcoError } from '@/common/errors/eco-error'
 

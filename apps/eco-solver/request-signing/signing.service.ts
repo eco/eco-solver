@@ -8,8 +8,8 @@ import { ModuleRef } from '@nestjs/core'
 
 @Injectable()
 export class SigningService implements OnModuleInit {
-  private walletAccount: LocalAccount
-  private walletClientDefaultSignerService: WalletClientDefaultSignerService
+  private walletAccount!: LocalAccount
+  private walletClientDefaultSignerService!: WalletClientDefaultSignerService
 
   constructor(
     private readonly signatureGenerator: SignatureGenerator,

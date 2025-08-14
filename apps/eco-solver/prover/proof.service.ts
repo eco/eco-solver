@@ -166,7 +166,7 @@ export class ProofService implements OnModuleInit {
             properties: {
               chainID,
               proverAddr,
-              error: error.message,
+              error: error instanceof Error ? error : new Error(String(error)),
             },
           }),
         )

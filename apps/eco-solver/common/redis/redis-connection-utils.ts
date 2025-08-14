@@ -45,8 +45,9 @@ export class RedisConnectionUtils {
         connection,
       } as RegisterQueueOptions
     } catch (ex) {
+      const errorMessage = ex instanceof Error ? ex.message : String(ex)
       EcoError.logErrorWithStack(
-        ex.message,
+        errorMessage,
         `getQueueOptions: Invalid queue configuration`,
         this.logger,
         {

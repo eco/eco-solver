@@ -3,6 +3,7 @@
 This guide provides a comprehensive overview of how to migrate an existing NestJS project to an Nx monorepo, based on practical implementation and research of Nx's NestJS capabilities.
 
 ## Table of Contents
+
 1. [Overview](#overview)
 2. [Prerequisites](#prerequisites)
 3. [Migration Strategy](#migration-strategy)
@@ -194,6 +195,7 @@ Create `project.json` for your application:
 ### 3. Application Configuration
 
 For applications, create `project.json` with:
+
 - Build target using webpack
 - Serve target with hot reload
 - Test and lint targets
@@ -219,8 +221,8 @@ For libraries, simpler `project.json`:
 Nx generates `webpack.config.js` for NestJS apps:
 
 ```javascript
-const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
-const { join } = require('path');
+const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin')
+const { join } = require('path')
 
 module.exports = {
   output: {
@@ -237,7 +239,7 @@ module.exports = {
       outputHashing: 'none',
     }),
   ],
-};
+}
 ```
 
 ## Best Practices
@@ -284,19 +286,19 @@ Use tags in `project.json` and enforce rules in `nx.json`:
 
 ```typescript
 // libs/shared-lib/src/index.ts
-export * from './lib/shared-lib.module';
-export * from './lib/shared.service';
+export * from './lib/shared-lib.module'
+export * from './lib/shared.service'
 
 // In application
-import { SharedLibModule, SharedService } from '@my-workspace/shared-lib';
+import { SharedLibModule, SharedService } from '@my-workspace/shared-lib'
 ```
 
 ### 4. Module Integration
 
 ```typescript
 // app.module.ts
-import { Module } from '@nestjs/common';
-import { SharedLibModule } from '@my-workspace/shared-lib';
+import { Module } from '@nestjs/common'
+import { SharedLibModule } from '@my-workspace/shared-lib'
 
 @Module({
   imports: [SharedLibModule],
@@ -342,7 +344,8 @@ export class AppModule {}
 
 **Issue**: Slow builds
 
-**Solution**: 
+**Solution**:
+
 - Enable Nx caching
 - Use `nx affected` commands
 - Implement proper library boundaries

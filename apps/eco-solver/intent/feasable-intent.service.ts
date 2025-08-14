@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { getIntentJobId } from "@eco/utils"
+import { getIntentJobId } from '@eco/utils'
 import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { FeeService } from '@/fee/fee.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
 import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 

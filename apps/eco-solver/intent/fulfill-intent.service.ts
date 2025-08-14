@@ -8,7 +8,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { isNativeIntent } from './utils'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
@@ -149,7 +149,7 @@ export class FulfillIntentService {
           EcoLogMessage.withError({
             message: 'Failed to fulfill using Crowd Liquidity, proceeding to use solver',
             properties: { intentHash: model.intent.hash },
-            error,
+            error: error as Error,
           }),
         )
 

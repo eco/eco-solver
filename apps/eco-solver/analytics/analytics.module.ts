@@ -1,13 +1,8 @@
 import { DynamicModule, FactoryProvider, Global, Module, Provider } from '@nestjs/common'
-import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
-import { PosthogService } from '@/analytics/posthog.service'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-
-/**
- * Injection token for the Analytics Service
- * Used to inject AnalyticsService instances via dependency injection
- */
-export const ANALYTICS_SERVICE = 'ANALYTICS_SERVICE'
+import { AnalyticsService, AnalyticsConfig } from './analytics.interface'
+import { PosthogService } from './posthog.service'
+import { EcoAnalyticsService } from './eco-analytics.service'
+import { ANALYTICS_SERVICE } from './constants'
 
 /**
  * Global Analytics Module for PostHog integration

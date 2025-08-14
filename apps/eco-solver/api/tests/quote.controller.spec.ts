@@ -7,7 +7,7 @@ import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { Test, TestingModule } from '@nestjs/testing'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController

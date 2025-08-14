@@ -21,8 +21,8 @@ import { Type } from '@nestjs/common/interfaces/type.interface'
 export type EcoTesterTuple = [...any[]]
 
 export class EcoTester {
-  public testModule: TestingModule
-  public http: EcoTesterHttp
+  public testModule!: TestingModule
+  public http!: EcoTesterHttp
 
   private objectsToTest: any | EcoTesterTuple
   private config?: any
@@ -31,16 +31,16 @@ export class EcoTester {
   private providers: Provider[] = []
   private mocks: Provider[] = []
   private imports: DynamicModule[] = []
-  private queuesToMock: string[]
+  private queuesToMock!: string[]
   public providersToOverride: Array<[Provider | string, any]> = []
 
-  private userID: string
+  private userID!: string
 
   public set mockAuthedUserID(userID: string) {
     this.userID = userID
   }
 
-  private nestApp: INestApplication
+  private nestApp!: INestApplication
 
   public get app(): INestApplication {
     if (this.nestApp) {
@@ -68,7 +68,7 @@ export class EcoTester {
   }
 
   public get objectsUnderTest(): EcoTesterTuple {
-    return [...this.objectsToTest.map((obj) => ({}) as typeof obj)]
+    return [...this.objectsToTest.map((obj: any) => ({}) as typeof obj)]
   }
 
   public get<TInput = any, TResult = TInput>(
@@ -138,7 +138,7 @@ export class EcoTester {
   }
 
   public overridingProvidersWithMocks(...providers: any): EcoTester {
-    providers.forEach((provider) => {
+    providers.forEach((provider: any) => {
       this.providersToOverride.push([provider, createMock(provider)])
     })
     return this

@@ -2,16 +2,9 @@
 export * from '@eco-foundation/routes-ts'
 
 // Commonly used exports for convenience
-export type {
-  IntentType,
-  RouteType, 
-  RewardType,
-  EcoChainConfig
-} from '@eco-foundation/routes-ts'
+export type { IntentType, RouteType, RewardType, EcoChainConfig } from '@eco-foundation/routes-ts'
 
-export {
-  EcoProtocolAddresses
-} from '@eco-foundation/routes-ts'
+export { EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 
 export {
   IntentSourceAbi,
@@ -23,5 +16,5 @@ export {
   hashReward,
   encodeIntent,
   encodeRoute,
-  encodeReward
+  encodeReward,
 } from '@eco-foundation/routes-ts'

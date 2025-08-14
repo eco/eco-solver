@@ -1,8 +1,8 @@
 import { SecretsManager } from '@aws-sdk/client-secrets-manager'
 import { AwsCredential } from './eco-config.types'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import * as config from 'config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
+import defaultConfig from '../../../config/default'
 import { ConfigSource } from './interfaces/config-source.interface'
 import { EcoError } from '../common/errors/eco-error'
 import { merge } from 'lodash'
@@ -36,7 +36,7 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
         message: `Initializing aws configs`,
       }),
     )
-    let awsCreds = config.get('aws') as any[]
+    let awsCreds = defaultConfig.aws as any[]
     if (!Array.isArray(awsCreds)) {
       awsCreds = [awsCreds]
     }
@@ -68,7 +68,9 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
         return secret as Record<string, string>
       }
     } catch (err) {
-      this.logger.error(EcoError.getErrorMessage({ message: err.message }))
+      this.logger.error(
+        EcoError.getErrorMessage({ message: err instanceof Error ? err.message : String(err) }),
+      )
     }
     return {}
   }

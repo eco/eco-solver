@@ -5,7 +5,7 @@ import { MultichainPublicClientService } from '../../transaction/multichain-publ
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 /**
@@ -15,9 +15,9 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 export abstract class WatchEventService<T extends { chainID: number }>
   implements OnApplicationBootstrap, OnModuleDestroy
 {
-  protected logger: Logger
+  protected logger!: Logger
   protected unwatch: Record<string, WatchContractEventReturnType> = {}
-  protected watchJobConfig: JobsOptions
+  protected watchJobConfig!: JobsOptions
 
   constructor(
     protected readonly queue: Queue,

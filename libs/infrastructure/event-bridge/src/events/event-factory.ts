@@ -11,7 +11,7 @@ import {
   NonceUpdatedEvent,
   JobStartedEvent,
   JobCompletedEvent,
-  JobFailedEvent
+  JobFailedEvent,
 } from '../types/event.types'
 
 // Event factory for creating type-safe domain events
@@ -26,7 +26,7 @@ export class EventFactory {
       timestamp: new Date(),
       id: randomUUID(),
       source: this.EVENT_SOURCE,
-      version: this.EVENT_VERSION
+      version: this.EVENT_VERSION,
     }
   }
 
@@ -34,28 +34,32 @@ export class EventFactory {
   static createIntentCreatedEvent(payload: IntentCreatedEvent['payload']): IntentCreatedEvent {
     return {
       ...this.createBaseEvent('intent.created', payload),
-      type: 'intent.created'
+      type: 'intent.created',
     }
   }
 
-  static createIntentFulfilledEvent(payload: IntentFulfilledEvent['payload']): IntentFulfilledEvent {
+  static createIntentFulfilledEvent(
+    payload: IntentFulfilledEvent['payload'],
+  ): IntentFulfilledEvent {
     return {
       ...this.createBaseEvent('intent.fulfilled', payload),
-      type: 'intent.fulfilled'
+      type: 'intent.fulfilled',
     }
   }
 
   static createIntentExpiredEvent(payload: IntentExpiredEvent['payload']): IntentExpiredEvent {
     return {
       ...this.createBaseEvent('intent.expired', payload),
-      type: 'intent.expired'
+      type: 'intent.expired',
     }
   }
 
-  static createIntentValidatedEvent(payload: IntentValidatedEvent['payload']): IntentValidatedEvent {
+  static createIntentValidatedEvent(
+    payload: IntentValidatedEvent['payload'],
+  ): IntentValidatedEvent {
     return {
       ...this.createBaseEvent('intent.validated', payload),
-      type: 'intent.validated'
+      type: 'intent.validated',
     }
   }
 
@@ -63,14 +67,14 @@ export class EventFactory {
   static createBalanceUpdatedEvent(payload: BalanceUpdatedEvent['payload']): BalanceUpdatedEvent {
     return {
       ...this.createBaseEvent('balance.updated', payload),
-      type: 'balance.updated'
+      type: 'balance.updated',
     }
   }
 
   static createLowBalanceEvent(payload: LowBalanceEvent['payload']): LowBalanceEvent {
     return {
       ...this.createBaseEvent('balance.low', payload),
-      type: 'balance.low'
+      type: 'balance.low',
     }
   }
 
@@ -78,7 +82,7 @@ export class EventFactory {
   static createNonceUpdatedEvent(payload: NonceUpdatedEvent['payload']): NonceUpdatedEvent {
     return {
       ...this.createBaseEvent('signer.nonce.updated', payload),
-      type: 'signer.nonce.updated'
+      type: 'signer.nonce.updated',
     }
   }
 
@@ -86,21 +90,21 @@ export class EventFactory {
   static createJobStartedEvent(payload: JobStartedEvent['payload']): JobStartedEvent {
     return {
       ...this.createBaseEvent('job.started', payload),
-      type: 'job.started'
+      type: 'job.started',
     }
   }
 
   static createJobCompletedEvent(payload: JobCompletedEvent['payload']): JobCompletedEvent {
     return {
       ...this.createBaseEvent('job.completed', payload),
-      type: 'job.completed'
+      type: 'job.completed',
     }
   }
 
   static createJobFailedEvent(payload: JobFailedEvent['payload']): JobFailedEvent {
     return {
       ...this.createBaseEvent('job.failed', payload),
-      type: 'job.failed'
+      type: 'job.failed',
     }
   }
 }

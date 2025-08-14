@@ -8,7 +8,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
  */
 @Injectable()
 export class SignerKmsService implements OnModuleInit {
-  private account: KmsAccount
+  private account!: KmsAccount
   constructor(readonly kmsService: KmsService) {}
 
   async onModuleInit() {

@@ -30,7 +30,7 @@ export class IntentFundedEventRepository {
           message: `Error in addEvent`,
           properties: {
             addIntentFundedEvent,
-            error: ex.message,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )

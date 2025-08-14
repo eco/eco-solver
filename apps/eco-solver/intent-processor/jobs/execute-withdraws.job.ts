@@ -66,7 +66,7 @@ export class ExecuteWithdrawsJobManager extends IntentProcessorJobManager<Execut
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `ExecuteWithdrawsJob: Failed`,
-        properties: { error: error.message },
+        properties: { error: error instanceof Error ? error : new Error(String(error)) },
       }),
     )
   }

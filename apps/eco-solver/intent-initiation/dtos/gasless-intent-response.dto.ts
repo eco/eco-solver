@@ -6,5 +6,5 @@ export class GaslessIntentResponseDTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  transactionHash: Hex
+  transactionHash!: Hex
 }

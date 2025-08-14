@@ -11,13 +11,15 @@ This comprehensive implementation plan synthesizes insights from three detailed 
 **CRITICAL**: Migration cannot proceed until ALL circular dependencies are eliminated.
 
 **Identified Circular Chains**:
+
 1. Intent ↔ IntentFulfillment (forwardRef pattern)
 2. Smart wallet circular chains (3 separate cycles)
-3. Sign service atomicity cycles  
+3. Sign service atomicity cycles
 4. Redis connection utility cycles
 5. Liquidity manager processor cycles
 
 **Resolution Strategy**:
+
 ```bash
 # 1. Detect all circular dependencies
 npx madge --circular --extensions ts src/ --image deps-circular.png
@@ -28,6 +30,7 @@ echo $? # Must be 0 for migration to proceed
 ```
 
 **Required Fixes**:
+
 ```typescript
 // Replace forwardRef with interface abstraction
 interface IIntentFulfillmentService {
@@ -36,12 +39,13 @@ interface IIntentFulfillmentService {
 
 // Inject interface instead of concrete class
 constructor(
-  @Inject('IIntentFulfillmentService') 
+  @Inject('IIntentFulfillmentService')
   private fulfillmentService: IIntentFulfillmentService
 ) {}
 ```
 
 **Pre-Migration Health Check Script**:
+
 ```bash
 #!/bin/bash
 # pre-migration-health-check.sh
@@ -59,7 +63,7 @@ fi
 # TypeScript health
 npx tsc --noEmit --skipLibCheck || exit 1
 
-# Test suite health  
+# Test suite health
 npm test || exit 1
 
 # Build health
@@ -71,6 +75,7 @@ echo "✅ Pre-migration health check PASSED - Safe to proceed"
 ## Optimized Monorepo Structure
 
 ### Applications (apps/)
+
 ```
 apps/
 ├── intent-api/              # Main REST API for intent submission and tracking
@@ -82,19 +87,21 @@ apps/
 ### Libraries Structure (Optimized Order)
 
 #### 1. Foundation Adapters (libs/foundation-adapters/)
+
 **SIMPLIFIED**: Single unified adapter to reduce Claude Code complexity.
 
 ```
 libs/foundation-adapters/
 └── eco-adapter/             # Single unified wrapper for @eco-foundation libraries
     ├── chains.service.ts    # Wraps @eco-foundation/chains
-    ├── routes.service.ts    # Wraps @eco-foundation/routes-ts  
+    ├── routes.service.ts    # Wraps @eco-foundation/routes-ts
     ├── types.service.ts     # Re-exports all protocol types
     ├── config.service.ts    # Protocol address resolution
     └── index.ts             # Single point export
 ```
 
 **Implementation**:
+
 ```typescript
 // libs/foundation-adapters/eco-adapter/src/index.ts
 export { EcoChainsService } from './chains.service'
@@ -107,6 +114,7 @@ export * from '@eco-foundation/chains' // Re-export chains
 **Benefits**: 95% reduction in custom type definitions, automatic protocol compatibility
 
 #### 2. Shared Libraries (libs/shared/)
+
 **CORRECTED ORDER**: Zero-dependency utilities first
 
 ```
@@ -119,6 +127,7 @@ libs/shared/
 ```
 
 #### 3. Infrastructure Libraries (libs/infrastructure/)
+
 ```
 libs/infrastructure/
 ├── database/               # TypeORM entities and migrations
@@ -130,6 +139,7 @@ libs/infrastructure/
 ```
 
 #### 4. Core Domain Libraries (libs/core/)
+
 ```
 libs/core/
 ├── intent-core/            # Intent processing and lifecycle (PROOF OF CONCEPT)
@@ -139,6 +149,7 @@ libs/core/
 ```
 
 #### 5. Feature Libraries (libs/features/)
+
 ```
 libs/features/
 ├── intent-management/      # Complete intent lifecycle feature
@@ -149,6 +160,7 @@ libs/features/
 ```
 
 #### 6. Event System (libs/events/)
+
 **SIMPLIFIED**: Enhanced Redis/BullMQ (not replacement)
 
 ```
@@ -159,13 +171,14 @@ libs/events/
 ```
 
 **Simple Enhancement**:
+
 ```typescript
 @Injectable()
 export class EventBridge {
   constructor(
-    @InjectQueue('source-intent') private intentQueue: Queue // Keep existing queue
+    @InjectQueue('source-intent') private intentQueue: Queue, // Keep existing queue
   ) {}
-  
+
   async emitIntentCreated(intent: Intent) {
     await this.intentQueue.add('IntentCreatedEvent', { intent })
   }
@@ -185,11 +198,12 @@ npm install -D @nx/nest @nx/node @nx/jest @nx/eslint-plugin
 ```
 
 **Key Configuration**:
+
 - Set up module boundary enforcement rules
 - Configure circular dependency detection in CI/CD
 - Add dependency graph monitoring (`nx graph`)
 
-### Phase 2: Shared Utilities (Week 2) 
+### Phase 2: Shared Utilities (Week 2)
 
 **CORRECTED ORDER**: Start with zero-dependency utilities
 
@@ -201,6 +215,7 @@ nx g @nx/node:library encryption --directory=libs/shared --importPath=@eco/encry
 ```
 
 **Systematic Import Updates**:
+
 ```bash
 find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]../shared/types['"'"'"]|from "@eco/shared-types"|g' {} +
 find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]../shared/utils['"'"'"]|from "@eco/utils"|g' {} +
@@ -222,6 +237,7 @@ nx g @nx/node:library eco-adapter --directory=libs/foundation-adapters --importP
 ```
 
 **Replace Direct @eco-foundation Imports**:
+
 ```bash
 find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]@eco-foundation/routes-ts['"'"'"]|from "@eco/adapter"|g' {} +
 find src/ -name "*.ts" -exec sed -i 's|from ['"'"'"]@eco-foundation/chains['"'"'"]|from "@eco/adapter"|g' {} +
@@ -248,13 +264,15 @@ nx g @nx/node:library event-bridge --directory=libs/events --importPath=@eco/eve
 ### Phase 7+: Conservative Expansion
 
 One library per week with full validation:
+
 - Extract remaining core domain libraries
-- Create complete feature libraries  
+- Create complete feature libraries
 - Split into microservice applications
 
 ## Validation Strategy
 
 ### After Each Phase Script
+
 ```bash
 #!/bin/bash
 # validation-after-phase.sh
@@ -299,14 +317,15 @@ echo "✅ Phase validation completed successfully!"
         {
           "sourceTag": "type:app",
           "onlyDependOnLibsWithTags": [
-            "type:feature", "type:infrastructure", "type:shared", "type:events"
+            "type:feature",
+            "type:infrastructure",
+            "type:shared",
+            "type:events"
           ]
         },
         {
           "sourceTag": "type:core",
-          "onlyDependOnLibsWithTags": [
-            "type:shared", "type:foundation-adapters"
-          ]
+          "onlyDependOnLibsWithTags": ["type:shared", "type:foundation-adapters"]
         },
         {
           "sourceTag": "type:foundation-adapters",
@@ -321,17 +340,20 @@ echo "✅ Phase validation completed successfully!"
 ## Success Metrics
 
 ### Primary KPIs (Architecture Quality)
+
 - **Circular Dependencies**: ZERO tolerance (validated after each phase)
 - **Module Boundary Violations**: ZERO violations with automated enforcement
 - **Build Time**: 40-60% reduction target
 - **Code Reduction**: 95% elimination of custom protocol types
 
 ### Technical Performance
+
 - **Test Execution**: 50% faster test suite execution
 - **Protocol Compatibility**: Automatic updates with smart contract changes
 - **Type Safety**: Zero drift between solver and contracts
 
-### Team Productivity  
+### Team Productivity
+
 - **Development Velocity**: Faster feature delivery
 - **Bug Reduction**: Fewer bugs related to module boundaries
 - **Onboarding Time**: Faster new developer productivity
@@ -339,11 +361,13 @@ echo "✅ Phase validation completed successfully!"
 ## Risk Mitigation
 
 ### High-Priority Risks
+
 1. **Circular Dependencies**: Pre-migration resolution (MANDATORY)
 2. **Import Path Management**: Systematic automated updates
 3. **Complex Module Dependencies**: Event-driven patterns to break cycles
 
 ### Technical Safeguards
+
 - Git branching strategy for each phase
 - Rollback capability for each phase
 - Comprehensive automated testing
@@ -352,6 +376,7 @@ echo "✅ Phase validation completed successfully!"
 ## Key Implementation Principles
 
 ### Claude Code Optimization
+
 - **Automated Reliability**: Validation scripts catch issues early
 - **Systematic Approach**: Use Nx generators over manual changes
 - **Conservative Pace**: One library per week with full validation
@@ -359,6 +384,7 @@ echo "✅ Phase validation completed successfully!"
 - **Test Continuity**: Maintain working system throughout
 
 ### Foundation Library Benefits
+
 - **95% Code Reduction**: Eliminate custom type definitions
 - **Zero Maintenance**: No manual ABI or address management
 - **Automatic Updates**: Always compatible with protocol changes
@@ -376,8 +402,9 @@ This comprehensive implementation plan provides a systematic, validated approach
 6. **Comprehensive validation** (automated health checks after each phase)
 
 **Critical Success Factors**:
+
 - Fix circular dependencies before starting (BLOCKER)
-- Use Nx generators for consistency  
+- Use Nx generators for consistency
 - Validate extensively after each change
 - Maintain working system throughout migration
 - Prove each pattern before expanding

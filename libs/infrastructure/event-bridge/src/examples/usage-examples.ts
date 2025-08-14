@@ -22,7 +22,7 @@ export class IntentService {
       source: 1n,
       destination: 137n,
       deadline: BigInt(Date.now() / 1000) + 3600n,
-      quoteID: 'quote-123'
+      quoteID: 'quote-123',
     })
 
     await this.eventBridge.publishEvent(event)
@@ -52,13 +52,13 @@ export class NotificationService {
     })
 
     // Subscribe to multiple event types
-    this.eventBridge.subscribeRedisMultiple([
-      'intent.fulfilled',
-      'intent.expired'
-    ], async (event) => {
-      this.logger.log(`Intent lifecycle event: ${event.type}`)
-      // Handle intent lifecycle changes
-    })
+    this.eventBridge.subscribeRedisMultiple(
+      ['intent.fulfilled', 'intent.expired'],
+      async (event) => {
+        this.logger.log(`Intent lifecycle event: ${event.type}`)
+        // Handle intent lifecycle changes
+      },
+    )
   }
 }
 
@@ -74,18 +74,18 @@ export class AnalyticsService {
     // Subscribe to all intent events for analytics
     const intentEventTypes = [
       'intent.created',
-      'intent.fulfilled', 
+      'intent.fulfilled',
       'intent.expired',
-      'intent.validated'
+      'intent.validated',
     ] as const
 
-    intentEventTypes.forEach(eventType => {
+    intentEventTypes.forEach((eventType) => {
       this.eventBridge.subscribeRedis(eventType, async (event) => {
         await this.recordAnalyticsEvent({
           eventType: event.type,
           eventId: event.id,
           timestamp: event.timestamp,
-          payload: event.payload
+          payload: event.payload,
         })
       })
     })
@@ -103,14 +103,14 @@ export class BatchProcessor {
   constructor(private readonly eventBridge: EventBridgeService) {}
 
   async processBatchIntents(intents: any[]): Promise<void> {
-    const events = intents.map(intent => 
+    const events = intents.map((intent) =>
       this.eventBridge.events.createIntentCreatedEvent({
         intentHash: intent.hash,
         creator: intent.creator,
         source: intent.source,
         destination: intent.destination,
-        deadline: intent.deadline
-      })
+        deadline: intent.deadline,
+      }),
     )
 
     // Publish all events as a batch for better performance
@@ -129,8 +129,8 @@ export class EnhancedProcessor {
       this.eventBridge.events.createJobStartedEvent({
         jobId: jobData.id,
         jobType: 'intent-processing',
-        queueName: 'solver'
-      })
+        queueName: 'solver',
+      }),
     )
 
     try {
@@ -143,8 +143,8 @@ export class EnhancedProcessor {
           jobType: 'intent-processing',
           queueName: 'solver',
           duration: 1500,
-          result: { success: true }
-        })
+          result: { success: true },
+        }),
       )
     } catch (error) {
       // Emit job failed event
@@ -153,10 +153,10 @@ export class EnhancedProcessor {
           jobId: jobData.id,
           jobType: 'intent-processing',
           queueName: 'solver',
-          error: error.message,
+          error: error instanceof Error ? error : new Error(String(error)),
           attempt: 1,
-          maxAttempts: 3
-        })
+          maxAttempts: 3,
+        }),
       )
       throw error
     }

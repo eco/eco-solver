@@ -13,8 +13,8 @@ import { Hex, TransactionReceipt } from 'viem'
 @Injectable()
 export class Permit2Processor implements OnModuleInit {
   private logger = new Logger(Permit2Processor.name)
-  private kernelAccountClientService: KernelAccountClientService
-  private permit2TxBuilder: Permit2TxBuilder
+  private kernelAccountClientService!: KernelAccountClientService
+  private permit2TxBuilder!: Permit2TxBuilder
 
   constructor(private readonly moduleRef: ModuleRef) {}
 

@@ -82,7 +82,7 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 export class ValidationService implements OnModuleInit {
   private isNativeETHSupported = false
   private readonly logger = new Logger(ValidationService.name)
-  private minEthBalanceWei: bigint
+  private minEthBalanceWei!: bigint
 
   constructor(
     private readonly proofService: ProofService,
@@ -266,7 +266,7 @@ export class ValidationService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: `validTransferLimit: Error getting total fill`,
           properties: {
-            error: error.message,
+            error: error instanceof Error ? error : new Error(String(error)),
             intentHash: intent.hash,
             source: intent.route.source,
           },
@@ -384,8 +384,8 @@ export class ValidationService implements OnModuleInit {
             EcoLogMessage.fromDefault({
               message: 'hasSufficientBalance: Error checking balance for address',
               properties: {
-                error: error.message,
-                errorStack: error.stack,
+                error: error instanceof Error ? error : new Error(String(error)),
+                errorStack: error instanceof Error ? error.stack : undefined,
                 walletAddress,
                 intentHash: intent.hash,
                 destination: intent.route.destination,
@@ -403,8 +403,8 @@ export class ValidationService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: `hasSufficientBalance: Error checking balance`,
           properties: {
-            error: error?.message || String(error),
-            errorStack: error?.stack,
+            error: error instanceof Error ? error : new Error(String(error)),
+            errorStack: error instanceof Error ? error.stack : undefined,
             intentHash: intent.hash,
             destination: destinationChain,
           },

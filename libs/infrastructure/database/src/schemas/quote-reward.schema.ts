@@ -9,15 +9,15 @@ import { Hex } from 'viem'
 @Schema({ timestamps: true })
 export class QuoteRewardDataModel implements QuoteRewardDataType {
   @Prop({ required: true, type: String })
-  creator: Hex
+  creator!: Hex
   @Prop({ required: true, type: String })
-  prover: Hex
+  prover!: Hex
   @Prop({ required: true, type: BigInt })
-  deadline: bigint
+  deadline!: bigint
   @Prop({ required: true, type: BigInt })
-  nativeValue: bigint
+  nativeValue!: bigint
   @Prop({ required: true, type: [QuoteRewardTokenDataSchema] })
-  tokens: QuoteRewardTokenDataModel[]
+  tokens!: QuoteRewardTokenDataModel[]
 }
 
 export const QuoteRewardDataSchema = SchemaFactory.createForClass(QuoteRewardDataModel)

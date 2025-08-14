@@ -19,30 +19,30 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
-  source: bigint
+  source!: bigint
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  destination: bigint
+  destination!: bigint
 
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
-  inbox: Hex
+  inbox!: Hex
 
   @IsArray()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteRewardTokensDTO)
-  tokens: QuoteRewardTokensDTO[]
+  tokens!: QuoteRewardTokensDTO[]
 
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteCallDataDTO)
-  calls: QuoteCallDataDTO[]
+  calls!: QuoteCallDataDTO[]
 }
 
 /**
@@ -55,16 +55,16 @@ export class QuoteCallDataDTO implements CallDataInterface {
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
-  target: Hex
+  target!: Hex
 
   @IsNotEmpty()
   @ApiProperty()
-  data: Hex
+  data!: Hex
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  value: bigint
+  value!: bigint
 }
 
 export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}

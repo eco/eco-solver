@@ -9,6 +9,7 @@ import {
   Route,
   RoutesRequest,
   SDKConfig,
+  ChainId,
 } from '@lifi/sdk'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -29,8 +30,8 @@ import { TokenConfig } from '@/balance/types'
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
-  private walletAddress: string
-  private assetCacheManager: LiFiAssetCacheManager
+  private walletAddress!: string
+  private assetCacheManager!: LiFiAssetCacheManager
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -84,7 +85,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
 
       this.logger.error(
         EcoLogMessage.withError({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           message: 'LiFi: Failed to initialize asset cache, continuing with fallback behavior',
         }),
       )
@@ -448,7 +449,12 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const lifiRPCUrls: SDKConfig['rpcUrls'] = {}
 
     for (const chainId in rpcUrl) {
-      lifiRPCUrls[parseInt(chainId)] = [rpcUrl[chainId]]
+      const url = rpcUrl[chainId]
+      if (Array.isArray(url)) {
+        lifiRPCUrls[parseInt(chainId) as ChainId] = url
+      } else {
+        lifiRPCUrls[parseInt(chainId) as ChainId] = [url]
+      }
     }
 
     return lifiRPCUrls

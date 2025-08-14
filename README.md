@@ -229,6 +229,29 @@ pnpm test --watch
 | `pnpm lint` / `lint:fix`         | ESLint code quality                                            |
 | `pnpm prettier` / `prettier:fix` | Code formatting                                                |
 | `pnpm test:cov`                  | Unit-test coverage report                                      |
+| `pnpm circular:check`            | Check for circular dependencies                                |
+| `pnpm circular:check:apps`       | Check circular dependencies in apps only                      |
+| `pnpm circular:check:libs`       | Check circular dependencies in libs only                      |
+
+### Code Quality & Architecture
+
+#### Circular Dependency Detection
+
+This project includes comprehensive circular dependency detection to maintain code quality and prevent import cycles:
+
+```bash
+# Quick check for circular dependencies  
+pnpm circular:check
+
+# Generate detailed reports
+pnpm circular:check:json      # JSON format for tooling
+pnpm circular:summary         # Dependency statistics
+pnpm circular:check:detailed  # Verbose output with warnings
+```
+
+**Current Status**: ⚠️ Libraries are clean, but 73 circular dependencies exist in apps directory
+
+For comprehensive guidance on circular dependency detection, resolution strategies, and CI/CD integration, see [`plans/circular-dependency-detection-guide.md`](./plans/circular-dependency-detection-guide.md).
 
 ---
 

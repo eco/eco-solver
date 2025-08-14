@@ -104,7 +104,7 @@ export class PermitValidationService {
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `batchSimulatePermits: error simulating permits: ${ex.message}`,
+          message: `batchSimulatePermits: error simulating permits: ${ex instanceof Error ? ex.message : String(ex)}`,
         }),
       )
 
@@ -222,7 +222,7 @@ export class PermitValidationService {
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `isAddressEqual: error comparing addresses: ${ex.message}`,
+          message: `isAddressEqual: error comparing addresses: ${ex instanceof Error ? ex.message : String(ex)}`,
         }),
       )
 

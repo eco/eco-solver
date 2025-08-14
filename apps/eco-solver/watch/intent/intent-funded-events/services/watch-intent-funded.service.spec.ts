@@ -12,7 +12,7 @@ import { Network } from '@/common/alchemy/network'
 import { PublicClient } from 'viem'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 let $: EcoTester
 let service: WatchIntentFundedService

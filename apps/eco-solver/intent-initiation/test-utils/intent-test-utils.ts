@@ -53,7 +53,7 @@ export class IntentTestUtils {
       },
 
       getPermitContractAddress(): Hex {
-        return this.permitData.getPermitContractAddress() as Hex
+        return this.permitData?.getPermitContractAddress?.() as Hex
       },
 
       allowPartial: false,
@@ -77,7 +77,7 @@ export class IntentTestUtils {
       },
 
       getPermitContractAddress(): Hex {
-        return this.gaslessIntentData.getPermitContractAddress() as Hex
+        return this.gaslessIntentData?.getPermitContractAddress?.() as Hex
       },
     }
 

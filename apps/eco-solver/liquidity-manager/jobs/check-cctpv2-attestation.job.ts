@@ -7,7 +7,10 @@ import {
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
-import { ILiquidityManagerProcessor, IExecuteCCTPV2MintJobManager } from '../interfaces/processor.interface'
+import {
+  ILiquidityManagerProcessor,
+  IExecuteCCTPV2MintJobManager,
+} from '../interfaces/processor.interface'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 
 // Forward reference for job manager - will be properly injected

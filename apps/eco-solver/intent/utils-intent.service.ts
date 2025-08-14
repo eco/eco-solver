@@ -10,7 +10,7 @@ import { DecodeFunctionDataReturnType, Hex } from 'viem'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from '@/common/alchemy/network'
 import { ValidationChecks } from '@/intent/validation.sevice'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 /**
  * Data for a transaction target

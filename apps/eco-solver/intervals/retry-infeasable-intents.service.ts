@@ -14,7 +14,7 @@ import { Model } from 'mongoose'
 @Injectable()
 export class RetryInfeasableIntentsService implements OnApplicationBootstrap {
   private logger = new Logger(RetryInfeasableIntentsService.name)
-  private intentJobConfig: JobsOptions
+  private intentJobConfig!: JobsOptions
 
   constructor(
     @InjectQueue(QUEUES.INTERVAL.queue) private readonly intervalQueue: Queue,

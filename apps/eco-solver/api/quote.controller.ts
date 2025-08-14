@@ -6,7 +6,7 @@ import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Controller(API_ROOT + QUOTE_ROUTE)

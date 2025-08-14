@@ -21,8 +21,8 @@ export const FlagVariationKeys: Record<FlagType, string> = {
 @Injectable()
 export class FlagService implements OnModuleInit {
   private logger = new Logger(FlagService.name)
-  private flagsClient: ld.LDClient
-  private context: ld.LDContext
+  private flagsClient!: ld.LDClient
+  private context!: ld.LDContext
   private flagValues: LaunchDarklyFlags = {
     bendWalletOnly: false,
   }
@@ -54,9 +54,9 @@ export class FlagService implements OnModuleInit {
     const lock = { initialized: false }
     this.flagsClient.on('ready', async () => {
       await Promise.all(
-        Object.values(FlagVariationKeys).map(async (flag) => {
+        (Object.keys(FlagVariationKeys) as FlagType[]).map(async (flag) => {
           this.flagValues[flag] = await this.flagsClient.variation(
-            flag,
+            FlagVariationKeys[flag],
             this.context,
             this.flagValues[flag],
           )
@@ -92,7 +92,7 @@ export class FlagService implements OnModuleInit {
         )
         return
       }
-      const flag = param.key
+      const flag = param.key as FlagType
       this.flagValues[flag] = await this.flagsClient.variation(
         flag,
         this.context,

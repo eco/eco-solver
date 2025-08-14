@@ -5,7 +5,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 @Injectable()
 export class SignerService implements OnModuleInit {
-  private account: PrivateKeyAccount
+  private account!: PrivateKeyAccount
   constructor(readonly ecoConfigService: EcoConfigService) {}
 
   onModuleInit() {

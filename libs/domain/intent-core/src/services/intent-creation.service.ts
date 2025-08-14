@@ -11,7 +11,6 @@ import { IIntentCreationService } from './intent.service.interface'
  */
 @Injectable()
 export class IntentCreationService implements IIntentCreationService {
-  
   async createIntent(params: CreateIntentParams): Promise<Hex> {
     // Validate parameters using domain utilities
     if (!IntentUtils.validateParams(params)) {
@@ -20,7 +19,7 @@ export class IntentCreationService implements IIntentCreationService {
 
     // Create domain model
     const intent = new IntentModel(params)
-    
+
     // Verify the intent can be fulfilled
     if (!intent.canBeFulfilled()) {
       throw new Error('Intent cannot be fulfilled')
@@ -45,7 +44,7 @@ export class IntentCreationService implements IIntentCreationService {
 
       // Additional domain-specific validations
       const intent = new IntentModel(params)
-      
+
       // Check if economically feasible (simplified)
       const estimatedGas = 100000n // Simplified estimation
       if (!IntentUtils.isEconomicallyFeasible(intent, estimatedGas)) {
@@ -61,16 +60,16 @@ export class IntentCreationService implements IIntentCreationService {
   async estimateCreationCost(params: CreateIntentParams): Promise<bigint> {
     // Simplified cost estimation using domain logic
     const intent = new IntentModel(params)
-    
+
     // Base cost for intent creation
     let baseCost = 50000n // Base gas cost
-    
+
     // Add cost per call
     baseCost += BigInt(intent.calls.length) * 10000n
-    
+
     // Add cost per reward token
     baseCost += BigInt(intent.rewardTokens.length) * 5000n
-    
+
     return baseCost
   }
 }

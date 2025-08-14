@@ -5,7 +5,7 @@ import { FulfillIntentService } from '../fulfill-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 describe('FulfillIntentService', () => {
   let fulfillIntentService: FulfillIntentService

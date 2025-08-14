@@ -7,28 +7,28 @@ import { Types } from 'mongoose'
 
 @Schema({ timestamps: true })
 export class QuoteIntentModel implements QuoteIntentDataInterface {
-  _id: Types.ObjectId
+  _id!: Types.ObjectId
 
   @Prop({ required: true, type: String })
-  quoteID: string
+  quoteID!: string
 
   @Prop({ required: true, type: String })
-  dAppID: string
+  dAppID!: string
 
   @Prop({ required: true, enum: IntentExecutionType.enumKeys })
-  intentExecutionType: string
+  intentExecutionType!: string
 
   // @Prop({ required: true, type: String })
   // routeHash: string
 
   @Prop({ required: true, type: QuoteRouteDataSchema })
-  route: QuoteRouteDataModel
+  route!: QuoteRouteDataModel
 
   @Prop({ required: true, type: QuoteRewardDataSchema })
-  reward: QuoteRewardDataModel
+  reward!: QuoteRewardDataModel
 
   @Prop({ type: Object })
-  receipt: any
+  receipt?: any
 }
 
 export const QuoteIntentSchema = SchemaFactory.createForClass(QuoteIntentModel)

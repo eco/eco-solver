@@ -74,7 +74,7 @@ export class APIRequestExecutor {
   private getAxiosRequestConfig(requestParams: ExecuteRequestParams): AxiosRequestConfig {
     const { idempotentID, additionalHeaders: additionalHeadersIn } = requestParams
 
-    const additionalHeaders = additionalHeadersIn || {}
+    const additionalHeaders: Record<string, any> = additionalHeadersIn || {}
 
     if (idempotentID) {
       const idempotentIDHeader = this.getIdempotentIDHeader()

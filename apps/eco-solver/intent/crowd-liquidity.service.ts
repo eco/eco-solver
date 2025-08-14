@@ -30,12 +30,12 @@ import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   private logger = new Logger(CrowdLiquidityService.name)
-  private config: CrowdLiquidityConfig
+  private config!: CrowdLiquidityConfig
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,

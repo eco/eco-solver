@@ -1,5 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common'
-import { AnalyticsService, ANALYTICS_SERVICE } from '@/analytics'
+import { AnalyticsService } from './analytics.interface'
+import { ANALYTICS_SERVICE } from './constants'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'

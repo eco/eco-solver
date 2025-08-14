@@ -3,7 +3,7 @@ import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
-import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
+import { QuoteIntentDataDTO, QuoteIntentDataInterface } from './dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -13,29 +13,29 @@ import {
   Quote400,
   SolverUnsupported,
 } from '@/quote/errors'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { QuoteIntentModel } from './schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
 import { FeeService } from '@/fee/fee.service'
 import { CalculateTokensType } from '@/fee/types'
 import { EcoResponse } from '@/common/eco-response'
 import { GasEstimationsConfig, QuotesConfig } from '@/eco-configs/eco-config.types'
-import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
-import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteCallDataDTO } from '@/quote/dto/quote.route.data.dto'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import { QuoteRepository } from '@/quote/quote.repository'
+import { QuoteDataEntryDTO } from './dto/quote-data-entry.dto'
+import { QuoteDataDTO } from './dto/quote-data.dto'
+import { QuoteRewardTokensDTO } from './dto/quote.reward.data.dto'
+import { QuoteCallDataDTO } from './dto/quote.route.data.dto'
+import { IntentExecutionType } from './enums/intent-execution-type.enum'
+import { QuoteRepository } from './quote.repository'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
-import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { UpdateQuoteParams } from './interfaces/update-quote-params.interface'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentRequestDTO } from './dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
 import { serialize } from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
 
@@ -56,9 +56,9 @@ interface GenerateQuoteParams {
 export class QuoteService implements OnModuleInit {
   private logger = new Logger(QuoteService.name)
 
-  private quotesConfig: QuotesConfig
-  private gasEstimationsConfig: GasEstimationsConfig
-  private intentInitiationService: IntentInitiationService
+  private quotesConfig!: QuotesConfig
+  private gasEstimationsConfig!: GasEstimationsConfig
+  private intentInitiationService!: IntentInitiationService
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
@@ -395,7 +395,7 @@ export class QuoteService implements OnModuleInit {
       } else {
         return await this.generateQuote(quoteIntentModel)
       }
-    } catch (e) {
+    } catch (e: any) {
       return { error: InternalQuoteError(e) }
     }
   }

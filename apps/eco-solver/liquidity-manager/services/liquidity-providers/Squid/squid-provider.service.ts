@@ -13,7 +13,7 @@ import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
   private logger = new Logger(SquidProviderService.name)
-  private squid: Squid
+  private squid!: Squid
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -92,7 +92,7 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         EcoLogMessage.withErrorAndId({
           message: 'Squid: failed to get quote',
           id,
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           properties: { params },
         }),
       )
@@ -156,7 +156,7 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         EcoLogMessage.withErrorAndId({
           message: `Squid: failed to execute quote`,
           id: quote.id,
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           properties: { walletAddress, quote },
         }),
       )

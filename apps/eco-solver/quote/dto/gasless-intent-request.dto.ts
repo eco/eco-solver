@@ -10,35 +10,35 @@ export class GaslessIntentRequestDTO {
   @IsString()
   @IsNotEmpty()
   @ApiProperty()
-  quoteID: string
+  quoteID!: string
 
   @IsNotEmpty()
   @ApiProperty()
   @IsString()
-  dAppID: string
+  dAppID!: string
 
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  salt: Hex
+  salt!: Hex
 
   @IsNotEmpty()
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRouteDataDTO)
-  route: QuoteRouteDataDTO
+  route!: QuoteRouteDataDTO
 
   @IsNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteRewardDataDTO)
-  reward: QuoteRewardDataDTO
+  reward!: QuoteRewardDataDTO
 
   @IsNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => GaslessIntentDataDTO)
-  gaslessIntentData: GaslessIntentDataDTO
+  gaslessIntentData!: GaslessIntentDataDTO
 
   getSourceChainID?(): number {
     return Number(this.route.source)

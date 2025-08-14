@@ -15,7 +15,7 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService

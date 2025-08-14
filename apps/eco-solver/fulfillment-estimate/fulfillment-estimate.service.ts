@@ -11,7 +11,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 @Injectable()
 export class FulfillmentEstimateService implements OnModuleInit {
   private logger = new Logger(FulfillmentEstimateService.name)
-  private fulfillmentConfig: FulfillmentEstimateConfig
+  private fulfillmentConfig!: FulfillmentEstimateConfig
 
   constructor(private readonly ecoConfigService: EcoConfigService) {}
 

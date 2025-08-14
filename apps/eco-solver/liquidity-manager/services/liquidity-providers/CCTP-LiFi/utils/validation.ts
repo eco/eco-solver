@@ -132,7 +132,7 @@ export class CCTPLiFiValidator {
     // ETH price approximation for gas cost calculation
     const ethPriceUSD = 2500
 
-    const gasPriceGwei = gasPrices[chainId] || 1
+    const gasPriceGwei = gasPrices[chainId as keyof typeof gasPrices] || 1
     const gasPriceWei = gasPriceGwei * 1e9
     const gasCostWei = Number(gasAmount) * gasPriceWei
     const gasCostETH = gasCostWei / 1e18

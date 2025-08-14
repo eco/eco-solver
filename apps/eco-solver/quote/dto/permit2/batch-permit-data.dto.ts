@@ -8,5 +8,5 @@ export class BatchPermitDataDTO {
   @ApiProperty()
   @ValidateNested()
   @Type(() => Permit2BatchTypedDataDTO)
-  typedData: Permit2BatchTypedDataDTO
+  typedData!: Permit2BatchTypedDataDTO
 }

@@ -195,7 +195,7 @@ export class EcoError extends Error {
       EcoLogMessage.fromDefault({
         message: `${caller}: error`,
         properties: {
-          error: error.message,
+          error: error instanceof Error ? error : new Error(String(error)),
           ...properties,
         },
       }),

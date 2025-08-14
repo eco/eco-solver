@@ -116,7 +116,7 @@ export class LiquidityProviderService {
         this.logger.error(
           EcoLogMessage.withErrorAndId({
             message: 'Unable to get quote from strategy',
-            error,
+            error: error instanceof Error ? error : new Error(String(error)),
             properties: { walletAddress, strategy, tokenIn, tokenOut, swapAmount },
             id: quoteId,
           }),

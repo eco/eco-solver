@@ -156,7 +156,7 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
         EcoLogMessage.fromDefault({
           message: `estimateGasForKernelExecution: error`,
           properties: {
-            error: ex.message,
+            error: ex instanceof Error ? ex.message : String(ex),
           },
         }),
       )

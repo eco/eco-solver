@@ -11,7 +11,7 @@ import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco/foundation-eco-adapter'
 import { Strategy } from '@/liquidity-manager/types/types'
-import { AnalyticsConfig } from '@/analytics'
+import { AnalyticsConfig } from '@/analytics/analytics.interface'
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -362,7 +362,7 @@ export const ProverEcoRoutesProverAppend = 'append'
 /**
  * The config type for a single prover source configuration
  */
-export class IntentSource {
+export interface IntentSource {
   // The network that the prover is on
   network: Network
   // The chain ID of the network

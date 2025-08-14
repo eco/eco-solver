@@ -1,7 +1,7 @@
 import * as mongoose from 'mongoose'
 
 export class TestDBModel {
-  name: string
+  name!: string
 }
 
 export const testMongooseSchema = new mongoose.Schema({

@@ -48,9 +48,21 @@ RewardDataModelSchema.index({ prover: 1 }, { unique: false })
 RewardDataModelSchema.index({ tokens: 1 }, { unique: false })
 
 RewardDataModelSchema.methods.getHash = function (): Hex {
-  return hashReward(this)
+  return hashReward({
+    creator: this.creator,
+    prover: this.prover,
+    deadline: this.deadline,
+    nativeValue: this.nativeValue,
+    tokens: this.tokens,
+  })
 }
 
 RewardDataModelSchema.methods.getEncoding = function (): Hex {
-  return encodeReward(this)
+  return encodeReward({
+    creator: this.creator,
+    prover: this.prover,
+    deadline: this.deadline,
+    nativeValue: this.nativeValue,
+    tokens: this.tokens,
+  })
 }

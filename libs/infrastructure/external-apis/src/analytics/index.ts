@@ -49,8 +49,11 @@
  * ```
  */
 
-// Core module and configuration exports
-export { AnalyticsModule, ANALYTICS_SERVICE } from '@/analytics/analytics.module'
+// Core module export
+export { AnalyticsModule } from '@/analytics/analytics.module'
+
+// Constants export
+export { ANALYTICS_SERVICE } from '@/analytics/constants'
 
 // Service implementation export
 export { PosthogService } from '@/analytics/posthog.service'

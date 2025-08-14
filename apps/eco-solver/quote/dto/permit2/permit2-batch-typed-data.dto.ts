@@ -17,15 +17,15 @@ export class Permit2BatchTypedDataDTO {
   @ValidateNested()
   @ApiProperty()
   @Type(() => Permit2TypedDataDetailsDTO)
-  details: Permit2TypedDataDetailsDTO[]
+  details!: Permit2TypedDataDetailsDTO[]
 
   @IsNotEmpty()
   @IsEthereumAddress()
   @ApiProperty()
-  spender: Hex
+  spender!: Hex
 
   @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
-  sigDeadline: bigint // string of a UNIX seconds since epoch integer
+  sigDeadline!: bigint // string of a UNIX seconds since epoch integer
 }

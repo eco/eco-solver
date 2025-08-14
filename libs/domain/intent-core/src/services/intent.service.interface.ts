@@ -1,6 +1,10 @@
 import { Hex } from 'viem'
 import { CreateIntentParams, IntentStatus, IntentMetadata } from '../types/intent.types'
-import { FulfillmentRequest, FulfillmentResult, FulfillmentEstimate } from '../types/fulfillment.types'
+import {
+  FulfillmentRequest,
+  FulfillmentResult,
+  FulfillmentEstimate,
+} from '../types/fulfillment.types'
 
 // Domain service interfaces for intent management
 export interface IIntentCreationService {

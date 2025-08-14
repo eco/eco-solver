@@ -5,12 +5,12 @@ import { EcoResponse } from '@/common/eco-response'
 import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
+import { QuoteIntentDataDTO } from './dto/quote.intent.data.dto'
+import { QuoteIntentModel } from './schemas/quote-intent.schema'
+import { QuoteRouteDataModel } from './schemas/quote-route.schema'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
-import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoAnalyticsService } from '@/analytics'
+import { UpdateQuoteParams } from './interfaces/update-quote-params.interface'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 type QuoteQuery = FilterQuery<QuoteIntentModel>
@@ -22,7 +22,7 @@ type QuoteUpdate = UpdateQuery<QuoteIntentModel>
 @Injectable()
 export class QuoteRepository {
   private logger = new Logger(QuoteRepository.name)
-  private quotesConfig: QuotesConfig
+  private quotesConfig!: QuotesConfig
 
   constructor(
     @InjectModel(QuoteIntentModel.name) private quoteIntentModel: Model<QuoteIntentModel>,
@@ -129,7 +129,7 @@ export class QuoteRepository {
         }),
       )
       return { response: record }
-    } catch (ex) {
+    } catch (ex: any) {
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `storeQuoteIntentDataForExecutionType: error storing quote intent`,
@@ -137,7 +137,7 @@ export class QuoteRepository {
             quoteID: quoteModelData.quoteID,
             dAppID: quoteModelData.dAppID,
             intentExecutionType: quoteModelData.intentExecutionType,
-            error: ex.message,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )
@@ -189,7 +189,7 @@ export class QuoteRepository {
           message: `fetchQuoteIntentData: Error fetching quote intent data`,
           properties: {
             query,
-            error: ex.message,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )
@@ -212,7 +212,7 @@ export class QuoteRepository {
           message: `Error checking quote existence`,
           properties: {
             query,
-            error: ex.message,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )
@@ -262,7 +262,7 @@ export class QuoteRepository {
           message: `Error updating quote in database`,
           properties: {
             quoteID: quoteIntentModel.quoteID,
-            error: ex.message,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )

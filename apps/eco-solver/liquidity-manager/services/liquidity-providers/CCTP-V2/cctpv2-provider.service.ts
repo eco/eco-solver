@@ -280,7 +280,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           message: `Failed to fetch CCTP V2 attestation for tx ${transactionHash} on domain ${sourceDomain}`,
           id: quoteId,
         }),
@@ -350,7 +350,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           message: `Failed to fetch CCTP V2 fast transfer fee for route ${sourceDomain}->${destinationDomain}`,
           id: quoteId,
         }),

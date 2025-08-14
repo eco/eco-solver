@@ -23,8 +23,8 @@ export class EventSubscriber implements OnModuleDestroy {
           password: config.redis.password,
         },
         concurrency: 10, // Process up to 10 events concurrently
-        maxStalledCount: 3
-      }
+        maxStalledCount: 3,
+      },
     )
 
     // Set up error handling
@@ -33,9 +33,7 @@ export class EventSubscriber implements OnModuleDestroy {
     })
 
     this.eventWorker.on('failed', (job, error) => {
-      this.logger.error(
-        `Failed to process event ${job?.data?.type} (${job?.id}): ${error.message}`
-      )
+      this.logger.error(`Failed to process event ${job?.data?.type} (${job?.id}): ${error.message}`)
     })
 
     this.eventWorker.on('completed', (job) => {
@@ -46,14 +44,11 @@ export class EventSubscriber implements OnModuleDestroy {
   /**
    * Subscribe to domain events from Redis
    */
-  subscribe<T extends DomainEvent>(
-    eventType: T['type'], 
-    handler: EventHandler<T>
-  ): void {
+  subscribe<T extends DomainEvent>(eventType: T['type'], handler: EventHandler<T>): void {
     if (!this.eventHandlers.has(eventType)) {
       this.eventHandlers.set(eventType, new Set())
     }
-    
+
     this.eventHandlers.get(eventType)!.add(handler as EventHandler)
     this.logger.debug(`Added Redis subscription for ${eventType}`)
   }
@@ -62,10 +57,10 @@ export class EventSubscriber implements OnModuleDestroy {
    * Subscribe to multiple event types with the same handler
    */
   subscribeToMultiple<T extends DomainEvent>(
-    eventTypes: T['type'][], 
-    handler: EventHandler<T>
+    eventTypes: T['type'][],
+    handler: EventHandler<T>,
   ): void {
-    eventTypes.forEach(eventType => {
+    eventTypes.forEach((eventType) => {
       this.subscribe(eventType, handler)
     })
   }
@@ -92,7 +87,7 @@ export class EventSubscriber implements OnModuleDestroy {
 
   private async processEvent<T extends DomainEvent>(event: T): Promise<void> {
     const handlers = this.eventHandlers.get(event.type)
-    
+
     if (!handlers || handlers.size === 0) {
       this.logger.debug(`No handlers registered for event type: ${event.type}`)
       return
@@ -101,13 +96,11 @@ export class EventSubscriber implements OnModuleDestroy {
     this.logger.debug(`Processing event ${event.type} with ${handlers.size} handlers`)
 
     // Execute all handlers for this event type
-    const promises = Array.from(handlers).map(async handler => {
+    const promises = Array.from(handlers).map(async (handler) => {
       try {
         await handler(event)
       } catch (error) {
-        this.logger.error(
-          `Handler failed for event ${event.type} (${event.id}): ${error.message}`
-        )
+        this.logger.error(`Handler failed for event ${event.type} (${event.id}): ${error.message}`)
         throw error // Rethrow to mark job as failed
       }
     })

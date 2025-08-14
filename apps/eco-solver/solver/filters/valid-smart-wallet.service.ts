@@ -9,8 +9,8 @@ import { EcoLogMessage } from '../../common/logging/eco-log-message'
 export class ValidSmartWalletService implements OnModuleInit {
   private logger = new Logger(ValidSmartWalletService.name)
 
-  private entryPointAddress: Hex
-  private factoryAddress: Hex
+  private entryPointAddress!: Hex
+  private factoryAddress!: Hex
   constructor(
     private readonly publicClient: MultichainPublicClientService,
     private readonly ecoConfigService: EcoConfigService,

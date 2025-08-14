@@ -7,7 +7,7 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 describe('QuoteRepository', () => {
   let quoteRepository: QuoteRepository

@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing'
-import { AnalyticsModule, ANALYTICS_SERVICE } from '@/analytics/analytics.module'
+import { AnalyticsModule } from '@/analytics/analytics.module'
+import { ANALYTICS_SERVICE } from '@/analytics/constants'
 import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
 import { PosthogService } from '@/analytics/posthog.service'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'

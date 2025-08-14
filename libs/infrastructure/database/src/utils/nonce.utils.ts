@@ -9,7 +9,7 @@ export function getAtomicNonceVals(key: string): AtomicKeyParams {
   const [address, chainIdStr] = key.split('.')
   return {
     address: address as Hex,
-    chainId: parseInt(chainIdStr, 10)
+    chainId: parseInt(chainIdStr, 10),
   }
 }
 

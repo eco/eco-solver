@@ -43,7 +43,7 @@ import { BalanceService } from '@/balance/balance.service'
 export class LiquidityManagerService implements OnApplicationBootstrap {
   private logger = new Logger(LiquidityManagerService.name)
 
-  private config: LiquidityManagerConfig
+  private config!: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
   private readonly tokensPerWallet: Record<string, TokenConfig[]> = {}
@@ -285,8 +285,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
               error: {
-                message: error.message,
-                stack: error.stack,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
               },
             },
           }),
@@ -353,8 +353,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
               error: {
-                message: fallbackError.message,
-                stack: fallbackError.stack,
+                message: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+                stack: fallbackError instanceof Error ? fallbackError.stack : undefined,
               },
             },
           }),

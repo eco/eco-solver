@@ -15,9 +15,9 @@ import { getAddress as viemGetAddress, Hex } from 'viem'
 @Injectable()
 export class KmsService implements OnModuleInit {
   private logger = new Logger(KmsService.name)
-  private keyID: string
-  wallets: KMSWallets
-  signer: Signer
+  private keyID!: string
+  wallets!: KMSWallets
+  signer!: Signer
   constructor(private readonly ecoConfigService: EcoConfigService) {}
 
   async onModuleInit() {

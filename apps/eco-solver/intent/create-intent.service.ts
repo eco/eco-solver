@@ -7,7 +7,7 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import { getIntentJobId } from "@eco/utils"
+import { getIntentJobId } from '@eco/utils'
 import { Hex } from 'viem'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import {
@@ -23,7 +23,7 @@ import { hashIntent, RouteType } from '@eco/foundation-eco-adapter'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -33,7 +33,7 @@ import { EcoAnalyticsService } from '@/analytics'
 @Injectable()
 export class CreateIntentService implements OnModuleInit {
   private logger = new Logger(CreateIntentService.name)
-  private intentJobConfig: JobsOptions
+  private intentJobConfig!: JobsOptions
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
@@ -220,7 +220,7 @@ export class CreateIntentService implements OnModuleInit {
           message: `Error in createIntentFromIntentInitiation`,
           properties: {
             quoteID,
-            error: ex.message,
+            error: ex instanceof Error ? ex.message : String(ex),
           },
         }),
       )

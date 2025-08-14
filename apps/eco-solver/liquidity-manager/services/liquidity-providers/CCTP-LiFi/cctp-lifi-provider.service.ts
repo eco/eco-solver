@@ -27,8 +27,8 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
   private logger = new Logger(CCTPLiFiProviderService.name)
-  private liquidityManagerQueue: LiquidityManagerQueue
-  private config: CCTPLiFiConfig
+  private liquidityManagerQueue!: LiquidityManagerQueue
+  private config!: CCTPLiFiConfig
 
   constructor(
     private readonly liFiService: LiFiProviderService,
@@ -269,7 +269,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       this.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           id: quote.id,
           message: 'CCTPLiFi execution failed',
           properties: { id: quote.id, quote, walletAddress },
@@ -357,13 +357,13 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       this.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           id,
           message: 'CCTPLiFi: Failed to get quotes for route steps',
           properties: { id },
         }),
       )
-      throw new Error(`Failed to build route context: ${error.message}`)
+      throw new Error(`Failed to build route context: ${error instanceof Error ? error.message : String(error)}`)
     }
 
     // Calculate gas estimation for the route
@@ -545,13 +545,13 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       this.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           id: sourceSwapQuote.id,
           message: 'CCTPLiFi: Source swap failed',
           properties: { id: sourceSwapQuote.id },
         }),
       )
-      throw new Error(`Source swap failed: ${error.message}`)
+      throw new Error(`Source swap failed: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -639,7 +639,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       const result = await this.cctpService.executeWithMetadata(walletAddress, cctpQuote)
 
       return result
-    } catch (error) {
+    } catch (error : any) {
       this.ecoAnalytics.trackError(
         ANALYTICS_EVENTS.LIQUIDITY_MANAGER.CCTP_LIFI_BRIDGE_ERROR,
         error,
@@ -656,7 +656,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
 
       this.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           id: quote.id,
           message: 'CCTPLiFi: CCTP bridge failed',
           properties: { id: quote.id, quote, walletAddress },

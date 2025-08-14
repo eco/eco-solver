@@ -6,37 +6,37 @@ import { Hex } from 'viem'
 @Schema()
 export class WatchEventModel implements ViemEventLog {
   @Prop({ required: true, type: BigInt })
-  sourceChainID: bigint
+  sourceChainID!: bigint
 
   @Prop({ required: true, type: String })
-  sourceNetwork: Network
+  sourceNetwork!: Network
 
   @Prop({ required: true, type: BigInt })
-  blockNumber: bigint
+  blockNumber!: bigint
 
   @Prop({ required: true, type: String })
-  blockHash: Hex
+  blockHash!: Hex
 
   @Prop({ required: true })
-  transactionIndex: number
+  transactionIndex!: number
 
   @Prop({ required: true })
-  removed: boolean
+  removed!: boolean
 
   @Prop({ required: true, type: String })
-  address: Hex
+  address!: Hex
 
   @Prop({ required: true, type: String })
-  data: Hex
+  data!: Hex
 
-  @Prop({ required: true })
-  topics: [] | [Hex, ...Hex[]]
+  @Prop({ type: [String], required: true })
+  topics!: [] | [Hex, ...Hex[]]
 
   @Prop({ required: true, type: String })
-  transactionHash: Hex
+  transactionHash!: Hex
 
   @Prop({ required: true })
-  logIndex: number
+  logIndex!: number
 }
 export const WatchEventSchema = SchemaFactory.createForClass(WatchEventModel)
 WatchEventSchema.index({ sourceChainID: 1 }, { unique: false })

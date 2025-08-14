@@ -20,10 +20,7 @@ export class EventBridgeService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.all([
-      this.eventPublisher.close(),
-      this.eventSubscriber.onModuleDestroy()
-    ])
+    await Promise.all([this.eventPublisher.close(), this.eventSubscriber.onModuleDestroy()])
     this.logger.log('Event Bridge Service destroyed')
   }
 
@@ -37,10 +34,7 @@ export class EventBridgeService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Local Subscription Methods (within same process)
-  subscribeLocal<T extends DomainEvent>(
-    eventType: T['type'], 
-    handler: EventHandler<T>
-  ): string {
+  subscribeLocal<T extends DomainEvent>(eventType: T['type'], handler: EventHandler<T>): string {
     return this.eventPublisher.subscribe(eventType, handler)
   }
 
@@ -49,16 +43,13 @@ export class EventBridgeService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Redis Subscription Methods (cross-process/service)
-  subscribeRedis<T extends DomainEvent>(
-    eventType: T['type'], 
-    handler: EventHandler<T>
-  ): void {
+  subscribeRedis<T extends DomainEvent>(eventType: T['type'], handler: EventHandler<T>): void {
     this.eventSubscriber.subscribe(eventType, handler)
   }
 
   subscribeRedisMultiple<T extends DomainEvent>(
-    eventTypes: T['type'][], 
-    handler: EventHandler<T>
+    eventTypes: T['type'][],
+    handler: EventHandler<T>,
   ): void {
     this.eventSubscriber.subscribeToMultiple(eventTypes, handler)
   }

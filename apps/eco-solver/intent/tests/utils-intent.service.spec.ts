@@ -15,7 +15,7 @@ import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
 import { ValidationChecks } from '@/intent/validation.sevice'
 import { QuoteError } from '@/quote/errors'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 jest.mock('viem', () => {
   return {

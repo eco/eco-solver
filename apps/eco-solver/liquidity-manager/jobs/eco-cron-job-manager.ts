@@ -126,7 +126,7 @@ export class EcoCronJobManager {
           properties: {
             walletAddress,
             queue: queue.name,
-            error: ex.message || ex,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )

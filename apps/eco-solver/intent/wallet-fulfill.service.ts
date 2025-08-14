@@ -31,7 +31,7 @@ import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -118,7 +118,8 @@ export class WalletFulfillService implements IFulfillService {
       return transactionHash
     } catch (e) {
       model.status = 'FAILED'
-      model.receipt = model.receipt ? { previous: model.receipt, current: e } : e
+      // Note: receipt field should only contain transaction receipt, not error objects
+      // Errors are handled through logging and thrown exceptions
 
       this.logger.error(
         EcoLogMessage.withError({

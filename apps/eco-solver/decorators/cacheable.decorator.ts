@@ -14,8 +14,8 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: any[]) {
-      const cacheManager: Cache = this.cacheManager // Injected service
-      const configService: EcoConfigService = this.configService // Injected service
+      const cacheManager: Cache = (this as any).cacheManager // Injected service
+      const configService: EcoConfigService = (this as any).configService // Injected service
       if (opts && !opts.ttl) {
         opts.ttl = configService.getCache().ttl
       } else {

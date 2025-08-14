@@ -24,7 +24,7 @@ import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import * as viem from 'viem'
 
 jest.spyOn(viem, 'verifyTypedData').mockResolvedValue(true)

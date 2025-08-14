@@ -9,5 +9,5 @@ export class QuoteDataDTO {
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => QuoteDataEntryDTO)
-  quoteEntries: QuoteDataEntryDTO[]
+  quoteEntries!: QuoteDataEntryDTO[]
 }

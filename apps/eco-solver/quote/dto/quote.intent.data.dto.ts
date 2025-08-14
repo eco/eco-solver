@@ -15,30 +15,30 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @IsString()
   @IsNotEmpty()
   @ApiProperty()
-  quoteID: string
+  quoteID!: string
 
   @IsNotEmpty()
   @ApiProperty()
-  dAppID: string
+  dAppID!: string
 
   @ApiProperty({ isArray: true, enum: IntentExecutionType.enumKeys })
   @IsArray()
   @IsString({ each: true })
   @IsIn(IntentExecutionType.enumKeys, { each: true })
   @IsNotEmpty()
-  intentExecutionTypes: string[]
+  intentExecutionTypes!: string[]
 
   @IsNotEmpty()
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRouteDataDTO)
-  route: QuoteRouteDataDTO
+  route!: QuoteRouteDataDTO
 
   @IsNotEmpty()
   @ApiProperty()
   @ValidateNested()
   @Type(() => QuoteRewardDataDTO)
-  reward: QuoteRewardDataDTO
+  reward!: QuoteRewardDataDTO
 
   @IsOptional()
   @ValidateNested()

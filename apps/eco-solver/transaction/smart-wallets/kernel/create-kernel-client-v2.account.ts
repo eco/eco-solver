@@ -102,7 +102,7 @@ export async function createKernelAccountClientV2<
     client: publicClient,
     bundlerTransport: parameters.transport,
     chain: parameters.chain!,
-  }).extend(kernelAccountClientActions(ownerClient)) as unknown as KernelAccountClient<
+  }).extend(kernelAccountClientActions(ownerClient) as any) as unknown as KernelAccountClient<
     Transport,
     Chain,
     SmartAccount,

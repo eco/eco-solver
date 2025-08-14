@@ -27,7 +27,7 @@ export function getTransactionTargetData(
   solver: Solver,
   call: CallDataInterface,
 ): TransactionTargetData | null {
-  const targetConfig = solver.targets[call.target as string] as TargetContract
+  const targetConfig = solver.targets[call.target as `0x${string}`] as TargetContract
   if (!targetConfig) {
     //shouldn't happen since we do this.targetsSupported(model, solver) before this call
     throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)

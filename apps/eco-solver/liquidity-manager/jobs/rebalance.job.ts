@@ -60,7 +60,10 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `RebalanceJob: Failed`,
-        properties: { error: error.message, stack: error.stack },
+        properties: {
+          error: error instanceof Error ? error : new Error(String(error)),
+          stack: error.stack,
+        },
       }),
     )
   }

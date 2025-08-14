@@ -23,6 +23,6 @@ const exceptionMap = new Map<number, HttpExceptionConstructor>([
 export class HttpExceptionGenerator {
   createHttpExceptionFromStatus(status: number, ...args: any[]): HttpException {
     const ExceptionClass = exceptionMap.get(status) || HttpException
-    return new ExceptionClass(...args, status)
+    return new ExceptionClass(args[0], status)
   }
 }

@@ -20,7 +20,7 @@ import { ChainsSupported } from '../common/chains/supported'
 @Injectable()
 export class NonceService extends AtomicNonceService<Nonce> implements OnApplicationBootstrap {
   protected logger = new Logger(NonceService.name)
-  private intentJobConfig: JobsOptions
+  private intentJobConfig!: JobsOptions
 
   constructor(
     @InjectModel(Nonce.name) private nonceModel: Model<Nonce>,

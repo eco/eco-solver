@@ -15,7 +15,7 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
@@ -46,9 +46,9 @@ export type IntentValidations = ValidationChecks & {
 @Injectable()
 export class ValidateIntentService implements OnModuleInit {
   private logger = new Logger(ValidateIntentService.name)
-  private intentJobConfig: JobsOptions
-  private MAX_RETRIES: number
-  private RETRY_DELAY_MS: number
+  private intentJobConfig!: JobsOptions
+  private MAX_RETRIES!: number
+  private RETRY_DELAY_MS!: number
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,

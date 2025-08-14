@@ -33,7 +33,7 @@ import { getChainConfig } from '@/eco-configs/utils'
 export class IntentProcessorService implements OnApplicationBootstrap {
   private logger = new Logger(IntentProcessorService.name)
 
-  private config: {
+  private config!: {
     sendBatch: SendBatchConfig
     hyperlane: HyperlaneConfig
     withdrawals: WithdrawsConfig
@@ -496,7 +496,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       this.logger.warn(
         EcoLogMessage.fromDefault({
           message: `${IntentProcessorService.name}.estimateMessageGas(): Failed to estimate message gas.`,
-          properties: { error: error.message },
+          properties: { error: (error as Error).message },
         }),
       )
 

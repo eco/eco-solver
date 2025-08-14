@@ -49,23 +49,26 @@
  * ```
  */
 
-// Core module and configuration exports
-export { AnalyticsModule, ANALYTICS_SERVICE } from '@/analytics/analytics.module'
+// Core module export
+export { AnalyticsModule } from './analytics.module'
+
+// Constants export
+export { ANALYTICS_SERVICE } from './constants'
 
 // Service implementation export
-export { PosthogService } from '@/analytics/posthog.service'
+export { PosthogService } from './posthog.service'
 
 // Interface and type exports
-export { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
+export { AnalyticsService, AnalyticsConfig } from './analytics.interface'
 
 // Utility exports
-export { getCurrentEnvironment } from '@/analytics/utils'
+export { getCurrentEnvironment } from './utils'
 
 // Error handling exports
-export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
+export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from './errors'
 
-// Centralized analytics service export
-export { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+// NOTE: EcoAnalyticsService is NOT exported from this barrel to prevent circular dependencies
+// Import directly: import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 // Event constants export
-export { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+export { ANALYTICS_EVENTS } from './events.constants'

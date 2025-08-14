@@ -7,10 +7,10 @@ export class PermitSignatureDTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  signature: Hex
+  signature!: Hex
 
   @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
-  deadline: bigint // UNIX seconds since epoch integer
+  deadline!: bigint // UNIX seconds since epoch integer
 }

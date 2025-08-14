@@ -20,28 +20,28 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
-  creator: Hex
+  creator!: Hex
 
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
-  prover: Hex
+  prover!: Hex
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  deadline: bigint
+  deadline!: bigint
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  nativeValue: bigint
+  nativeValue!: bigint
 
   @IsArray()
   @ValidateNested()
   @ApiProperty()
   @Type(() => QuoteRewardTokensDTO)
-  tokens: QuoteRewardTokensDTO[]
+  tokens!: QuoteRewardTokensDTO[]
 
   hasToken?(token: Hex): boolean {
     return this.tokens.some((t) => t.token.toLowerCase() === token.toLowerCase())
@@ -63,12 +63,12 @@ export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => getAddress(value))
-  token: Hex
+  token!: Hex
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
-  amount: bigint
+  amount!: bigint
 }
 type QuoteRewardType = RewardType
 export type QuoteRewardDataType = QuoteRewardType

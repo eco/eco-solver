@@ -23,12 +23,12 @@ import { SigningService } from '../../request-signing/signing.service'
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
   private logger = new EcoLogger(SolverRegistrationService.name)
-  private serverConfig: ServerConfig
-  private solverRegistrationConfig: SolverRegistrationConfig
-  private quotesConfig: QuotesConfig
-  private solversConfig: Record<number, Solver>
-  private signingService: SigningService
-  private apiRequestExecutor: APIRequestExecutor
+  private serverConfig!: ServerConfig
+  private solverRegistrationConfig!: SolverRegistrationConfig
+  private quotesConfig!: QuotesConfig
+  private solversConfig!: Record<number, Solver>
+  private signingService!: SigningService
+  private apiRequestExecutor!: APIRequestExecutor
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -113,7 +113,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
         EcoLogMessage.fromDefault({
           message: `Exception registering solver`,
           properties: {
-            error: ex.message,
+            error: ex instanceof Error ? ex : new Error(String(ex)),
           },
         }),
       )

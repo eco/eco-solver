@@ -16,7 +16,7 @@ export class GaslessIntentDataDTO {
   @IsNotEmpty()
   @ApiProperty()
   @IsEthereumAddress()
-  funder: Hex
+  funder!: Hex
 
   @IsOptional()
   @ValidateNested()

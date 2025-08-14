@@ -11,7 +11,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 function getFeeConfig(): FeeConfigType {
   return {

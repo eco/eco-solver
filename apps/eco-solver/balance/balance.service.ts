@@ -11,7 +11,7 @@ import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 /**

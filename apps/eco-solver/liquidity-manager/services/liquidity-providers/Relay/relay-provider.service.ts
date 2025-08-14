@@ -85,7 +85,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       this.logger.error(
         EcoLogMessage.withError({
           message: 'Failed to get Relay quote',
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           properties: {
             tokenIn: `${tokenIn.config.address} (${tokenIn.chainId})`,
             tokenOut: `${tokenOut.config.address} (${tokenOut.chainId})`,
@@ -143,7 +143,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       this.logger.error(
         EcoLogMessage.withError({
           message: 'Failed to execute Relay quote',
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           properties: {
             tokenIn: `${quote.tokenIn.config.address} (${quote.tokenIn.chainId})`,
             tokenOut: `${quote.tokenOut.config.address} (${quote.tokenOut.chainId})`,

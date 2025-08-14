@@ -5,9 +5,9 @@ import { Hex } from 'viem'
 @Schema({ timestamps: true })
 export class TokenAmountDataModel implements RewardTokensInterface {
   @Prop({ required: true, type: String })
-  token: Hex
+  token!: Hex
   @Prop({ required: true, type: BigInt })
-  amount: bigint
+  amount!: bigint
 }
 
 export const TokenAmountDataSchema = SchemaFactory.createForClass(TokenAmountDataModel)

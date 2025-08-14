@@ -26,7 +26,7 @@ export function lowercaseKeys(obj: Record<string, any>): Record<string, any> | u
     return undefined
   }
 
-  return Object.entries(obj).reduce((carry, [key, value]) => {
+  return Object.entries(obj).reduce((carry: Record<string, any>, [key, value]) => {
     carry[key.toLowerCase()] = value
 
     return carry

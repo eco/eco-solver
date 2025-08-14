@@ -7,13 +7,13 @@ import { getIntentJobId } from '@/common/utils/strings'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { PublicClient, zeroHash } from 'viem'
+import { Log, PublicClient, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { entries } from 'lodash'
 import { InboxAbi } from '@eco/foundation-eco-adapter'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { FulfillmentLog } from '@/contracts/inbox'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
@@ -88,14 +88,15 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     })
   }
 
-  addJob(solver?: Solver) {
-    return async (logs: FulfillmentLog[]) => {
+  addJob(solver: Solver, opts?: { doValidation?: boolean }) {
+    return async (logs: Log[]) => {
       // Track batch of fulfillment events detected
       if (logs.length > 0 && solver) {
         this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
       }
 
-      for (const log of logs) {
+      for (const logEntry of logs) {
+        const log = logEntry as FulfillmentLog
         // bigint as it can't serialize to JSON
         const fulfillment = convertBigIntsToStrings(log)
         const jobId = getIntentJobId(

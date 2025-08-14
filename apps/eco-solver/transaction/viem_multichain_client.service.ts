@@ -11,7 +11,7 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
 {
   readonly instances: Map<number, T> = new Map()
   protected supportedAlchemyChainIds: number[] = []
-  protected pollingInterval: number
+  protected pollingInterval!: number
 
   constructor(readonly ecoConfigService: EcoConfigService) {}
 

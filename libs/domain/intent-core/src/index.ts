@@ -1,17 +1,17 @@
-// Domain Types
+// Domain Types - explicit to prevent circular dependencies
 export * from './types/intent.types'
 export * from './types/fulfillment.types'
 
-// Domain Models
-export * from './models/intent.model'
+// Domain Models - explicit to prevent circular dependencies
+export { IntentModel } from './models/intent.model'
 
-// Domain Service Interfaces
-export * from './services/intent.service.interface'
+// Domain Service Interfaces - explicit to prevent circular dependencies
+export { IntentServiceInterface } from './services/intent.service.interface'
 
-// Domain Services (Implementations)
-export * from './services/intent-creation.service'
+// Domain Services (Implementations) - explicit to prevent circular dependencies
+export { IntentCreationService } from './services/intent-creation.service'
 
-// Domain Utilities
+// Domain Utilities - explicit to prevent circular dependencies
 export * from './utils/intent.utils'
 
 // Re-exports of commonly used types from eco-adapter

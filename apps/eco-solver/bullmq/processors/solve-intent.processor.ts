@@ -10,7 +10,7 @@ import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Injectable()

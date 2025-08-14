@@ -23,13 +23,13 @@ export class IntentSourceModel {
   event?: WatchEventModel
 
   @Prop({ required: true, type: IntentSourceDataSchema })
-  intent: IntentDataModel
+  intent!: IntentDataModel
 
   @Prop({ type: Object })
-  receipt: GetTransactionReceiptReturnType
+  receipt?: GetTransactionReceiptReturnType
 
   @Prop({ required: true, type: String })
-  status: IntentSourceStatus
+  status!: IntentSourceStatus
 
   static getSource(intentSourceModel: IntentSourceModel): bigint {
     return intentSourceModel.intent.route.source

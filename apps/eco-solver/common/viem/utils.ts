@@ -6,10 +6,13 @@ import { getAddress, Hex } from 'viem'
  * @returns {Object}
  */
 export function addressKeys(obj: Record<Hex, any>): Record<Hex, any> {
-  return Object.entries(obj).reduce((carry, [key, value]) => {
-    carry[getAddress(key)] = value
-    return carry
-  }, {})
+  return Object.entries(obj).reduce(
+    (carry: Record<Hex, any>, [key, value]) => {
+      carry[getAddress(key)] = value
+      return carry
+    },
+    {} as Record<Hex, any>,
+  )
 }
 
 /**

@@ -12,7 +12,7 @@ import { Log, PublicClient } from 'viem'
 import { IntentSourceAbi } from '@eco/foundation-eco-adapter'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
@@ -98,13 +98,14 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   }
 
   addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
-    return async (logs: IntentCreatedLog[]) => {
+    return async (logs: Log[]) => {
       // Track batch of events detected
       if (logs.length > 0) {
         this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
       }
 
-      for (const log of logs) {
+      for (const logEntry of logs) {
+        const log = logEntry as IntentCreatedLog
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
 

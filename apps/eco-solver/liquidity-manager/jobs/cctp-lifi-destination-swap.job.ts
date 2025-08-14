@@ -119,7 +119,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
             cctpTxHash: job.data.cctpTransactionHash,
             messageHash: job.data.messageHash,
             usdcAmount: destinationSwapQuote.fromAmount,
-            error: error.message,
+            error: error instanceof Error ? error : new Error(String(error)),
             timestamp: new Date().toISOString(),
             retryCount: job.data.retryCount || 0,
             attemptsMade: job.attemptsMade,
@@ -130,7 +130,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
 
       processor.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           message: 'CCTPLiFi: Destination swap execution failed',
           id,
           properties: {

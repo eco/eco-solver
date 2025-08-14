@@ -60,6 +60,12 @@
         "jestConfig": "apps/eco-solver/jest.config.ts",
         "passWithNoTests": true
       }
+    },
+    "circular-deps": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "madge --circular --extensions ts,js --exclude 'node_modules|dist|coverage|tmp|.nx' --ts-config tsconfig.base.json apps/eco-solver/"
+      }
     }
   },
   "tags": ["type:app"]

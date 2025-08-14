@@ -27,15 +27,15 @@ export class IntentUtils {
     if (params.deadline <= BigInt(Math.floor(Date.now() / 1000))) {
       return false // Deadline in the past
     }
-    
+
     if (params.rewardTokens.length === 0 && params.nativeValue === 0n) {
       return false // No rewards
     }
-    
+
     if (params.calls.length === 0) {
       return false // No calls to execute
     }
-    
+
     return true
   }
 
@@ -45,7 +45,7 @@ export class IntentUtils {
   static isEconomicallyFeasible(intent: IntentModel, estimatedGasCost: bigint): boolean {
     const totalRewards = intent.getTotalRewardValue()
     const minProfitMargin = totalRewards / 10n // 10% minimum margin
-    
+
     return totalRewards > estimatedGasCost + minProfitMargin
   }
 

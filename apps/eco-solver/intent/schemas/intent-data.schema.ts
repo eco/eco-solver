@@ -42,7 +42,7 @@ export class IntentDataModel implements IntentType {
   @Prop({ required: true })
   logIndex: number
 
-  @Prop({ required: false })
+  @Prop({ type: String, required: false })
   funder?: Hex
 
   constructor(params: CreateIntentDataModelParams) {
@@ -163,9 +163,17 @@ IntentSourceDataSchema.methods.getHash = function (): {
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  const intentData: IntentType = {
+    route: this.route,
+    reward: this.reward
+  }
+  return hashIntent(intentData)
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  const intentData: IntentType = {
+    route: this.route,
+    reward: this.reward
+  }
+  return encodeIntent(intentData)
 }

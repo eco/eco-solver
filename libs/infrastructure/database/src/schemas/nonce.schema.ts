@@ -6,22 +6,22 @@ import { Hex } from 'viem'
 @Schema({ timestamps: true })
 export class Nonce {
   @Prop({ required: true, unique: true })
-  key: string
+  key!: string
 
   @Prop({ required: true, default: 0 })
-  nonce: number
+  nonce!: number
 
   @Prop({ required: true })
-  chainID: number
+  chainID!: number
 
-  @Prop({ required: true })
-  address: Hex
-
-  @Prop({ required: true, default: now() })
-  createdAt: Date
+  @Prop({ type: String, required: true })
+  address!: Hex
 
   @Prop({ required: true, default: now() })
-  updatedAt: Date
+  createdAt!: Date
+
+  @Prop({ required: true, default: now() })
+  updatedAt!: Date
 
   toString(): string {
     return `${this.key}:${this.nonce}`

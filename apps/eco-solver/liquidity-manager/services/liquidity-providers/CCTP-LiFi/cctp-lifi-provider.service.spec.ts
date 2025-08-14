@@ -10,7 +10,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { createMock } from '@golevelup/ts-jest'
 
 describe('CCTPLiFiProviderService', () => {

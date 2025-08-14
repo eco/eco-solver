@@ -19,7 +19,7 @@ import { QuoteErrorsInterface } from '@/quote/errors'
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
 export class IntentInitiationController implements OnModuleInit {
   private logger = new Logger(IntentInitiationController.name)
-  private intentInitiationService: IntentInitiationService
+  private intentInitiationService!: IntentInitiationService
 
   constructor(private readonly moduleRef: ModuleRef) {}
 

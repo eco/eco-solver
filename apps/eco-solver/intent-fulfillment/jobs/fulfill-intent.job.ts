@@ -83,7 +83,7 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
         message: `${FulfillIntentJobManager.name}: Failed`,
         properties: {
           job: { id: job.id, data: deserialize(job.data) },
-          error: error.message,
+          error: error instanceof Error ? error : new Error(String(error)),
         },
       }),
     )

@@ -25,6 +25,10 @@
     "lint": {
       "inputs": ["default"],
       "cache": true
+    },
+    "circular-deps": {
+      "inputs": ["default"],
+      "cache": true
     }
   }
 }

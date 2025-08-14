@@ -3,7 +3,7 @@ import * as crypto from 'crypto'
 import mongoose from 'mongoose'
 
 export class DBTestUtils {
-  private connection: mongoose.Connection
+  private connection!: mongoose.Connection
 
   getRandomString(len: number): string {
     return crypto.randomBytes(len / 2).toString('hex')

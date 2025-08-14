@@ -16,7 +16,7 @@ import { RewardDataModel } from '../schemas/reward-data.schema'
 import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 jest.mock('viem', () => {
   return {

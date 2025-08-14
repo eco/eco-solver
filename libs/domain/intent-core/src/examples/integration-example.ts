@@ -5,18 +5,18 @@
 
 import { Injectable } from '@nestjs/common'
 import { Hex } from 'viem'
-import { 
-  IntentModel, 
-  IntentUtils, 
+import {
+  IntentModel,
+  IntentUtils,
   IntentCreationService,
   CreateIntentParams,
   IIntentFulfillmentService,
   FulfillmentRequest,
-  FulfillmentResult
+  FulfillmentResult,
 } from '@eco/domain-intent-core'
 
 /**
- * Example of how an existing service would be refactored 
+ * Example of how an existing service would be refactored
  * to use the domain library
  */
 @Injectable()
@@ -36,17 +36,17 @@ export class RefactoredIntentService {
   }> {
     // Use domain service for creation
     const hash = await this.intentCreationService.createIntent(params)
-    
+
     // Use domain utilities for job ID generation
     const jobId = IntentUtils.generateJobId('intent-creation', hash, params.logIndex)
-    
+
     // Get cost estimation
     const estimatedCost = await this.intentCreationService.estimateCreationCost(params)
-    
+
     return {
       hash,
       jobId,
-      estimatedCost
+      estimatedCost,
     }
   }
 
@@ -60,12 +60,12 @@ export class RefactoredIntentService {
     totalRewards: bigint
   }> {
     const intent = new IntentModel(params)
-    
+
     return {
       identifier: IntentUtils.getIntentIdentifier(intent),
       canBeFulfilled: intent.canBeFulfilled(),
       timeToExpiry: IntentUtils.getTimeToExpiry(intent),
-      totalRewards: intent.getTotalRewardValue()
+      totalRewards: intent.getTotalRewardValue(),
     }
   }
 
@@ -82,9 +82,7 @@ export class RefactoredIntentService {
  * Example controller integration
  */
 export class IntentControllerExample {
-  constructor(
-    private readonly refactoredIntentService: RefactoredIntentService
-  ) {}
+  constructor(private readonly refactoredIntentService: RefactoredIntentService) {}
 
   async createIntentEndpoint(createParams: CreateIntentParams) {
     try {
@@ -96,20 +94,20 @@ export class IntentControllerExample {
 
       // Create the intent
       const result = await this.refactoredIntentService.createIntent(createParams)
-      
+
       // Get additional info for response
       const info = await this.refactoredIntentService.getIntentInfo(createParams)
-      
+
       return {
         success: true,
         data: {
           ...result,
-          ...info
-        }
+          ...info,
+        },
       }
     } catch (error) {
       return {
-        error: error.message
+        error: error instanceof Error ? error : new Error(String(error)),
       }
     }
   }

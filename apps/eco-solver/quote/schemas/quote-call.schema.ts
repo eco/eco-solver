@@ -5,11 +5,11 @@ import { Hex } from 'viem'
 @Schema({ timestamps: true })
 export class QuoteRouteCallDataModel implements CallDataInterface {
   @Prop({ required: true, type: String })
-  target: Hex
+  target!: Hex
   @Prop({ required: true, type: String })
-  data: Hex
+  data!: Hex
   @Prop({ required: true, type: BigInt })
-  value: bigint
+  value!: bigint
 }
 
 export const QuoteRouteCallDataSchema = SchemaFactory.createForClass(QuoteRouteCallDataModel)

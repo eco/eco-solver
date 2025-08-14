@@ -93,7 +93,9 @@ export async function createKernelAccountClient<
 
   walletClient.kernelAccount = kernelAccount as any
   walletClient.kernelAccountAddress = kernelAccount.address
-  walletClient = walletClient.extend(KernelAccountActions).extend(publicActions) as any
+  walletClient = (walletClient.extend(KernelAccountActions as any) as any).extend(
+    publicActions,
+  ) as any
 
   //conditionally deploys kernel account if it doesn't exist
   const args = await walletClient.deployKernelAccount()

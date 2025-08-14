@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { NestExpressApplication } from '@nestjs/platform-express'
-import { EcoConfigService } from './eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
 import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'

@@ -150,7 +150,7 @@ export class LiFiAssetCacheManager {
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withError({
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           message: 'LiFi: Failed to initialize asset cache',
         }),
       )
@@ -244,7 +244,7 @@ export class LiFiAssetCacheManager {
         lastError = error as Error
         this.logger.warn(
           EcoLogMessage.withError({
-            error,
+            error: error instanceof Error ? error : new Error(String(error)),
             message: 'LiFi: Failed to fetch supported assets',
             properties: {
               attempt,
@@ -423,7 +423,7 @@ export class LiFiAssetCacheManager {
       } catch (error) {
         this.logger.error(
           EcoLogMessage.withError({
-            error,
+            error: error instanceof Error ? error : new Error(String(error)),
             message: 'LiFi: Failed to refresh asset cache on schedule',
           }),
         )

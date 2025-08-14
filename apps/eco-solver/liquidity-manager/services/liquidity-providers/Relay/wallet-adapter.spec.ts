@@ -1,5 +1,6 @@
 import { publicActions } from 'viem'
 import { adaptKernelWallet } from './wallet-adapter'
+import { AdaptedWallet } from '@reservoir0x/relay-sdk'
 
 describe('adaptKernelWallet', () => {
   // Mock KernelAccountClient
@@ -20,7 +21,7 @@ describe('adaptKernelWallet', () => {
   const mockSwitchChainFn = jest.fn().mockImplementation(() => Promise.resolve(mockKernelClient))
 
   // Store the adapted wallet
-  let adaptedWallet
+  let adaptedWallet: AdaptedWallet
 
   beforeEach(() => {
     jest.clearAllMocks()

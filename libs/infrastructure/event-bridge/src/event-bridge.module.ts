@@ -15,18 +15,18 @@ export class EventBridgeModule {
       providers: [
         {
           provide: 'EVENT_BRIDGE_CONFIG',
-          useValue: options
+          useValue: options,
         },
         {
           provide: EventBridgeService,
           useFactory: (config: EventPublisherConfig) => {
             return new EventBridgeService(config)
           },
-          inject: ['EVENT_BRIDGE_CONFIG']
-        }
+          inject: ['EVENT_BRIDGE_CONFIG'],
+        },
       ],
       exports: [EventBridgeService],
-      global: options.global !== false
+      global: options.global !== false,
     }
   }
 
@@ -40,18 +40,18 @@ export class EventBridgeModule {
         {
           provide: 'EVENT_BRIDGE_CONFIG',
           useFactory: options.useFactory,
-          inject: options.inject || []
+          inject: options.inject || [],
         },
         {
           provide: EventBridgeService,
           useFactory: (config: EventPublisherConfig) => {
             return new EventBridgeService(config)
           },
-          inject: ['EVENT_BRIDGE_CONFIG']
-        }
+          inject: ['EVENT_BRIDGE_CONFIG'],
+        },
       ],
       exports: [EventBridgeService],
-      global: true
+      global: true,
     }
   }
 }

@@ -9,11 +9,11 @@ export class SolverRegistrationDTO {
   @IsString({ each: true })
   @IsIn(IntentExecutionType.enumKeys, { each: true })
   @IsNotEmpty()
-  intentExecutionTypes: string[]
+  intentExecutionTypes!: string[]
 
   @ApiProperty()
   @IsNotEmpty()
-  crossChainRoutes: CrossChainRoutesDTO
+  crossChainRoutes!: CrossChainRoutesDTO
 
   @IsOptional()
   @IsBoolean()
@@ -23,10 +23,10 @@ export class SolverRegistrationDTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  quotesUrl: string
+  quotesUrl!: string
 
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  receiveSignedIntentUrl: string
+  receiveSignedIntentUrl!: string
 }

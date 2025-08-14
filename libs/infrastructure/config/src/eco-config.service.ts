@@ -47,7 +47,7 @@ export class EcoConfigService {
   private logger = new Logger(EcoConfigService.name)
   private externalConfigs: any = {}
   private ecoConfig: config.IConfig
-  private ecoChains: EcoChains
+  private ecoChains!: EcoChains
 
   constructor(private readonly sources: ConfigSource[]) {
     this.sources.reduce((prev, curr) => {

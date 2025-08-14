@@ -12,7 +12,7 @@ import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
   private logger = new Logger(StargateProviderService.name)
-  private walletAddress: string
+  private walletAddress!: string
   private chainKeyMap: Record<number, string> = {}
 
   constructor(
@@ -109,7 +109,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       this.logger.error(
         EcoLogMessage.withError({
           message: 'Failed to get Stargate route',
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           properties: {
             fromToken: tokenIn.config.address,
             toToken: tokenOut.config.address,
@@ -199,7 +199,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         this.logger.error(
           EcoLogMessage.withError({
             message: 'Failed to execute Stargate transfer',
-            error,
+            error: error instanceof Error ? error : new Error(String(error)),
             properties: {
               quote,
               step,
@@ -285,7 +285,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       this.logger.error(
         EcoLogMessage.withError({
           message: 'Failed to fetch Stargate chain keys, using fallback values',
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
         }),
       )
 

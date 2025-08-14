@@ -16,8 +16,8 @@ import * as _ from 'lodash'
 @Injectable()
 export class PermitProcessor implements OnModuleInit {
   private logger = new Logger(PermitProcessor.name)
-  private kernelAccountClientService: KernelAccountClientService
-  private permitTxBuilder: PermitTxBuilder
+  private kernelAccountClientService!: KernelAccountClientService
+  private permitTxBuilder!: PermitTxBuilder
 
   constructor(private readonly moduleRef: ModuleRef) {}
 

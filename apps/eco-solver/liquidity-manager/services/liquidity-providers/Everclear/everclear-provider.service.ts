@@ -23,7 +23,7 @@ import { erc20Abi } from 'viem'
 @Injectable()
 export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {
   private logger = new Logger(EverclearProviderService.name)
-  private config: EverclearConfig
+  private config!: EverclearConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
   constructor(
@@ -267,7 +267,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       this.logger.error(
         EcoLogMessage.withErrorAndId({
           message: 'Everclear: transaction failed',
-          error,
+          error: error instanceof Error ? error : new Error(String(error)),
           id,
           properties: { txRequest },
         }),

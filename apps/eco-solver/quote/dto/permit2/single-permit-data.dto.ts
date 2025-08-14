@@ -8,5 +8,5 @@ export class SinglePermitDataDTO {
   @ApiProperty()
   @ValidateNested()
   @Type(() => Permit2SingleTypedDataDTO)
-  typedData: Permit2SingleTypedDataDTO
+  typedData!: Permit2SingleTypedDataDTO
 }

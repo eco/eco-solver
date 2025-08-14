@@ -13,15 +13,15 @@ import { Hex } from 'viem'
 @Schema({ timestamps: true })
 export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   @Prop({ required: true, type: BigInt })
-  source: bigint
+  source!: bigint
   @Prop({ required: true, type: BigInt })
-  destination: bigint
+  destination!: bigint
   @Prop({ required: true, type: String })
-  inbox: Hex
+  inbox!: Hex
   @Prop({ required: true, type: [TokenAmountDataSchema] })
-  tokens: TokenAmountDataModel[]
+  tokens!: TokenAmountDataModel[]
   @Prop({ required: true, type: [QuoteRouteCallDataSchema] })
-  calls: QuoteRouteCallDataModel[]
+  calls!: QuoteRouteCallDataModel[]
 }
 
 export const QuoteRouteDataSchema = SchemaFactory.createForClass(QuoteRouteDataModel)

@@ -4,7 +4,7 @@
 // Chains functionality
 export * from './chains'
 
-// Routes functionality  
+// Routes functionality
 export * from './routes'
 
 // KMS functionality
@@ -19,20 +19,20 @@ export {
 export {
   // Route ABIs and utilities
   IntentSourceAbi,
-  InboxAbi, 
+  InboxAbi,
   IProverAbi,
   IMessageBridgeProverAbi,
-  
+
   // Route types
   IntentType,
   RouteType,
   RewardType,
   EcoChainConfig,
   EcoProtocolAddresses,
-  
+
   // Hashing and encoding utilities
   hashIntent,
-  hashRoute, 
+  hashRoute,
   hashReward,
   encodeIntent,
   encodeRoute,

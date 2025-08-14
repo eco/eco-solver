@@ -25,7 +25,7 @@ import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -35,8 +35,8 @@ export const BASE_DECIMALS: number = 6
 @Injectable()
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
-  private intentConfigs: IntentConfig
-  private whitelist: WhitelistFeeRecord
+  private intentConfigs!: IntentConfig
+  private whitelist!: WhitelistFeeRecord
 
   constructor(
     private readonly balanceService: BalanceService,
@@ -565,7 +565,7 @@ export class FeeService implements OnModuleInit {
       const nativeCalls = this.getNormalizedNativeCalls(quote, solver.chainID)
       calls.push(...nativeCalls)
     } catch (e) {
-      error = e
+      error = e as Error
     }
 
     return { calls, error }

@@ -29,14 +29,14 @@ export class EventPublisher {
       },
       defaultJobOptions: {
         removeOnComplete: 100, // Keep last 100 completed jobs
-        removeOnFail: 50,      // Keep last 50 failed jobs  
+        removeOnFail: 50, // Keep last 50 failed jobs
         attempts: config.retryAttempts || 3,
         backoff: {
           type: 'exponential',
-          delay: 2000
-        }
+          delay: 2000,
+        },
         // TTL is handled at the Redis level, not through BullMQ job options
-      }
+      },
     })
   }
 
@@ -62,16 +62,16 @@ export class EventPublisher {
    * Publish multiple events as a batch
    */
   async publishBatch<T extends DomainEvent>(events: T[]): Promise<void> {
-    const jobs = events.map(event => ({
+    const jobs = events.map((event) => ({
       name: event.type,
       data: event,
       opts: {
-        jobId: event.id
-      }
+        jobId: event.id,
+      },
     }))
 
     await this.eventQueue.addBulk(jobs)
-    
+
     // Also emit to local subscribers
     for (const event of events) {
       await this.emitToLocalSubscribers(event)
@@ -83,18 +83,15 @@ export class EventPublisher {
   /**
    * Subscribe to events locally (within the same process)
    */
-  subscribe<T extends DomainEvent>(
-    eventType: T['type'], 
-    handler: EventHandler<T>
-  ): string {
+  subscribe<T extends DomainEvent>(eventType: T['type'], handler: EventHandler<T>): string {
     const subscriptionId = randomUUID()
-    
+
     if (!this.subscribers.has(eventType)) {
       this.subscribers.set(eventType, new Set())
     }
-    
+
     this.subscribers.get(eventType)!.add(handler as EventHandler)
-    
+
     this.logger.debug(`Added local subscription for ${eventType}: ${subscriptionId}`)
     return subscriptionId
   }
@@ -125,13 +122,11 @@ export class EventPublisher {
       return
     }
 
-    const promises = Array.from(handlers).map(async handler => {
+    const promises = Array.from(handlers).map(async (handler) => {
       try {
         await handler(event)
       } catch (error) {
-        this.logger.error(
-          `Error in local event handler for ${event.type}: ${error.message}`
-        )
+        this.logger.error(`Error in local event handler for ${event.type}: ${error.message}`)
         // Don't rethrow to prevent one failing handler from affecting others
       }
     })
@@ -142,18 +137,14 @@ export class EventPublisher {
   private async publishToRedis<T extends DomainEvent>(event: T): Promise<void> {
     await this.eventQueue.add(event.type, event, {
       jobId: event.id,
-      priority: this.getEventPriority(event.type)
+      priority: this.getEventPriority(event.type),
     })
   }
 
   private getEventPriority(eventType: string): number {
     // Higher priority for critical events
-    const highPriorityEvents = [
-      'intent.fulfilled',
-      'balance.low', 
-      'job.failed'
-    ]
-    
+    const highPriorityEvents = ['intent.fulfilled', 'balance.low', 'job.failed']
+
     return highPriorityEvents.includes(eventType) ? 10 : 5
   }
 

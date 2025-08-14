@@ -10,5 +10,5 @@ export class CrossChainRoutesDTO {
 
   @ApiProperty()
   @IsNotEmpty()
-  crossChainRoutesConfig: CrossChainRoutesConfigDTO
+  crossChainRoutesConfig!: CrossChainRoutesConfigDTO
 }

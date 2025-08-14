@@ -1,8 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
 import { PostHog } from 'posthog-node'
-import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
-import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
-import { convertBigIntsToStrings } from '@/common/viem/utils'
+import { AnalyticsService, AnalyticsConfig } from './analytics.interface'
+import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from './errors'
+import { convertBigIntsToStrings } from '../common/viem/utils'
 
 /**
  * PostHog analytics service implementation for backend event tracking

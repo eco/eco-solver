@@ -29,12 +29,12 @@ import * as _ from 'lodash'
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
   private logger = new EcoLogger(IntentInitiationService.name)
-  private quoteRepository: QuoteRepository
-  private permitProcessor: PermitProcessor
-  private permit2Processor: Permit2Processor
-  private kernelAccountClientService: KernelAccountClientService
-  private createIntentService: CreateIntentService
-  private gaslessIntentdAppIDs: string[]
+  private quoteRepository!: QuoteRepository
+  private permitProcessor!: PermitProcessor
+  private permit2Processor!: Permit2Processor
+  private kernelAccountClientService!: KernelAccountClientService
+  private createIntentService!: CreateIntentService
+  private gaslessIntentdAppIDs!: string[]
 
   constructor(
     private readonly permitValidationService: PermitValidationService,
@@ -74,13 +74,13 @@ export class IntentInitiationService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: `initiateGaslessIntent: error`,
           properties: {
-            error: ex.message,
+            error: ex instanceof Error ? ex.message : String(ex),
           },
         }),
-        ex.stack,
+        ex instanceof Error ? ex.stack : undefined,
       )
 
-      return { error: InternalQuoteError(ex) }
+      return { error: InternalQuoteError(ex as Error) }
     }
   }
 
@@ -198,7 +198,11 @@ export class IntentInitiationService implements OnModuleInit {
         },
       }
     } catch (ex) {
-      return { error: InternalQuoteError(new Error(`Gas estimation failed: ${ex.message}`)) }
+      return {
+        error: InternalQuoteError(
+          new Error(`Gas estimation failed: ${ex instanceof Error ? ex.message : String(ex)}`),
+        ),
+      }
     }
   }
 
@@ -212,7 +216,7 @@ export class IntentInitiationService implements OnModuleInit {
         EcoLogMessage.fromDefault({
           message: `getGasPrice: error`,
           properties: {
-            error: ex.message,
+            error: ex instanceof Error ? ex.message : String(ex),
           },
         }),
       )

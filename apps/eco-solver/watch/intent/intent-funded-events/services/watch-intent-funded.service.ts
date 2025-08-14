@@ -14,7 +14,7 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
@@ -112,8 +112,9 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   }
 
   addJob(source: IntentSource, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void> {
-    return async (logs: IntentFundedLog[]) => {
-      for (const log of logs) {
+    return async (logs: Log[]) => {
+      for (const logEntry of logs) {
+        const log = logEntry as IntentFundedLog
         // Validate the log to ensure it is an IntentFunded event we care about
         if (opts?.doValidation) {
           const isValidLog = await this.isOurIntent(log)
@@ -180,7 +181,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           message: `Error in addIntentFundedEvent ${addIntentFundedEvent.transactionHash}`,
           properties: {
             intentHash: addIntentFundedEvent.transactionHash,
-            error: ex.message,
+            error: ex instanceof Error ? ex.message : String(ex),
           },
         }),
       )
