@@ -16,7 +16,7 @@ import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
-import { Hex } from 'viem'
+import { Hex, isAddressEqual } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -80,6 +80,7 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
  * Flags to skip specific validations
  */
 export interface ValidationFlags {
+  skipProverCheck?: boolean
   skipLimitValidation?: boolean
   skipTransactionValidation?: boolean
   useRouteTokens?: boolean
@@ -118,11 +119,13 @@ export class ValidationService implements OnModuleInit {
     txValidationFn: TxValidationFn = () => true,
     flags?: ValidationFlags,
   ): Promise<ValidationChecks> {
-    const supportedProver = this.supportedProver({
-      prover: intent.reward.prover,
-      source: Number(intent.route.source),
-      destination: Number(intent.route.destination),
-    })
+    const supportedProver =
+      flags?.skipProverCheck ||
+      this.supportedProver({
+        prover: intent.reward.prover,
+        source: Number(intent.route.source),
+        destination: Number(intent.route.destination),
+      })
     const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver, flags?.useRouteTokens)
     const supportedTransaction =
@@ -180,7 +183,8 @@ export class ValidationService implements OnModuleInit {
       .getIntentSources()
       .some(
         (intent) =>
-          intent.chainID === chainID && intent.provers.some((_prover) => _prover == prover),
+          intent.chainID === chainID &&
+          intent.provers.some((_prover) => isAddressEqual(_prover, prover)),
       )
   }
 

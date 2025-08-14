@@ -248,7 +248,7 @@ export class MockEcoConfigService {
         sourceAddress: '0x2020ae689ED3e017450280CEA110d0ef6E640Da4' as Hex,
         inbox: '0x04c816032A076dF65b411Bb3F31c8d569d411ee2' as Hex,
         tokens: [],
-        provers: ['0xb39dca629be804b9e0ec7e6a7802f94f6a7cbb89' as Hex],
+        provers: ['0x0f124aA8F92F47302fCba08b7349AEFEe853Ed8d' as Hex],
       },
       {
         network: 'BASE' as any,
@@ -256,7 +256,7 @@ export class MockEcoConfigService {
         sourceAddress: '0x2020ae689ED3e017450280CEA110d0ef6E640Da4' as Hex,
         inbox: '0x04c816032A076dF65b411Bb3F31c8d569d411ee2' as Hex,
         tokens: [],
-        provers: ['0xb39dca629be804b9e0ec7e6a7802f94f6a7cbb89' as Hex],
+        provers: ['0x0f124aA8F92F47302fCba08b7349AEFEe853Ed8d' as Hex],
       },
     ],
   }
