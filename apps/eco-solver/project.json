@@ -1,0 +1,66 @@
+{
+  "name": "eco-solver",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/eco-solver",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/eco-solver",
+        "main": "apps/eco-solver/main.ts",
+        "tsConfig": "apps/eco-solver/tsconfig.app.json",
+        "assets": ["apps/eco-solver/assets"],
+        "isolatedConfig": true,
+        "webpackConfig": "apps/eco-solver/webpack.config.js"
+      },
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        },
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "sourceMap": false
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "eco-solver:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "eco-solver:build:development"
+        },
+        "production": {
+          "buildTarget": "eco-solver:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/eco-solver/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/eco-solver"],
+      "options": {
+        "jestConfig": "apps/eco-solver/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": ["type:app"]
+}

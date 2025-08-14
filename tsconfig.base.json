@@ -15,6 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@/*": ["apps/eco-solver/*"],
       "@eco/utils": ["libs/shared/utils/src/index.ts"],
       "@eco/shared-types": ["libs/shared/types/src/index.ts"],
       "@eco/shared-dto": ["libs/shared/dto/src/index.ts"],
