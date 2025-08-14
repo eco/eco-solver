@@ -29,7 +29,10 @@ export function multiplyByPercentage(
   if (value > MAX_SAFE_INTERMEDIATE / 10000n) {
     throw new Error('Value too large for safe multiplication')
   }
-  const scale = Number(10n ** BigInt(decimalPrecision)) // Scale to handle decimal precision
-  const basisPoints = BigInt(Math.floor(percentage * scale))
-  return (value * basisPoints) / BigInt(scale)
+  // Keep the scale exact in BigInt
+  const scale = 10n ** BigInt(decimalPrecision)
+  // Use Number only where we must combine with the floating `percentage`
+  const basisPoints = BigInt(Math.floor(percentage * Number(scale)))
+  // Use the exact BigInt scale for division
+  return (value * basisPoints) / scale
 }
