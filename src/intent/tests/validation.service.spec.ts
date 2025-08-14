@@ -682,7 +682,7 @@ describe('ValidationService', () => {
                 address: '0xToken1',
                 balance: 500n, // insufficient
                 decimals: { original: 6, current: 6 },
-              }, 
+              },
             }),
           )
           .mockImplementationOnce(() =>
@@ -691,7 +691,7 @@ describe('ValidationService', () => {
                 address: '0xToken1',
                 balance: 1500n, // sufficient for 1000n requirement
                 decimals: { original: 6, current: 6 },
-              }, 
+              },
             }),
           )
 
@@ -728,7 +728,7 @@ describe('ValidationService', () => {
                 address: '0xToken1',
                 balance: 1500n, // sufficient for 1000n requirement
                 decimals: { original: 6, current: 6 },
-              }, 
+              },
             }),
           )
 
@@ -740,7 +740,11 @@ describe('ValidationService', () => {
 
       it('should return false when solver has insufficient token balance', async () => {
         balanceService.fetchWalletTokenBalances.mockResolvedValue({
-          '0xToken1': { address: '0xToken1', balance: 500000000000000000000n, decimals: { original: 6, current: 18 } }, // insufficient - need 1000 tokens
+          '0xToken1': {
+            address: '0xToken1',
+            balance: 500000000000000000000n,
+            decimals: { original: 6, current: 18 },
+          }, // insufficient - need 1000 tokens
           '0xToken2': {
             address: '0xToken2',
             balance: 2500000000000000000000n, // sufficient - need 2000 tokens

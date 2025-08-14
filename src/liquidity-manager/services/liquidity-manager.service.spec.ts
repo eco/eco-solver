@@ -99,9 +99,18 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10n }, balance: { balance: 100n, decimals: { original: 18, current: 18 } } },
-        { config: { targetBalance: 100n }, balance: { balance: 100n, decimals: { original: 18, current: 18 } } },
-        { config: { targetBalance: 200n }, balance: { balance: 100n, decimals: { original: 18, current: 18 } } },
+        {
+          config: { targetBalance: 10n },
+          balance: { balance: 100n, decimals: { original: 18, current: 18 } },
+        },
+        {
+          config: { targetBalance: 100n },
+          balance: { balance: 100n, decimals: { original: 18, current: 18 } },
+        },
+        {
+          config: { targetBalance: 200n },
+          balance: { balance: 100n, decimals: { original: 18, current: 18 } },
+        },
       ]
 
       liquidityManagerService['config'] = mockConfig

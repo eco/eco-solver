@@ -699,7 +699,7 @@ export class QuoteService implements OnModuleInit {
             amount: amountToFill,
             decimals: originalRouteToken?.decimals
               ? {
-                  original: originalRouteToken.decimals,
+                  original: originalRouteToken.decimals.original,
                   current: BASE_DECIMALS,
                 }
               : undefined,

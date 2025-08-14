@@ -39,14 +39,7 @@ describe('TokenDecimalsInterceptor', () => {
           const originalDecimals =
             token.token === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 6 : BASE_DECIMALS
 
-          // Don't add decimals field for tokens that already have BASE_DECIMALS
-          if (originalDecimals === BASE_DECIMALS) {
-            return {
-              ...token,
-              // No transformation needed, keep original amount
-            }
-          }
-
+          // Always add decimals field regardless of whether token has BASE_DECIMALS or not
           return {
             ...token,
             amount: BigInt(token.amount) * BigInt(10 ** (BASE_DECIMALS - originalDecimals)),
@@ -131,7 +124,7 @@ describe('TokenDecimalsInterceptor', () => {
         })
       })
 
-      it('should not add decimals field for tokens with default BASE_DECIMALS decimals', () => {
+      it('should add decimals field even for tokens with BASE_DECIMALS (18 decimals)', () => {
         mockRequest.body = {
           route: {
             source: 1,
@@ -143,7 +136,10 @@ describe('TokenDecimalsInterceptor', () => {
 
         interceptor.intercept(mockContext, mockCallHandler)
 
-        expect(mockRequest.body.route.tokens[0].decimals).toBeUndefined()
+        expect(mockRequest.body.route.tokens[0].decimals).toEqual({
+          original: BASE_DECIMALS,
+          current: BASE_DECIMALS,
+        })
       })
     })
 
@@ -162,7 +158,7 @@ describe('TokenDecimalsInterceptor', () => {
         expect(rewardToken.amount).toBe(1000000000000000000n)
       })
 
-      it('should not transform amounts for tokens with default BASE_DECIMALS decimals', () => {
+      it('should not transform amounts for tokens with BASE_DECIMALS decimals but still add decimals field', () => {
         mockRequest.body = {
           route: { source: 1, destination: 137, tokens: [] },
           reward: {
@@ -173,7 +169,13 @@ describe('TokenDecimalsInterceptor', () => {
         interceptor.intercept(mockContext, mockCallHandler)
 
         const rewardToken = mockRequest.body.reward.tokens[0]
-        expect(rewardToken.amount).toBe('1000000000000000000')
+        // Amount should remain the same (18 decimals to 18 decimals = no transformation)
+        expect(rewardToken.amount).toBe(1000000000000000000n)
+        // But decimals field should still be added
+        expect(rewardToken.decimals).toEqual({
+          original: BASE_DECIMALS,
+          current: BASE_DECIMALS,
+        })
       })
     })
   })

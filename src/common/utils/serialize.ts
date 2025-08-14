@@ -34,11 +34,11 @@ function convertBigIntsToSerializable(obj: any): any {
     const hex = '0x' + absValue.toString(16)
     return { type: 'BigInt', hex: isNegative ? '-' + hex : hex } as SerializedBigInt
   }
-  
+
   if (Array.isArray(obj)) {
-    return obj.map(item => convertBigIntsToSerializable(item))
+    return obj.map((item) => convertBigIntsToSerializable(item))
   }
-  
+
   if (obj && typeof obj === 'object') {
     const result: any = {}
     for (const [key, value] of Object.entries(obj)) {
@@ -46,7 +46,7 @@ function convertBigIntsToSerializable(obj: any): any {
     }
     return result
   }
-  
+
   return obj
 }
 
@@ -76,7 +76,7 @@ export function deserialize<T extends object | string>(data: T): Deserialize<T> 
       return data as Deserialize<T>
     }
   }
-  
+
   // If it's an object, check if it's a serialized BigInt
   if (isSerializedBigInt(data)) {
     // Handle negative bigints
@@ -86,13 +86,13 @@ export function deserialize<T extends object | string>(data: T): Deserialize<T> 
     }
     return BigInt(data.hex) as Deserialize<T>
   }
-  
+
   // For other objects, recursively deserialize
   const result: any = Array.isArray(data) ? [] : {}
   for (const [key, value] of Object.entries(data)) {
     if (Array.isArray(value)) {
       // Handle arrays specially
-      result[key] = value.map(item => {
+      result[key] = value.map((item) => {
         if (item && isSerializedBigInt(item)) {
           // Handle negative bigints
           if (item.hex.startsWith('-')) {
@@ -119,7 +119,7 @@ export function deserialize<T extends object | string>(data: T): Deserialize<T> 
       result[key] = value
     }
   }
-  
+
   return result as Deserialize<T>
 }
 

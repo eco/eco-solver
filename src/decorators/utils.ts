@@ -17,22 +17,22 @@ function convertBigIntsToSerializableFormat(obj: any): any {
   if (typeof obj === 'bigint') {
     return { __type: 'BigInt', value: obj.toString() }
   }
-  
+
   if (Array.isArray(obj)) {
-    return obj.map(item => convertBigIntsToSerializableFormat(item))
+    return obj.map((item) => convertBigIntsToSerializableFormat(item))
   }
-  
+
   if (obj && typeof obj === 'object') {
     // Handle Date objects - they should be serialized as ISO strings
     if (obj instanceof Date) {
       return obj.toISOString()
     }
-    
+
     // Handle RegExp objects - they get serialized as empty objects by JSON.stringify
     if (obj instanceof RegExp) {
       return {}
     }
-    
+
     // Handle other objects recursively
     const result: any = {}
     for (const [key, value] of Object.entries(obj)) {
@@ -40,7 +40,7 @@ function convertBigIntsToSerializableFormat(obj: any): any {
     }
     return result
   }
-  
+
   return obj
 }
 

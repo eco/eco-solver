@@ -136,7 +136,9 @@ describe('WalletFulfillService', () => {
         jest.spyOn(accountClientService, 'getClient').mockImplementation((): any =>
           Promise.resolve({
             execute: jest.fn().mockResolvedValue(hash),
-            waitForTransactionReceipt: jest.fn().mockResolvedValue({ transactionHash: hash, status: 'success' }),
+            waitForTransactionReceipt: jest
+              .fn()
+              .mockResolvedValue({ transactionHash: hash, status: 'success' }),
           }),
         )
 

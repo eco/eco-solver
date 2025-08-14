@@ -21,11 +21,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
     QuoteModule,
     WatchModule,
   ],
-  controllers: [
-    BalanceController,
-    QuoteController,
-    IntentInitiationController,
-  ],
+  controllers: [BalanceController, QuoteController, IntentInitiationController],
   providers: [
     {
       provide: APP_INTERCEPTOR,

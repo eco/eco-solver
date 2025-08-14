@@ -18,8 +18,8 @@ export function normalizeBalance(value: BalanceObject, targetDecimal: number): B
   if (!Number.isInteger(value.decimal) || !Number.isInteger(targetDecimal)) {
     throw new Error('Decimal values must be integers')
   }
-  const scaleFactor = BigInt(10 ** Math.abs(targetDecimal - value.decimal))
-
+  const diff = Math.abs(targetDecimal - value.decimal)
+  const scaleFactor = 10n ** BigInt(diff)
   let newBalance: bigint
   if (targetDecimal > value.decimal) {
     newBalance = value.balance * scaleFactor // Scale up
