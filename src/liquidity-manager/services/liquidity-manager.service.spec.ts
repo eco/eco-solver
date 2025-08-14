@@ -99,9 +99,9 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10 }, balance: { balance: 100n } },
-        { config: { targetBalance: 100 }, balance: { balance: 100n } },
-        { config: { targetBalance: 200 }, balance: { balance: 100n } },
+        { config: { targetBalance: 10n }, balance: { balance: 100n, decimals: { original: 18, current: 18 } } },
+        { config: { targetBalance: 100n }, balance: { balance: 100n, decimals: { original: 18, current: 18 } } },
+        { config: { targetBalance: 200n }, balance: { balance: 100n, decimals: { original: 18, current: 18 } } },
       ]
 
       liquidityManagerService['config'] = mockConfig
@@ -120,12 +120,12 @@ describe('LiquidityManagerService', () => {
     it('should return swap quotes if possible', async () => {
       const mockDeficitToken = {
         config: { chainId: 1 },
-        analysis: { diff: 100, balance: { current: 50 }, targetSlippage: { min: 150 } },
+        analysis: { diff: 100n, balance: { current: 50n }, targetSlippage: { min: 150n } },
       }
-      const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200 } }]
+      const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200n } }]
 
       jest
-        .spyOn(liquidityProviderService, 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockResolvedValue([{ amountOut: 100 }] as any)
 
       const result = await liquidityManagerService.getOptimizedRebalancing(
@@ -144,7 +144,7 @@ describe('LiquidityManagerService', () => {
       const mockDeficitToken = {
         config: { chainId: 2, address: '0xDeficit' },
         analysis: {
-          diff: 100,
+          diff: 100n,
           balance: { current: 50n },
           targetSlippage: { min: 150n },
         },
@@ -152,20 +152,20 @@ describe('LiquidityManagerService', () => {
       const mockSurplusTokens = [
         {
           config: { chainId: 1, address: '0xSurplus1' },
-          analysis: { diff: 50 },
+          analysis: { diff: 50n },
         },
         {
           config: { chainId: 3, address: '0xSurplus2' },
-          analysis: { diff: 150 },
+          analysis: { diff: 150n },
         },
       ]
 
       // Make sure the config is set with the mock core tokens
       liquidityManagerService['config'] = mockConfig
 
-      // Setup getQuote to fail for the first surplus token but succeed for the second
+      // Setup getLiquidityQuotes to fail for the first surplus token but succeed for the second
       jest
-        .spyOn(liquidityProviderService, 'getQuote')
+        .spyOn(liquidityProviderService, 'getLiquidityQuotes')
         .mockImplementation((walletAddress: string, tokenIn: any, tokenOut: any) => {
           if (tokenIn.config.address === '0xSurplus1') {
             return Promise.reject(new Error('Route not found'))
@@ -197,18 +197,18 @@ describe('LiquidityManagerService', () => {
       )
 
       // Verify correct calls were made
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledTimes(2)
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalledTimes(2)
       expect(liquidityProviderService.fallback).toHaveBeenCalledTimes(1)
       expect(liquidityProviderService.fallback).toHaveBeenCalledWith(
         mockSurplusTokens[0],
         mockDeficitToken,
-        50, // min of deficit diff and surplus diff
+        50n, // min of deficit diff and surplus diff
       )
 
-      // Verify the result includes only the quote from getQuote
-      // Note: There's a bug in the implementation where fallback quotes are not properly added
-      expect(result).toHaveLength(1)
-      expect(result[0].amountOut).toEqual(80n) // from getQuote for second token
+      // Verify the result includes both the quote from getLiquidityQuotes and fallback
+      expect(result).toHaveLength(2)
+      expect(result[0].amountOut).toEqual(80n) // from getLiquidityQuotes for second token
+      expect(result[1].amountOut).toEqual(40n) // from fallback for first token
     })
 
     it('should stop trying when target balance is reached', async () => {
@@ -216,21 +216,21 @@ describe('LiquidityManagerService', () => {
       const mockDeficitToken = {
         config: { chainId: 2, address: '0xDeficit' },
         analysis: {
-          diff: 100,
+          diff: 100n,
           balance: { current: 50n },
           targetSlippage: { min: 150n },
         },
       }
       const mockSurplusTokens = [
-        { config: { chainId: 1, address: '0xSurplus1' }, analysis: { diff: 50 } },
-        { config: { chainId: 3, address: '0xSurplus2' }, analysis: { diff: 150 } },
+        { config: { chainId: 1, address: '0xSurplus1' }, analysis: { diff: 50n } },
+        { config: { chainId: 3, address: '0xSurplus2' }, analysis: { diff: 150n } },
       ]
 
       // Make sure the config is set with the mock core tokens
       liquidityManagerService['config'] = mockConfig
 
-      // Setup getQuote to return a quote that reaches the target
-      jest.spyOn(liquidityProviderService, 'getQuote').mockResolvedValue([
+      // Setup getLiquidityQuotes to return a quote that reaches the target
+      jest.spyOn(liquidityProviderService, 'getLiquidityQuotes').mockResolvedValue([
         {
           amountIn: 100n,
           amountOut: 100n, // This will make current balance reach the min
@@ -247,7 +247,7 @@ describe('LiquidityManagerService', () => {
       )
 
       // Verify only one call was made and fallback was never called
-      expect(liquidityProviderService.getQuote).toHaveBeenCalledTimes(1)
+      expect(liquidityProviderService.getLiquidityQuotes).toHaveBeenCalledTimes(1)
       expect(fallbackSpy).not.toHaveBeenCalled()
       expect(result).toHaveLength(1)
     })

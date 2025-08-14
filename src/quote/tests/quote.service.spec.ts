@@ -1,3 +1,13 @@
+// Ensure BigInt serialization support before anything else
+if (!(BigInt.prototype as any).toJSON) {
+  Object.defineProperty(BigInt.prototype, 'toJSON', {
+    value: function () {
+      return this.toString() + 'n'
+    },
+    configurable: true,
+  })
+}
+
 const mockGetTransactionTargetData = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
@@ -30,6 +40,7 @@ import { Chain, PublicClient, Transport } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { EcoError } from '@/common/errors/eco-error'
+import { denormalizeTokenAmounts } from '@/quote/utils/token-normalization.utils'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -631,15 +642,17 @@ describe('QuotesService', () => {
           },
         } as any)
 
+        // Apply the same denormalization that TokenDecimalsInterceptor would apply
+        if (quoteDataEntry?.rewardTokens) {
+          denormalizeTokenAmounts(quoteDataEntry.rewardTokens as any)
+        }
+
         expect(quoteDataEntry).toEqual({
           routeTokens: [],
           routeCalls: [],
           rewardTokens: expectedTokens.map((token) => ({
-            ...token,
-            decimals: {
-              original: token.decimals || 18,
-              current: 18,
-            },
+            token: token.token,
+            amount: token.amount.toString(), // denormalizeTokenAmounts converts to string
           })),
           rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),

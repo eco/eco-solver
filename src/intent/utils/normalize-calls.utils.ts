@@ -235,8 +235,9 @@ export function normalizeRouteCalls(
   // Parse the calls into structured format with normalized amounts
   const parsedCalls = parseRouteCalls(calls, chainId, ecoConfigService)
 
-  // Validate parsed calls match tokens array if tokens are provided
-  if (tokens.length > 0) {
+  // Validate parsed calls match tokens array if there are any ERC20 calls
+  // This ensures that if there are ERC20 calls, they must be present in the tokens array
+  if (parsedCalls.erc20Calls.length > 0) {
     validateCallsMatchTokens(parsedCalls, tokens)
   }
 

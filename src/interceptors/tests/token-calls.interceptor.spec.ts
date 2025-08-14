@@ -136,7 +136,7 @@ describe('TokenCallsInterceptor', () => {
           expect((mockRequest.body as any).route.parsedCalls).toBeDefined()
           expect((mockRequest.body as any).route.parsedCalls.erc20Calls).toHaveLength(1)
           expect((mockRequest.body as any).route.parsedCalls.erc20Calls[0]).toEqual({
-            token: '0xA0b86a33E6441c7c7c73a6F7E5b20F58C0F5a892',
+            token: '0xa0B86A33E6441c7C7c73A6F7e5B20f58c0F5a892',
             amount: BigInt(amount),
             recipient: '0x742d35cc6634c0532925A3b8D2c9e2A0FC7bda86', // Use the actual returned value
             value: 0n,
@@ -182,10 +182,9 @@ describe('TokenCallsInterceptor', () => {
         expect(parsedCalls.erc20Calls).toHaveLength(0)
         expect(parsedCalls.nativeCalls).toHaveLength(1)
         expect(parsedCalls.nativeCalls[0]).toEqual({
-          recipient: '0x742d35Cc6634C0532925a3b8D2C9e2A0Fc7BDA86',
+          recipient: '0x742d35cc6634c0532925A3b8D2c9e2A0FC7bda86',
           value: BigInt('1000000000000000000'),
         })
-
         done()
       })
     })

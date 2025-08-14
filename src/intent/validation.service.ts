@@ -475,7 +475,7 @@ export class ValidationService implements OnModuleInit {
       }
 
       // Calculate minimum required balance
-      const balanceMinReq = solverTargets[routeToken.token]?.minBalance || 0
+      const balanceMinReq = BigInt(solverTargets[routeToken.token]?.minBalance || 0)
 
       // Check if the available balance (after the minimum) is enough
       const availableBalance = balance.balance - balanceMinReq

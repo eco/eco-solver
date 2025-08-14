@@ -13,10 +13,40 @@
  * const serialized = serializeWithBigInt(data)
  * // Result: '{"balance":{"__type":"BigInt","value":"1000"},"nested":{"amount":{"__type":"BigInt","value":"500"}}}'
  */
+function convertBigIntsToSerializableFormat(obj: any): any {
+  if (typeof obj === 'bigint') {
+    return { __type: 'BigInt', value: obj.toString() }
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertBigIntsToSerializableFormat(item))
+  }
+  
+  if (obj && typeof obj === 'object') {
+    // Handle Date objects - they should be serialized as ISO strings
+    if (obj instanceof Date) {
+      return obj.toISOString()
+    }
+    
+    // Handle RegExp objects - they get serialized as empty objects by JSON.stringify
+    if (obj instanceof RegExp) {
+      return {}
+    }
+    
+    // Handle other objects recursively
+    const result: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = convertBigIntsToSerializableFormat(value)
+    }
+    return result
+  }
+  
+  return obj
+}
+
 export function serializeWithBigInt(obj: unknown): string {
-  return JSON.stringify(obj, (_key, value) =>
-    typeof value === 'bigint' ? { __type: 'BigInt', value: value.toString() } : value,
-  )
+  const converted = convertBigIntsToSerializableFormat(obj)
+  return JSON.stringify(converted)
 }
 
 /**

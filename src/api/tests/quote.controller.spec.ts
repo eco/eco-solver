@@ -8,6 +8,7 @@ import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { Test, TestingModule } from '@nestjs/testing'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController
@@ -33,6 +34,11 @@ describe('QuoteController Test', () => {
         {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
+        },
+
+        {
+          provide: EcoConfigService,
+          useValue: createMock<EcoConfigService>(),
         },
       ],
     }).compile()

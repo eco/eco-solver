@@ -136,7 +136,7 @@ describe('WalletFulfillService', () => {
         jest.spyOn(accountClientService, 'getClient').mockImplementation((): any =>
           Promise.resolve({
             execute: jest.fn().mockResolvedValue(hash),
-            waitForTransactionReceipt: jest.fn().mockResolvedValue({ transactionHash: hash }),
+            waitForTransactionReceipt: jest.fn().mockResolvedValue({ transactionHash: hash, status: 'success' }),
           }),
         )
 
@@ -303,6 +303,7 @@ describe('WalletFulfillService', () => {
             execute: mockExecute.mockResolvedValue(transactionHash),
             waitForTransactionReceipt: mockWaitForTransactionReceipt.mockResolvedValue({
               transactionHash,
+              status: 'success',
             }),
           } as any
         })
@@ -336,7 +337,7 @@ describe('WalletFulfillService', () => {
         expect(mockLogDebug).toHaveBeenCalledTimes(2)
         expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
           msg: `Fulfilled transactionHash ${transactionHash}`,
-          userOPHash: { transactionHash },
+          userOPHash: { transactionHash, status: 'success' },
           destinationChainID: model.intent.route.destination,
           sourceChainID: IntentSourceModel.getSource(model),
         })
@@ -347,7 +348,7 @@ describe('WalletFulfillService', () => {
         expect(utilsIntentService.updateIntentModel).toHaveBeenCalledWith({
           ...model,
           status: 'SOLVED',
-          receipt: { transactionHash },
+          receipt: { transactionHash, status: 'success' },
         })
       })
     })
@@ -401,34 +402,34 @@ describe('WalletFulfillService', () => {
       })
     })
 
-    it('should convert token amounts from base 18 decimals back to original decimals before fulfillment', async () => {
-      // Test data: USDC (6 decimals) amount normalized to base 18 decimals
-      const originalDecimals = 6
-      const base18Amount = 1000000000000000000n // 1 token in base 18 decimals
-      const expectedOriginalAmount = 1000000n // 1 token in original 6 decimals
+    it('should use the amount as provided without decimal conversion', async () => {
+      // The service should use amounts as-is without decimal conversion
+      const amount = 1000000000000000000n // Amount as provided
       const transferFunctionData = '0x9911'
 
       mockEncodeFunctionData.mockReturnValue(transferFunctionData)
-      mockFindTokenDecimals.mockReturnValue(originalDecimals) // Mock to return 6 decimals for this test
 
       const result = fulfillIntentService.handleErc20(
-        { selector, decodedFunctionData: { args: [, base18Amount] } } as any,
+        { selector, decodedFunctionData: { args: [, amount] } } as any,
         { inboxAddress, chainID: 1 } as any,
         target,
       )
 
-      // Verify the approve call uses the converted amount (back to original decimals)
+      // Verify the approve call uses the amount as provided
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),
         functionName: 'approve',
-        args: [inboxAddress, expectedOriginalAmount], // Should be converted back to original decimals
+        args: [inboxAddress, amount], // Should use amount as-is
       })
 
       expect(result).toEqual([{ to: target, data: transferFunctionData, value: 0n }])
     })
 
-    it('should return empty array when token decimals cannot be found', async () => {
+    it('should process normally regardless of token decimals availability', async () => {
+      // The service no longer checks for token decimals, so it should process normally
       mockFindTokenDecimals.mockReturnValue(null) // Mock to return null (unknown token)
+      const transferFunctionData = '0x9911'
+      mockEncodeFunctionData.mockReturnValue(transferFunctionData)
 
       const result = fulfillIntentService.handleErc20(
         { selector, decodedFunctionData: { args: [, 100n] } } as any,
@@ -436,8 +437,13 @@ describe('WalletFulfillService', () => {
         target,
       )
 
-      expect(result).toEqual([])
-      expect(mockEncodeFunctionData).not.toHaveBeenCalled()
+      // Should still return a successful result since the service doesn't check decimals anymore
+      expect(result).toEqual([{ to: target, data: transferFunctionData, value: 0n }])
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
+        abi: expect.anything(),
+        functionName: 'approve',
+        args: [inboxAddress, 100n],
+      })
     })
   })
 
