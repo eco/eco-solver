@@ -1,7 +1,6 @@
 import { BalanceController } from '@/api/balance.controller'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { QuoteController } from '@/api/quote.controller'
-import { TestWatchIntentController } from '@/api/test-watch-intent.controller'
 import { BalanceModule } from '@/balance/balance.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { QuoteModule } from '@/quote/quote.module'
@@ -26,7 +25,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
     BalanceController,
     QuoteController,
     IntentInitiationController,
-    TestWatchIntentController,
   ],
   providers: [
     {
