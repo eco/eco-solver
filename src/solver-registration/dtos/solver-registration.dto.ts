@@ -28,7 +28,7 @@ export class SolverRegistrationDTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  quotesUrlV2: string
+  quotesV2Url: string
 
   @IsNotEmpty()
   @IsString()

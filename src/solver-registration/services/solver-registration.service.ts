@@ -151,7 +151,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
-      quotesUrlV2: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
+      quotesV2Url: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
       receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}`,
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
