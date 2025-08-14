@@ -173,6 +173,9 @@ importers:
       table:
         specifier: ^6.8.2
         version: 6.9.0
+      tslib:
+        specifier: ^2.8.1
+        version: 2.8.1
       uuid:
         specifier: ^11.0.5
         version: 11.1.0
@@ -213,6 +216,9 @@ importers:
       '@nx/node':
         specifier: ^21.3.11
         version: 21.3.11(@babel/traverse@7.28.0)(@types/node@20.19.9)(@zkochan/js-yaml@0.0.7)(babel-plugin-macros@3.1.0)(eslint@8.57.1)(nx@21.3.11)(ts-node@10.9.2(@types/node@20.19.9)(typescript@5.8.3))(typescript@5.8.3)
+      '@nx/workspace':
+        specifier: 21.3.11
+        version: 21.3.11
       '@types/config':
         specifier: ^3.3.5
         version: 3.3.5
