@@ -9,7 +9,7 @@ export class IntentUtils {
    * Calculate the hash of an intent
    */
   static calculateHash(intent: IntentType): Hex {
-    return hashIntent(intent)
+    return hashIntent(intent).intentHash
   }
 
   /**
@@ -54,7 +54,7 @@ export class IntentUtils {
    */
   static getTimeToExpiry(intent: IntentModel): number {
     const now = BigInt(Math.floor(Date.now() / 1000))
-    const timeRemaining = Number(intent.deadline - now)
+    const timeRemaining = Number(intent.reward.deadline - now)
     return Math.max(0, timeRemaining)
   }
 

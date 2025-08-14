@@ -4,19 +4,25 @@ import { CreateIntentParams, IntentStatus, IntentMetadata, RewardTokensInterface
 
 // Core Intent domain model
 export class IntentModel implements IntentType {
-  public readonly hash: Hex
-  public readonly salt: Hex
-  public readonly source: bigint
-  public readonly destination: bigint
-  public readonly inbox: Hex
-  public readonly creator: Hex
-  public readonly prover: Hex
-  public readonly deadline: bigint
-  public readonly nativeValue: bigint
-  public readonly calls: CallDataInterface[]
-  public readonly rewardTokens: RewardTokensInterface[]
+  public readonly route: {
+    salt: Hex
+    source: bigint
+    destination: bigint
+    inbox: Hex
+    tokens: readonly { token: Hex; amount: bigint }[]
+    calls: readonly { target: Hex; data: Hex; value: bigint }[]
+  }
+  
+  public readonly reward: {
+    creator: Hex
+    prover: Hex
+    deadline: bigint
+    nativeValue: bigint
+    tokens: readonly { token: Hex; amount: bigint }[]
+  }
   
   // Domain-specific properties
+  public readonly hash: Hex
   public readonly quoteID?: string
   public readonly routeTokens: RewardTokensInterface[]
   public readonly logIndex: number
@@ -27,18 +33,24 @@ export class IntentModel implements IntentType {
   private _metadata: IntentMetadata
 
   constructor(params: CreateIntentParams) {
-    this.hash = params.hash
-    this.salt = params.salt
-    this.source = params.source
-    this.destination = params.destination
-    this.inbox = params.inbox
-    this.creator = params.creator
-    this.prover = params.prover
-    this.deadline = params.deadline
-    this.nativeValue = params.nativeValue
-    this.calls = params.calls
-    this.rewardTokens = params.rewardTokens
+    this.route = {
+      salt: params.salt,
+      source: params.source,
+      destination: params.destination,
+      inbox: params.inbox,
+      tokens: params.rewardTokens.map(t => ({ token: t.token, amount: t.amount })),
+      calls: params.calls.map(c => ({ target: c.to, data: c.data, value: c.value }))
+    }
     
+    this.reward = {
+      creator: params.creator,
+      prover: params.prover,
+      deadline: params.deadline,
+      nativeValue: params.nativeValue,
+      tokens: params.rewardTokens.map(t => ({ token: t.token, amount: t.amount }))
+    }
+    
+    this.hash = params.hash
     this.quoteID = params.quoteID
     this.routeTokens = params.routeTokens
     this.logIndex = params.logIndex
@@ -66,6 +78,15 @@ export class IntentModel implements IntentType {
     return { ...this._metadata }
   }
 
+  // Backward compatibility getters
+  get calls() {
+    return this.route.calls
+  }
+
+  get rewardTokens() {
+    return this.routeTokens
+  }
+
   markAsFulfilled(txHash: Hex): void {
     this._status.isFulfilled = true
     this._status.fulfillmentTxHash = txHash
@@ -83,7 +104,7 @@ export class IntentModel implements IntentType {
 
   isExpired(): boolean {
     const now = BigInt(Math.floor(Date.now() / 1000))
-    return now > this.deadline
+    return now > this.reward.deadline
   }
 
   canBeFulfilled(): boolean {
@@ -94,6 +115,6 @@ export class IntentModel implements IntentType {
   }
 
   getTotalRewardValue(): bigint {
-    return this.rewardTokens.reduce((total, token) => total + token.amount, 0n) + this.nativeValue
+    return this.reward.tokens.reduce((total, token) => total + token.amount, 0n) + this.reward.nativeValue
   }
 }

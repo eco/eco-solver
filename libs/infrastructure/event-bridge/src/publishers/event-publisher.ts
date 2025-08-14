@@ -34,8 +34,8 @@ export class EventPublisher {
         backoff: {
           type: 'exponential',
           delay: 2000
-        },
-        ttl: (config.defaultTTL || 3600) * 1000 // Convert to milliseconds
+        }
+        // TTL is handled at the Redis level, not through BullMQ job options
       }
     })
   }

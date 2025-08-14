@@ -4,7 +4,7 @@
 
 import { Injectable, Logger } from '@nestjs/common'
 import { EventBridgeService } from '../event-bridge.service'
-import { IntentCreatedEvent, BalanceUpdatedEvent } from '../types/event.types'
+import { IntentCreatedEvent, BalanceUpdatedEvent, LowBalanceEvent } from '../types/event.types'
 
 @Injectable()
 export class IntentService {
@@ -46,7 +46,7 @@ export class NotificationService {
     })
 
     // Subscribe to balance events from Redis (cross-service)
-    this.eventBridge.subscribeRedis('balance.low', async (event: BalanceUpdatedEvent) => {
+    this.eventBridge.subscribeRedis('balance.low', async (event: LowBalanceEvent) => {
       this.logger.warn(`Low balance alert: ${event.payload.address}`)
       // Send alert notification
     })

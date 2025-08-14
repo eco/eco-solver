@@ -1,6 +1,6 @@
 import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 import * as config from 'config'
-import { EcoError } from '../common/errors/eco-error'
+import { EcoError } from '../../../../src/common/errors/eco-error'
 
 /**
  * The prefix for non-production deploys on a chain

@@ -1,7 +1,7 @@
 import { APIConfig } from './interfaces/api-config.interface'
 import { APIRequestUtils } from './api-request-utils'
 import { AxiosRequestConfig } from 'axios'
-import { EcoLogMessage } from '../logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { ExecuteRequestParams } from './interfaces/execute-request-params.interface'
 import { HttpService } from '@nestjs/axios'
 import { Logger } from '@nestjs/common'

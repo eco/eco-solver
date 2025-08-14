@@ -1,7 +1,7 @@
 import { ContractFunctionName, decodeEventLog, Hex } from 'viem'
-import { getSelector } from '../common/viem/contracts'
-import { TargetContractType } from '../eco-configs/eco-config.types'
-import { EcoError } from '../common/errors/eco-error'
+import { getSelector } from './viem/contracts'
+import { TargetContractType } from '@eco/infrastructure-config'
+import { EcoError } from '../../../../src/common/errors/eco-error'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 
 // Need to define the ABI as a const array to use in the type definition

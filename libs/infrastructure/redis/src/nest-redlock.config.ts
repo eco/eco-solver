@@ -1,6 +1,6 @@
 import { ModuleMetadata, Type } from '@nestjs/common'
 import { NestRedlockConfigFactory } from './types'
-import { RedisConfig } from '../eco-configs/eco-config.types'
+import { RedisConfig } from '@eco/infrastructure-config'
 
 export interface NestRedlockConfig extends RedisConfig {}
 

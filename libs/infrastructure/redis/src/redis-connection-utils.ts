@@ -1,10 +1,10 @@
 import { Logger } from '@nestjs/common'
 import { RegisterQueueOptions } from '@nestjs/bullmq'
 import * as Redis from 'ioredis'
-import { EcoError } from '../errors/eco-error'
-import { EcoLogMessage } from '../logging/eco-log-message'
+import { EcoError } from '../../../../src/common/errors/eco-error'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { QueueMetadata } from './constants'
-import { RedisConfig } from '../../eco-configs/eco-config.types'
+import { RedisConfig } from '@eco/infrastructure-config'
 import { Redis as IORedisClient, Cluster as IORedisCluster } from 'ioredis'
 
 type RedlockRedisClient = IORedisClient | IORedisCluster
