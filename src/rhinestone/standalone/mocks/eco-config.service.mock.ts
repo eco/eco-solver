@@ -22,12 +22,17 @@ export class MockEcoConfigService {
       contracts: {
         '10': {
           router: '0x000000000004598d17aad017bf0734a364c5588b',
-          ecoAdapter: '0xa0de4A8e033FBceC2BFa708FaD59e1587839b4Ca',
+          ecoAdapter: '0xcA1dD76132B6c642450654487eF685cc374CEE60',
           ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
         },
         '8453': {
           router: '0x000000000004598d17aad017bf0734a364c5588b',
-          ecoAdapter: '0xa0de4A8e033FBceC2BFa708FaD59e1587839b4Ca',
+          ecoAdapter: '0xcA1dD76132B6c642450654487eF685cc374CEE60',
+          ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
+        },
+        '137': {
+          router: '0x000000000004598d17aad017bf0734a364c5588b',
+          ecoAdapter: '0xcA1dD76132B6c642450654487eF685cc374CEE60',
           ecoArbiter: '0x0000000000814Cf877224D19919490d4761B0C86',
         },
       },
@@ -197,6 +202,43 @@ export class MockEcoConfigService {
         },
         chainID: 8453,
         averageBlockTime: 2,
+      },
+      137: {
+        inboxAddress: '0x0000000000000000000000000000000000000000' as Hex,
+        targets: {
+          '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359': {
+            contractType: 'erc20' as any,
+            selectors: ['transfer(address,uint256)'],
+            minBalance: 0,
+            targetBalance: 0,
+          },
+        },
+        network: 'POLYGON' as any,
+        fee: {
+          limit: {
+            tokenBase6: BigInt(1000000000),
+            nativeBase18: BigInt('1000000000000000000'),
+          },
+          algorithm: 'linear' as const,
+          constants: {
+            token: {
+              baseFee: BigInt(0),
+              tranche: {
+                unitFee: BigInt(0),
+                unitSize: BigInt(1000000),
+              },
+            },
+            native: {
+              baseFee: BigInt(0),
+              tranche: {
+                unitFee: BigInt(0),
+                unitSize: BigInt('1000000000000000'),
+              },
+            },
+          },
+        },
+        chainID: 137,
+        averageBlockTime: 0.2,
       },
     },
     intentSources: [

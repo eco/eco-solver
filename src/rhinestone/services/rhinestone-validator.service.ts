@@ -101,6 +101,8 @@ export class RhinestoneValidatorService {
     const { decodedCall } = this.validateRouterCall(chainAction.call)
     const routeCalls = this.extractRouteCall(decodedCall, 'routeFill')
 
+    const fills: ReturnType<typeof decodeAdapterFill>[0][] = []
+
     const requests = routeCalls.map(async (routeCall) => {
       const { type, selector } = decodeRouteFillCall(routeCall.adapterCalldata)
 
@@ -108,14 +110,21 @@ export class RhinestoneValidatorService {
         throw new EcoError('Fill is not an adapter call')
       }
 
-      await this.validateAdapterAndArbiter(chainID, router, 'fill', selector)
+      try {
+        await this.validateAdapterAndArbiter(chainID, router, 'fill', selector)
 
-      const [fillData] = decodeAdapterFill(routeCall.adapterCalldata)
+        const [fillData] = decodeAdapterFill(routeCall.adapterCalldata)
 
-      return fillData
+        fills.push(fillData)
+      } catch (error) {
+        // Ignore, it's safe to ignore since we aren't transferring extract funds if not recognized
+      }
     })
 
-    return Promise.all(requests)
+    // Wait
+    await Promise.all(requests)
+
+    return fills
   }
 
   /**
@@ -153,22 +162,12 @@ export class RhinestoneValidatorService {
         throw new EcoError('Claim is not an adapter call')
       }
 
-      const { arbiterAddr } = await this.validateAdapterAndArbiter(
-        chainID,
-        router,
-        'claim',
-        selector,
-      )
+      await this.validateAdapterAndArbiter(chainID, router, 'claim', selector)
 
       const fillData = decodeAdapterClaim(adapterCalldata)
       const { order, claimHash } = fillData
 
-      const claimHashOracle = await this.rhinestoneContractsService.getClaimHashOracle(
-        chainID,
-        arbiterAddr,
-      )
-
-      const route = toRoute(order, claimHash, chainID, claimHashOracle)
+      const route = toRoute(order, claimHash, chainID)
       const reward = toReward(order)
 
       const intent = { route, reward }

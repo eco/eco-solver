@@ -31,6 +31,7 @@ import { QUEUES } from '@/common/redis/constants'
 import { KmsService } from '@/kms/kms.service'
 import { MockKmsService } from './mocks/kms.service.mock'
 import { MockSignerKmsService } from './mocks/signer-kms.service.mock'
+import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { MockSignerKmsService } from './mocks/signer-kms.service.mock'
       provide: SignerKmsService,
       useClass: MockSignerKmsService,
     },
+    WalletFulfillService,
     SignerService,
     WalletClientDefaultSignerService,
     KernelAccountClientService,

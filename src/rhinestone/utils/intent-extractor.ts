@@ -3,6 +3,7 @@ import {
   Address,
   decodeAbiParameters,
   encodeFunctionData,
+  erc20Abi,
   getAddress,
   Hex,
   Mutable,
@@ -141,16 +142,9 @@ function decodeCalldata(data: Hex): { target: Address; callData: Hex } {
  * Encode target executions based on operation type
  * @param tokenLength Number of token transfer calls
  * @param order The Rhinestone order
- * @param claimHash Hash of the claim data
- * @param claimHashOracle Address of the claim hash oracle
  * @returns Array of encoded calls
  */
-function encodeTargetExecutions(
-  tokenLength: number,
-  order: Order,
-  claimHash: Hex,
-  claimHashOracle: Address,
-): RouteType['calls'] {
+function encodeTargetExecutions(tokenLength: number, order: Order): RouteType['calls'] {
   const ops = order.targetOps
   const execType = getExecutionType(ops)
 
@@ -159,9 +153,6 @@ function encodeTargetExecutions(
   if (execType === ExecutionType.MultiCall) {
     // Handle batch execution - multiple calls in a single transaction
     const executions = decodeERC7579Batch(ops.data)
-
-    // Allocate array with space for token transfers at the beginning
-    calls = new Array(tokenLength + executions.length)
 
     // Convert each ERC7579 execution to an Eco Call
     for (let i = 0; i < executions.length; i++) {
@@ -175,39 +166,13 @@ function encodeTargetExecutions(
     // Handle single calldata execution
     const { target, callData } = decodeCalldata(ops.data)
 
-    calls = new Array(tokenLength + 1)
     calls[tokenLength] = {
       target,
       value: 0n,
       data: callData,
     }
   } else if (execType === ExecutionType.ERC7579) {
-    // Handle claim hash storage
-    calls = new Array(tokenLength + 1)
-
-    // Store the claim hash in the oracle
-    const storeClaimHashData = encodeFunctionData({
-      abi: [
-        {
-          name: 'storeClaimHash',
-          type: 'function',
-          inputs: [
-            { name: 'claimHash', type: 'bytes32' },
-            { name: 'recipient', type: 'address' },
-          ],
-          outputs: [],
-          stateMutability: 'nonpayable',
-        },
-      ],
-      functionName: 'storeClaimHash',
-      args: [claimHash, order.recipient],
-    })
-
-    calls[tokenLength] = {
-      target: claimHashOracle,
-      value: 0n,
-      data: storeClaimHashData,
-    }
+    // Handle claim hash storage - used for cross-chain proofs
   }
 
   return calls
@@ -218,15 +183,9 @@ function encodeTargetExecutions(
  * @param order The Rhinestone order containing intent details and token outputs
  * @param claimHash Hash of the claim data for cross-chain verification
  * @param chainID The current chain ID (source chain)
- * @param claimHashOracle Optional address of the claim hash oracle (defaults to CLAIMHASH_ORACLE)
  * @returns The constructed Eco Route ready for execution
  */
-export function toRoute(
-  order: Order,
-  claimHash: Hex,
-  chainID: number,
-  claimHashOracle: Address,
-): RouteType {
+export function toRoute(order: Order, claimHash: Hex, chainID: number): RouteType {
   // Extract inbox address from qualifier
   const inbox = decodeInbox(order.qualifier)
 
@@ -245,23 +204,12 @@ export function toRoute(
         amount: amount,
       })
 
-      // Create transfer call
+      // Create a transfer call
       tokenTransferCalls.push({
         target: tokenAddress,
         value: 0n,
         data: encodeFunctionData({
-          abi: [
-            {
-              name: 'transfer',
-              type: 'function',
-              inputs: [
-                { name: 'to', type: 'address' },
-                { name: 'amount', type: 'uint256' },
-              ],
-              outputs: [{ type: 'bool' }],
-              stateMutability: 'nonpayable',
-            },
-          ],
+          abi: erc20Abi,
           functionName: 'transfer',
           args: [order.recipient, amount],
         }),
@@ -277,18 +225,13 @@ export function toRoute(
   }
 
   // Get target execution calls
-  const targetCalls = encodeTargetExecutions(
-    tokenTransferCalls.length,
-    order,
-    claimHash,
-    claimHashOracle,
-  )
+  const targetCalls = encodeTargetExecutions(tokenTransferCalls.length, order)
 
   // Combine token transfers and target operations
   const calls = [...tokenTransferCalls, ...targetCalls.slice(tokenTransferCalls.length)]
 
   return {
-    salt: `0x${order.nonce.toString(16).padStart(64, '0')}` as `0x${string}`,
+    salt: `0x${order.nonce.toString(16).padStart(64, '0')}` as Hex,
     source: BigInt(chainID),
     destination: order.targetChainId,
     inbox: inbox,
