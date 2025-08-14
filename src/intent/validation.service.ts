@@ -17,7 +17,7 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual } from '@/fee/utils'
+import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceService } from '@/balance/balance.service'
@@ -475,14 +475,10 @@ export class ValidationService implements OnModuleInit {
       }
 
       // Calculate minimum required balance
-      const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
-      const balanceMinReq = normalizeBalance(
-        { balance: BigInt(minReqDollar), decimal: 0 },
-        balance.decimals,
-      )
+      const balanceMinReq = solverTargets[routeToken.token]?.minBalance || 0
 
       // Check if the available balance (after the minimum) is enough
-      const availableBalance = balance.balance - balanceMinReq.balance
+      const availableBalance = balance.balance - balanceMinReq
 
       if (availableBalance < routeToken.amount) {
         return false // Insufficient balance

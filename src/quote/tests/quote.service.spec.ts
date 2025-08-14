@@ -1,7 +1,7 @@
 const mockGetTransactionTargetData = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
-import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationService } from '@/intent/validation.service'
 import {
   InfeasibleQuote,
   InsufficientBalance,

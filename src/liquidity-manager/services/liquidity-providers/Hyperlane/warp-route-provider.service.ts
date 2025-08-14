@@ -572,14 +572,14 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           config: tokenConfig,
           balance: {
             address: candidateToken.token,
-            decimals: 0, // Placeholder. This is not used for LiFi quotes.
+            decimals: { original: 18, current: 18 }, // Placeholder. This is not used for LiFi quotes.
             balance: 0n, // Placeholder. This is not used for LiFi quotes.
           },
         }
 
         const liFiQuote = await this.liFiProviderService.getQuote(
           tokenIn,
-          tokenData,
+          tokenOut,
           swapAmountBased,
           id,
         )

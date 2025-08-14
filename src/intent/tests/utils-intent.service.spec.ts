@@ -13,7 +13,7 @@ import { EcoError } from '../../common/errors/eco-error'
 import { getFunctionBytes } from '../../common/viem/contracts'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/contracts'
-import { ValidationChecks } from '@/intent/validation.sevice'
+import { ValidationChecks } from '@/intent/validation.service'
 import { QuoteError } from '@/quote/errors'
 import { EcoAnalyticsService } from '@/analytics'
 

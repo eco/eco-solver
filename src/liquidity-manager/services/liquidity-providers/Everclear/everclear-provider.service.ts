@@ -15,7 +15,7 @@ import { parseUnits } from 'viem'
 import { Hex } from 'viem'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EverclearApiError } from './everclear.errors'
-import { getSlippage } from '@/liquidity-manager/utils/math'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
 import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 import { erc20Abi } from 'viem'
@@ -54,17 +54,27 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     })
   }
 
+  /**
+   * Gets a quote for swapping tokens using the Everclear strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to an array of Everclear rebalance quotes
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'Everclear'>[]> {
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Everclear: getting quote',
         id,
-        properties: { tokenIn, tokenOut, swapAmount },
+        properties: { tokenIn, tokenOut, swapAmountBased },
       }),
     )
 
@@ -96,11 +106,11 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     }
 
     const walletAddress = await this.kernelAccountClientService.getAddress()
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString()
+    const amount = swapAmountBased.toString()
 
     const requestBody = {
-      origin: tokenIn.chainId.toString(),
-      destinations: [tokenOut.chainId.toString()],
+      origin: tokenIn.config.chainId.toString(),
+      destinations: [tokenOut.config.chainId.toString()],
       inputAsset: tokenIn.config.address,
       amount,
       to: walletAddress,
@@ -132,10 +142,20 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
 
     const everclearQuote = await response.json()
 
-    const slippage = getSlippage(everclearQuote.expectedAmount, amount)
+    const srcToken = {
+      address: tokenIn.config.address,
+      balance: swapAmountBased,
+      decimals: tokenIn.balance.decimals,
+    }
+    const dstTokenMin = {
+      address: tokenOut.config.address,
+      balance: BigInt(everclearQuote.expectedAmount),
+      decimals: tokenOut.balance.decimals,
+    }
+    const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
     const quote: RebalanceQuote<'Everclear'> = {
-      amountIn: BigInt(amount),
+      amountIn: swapAmountBased,
       amountOut: BigInt(everclearQuote.expectedAmount),
       slippage,
       tokenIn,
@@ -178,8 +198,8 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     }
 
     const requestBody = {
-      origin: tokenIn.chainId.toString(),
-      destinations: [tokenOut.chainId.toString()],
+      origin: tokenIn.config.chainId.toString(),
+      destinations: [tokenOut.config.chainId.toString()],
       inputAsset: tokenIn.config.address,
       amount: amountIn.toString(),
       to: walletAddress,
@@ -219,7 +239,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
         properties: { txRequest },
       }),
     )
-    const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
+    const client = await this.kernelAccountClientService.getClient(tokenIn.config.chainId)
 
     if (!client.account || !client.chain) {
       throw new Error('Kernel client account or chain is not available.')
