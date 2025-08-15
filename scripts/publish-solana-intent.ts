@@ -12,6 +12,7 @@ import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute, VmType, Address
 // Note: VmType import from @eco-foundation/routes-ts was failing, using string literals directly
 import config from '../config/solana'
 import { getChainConfig } from '@/eco-configs/utils'
+import { RewardStruct } from '@/intent/abi'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -52,6 +53,8 @@ interface Intent {
   reward: Reward
 }
 
+const deadlineWindow = 7200 // 2 hours
+
 async function publishSolanaIntent() {
   console.log('Publishing Solana Intent...')
   
@@ -60,7 +63,7 @@ async function publishSolanaIntent() {
   const connection = new Connection(solanaRpcUrl, {
     commitment: 'confirmed',
     disableRetryOnRateLimit: true,
-    wsEndpoint: undefined // Disable WebSocket to avoid subscription errors
+    wsEndpoint: undefined
   })
   
   // Load keypair from environment variable
@@ -69,7 +72,6 @@ async function publishSolanaIntent() {
   
   if (privateKeyEnv) {
     try {
-      // Parse the private key as a JSON array of numbers
       const privateKeyArray = JSON.parse(privateKeyEnv)
       keypair = Keypair.fromSecretKey(new Uint8Array(privateKeyArray))
       console.log(`Loaded keypair from SOLANA_PRIVATE_KEY: ${keypair.publicKey.toString()}`)
@@ -88,8 +90,8 @@ async function publishSolanaIntent() {
   const salt = Array.from(Buffer.from(now.toString()))
   
   // Portal address as 32-byte array
-  const portalPubkey = new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9')
-  const destinationportalAddress = getChainConfig(10).Inbox
+  const portalPubkey = new PublicKey(getChainConfig(1399811149).Inbox)
+  const optimismPortalAddress = getChainConfig(10).Inbox
   
   // Sample token amounts for the route
   const routeTokens: TokenAmount[] = [
@@ -109,7 +111,7 @@ async function publishSolanaIntent() {
 
   // Create the reward
   const reward: Reward = {
-    deadline: now + 36000, // 10 hour from now
+    deadline: now + deadlineWindow, // 2 hours from now
     creator: keypair.publicKey.toString(),
     prover: '5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp', 
     native_amount: 0, 
@@ -136,37 +138,32 @@ async function publishSolanaIntent() {
   }
   
   const targetAddress = targetAddresses[0];
-  const targetConfig = destinationSolvers.targets[targetAddress];
-  const selector = targetConfig.selectors[0];
-  
-  // Create proper call data using viem encodeFunctionData
-  const callData = encodeFunctionData({
-    abi: [{
-      name: 'transfer',
-      type: 'function',
-      inputs: [
-        { name: 'to', type: 'address' },
-        { name: 'amount', type: 'uint256' }
-      ]
-    }],
-    functionName: 'transfer',
-    args: [
-      '0x0000000000000000000000000000000000000000', // Placeholder recipient
-      BigInt(10000) // 0.01 USDC (6 decimals)
-    ]
-  });
 
   const sampleCall: Call = {
-    target: targetAddress, // address as hex string
-    data: callData,        // bytes as hex string
-    value: 0               // uint256 value
+    target: targetAddress,
+    data: encodeFunctionData({
+      abi: [{
+        name: 'transfer',
+        type: 'function',
+        inputs: [
+          { name: 'to', type: 'address' },
+          { name: 'amount', type: 'uint256' }
+        ]
+      }],
+      functionName: 'transfer',
+      args: [
+        '0xb1b4e269dD0D19d9D49f3a95bF6c2c15f13E7943', 
+        BigInt(10000) 
+      ]
+    }),  
+    value: 0
   }
 
   // Create the route
   const route: Route = {
     salt: salt,
-    deadline: now + 7200, // 2 hours from now
-    portal: destinationportalAddress,
+    deadline: now + deadlineWindow, // 2 hours from now
+    portal: optimismPortalAddress,
     tokens: routeTokens,
     calls: [sampleCall]
   }
@@ -188,7 +185,6 @@ async function publishSolanaIntent() {
     Buffer.from(route.portal.toString())
   ])
   const routeHashBytes = keccak256(routeData).slice(0, 32)
-  const routeHash = Array.from(routeHashBytes)
 
   console.log('Intent Details:')
   console.log(`Destination Chain: ${intent.destination}`)
@@ -211,13 +207,10 @@ async function publishSolanaIntent() {
       skipPreflight: false
     })
     
-    // Use the program ID from the IDL
-    const programId = new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6')
-    
     console.log('Setting up program with provided IDL...')
     let program
     try {
-      const fetchedIdl = await Program.fetchIdl(programId, provider)
+      const fetchedIdl = await Program.fetchIdl(portalPubkey, provider)
       if (!fetchedIdl) {
         throw new Error('No IDL found on-chain')
       }
@@ -241,98 +234,13 @@ async function publishSolanaIntent() {
     }
     
     console.log('Publishing intent...')
-    
-    // ABI encode the route struct using RouteType from eco-foundation/routes-ts
-    // This ensures we use the canonical Route struct definition
-    
-    // Get the proper inbox address for the destination chain
-    const destinationChainId = intent.destination;
-    if (!intent.destination) {
-      throw new Error('Intent destination is undefined');
-    }
-    if (!route.deadline) {
-      throw new Error('Route deadline is undefined');
-    }
-    
-    const routeData = {
-        vm: 'EVM' as VmType.EVM,
-        salt: `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`,
-        deadline: BigInt(route.deadline),
-        portal: route.portal as `0x${string}`,
-        source: BigInt(1399811150),
-        destination: BigInt(intent.destination),
-        tokens: route.tokens.map(token => ({
-          token: config.intentSources[1].tokens[0] as `0x${string}`, // Use destination chain token (Optimism USDC)
-          amount: BigInt(token.amount)
-        })),
-        calls: route.calls.map(call => ({
-          target: targetAddress as `0x${string}`,
-          data: callData as `0x${string}`,
-          value: BigInt(call.value)
-        }))
-    }
 
     // Replace the encodeRoute call with this manual encoding using the exact ABI structure
     const routeBytes = Buffer.from(
       encodeAbiParameters(
         [{
           type: 'tuple',
-          components: [
-            {
-              internalType: "bytes32",
-              name: "salt", 
-              type: "bytes32"
-            },
-            {
-              internalType: "uint64",
-              name: "deadline",
-              type: "uint64"
-            },
-            {
-              internalType: "address", 
-              name: "portal",
-              type: "address"
-            },
-            {
-              components: [
-                {
-                  internalType: "address",
-                  name: "token",
-                  type: "address"
-                },
-                {
-                  internalType: "uint256", 
-                  name: "amount",
-                  type: "uint256"
-                }
-              ],
-              internalType: "struct TokenAmount[]",
-              name: "tokens",
-              type: "tuple[]"
-            },
-            {
-              components: [
-                {
-                  internalType: "address",
-                  name: "target", 
-                  type: "address"
-                },
-                {
-                  internalType: "bytes",
-                  name: "data",
-                  type: "bytes"
-                },
-                {
-                  internalType: "uint256",
-                  name: "value",
-                  type: "uint256"
-                }
-              ],
-              internalType: "struct Call[]",
-              name: "calls", 
-              type: "tuple[]"
-            }
-          ]
+          components: RewardStruct
         }],
         [{
           salt: `0x${now.toString(16).padStart(64, '0')}`,
@@ -344,7 +252,7 @@ async function publishSolanaIntent() {
           }],
           calls: [{
             target: targetAddress as `0x${string}`,
-            data: callData,
+            data: sampleCall.data as `0x${string}`,
             value: 0n
           }]
         }]
@@ -359,9 +267,7 @@ async function publishSolanaIntent() {
         route: routeBytes,
         reward: portalReward
       })
-      .accounts({
-        // The publish instruction has no accounts according to the IDL
-      })
+      .accounts({})
       .rpc({
         commitment: 'confirmed',
         skipPreflight: false

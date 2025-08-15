@@ -1,67 +1,9 @@
 import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify, decodeAbiParameters } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
-import { IntentSourceAbi, decodeRoute } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
-import { deserialize } from '@/common/utils/serialize'
-
-// Define RouteStruct since it's not exported from @eco-foundation/routes-ts
-const RouteStruct = [
-  {
-    internalType: "bytes32",
-    name: "salt", 
-    type: "bytes32"
-  },
-  {
-    internalType: "uint64",
-    name: "deadline",
-    type: "uint64"
-  },
-  {
-    internalType: "address", 
-    name: "portal",
-    type: "address"
-  },
-  {
-    components: [
-      {
-        internalType: "address",
-        name: "token",
-        type: "address"
-      },
-      {
-        internalType: "uint256", 
-        name: "amount",
-        type: "uint256"
-      }
-    ],
-    internalType: "struct TokenAmount[]",
-    name: "tokens",
-    type: "tuple[]"
-  },
-  {
-    components: [
-      {
-        internalType: "address",
-        name: "target", 
-        type: "address"
-      },
-      {
-        internalType: "bytes",
-        name: "data",
-        type: "bytes"
-      },
-      {
-        internalType: "uint256",
-        name: "value",
-        type: "uint256"
-      }
-    ],
-    internalType: "struct Call[]",
-    name: "calls", 
-    type: "tuple[]"
-  }
-]
+import { RouteStruct } from '@/intent/abi'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<
@@ -126,7 +68,7 @@ export function decodeSolanaIntentLogForCreateIntent(log: any) {
     args: {
       hash: `0x${Buffer.from(log.data.intent_hash[0]).toString('hex')}` as `0x${string}`,
       salt: decodedRoute.salt as `0x${string}`,
-      source: 1399811150n, // legacy field
+      source: 1399811149n, // legacy field
       destination: BigInt(`0x${log.data.destination}`),
       inbox: decodedRoute.portal as `0x${string}`,
       routeTokens: decodedRoute.tokens as readonly { token: `0x${string}`; amount: bigint }[],

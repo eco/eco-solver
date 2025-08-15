@@ -4,6 +4,7 @@ import { keccak256, encodePacked, encodeAbiParameters, Hex } from 'viem';
 import { IntentType, RewardType, RouteType } from '@eco-foundation/routes-ts';
 import { VmType } from '@/eco-configs/eco-config.types';
 import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
+import { RewardStruct, RouteStruct } from './abi';
 
 // Constants
 const VAULT_SEED = Buffer.from("vault");
@@ -12,70 +13,6 @@ const PROGRAM_ID = new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9')
 // Create BorshCoder instance for Solana reward serialization
 const portalIdl = require('src/solana/program/portal.json');
 const svmCoder = new BorshCoder(portalIdl as Idl);
-
-// Define the RewardStruct for EVM encoding
-const RewardStruct = [
-  {
-    "internalType": "uint64",
-    "name": "deadline",
-    "type": "uint64"
-  },
-  {
-    "internalType": "address",
-    "name": "creator",
-    "type": "address"
-  },
-  {
-    "internalType": "address",
-    "name": "prover",
-    "type": "address"
-  },
-  {
-    "internalType": "uint256",
-    "name": "nativeValue",
-    "type": "uint256"
-  },
-  {
-    "components": [
-      {
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "internalType": "struct TokenAmount[]",
-    "name": "tokens",
-    "type": "tuple[]"
-  }
-];
-
-export const RouteStruct = [
-  { internalType: 'bytes32', name: 'salt', type: 'bytes32' },
-  { internalType: 'uint64', name: 'deadline', type: 'uint64' },
-  { internalType: 'address', name: 'portal', type: 'address' },
-  {
-    type: 'tuple[]',
-    name: 'tokens',
-    components: [
-      { internalType: 'address', name: 'token', type: 'address' },
-      { internalType: 'uint256', name: 'amount', type: 'uint256' }
-    ]
-  },
-  {
-    type: 'tuple[]',
-    name: 'calls',
-    components: [
-      { internalType: 'address', name: 'target', type: 'address' },
-      { internalType: 'bytes', name: 'data', type: 'bytes' },
-      { internalType: 'uint256', name: 'value', type: 'uint256' }
-    ]
-  }
-]
 
 export interface SolanaTokenAmount {
   token: string; // pubkey

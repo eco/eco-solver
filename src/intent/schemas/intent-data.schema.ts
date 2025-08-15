@@ -134,14 +134,14 @@ export class IntentDataModel implements IntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    if (intentDataModel.route.source === 1399811150n || intentDataModel.route.destination === 1399811150n) {
+    if (intentDataModel.route.source === 1399811149n || intentDataModel.route.destination === 1399811149n) {
       console.log("JUSTLOGGING: intent.getHash()", intentDataModel)
     }
     return hashIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    if (intentDataModel.route.source === 1399811150n || intentDataModel.route.destination === 1399811150n) {
+    if (intentDataModel.route.source === 1399811149n || intentDataModel.route.destination === 1399811149n) {
       console.log("JUSTLOGGING: intent.encode()", intentDataModel)
     }
     return encodeIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 

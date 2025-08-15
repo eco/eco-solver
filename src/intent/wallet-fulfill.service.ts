@@ -85,7 +85,7 @@ export class WalletFulfillService implements IFulfillService {
     try {
       await this.finalFeasibilityCheck(model.intent)
 
-      const transactionHash = await kernelAccountClient.execute([transactions[1]])
+      const transactionHash = await kernelAccountClient.execute(transactions)
 
       const receipt = await kernelAccountClient.waitForTransactionReceipt({
         hash: transactionHash,
@@ -242,7 +242,7 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
 
-    if (model.intent.destination === 1399811150n) {
+    if (model.intent.destination === 1399811149n) {
       throw new Error('Fulfill not yet supported for solana');
     }
 
@@ -304,7 +304,7 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
-    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+    if (model.intent.route.source === 1399811149n || model.intent.route.destination === 1399811149n) {
       console.log("JUSTLOGGING: fullfill called for solana", model.intent.route)
       return {
         to: inboxAddress,
@@ -339,7 +339,7 @@ export class WalletFulfillService implements IFulfillService {
   ): Promise<ExecuteSmartWalletArg> {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
-    if (model.intent.destination === 1399811150n) {
+    if (model.intent.destination === 1399811149n) {
       throw new Error('Hyperprover not yet supported for solana')
     }
 
@@ -375,7 +375,7 @@ export class WalletFulfillService implements IFulfillService {
         RewardDataModel.getHash(model.intent.reward),
         pad(claimant, { size: 32 }), // Convert address to bytes32
         hyperProverAddr as `0x${string}`,
-        model.intent.destination,
+        model.intent.source,
         data,
       ],
     })
@@ -404,7 +404,7 @@ export class WalletFulfillService implements IFulfillService {
       Number(model.intent.route.destination),
     )
 
-    if (model.intent.route.source === 1399811150n || model.intent.route.destination === 1399811150n) {
+    if (model.intent.route.source === 1399811149n || model.intent.route.destination === 1399811149n) {
       throw new Error('Metalayer prover not supported for solana')
     }
 

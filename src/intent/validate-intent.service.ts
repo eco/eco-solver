@@ -151,7 +151,7 @@ export class ValidateIntentService implements OnModuleInit {
     const sourceChainID = Number(model.intent.route.source)
 
     let client;
-    if (sourceChainID === 1399811150) {
+    if (sourceChainID === 1399811149) {
       client = await this.svmMultichainClientService.getConnection(sourceChainID)
     } else {
       client = await this.multichainPublicClientService.getClient(sourceChainID)
@@ -188,7 +188,7 @@ export class ValidateIntentService implements OnModuleInit {
       }
 
       // Check if the intent is funded
-      if (sourceChainID === 1399811150) {
+      if (sourceChainID === 1399811149) {
         console.log("JUSTLOGGING: intentFunded called for solana", model.intent.route)
         // Solana intent funding check
         try {

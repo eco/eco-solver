@@ -36,8 +36,8 @@ export class SvmMultichainClientService implements OnModuleInit {
     const rpcs = this.ecoConfigService.getRpcConfig()
     const customRpcConfig = rpcs.custom
 
-    // Configure Solana mainnet (chain ID 1399811150)
-    const solanaChainId = 1399811150
+    // Configure Solana mainnet (chain ID 1399811149)
+    const solanaChainId = 1399811149
     const solanaConfig = customRpcConfig?.[solanaChainId.toString()]
     
     if (solanaConfig?.http?.[0] && solanaConfig?.webSocket?.[0]) {

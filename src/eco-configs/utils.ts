@@ -57,7 +57,7 @@ export function getChainAddress(chainID: number | bigint, address: Address): Add
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
   console
-  if (id === '1399811150-pre') {
+  if (id === '1399811149-pre') {
     return {
       IntentSource: new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9'),
       Inbox: new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9'),

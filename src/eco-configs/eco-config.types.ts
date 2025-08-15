@@ -25,7 +25,7 @@ export const CHAIN_VM_TYPE_MAP: Record<number, VmType> = {
   // Optimism
   10: VmType.EVM,
   // Solana Mainnet
-  1399811150: VmType.SVM,
+  1399811149: VmType.SVM,
 } as const
 
 export function getVmType(chainId: number): VmType {
