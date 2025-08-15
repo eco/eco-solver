@@ -3,16 +3,18 @@
 import { Program, AnchorProvider, Wallet, web3, BN } from '@coral-xyz/anchor'
 
 // Use Anchor's bundled web3.js to avoid type conflicts
-const { Connection, Keypair, PublicKey, SystemProgram } = web3
+const { Connection, Keypair, PublicKey } = web3
 import * as crypto from 'crypto'
 import * as dotenv from 'dotenv'
-import { encodeAbiParameters, encodeFunctionData } from 'viem'
-import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute, VmType, Address } from '@eco-foundation/routes-ts'
+import { encodeAbiParameters, encodeFunctionData, Hex } from 'viem'
+import { VmType } from '@/eco-configs/eco-config.types'
+import { RouteType, IntentType, RewardType } from '@eco-foundation/routes-ts'
 
 // Note: VmType import from @eco-foundation/routes-ts was failing, using string literals directly
 import config from '../config/solana'
 import { getChainConfig } from '@/eco-configs/utils'
-import { RewardStruct } from '@/intent/abi'
+import { RewardStruct, RouteStruct } from '@/intent/abi'
+import { hashIntent } from '@/intent/check-funded-solana'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -25,37 +27,19 @@ interface TokenAmount {
   amount: number
 }
 
-interface Reward {
-  deadline: number
-  creator: string
-  prover: string
-  native_amount: number
-  tokens: TokenAmount[]
-}
-
 interface Call {
-  target: string // address
-  data: string   // bytes (hex string)
-  value: number  // uint256
-}
-
-interface Route {
-  salt: number[]
-  deadline: number
-  portal: Address
-  tokens: TokenAmount[]
-  calls: Call[]
-}
-
-interface Intent {
-  destination: number
-  route: Route
-  reward: Reward
+  target: Hex // address
+  data: Hex   // bytes (hex string)
+  value: bigint  // uint256
 }
 
 const deadlineWindow = 7200 // 2 hours
 
-async function publishSolanaIntent() {
+// Parse command line arguments
+const args = process.argv.slice(2)
+const shouldFund = args.includes('--fund') && args[args.indexOf('--fund') + 1] === 'yes'
+
+async function publishSolanaIntent(fundIntent: boolean = false) {
   console.log('Publishing Solana Intent...')
   
   // Set up connection to Solana cluster (with subscription disabled)
@@ -86,8 +70,8 @@ async function publishSolanaIntent() {
   // Create sample route and intent data
   const now = Math.floor(Date.now() / 1000)
   
-  // Generate random salt (32 bytes)
-  const salt = Array.from(Buffer.from(now.toString()))
+  // Generate salt as 32-byte hex string directly from timestamp
+  const salt = `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`
   
   // Portal address as 32-byte array
   const portalPubkey = new PublicKey(getChainConfig(1399811149).Inbox)
@@ -96,7 +80,7 @@ async function publishSolanaIntent() {
   // Sample token amounts for the route
   const routeTokens: TokenAmount[] = [
     {
-      token: config.intentSources[0].tokens[0], // USDC on Solana
+      token: config.intentSources[1].tokens[0], // USDC on Optimism
       amount: 10_000 // 0.01 USDC (6 decimals)
     }
   ]
@@ -110,23 +94,27 @@ async function publishSolanaIntent() {
   ]
 
   // Create the reward
-  const reward: Reward = {
-    deadline: now + deadlineWindow, // 2 hours from now
-    creator: keypair.publicKey.toString(),
-    prover: '5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp', 
-    native_amount: 0, 
-    tokens: rewardTokens
+  const reward: RewardType<VmType.SVM> = {
+    vm: VmType.SVM,
+    deadline: BigInt(now + deadlineWindow), // 2 hours from now
+    creator: keypair.publicKey,
+    prover: new PublicKey('5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp'), 
+    nativeAmount: 0n, 
+    tokens: rewardTokens.map(token => ({
+      token: new PublicKey(token.token),
+      amount: BigInt(token.amount)
+    }))
   }
-
   // Create the intent first to get destination
-  const intent: Intent = {
-    destination: config.intentSources[1].chainID, // Optimism chain ID
-    route: {} as Route, // Will be filled below
+  const intent: IntentType = {
+    destination: BigInt(config.intentSources[1].chainID), // Optimism chain ID
+    source: BigInt(config.intentSources[0].chainID), // Solana chain ID
+    route: {} as RouteType<VmType.EVM>, // Will be filled below
     reward: reward
   }
 
   // Get target address and selector from config for destination chain
-  const destinationSolvers = config.solvers[intent.destination];
+  const destinationSolvers = config.solvers[Number(intent.destination)];
   if (!destinationSolvers) {
     throw new Error(`No solvers config found for chain ID ${intent.destination}`);
   }
@@ -140,7 +128,7 @@ async function publishSolanaIntent() {
   const targetAddress = targetAddresses[0];
 
   const sampleCall: Call = {
-    target: targetAddress,
+    target: targetAddress as `0x${string}`,
     data: encodeFunctionData({
       abi: [{
         name: 'transfer',
@@ -156,15 +144,19 @@ async function publishSolanaIntent() {
         BigInt(10000) 
       ]
     }),  
-    value: 0
+    value: 0n
   }
 
   // Create the route
-  const route: Route = {
+  const route: RouteType<VmType.EVM> = {
+    vm: VmType.EVM,
     salt: salt,
-    deadline: now + deadlineWindow, // 2 hours from now
-    portal: optimismPortalAddress,
-    tokens: routeTokens,
+    deadline: BigInt(now + deadlineWindow), // 2 hours from now
+    portal: optimismPortalAddress as Hex,
+    tokens: routeTokens.map(token => ({
+      token: token.token as Hex,
+      amount: BigInt(token.amount)
+    })),
     calls: [sampleCall]
   }
 
@@ -188,10 +180,10 @@ async function publishSolanaIntent() {
 
   console.log('Intent Details:')
   console.log(`Destination Chain: ${intent.destination}`)
-  console.log(`Route deadline: ${new Date(route.deadline * 1000).toISOString()}`)
-  console.log(`Reward deadline: ${new Date(reward.deadline * 1000).toISOString()}`)
+  console.log(`Route deadline: ${new Date(Number(route.deadline) * 1000).toISOString()}`)
+  console.log(`Reward deadline: ${new Date(Number(reward.deadline) * 1000).toISOString()}`)
   console.log(`Creator: ${keypair.publicKey.toString()}`)
-  console.log(`Native reward: ${reward.native_amount / 1e9} SOL`)
+  console.log(`Native reward: ${Number(reward.nativeAmount) / 1e9} SOL`)
   console.log(`Route tokens: ${route.tokens.length}`)
   console.log(`Reward tokens: ${reward.tokens.length}`)
 
@@ -226,7 +218,7 @@ async function publishSolanaIntent() {
       deadline: new BN(reward.deadline),
       creator: new PublicKey(reward.creator),
       prover: new PublicKey(reward.prover),
-      nativeAmount: new BN(reward.native_amount),
+      nativeAmount: new BN(reward.nativeAmount),
       tokens: reward.tokens.map(token => ({
         token: new PublicKey(token.token),
         amount: new BN(token.amount)
@@ -234,27 +226,21 @@ async function publishSolanaIntent() {
     }
     
     console.log('Publishing intent...')
+    console.log(route.portal, route.tokens, route.calls)
 
     // Replace the encodeRoute call with this manual encoding using the exact ABI structure
     const routeBytes = Buffer.from(
       encodeAbiParameters(
         [{
           type: 'tuple',
-          components: RewardStruct
+          components: RouteStruct
         }],
         [{
-          salt: `0x${now.toString(16).padStart(64, '0')}`,
-          deadline: BigInt(route.deadline),
-          portal: route.portal as `0x${string}`,
-          tokens: [{
-            token: config.intentSources[1].tokens[0] as `0x${string}`,
-            amount: BigInt(10000)
-          }],
-          calls: [{
-            target: targetAddress as `0x${string}`,
-            data: sampleCall.data as `0x${string}`,
-            value: 0n
-          }]
+          salt: salt,
+          deadline: route.deadline,
+          portal: route.portal,
+          tokens: route.tokens,
+          calls: route.calls
         }]
       ).slice(2), // remove 0x prefix
       'hex'
@@ -275,8 +261,39 @@ async function publishSolanaIntent() {
     
     console.log(`Intent published! Transaction: ${signature}`)
     
+    // Conditionally fund the intent if requested
+    let fundingSignature = null
+    if (fundIntent) {
+      console.log('Funding the published intent...')
+      
+      try {
+        // Calculate intent hash for funding (simplified - should match the actual intent hash calculation)
+        const intentHash = hashIntent(BigInt(intent.destination), intent.route, intent.reward)
+        
+        fundingSignature = await program.methods
+          .fund({
+            destination: new BN(intent.destination),
+            route_hash: intentHash.routeHash,
+            reward: portalReward,
+            allow_partial: false
+          })
+          .accounts({
+          })
+          .rpc({
+            commitment: 'confirmed',
+            skipPreflight: false
+          })
+        
+        console.log(`Intent funded! Transaction: ${fundingSignature}`)
+      } catch (fundingError) {
+        console.error('Failed to fund intent:', fundingError)
+        // Don't throw, just log the error so publish still succeeds
+      }
+    }
+    
     return {
-      signature,
+      publishSignature: signature,
+      fundingSignature,
       destination: intent.destination,
       routeBytes: routeBytes.toString('hex'),
       reward: portalReward
@@ -290,4 +307,6 @@ async function publishSolanaIntent() {
 
 // Run the script
 // Usage: npx ts-node scripts/publish-solana-intent.ts
-publishSolanaIntent().catch(console.error)
+// Usage with funding: npx ts-node scripts/publish-solana-intent.ts --fund yes
+console.log(`Running with funding: ${shouldFund}`)
+publishSolanaIntent(shouldFund).catch(console.error)
