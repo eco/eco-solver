@@ -24,6 +24,8 @@ describe('GitHubConfigService', () => {
 
   describe('initConfigs', () => {
     it('should download and merge configs from multiple git sources', async () => {
+      // Reset mocks to make sure we have a clean state
+      mockFetch.mockClear()
       const mockGitConfigs = [
         {
           repo: 'eco-incorp/config-eco-solver',
@@ -88,6 +90,9 @@ describe('GitHubConfigService', () => {
     })
 
     it('should recursively merge complex nested configs with arrays from multiple sources', async () => {
+      // Reset mocks to make sure we have a clean state
+      mockFetch.mockClear()
+
       const mockGitConfigs = [
         {
           repo: 'eco-incorp/config-eco-solver',
@@ -239,14 +244,20 @@ describe('GitHubConfigService', () => {
 
       jest.spyOn(require('config'), 'get').mockReturnValue(mockGitConfigs)
 
-      // Mock all the API calls in sequence
+      // Mock all the API calls - repos are processed in parallel, so both directory calls happen first
       // First repo directory listing
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockDirectoryContents1),
       } as Response)
 
-      // First repo file downloads
+      // Second repo directory listing
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockDirectoryContents2),
+      } as Response)
+
+      // First repo file downloads (within repo files are downloaded in parallel)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockChainsConfig1),
@@ -257,13 +268,7 @@ describe('GitHubConfigService', () => {
         json: () => Promise.resolve(mockGeneralConfig1),
       } as Response)
 
-      // Second repo directory listing
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockDirectoryContents2),
-      } as Response)
-
-      // Second repo file downloads
+      // Second repo file downloads (within repo files are downloaded in parallel)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockChainsConfig2),
@@ -277,7 +282,6 @@ describe('GitHubConfigService', () => {
       await service.initConfigs()
 
       const result = service.getConfig()
-      console.log('DEBUG RESULT:', JSON.stringify(result, null, 2))
 
       // Verify deep merge happened correctly
       expect(result.chains?.intentSources).toHaveLength(4) // 2 from each source
@@ -335,6 +339,8 @@ describe('GitHubConfigService', () => {
     })
 
     it('should work without authentication token', async () => {
+      // Reset mocks to make sure we have a clean state
+      mockFetch.mockClear()
       const mockGitConfigs = [
         {
           repo: 'eco-incorp/config-eco-solver',
@@ -380,6 +386,8 @@ describe('GitHubConfigService', () => {
     })
 
     it('should filter non-JSON files', async () => {
+      // Reset mocks to make sure we have a clean state
+      mockFetch.mockClear()
       const mockGitConfigs = [
         {
           repo: 'eco-incorp/config-eco-solver',

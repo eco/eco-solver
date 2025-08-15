@@ -1,11 +1,12 @@
 import { SecretsManager } from '@aws-sdk/client-secrets-manager'
 import { AwsCredential } from './eco-config.types'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common'
 import * as config from 'config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import { EcoError } from '../common/errors/eco-error'
-import { merge } from 'lodash'
+import { merge, mergeWith, isArray } from 'lodash'
+import { GitHubConfigService } from './github-config.service'
 
 /**
  * Service to retrieve AWS secrets from AWS Secrets Manager
@@ -14,7 +15,7 @@ import { merge } from 'lodash'
 export class AwsConfigService implements OnModuleInit, ConfigSource {
   private logger = new Logger(AwsConfigService.name)
   private _awsConfigs: Record<string, string> = {}
-  constructor() {}
+  constructor(@Optional() private readonly githubConfigService?: GitHubConfigService) {}
 
   async onModuleInit() {
     await this.initConfigs()
@@ -46,6 +47,31 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
       }),
     )
     merge(this._awsConfigs, ...creds)
+
+    // Check for git config in AWS secrets and merge if available
+    if (this._awsConfigs.git && this.githubConfigService) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Git config found in AWS secrets, using GitHubConfigService to fetch configs`,
+        }),
+      )
+
+      await this.githubConfigService.initConfigsFromGitConfig(this._awsConfigs.git)
+      const gitConfigs = this.githubConfigService.getConfig()
+
+      // Deep merge with git config taking priority (git as senior in conflicts)
+      this._awsConfigs = mergeWith({}, this._awsConfigs, gitConfigs, (objValue, srcValue) => {
+        if (isArray(objValue)) {
+          return objValue.concat(srcValue)
+        }
+      })
+    } else if (this._awsConfigs.git && !this.githubConfigService) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `Git config found in AWS secrets but no GitHubConfigService available, skipping git config merge`,
+        }),
+      )
+    }
   }
 
   get awsConfigs(): Record<string, string> {
