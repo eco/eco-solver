@@ -4,7 +4,7 @@ import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
 import { AwsCredential } from '@/eco-configs/eco-config.types'
-import { ProofType } from '@/contracts'
+import { ProofType } from '@/contracts/types'
 
 export class EcoError extends Error {
   // Alchemy Service

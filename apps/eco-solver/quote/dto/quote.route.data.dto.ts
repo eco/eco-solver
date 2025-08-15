@@ -1,5 +1,5 @@
 import { CallDataInterface } from '@/contracts'
-import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRewardTokensDTO } from './quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco/foundation-eco-adapter'
 import { ApiProperty } from '@nestjs/swagger'

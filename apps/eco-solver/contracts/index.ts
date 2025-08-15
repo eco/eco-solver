@@ -7,3 +7,5 @@ export * from './KernelAccount.abi'
 export * from './OwnableExecutor.abi'
 // interfaces
 export * from './interfaces'
+// types
+export * from './types'

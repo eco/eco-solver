@@ -1,4 +1,4 @@
-import { TokenData } from '@/liquidity-manager/types/types'
+import { TokenData } from '../types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { formatUnits, Hex } from 'viem'
 

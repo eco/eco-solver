@@ -38,7 +38,7 @@
     "lint:affected": "nx affected -t lint",
     "prettier": "nx format:check",
     "prettier:fix": "nx format:write",
-    "format": "nx format:write",
+    "format": "nx lint:fix && pnpm prettier:fix",
     "format:check": "nx format:check",
     "test": "nx run-many -t test",
     "test:affected": "nx affected -t test",

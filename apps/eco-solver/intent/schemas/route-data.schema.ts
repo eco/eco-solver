@@ -1,8 +1,8 @@
-import { TargetCallDataModel, TargetCallDataSchema } from '@/intent/schemas/intent-call-data.schema'
+import { TargetCallDataModel, TargetCallDataSchema } from './intent-call-data.schema'
 import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
-} from '@/intent/schemas/intent-token-amount.schema'
+} from './intent-token-amount.schema'
 import { encodeRoute, hashRoute, RouteType } from '@eco/foundation-eco-adapter'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'

@@ -9,25 +9,9 @@ import { EcoError } from '../common/errors/eco-error'
 import { DecodeFunctionDataReturnType, Hex } from 'viem'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from '@/common/alchemy/network'
-import { ValidationChecks } from '@/intent/validation.sevice'
+import { ValidationChecks, TransactionTargetData, IntentLogType } from './types'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
-/**
- * Data for a transaction target
- */
-export interface TransactionTargetData {
-  decodedFunctionData: DecodeFunctionDataReturnType
-  selector: Hex
-  targetConfig: TargetContract
-}
-
-/**
- * Type for logging in validations
- */
-export interface IntentLogType {
-  hash?: Hex
-  sourceNetwork?: Network
-}
 
 /**
  * Model and solver for the intent
