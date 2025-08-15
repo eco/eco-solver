@@ -29,6 +29,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "cli": "ts-node src/commander/command-main.ts",
+    "circle-gateway": "ts-node circle-gateway/transfer.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier": "prettier . --check",
