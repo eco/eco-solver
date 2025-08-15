@@ -1,6 +1,6 @@
 import { EcoConfigService } from '@eco/infrastructure-config'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
-import { EcoResponse } from '@eco/shared-types'
+import { EcoResponse } from '@eco/shared-dto'
 import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'

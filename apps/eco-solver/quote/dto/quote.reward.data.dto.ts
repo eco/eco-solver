@@ -4,7 +4,7 @@ import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
 import { RewardTokensInterface } from '@eco/shared-types'
 import { RewardType } from '@eco/foundation-eco-adapter'
-import { ViemAddressTransform } from '@eco/shared-utils'
+import { ViemAddressTransform } from '@eco/utils'
 
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except

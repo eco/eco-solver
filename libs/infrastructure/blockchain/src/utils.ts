@@ -1,7 +1,7 @@
 import { Abi, AbiStateMutability, ContractFunctionName, Hex } from 'viem'
 import { TargetContractType } from '@eco/shared-types'
 import { ERC20Abi } from './ERC20.contract'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoError } from '@eco/shared-types'
 
 /**
  * The type for a call to a contract, used for typing multicall mappings

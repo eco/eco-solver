@@ -13,7 +13,7 @@ import {
   Solver,
 } from './eco-config.types'
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
-import { addressKeys } from '@eco/shared-utils'
+import { addressKeys } from '@eco/utils'
 import { ChainsSupported } from '@eco/shared-types'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'

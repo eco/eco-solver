@@ -43,7 +43,6 @@ module.exports = {
     '^@eco/shared-guards$': '<rootDir>/../libs/shared/guards/src/index.ts',
     '^@eco/shared-pipes$': '<rootDir>/../libs/shared/pipes/src/index.ts',
     '^@eco/shared-interceptors$': '<rootDir>/../libs/shared/interceptors/src/index.ts',
-    '^@eco/shared-utils$': '<rootDir>/../libs/shared/utils/src/index.ts',
     '^@eco/utils$': '<rootDir>/../libs/shared/utils/src/index.ts',
   },
   globals: {

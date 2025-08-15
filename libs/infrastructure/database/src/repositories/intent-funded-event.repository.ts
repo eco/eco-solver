@@ -1,5 +1,5 @@
 import { EcoLogMessage } from '@eco/infrastructure-logging'
-import { EcoResponse } from '@eco/shared-types'
+import { EcoResponse } from '@eco/shared-dto'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '../schemas/intent-funded-events.schema'

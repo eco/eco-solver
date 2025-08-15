@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common'
 import { RegisterQueueOptions } from '@nestjs/bullmq'
 import * as Redis from 'ioredis'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoError } from '@eco/shared-types'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { QueueMetadata } from './constants'
 import { RedisConfig } from '@eco/infrastructure-config'
@@ -46,7 +46,7 @@ export class RedisConnectionUtils {
       } as RegisterQueueOptions
     } catch (ex) {
       EcoError.logErrorWithStack(
-        ex.message,
+        (ex as any) instanceof Error ? (ex as any).message : String(ex),
         `getQueueOptions: Invalid queue configuration`,
         this.logger,
         {

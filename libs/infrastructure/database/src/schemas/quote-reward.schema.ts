@@ -1,4 +1,4 @@
-import { QuoteRewardDataType } from '@eco/shared-types'
+import { QuoteRewardDataType } from '@eco/shared-dto'
 import {
   QuoteRewardTokenDataModel,
   QuoteRewardTokenDataSchema,

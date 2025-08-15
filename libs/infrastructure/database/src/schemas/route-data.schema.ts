@@ -44,9 +44,23 @@ RouteDataSchema.index({ source: 1 }, { unique: false })
 RouteDataSchema.index({ destination: 1 }, { unique: false })
 
 RouteDataSchema.methods.getHash = function (): Hex {
-  return hashRoute(this)
+  return hashRoute({
+    salt: this.salt,
+    source: this.source,
+    destination: this.destination,
+    inbox: this.inbox,
+    tokens: this.tokens,
+    calls: this.calls,
+  })
 }
 
 RouteDataSchema.methods.getEncoding = function (): Hex {
-  return encodeRoute(this)
+  return encodeRoute({
+    salt: this.salt,
+    source: this.source,
+    destination: this.destination,
+    inbox: this.inbox,
+    tokens: this.tokens,
+    calls: this.calls,
+  })
 }

@@ -50,7 +50,8 @@
  */
 
 // Core module export
-export { AnalyticsModule, ANALYTICS_SERVICE } from './analytics.module'
+export { AnalyticsModule } from './analytics.module'
+export { ANALYTICS_SERVICE } from './analytics.constants'
 
 // Service implementation export
 export { PosthogService } from './posthog.service'

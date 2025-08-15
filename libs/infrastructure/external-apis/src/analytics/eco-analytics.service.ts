@@ -1,7 +1,8 @@
 import { Injectable, Inject, Logger } from '@nestjs/common'
 import { AnalyticsService } from './analytics.interface'
 import { ANALYTICS_SERVICE } from './analytics.constants'
-import { AnalyticsIntentModel as IntentSourceModel } from '@eco/shared-types'
+import { AnalyticsIntentModel } from '@eco/shared-types'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { QuoteIntentDataDTO, QuoteDataDTO } from '@eco/shared-dto'
 import { AnalyticsIntentSource as IntentSource } from '@eco/shared-types'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
@@ -16,6 +17,20 @@ export class EcoAnalyticsService {
   private readonly logger = new Logger(EcoAnalyticsService.name)
 
   constructor(@Inject(ANALYTICS_SERVICE) private readonly analytics: AnalyticsService) {}
+
+  /**
+   * Transform IntentSourceModel to AnalyticsIntentModel format
+   * @private
+   */
+  private transformToAnalyticsModel(model: IntentSourceModel): AnalyticsIntentModel {
+    return {
+      _id: (model as any)._id,
+      intentHash: model.intent.hash,
+      status: model.status,
+      createdAt: (model as any).createdAt,
+      updatedAt: (model as any).updatedAt,
+    }
+  }
 
   /**
    * Safe wrapper for analytics tracking that doesn't throw errors
@@ -142,7 +157,7 @@ export class EcoAnalyticsService {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.VALIDATED_AND_QUEUED, {
       intentHash,
       jobId,
-      model,
+      model: this.transformToAnalyticsModel(model),
     })
   }
 
@@ -150,14 +165,14 @@ export class EcoAnalyticsService {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.FEASIBLE_AND_QUEUED, {
       intentHash,
       jobId,
-      model,
+      model: this.transformToAnalyticsModel(model),
     })
   }
 
   trackIntentInfeasible(intentHash: string, model: IntentSourceModel, error: any) {
     this.safeTrack(ANALYTICS_EVENTS.INTENT.INFEASIBLE, {
       intentHash,
-      model,
+      model: this.transformToAnalyticsModel(model),
       error,
     })
   }
@@ -173,7 +188,7 @@ export class EcoAnalyticsService {
       intentHash,
       fulfillmentType,
       isNativeIntent,
-      model,
+      model: this.transformToAnalyticsModel(model),
       solver,
     })
   }

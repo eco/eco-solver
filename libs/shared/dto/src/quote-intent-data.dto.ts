@@ -1,9 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ApiProperty } from '@nestjs/swagger'
 import { IntentExecutionType } from './intent-execution-type.enum'
-import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
-import { Type } from 'class-transformer'
-import { RewardType, RouteType } from '@eco/foundation-eco-adapter'
-
+import { IsArray, IsIn, IsNotEmpty,  IsString } from 'class-validator'
+import { RewardType, RouteType } from '@eco-foundation/routes-ts'
 /**
  * Basic interface types for the quote intent data
  */

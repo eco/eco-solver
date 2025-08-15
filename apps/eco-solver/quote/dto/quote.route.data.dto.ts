@@ -1,6 +1,6 @@
 import { CallDataInterface } from '@eco/shared-types'
 import { QuoteRewardTokensDTO } from './quote.reward.data.dto'
-import { ViemAddressTransform } from '@eco/shared-utils'
+import { ViemAddressTransform } from '@eco/utils'
 import { RouteType } from '@eco/foundation-eco-adapter'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'

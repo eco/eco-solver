@@ -6,7 +6,7 @@ import {
 } from '@/liquidity-manager/types/queue.types'
 
 // Re-export types for backward compatibility  
-export { LiquidityManagerQueueType }
+export { LiquidityManagerQueueType, LiquidityManagerJobName }
 
 export class LiquidityManagerQueue {
   public static readonly prefix = '{liquidity-manager}'

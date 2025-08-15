@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { EcoError, IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@eco/shared-types'
+import { EcoError, CallDataInterface, RewardTokensInterface } from '@eco/shared-types'
 import { getAddress, Hex, Mutable } from 'viem'
 import { RouteDataModel, RouteDataSchema } from './route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from './reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { IntentCreatedEventLog } from '@eco/infrastructure-blockchain'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -157,14 +158,22 @@ IntentSourceDataSchema.index(
   { unique: false },
 )
 
-IntentSourceDataSchema.methods.getHash = function (): {
+IntentSourceDataSchema.methods['getHash'] = function (): {
   routeHash: Hex
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  return hashIntent({
+    salt: this.salt,
+    route: this.route,
+    reward: this.reward,
+  })
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  return encodeIntent({
+    salt: this.salt,
+    route: this.route,
+    reward: this.reward,
+  })
 }

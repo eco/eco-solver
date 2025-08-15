@@ -5,5 +5,5 @@ export interface ExecuteRequestParams extends RequestUrlParams {
   body?: any
   idempotentID?: string
   queryParamsObject?: any
-  additionalHeaders?: object
+  additionalHeaders?: Record<string, string>
 }

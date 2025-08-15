@@ -23,7 +23,7 @@ export class IntentExecutionType extends Enumify {
     return this === IntentExecutionType.GASLESS
   }
 
-  toString() {
+  override toString() {
     return this.enumKey
   }
 }
