@@ -8,7 +8,7 @@ import {
   OnModuleInit,
   Post,
 } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'

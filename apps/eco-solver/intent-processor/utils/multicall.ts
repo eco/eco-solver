@@ -1,5 +1,5 @@
 import { extractChain } from 'viem'
-import { ChainsSupported } from '@/common/chains/supported'
+import { ChainsSupported } from '@eco/infrastructure-blockchain'
 
 export function getMulticall(chainID: number) {
   const chain = extractChain({

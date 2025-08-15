@@ -1,4 +1,4 @@
-import { hashObject, serializeObject } from '@/common/utils/objects'
+import { hashObject, serializeObject } from '@eco/utils'
 import { keccak256, toBytes } from 'viem'
 
 describe('serializeObject', () => {

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { HealthIndicatorResult } from '@nestjs/terminus'
 import { RedisHealthIndicator } from '@liaoliaots/nestjs-redis-health'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { RedisConnectionUtils } from '../../common/redis/redis-connection-utils'
 
 @Injectable()

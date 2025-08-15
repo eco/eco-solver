@@ -1,18 +1,18 @@
 const mockDecodeCreateIntentLog = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { Model } from 'mongoose'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { CreateIntentService } from '../create-intent.service'
 import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
-import { IntentDataModel } from '../schemas/intent-data.schema'
+import { IntentDataModel } from '@eco/infrastructure-database'
 import { FlagService } from '../../flags/flags.service'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 jest.mock('../../contracts', () => {
   return {

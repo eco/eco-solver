@@ -1,8 +1,8 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '@/common/redis/constants'
+import { QUEUES } from '@eco/infrastructure-redis'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
@@ -10,8 +10,8 @@ import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 import { Hex } from 'viem'
 import { IntentCreatedLog } from '@/contracts'
 import { Serialize } from '@/common/utils/serialize'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
-import { QUEUES } from '@/common/redis/constants'
+import { QUEUES } from '@eco/infrastructure-redis'
 import { WatchCreateIntentService } from '@/watch/intent/watch-create-intent.service'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { WatchFulfillmentService } from '@/watch/intent/watch-fulfillment.service'

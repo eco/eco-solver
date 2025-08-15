@@ -1,9 +1,9 @@
 import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoConfigService } from '@eco/infrastructure-config'
+import { EcoLogger } from '@eco/infrastructure-logging'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
@@ -13,7 +13,7 @@ import {
   ServerConfig,
   Solver,
   SolverRegistrationConfig,
-} from '@/eco-configs/eco-config.types'
+} from '@eco/infrastructure-config'
 import { EcoError } from '@/common/errors/eco-error'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'

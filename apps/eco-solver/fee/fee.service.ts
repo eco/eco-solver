@@ -1,14 +1,14 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { getERC20Selector, isERC20Target } from '@/contracts'
 import { CallDataInterface } from '@/common/types/contract-interfaces'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import {
   FeeAlgorithmConfig,
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
-} from '@/eco-configs/eco-config.types'
+} from '@eco/infrastructure-config'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
 import {
@@ -25,8 +25,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { hasDuplicateStrings } from '@/common/utils/strings'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { hasDuplicateStrings } from '@eco/utils'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 /**
  * The base decimal number for erc20 tokens.

@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common'
 import { RouteExtended } from '@lifi/sdk'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 
 export function logLiFiProcess(logger: Logger, route: RouteExtended) {
   route.steps.forEach((step, index) => {

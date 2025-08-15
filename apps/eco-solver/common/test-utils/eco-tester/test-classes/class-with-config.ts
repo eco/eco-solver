@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { EcoConfigService } from '../../../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 
 @Injectable()
 export class ClassWithConfig {

@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { IntentProcessorJobName } from '@/intent-processor/constants/job-names'
 import { IntentProcessorInterface } from '@/intent-processor/types/processor.interface'

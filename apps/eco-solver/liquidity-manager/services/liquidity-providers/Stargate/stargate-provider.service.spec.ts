@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { StargateProviderService } from './stargate-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'

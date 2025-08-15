@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
@@ -10,8 +10,7 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
 import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoAnalyticsService, ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 type QuoteQuery = FilterQuery<QuoteIntentModel>
 type QuoteUpdate = UpdateQuery<QuoteIntentModel>

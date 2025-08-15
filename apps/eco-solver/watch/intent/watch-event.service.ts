@@ -1,12 +1,12 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { JobsOptions, Queue } from 'bullmq'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 /**
  * This service subscribes has hooks for subscribing and unsubscribing to a contract event.

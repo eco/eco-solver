@@ -1,4 +1,4 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { encodeFunctionData, Hex, hexToBigInt } from 'viem'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger } from '@nestjs/common'

@@ -9,7 +9,7 @@ import {
   PermitBatchArg,
   PermitSingleArg,
 } from './permit2-abis'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 
 /**
  * This class returns a transaction for a permit2.

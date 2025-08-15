@@ -1,6 +1,6 @@
 import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { Job, Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { OnWorkerEvent } from '@nestjs/bullmq'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 

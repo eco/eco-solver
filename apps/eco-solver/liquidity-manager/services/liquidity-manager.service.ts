@@ -21,10 +21,9 @@ import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { RebalanceJobData } from '@/liquidity-manager/types/job.types'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
-import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
-import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
+import { LiquidityManagerConfig, EcoConfigService } from '@eco/infrastructure-config'
+import { RebalanceModel } from '@eco/infrastructure-database'
+import { RebalanceTokenModel } from '@eco/infrastructure-database'
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -35,9 +34,9 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 import { BalanceService } from '@/balance/balance.service'
 
 @Injectable()

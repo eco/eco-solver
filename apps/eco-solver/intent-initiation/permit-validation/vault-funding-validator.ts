@@ -1,6 +1,6 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogger } from '@eco/infrastructure-logging'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { EcoResponse } from '@/common/eco-response'
 import { IntentSourceAbi } from '@eco/foundation-eco-adapter'
 import { ValidateVaultFundingArgs } from '@/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'

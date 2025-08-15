@@ -1,6 +1,6 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogger } from '@eco/infrastructure-logging'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable } from '@nestjs/common'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'

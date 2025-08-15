@@ -1,5 +1,5 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
+import { FeeAlgorithm } from '@eco/infrastructure-config'
 import { ValidationChecks } from '@/intent/types'
 import { Hex } from 'viem'
 import { NormalizedTotal } from '@/fee/types'

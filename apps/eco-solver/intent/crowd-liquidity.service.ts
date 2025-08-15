@@ -9,7 +9,7 @@ import {
   LitPKPResource,
 } from '@lit-protocol/auth-helpers'
 
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
   Hex,
@@ -21,16 +21,16 @@ import {
 } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
-import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { CrowdLiquidityConfig, Solver } from '@eco/infrastructure-config'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { IntentDataModel } from '@eco/infrastructure-database'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {

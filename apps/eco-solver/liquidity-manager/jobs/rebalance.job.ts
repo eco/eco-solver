@@ -1,5 +1,5 @@
 import { FlowChildJob, Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,

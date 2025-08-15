@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
-import { Nonce, NonceSchema } from './schemas/nonce.schema'
+import { NonceModel, NonceSchema } from '@eco/infrastructure-database'
 import { initBullMQ } from '../bullmq/bullmq.helper'
 import { QUEUES } from '../common/redis/constants'
 import { SignerService } from './signer.service'
@@ -12,7 +12,7 @@ import { KmsModule } from '@/kms/kms.module'
 @Module({
   imports: [
     KmsModule,
-    MongooseModule.forFeature([{ name: Nonce.name, schema: NonceSchema }]),
+    MongooseModule.forFeature([{ name: NonceModel.name, schema: NonceSchema }]),
     initBullMQ(QUEUES.SIGNER),
   ],
   providers: [SignerService, SignerKmsService, NonceService, AtomicSignerService],

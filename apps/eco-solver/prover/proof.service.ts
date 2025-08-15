@@ -5,8 +5,8 @@ import { IProverAbi } from '@eco/foundation-eco-adapter'
 import { addSeconds, compareAsc } from 'date-fns'
 import { ProofCall, ProofType } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 
 interface ProverMetadata {

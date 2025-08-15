@@ -1,7 +1,7 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { FulfillmentEstimateConfig } from '@/eco-configs/eco-config.types'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoConfigService } from '@eco/infrastructure-config'
+import { FulfillmentEstimateConfig } from '@eco/infrastructure-config'
+import { Solver } from '@eco/infrastructure-config'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 

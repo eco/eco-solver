@@ -3,11 +3,11 @@ import { DeepMocked, createMock } from '@golevelup/ts-jest'
 import { Hex, pad, parseUnits, getAbiItem, encodeEventTopics, keccak256, toHex } from 'viem'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { WarpRouteProviderService } from './warp-route-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { BalanceService } from '@/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
+import { WarpRoutesConfig } from '@eco/infrastructure-config'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 

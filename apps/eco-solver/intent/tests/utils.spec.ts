@@ -2,7 +2,7 @@ const mockDecodeFunctionData = jest.fn()
 const mockExtractChain = jest.fn()
 const mockIsEmptyData = jest.fn()
 import { EcoError } from '@/common/errors/eco-error'
-import { getFunctionBytes } from '@/common/viem/contracts'
+import { getFunctionBytes } from '@eco/infrastructure-blockchain'
 import { CallDataInterface } from '@/common/types/contract-interfaces'
 import {
   getTransactionTargetData,
@@ -25,9 +25,9 @@ jest.mock('viem', () => {
   }
 })
 
-jest.mock('@/common/viem/utils', () => {
+jest.mock('@eco/infrastructure-blockchain', () => {
   return {
-    ...jest.requireActual('@/common/viem/utils'),
+    ...jest.requireActual('@eco/infrastructure-blockchain'),
     isEmptyData: mockIsEmptyData,
   }
 })

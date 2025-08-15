@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy, zipWith } from 'lodash'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoConfigService } from '@eco/infrastructure-config'
+import { getDestinationNetworkAddressKey } from '@eco/utils'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
 import { ViemEventLog } from '@/common/events/viem'
 import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
@@ -11,8 +11,8 @@ import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 /**
  * Composite data from fetching the token balances for a chain

@@ -1,10 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { QUEUES } from '../common/redis/constants'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceModel } from './schemas/intent-source.schema'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { getIntentJobId } from '@eco/utils'
@@ -16,14 +16,14 @@ import {
   IntentCreatedLog,
   RewardTokensInterface,
 } from '../contracts'
-import { IntentDataModel } from './schemas/intent-data.schema'
+import { IntentDataModel } from '@eco/infrastructure-database'
 import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 import { hashIntent, RouteType } from '@eco/foundation-eco-adapter'
-import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
+import { QuoteRewardDataModel } from '@eco/infrastructure-database'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is

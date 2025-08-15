@@ -1,5 +1,5 @@
-import { QUEUES } from '@/common/redis/constants'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { QUEUES } from '@eco/infrastructure-redis'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { WatchCreateIntentService } from '@/watch/intent/watch-create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
@@ -9,7 +9,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { serialize } from '@/common/utils/serialize'
 import { IntentCreatedLog } from '@/contracts'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 describe('WatchIntentService', () => {
   let watchIntentService: WatchCreateIntentService

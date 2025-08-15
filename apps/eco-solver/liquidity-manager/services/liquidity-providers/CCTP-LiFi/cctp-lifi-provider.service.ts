@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { parseUnits, Hex, formatUnits } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { BalanceService } from '@/balance/balance.service'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import {
@@ -20,9 +20,9 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
-import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { CCTPLiFiConfig } from '@eco/infrastructure-config'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {

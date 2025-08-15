@@ -215,7 +215,7 @@ All analytics events are centrally defined in `events.constants.ts`:
 ### Usage Pattern
 
 ```typescript
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { ANALYTICS_EVENTS } from './events.constants'
 
 // Module-namespaced event access
 this.ecoAnalytics.trackError(ANALYTICS_EVENTS.INTENT.CREATION_FAILED, error, context)

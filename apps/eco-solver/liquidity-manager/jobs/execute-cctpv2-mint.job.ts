@@ -8,7 +8,7 @@ import { BaseLiquidityManagerJob, ExecuteCCTPV2MintJobData } from '@/liquidity-m
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
 import { ILiquidityManagerProcessor } from '../interfaces/processor.interface'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 
 export type ExecuteCCTPV2MintJob = BaseLiquidityManagerJob<

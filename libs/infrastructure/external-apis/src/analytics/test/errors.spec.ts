@@ -1,4 +1,4 @@
-import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
+import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '../errors'
 
 describe('Analytics Error Classes', () => {
   describe('AnalyticsError', () => {

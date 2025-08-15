@@ -1,9 +1,8 @@
 import { Test } from '@nestjs/testing'
-import { AnalyticsModule } from '@/analytics/analytics.module'
-import { ANALYTICS_SERVICE } from '@/analytics/constants'
-import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
-import { PosthogService } from '@/analytics/posthog.service'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { AnalyticsModule, ANALYTICS_SERVICE } from '../analytics.module'
+import { AnalyticsService, AnalyticsConfig } from '../analytics.interface'
+import { PosthogService } from '../posthog.service'
+import { EcoAnalyticsService } from '../eco-analytics.service'
 import { createMock } from '@golevelup/ts-jest'
 
 describe('AnalyticsModule', () => {

@@ -3,10 +3,10 @@ import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '@eco/utils'
 import { Hex } from 'viem'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+import { QuoteIntentModel } from '@eco/infrastructure-database'
 import { FeeService } from '@/fee/fee.service'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ERROR_EVENTS } from '@eco/infrastructure-external-apis'
 import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 
 /**

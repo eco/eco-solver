@@ -1,7 +1,7 @@
 import {
-  TokenAmountDataModel,
-  TokenAmountDataSchema,
-} from '@/intent/schemas/intent-token-amount.schema'
+  IntentTokenAmountModel,
+  IntentTokenAmountSchema,
+} from '@eco/infrastructure-database'
 import { QuoteRouteDataInterface } from '../dto/quote.route.data.dto'
 import {
   QuoteRouteCallDataModel,
@@ -18,8 +18,8 @@ export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   destination!: bigint
   @Prop({ required: true, type: String })
   inbox!: Hex
-  @Prop({ required: true, type: [TokenAmountDataSchema] })
-  tokens!: TokenAmountDataModel[]
+  @Prop({ required: true, type: [IntentTokenAmountSchema] })
+  tokens!: IntentTokenAmountModel[]
   @Prop({ required: true, type: [QuoteRouteCallDataSchema] })
   calls!: QuoteRouteCallDataModel[]
 }

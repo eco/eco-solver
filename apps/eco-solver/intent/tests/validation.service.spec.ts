@@ -9,10 +9,10 @@ import {
   ValidationService,
   validationsSucceeded,
 } from '@/intent/validation.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'
-import { FeeConfigType } from '@/eco-configs/eco-config.types'
+import { FeeConfigType } from '@eco/infrastructure-config'
 import { BalanceService } from '@/balance/balance.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'

@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Logger } from '@nestjs/common'

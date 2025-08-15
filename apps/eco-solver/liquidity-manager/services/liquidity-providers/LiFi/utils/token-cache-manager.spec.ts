@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import * as LiFiSDK from '@lifi/sdk'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { LiFiAssetCacheManager } from './token-cache-manager'
 
 // Mock the LiFi SDK

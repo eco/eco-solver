@@ -1,7 +1,7 @@
 import { BalanceService } from '@/balance/balance.service'
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import { API_ROOT, BALANCE_ROUTE } from '@/common/routes/constants'
-import { convertBigIntsToStrings } from '@/common/viem/utils'
+import { convertBigIntsToStrings } from '@eco/infrastructure-blockchain'
 import { CacheInterceptor } from '@nestjs/cache-manager'
 import { Controller, Get, Query, UseInterceptors } from '@nestjs/common'
 import * as _ from 'lodash'

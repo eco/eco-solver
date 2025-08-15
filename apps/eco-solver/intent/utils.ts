@@ -1,16 +1,16 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { getFunctionBytes } from '@/common/viem/contracts'
+import { getFunctionBytes } from '@eco/infrastructure-blockchain'
 import { getERCAbi } from '@/contracts'
 import { CallDataInterface } from '@/common/types/contract-interfaces'
-import { Solver, TargetContract } from '@/eco-configs/eco-config.types'
+import { Solver, TargetContract } from '@eco/infrastructure-config'
 import { TransactionTargetData, ValidationIntentInterface } from './types'
 import { includes } from 'lodash'
 import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
 import { mainnet } from 'viem/chains'
 import { Logger } from '@nestjs/common'
-import { ChainsSupported } from '../common/chains/supported'
+import { ChainsSupported } from '@eco/infrastructure-blockchain'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { isEmptyData } from '../common/viem/utils'
+import { isEmptyData } from '@eco/infrastructure-blockchain'
 
 // The default number of decimals for native tokens that we enfores for now
 const DEFAULT_NATIVE_DECIMALS = 18

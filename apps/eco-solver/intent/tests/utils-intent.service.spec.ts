@@ -1,9 +1,9 @@
 const mockDecodeFunctionData = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { Model } from 'mongoose'
 import { UtilsIntentService } from '../utils-intent.service'
 import { getQueueToken } from '@nestjs/bullmq'
@@ -15,7 +15,7 @@ import { FulfillmentLog } from '@/contracts/inbox'
 import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { ValidationChecks } from '@/intent/validation.service'
 import { QuoteError } from '@/quote/errors'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 jest.mock('viem', () => {
   return {

@@ -3,8 +3,8 @@ import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestj
 import { erc20Abi, Hex, isAddressEqual } from 'viem'
 import { Network } from '@/common/alchemy/network'
 import { entries, keyBy } from 'lodash'
-import { Solver } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { Solver } from '@eco/infrastructure-config'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 type TokenType = {

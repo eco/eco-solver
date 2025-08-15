@@ -1,6 +1,6 @@
 import { TokenFetchAnalysis } from '@/balance/balance.service'
 import { RewardTokensInterface } from '@/common/types/contract-interfaces'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { Solver } from '@eco/infrastructure-config'
 import { Hex, Prettify } from 'viem'
 /**
  * The response quote data

@@ -12,8 +12,8 @@ import {
   TransactionRequest,
   isAddress,
 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { TokenConfig } from '@/balance/types'
 import { BalanceService } from '@/balance/balance.service'
 import { hyperlaneCollateralERC20 } from '@/contracts/HyperlaneCollateralERC20'

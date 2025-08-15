@@ -1,5 +1,5 @@
 import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { formatUnits } from 'viem'
 import {
   LiquidityManagerJob,

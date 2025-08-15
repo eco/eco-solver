@@ -4,19 +4,19 @@ const mockEncodeAbiParameters = jest.fn()
 const mockGetChainConfig = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { CrowdLiquidityService } from '../crowd-liquidity.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { EcoError } from '@/common/errors/eco-error'
 import { FeeService } from '@/fee/fee.service'
 import { Hex, zeroAddress, pad } from 'viem'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { IntentDataModel } from '@eco/infrastructure-database'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ProofService } from '@/prover/proof.service'
-import { RewardDataModel } from '../schemas/reward-data.schema'
+import { RewardDataModel } from '@eco/infrastructure-database'
 import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 jest.mock('viem', () => {
   return {
@@ -33,9 +33,9 @@ jest.mock('@/intent/utils', () => {
   }
 })
 
-jest.mock('@/eco-configs/utils', () => {
+jest.mock('@eco/infrastructure-config', () => {
   return {
-    ...jest.requireActual('@/eco-configs/utils'),
+    ...jest.requireActual('@eco/infrastructure-config'),
     getChainConfig: mockGetChainConfig,
   }
 })

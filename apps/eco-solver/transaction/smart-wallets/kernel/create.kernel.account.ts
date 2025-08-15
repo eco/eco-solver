@@ -34,7 +34,7 @@ import {
   isModuleInstalled,
 } from '@rhinestone/module-sdk'
 import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { OwnableExecutorAbi } from '@/contracts'
 import { GetKernelVersion } from '@zerodev/sdk/types'
 

@@ -1,13 +1,13 @@
 import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
-import { QUEUES } from '@/common/redis/constants'
+import { QUEUES } from '@eco/infrastructure-redis'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
 import {
   IntentFundedEventModel,
   IntentFundedEventSchema,
-} from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
-import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
+} from '@eco/infrastructure-database'
+import { IntentFundedEventRepository } from '@eco/infrastructure-database'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { IntentModule } from '@/intent/intent.module'
 

@@ -12,9 +12,9 @@ import {
   Transport,
 } from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco/foundation-eco-adapter'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@eco/infrastructure-config'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { IndexerService } from '@/indexer/services/indexer.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
@@ -27,7 +27,7 @@ import {
 import { ExecuteSendBatchJobData } from '@/intent-processor/types'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
-import { getChainConfig } from '@/eco-configs/utils'
+import { getChainConfig } from '@eco/infrastructure-config'
 import { IntentProcessorJobFactory } from '@/intent-processor/factories/job.factory'
 
 @Injectable()

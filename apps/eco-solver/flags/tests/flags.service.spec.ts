@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { FlagService, FlagVariationKeys } from '../flags.service'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { createMock } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 
 jest.mock('@launchdarkly/node-server-sdk', () => {
   return {

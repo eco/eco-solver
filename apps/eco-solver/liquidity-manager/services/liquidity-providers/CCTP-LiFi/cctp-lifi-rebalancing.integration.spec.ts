@@ -15,7 +15,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { BalanceService } from '@/balance/balance.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
@@ -24,14 +24,14 @@ import { EverclearProviderService } from '@/liquidity-manager/services/liquidity
 // Types & Models
 import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
 import { TokenConfig } from '@/balance/types'
-import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
+import { RebalanceModel } from '@eco/infrastructure-database'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
+import { LiquidityManagerConfig } from '@eco/infrastructure-config'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 import { serialize } from '@/common/utils/serialize'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {

@@ -1,13 +1,13 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { getModelToken } from '@nestjs/mongoose'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { QuoteRepository } from '@/quote/quote.repository'
+import { QuoteIntentModel } from '@eco/infrastructure-database'
+import { QuoteRepository } from '@eco/infrastructure-database'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 describe('QuoteRepository', () => {
   let quoteRepository: QuoteRepository

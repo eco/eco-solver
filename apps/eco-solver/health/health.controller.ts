@@ -4,8 +4,8 @@ import { HealthPath } from './constants'
 import { HealthService } from './health.service'
 import { API_ROOT } from '../common/routes/constants'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
+import { ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 @Controller(API_ROOT)
 export class HealthController {

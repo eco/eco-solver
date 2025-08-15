@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common'
 import { RegisterQueueOptions } from '@nestjs/bullmq'
 import * as Redis from 'ioredis'
-import { EcoError } from '../../../../src/common/errors/eco-error'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { QueueMetadata } from './constants'
 import { RedisConfig } from '@eco/infrastructure-config'

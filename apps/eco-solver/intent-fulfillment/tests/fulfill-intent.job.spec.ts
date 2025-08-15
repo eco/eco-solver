@@ -2,7 +2,7 @@ import { FulfillIntentJob, FulfillIntentJobManager } from '../jobs/fulfill-inten
 import { IntentFulfillmentJobName } from '../queues/intent-fulfillment.queue'
 import { deserialize, serialize } from '@/common/utils/serialize'
 import { Hex } from 'viem'
-import * as stringUtils from '@/common/utils/strings'
+import * as stringUtils from '@eco/utils'
 import { createMock } from '@golevelup/ts-jest'
 
 describe('FulfillIntentJobManager', () => {

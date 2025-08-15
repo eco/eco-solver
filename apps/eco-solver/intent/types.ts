@@ -1,5 +1,5 @@
 import { DecodeFunctionDataReturnType, Hex } from 'viem'
-import { TargetContract } from '../eco-configs/eco-config.types'
+import { TargetContract } from '@eco/infrastructure-config'
 import { QuoteIntentDataInterface } from '../quote/dto/quote.intent.data.dto'
 import { Network } from '../common/alchemy/network'
 

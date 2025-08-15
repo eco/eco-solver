@@ -1,8 +1,8 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '@/common/redis/constants'
+import { QUEUES } from '@eco/infrastructure-redis'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { FulfillmentLog } from '@/contracts/inbox'
 

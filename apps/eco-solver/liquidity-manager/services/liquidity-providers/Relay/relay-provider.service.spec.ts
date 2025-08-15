@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { RelayProviderService } from './relay-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { WalletClient } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { createClient, Execute as RelayQuote, getClient } from '@reservoir0x/relay-sdk'
-import { ChainsSupported } from '@/common/chains/supported'
+import { ChainsSupported } from '@eco/infrastructure-blockchain'
 
 // Mock the relay-sdk
 jest.mock('@reservoir0x/relay-sdk', () => {

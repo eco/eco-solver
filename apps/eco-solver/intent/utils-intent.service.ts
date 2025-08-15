@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { IntentSourceModel } from './schemas/intent-source.schema'
+import { IntentSourceModel } from '@eco/infrastructure-database'
 import { Model } from 'mongoose'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { Solver, TargetContract } from '../eco-configs/eco-config.types'
+import { EcoConfigService } from '@eco/infrastructure-config'
+import { Solver, TargetContract } from '@eco/infrastructure-config'
 import { EcoError } from '../common/errors/eco-error'
 import { DecodeFunctionDataReturnType, Hex } from 'viem'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from '@/common/alchemy/network'
 import { ValidationChecks, TransactionTargetData, IntentLogType } from './types'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 
 /**

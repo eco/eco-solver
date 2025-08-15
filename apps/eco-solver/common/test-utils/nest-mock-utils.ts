@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/array-type */
 import { createMock } from '@golevelup/ts-jest'
 import { DynamicModule, Provider } from '@nestjs/common'
-import { EcoConfigModule } from '../../eco-configs/eco-config.module'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigModule } from '@eco/infrastructure-config'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { MongooseModule } from '@nestjs/mongoose'
 
 export function provideEcoConfigService(ecoConfig: any): Provider {

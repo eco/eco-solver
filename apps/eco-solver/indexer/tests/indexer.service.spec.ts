@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { IndexerService } from '@/indexer/services/indexer.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { createMock } from '@golevelup/ts-jest'
 import { Logger } from '@nestjs/common'
 

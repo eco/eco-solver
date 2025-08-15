@@ -13,7 +13,7 @@
  * @example Basic Usage
  * ```typescript
  * // In app.module.ts
- * import { AnalyticsModule } from '@/analytics'
+ * import { AnalyticsModule } from '@eco/infrastructure-external-apis'
  *
  * @Module({
  *   imports: [
@@ -30,7 +30,7 @@
  * ```typescript
  * // In any service
  * import { Injectable, Inject } from '@nestjs/common'
- * import { AnalyticsService, ANALYTICS_SERVICE } from '@/analytics'
+ * import { AnalyticsService, ANALYTICS_SERVICE } from '@eco/infrastructure-external-apis'
  *
  * @Injectable()
  * export class SomeService {
@@ -50,25 +50,22 @@
  */
 
 // Core module export
-export { AnalyticsModule } from '@/analytics/analytics.module'
-
-// Constants export
-export { ANALYTICS_SERVICE } from '@/analytics/constants'
+export { AnalyticsModule, ANALYTICS_SERVICE } from './analytics.module'
 
 // Service implementation export
-export { PosthogService } from '@/analytics/posthog.service'
+export { PosthogService } from './posthog.service'
 
 // Interface and type exports
-export { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
+export { AnalyticsService, AnalyticsConfig } from './analytics.interface'
 
 // Utility exports
-export { getCurrentEnvironment } from '@/analytics/utils'
+export { getCurrentEnvironment } from './utils'
 
 // Error handling exports
-export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
+export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from './errors'
 
 // Centralized analytics service export
-export { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+export { EcoAnalyticsService } from './eco-analytics.service'
 
 // Event constants export
-export { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+export { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'

@@ -3,9 +3,9 @@ import { Hex } from 'viem'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 import { IntentFulfillmentJobName } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 import { serialize, Serialize, deserialize } from '@/common/utils/serialize'
-import { getIntentJobId } from '@/common/utils/strings'
+import { getIntentJobId } from '@eco/utils'
 import { IntentFulfillmentProcessorInterface } from '@/intent-fulfillment/types/processor.interface'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 
 export type FulfillIntentJobData = {
   intentHash: Hex

@@ -1,7 +1,7 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { ValidSmartWalletService } from '../valid-smart-wallet.service'
 import { MultichainPublicClientService } from '../../../transaction/multichain-public-client.service'
-import { EcoConfigService } from '../../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { Test, TestingModule } from '@nestjs/testing'
 
 describe('ValidSmartWalletService Tests', () => {

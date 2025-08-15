@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common'
 import { Job as BullMQJob } from 'bullmq'
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 
 /**

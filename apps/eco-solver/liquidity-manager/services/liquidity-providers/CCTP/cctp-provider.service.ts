@@ -11,13 +11,13 @@ import {
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoConfigService } from '@eco/infrastructure-config'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { CCTPTokenMessengerABI } from '@/contracts/CCTPTokenMessenger'
-import { CCTPConfig } from '@/eco-configs/eco-config.types'
+import { CCTPConfig } from '@eco/infrastructure-config'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CCTPMessageTransmitterABI } from '@/contracts/CCTPMessageTransmitter'
 import { InjectQueue } from '@nestjs/bullmq'

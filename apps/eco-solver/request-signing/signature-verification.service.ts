@@ -2,7 +2,7 @@
 const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@/request-signing/typed-data'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { recoverTypedDataAddress, Hex } from 'viem'

@@ -2,8 +2,8 @@ const mockGetTransactionTargetData = jest.fn()
 const mockIsERC20Target = jest.fn()
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { getERC20Selector } from '@/contracts'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { FeeConfigType } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@eco/infrastructure-config'
+import { FeeConfigType } from '@eco/infrastructure-config'
 import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
 import { NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
@@ -11,7 +11,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 
 function getFeeConfig(): FeeConfigType {
   return {
