@@ -1,26 +1,14 @@
-import { BulkJobOptions, Job } from 'bullmq'
-import { Hex } from 'viem'
+import { BulkJobOptions } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
-import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { deserialize, serialize } from '@/common/utils/serialize'
+import { IntentProcessorJobName } from '@/intent-processor/constants/job-names'
+import { IntentProcessorInterface } from '@/intent-processor/types/processor.interface'
 import {
   IntentProcessorJob,
   IntentProcessorJobManager,
-} from '@/intent-processor/jobs/intent-processor.job'
-import { IntentType } from '@eco/foundation-eco-adapter'
-
-export type ExecuteWithdrawsJobData = {
-  chainId: number
-  intentSourceAddr: Hex
-  intents: IntentType[]
-}
-
-export type ExecuteWithdrawsJob = Job<
-  Serialize<ExecuteWithdrawsJobData>,
-  unknown,
-  IntentProcessorJobName.EXECUTE_WITHDRAWS
->
+  ExecuteWithdrawsJobType as ExecuteWithdrawsJob,
+  ExecuteWithdrawsJobData,
+} from '@/intent-processor/types'
 
 export class ExecuteWithdrawsJobManager extends IntentProcessorJobManager<ExecuteWithdrawsJob> {
   static createJob(jobData: ExecuteWithdrawsJobData): {
@@ -50,7 +38,7 @@ export class ExecuteWithdrawsJobManager extends IntentProcessorJobManager<Execut
     return job.name === IntentProcessorJobName.EXECUTE_WITHDRAWS
   }
 
-  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
+  async process(job: IntentProcessorJob, processor: IntentProcessorInterface): Promise<void> {
     if (this.is(job)) {
       return processor.intentProcessorService.executeWithdrawals(deserialize(job.data))
     }
@@ -62,7 +50,7 @@ export class ExecuteWithdrawsJobManager extends IntentProcessorJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: Error) {
+  onFailed(job: IntentProcessorJob, processor: IntentProcessorInterface, error: Error) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `ExecuteWithdrawsJob: Failed`,

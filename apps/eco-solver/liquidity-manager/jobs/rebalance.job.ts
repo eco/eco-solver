@@ -5,7 +5,7 @@ import {
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 import { serialize, Serialize } from '@/common/utils/serialize'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
@@ -44,7 +44,7 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     return job.name === LiquidityManagerJobName.REBALANCE
   }
 
-  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessorInterface): Promise<void> {
     if (this.is(job)) {
       return processor.liquidityManagerService.executeRebalancing(job.data)
     }
@@ -56,7 +56,7 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
+  onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessorInterface, error: Error) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `RebalanceJob: Failed`,

@@ -20,13 +20,24 @@ import {
   validationsSucceeded,
   validationsFailed,
 } from './types'
+
+// Re-export types for backward compatibility
+export type {
+  ValidationChecks,
+  ValidationIntentInterface,
+  ValidationType,
+  TxValidationFn,
+  TransactionTargetData,
+}
+export { validationsSucceeded, validationsFailed }
+
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
-import { CallDataInterface } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceService } from '@/balance/balance.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'

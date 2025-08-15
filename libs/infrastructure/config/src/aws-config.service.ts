@@ -4,7 +4,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as config from 'config'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { EcoError } from '../../../../src/common/errors/eco-error'
+import { EcoError } from '@/common/errors/eco-error'
 import { merge } from 'lodash'
 
 /**

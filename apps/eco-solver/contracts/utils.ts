@@ -1,5 +1,5 @@
 import { Abi, AbiStateMutability, ContractFunctionName, Hex } from 'viem'
-import { TargetContractType } from '../eco-configs/eco-config.types'
+import { TargetContractType } from '@eco/shared-types'
 import { ERC20Abi } from './ERC20.contract'
 import { EcoError } from '../common/errors/eco-error'
 

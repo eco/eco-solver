@@ -1,5 +1,5 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { RewardTokensInterface } from '@/contracts'
+import { RewardTokensInterface } from '@/common/types/contract-interfaces'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { ValidationService } from '@/intent/validation.service'

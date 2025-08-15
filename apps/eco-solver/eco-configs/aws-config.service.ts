@@ -2,7 +2,7 @@ import { SecretsManager } from '@aws-sdk/client-secrets-manager'
 import { AwsCredential } from './eco-config.types'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import defaultConfig from '../../../config/default'
+const defaultConfig = require('../../../../config/default')
 import { ConfigSource } from './interfaces/config-source.interface'
 import { EcoError } from '../common/errors/eco-error'
 import { merge } from 'lodash'

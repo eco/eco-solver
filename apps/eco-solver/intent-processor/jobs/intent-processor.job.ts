@@ -1,15 +1,13 @@
-import { BaseJobManager } from '@/common/bullmq/base-job'
-import { CheckWithdrawsCronJob } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
-import { ExecuteWithdrawsJob } from '@/intent-processor/jobs/execute-withdraws.job'
-import { CheckSendBatchJob } from '@/intent-processor/jobs/send-batches-cron.job'
-import { ExecuteSendBatchJob } from '@/intent-processor/jobs/execute-send-batch.job'
+// Re-export types from the shared types module
+export {
+  IntentProcessorJobType as IntentProcessorJob,
+  IntentProcessorJobManager,
+} from '@/intent-processor/types'
 
-export type IntentProcessorJob =
-  | ExecuteWithdrawsJob
-  | CheckWithdrawsCronJob
-  | CheckSendBatchJob
-  | ExecuteSendBatchJob
-
-export abstract class IntentProcessorJobManager<
-  Job extends IntentProcessorJob = IntentProcessorJob,
-> extends BaseJobManager<Job> {}
+// Legacy exports for backwards compatibility
+export type {
+  ExecuteSendBatchJobType as ExecuteSendBatchJob,
+  ExecuteWithdrawsJobType as ExecuteWithdrawsJob,
+  CheckWithdrawsCronJobType as CheckWithdrawsCronJob,
+  CheckSendBatchJobType as CheckSendBatchJob,
+} from '@/intent-processor/types'

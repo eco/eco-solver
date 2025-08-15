@@ -1,16 +1,17 @@
-import { Job } from 'bullmq'
-import { BaseJobManager } from '@/common/bullmq/base-job'
-import {
-  LiquidityManagerQueueDataType,
-  LiquidityManagerJobName,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
+// Re-export types from the shared types module
+export {
+  LiquidityManagerJobType as LiquidityManagerJob,
+  LiquidityManagerJobManager,
+} from '@/liquidity-manager/types'
 
-export type LiquidityManagerJob<
-  NameType extends LiquidityManagerJobName = LiquidityManagerJobName,
-  DataType extends LiquidityManagerQueueDataType = LiquidityManagerQueueDataType,
-  ReturnData = unknown,
-> = Job<DataType, ReturnData, NameType>
-
-export abstract class LiquidityManagerJobManager<
-  Job extends LiquidityManagerJob = LiquidityManagerJob,
-> extends BaseJobManager<Job> {}
+// Legacy exports for backwards compatibility  
+export type {
+  BaseLiquidityManagerJob,
+  CheckCCTPAttestationJobType as CheckCCTPAttestationJob,
+  ExecuteCCTPMintJobType as ExecuteCCTPMintJob,
+  CCTPLiFiDestinationSwapJobType as CCTPLiFiDestinationSwapJob,
+  CheckCCTPV2AttestationJobType as CheckCCTPV2AttestationJob,
+  ExecuteCCTPV2MintJobType as ExecuteCCTPV2MintJob,
+  CheckEverclearIntentJobType as CheckEverclearIntentJob,
+  CheckBalancesJobType as CheckBalancesJob,
+} from '@/liquidity-manager/types'

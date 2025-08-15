@@ -9,8 +9,10 @@ import {
   zeroAddress,
 } from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco/foundation-eco-adapter'
-import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
-import { CallDataInterface, getERC20Selector } from '@/contracts'
+import { TransactionTargetData } from './types'
+import { UtilsIntentService } from './utils-intent.service'
+import { getERC20Selector } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Solver } from '@/eco-configs/eco-config.types'

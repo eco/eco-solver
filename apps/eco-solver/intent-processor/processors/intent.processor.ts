@@ -12,6 +12,7 @@ import {
 } from '@/intent-processor/queues/intent-processor.queue'
 import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send-batch.job'
+import { IntentProcessorInterface } from '@/intent-processor/types/processor.interface'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -21,7 +22,7 @@ import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send
 @Processor(IntentProcessorQueue.queueName, { concurrency: 10 })
 export class IntentProcessor
   extends GroupedJobsProcessor<IntentProcessorJob>
-  implements OnApplicationBootstrap
+  implements OnApplicationBootstrap, IntentProcessorInterface
 {
   protected appReady = false
 

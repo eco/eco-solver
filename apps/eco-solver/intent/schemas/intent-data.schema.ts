@@ -1,7 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { EcoError } from '@/common/errors/eco-error'
+import { SCHEMA_ERRORS } from './schema-errors'
 import { getAddress, Hex, Mutable } from 'viem'
-import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
+import { IntentCreatedEventLog } from '@/contracts'
+import { CallDataInterface, RewardTokensInterface } from '@/common/types/contract-interfaces'
 import { RouteDataModel, RouteDataSchema } from './route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from './reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco/foundation-eco-adapter'
@@ -65,14 +66,14 @@ export class IntentDataModel implements IntentType {
     } = params
 
     if (calls.length == 0) {
-      throw EcoError.IntentSourceDataInvalidParams
+      throw SCHEMA_ERRORS.INTENT_SOURCE_DATA_INVALID_PARAMS
     }
 
     if (
       (rewardTokens.length == 0 || routeTokens.length == 0) &&
       !IntentDataModel.isNativeIntent(params)
     ) {
-      throw EcoError.IntentSourceDataInvalidParams
+      throw SCHEMA_ERRORS.INTENT_SOURCE_DATA_INVALID_PARAMS
     }
 
     this.quoteID = quoteID

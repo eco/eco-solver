@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { getAddress, Hex } from 'viem'
 import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
-import { RewardTokensInterface } from '@/contracts'
+import { RewardTokensInterface } from '@/common/types/contract-interfaces'
 import { RewardType } from '@eco/foundation-eco-adapter'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 

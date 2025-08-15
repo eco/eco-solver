@@ -6,7 +6,7 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 
 export interface CheckEverclearIntentJobData {
   txHash: Hex
@@ -43,7 +43,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
   async process(
     job: CheckEverclearIntentJob,
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
   ): Promise<CheckEverclearIntentJob['returnvalue']> {
     const { txHash, id } = job.data
     const result = await processor.everclearProviderService.checkIntentStatus(txHash)
@@ -71,7 +71,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
   async onComplete(
     job: CheckEverclearIntentJob,
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
   ): Promise<void> {
     processor.logger.log(
       EcoLogMessage.withId({
@@ -82,7 +82,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     )
   }
 
-  onFailed(job: CheckEverclearIntentJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: CheckEverclearIntentJob, processor: LiquidityManagerProcessorInterface, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withErrorAndId({
         message: 'Everclear: Intent check failed',

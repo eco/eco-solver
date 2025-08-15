@@ -1,8 +1,11 @@
 # Config npm Package Integration Plan for Eco-Solver Nx Monorepo
+*Updated for Claude Sonnet Execution*
 
 ## Executive Summary
 
-This document provides a comprehensive plan to properly integrate the npm `config` package with the eco-solver application in the Nx monorepo. The current implementation has critical issues that prevent proper config loading and environment-specific configuration.
+This document provides a comprehensive, actionable plan to properly integrate the npm `config` package with the eco-solver application in the Nx monorepo. The current implementation has critical issues that prevent proper config loading and environment-specific configuration.
+
+**For Claude Sonnet**: This plan has been structured with specific file paths, code changes, and verification steps to enable automated execution.
 
 ## Current State Analysis
 
@@ -35,8 +38,14 @@ EcoConfigService (main config service)
 AwsConfigService (implements ConfigSource)
 ├── Fetches secrets from AWS Secrets Manager
 ├── Currently imports ../../../config/default (BROKEN PATH)
+├── **REQUIRES**: 'ap' command connection to AWS instance
 └── Merges secrets with base configuration
 ```
+
+**AWS Connection Dependency**:
+- The `ap` command establishes connection to AWS instance
+- Required for AWS Secrets Manager access
+- Must be executed before any AWS config testing
 
 ## npm Config Package Analysis
 
@@ -66,6 +75,13 @@ AwsConfigService (implements ConfigSource)
 
 #### 1.1 Fix Parse Errors in Config Files
 **Problem**: TypeScript syntax in JavaScript files
+**File**: `config/default.js`
+
+**Claude Sonnet Action**:
+1. Read `config/default.js` to identify TypeScript syntax issues
+2. Remove all TypeScript type annotations (`: number`, `: string`, `: any`, etc.)
+3. Update function signatures to valid JavaScript
+
 ```javascript
 // BEFORE (config/default.js) - BROKEN
 clusterRetryStrategy: (times: number): number => Math.min(times * 1000, 10000),
@@ -76,13 +92,21 @@ clusterRetryStrategy: (times) => Math.min(times * 1000, 10000),
 dnsLookup: (address, callback) => callback(null, address, 6),
 ```
 
-**Action Items**:
-- [ ] Remove all TypeScript type annotations from `.js` files
-- [ ] Test config loading with `npm start` after fixes
-- [ ] Verify no parsing errors in logs
+**Verification Steps**:
+1. Run `node -c config/default.js` to check syntax
+2. Test config loading with `pnpm nx serve eco-solver`
+3. Check logs for config parsing errors
 
 #### 1.2 Fix AWS Config Service Import Path
 **Problem**: Incorrect relative import path
+**File**: `apps/eco-solver/*/aws-config.service.ts` (need to locate exact path)
+
+**Claude Sonnet Action**:
+1. Find `aws-config.service.ts` using search tools
+2. Replace direct file import with npm config API usage
+3. Update all references to use config.get() instead of direct imports
+4. **CRITICAL**: Ensure AWS connection via 'ap' command before testing
+
 ```typescript
 // BEFORE - BROKEN
 import defaultConfig from '../../../config/default'
@@ -94,34 +118,66 @@ import * as config from 'config'
 let awsCreds = config.get('aws') as any[]
 ```
 
-**Action Items**:
-- [ ] Update `aws-config.service.ts` import
-- [ ] Remove direct file import, use npm config API
-- [ ] Test AWS config loading in development environment
+**Search Command**: `grep -r "config/default" apps/eco-solver/`
+**AWS Connection Requirement**:
+- Must run `ap` command to connect to AWS instance before testing AWS config functionality
+- AWS configs are fetched from AWS Secrets Manager, requiring active connection
+
+**Verification Steps**:
+1. Search for all files importing config/default
+2. Replace imports with npm config API calls
+3. **PREREQUISITE**: Run `ap` command to connect to AWS
+4. Test AWS config loading: `NODE_ENV=preproduction pnpm nx serve eco-solver` (preproduction is most stable env)
 
 #### 1.3 Set NODE_CONFIG_DIR Environment Variable
 **Problem**: Config directory not properly resolved in Nx workspace
+**Files**: `apps/eco-solver/project.json`, `.env` (if exists)
 
-**Solution**: Set environment variable for Nx workspace
-```bash
-# For development (add to .env or nx.json)
-NODE_CONFIG_DIR=/Users/stoyan/git/worktree/nx_mono_2/config
+**Claude Sonnet Action**:
+1. Read `apps/eco-solver/project.json` to find serve target configuration
+2. Add NODE_CONFIG_DIR environment variable to serve target
+3. Create/update `.env` file in workspace root if needed
 
-# For production/deployment
-NODE_CONFIG_DIR=/workspace/config
+**Implementation**:
+```json
+// In apps/eco-solver/project.json
+{
+  "targets": {
+    "serve": {
+      "executor": "@nx/node:node",
+      "options": {
+        "env": {
+          "NODE_CONFIG_DIR": "config"
+        }
+      }
+    }
+  }
+}
 ```
 
-**Action Items**:
-- [ ] Add NODE_CONFIG_DIR to nx.json serve configuration
-- [ ] Update deployment configurations
-- [ ] Test config loading from workspace root
+**Alternative**: Add to workspace `.env` file:
+```bash
+NODE_CONFIG_DIR=config
+```
+
+**Verification Steps**:
+1. Check current project.json structure
+2. Add environment variable configuration
+3. Test: `NODE_ENV=preproduction pnpm nx serve eco-solver --verbose` (use preproduction as primary test env)
 
 ### Phase 2: Config Structure Optimization (Week 2)
 
 #### 2.1 Split Static and Dynamic Configuration
 **Goal**: Separate JSON-serializable data from JavaScript functions
+**Files**: All files in `config/` directory
 
-**Strategy**:
+**Claude Sonnet Action**:
+1. Read all config files in `config/` directory
+2. Identify static data vs dynamic functions in each file
+3. Create corresponding `.json` files for static data
+4. Update `.js` files to contain only functions
+
+**Implementation Strategy**:
 ```javascript
 // config/default.json (static data only)
 {
@@ -152,11 +208,14 @@ module.exports = {
 }
 ```
 
-**Action Items**:
-- [ ] Audit all config files for function vs static data
-- [ ] Create `.json` files for static configuration
-- [ ] Keep `.js` files only for dynamic logic
-- [ ] Update all environment-specific configs (preproduction, production, etc.)
+**Step-by-Step Process**:
+1. `ls config/` - List all config files
+2. For each `.js` file:
+   - Read file contents
+   - Extract static objects to new `.json` file
+   - Remove static data from `.js` file, keep only functions
+   - Verify `.js` files contain valid JavaScript syntax
+3. Test each environment: `NODE_ENV=<env> node -e "console.log(require('config'))"`
 
 #### 2.2 Implement Proper Environment-Specific Loading
 **Goal**: Leverage npm config's built-in environment support
@@ -173,11 +232,14 @@ config/
 └── test.json          ← Test overrides
 ```
 
-**Action Items**:
-- [ ] Create environment-specific JSON files
-- [ ] Move environment-specific configs from AWS to local files where appropriate
-- [ ] Test loading: `NODE_ENV=preproduction npm start`
-- [ ] Verify config merging works correctly
+**Claude Sonnet Tasks**:
+1. Check which environment files exist: `ls config/`
+2. For missing environments, create from existing templates
+3. Validate environment-specific overrides are properly structured
+4. Test each environment (prioritize preproduction as most stable):
+   - `NODE_ENV=preproduction node -e "console.log(require('config').get('redis'))"` (PRIMARY)
+   - `NODE_ENV=development node -e "console.log(require('config').get('redis'))"`
+   - `NODE_ENV=production node -e "console.log(require('config').get('redis'))"`
 
 ### Phase 3: Nx Integration Enhancement (Week 3)
 
@@ -382,6 +444,81 @@ This plan addresses all critical issues with the current config integration whil
 2. Test thoroughly in development environment
 3. Proceed with subsequent phases once stability is confirmed
 4. Monitor for any issues in staging/production environments
+
+## Claude Sonnet Execution Checklist
+
+### Phase 1 - Critical Fixes (Execute Immediately)
+```bash
+# Step 1: Fix config file syntax errors
+1. Read config/default.js
+2. Remove TypeScript type annotations
+3. Validate: node -c config/default.js
+
+# Step 2: Fix AWS config service imports  
+1. Grep search: "config/default" in apps/eco-solver/
+2. Replace imports with: import * as config from 'config'
+3. Update usage to: config.get('aws')
+4. **CRITICAL**: Run 'ap' command before AWS testing
+
+# Step 3: Set NODE_CONFIG_DIR
+1. Read apps/eco-solver/project.json
+2. Add NODE_CONFIG_DIR to serve target env
+3. Test: pnpm nx serve eco-solver --verbose
+```
+
+### AWS Connection Prerequisites
+```bash
+# Required before any AWS config testing
+ap  # Connect to AWS instance
+
+# Verify AWS connection
+aws sts get-caller-identity  # Optional verification
+```
+
+### Phase 2 - Config Structure (Week 2)
+```bash
+# Step 4: Split static/dynamic configs
+1. ls config/ - audit all files
+2. For each .js file: extract static → .json, keep functions in .js
+3. Test: NODE_ENV=preproduction node -e "console.log(require('config'))" (use stable preproduction)
+
+# Step 5: Environment-specific configs
+1. Create missing environment .json files
+2. Test environments prioritizing preproduction (most stable)
+```
+
+### Phase 3 - Nx Integration (Week 3)  
+```bash
+# Step 6: Update Nx configuration
+1. Update apps/eco-solver/project.json with NODE_CONFIG_DIR
+2. Test with: nx serve eco-solver
+3. Verify config loading in Nx environment
+```
+
+### Verification Commands
+```bash
+# Syntax check
+node -c config/default.js
+
+# AWS connection (REQUIRED for AWS configs)
+ap
+
+# Config loading test
+NODE_ENV=development node -e "console.log(require('config').util.getConfigSources())"
+
+# Full app test (with AWS connection)
+ap && pnpm nx serve eco-solver
+
+# Environment test (with AWS connection) - USE PREPRODUCTION AS PRIMARY TEST ENV
+ap && NODE_ENV=preproduction pnpm nx serve eco-solver
+```
+
+### Important Notes for AWS Integration
+- **Always run `ap` command before testing AWS-dependent functionality**
+- **Use `NODE_ENV=preproduction` as primary test environment (most stable)**
+- Local config files work without AWS connection
+- AWS Secrets Manager configs require active AWS connection via `ap`
+- Consider fallback mechanisms for local development without AWS access
 
 **Key Benefits**:
 - ✅ Proper npm config package integration

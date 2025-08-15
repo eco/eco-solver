@@ -3,7 +3,7 @@ const mockExtractChain = jest.fn()
 const mockIsEmptyData = jest.fn()
 import { EcoError } from '@/common/errors/eco-error'
 import { getFunctionBytes } from '@/common/viem/contracts'
-import { CallDataInterface } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import {
   getTransactionTargetData,
   getWaitForTransactionTimeout,

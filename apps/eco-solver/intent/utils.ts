@@ -1,6 +1,7 @@
 import { EcoError } from '@/common/errors/eco-error'
 import { getFunctionBytes } from '@/common/viem/contracts'
-import { CallDataInterface, getERCAbi } from '@/contracts'
+import { getERCAbi } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { Solver, TargetContract } from '@/eco-configs/eco-config.types'
 import { TransactionTargetData, ValidationIntentInterface } from './types'
 import { includes } from 'lodash'

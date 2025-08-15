@@ -1,4 +1,4 @@
-import { CallDataInterface } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

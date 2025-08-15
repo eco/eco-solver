@@ -1,16 +1,2 @@
-import { TargetContractType } from '@/eco-configs/eco-config.types'
-import { Hex } from 'viem'
-
-export type TokenConfig = {
-  address: Hex
-  chainId: number
-  minBalance: number
-  targetBalance: number
-  type: TargetContractType
-}
-
-export type TokenBalance = {
-  address: Hex
-  decimals: number
-  balance: bigint
-}
+// Re-export shared types for backward compatibility
+export { TokenConfig, TokenBalance, TargetContractType } from '@eco/shared-types'

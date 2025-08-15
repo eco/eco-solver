@@ -6,7 +6,7 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 
@@ -73,12 +73,12 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    * Processes the given job by fetching the attestation using the provided processor.
    *
    * @param {CheckCCTPAttestationJob} job - The job containing data required for fetching the attestation.
-   * @param {LiquidityManagerProcessor} processor - The processor used to handle the business logic and fetch the attestation.
+   * @param {LiquidityManagerProcessorInterface} processor - The processor used to handle the business logic and fetch the attestation.
    * @return {Promise<CheckCCTPAttestationJob['returnvalue']>} A promise that resolves with the result of the fetched attestation.
    */
   async process(
     job: CheckCCTPAttestationJob,
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
     const { messageHash } = job.data
     return processor.cctpProviderService.fetchAttestation(messageHash)
@@ -86,7 +86,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
 
   async onComplete(
     job: CheckCCTPAttestationJob,
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
   ): Promise<void> {
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
@@ -127,7 +127,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: CheckCCTPAttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: CheckCCTPAttestationJob, processor: LiquidityManagerProcessorInterface, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withId({
         message: `CCTP: CheckCCTPAttestationJob: Failed`,

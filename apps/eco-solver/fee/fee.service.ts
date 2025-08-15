@@ -1,6 +1,7 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
+import { getERC20Selector, isERC20Target } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
   FeeAlgorithmConfig,

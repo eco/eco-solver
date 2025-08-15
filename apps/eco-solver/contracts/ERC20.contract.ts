@@ -1,8 +1,8 @@
 import { ContractFunctionName, decodeEventLog, Hex } from 'viem'
 import { getSelector } from '../common/viem/contracts'
-import { TargetContractType } from '../eco-configs/eco-config.types'
+import { TargetContractType } from '@eco/shared-types'
 import { EcoError } from '../common/errors/eco-error'
-import { TransactionTargetData } from '@/intent/utils-intent.service'
+import { TransactionTargetData } from '@/intent/types'
 
 // Need to define the ABI as a const array to use in the type definition
 export const ERC20Abi = [

@@ -3,35 +3,13 @@ import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
+  CCTPLiFiDestinationSwapJobType as CCTPLiFiDestinationSwapJob,
+  CCTPLiFiDestinationSwapJobData,
+  LiquidityManagerProcessorInterface,
+  LiFiStrategyContext,
+} from '@/liquidity-manager/types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
-
-export interface CCTPLiFiDestinationSwapJobData {
-  messageHash: Hex
-  messageBody: Hex
-  attestation: Hex
-  destinationChainId: number
-  destinationSwapQuote: LiFiStrategyContext
-  walletAddress: string
-  originalTokenOut: {
-    address: Hex
-    chainId: number
-    decimals: number
-  }
-  cctpTransactionHash?: Hex
-  retryCount?: number
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
-}
-
-export type CCTPLiFiDestinationSwapJob = LiquidityManagerJob<
-  LiquidityManagerJobName.CCTP_LIFI_DESTINATION_SWAP,
-  CCTPLiFiDestinationSwapJobData,
-  { txHash: Hex; finalAmount: string }
->
 
 export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManager<CCTPLiFiDestinationSwapJob> {
   /**
@@ -62,7 +40,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
    */
   async process(
     job: CCTPLiFiDestinationSwapJob,
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
   ): Promise<CCTPLiFiDestinationSwapJob['returnvalue']> {
     const { destinationChainId, destinationSwapQuote, walletAddress, originalTokenOut, id } =
       job.data
@@ -150,7 +128,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
    * Executes the LiFi swap on the destination chain
    */
   private async executeDestinationSwap(
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
     destinationSwapQuote: LiFiStrategyContext,
     walletAddress: string,
     destinationChainId: number,
@@ -238,7 +216,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
    */
   async onComplete(
     job: CCTPLiFiDestinationSwapJob,
-    processor: LiquidityManagerProcessor,
+    processor: LiquidityManagerProcessorInterface,
   ): Promise<void> {
     processor.logger.log(
       EcoLogMessage.withId({
@@ -258,7 +236,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   /**
    * Handles job failures with detailed error logging for recovery purposes
    */
-  onFailed(job: CCTPLiFiDestinationSwapJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: CCTPLiFiDestinationSwapJob, processor: LiquidityManagerProcessorInterface, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withId({
         message:

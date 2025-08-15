@@ -1,13 +1,14 @@
 const mockGetTransactionTargetData = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { TransactionTargetData, UtilsIntentService } from '@/intent/utils-intent.service'
+import { TransactionTargetData } from '@/intent/types'
+import { UtilsIntentService } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import {
   ValidationChecks,
   ValidationService,
   validationsSucceeded,
-} from '@/intent/validation.sevice'
+} from '@/intent/validation.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { FeeService } from '@/fee/fee.service'

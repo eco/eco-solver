@@ -10,7 +10,7 @@ import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco/foundation-eco-adapter'
-import { Strategy } from '@/liquidity-manager/types/types'
+import { Strategy, TargetContractType } from '@eco/shared-types'
 import { AnalyticsConfig } from '@/analytics/analytics.interface'
 
 // The config type that we store in json
@@ -350,10 +350,7 @@ export interface TargetContract {
   targetBalance: number
 }
 
-/**
- * The types of contracts that we support
- */
-export type TargetContractType = 'erc20' | 'erc721' | 'erc1155'
+// TargetContractType is now imported from shared types
 
 /**
  * Defaults to append any provers in configs to the npm package

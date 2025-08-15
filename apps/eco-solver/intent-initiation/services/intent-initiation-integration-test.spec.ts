@@ -19,7 +19,7 @@ import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteService } from '@/quote/quote.service'
 import { SignerKmsService } from '@/sign/signer-kms.service'
-import { ValidationService } from '@/intent/validation.sevice'
+import { ValidationService } from '@/intent/validation.service'
 
 /*
 1. Install Foundry (if you haven’t already)

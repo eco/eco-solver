@@ -3,3 +3,4 @@
  */
 
 export * from './prover'
+export * from '../common/types/contract-interfaces'

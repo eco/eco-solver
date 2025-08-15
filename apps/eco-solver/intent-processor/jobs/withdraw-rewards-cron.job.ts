@@ -1,18 +1,13 @@
-import { Job, Queue } from 'bullmq'
+import { Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
-import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { IntentProcessorJobName } from '@/intent-processor/constants/job-names'
+import { IntentProcessorInterface } from '@/intent-processor/types/processor.interface'
 import {
   IntentProcessorJob,
   IntentProcessorJobManager,
-} from '@/intent-processor/jobs/intent-processor.job'
-
-export type CheckWithdrawsCronJob = Job<
-  undefined,
-  undefined,
-  IntentProcessorJobName.CHECK_WITHDRAWS
->
+  CheckWithdrawsCronJobType as CheckWithdrawsCronJob,
+} from '@/intent-processor/types'
 
 export class CheckWithdrawalsCronJobManager extends IntentProcessorJobManager {
   static readonly jobSchedulerName = 'job-scheduler-withdraws'
@@ -39,7 +34,7 @@ export class CheckWithdrawalsCronJobManager extends IntentProcessorJobManager {
     return job.name === IntentProcessorJobName.CHECK_WITHDRAWS
   }
 
-  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
+  async process(job: IntentProcessorJob, processor: IntentProcessorInterface): Promise<void> {
     processor.logger.log(
       EcoLogMessage.fromDefault({ message: `${CheckWithdrawalsCronJobManager.name}: process` }),
     )
@@ -47,7 +42,7 @@ export class CheckWithdrawalsCronJobManager extends IntentProcessorJobManager {
     return processor.intentProcessorService.getNextBatchWithdrawals()
   }
 
-  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: unknown) {
+  onFailed(job: IntentProcessorJob, processor: IntentProcessorInterface, error: unknown) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `${CheckWithdrawalsCronJobManager.name}: Failed`,

@@ -4,7 +4,7 @@ import { BaseJobManager } from '@/common/bullmq/base-job'
 import { IntentFulfillmentJobName } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 import { serialize, Serialize, deserialize } from '@/common/utils/serialize'
 import { getIntentJobId } from '@/common/utils/strings'
-import { IntentFulfillmentProcessor } from '@/intent-fulfillment/processors/intent-fulfillment.processor'
+import { IntentFulfillmentProcessorInterface } from '@/intent-fulfillment/types/processor.interface'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 export type FulfillIntentJobData = {
@@ -20,7 +20,7 @@ export type FulfillIntentJob = Job<
 
 export abstract class IntentFulfillmentJobManager extends BaseJobManager<
   FulfillIntentJob,
-  IntentFulfillmentProcessor
+  IntentFulfillmentProcessorInterface
 > {}
 
 export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
@@ -48,7 +48,7 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
     return job.name === IntentFulfillmentJobName.FULFILL_INTENT
   }
 
-  async process(job: FulfillIntentJob, processor: IntentFulfillmentProcessor): Promise<void> {
+  async process(job: FulfillIntentJob, processor: IntentFulfillmentProcessorInterface): Promise<void> {
     if (this.is(job)) {
       const jobData = deserialize(job.data)
       processor.logger.debug(
@@ -77,7 +77,7 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
     }
   }
 
-  onFailed(job: FulfillIntentJob, processor: IntentFulfillmentProcessor, error: Error) {
+  onFailed(job: FulfillIntentJob, processor: IntentFulfillmentProcessorInterface, error: Error) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `${FulfillIntentJobManager.name}: Failed`,

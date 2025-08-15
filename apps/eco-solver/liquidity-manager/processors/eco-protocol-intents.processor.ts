@@ -18,6 +18,7 @@ import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestati
 import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
 import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
 import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
+import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -25,7 +26,7 @@ import { EverclearProviderService } from '../services/liquidity-providers/Evercl
  */
 @Injectable()
 @Processor(LiquidityManagerQueue.queueName)
-export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> {
+export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> implements LiquidityManagerProcessorInterface {
   /**
    * Constructs a new LiquidityManagerProcessor.
    * @param queue - The queue to process jobs from.

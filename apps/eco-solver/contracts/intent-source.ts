@@ -2,7 +2,7 @@ import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prett
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
 import { IntentSourceAbi } from '@eco/foundation-eco-adapter'
-import { CallDataType, RewardTokensType } from '@/quote/dto/types'
+import { CallDataInterface, RewardTokensInterface } from '@/common/types/contract-interfaces'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<
@@ -19,15 +19,6 @@ export type IntentCreatedEventViemType = Prettify<
     logIndex: number
   }
 >
-/**
- * Define the interface for the calls field in the IntentSource event
- */
-export interface CallDataInterface extends CallDataType {}
-
-/**
- * Define the interface for the token amount field in the IntentSource event
- */
-export interface RewardTokensInterface extends RewardTokensType {}
 
 /**
  * Define the type for the IntentSource event log

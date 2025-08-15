@@ -3,36 +3,17 @@ import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
+  ExecuteCCTPMintJobType as ExecuteCCTPMintJob,
+  ExecuteCCTPMintJobData,
+} from '@/liquidity-manager/types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '../types/types'
+import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 
-export type ExecuteCCTPMintJob = LiquidityManagerJob<
-  LiquidityManagerJobName.EXECUTE_CCTP_MINT,
-  {
-    destinationChainId: number
-    messageHash: Hex
-    messageBody: Hex
-    attestation: Hex
-    // Optional CCTPLiFi context for destination swap operations
-    cctpLiFiContext?: {
-      destinationSwapQuote: LiFiStrategyContext
-      walletAddress: string
-      originalTokenOut: {
-        address: Hex
-        chainId: number
-        decimals: number
-      }
-    }
-    id?: string
-  },
-  Hex
->
+// Type is now imported from shared types
 
 export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<ExecuteCCTPMintJob> {
-  static async start(queue: Queue, data: ExecuteCCTPMintJob['data']): Promise<void> {
+  static async start(queue: Queue, data: ExecuteCCTPMintJobData): Promise<void> {
     await queue.add(LiquidityManagerJobName.EXECUTE_CCTP_MINT, data, {
       jobId: `${ExecuteCCTPMintJobManager.name}-${data.messageHash}`,
       removeOnComplete: false,
@@ -54,7 +35,7 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     return job.name === LiquidityManagerJobName.EXECUTE_CCTP_MINT
   }
 
-  async process(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  async process(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessorInterface): Promise<Hex> {
     processor.logger.debug(
       EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Processing`,
@@ -71,7 +52,7 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     )
   }
 
-  async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
+  async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessorInterface) {
     const { cctpLiFiContext } = job.data
 
     processor.logger.log(
@@ -121,7 +102,7 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessorInterface, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Failed`,

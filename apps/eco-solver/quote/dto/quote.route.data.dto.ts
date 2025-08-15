@@ -1,4 +1,4 @@
-import { CallDataInterface } from '@/contracts'
+import { CallDataInterface } from '@/common/types/contract-interfaces'
 import { QuoteRewardTokensDTO } from './quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco/foundation-eco-adapter'

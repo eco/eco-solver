@@ -1,5 +1,5 @@
 import { TokenFetchAnalysis } from '@/balance/balance.service'
-import { RewardTokensInterface } from '@/contracts'
+import { RewardTokensInterface } from '@/common/types/contract-interfaces'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { Hex, Prettify } from 'viem'
 /**

@@ -1,4 +1,4 @@
-import { TokenBalance, TokenConfig } from '@/balance/types'
+import { TokenBalance, TokenConfig, Strategy } from '@eco/shared-types'
 import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'
 import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
@@ -72,16 +72,9 @@ export interface CCTPLiFiStrategyContext {
   id?: string
 }
 
-export type Strategy =
-  | 'LiFi'
-  | 'CCTP'
-  | 'WarpRoute'
-  | 'CCTPLiFi'
-  | 'Relay'
-  | 'Stargate'
-  | 'Squid'
-  | 'CCTPV2'
-  | 'Everclear'
+// Strategy type is now imported from shared types
+// Re-export for backward compatibility
+export { Strategy } from '@eco/shared-types'
 export type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'

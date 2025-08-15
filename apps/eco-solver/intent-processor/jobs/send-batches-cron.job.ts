@@ -1,14 +1,13 @@
-import { Job, Queue } from 'bullmq'
+import { Queue } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
-import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { IntentProcessorJobName } from '@/intent-processor/constants/job-names'
+import { IntentProcessorInterface } from '@/intent-processor/types/processor.interface'
 import {
   IntentProcessorJob,
   IntentProcessorJobManager,
-} from '@/intent-processor/jobs/intent-processor.job'
-
-export type CheckSendBatchJob = Job<undefined, undefined, IntentProcessorJobName.CHECK_SEND_BATCH>
+  CheckSendBatchJobType as CheckSendBatchJob,
+} from '@/intent-processor/types'
 
 export class CheckSendBatchCronJobManager extends IntentProcessorJobManager {
   static readonly jobSchedulerName = 'job-scheduler-send-batch'
@@ -32,7 +31,7 @@ export class CheckSendBatchCronJobManager extends IntentProcessorJobManager {
     return job.name === IntentProcessorJobName.CHECK_SEND_BATCH
   }
 
-  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
+  async process(job: IntentProcessorJob, processor: IntentProcessorInterface): Promise<void> {
     processor.logger.log(
       EcoLogMessage.fromDefault({ message: `${CheckSendBatchCronJobManager.name}: process` }),
     )
@@ -40,7 +39,7 @@ export class CheckSendBatchCronJobManager extends IntentProcessorJobManager {
     return processor.intentProcessorService.getNextSendBatch()
   }
 
-  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: unknown) {
+  onFailed(job: IntentProcessorJob, processor: IntentProcessorInterface, error: unknown) {
     processor.logger.error(
       EcoLogMessage.fromDefault({
         message: `${CheckSendBatchCronJobManager.name}: Failed`,

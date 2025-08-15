@@ -4,9 +4,10 @@ import { formatUnits } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
+  CheckBalancesJobType as CheckBalancesCronJob,
+} from '@/liquidity-manager/types'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { LiquidityManagerProcessorInterface, LiquidityManagerProcessor } from '@/liquidity-manager/types/processor.interface'
 import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
 import { table } from 'table'
@@ -15,11 +16,6 @@ import {
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
-
-type CheckBalancesCronJob = LiquidityManagerJob<
-  LiquidityManagerJobName.CHECK_BALANCES,
-  { wallet: string }
->
 
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.

@@ -1,30 +1,12 @@
-import { Queue } from 'bullmq'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
-import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
+import { IntentProcessorJobName } from '@/intent-processor/constants/job-names'
 import {
-  ExecuteWithdrawsJobData,
-  ExecuteWithdrawsJobManager,
-} from '@/intent-processor/jobs/execute-withdraws.job'
-import { CheckSendBatchCronJobManager } from '@/intent-processor/jobs/send-batches-cron.job'
-import {
-  ExecuteSendBatchJobData,
-  ExecuteSendBatchJobManager,
-} from '@/intent-processor/jobs/execute-send-batch.job'
-
-export enum IntentProcessorJobName {
-  CHECK_WITHDRAWS = 'CHECK_WITHDRAWS',
-  CHECK_SEND_BATCH = 'CHECK_SEND_BATCH',
-  EXECUTE_WITHDRAWS = 'EXECUTE_WITHDRAWS',
-  EXECUTE_SEND_BATCH = 'EXECUTE_SEND_BATCH',
-}
-
-export type IntentProcessorQueueDataType = any
-
-export type IntentProcessorQueueType = Queue<
+  IntentProcessorQueueType,
   IntentProcessorQueueDataType,
-  unknown,
-  IntentProcessorJobName
->
+} from '@/intent-processor/types/queue.types'
+
+// Re-export types and enums for backward compatibility
+export { IntentProcessorJobName, IntentProcessorQueueType }
 
 export class IntentProcessorQueue {
   public static readonly prefix = '{intent-processor}'
@@ -48,21 +30,5 @@ export class IntentProcessorQueue {
     )
   }
 
-  startWithdrawalsCronJobs(interval: number) {
-    return CheckWithdrawalsCronJobManager.start(this.queue, interval)
-  }
-
-  startSendBatchCronJobs(interval: number) {
-    return CheckSendBatchCronJobManager.start(this.queue, interval)
-  }
-
-  addExecuteWithdrawalsJobs(jobsData: ExecuteWithdrawsJobData[]) {
-    const jobs = jobsData.map((data) => ExecuteWithdrawsJobManager.createJob(data))
-    return this.queue.addBulk(jobs)
-  }
-
-  addExecuteSendBatchJobs(jobsData: ExecuteSendBatchJobData[]) {
-    const jobs = jobsData.map((data) => ExecuteSendBatchJobManager.createJob(data))
-    return this.queue.addBulk(jobs)
-  }
+  // Job creation methods moved to IntentProcessorJobFactory to break circular dependencies
 }

@@ -19,15 +19,16 @@ import { IndexerService } from '@/indexer/services/indexer.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
-import { ExecuteWithdrawsJobData } from '@/intent-processor/jobs/execute-withdraws.job'
+import { ExecuteWithdrawsJobData } from '@/intent-processor/types'
 import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
 } from '@/intent-processor/queues/intent-processor.queue'
-import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
+import { ExecuteSendBatchJobData } from '@/intent-processor/types'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
 import { getChainConfig } from '@/eco-configs/utils'
+import { IntentProcessorJobFactory } from '@/intent-processor/factories/job.factory'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -39,6 +40,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     withdrawals: WithdrawsConfig
   }
   private readonly intentProcessorQueue: IntentProcessorQueue
+  private readonly jobFactory: IntentProcessorJobFactory
 
   constructor(
     @InjectQueue(IntentProcessorQueue.queueName)
@@ -48,6 +50,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
   ) {
     this.intentProcessorQueue = new IntentProcessorQueue(queue)
+    this.jobFactory = new IntentProcessorJobFactory(queue)
   }
 
   async onApplicationBootstrap() {
@@ -56,10 +59,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       hyperlane: this.ecoConfigService.getHyperlane(),
       withdrawals: this.ecoConfigService.getWithdraws(),
     }
-    await this.intentProcessorQueue.startWithdrawalsCronJobs(
+    await this.jobFactory.startWithdrawalsCronJobs(
       this.config.withdrawals.intervalDuration,
     )
-    await this.intentProcessorQueue.startSendBatchCronJobs(this.config.sendBatch.intervalDuration)
+    await this.jobFactory.startSendBatchCronJobs(this.config.sendBatch.intervalDuration)
   }
 
   async getNextBatchWithdrawals() {
@@ -141,7 +144,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       })
     }
 
-    this.intentProcessorQueue.addExecuteWithdrawalsJobs(jobsData)
+    await this.jobFactory.addExecuteWithdrawalsJobs(jobsData)
   }
 
   async getNextSendBatch() {
@@ -232,7 +235,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }
     }
 
-    await this.intentProcessorQueue.addExecuteSendBatchJobs(jobsData)
+    await this.jobFactory.addExecuteSendBatchJobs(jobsData)
   }
 
   async executeWithdrawals(data: ExecuteWithdrawsJobData) {
