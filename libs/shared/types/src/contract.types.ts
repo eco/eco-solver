@@ -2,7 +2,7 @@
  * Shared contract and balance types to prevent circular dependencies
  */
 
-import { Hex, Prettify } from 'viem'
+import { Hex, Prettify, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 
 /**
  * Base call data interface for route calls
@@ -126,6 +126,13 @@ export interface TokenData {
  * Generic strategy context for database schemas
  */
 export type StrategyContext = any
+
+/**
+ * Transport configuration type
+ */
+export type TransportConfig =
+  | { isWebsocket: true; config?: WebSocketTransportConfig }
+  | { isWebsocket?: false; config?: HttpTransportConfig }
 
 /**
  * Export base types for use in other libraries

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import { NonceModel } from '@eco/infrastructure-database'
+import { Nonce } from '@eco/infrastructure-database'
 import { JobsOptions, Queue } from 'bullmq'
 import { QUEUES } from '../common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
@@ -23,7 +23,7 @@ export class NonceService extends AtomicNonceService<Nonce> implements OnApplica
   private intentJobConfig!: JobsOptions
 
   constructor(
-    @InjectModel(NonceModel.name) private nonceModel: Model<NonceModel>,
+    @InjectModel(Nonce.name) private nonceModel: Model<Nonce>,
     @InjectQueue(QUEUES.SIGNER.queue) private readonly signerQueue: Queue,
     private readonly signerService: SignerService,
     private readonly ecoConfigService: EcoConfigService,

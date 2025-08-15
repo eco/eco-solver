@@ -230,7 +230,11 @@ export class QuoteService implements OnModuleInit {
         continue
       }
 
-      quoteDataDTO.quoteEntries.push(quoteDataEntry!)
+      quoteDataDTO.quoteEntries.push({
+        executionType: quoteDataEntry!.intentExecutionType,
+        estimatedGas: quoteDataEntry!.gasOverhead.toString(),
+        quoteID: quoteIntentDataDTO.quoteID,
+      })
       await this.updateQuoteDb(quoteIntent, { quoteDataEntry })
 
       // Track successful generation
@@ -269,7 +273,7 @@ export class QuoteService implements OnModuleInit {
       quoteDataDTO.quoteEntries.length,
       errors.length,
       totalProcessingTime,
-      quoteDataDTO.quoteEntries.map((q) => q.intentExecutionType),
+      quoteDataDTO.quoteEntries.map((q) => q.executionType),
     )
 
     return { response: quoteDataDTO }

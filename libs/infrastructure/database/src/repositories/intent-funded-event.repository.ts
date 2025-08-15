@@ -3,7 +3,7 @@ import { EcoResponse } from '@eco/shared-dto'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '../schemas/intent-funded-events.schema'
-import { IntentFundedLog } from '@eco/shared-types'
+import { IntentFundedLog } from '@eco/infrastructure-blockchain'
 import { Model } from 'mongoose'
 
 /**

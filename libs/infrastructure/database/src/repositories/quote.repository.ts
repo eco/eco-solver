@@ -160,8 +160,15 @@ export class QuoteRepository {
       quoteID,
       dAppID,
       intentExecutionType,
-      route: quoteRoute,
-      reward,
+      route: {
+        ...quoteRoute,
+        tokens: [...quoteRoute.tokens],
+        calls: [...quoteRoute.calls]
+      },
+      reward: {
+        ...reward,
+        tokens: [...reward.tokens]
+      },
       receipt: null,
     }
   }

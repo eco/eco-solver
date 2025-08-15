@@ -7,7 +7,7 @@ import { IntentInitiationService } from '@/intent-initiation/services/intent-ini
 import { Logger } from '@nestjs/common'
 import { parseGwei } from 'viem'
 import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
-import { QuoteRepository } from '@eco/infrastructure-database'
+import { QuoteRepository } from '@eco/infrastructure-database/repositories/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { ValidationChecks, ValidationService } from '@/intent/validation.service'

@@ -7,7 +7,7 @@ import {
   IntentFundedEventModel,
   IntentFundedEventSchema,
 } from '@eco/infrastructure-database'
-import { IntentFundedEventRepository } from '@eco/infrastructure-database'
+import { IntentFundedEventRepository } from './repositories/intent-funded-event.repository'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { IntentModule } from '@/intent/intent.module'
 

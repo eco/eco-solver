@@ -91,7 +91,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const sources: Array<{
       accountAddress: `0x${string}` | undefined
       tokens: Record<string, TokenType>
-      network: Network
+      network: string
       chainID: number
       sourceAddress: Hex
       provers: Hex[]
@@ -118,7 +118,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
       accountAddress: `0x${string}` | undefined
       tokens: Record<string, TokenType>
       inboxAddress: Hex
-      network: Network
+      network: string
       chainID: number
     }> = []
     let totalTokenBalance = 0

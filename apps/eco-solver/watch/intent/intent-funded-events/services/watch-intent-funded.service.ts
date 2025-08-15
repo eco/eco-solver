@@ -5,7 +5,6 @@ import { getIntentJobId } from '@eco/utils'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentFundedEventModel } from '@eco/infrastructure-database'
-import { IntentFundedEventRepository } from '@eco/infrastructure-database'
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@eco/infrastructure-config'
 import { IntentSourceAbi } from '@eco/foundation-eco-adapter'
@@ -16,6 +15,8 @@ import { QUEUES } from '@eco/infrastructure-redis'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { EcoAnalyticsService } from '@eco/infrastructure-external-apis'
 import { ERROR_EVENTS } from '@eco/infrastructure-external-apis'
+import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
+import { Network } from '@/common/alchemy/network'
 
 /**
  * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
@@ -124,7 +125,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         }
 
         log.sourceChainID = BigInt(source.chainID)
-        log.sourceNetwork = source.network
+        log.sourceNetwork = source.network as Network
 
         // bigint as it can't serialize to JSON
         const intentFunded = log

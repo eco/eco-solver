@@ -62,7 +62,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
               eventName: 'Transfer',
               // restrict transfers from anyone to the simple account address
               args: { to: client.kernelAccount.address },
-              onLogs: this.addJob(solver.network, solver.chainID) as any,
+              onLogs: this.addJob(solver.network as Network, solver.chainID) as any,
             })
           }
         })

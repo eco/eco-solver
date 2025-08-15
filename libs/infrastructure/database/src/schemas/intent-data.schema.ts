@@ -164,7 +164,6 @@ IntentSourceDataSchema.methods['getHash'] = function (): {
   intentHash: Hex
 } {
   return hashIntent({
-    salt: this.salt,
     route: this.route,
     reward: this.reward,
   })
@@ -172,7 +171,6 @@ IntentSourceDataSchema.methods['getHash'] = function (): {
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
   return encodeIntent({
-    salt: this.salt,
     route: this.route,
     reward: this.reward,
   })

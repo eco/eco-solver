@@ -21,6 +21,9 @@ export class EcoError extends Error {
   static CrowdLiquidityRewardNotEnough(intentHash: string) {
     return new EcoError(`Crowd liquidity reward not enough for intent ${intentHash}`)
   }
+  static IntentSourceUnsupportedTargetType(targetType: string) {
+    return new EcoError(`Intent source unsupported target type: ${targetType}`)
+  }
   
   static logErrorWithStack(message: string, context?: string, ...args: any[]) {
     console.error(`[EcoError] ${context || ''}: ${message}`, ...args)

@@ -21,10 +21,10 @@ import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
-import { QuoteRepository } from '@eco/infrastructure-database'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { RouteType, hashRoute, IntentSourceAbi } from '@eco/foundation-eco-adapter'
 import * as _ from 'lodash'
+import { QuoteRepository } from '@/quote'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {

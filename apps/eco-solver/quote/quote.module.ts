@@ -4,8 +4,8 @@ import { MongooseModule } from '@nestjs/mongoose'
 import { QuoteIntentModel, QuoteIntentSchema } from '@eco/infrastructure-database'
 import { IntentModule } from '@/intent/intent.module'
 import { FeeModule } from '@/fee/fee.module'
-import { QuoteRepository } from '@eco/infrastructure-database'
 import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
+import { QuoteRepository } from '@/quote/quote.repository'
 @Module({
   imports: [
     FeeModule,
