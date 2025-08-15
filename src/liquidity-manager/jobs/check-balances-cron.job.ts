@@ -1,6 +1,6 @@
 import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { formatUnits, Hex } from 'viem'
+import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
@@ -15,6 +15,7 @@ import {
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { deconvertNormScalar } from '@/fee/utils'
 
 type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
@@ -185,7 +186,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     const header = ['Chain ID', 'Address', 'Balance', 'Target', 'Range', 'State']
     const cells = items.map((item) => {
       const format = (value: bigint) =>
-        formatter(parseFloat(formatUnits(value, item.balance.decimals.current)))
+        formatter(deconvertNormScalar(value, item.balance.decimals.original))
       return [
         item.config.chainId,
         item.config.address,
@@ -211,8 +212,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format
     const slippageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format
     const format = (value: bigint, decimals: number) =>
-      formatter(parseFloat(formatUnits(value, decimals)))
-
+      formatter(deconvertNormScalar(value, decimals))
     const header = [
       'Token Out',
       'Chain Out',
@@ -233,11 +233,11 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
           quote.tokenOut.config.chainId,
           shortAddr(quote.tokenIn.config.address),
           quote.tokenIn.config.chainId,
-          format(quote.tokenOut.balance.balance, quote.tokenOut.balance.decimals.current),
+          format(quote.tokenOut.balance.balance, quote.tokenOut.balance.decimals.original),
           quote.tokenOut.config.targetBalance,
           quote.strategy,
-          format(quote.amountIn, quote.tokenIn.balance.decimals.current),
-          format(quote.amountOut, quote.tokenOut.balance.decimals.current),
+          format(quote.amountIn, quote.tokenIn.balance.decimals.original),
+          format(quote.amountOut, quote.tokenOut.balance.decimals.original),
           slippageFormatter(quote.slippage * 100) + '%',
         ]
       })

@@ -73,11 +73,11 @@ describe('EcoCronJobManager', () => {
   })
 
   it('checkAndEmitDeduped should add job with correct parameters', async () => {
-    const mockJob = { 
-      id: ecoCronJobManager['jobIDPrefix'], 
-      name: jobName 
+    const mockJob = {
+      id: ecoCronJobManager['jobIDPrefix'],
+      name: jobName,
     } as Job
-    
+
     jest.spyOn(mockQueue, 'add').mockResolvedValue(mockJob)
 
     const { response: job, error } = await ecoCronJobManager['checkAndEmitDeduped'](
