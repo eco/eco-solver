@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Chain, Client, extractChain, parseUnits, Transport } from 'viem'
+import { Chain, Client, extractChain, Transport } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -11,6 +11,8 @@ import { ChainsSupported } from '@/common/chains/supported'
 import { adaptKernelWallet } from './wallet-adapter'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { SmartAccount } from 'viem/account-abstraction'
+import { getSlippagePercent } from '@/liquidity-manager/utils/math'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -31,14 +33,29 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     })
   }
 
+  /**
+   * Gets the strategy type this provider implements
+   * @returns The strategy enum value
+   */
   getStrategy() {
     return 'Relay' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the Relay strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to a single Relay rebalance quote
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
+    id?: string, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
       const client: KernelAccountClient<Transport, Chain, SmartAccount, Client> =
@@ -55,7 +72,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         toChainId: tokenOut.chainId,
         currency: tokenIn.config.address,
         toCurrency: tokenOut.config.address,
-        amount: parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString(),
+        amount: deconvertNormScalar(swapAmountBased, tokenIn.balance.decimals.original).toString(),
         wallet: adaptedWallet,
         tradeType: 'EXACT_INPUT',
         user: walletAddress,
@@ -70,14 +87,24 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         throw EcoError.RebalancingRouteNotFound()
       }
 
-      const slippage = 1 - Number(amountOut) / Number(amountIn)
+      const dstTokenMin = {
+        address: tokenOut.config.address,
+        decimals: tokenOut.balance.decimals,
+        balance: convertNormScalar(BigInt(amountOut), tokenOut.balance.decimals.original),
+      }
+      const srcToken = {
+        address: tokenIn.config.address,
+        decimals: tokenIn.balance.decimals,
+        balance: convertNormScalar(BigInt(amountIn), tokenIn.balance.decimals.original),
+      }
+      const slippage = getSlippagePercent(dstTokenMin, srcToken)
 
       return {
         slippage,
         tokenIn,
         tokenOut,
-        amountIn: BigInt(amountIn),
-        amountOut: BigInt(amountOut),
+        amountIn: convertNormScalar(BigInt(amountIn), tokenIn.balance.decimals.original),
+        amountOut: convertNormScalar(BigInt(amountOut), tokenOut.balance.decimals.original),
         strategy: this.getStrategy(),
         context: relayQuote,
       }
@@ -89,7 +116,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
           properties: {
             tokenIn: `${tokenIn.config.address} (${tokenIn.chainId})`,
             tokenOut: `${tokenOut.config.address} (${tokenOut.chainId})`,
-            amount: swapAmount,
+            amount: swapAmountBased,
           },
         }),
       )
@@ -97,6 +124,12 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     }
   }
 
+  /**
+   * Executes a rebalance swap using the provided quote
+   * @param walletAddress - The wallet address to execute the swap from
+   * @param quote - The rebalance quote containing swap parameters and strategy details
+   * @returns A promise resolving to the execution result
+   */
   async execute(walletAddress: string, quote: RebalanceQuote<'Relay'>): Promise<unknown> {
     try {
       const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)

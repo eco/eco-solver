@@ -28,6 +28,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>//$1',
   },
+  setupFilesAfterEnv: ['<rootDir>/test-setup.ts'],
   globals: {
     mongodbMemoryServerOptions, // 👈 Inject manually here!
   },

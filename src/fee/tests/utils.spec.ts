@@ -1,4 +1,15 @@
-import { normalizeBalance, isInsufficient } from '@/fee/utils'
+import {
+  normalizeBalance,
+  isInsufficient,
+  convertNormalize,
+  convertNormScalar,
+  convertNormScalarBase6,
+  deconvertNormalize,
+  calculateDelta,
+} from '@/fee/utils'
+import { TokenFetchAnalysis } from '@/balance/balance.service'
+import { Hex } from 'viem'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('Utils Tests', () => {
   describe('normalizeBalance', () => {
@@ -124,6 +135,174 @@ describe('Utils Tests', () => {
       const ask = { token: 1000n, native: 0n }
       const reward = { token: 500n, native: 100n }
       expect(isInsufficient(ask, reward)).toBe(true)
+    })
+  })
+
+  describe('convertNormalize', () => {
+    it('should convert and normalize token to standard reserve value', () => {
+      const value = 100n
+      const token = { chainID: 1n, address: '0x123' as Hex, decimals: 6 }
+      const result = convertNormalize(value, token)
+
+      expect(result).toEqual({
+        chainID: 1n,
+        address: '0x123',
+        decimals: {
+          original: 6,
+          current: BASE_DECIMALS,
+        },
+        balance: 100_000_000_000_000n, // 100 * 10^(18-6) = 100 * 10^12
+      })
+    })
+
+    it('should handle different decimal conversions', () => {
+      const value = 1000n
+      const token = { chainID: 10n, address: '0xabc' as Hex, decimals: 8 }
+      const result = convertNormalize(value, token)
+
+      expect(result).toEqual({
+        chainID: 10n,
+        address: '0xabc',
+        decimals: {
+          original: 8,
+          current: BASE_DECIMALS,
+        },
+        balance: 10_000_000_000_000n, // 1000 * 10^(18-8) = 1000 * 10^10
+      })
+    })
+  })
+
+  describe('convertNormScalar', () => {
+    it('should convert value from one decimal representation to BASE_DECIMALS (18)', () => {
+      const value = 100n
+      const fromDecimals = 6
+      const result = convertNormScalar(value, fromDecimals)
+
+      expect(result).toEqual(100_000_000_000_000n) // 100 * 10^(18-6)
+    })
+
+    it('should handle base 8 to base 18 conversion', () => {
+      const value = 1000n
+      const fromDecimals = 8
+      const result = convertNormScalar(value, fromDecimals)
+
+      expect(result).toEqual(10_000_000_000_000n) // 1000 * 10^(18-8)
+    })
+  })
+
+  describe('convertNormScalarBase6', () => {
+    it('should convert value from base 6 to base 18', () => {
+      const value = 100n
+      const result = convertNormScalarBase6(value)
+
+      expect(result).toEqual(100_000_000_000_000n) // 100 * 10^(18-6)
+    })
+
+    it('should handle large values', () => {
+      const value = 1_000_000n
+      const result = convertNormScalarBase6(value)
+
+      expect(result).toEqual(1_000_000_000_000_000_000n) // 1_000_000 * 10^12
+    })
+  })
+
+  describe('deconvertNormalize', () => {
+    it('should deconvert and denormalize from BASE_DECIMALS to token decimals', () => {
+      const value = 100_000_000_000_000n // 100 in base 18
+      const token = { chainID: 1n, address: '0x123' as Hex, decimals: 6 }
+      const result = deconvertNormalize(value, token)
+
+      expect(result).toEqual({
+        chainID: 1n,
+        address: '0x123',
+        decimals: 6,
+        balance: 100n, // 100_000_000_000_000n / 10^(18-6)
+      })
+    })
+
+    it('should handle different decimal conversions', () => {
+      const value = 10_000_000_000_000n // 1000 in base 18
+      const token = { chainID: 10n, address: '0xabc' as Hex, decimals: 8 }
+      const result = deconvertNormalize(value, token)
+
+      expect(result).toEqual({
+        chainID: 10n,
+        address: '0xabc',
+        decimals: 8,
+        balance: 1000n, // 10_000_000_000_000n / 10^(18-8)
+      })
+    })
+  })
+
+  describe('calculateDelta', () => {
+    it('should calculate delta as balance - minBalance', () => {
+      const tokenAnalysis: TokenFetchAnalysis = {
+        config: {
+          address: '0x123' as Hex,
+          chainId: 10,
+          minBalance: 200_000_000_000_000_000_000n, // 200 USDC already normalized to 18 decimals
+          targetBalance: 500_000_000_000_000_000_000n, // 500 USDC already normalized to 18 decimals
+          type: 'erc20',
+        },
+        token: {
+          address: '0x123' as Hex,
+          decimals: {
+            original: 6,
+            current: BASE_DECIMALS,
+          },
+          balance: 300_000_000_000_000_000_000n, // 300 USDC already normalized to 18 decimals
+        },
+        chainId: 10,
+      }
+
+      const result = calculateDelta(tokenAnalysis)
+
+      // delta = 300_000_000_000_000_000_000n - 200_000_000_000_000_000_000n = 100_000_000_000_000_000_000n
+      // No additional normalization is applied since inputs are already normalized
+      expect(result).toEqual({
+        chainID: 10n,
+        address: '0x123',
+        decimals: {
+          original: 6,
+          current: BASE_DECIMALS,
+        },
+        balance: 100_000_000_000_000_000_000n,
+      })
+    })
+
+    it('should handle deficit (negative delta)', () => {
+      const tokenAnalysis: TokenFetchAnalysis = {
+        config: {
+          address: '0xabc' as Hex,
+          chainId: 1,
+          minBalance: 300_000_000_000_000_000_000n, // 300 USDC already normalized to 18 decimals
+          targetBalance: 500_000_000_000_000_000_000n, // 500 USDC already normalized to 18 decimals
+          type: 'erc20',
+        },
+        token: {
+          address: '0xabc' as Hex,
+          decimals: {
+            original: 6,
+            current: BASE_DECIMALS,
+          },
+          balance: 200_000_000_000_000_000_000n, // 200 USDC already normalized to 18 decimals
+        },
+        chainId: 1,
+      }
+
+      const result = calculateDelta(tokenAnalysis)
+
+      // delta = 200_000_000_000_000_000_000n - 300_000_000_000_000_000_000n = -100_000_000_000_000_000_000n
+      // No additional normalization is applied since inputs are already normalized
+      expect(result).toEqual({
+        chainID: 1n,
+        address: '0xabc',
+        decimals: {
+          original: 6,
+          current: BASE_DECIMALS,
+        },
+        balance: -100_000_000_000_000_000_000n,
+      })
     })
   })
 })

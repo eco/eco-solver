@@ -23,7 +23,7 @@ export type ExecuteCCTPMintJob = LiquidityManagerJob<
       originalTokenOut: {
         address: Hex
         chainId: number
-        decimals: number
+        decimals: { original: number; current: number }
       }
     }
     id?: string

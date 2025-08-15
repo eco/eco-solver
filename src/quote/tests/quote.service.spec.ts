@@ -1,7 +1,17 @@
+// Ensure BigInt serialization support before anything else
+if (!(BigInt.prototype as any).toJSON) {
+  Object.defineProperty(BigInt.prototype, 'toJSON', {
+    value: function () {
+      return this.toString() + 'n'
+    },
+    configurable: true,
+  })
+}
+
 const mockGetTransactionTargetData = jest.fn()
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
-import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationService } from '@/intent/validation.service'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -30,6 +40,7 @@ import { Chain, PublicClient, Transport } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
 import { EcoError } from '@/common/errors/eco-error'
+import { denormalizeTokenAmounts } from '@/quote/utils/token-normalization.utils'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -350,9 +361,7 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
-        })
+        // deconvertNormalize is now a utility function in utils, not a service method
 
         jest
           .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
@@ -362,13 +371,28 @@ describe('QuotesService', () => {
         jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
 
         const { response: quoteDataEntry } = await quoteService.generateQuote({
-          route: { tokens: [], calls: [] },
-          reward: {},
+          route: { tokens: [], calls: [], source: '1', destination: '137' },
+          reward: {
+            tokens: calculated.rewards.map((reward) => ({
+              token: reward.address,
+              amount: reward.balance,
+              decimals: {
+                original: 18,
+                current: 18,
+              },
+            })),
+          },
         } as any)
         expect(quoteDataEntry).toEqual({
           routeTokens: [],
           routeCalls: [],
-          rewardTokens: expectedTokens,
+          rewardTokens: expectedTokens.map((token) => ({
+            ...token,
+            decimals: {
+              original: 18,
+              current: 18,
+            },
+          })),
           rewardNative: expectedNativeReward || 0n,
           expiryTime: expect.any(String),
           estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
@@ -402,7 +426,7 @@ describe('QuotesService', () => {
             { delta: { balance: -50n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+        await generateHelper(calculated, [{ token: '0x2', amount: 50n }])
       })
 
       it('should fill surplus if no deficit', async () => {
@@ -447,7 +471,7 @@ describe('QuotesService', () => {
             { delta: { balance: 100n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }])
+        await generateHelper(calculated, [{ token: '0x2', amount: 100n }])
       })
 
       it('should fill deficit as much as it can and then surplus', async () => {
@@ -487,7 +511,7 @@ describe('QuotesService', () => {
         } as any
         await generateHelper(calculated, [
           { token: '0x1', amount: 50n },
-          { token: '0x2', amount: 200n },
+          { token: '0x2', amount: 50n },
         ])
       })
 
@@ -505,8 +529,8 @@ describe('QuotesService', () => {
           ],
         } as any
         await generateHelper(calculated, [
-          { token: '0x1', amount: 150n },
-          { token: '0x2', amount: 100n },
+          { token: '0x1', amount: 10n },
+          { token: '0x2', amount: 20n },
         ])
       })
 
@@ -520,7 +544,7 @@ describe('QuotesService', () => {
             { delta: { balance: -50n, address: '0x2' } },
           ],
         } as any
-        await generateHelper(calculated, [{ token: '0x2', amount: 150n }], 0n, 0)
+        await generateHelper(calculated, [{ token: '0x2', amount: 50n }], 0n, 0)
       })
 
       it('should handle native gas token rewards correctly', async () => {
@@ -540,8 +564,8 @@ describe('QuotesService', () => {
         await generateHelper(
           calculated,
           [
-            { token: '0x1', amount: 100n },
-            { token: '0x2', amount: 50n },
+            { token: '0x1', amount: 50n },
+            { token: '0x2', amount: 100n },
           ],
           nativeGas,
         )
@@ -556,6 +580,212 @@ describe('QuotesService', () => {
           srcDeficitDescending: [{ delta: { balance: -50n, address: '0x1' } }],
         } as any
         await generateHelper(calculated, [{ token: '0x1', amount: 50n }], nativeGas)
+      })
+    })
+
+    describe('decimal handling tests', () => {
+      beforeEach(() => {})
+
+      async function generateDecimalHelper(
+        calculated: any,
+        expectedTokens: { token: string; amount: bigint; decimals?: number }[],
+        expectedNativeReward?: bigint,
+        expectedFulfillTimeSec?: number,
+      ) {
+        const ask = calculated.calls.reduce(
+          (a, b) => {
+            return { token: a.token + b.balance, native: a.native + b.native.amount }
+          },
+          { token: 0n, native: 0n },
+        )
+
+        jest.spyOn(feeService, 'getAsk').mockReturnValue(ask)
+        jest.spyOn(feeService, 'getTotalFill').mockResolvedValue({
+          totalFillNormalized: ask,
+        })
+        jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
+          totalRewardsNormalized: {
+            token: calculated.rewards.reduce((a, b) => a + b.balance, 0n),
+            native: expectedNativeReward || 0n,
+          },
+        })
+        jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
+
+        // deconvertNormalize is now a utility function in utils, not a service method
+
+        jest
+          .spyOn(fulfillmentEstimateService, 'getEstimatedFulfillTime')
+          .mockReturnValue(expectedFulfillTimeSec || 15)
+
+        jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
+
+        // Create mapping from token address to expected decimals
+        const tokenDecimalsMap = expectedTokens.reduce(
+          (acc, expectedToken) => {
+            acc[expectedToken.token] = expectedToken.decimals || 18
+            return acc
+          },
+          {} as Record<string, number>,
+        )
+
+        const { response: quoteDataEntry } = await quoteService.generateQuote({
+          route: { tokens: [], calls: [], source: '1', destination: '137' },
+          reward: {
+            tokens: calculated.rewards.map((reward) => ({
+              token: reward.address,
+              amount: reward.balance,
+              decimals: {
+                original: tokenDecimalsMap[reward.address] || 18,
+                current: 18,
+              },
+            })),
+          },
+        } as any)
+
+        // Apply the same denormalization that TokenDecimalsInterceptor would apply
+        if (quoteDataEntry?.rewardTokens) {
+          denormalizeTokenAmounts(quoteDataEntry.rewardTokens as any)
+        }
+
+        expect(quoteDataEntry).toEqual({
+          routeTokens: [],
+          routeCalls: [],
+          rewardTokens: expectedTokens.map((token) => ({
+            token: token.token,
+            amount: token.amount.toString(), // denormalizeTokenAmounts converts to string
+          })),
+          rewardNative: expectedNativeReward || 0n,
+          expiryTime: expect.any(String),
+          estimatedFulfillTimeSec: expectedFulfillTimeSec || 15,
+          gasOverhead: 145_000,
+        })
+      }
+
+      describe('same decimals scenarios', () => {
+        it('should handle tokens with 6 decimals', async () => {
+          const calculated = {
+            solver: {},
+            rewards: [
+              { address: '0x1', balance: 1000000000000000000n }, // 1 token in 18 decimal normalized form
+              { address: '0x2', balance: 2000000000000000000n }, // 2 tokens in 18 decimal normalized form
+            ],
+            calls: [{ balance: 1500000000000000000n, native: { amount: 0n } }], // 1.5 tokens needed
+            srcDeficitDescending: [
+              { delta: { balance: -500000000000000000n, address: '0x1', decimals: 6 } }, // 0.5 token deficit
+              { delta: { balance: 1000000000000000000n, address: '0x2', decimals: 6 } }, // 1 token surplus
+            ],
+          } as any
+
+          // Expected: 1.5 tokens worth in 6 decimals = 1500000 (1.5 * 10^6)
+          await generateDecimalHelper(calculated, [
+            { token: '0x1', amount: 500000n, decimals: 6 }, // 0.5 tokens in 6 decimals
+            { token: '0x2', amount: 1000000n, decimals: 6 }, // 1 token in 6 decimals
+          ])
+        })
+
+        it('should handle tokens with 18 decimals', async () => {
+          const calculated = {
+            solver: {},
+            rewards: [
+              { address: '0x1', balance: 1000000000000000000n }, // 1 token in 18 decimal normalized form
+              { address: '0x2', balance: 2000000000000000000n }, // 2 tokens in 18 decimal normalized form
+            ],
+            calls: [{ balance: 1500000000000000000n, native: { amount: 0n } }], // 1.5 tokens needed
+            srcDeficitDescending: [
+              { delta: { balance: -500000000000000000n, address: '0x1', decimals: 18 } }, // 0.5 token deficit
+              { delta: { balance: 1000000000000000000n, address: '0x2', decimals: 18 } }, // 1 token surplus
+            ],
+          } as any
+
+          // Expected: amounts stay the same for 18 decimals
+          await generateDecimalHelper(calculated, [
+            { token: '0x1', amount: 500000000000000000n }, // 0.5 tokens in 18 decimals
+            { token: '0x2', amount: 1000000000000000000n }, // 1 token in 18 decimals
+          ])
+        })
+      })
+
+      describe('different decimals scenarios', () => {
+        it('should handle reward token with 6 decimals and route token with 18 decimals', async () => {
+          const calculated = {
+            solver: {},
+            rewards: [
+              { address: '0x1', balance: 2000000000000000000n }, // 2 tokens normalized (18 decimals)
+            ],
+            calls: [{ balance: 1500000000000000000n, native: { amount: 0n } }], // 1.5 tokens needed
+            srcDeficitDescending: [
+              { delta: { balance: -1500000000000000000n, address: '0x1', decimals: 6 } }, // 1.5 token deficit in 6 decimals
+            ],
+          } as any
+
+          // Expected: 1.5 tokens in 6 decimals = 1500000
+          await generateDecimalHelper(calculated, [
+            { token: '0x1', amount: 1500000n, decimals: 6 }, // 1.5 tokens converted to 6 decimals
+          ])
+        })
+
+        it('should handle reward token with 18 decimals and route token with 6 decimals', async () => {
+          const calculated = {
+            solver: {},
+            rewards: [
+              { address: '0x1', balance: 2000000000000000000n }, // 2 tokens normalized (18 decimals)
+            ],
+            calls: [{ balance: 1500000000000000000n, native: { amount: 0n } }], // 1.5 tokens needed
+            srcDeficitDescending: [
+              { delta: { balance: -1500000000000000000n, address: '0x1', decimals: 18 } }, // 1.5 token deficit in 18 decimals
+            ],
+          } as any
+
+          // Expected: 1.5 tokens stay in 18 decimals
+          await generateDecimalHelper(calculated, [
+            { token: '0x1', amount: 1500000000000000000n, decimals: 18 }, // 1.5 tokens in 18 decimals
+          ])
+        })
+      })
+
+      describe('multiple tokens with different decimals', () => {
+        it('should handle mixed decimals: 6, 8, and 18 decimal tokens', async () => {
+          const calculated = {
+            solver: {},
+            rewards: [
+              { address: '0x1', balance: 1000000000000000000n }, // 1 token (6 decimals)
+              { address: '0x2', balance: 2000000000000000000n }, // 2 tokens (8 decimals)
+              { address: '0x3', balance: 1500000000000000000n }, // 1.5 tokens (18 decimals)
+            ],
+            calls: [{ balance: 3000000000000000000n, native: { amount: 0n } }], // 3 tokens needed
+            srcDeficitDescending: [
+              { delta: { balance: -1000000000000000000n, address: '0x1', decimals: 6 } }, // 1 token deficit (6 decimals)
+              { delta: { balance: -500000000000000000n, address: '0x2', decimals: 8 } }, // 0.5 token deficit (8 decimals)
+              { delta: { balance: -500000000000000000n, address: '0x3', decimals: 18 } }, // 0.5 token deficit (18 decimals)
+            ],
+          } as any
+
+          await generateDecimalHelper(calculated, [
+            { token: '0x1', amount: 1000000n, decimals: 6 }, // 1 token in 6 decimals
+            { token: '0x2', amount: 50000000n, decimals: 8 }, // 0.5 tokens in 8 decimals
+            { token: '0x3', amount: 500000000000000000n, decimals: 18 }, // 0.5 tokens in 18 decimals
+          ])
+        })
+
+        it('should handle multiple tokens with varying reward balances and decimals', async () => {
+          const calculated = {
+            solver: {},
+            rewards: [
+              { address: '0x1', balance: 3000000000000000000n }, // 3 tokens (6 decimals)
+              { address: '0x2', balance: 1000000000000000000n }, // 1 token (18 decimals)
+            ],
+            calls: [{ balance: 2500000000000000000n, native: { amount: 0n } }], // 2.5 tokens needed
+            srcDeficitDescending: [
+              { delta: { balance: -2000000000000000000n, address: '0x1', decimals: 6 } }, // 2 token deficit (6 decimals)
+              { delta: { balance: -500000000000000000n, address: '0x2', decimals: 18 } }, // 0.5 token deficit (18 decimals)
+            ],
+          } as any
+
+          await generateDecimalHelper(calculated, [
+            { token: '0x1', amount: 2000000n, decimals: 6 }, // 2 tokens in 6 decimals
+            { token: '0x2', amount: 500000000000000000n, decimals: 18 }, // 0.5 tokens in 18 decimals
+          ])
+        })
       })
     })
   })
@@ -614,15 +844,14 @@ describe('QuotesService', () => {
           },
         })
         jest.spyOn(feeService, 'calculateTokens').mockResolvedValue({ calculated })
-        feeService.deconvertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
-        })
-        feeService.convertNormalize = jest.fn().mockImplementation((amount) => {
-          return { balance: amount }
-        })
+        // deconvertNormalize is now a utility function in utils, not a service method
+        // convertNormalize is now a utility function in utils, not a service method
+
+        // Mock the getGasOverhead method
+        jest.spyOn(quoteService, 'getGasOverhead').mockReturnValue(145_000)
 
         const { response: quoteDataEntry } = await quoteService.generateReverseQuote({
-          route: {},
+          route: { source: '1', destination: '137' },
           reward: {},
         } as any)
         expect(quoteDataEntry).toBeDefined()

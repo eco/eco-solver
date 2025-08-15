@@ -1,6 +1,6 @@
 import { EcoError } from '@/common/errors/eco-error'
 import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
-import { ValidationChecks } from '@/intent/validation.sevice'
+import { ValidationChecks } from '@/intent/validation.service'
 import { Hex } from 'viem'
 import { NormalizedTotal } from '@/fee/types'
 import { formatNormalizedTotal } from '@/fee/utils'
@@ -244,5 +244,30 @@ export class QuoteError extends Error {
 
   static InvalidFunctionData(target: Hex) {
     return new EcoError(`Invalid function data for target ${target}: missing or invalid args`)
+  }
+
+  // TokenCallsInterceptor errors
+  static CallTokenNotInRouteTokens(tokens: Hex[]) {
+    return new EcoError(
+      `Calls for tokens [${tokens.join(', ')}] do not have corresponding entries in route.tokens`,
+    )
+  }
+
+  static CallAmountMismatchTokenAmount(token: Hex, callAmount: bigint, tokenAmount: bigint) {
+    return new EcoError(
+      `Call amount ${callAmount} for token ${token} does not match token amount ${tokenAmount}`,
+    )
+  }
+
+  static TokenNotInRouteCalls(tokens: Hex[]) {
+    return new EcoError(
+      `Tokens [${tokens.join(', ')}] do not have corresponding calls in route.calls`,
+    )
+  }
+
+  static InvalidFunctionCall(target: Hex, contractType: string) {
+    return new EcoError(
+      `Invalid function call for ${contractType} target ${target}: call data is not a valid transfer function`,
+    )
   }
 }

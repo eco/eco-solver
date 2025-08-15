@@ -36,7 +36,10 @@ export type NormalizedToken = {
   balance: bigint
   chainID: bigint
   address: Hex
-  decimals: number
+  decimals: {
+    original: number
+    current: number
+  }
 }
 
 /**

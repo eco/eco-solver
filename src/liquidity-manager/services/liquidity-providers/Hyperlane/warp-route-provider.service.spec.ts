@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { DeepMocked, createMock } from '@golevelup/ts-jest'
-import { Hex, pad, parseUnits, getAbiItem, encodeEventTopics, keccak256, toHex } from 'viem'
+import { Hex, pad, parseUnits, keccak256, toHex } from 'viem'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { WarpRouteProviderService } from './warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -8,6 +8,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 
@@ -106,12 +107,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -121,23 +122,23 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
 
       expect(quotes).toHaveLength(1)
       expect(quotes[0].strategy).toBe('WarpRoute')
-      expect(quotes[0].amountIn).toEqual(parseUnits(swapAmount.toString(), 18))
-      expect(quotes[0].amountOut).toEqual(parseUnits(swapAmount.toString(), 18))
+      expect(quotes[0].amountIn).toEqual(swapAmount)
+      expect(quotes[0].amountOut).toEqual(swapAmount)
     })
 
     it('should return a direct quote for a FULL action path (synthetic to synthetic)', async () => {
@@ -176,12 +177,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -191,23 +192,23 @@ describe('WarpRouteProviderService', () => {
           chainId: 3,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       const quotes = await service.getQuote(syntheticToken1, syntheticToken2, swapAmount)
 
       expect(quotes).toHaveLength(1)
       expect(quotes[0].strategy).toBe('WarpRoute')
-      expect(quotes[0].amountIn).toEqual(parseUnits(swapAmount.toString(), 18))
-      expect(quotes[0].amountOut).toEqual(parseUnits(swapAmount.toString(), 18))
+      expect(quotes[0].amountIn).toEqual(swapAmount)
+      expect(quotes[0].amountOut).toEqual(swapAmount)
     })
 
     it('should throw an error when a collateral token is shared between multiple warp routes', async () => {
@@ -256,12 +257,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x5200000000000000000000000000000000000052',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -271,18 +272,18 @@ describe('WarpRouteProviderService', () => {
           chainId: 3,
           address: '0x6200000000000000000000000000000000000062',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x6200000000000000000000000000000000000062',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
 
       // Trying to transfer between synthetic tokens from different warp routes should fail
-      await expect(service.getQuote(syntheticToken1, syntheticToken2, 100)).rejects.toThrow(
+      await expect(service.getQuote(syntheticToken1, syntheticToken2, 100n)).rejects.toThrow(
         'Unsupported action path',
       )
     })
@@ -333,12 +334,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -348,22 +349,22 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x5200000000000000000000000000000000000052',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
 
       // Should succeed when transferring between tokens in the same warp route
-      const quotes = await service.getQuote(sharedCollateralToken, syntheticToken1, 100)
+      const quotes = await service.getQuote(sharedCollateralToken, syntheticToken1, 100n)
       expect(quotes).toHaveLength(1)
       expect(quotes[0].strategy).toBe('WarpRoute')
-      expect(quotes[0].amountIn).toEqual(parseUnits('100', 18))
-      expect(quotes[0].amountOut).toEqual(parseUnits('100', 18))
+      expect(quotes[0].amountIn).toEqual(100n)
+      expect(quotes[0].amountOut).toEqual(100n)
     })
 
     it('should throw an error for transfers between different warp routes', async () => {
@@ -373,13 +374,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 1,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const collateralToken2: TokenData = {
@@ -388,13 +389,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000043',
           chainId: 3,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -422,7 +423,7 @@ describe('WarpRouteProviderService', () => {
       }
       ecoConfigService.getWarpRoutes.mockReturnValue(extendedConfig)
 
-      await expect(service.getQuote(collateralToken1, collateralToken2, 100)).rejects.toThrow(
+      await expect(service.getQuote(collateralToken1, collateralToken2, 100n)).rejects.toThrow(
         'Unsupported action path',
       )
 
@@ -433,13 +434,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 2,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const syntheticToken2: TokenData = {
@@ -448,17 +449,17 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000043',
           chainId: 4,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
-      await expect(service.getQuote(syntheticToken1, syntheticToken2, 100)).rejects.toThrow(
+      await expect(service.getQuote(syntheticToken1, syntheticToken2, 100n)).rejects.toThrow(
         'Unsupported action path',
       )
     })
@@ -499,13 +500,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 1,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const collateralToken3: TokenData = {
@@ -514,17 +515,17 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 3,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
-      await expect(service.getQuote(collateralToken1, collateralToken3, 100)).rejects.toThrow(
+      await expect(service.getQuote(collateralToken1, collateralToken3, 100n)).rejects.toThrow(
         'Unsupported action path',
       )
     })
@@ -536,12 +537,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 99,
           address: '0x1111111111111111111111111111111111111111',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -551,16 +552,16 @@ describe('WarpRouteProviderService', () => {
           chainId: 100,
           address: '0x2222222222222222222222222222222222222222',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x2222222222222222222222222222222222222222',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       await expect(service.getQuote(tokenIn, tokenOut, swapAmount)).rejects.toThrow(
         'Unsupported action path',
@@ -574,13 +575,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 2,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const collateralTokenData: TokenData = {
@@ -589,16 +590,16 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 1,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       const mockClient = {
         kernelAccountAddress: WALLET_ADDRESS,
@@ -620,13 +621,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 1,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
       const syntheticTokenData: TokenData = {
@@ -635,16 +636,16 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 2,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       const mockClient = {
         kernelAccountAddress: WALLET_ADDRESS,
@@ -666,12 +667,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -681,12 +682,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x5200000000000000000000000000000000000052',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -696,16 +697,16 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 500n,
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       const mockClient = {
         kernelAccountAddress: WALLET_ADDRESS,
@@ -731,12 +732,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x5200000000000000000000000000000000000052',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -746,12 +747,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -761,16 +762,16 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 500n,
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       const mockClient = {
         kernelAccountAddress: WALLET_ADDRESS,
@@ -796,12 +797,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -811,16 +812,16 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x5200000000000000000000000000000000000052',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x5200000000000000000000000000000000000052',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
-      const swapAmount = 100
+      const swapAmount = 100n
 
       // Modify the config to not have a valid collateral for the partial path
       const brokenConfig = JSON.parse(JSON.stringify(WARP_ROUTE_CONFIG))
@@ -844,12 +845,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x1111111111111111111111111111111111111111',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -860,12 +861,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -906,13 +907,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 1,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -922,13 +923,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000043',
           chainId: 3,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -961,7 +962,7 @@ describe('WarpRouteProviderService', () => {
           },
         } as any)
 
-      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
+      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100n)
 
       expect(quotes).toHaveLength(2)
       expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
@@ -980,12 +981,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x1111111111111111111111111111111111111111',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -996,12 +997,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 3,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1042,13 +1043,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000043',
           chainId: 2,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1058,13 +1059,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000044',
           chainId: 4,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000044',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1095,7 +1096,7 @@ describe('WarpRouteProviderService', () => {
           },
         } as any)
 
-      const quotes = await service.getQuote(tokenIn, collateralTokenOut, 100)
+      const quotes = await service.getQuote(tokenIn, collateralTokenOut, 100n)
 
       expect(quotes).toHaveLength(2)
       expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
@@ -1114,12 +1115,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x1111111111111111111111111111111111111111',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1130,12 +1131,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1150,7 +1151,7 @@ describe('WarpRouteProviderService', () => {
       // Mock all LiFi quotes to fail
       liFiProviderService.getQuote.mockRejectedValue(new Error('No route found'))
 
-      await expect(service.getQuote(tokenIn, syntheticTokenOut, 100)).rejects.toThrow(
+      await expect(service.getQuote(tokenIn, syntheticTokenOut, 100n)).rejects.toThrow(
         'No valid collateral chain found for token to synthetic path',
       )
     })
@@ -1162,12 +1163,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 1,
           address: '0x1111111111111111111111111111111111111111',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x1111111111111111111111111111111111111111',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1178,12 +1179,12 @@ describe('WarpRouteProviderService', () => {
           chainId: 2,
           address: '0x4200000000000000000000000000000000000042',
           type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
           balance: 1000n,
         },
       }
@@ -1224,13 +1225,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000042',
           chainId: 1,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000042',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1240,13 +1241,13 @@ describe('WarpRouteProviderService', () => {
           type: 'erc20',
           address: '0x4200000000000000000000000000000000000043',
           chainId: 3,
-          targetBalance: 0,
-          minBalance: 0,
+          targetBalance: 0n,
+          minBalance: 0n,
         },
         balance: {
           address: '0x4200000000000000000000000000000000000043',
           balance: parseUnits('1000', 18),
-          decimals: 18,
+          decimals: { original: 18, current: BASE_DECIMALS },
         },
       }
 
@@ -1270,7 +1271,7 @@ describe('WarpRouteProviderService', () => {
           },
         } as any)
 
-      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
+      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100n)
 
       expect(quotes).toHaveLength(2)
       expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
@@ -1292,8 +1293,8 @@ describe('WarpRouteProviderService', () => {
             chainId: 1,
             address: collateralTokenAddress,
             type: 'erc20',
-            minBalance: 0,
-            targetBalance: 0,
+            minBalance: 0n,
+            targetBalance: 0n,
           },
         },
         tokenOut: {
@@ -1353,8 +1354,8 @@ describe('WarpRouteProviderService', () => {
             chainId: 1,
             address: '0x4200000000000000000000000000000000000042',
             type: 'erc20',
-            minBalance: 0,
-            targetBalance: 0,
+            minBalance: 0n,
+            targetBalance: 0n,
           },
         },
         tokenOut: {
@@ -1414,8 +1415,8 @@ describe('WarpRouteProviderService', () => {
             chainId: 1,
             address: '0x4200000000000000000000000000000000000042',
             type: 'erc20',
-            minBalance: 0,
-            targetBalance: 0,
+            minBalance: 0n,
+            targetBalance: 0n,
           },
         },
         tokenOut: {

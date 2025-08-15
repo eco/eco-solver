@@ -31,13 +31,13 @@ describe('EverclearProviderService', () => {
       address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Ethereum
       chainId: 1,
       type: 'erc20',
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
     },
     balance: {
       address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       balance: parseUnits('1000', 6),
-      decimals: 6,
+      decimals: { original: 6, current: 6 },
     },
   }
 
@@ -47,13 +47,13 @@ describe('EverclearProviderService', () => {
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', // USDC on Optimism
       chainId: 10,
       type: 'erc20',
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
     },
     balance: {
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       balance: parseUnits('1000', 6),
-      decimals: 6,
+      decimals: { original: 6, current: 6 },
     },
   }
 
@@ -110,8 +110,8 @@ describe('EverclearProviderService', () => {
 
   describe('getQuote', () => {
     it('should get a quote and return it in the correct format', async () => {
-      const swapAmount = 100
-      const expectedAmount = parseUnits('99', 6).toString() // 1% slippage
+      const swapAmountBased = parseUnits('100', 18) // 100 tokens normalized to 18 decimals
+      const expectedAmount = parseUnits('99', 18).toString() // 99 tokens (also 18 decimals for output)
       const mockApiResponse = { expectedAmount }
 
       ;(fetch as jest.Mock).mockResolvedValue({
@@ -119,14 +119,14 @@ describe('EverclearProviderService', () => {
         json: () => Promise.resolve(mockApiResponse),
       })
 
-      const [quote] = await service.getQuote(mockTokenIn, mockTokenOut, swapAmount)
+      const [quote] = await service.getQuote(mockTokenIn, mockTokenOut, swapAmountBased)
 
       expect(fetch).toHaveBeenCalledWith(
         'https://test.everclear.org/routes/quotes',
         expect.any(Object),
       )
       expect(quote.strategy).toBe('Everclear')
-      expect(quote.amountIn).toBe(parseUnits(swapAmount.toString(), 6))
+      expect(quote.amountIn).toBe(swapAmountBased)
       expect(quote.amountOut).toBe(BigInt(expectedAmount))
       expect(quote.slippage).toBeCloseTo(0.01)
     })
@@ -138,7 +138,7 @@ describe('EverclearProviderService', () => {
         return 'UNKNOWN'
       })
 
-      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 100)
+      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 100n)
       expect(quotes).toEqual([])
       expect(fetch).not.toHaveBeenCalled()
     })
@@ -151,7 +151,7 @@ describe('EverclearProviderService', () => {
         text: () => Promise.resolve('Internal Server Error'),
       })
 
-      await expect(service.getQuote(mockTokenIn, mockTokenOut, 100)).rejects.toThrow(
+      await expect(service.getQuote(mockTokenIn, mockTokenOut, 100n)).rejects.toThrow(
         EverclearApiError,
       )
     })

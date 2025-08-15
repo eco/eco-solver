@@ -6,6 +6,7 @@ import { API_ROOT } from '../common/routes/constants'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { serialize } from '@/common/utils/serialize'
 
 @Controller(API_ROOT)
 export class HealthController {
@@ -31,12 +32,15 @@ export class HealthController {
     try {
       const result = await this.healthService.checkHealth()
 
+      const serializedResult = serialize(result)
+
       this.ecoAnalytics.trackHealthResponseSuccess(ANALYTICS_EVENTS.HEALTH.CHECK_SUCCESS, {
-        result,
+        result: serializedResult,
         processingTimeMs: Date.now() - startTime,
       })
 
-      return result
+      // Return serialized result to handle BigInt values
+      return serializedResult
     } catch (error) {
       this.ecoAnalytics.trackHealthResponseError(ANALYTICS_EVENTS.HEALTH.CHECK_ERROR, error, {
         processingTimeMs: Date.now() - startTime,

@@ -7,7 +7,6 @@ import {
   isAddressEqual,
   pad,
   parseEventLogs,
-  parseUnits,
   TransactionReceipt,
   TransactionRequest,
   isAddress,
@@ -56,17 +55,29 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return 'WarpRoute' as const
   }
 
+  /**
+   * Gets a quote for swapping tokens using the WarpRoute strategy
+   * @param tokenIn - The input token data including address, decimals, and chain information
+   * @param tokenOut - The output token data including address, decimals, and chain information
+   * @param swapAmountBased - The amount to swap that has already been normalized to the base token's decimals
+   *                          using {@link normalizeBalanceToBase} with {@link BASE_DECIMALS} (18 decimals).
+   *                          This represents the tokenIn amount and is ready for direct use in swap calculations.
+   * @param id - Optional identifier for tracking the quote request
+   * @returns A promise resolving to an array of WarpRoute rebalance quotes
+   */
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote[]> {
     // Validate inputs
     this.validateTokenData(tokenIn, 'tokenIn')
     this.validateTokenData(tokenOut, 'tokenOut')
-    if (swapAmount <= 0) {
-      throw new InvalidInputError('Swap amount must be positive', { swapAmount })
+    if (swapAmountBased <= 0) {
+      throw new InvalidInputError('Swap amount must be positive', {
+        swapAmountBased: swapAmountBased.toString(),
+      })
     }
     this.logger.debug(
       EcoLogMessage.withId({
@@ -75,7 +86,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         properties: {
           tokenIn,
           tokenOut,
-          swapAmount,
+          swapAmountBased,
         },
       }),
     )
@@ -99,13 +110,13 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         EcoLogMessage.withId({
           message: 'WarpRouteProviderService: getting partial quote',
           id,
-          properties: { tokenIn, tokenOut, swapAmount },
+          properties: { tokenIn, tokenOut, swapAmountBased },
         }),
       )
       const quotes = await this.getPartialQuote(
         tokenIn,
         tokenOut,
-        swapAmount,
+        swapAmountBased,
         warpRouteIn,
         warpRouteOut,
         id,
@@ -120,9 +131,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       return quotes
     }
 
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
-
-    const quote = this.getRemoteTransferQuote(tokenIn, tokenOut, amount, id)
+    const quote = this.getRemoteTransferQuote(tokenIn, tokenOut, swapAmountBased, id)
 
     this.logger.debug(
       EcoLogMessage.withId({
@@ -203,12 +212,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   private getRemoteTransferQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    amount: bigint,
+    swapAmountBased: bigint,
     id?: string,
   ): RebalanceQuote<'WarpRoute'> {
     return {
-      amountIn: amount,
-      amountOut: amount,
+      amountIn: swapAmountBased,
+      amountOut: swapAmountBased,
       slippage: 0,
       tokenIn: tokenIn,
       tokenOut: tokenOut,
@@ -440,7 +449,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   private async getPartialQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     warpRouteIn: WarpRouteResult | undefined,
     warpRouteOut: WarpRouteResult | undefined,
     id?: string,
@@ -455,7 +464,6 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn || {}
     const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut || {}
 
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const client = await this.kernelAccountClientService.getClient(tokenIn.config.chainId)
 
     // Case 1: The input token is a synthetic token.
@@ -466,8 +474,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         tokenIn,
         tokenOut,
         routeIn!,
-        amount,
-        swapAmount,
+        swapAmountBased,
         client,
         id,
       )
@@ -481,8 +488,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         tokenIn,
         tokenOut,
         routeIn!,
-        amount,
-        swapAmount,
+        swapAmountBased,
         client,
         id,
       )
@@ -492,14 +498,28 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     // This means the only entry point is via its collateral.
     // Path: TokenIn -> Collateral -> Synthetic
     if (warpTokenOut?.type === 'synthetic') {
-      return this.handleTokenToSyntheticPath(tokenIn, tokenOut, routeOut!, swapAmount, client, id)
+      return this.handleTokenToSyntheticPath(
+        tokenIn,
+        tokenOut,
+        routeOut!,
+        swapAmountBased,
+        client,
+        id,
+      )
     }
 
     // Case 4: The output token is a collateral token.
     // The only entry point is via its synthetic counterparts.
     // Path: TokenIn -> Synthetic -> Collateral
     if (warpTokenOut?.type === 'collateral') {
-      return this.handleTokenToCollateralPath(tokenIn, tokenOut, routeOut!, swapAmount, client, id)
+      return this.handleTokenToCollateralPath(
+        tokenIn,
+        tokenOut,
+        routeOut!,
+        swapAmountBased,
+        client,
+        id,
+      )
     }
 
     this.logger.debug(
@@ -519,15 +539,15 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       type: 'erc20',
       address: token.token,
       chainId: token.chainId,
-      targetBalance: 0,
-      minBalance: 0,
+      targetBalance: 0n,
+      minBalance: 0n,
     }
   }
 
   private async getBestLiFiQuote(
     tokenIn: TokenData,
     candidateTokens: WarpToken[],
-    swapAmount: number,
+    swapAmountBased: bigint,
     client: any,
     id?: string,
   ): Promise<{ tokenData: TokenData; quote: any; outputAmount: bigint } | null> {
@@ -552,12 +572,17 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           config: tokenConfig,
           balance: {
             address: candidateToken.token,
-            decimals: 0, // Placeholder. This is not used for LiFi quotes.
+            decimals: { original: 18, current: 18 }, // Placeholder. This is not used for LiFi quotes.
             balance: 0n, // Placeholder. This is not used for LiFi quotes.
           },
         }
 
-        const liFiQuote = await this.liFiProviderService.getQuote(tokenIn, tokenOut, swapAmount, id)
+        const liFiQuote = await this.liFiProviderService.getQuote(
+          tokenIn,
+          tokenOut,
+          swapAmountBased,
+          id,
+        )
 
         const outputAmount = BigInt(liFiQuote.context.toAmountMin)
         if (outputAmount > bestAmountOut) {
@@ -627,8 +652,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     warpRoute: WarpRoute,
-    amount: bigint,
-    swapAmount: number,
+    swapAmountBased: bigint,
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
@@ -659,16 +683,16 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const remoteTransferQuote = this.getRemoteTransferQuote(
       tokenIn,
       collateralTokenData,
-      amount,
+      swapAmountBased,
       id,
     )
 
     // Simulate balance after remote transfer so subsequent LiFi quote has the right context
-    collateralTokenData.balance.balance += amount
+    collateralTokenData.balance.balance += swapAmountBased
     const liFiQuote = await this.liFiProviderService.getQuote(
       collateralTokenData,
       tokenOut,
-      swapAmount,
+      swapAmountBased,
       id,
     )
     return [remoteTransferQuote, liFiQuote]
@@ -678,8 +702,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     warpRoute: WarpRoute,
-    amount: bigint,
-    swapAmount: number,
+    swapAmountBased: bigint,
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
@@ -717,17 +740,17 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       try {
         // Simulate the balance on the intermediate token to get a more accurate quote
         const simulatedIntermediateData = { ...intermediateTokenData }
-        simulatedIntermediateData.balance.balance += amount
+        simulatedIntermediateData.balance.balance += swapAmountBased
         const liFiQuote = await this.liFiProviderService.getQuote(
           simulatedIntermediateData,
           tokenOut,
-          swapAmount,
+          swapAmountBased,
         )
 
         const remoteTransferQuote = this.getRemoteTransferQuote(
           tokenIn,
           intermediateTokenData,
-          amount,
+          swapAmountBased,
           id,
         )
         return [remoteTransferQuote, liFiQuote]
@@ -752,7 +775,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     warpRoute: WarpRoute,
-    swapAmount: number,
+    swapAmountBased: bigint,
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
@@ -774,7 +797,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const bestLiFiResult = await this.getBestLiFiQuote(
       tokenIn,
       collateralChains,
-      swapAmount,
+      swapAmountBased,
       client,
       id,
     )
@@ -801,7 +824,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     tokenIn: TokenData,
     tokenOut: TokenData,
     warpRoute: WarpRoute,
-    swapAmount: number,
+    swapAmountBased: bigint,
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
@@ -823,7 +846,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     const bestLiFiResult = await this.getBestLiFiQuote(
       tokenIn,
       syntheticChains,
-      swapAmount,
+      swapAmountBased,
       client,
       id,
     )

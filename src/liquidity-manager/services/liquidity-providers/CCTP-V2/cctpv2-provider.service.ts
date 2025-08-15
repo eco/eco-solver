@@ -1,4 +1,4 @@
-import { isAddressEqual, parseUnits, Hex, encodeFunctionData, pad, erc20Abi } from 'viem'
+import { isAddressEqual, Hex, encodeFunctionData, pad, erc20Abi } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
@@ -43,7 +43,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'CCTPV2'>[]> {
     this.logger.debug(
@@ -53,7 +53,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         properties: {
           tokenIn: { chainId: tokenIn.chainId, address: tokenIn.config.address },
           tokenOut: { chainId: tokenOut.chainId, address: tokenOut.config.address },
-          swapAmount,
+          swapAmountBased,
         },
       }),
     )
@@ -65,7 +65,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       throw new Error('Unsupported route for CCTP V2')
     }
 
-    const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    const amountIn = swapAmountBased
 
     // Fetch fee options from the API
     const sourceDomain = this.getV2ChainConfig(tokenIn.chainId).domain

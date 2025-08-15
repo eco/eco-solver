@@ -13,6 +13,7 @@ import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { BASE_DECIMALS, convertNormScalar } from '@/fee/utils'
 
 /**
  * Composite data from fetching the token balances for a chain
@@ -171,15 +172,14 @@ export class BalanceService implements OnApplicationBootstrap {
 
     tokenAddresses.forEach((tokenAddress, index) => {
       const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
-      //throw if we suddenly start supporting tokens with not 6 decimals
-      //audit conversion of validity to see its support
-      if ((decimals as number) != 6) {
-        throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
-      }
+
       tokenBalances[tokenAddress] = {
         address: tokenAddress,
-        balance: balance as bigint,
-        decimals: decimals as number,
+        balance: convertNormScalar(balance as bigint, decimals as number),
+        decimals: {
+          original: decimals as number,
+          current: BASE_DECIMALS as number,
+        },
       }
     })
     return tokenBalances

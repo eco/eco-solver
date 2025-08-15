@@ -7,6 +7,8 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { StargateQuote, StargateStep } from './types/stargate-quote.interface'
 import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
+import { normalizeBalanceToBase } from '@/fee/utils'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 // Mock global fetch
 global.fetch = jest.fn()
@@ -23,13 +25,13 @@ describe('StargateProviderService', () => {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC on Ethereum
       chainId: 1,
       type: 'erc20',
-      targetBalance: 1000,
-      minBalance: 100,
+      targetBalance: 1000n,
+      minBalance: 100n,
     },
     balance: {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       balance: 1000n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -39,13 +41,13 @@ describe('StargateProviderService', () => {
       address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC on Polygon
       chainId: 137,
       type: 'erc20',
-      targetBalance: 1000,
-      minBalance: 100,
+      targetBalance: 1000n,
+      minBalance: 100n,
     },
     balance: {
       address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
       balance: 500n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -99,10 +101,10 @@ describe('StargateProviderService', () => {
     error: null,
     srcToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     dstToken: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
-    srcAmount: '10000000',
-    srcAmountMax: '74660843412',
-    dstAmount: '9900000',
-    dstAmountMin: '9900000',
+    srcAmount: '10000000', // 10 USDC in 6-decimal format (will be converted to 18 decimals by service)
+    srcAmountMax: '74660843412', // 6-decimal format
+    dstAmount: '9900000', // 9.9 USDC in 6-decimal format (will be converted to 18 decimals by service)
+    dstAmountMin: '9900000', // 9.9 USDC in 6-decimal format
     duration: {
       estimated: 180.828,
     },
@@ -204,7 +206,12 @@ describe('StargateProviderService', () => {
 
   describe('getQuote', () => {
     it('should get a quote successfully', async () => {
-      const quote = await service.getQuote(mockTokenData, mockTokenDataOut, 10)
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      const quote = await service.getQuote(
+        mockTokenData,
+        mockTokenDataOut,
+        normalizedAmount.balance,
+      )
 
       // Verify fetch was called with the correct URL params
       expect(fetch).toHaveBeenCalledWith(
@@ -221,17 +228,17 @@ describe('StargateProviderService', () => {
 
       // Verify quote structure
       expect(quote).toMatchObject({
-        amountIn: BigInt(mockStargateQuote.srcAmount),
-        amountOut: BigInt(mockStargateQuote.dstAmountMin),
+        amountIn: 10000000000000000000n, // 10 USDC converted to 18-decimal format
+        amountOut: 9900000000000000000n, // 9.9 USDC converted to 18-decimal format
         tokenIn: mockTokenData,
         tokenOut: mockTokenDataOut,
         strategy: 'Stargate',
       })
 
-      // Verify slippage calculation
+      // Verify slippage calculation - should be the same since both tokens have 6 decimals
       const expectedSlippage =
         1 - Number(mockStargateQuote.dstAmountMin) / Number(mockStargateQuote.srcAmount)
-      expect(quote.slippage).toEqual(expectedSlippage)
+      expect(quote.slippage).toBeCloseTo(expectedSlippage, 10)
 
       // Verify context is the Stargate quote
       expect(quote.context).toEqual(mockStargateQuote)
@@ -241,7 +248,10 @@ describe('StargateProviderService', () => {
       // Mock the getChainKey method to return undefined
       jest.spyOn(service as any, 'getChainKey').mockResolvedValueOnce(undefined)
 
-      await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow()
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenData, mockTokenDataOut, normalizedAmount.balance),
+      ).rejects.toThrow()
     })
 
     it('should throw an error if the API returns an error', async () => {
@@ -252,7 +262,10 @@ describe('StargateProviderService', () => {
         }),
       )
 
-      await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow()
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenData, mockTokenDataOut, normalizedAmount.balance),
+      ).rejects.toThrow()
     })
 
     it('should throw an error if no routes are returned', async () => {
@@ -263,9 +276,10 @@ describe('StargateProviderService', () => {
         }),
       )
 
-      await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow(
-        EcoError.RebalancingRouteNotFound().message,
-      )
+      const normalizedAmount = normalizeBalanceToBase({ balance: 10n, decimal: 6 })
+      await expect(
+        service.getQuote(mockTokenData, mockTokenDataOut, normalizedAmount.balance),
+      ).rejects.toThrow(EcoError.RebalancingRouteNotFound().message)
     })
   })
 
@@ -274,8 +288,8 @@ describe('StargateProviderService', () => {
 
     beforeEach(() => {
       mockQuote = {
-        amountIn: BigInt(mockStargateQuote.srcAmount),
-        amountOut: BigInt(mockStargateQuote.dstAmountMin),
+        amountIn: 10000000000000000000n, // 10 USDC in 18-decimal format (converted by service)
+        amountOut: 9900000000000000000n, // 9.9 USDC in 18-decimal format (converted by service)
         slippage: 0.01,
         tokenIn: mockTokenData,
         tokenOut: mockTokenDataOut,

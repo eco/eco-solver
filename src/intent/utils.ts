@@ -6,14 +6,24 @@ import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
 import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
 import { mainnet } from 'viem/chains'
-import { ValidationIntentInterface } from './validation.sevice'
+import { ValidationIntentInterface } from './validation.service'
 import { Logger } from '@nestjs/common'
 import { ChainsSupported } from '../common/chains/supported'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { isEmptyData } from '../common/viem/utils'
 
 // The default number of decimals for native tokens that we enfores for now
-const DEFAULT_NATIVE_DECIMALS = 18
+export const DEFAULT_NATIVE_DECIMALS = 18
+/**
+ * The base decimal number for erc20 tokens.
+ */
+export const BASE_DECIMALS: number = 18
+
+/**
+ * The configuration decimal number for tokens values.
+ */
+export const CONFIG_DECIMALS: number = 6
+
 const ETH_SYMBOL = 'ETH'
 
 /**
@@ -101,7 +111,8 @@ export function equivalentNativeGas(intent: ValidationIntentInterface, logger: L
     )
     return false
   }
-  //Forge decimals to be 18 for now, even though it might change in future when we need to support native gas normalization
+  // Native token decimals should match across chains for cross-chain intents
+  // Token normalization to 18 decimals is now handled at the API layer interceptor level
   const sameDecimals =
     sourceChain.nativeCurrency.decimals == dstChain.nativeCurrency.decimals &&
     sourceChain.nativeCurrency.decimals == DEFAULT_NATIVE_DECIMALS

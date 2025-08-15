@@ -6,16 +6,17 @@ import { WalletClient } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { createClient, Execute as RelayQuote, getClient } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 // Mock the relay-sdk
 jest.mock('@reservoir0x/relay-sdk', () => {
   const mockQuote = {
     details: {
       currencyIn: {
-        amount: '1000000000000000000',
+        amount: '1000000', // 1 USDC in 6 decimals
       },
       currencyOut: {
-        minimumAmount: '990000000000000000',
+        minimumAmount: '990000', // 0.99 USDC in 6 decimals
       },
     },
   }
@@ -51,13 +52,13 @@ describe('RelayProviderService', () => {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC on Ethereum
       chainId: 1,
       type: 'erc20',
-      targetBalance: 1000,
-      minBalance: 100,
+      targetBalance: 1000n,
+      minBalance: 100n,
     },
     balance: {
       address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       balance: 1000n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -67,13 +68,13 @@ describe('RelayProviderService', () => {
       address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85', // USDC on Optimism
       chainId: 10,
       type: 'erc20',
-      targetBalance: 1000,
-      minBalance: 100,
+      targetBalance: 1000n,
+      minBalance: 100n,
     },
     balance: {
       address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
       balance: 500n,
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
     },
   }
 
@@ -121,7 +122,7 @@ describe('RelayProviderService', () => {
   })
 
   it('should get a quote successfully', async () => {
-    const quote = await service.getQuote(mockTokenData, mockTokenDataOut, 100)
+    const quote = await service.getQuote(mockTokenData, mockTokenDataOut, 100n)
 
     expect(kernelAccountClientV2Service.getClient).toHaveBeenCalledWith(mockTokenData.chainId)
     expect(getClient().actions.getQuote).toHaveBeenCalledWith({
@@ -197,7 +198,7 @@ describe('RelayProviderService', () => {
     const { getClient } = require('@reservoir0x/relay-sdk')
     getClient().actions.getQuote.mockRejectedValueOnce(new Error('Failed to get quote'))
 
-    await expect(service.getQuote(mockTokenData, mockTokenDataOut, 100)).rejects.toThrow(
+    await expect(service.getQuote(mockTokenData, mockTokenDataOut, 100n)).rejects.toThrow(
       'Failed to get quote',
     )
   })
@@ -224,7 +225,7 @@ describe('RelayProviderService', () => {
     const { getClient } = require('@reservoir0x/relay-sdk')
     getClient().actions.getQuote.mockResolvedValueOnce({})
 
-    await expect(service.getQuote(mockTokenData, mockTokenDataOut, 100)).rejects.toThrow()
+    await expect(service.getQuote(mockTokenData, mockTokenDataOut, 100n)).rejects.toThrow()
   })
 
   it('should throw when amount details are missing in the quote response', async () => {
@@ -236,6 +237,6 @@ describe('RelayProviderService', () => {
       },
     })
 
-    await expect(service.getQuote(mockTokenData, mockTokenDataOut, 100)).rejects.toThrow()
+    await expect(service.getQuote(mockTokenData, mockTokenDataOut, 100n)).rejects.toThrow()
   })
 })

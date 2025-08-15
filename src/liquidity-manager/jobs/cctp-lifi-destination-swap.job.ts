@@ -7,7 +7,8 @@ import {
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { LiFiStrategyContext, RebalanceQuote } from '@/liquidity-manager/types/types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 export interface CCTPLiFiDestinationSwapJobData {
   messageHash: Hex
@@ -19,7 +20,7 @@ export interface CCTPLiFiDestinationSwapJobData {
   originalTokenOut: {
     address: Hex
     chainId: number
-    decimals: number
+    decimals: { original: number; current: number }
   }
   cctpTransactionHash?: Hex
   retryCount?: number
@@ -164,19 +165,19 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     )
 
     // Create a temporary quote object for LiFi execution
-    const tempQuote = {
+    const tempQuote: RebalanceQuote = {
       tokenIn: {
         chainId: destinationChainId,
         config: {
           address: destinationSwapQuote.fromToken.address as Hex,
           chainId: destinationChainId,
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
           type: 'erc20' as const,
         },
         balance: {
           address: destinationSwapQuote.fromToken.address as Hex,
-          decimals: destinationSwapQuote.fromToken.decimals,
+          decimals: { original: destinationSwapQuote.fromToken.decimals, current: BASE_DECIMALS },
           balance: 1000000000000000000n, // TODO: get balance from balance service
         },
       },
@@ -185,13 +186,13 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         config: {
           address: destinationSwapQuote.toToken.address as Hex,
           chainId: destinationChainId,
-          minBalance: 0,
-          targetBalance: 0,
+          minBalance: 0n,
+          targetBalance: 0n,
           type: 'erc20' as const,
         },
         balance: {
           address: destinationSwapQuote.toToken.address as Hex,
-          decimals: destinationSwapQuote.toToken.decimals,
+          decimals: { original: destinationSwapQuote.toToken.decimals, current: BASE_DECIMALS },
           balance: 0n,
         },
       },
@@ -205,7 +206,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     }
 
     // Execute the swap through the liquidity provider service
-    const result = await processor.liquidityManagerService.liquidityProviderManager.execute(
+    const result = await processor.liquidityManagerService.liquidityProviderService.execute(
       walletAddress,
       tempQuote,
     )

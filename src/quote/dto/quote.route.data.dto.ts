@@ -1,4 +1,5 @@
 import { CallDataInterface } from '@/contracts'
+import { ParsedCalls } from '@/intent/utils/normalize-calls.utils'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 import { RouteType } from '@eco-foundation/routes-ts'
@@ -67,4 +68,6 @@ export class QuoteCallDataDTO implements CallDataInterface {
   value: bigint
 }
 
-export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}
+export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {
+  parsedCalls?: ParsedCalls
+}

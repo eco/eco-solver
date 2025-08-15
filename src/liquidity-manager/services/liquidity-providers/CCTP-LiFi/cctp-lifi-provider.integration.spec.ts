@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getQueueToken } from '@nestjs/bullmq'
 import { Logger } from '@nestjs/common'
 import { parseUnits } from 'viem'
+import { normalizeBalanceToBase } from '@/fee/utils'
 import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
@@ -15,6 +16,7 @@ import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 describe('CCTPLiFi Provider Integration Tests', () => {
   let service: CCTPLiFiProviderService
@@ -30,13 +32,13 @@ describe('CCTPLiFi Provider Integration Tests', () => {
     config: {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
       chainId: 1,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-      decimals: 6,
+      decimals: { original: 6, current: BASE_DECIMALS },
       balance: parseUnits('10000', 6),
     },
   }
@@ -46,13 +48,13 @@ describe('CCTPLiFi Provider Integration Tests', () => {
     config: {
       address: '0x4200000000000000000000000000000000000042', // OP
       chainId: 10,
-      minBalance: 0,
-      targetBalance: 0,
+      minBalance: 0n,
+      targetBalance: 0n,
       type: 'erc20',
     },
     balance: {
       address: '0x4200000000000000000000000000000000000042',
-      decimals: 18,
+      decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
       balance: 0n,
     },
   }
@@ -183,11 +185,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -205,17 +207,18 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
 
       // Step 2: Get quote and verify structure
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       expect(quote.context.steps).toEqual(['sourceSwap', 'cctpBridge', 'destinationSwap'])
       expect(quote.context.sourceSwapQuote).toBeDefined()
@@ -252,7 +255,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             originalTokenOut: expect.objectContaining({
               address: expect.any(String),
               chainId: 10,
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             }),
           }),
         }),
@@ -285,7 +288,8 @@ describe('CCTPLiFi Provider Integration Tests', () => {
         },
       } as any)
 
-      const quote = await service.getQuote(mockUSDC, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockUSDC, mockTokenOP, normalizedAmount.balance)
       expect(quote.context.steps).toEqual(['cctpBridge', 'destinationSwap'])
 
       cctpService.getQuote.mockResolvedValueOnce({} as any)
@@ -336,16 +340,17 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           toChainId: 1,
           fromToken: {
             address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-            decimals: 6,
+            decimals: { original: 6, current: BASE_DECIMALS },
           },
           toToken: {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-            decimals: 6,
+            decimals: { original: 6, current: BASE_DECIMALS },
           },
         },
       } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockUSDCDest, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockUSDCDest, normalizedAmount.balance)
       expect(quote.context.steps).toEqual(['sourceSwap', 'cctpBridge'])
 
       liFiService.execute.mockResolvedValueOnce({
@@ -387,11 +392,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -408,16 +413,17 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       // Mock source swap failure
       liFiService.execute.mockRejectedValueOnce(new Error('LiFi network error'))
@@ -445,11 +451,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -466,16 +472,17 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       // Mock successful source swap but CCTP failure
       liFiService.execute.mockResolvedValueOnce({
@@ -514,7 +521,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           originalTokenOut: {
             address: '0x4200000000000000000000000000000000000042' as any,
             chainId: 10,
-            decimals: 18,
+            decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
           },
         },
       }
@@ -558,11 +565,11 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 1,
             fromToken: {
               address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
           },
         } as any)
@@ -579,16 +586,17 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             toChainId: 10,
             fromToken: {
               address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              decimals: 6,
+              decimals: { original: 6, current: BASE_DECIMALS },
             },
             toToken: {
               address: '0x4200000000000000000000000000000000000042',
-              decimals: 18,
+              decimals: { original: BASE_DECIMALS, current: BASE_DECIMALS },
             },
           },
         } as any)
 
-      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, 100)
+      const normalizedAmount = normalizeBalanceToBase({ balance: parseUnits('100', 6), decimal: 6 })
+      const quote = await service.getQuote(mockTokenUSDT, mockTokenOP, normalizedAmount.balance)
 
       expect(quote.slippage).toBeGreaterThan(0.05)
 

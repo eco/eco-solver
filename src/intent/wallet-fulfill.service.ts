@@ -29,6 +29,7 @@ import {
 import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
+import { RouteDataModel } from '@/intent/schemas/route-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
@@ -95,7 +96,7 @@ export class WalletFulfillService implements IFulfillService {
 
       // set the status and receipt for the model
       model.receipt = receipt as any
-      if (receipt.status === 'reverted') {
+      if (!receipt.status || receipt.status !== 'success') {
         this.ecoAnalytics.trackIntentFulfillmentTransactionReverted(model, solver, receipt)
         throw EcoError.FulfillIntentRevertError(receipt)
       }
@@ -172,7 +173,7 @@ export class WalletFulfillService implements IFulfillService {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
-        // Approve the inbox to spend the amount, inbox contract pulls the funds
+        // Approve the inbox to spend the original amount, inbox contract pulls the funds
         // then does the transfer call for the target
         const transferFunctionData = encodeFunctionData({
           abi: erc20Abi,
@@ -337,8 +338,8 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fulfill',
       args: [
-        model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
+        RouteDataModel.toDenormalizedRoute(model.intent.route),
+        RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
         hyperProverAddr,
@@ -365,18 +366,16 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
-
+    const droute = RouteDataModel.toDenormalizedRoute(model.intent.route)
+    const drewardHash = RewardDataModel.getHash(
+      model.intent.reward,
+      Number(model.intent.route.source),
+    )
+    const dhash = IntentDataModel.getHash(model.intent).intentHash
     const fulfillIntentData = encodeFunctionData({
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
-      args: [
-        model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
-        claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
-        hyperProverAddr,
-        messageData,
-      ],
+      args: [droute, drewardHash, claimant, dhash, hyperProverAddr, messageData],
     })
 
     return {
@@ -419,8 +418,8 @@ export class WalletFulfillService implements IFulfillService {
       abi: InboxAbi,
       functionName: 'fulfillAndProve',
       args: [
-        model.intent.route,
-        RewardDataModel.getHash(model.intent.reward),
+        RouteDataModel.toDenormalizedRoute(model.intent.route),
+        RewardDataModel.getHash(model.intent.reward, Number(model.intent.route.source)),
         claimant,
         IntentDataModel.getHash(model.intent).intentHash,
         metalayerProverAddr,
