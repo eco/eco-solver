@@ -1,12 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
-import { erc20Abi, Hex, isAddressEqual } from 'viem'
+import { Hex, isAddressEqual } from 'viem'
 import { Network } from '@/common/alchemy/network'
 import { entries, keyBy } from 'lodash'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { recursiveConfigDenormalizer } from '@/eco-configs/utils'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { serialize } from '@/common/utils/serialize'
+import { deconvertNormScalar } from '@/fee/utils'
+import { CONFIG_DECIMALS } from '@/intent/utils'
+import { BalanceService } from '@/balance/balance.service'
+import { TokenBalance } from '@/balance/types'
 
 type TokenType = {
   token: Hex
@@ -15,7 +20,6 @@ type TokenType = {
   minBalances?: string
   isHealthy: boolean
 }
-type TokenData = { token: Hex; chainID: number; balance: bigint; decimal: bigint }
 
 @Injectable()
 export class BalanceHealthIndicator extends HealthIndicator {
@@ -24,6 +28,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly configService: EcoConfigService,
+    private readonly balanceService: BalanceService,
   ) {
     super()
   }
@@ -45,7 +50,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     const isHealthy = areNativeTokensHealthy && areTokensHealthy
 
     const results = this.getStatus('balances', isHealthy, {
-      totalBalance: solvers.totalTokenBalance,
+      totalTokenBalance: solvers.totalTokenBalance,
       accounts,
       solvers: solvers.balances,
       sources,
@@ -102,8 +107,15 @@ export class BalanceHealthIndicator extends HealthIndicator {
       const client = await this.kernelAccountClientService.getClient(IntentSource.chainID)
       const accountAddress = client.kernelAccountAddress
 
-      const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens)
-      const sourceBalances = this.joinBalance(balances)
+      const balances = await this.balanceService.fetchTokenBalances(
+        IntentSource.chainID,
+        IntentSource.tokens,
+      )
+      const denormalizedBalances = Object.values(balances).map((token) => ({
+        ...token,
+        balance: deconvertNormScalar(token.balance, token.decimals.original),
+      }))
+      const sourceBalances = this.joinBalance(denormalizedBalances)
 
       sources.push({ ...IntentSource, accountAddress, tokens: sourceBalances })
     }
@@ -113,7 +125,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
 
   private async getSolvers(): Promise<{
     balances: { tokens: Record<string, TokenType> }[]
-    totalTokenBalance: number
+    totalTokenBalance: string
   }> {
     const solverBalances: Array<{
       accountAddress: `0x${string}` | undefined
@@ -122,64 +134,42 @@ export class BalanceHealthIndicator extends HealthIndicator {
       network: Network
       chainID: number
     }> = []
-    let totalTokenBalance = 0
-    const solverConfig = this.configService.getSolvers()
+    let totalTokenBalance = 0n
+    const solverConfig = recursiveConfigDenormalizer(this.configService.getSolvers())
     await Promise.all(
       Object.entries(solverConfig).map(async ([, solver]) => {
         const client = await this.kernelAccountClientService.getClient(solver.chainID)
         const accountAddress = client.kernelAccountAddress
         const tokens = Object.keys(solver.targets) as Hex[]
 
-        const balances = await this.getBalanceCalls(solver.chainID, tokens)
-        const sourceBalancesString = this.joinBalance(balances, solver.targets)
+        const balances = await this.balanceService.fetchTokenBalances(solver.chainID, tokens)
+        const denormalizedBalances = Object.values(balances).map((token) => ({
+          ...token,
+          balance: deconvertNormScalar(token.balance, CONFIG_DECIMALS),
+        }))
+        const solverBalanceString = this.joinBalance(denormalizedBalances, solver.targets)
 
         entries(solver.targets).forEach((target) => {
-          ;(target[1] as any).balance = sourceBalancesString[target[0]]
-          totalTokenBalance += parseInt(sourceBalancesString[target[0]].value)
+          const targetConfig = target[1] as any
+          targetConfig.balance = solverBalanceString[target[0]]
+          totalTokenBalance += BigInt(solverBalanceString[target[0]].value)
         })
 
         solverBalances.push({
           ...solver,
           accountAddress,
-          tokens: sourceBalancesString,
+          tokens: solverBalanceString,
         })
       }),
     )
-    return { balances: solverBalances, totalTokenBalance }
+    return { balances: solverBalances, totalTokenBalance: totalTokenBalance.toString() }
   }
 
-  private async getBalanceCalls(chainID: number, tokens: Hex[]): Promise<TokenData[]> {
-    const client = await this.kernelAccountClientService.getClient(chainID)
-    const accountAddress = client.kernelAccountAddress
-
-    const balanceCalls = tokens.flatMap((token) => [
-      {
-        address: token,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [accountAddress],
-      },
-      {
-        address: token,
-        abi: erc20Abi,
-        functionName: 'decimals',
-      },
-    ])
-
-    const results = await client.multicall({ contracts: balanceCalls })
-
-    return tokens.map((token, tokenIndex) => {
-      const index = tokenIndex * 2
-      const [balance, decimal] = [results[index], results[index + 1]]
-      return { chainID, token, balance: BigInt(balance.result!), decimal: BigInt(decimal.result!) }
-    })
-  }
-
-  private joinBalance(tokens: TokenData[], targets?: Solver['targets']) {
+  private joinBalance(tokens: TokenBalance[], targets?: Solver['targets']) {
     const tokenTypes = tokens.map((token): TokenType => {
       // Find Target by token address
       const solverToken = Object.entries(targets ?? []).find(([tokenAddr]) =>
-        isAddressEqual(tokenAddr as Hex, token.token),
+        isAddressEqual(tokenAddr as Hex, token.address),
       )?.[1]
 
       const minBalance = solverToken && BigInt(solverToken.minBalance)
@@ -187,9 +177,9 @@ export class BalanceHealthIndicator extends HealthIndicator {
 
       return {
         isHealthy,
-        token: token.token,
+        token: token.address,
         value: token.balance.toString(),
-        decimal: token.decimal.toString(),
+        decimal: token.decimals.current.toString(),
         minBalances: minBalance?.toString(),
       }
     })
@@ -197,7 +187,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
     return keyBy(tokenTypes, 'token')
   }
 
-  private isTokenHealthy(token: TokenData, minimumBalance?: bigint) {
+  private isTokenHealthy(token: TokenBalance, minimumBalance?: bigint) {
     if (!minimumBalance) {
       // Returns true if minimum balance is not defined
       return true

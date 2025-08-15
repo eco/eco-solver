@@ -1,4 +1,4 @@
-import { BASE_DECIMALS } from '@/intent/utils'
+import { BASE_DECIMALS, CONFIG_DECIMALS } from '@/intent/utils'
 import { Hex } from 'viem'
 
 export { BASE_DECIMALS }
@@ -137,7 +137,7 @@ export function deconvertNormScalar(value: bigint, toDecimals: number): bigint {
  * @returns the converted value
  */
 export function convertNormScalarBase6(value: bigint): bigint {
-  return convertNormScalar(value, 6)
+  return convertNormScalar(value, CONFIG_DECIMALS)
 }
 
 /**

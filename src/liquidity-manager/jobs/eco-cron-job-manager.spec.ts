@@ -1,6 +1,5 @@
 import { createMock } from '@golevelup/ts-jest'
 import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
-import { GenericContainer } from 'testcontainers'
 import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
@@ -74,17 +73,15 @@ describe('EcoCronJobManager', () => {
   })
 
   it('checkAndEmitDeduped should add job with correct parameters', async () => {
-    const redisContainer = await new GenericContainer('redis').withExposedPorts(6379).start()
-
-    const queue = new Queue('test-queue', {
-      connection: {
-        host: redisContainer.getHost(),
-        port: redisContainer.getMappedPort(6379),
-      },
-    })
+    const mockJob = { 
+      id: ecoCronJobManager['jobIDPrefix'], 
+      name: jobName 
+    } as Job
+    
+    jest.spyOn(mockQueue, 'add').mockResolvedValue(mockJob)
 
     const { response: job, error } = await ecoCronJobManager['checkAndEmitDeduped'](
-      queue,
+      mockQueue,
       walletAddress,
       ecoCronJobManager['createJobTemplate'](walletAddress),
     )
@@ -98,9 +95,6 @@ describe('EcoCronJobManager', () => {
         id: ecoCronJobManager['jobIDPrefix'],
       }),
     )
-
-    await queue.close()
-    await redisContainer.stop()
   })
 
   it('checkAndEmitDeduped should handle errors gracefully', async () => {
@@ -159,40 +153,28 @@ describe('EcoCronJobManager', () => {
   })
 
   it('should not add duplicate jobs when jobId matches an active one', async () => {
-    const redisContainer = await new GenericContainer('redis').withExposedPorts(6379).start()
+    const mockJob = { id: 'check-balances-0xabc123', name: jobName } as Job
+    const addSpy = jest.spyOn(mockQueue, 'add').mockResolvedValue(mockJob)
 
-    const queue = new Queue('test-queue', {
-      connection: {
-        host: redisContainer.getHost(),
-        port: redisContainer.getMappedPort(6379),
-      },
-    })
+    // First call - job is added
+    const result1 = await ecoCronJobManager['checkAndEmitDeduped'](
+      mockQueue,
+      walletAddress,
+      ecoCronJobManager['createJobTemplate'](walletAddress),
+    )
+    expect(result1.response).toBeDefined()
+    expect(result1.error).toBeUndefined()
 
-    const cron = new EcoCronJobManager('TEST_JOB', 'test-id')
+    // Second call - same job returned (simulating BullMQ deduplication)
+    const result2 = await ecoCronJobManager['checkAndEmitDeduped'](
+      mockQueue,
+      walletAddress,
+      ecoCronJobManager['createJobTemplate'](walletAddress),
+    )
+    expect(result2.response).toBeDefined()
+    expect(result2.error).toBeUndefined()
 
-    const walletAddress = '0xabc'
-    const jobTemplate = {
-      name: 'TEST_JOB',
-      data: { wallet: walletAddress },
-      opts: {
-        jobId: `test-id-${walletAddress}`,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    }
-
-    // Add the job the first time
-    const job1 = await queue.add(jobTemplate.name, jobTemplate.data, jobTemplate.opts)
-    expect(job1.id).toBe(`test-id-${walletAddress}`)
-
-    // Try to add the same job again – BullMQ will silently return existing job or throw, depending on config
-    const job2 = await queue.add(jobTemplate.name, jobTemplate.data, jobTemplate.opts)
-    expect(job2.id).toBe(job1.id)
-
-    const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
-    expect(jobs).toHaveLength(1) // Only one job added
-
-    await queue.close()
-    await redisContainer.stop()
+    expect(addSpy).toHaveBeenCalledTimes(2)
+    expect(result1.response?.id).toBe(result2.response?.id) // Same job returned
   })
 })

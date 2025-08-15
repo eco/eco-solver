@@ -19,6 +19,11 @@ export const DEFAULT_NATIVE_DECIMALS = 18
  */
 export const BASE_DECIMALS: number = 18
 
+/**
+ * The configuration decimal number for tokens values.
+ */
+export const CONFIG_DECIMALS: number = 6
+
 const ETH_SYMBOL = 'ETH'
 
 /**

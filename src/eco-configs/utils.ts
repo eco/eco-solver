@@ -2,7 +2,8 @@ import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'
 import { EcoConfigBase6Keys } from './eco-config.types'
-import { convertNormScalar } from '@/fee/utils'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
+import { CONFIG_DECIMALS } from '@/intent/utils'
 
 /**
  * The prefix for non-production deploys on a chain
@@ -108,11 +109,30 @@ export function recursiveConvertByKeys<T = any>(
  */
 export function recursiveConfigNormalizer<T>(config: T): T {
   const base6KeySet = new Set(EcoConfigBase6Keys)
-  // eslint-disable-next-line  @typescript-eslint/no-unused-vars
-  const converter = (value: any, key: string): any => {
+  const converter = (value: any): any => {
     // Convert numeric values from base 6 to base 18 by multiplying by 10^12
     if (typeof value === 'number' || typeof value === 'bigint') {
-      return convertNormScalar(BigInt(value), 6)
+      return convertNormScalar(BigInt(value), CONFIG_DECIMALS)
+    }
+    return value
+  }
+
+  return recursiveConvertByKeys<T>(config, base6KeySet, converter)
+}
+
+/**
+ * Denormalizes EcoConfig values from base 18 back to base 6 for specific keys.
+ * Converts values by dividing by 10^12 (removing 12 zeros) for keys in EcoConfigBase6Keys.
+ *
+ * @param config - The EcoConfig object to denormalize
+ * @returns A new EcoConfig object with denormalized values
+ */
+export function recursiveConfigDenormalizer<T>(config: T): T {
+  const base6KeySet = new Set(EcoConfigBase6Keys)
+  const converter = (value: any): any => {
+    // Convert numeric values from base 18 back to base 6 by dividing by 10^12
+    if (typeof value === 'number' || typeof value === 'bigint') {
+      return deconvertNormScalar(BigInt(value), CONFIG_DECIMALS).toString()
     }
     return value
   }
