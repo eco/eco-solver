@@ -214,7 +214,6 @@ export class ValidateIntentService implements OnModuleInit {
             connection,
             IntentDataModel.toChainIntent(model.intent)
           );
-          console.log("JUSTLOGGING: isIntentFunded", isIntentFunded);
         } catch (error) {
           this.logger.error(`Error checking Solana intent funding: ${error}`);
           isIntentFunded = false;

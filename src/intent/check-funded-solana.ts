@@ -7,7 +7,7 @@ import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
 
 // Constants
 const VAULT_SEED = Buffer.from("vault");
-const PROGRAM_ID = new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6');
+const PROGRAM_ID = new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9');
 
 // Create BorshCoder instance for Solana reward serialization
 const portalIdl = require('src/solana/program/portal.json');
@@ -161,11 +161,13 @@ export function hashRoute(route: RouteType): Hex {
 export function encodeReward(reward: RewardType): Hex {
   switch (reward.vm) {
     case VmType.EVM:
+      console.log("JUSTLOGGING: EVM reward", reward)
       return encodeAbiParameters(
         [{ type: 'tuple', components: RewardStruct }],
         [{ ...reward, nativeValue: reward.nativeAmount } as any], // need to cast to any because of nativeAmount -> nativeValue
       )
     case VmType.SVM:
+      console.log("JUSTLOGGING: SVM reward", reward)
       // Use Anchor's BorshCoder for proper Solana serialization
       // This matches the AnchorSerialize trait implementation in Rust
       const { deadline, creator, prover, nativeAmount, tokens } = reward;

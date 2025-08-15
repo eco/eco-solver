@@ -56,19 +56,20 @@ export function getChainAddress(chainID: number | bigint, address: Address): Add
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
+  console
   if (id === '1399811150-pre') {
     return {
-      IntentSource: new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6'),
-      Inbox: new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6'),
+      IntentSource: new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9'),
+      Inbox: new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9'),
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: new PublicKey('B4pMQaAGPZ7Mza9XnDxJfXZ1cUa4aa67zrNkv8zYAjx4'),
+      HyperProver: new PublicKey('5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp'),
     }
   } else if (id === '10-pre') {
     return {
-      IntentSource: "0x716eE96c0fd9167de5943d9952C0a859E50f1B3F",
-      Inbox: "0x716eE96c0fd9167de5943d9952C0a859E50f1B3F",
+      IntentSource: "0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7",
+      Inbox: "0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7",
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: '0x04C1Ae70A2ca34D983aEdc8Bd9e173fa5D78e09B',
+      HyperProver: '0xE5fB5B7Aa13Aa3c11cBb0478A8C3DE2A12a77Cf7',
     }
   }
   const config = EcoProtocolAddresses[id]

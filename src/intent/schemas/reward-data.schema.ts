@@ -2,7 +2,8 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeReward, hashReward, RewardType, VmType, Address, EvmRewardType, SvmRewardType } from '@eco-foundation/routes-ts'
+import { encodeReward, VmType, Address, EvmRewardType, SvmRewardType } from '@eco-foundation/routes-ts'
+import { hashReward } from "@/intent/check-funded-solana"
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 @Schema({ timestamps: true })

@@ -1,5 +1,5 @@
 {
-    "address": "64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6",
+    "address": "2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9",
     "metadata": {
       "name": "portal",
       "version": "0.1.0",
@@ -665,10 +665,6 @@
                   "name": "Bytes32"
                 }
               }
-            },
-            {
-              "name": "source",
-              "type": "u64"
             }
           ]
         }
@@ -755,7 +751,7 @@
               "type": "pubkey"
             },
             {
-              "name": "source",
+              "name": "source_chain_domain_id",
               "type": "u64"
             },
             {

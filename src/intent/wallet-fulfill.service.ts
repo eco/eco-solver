@@ -10,6 +10,7 @@ import {
 } from 'viem'
 import { prepareEncodedProofs } from '@/utils/encodeProofs'
 import { InboxAbi } from '@eco-foundation/routes-ts'
+import { IInboxAbi } from '@/utils/IInbox'
 import { IMessageBridgeProverAbi } from '@/utils/IMessageBridgeProver'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
@@ -84,7 +85,7 @@ export class WalletFulfillService implements IFulfillService {
     try {
       await this.finalFeasibilityCheck(model.intent)
 
-      const transactionHash = await kernelAccountClient.execute(transactions)
+      const transactionHash = await kernelAccountClient.execute([transactions[1]])
 
       const receipt = await kernelAccountClient.waitForTransactionReceipt({
         hash: transactionHash,
@@ -348,17 +349,34 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     const fee = await this.getProverFee(model, claimant, hyperProverAddr as `0x${string}`, messageData)
+    console.log("SAQUON fee", fee);
+    console.log("SAQUON messageData", messageData);
+    console.log("SAQUON reward and reward hash", model.intent.reward, RewardDataModel.getHash(model.intent.reward));
+
+    const data = encodeAbiParameters(
+      [{ type: 'tuple', components: [
+        { type: 'bytes32' },
+        { type: 'bytes' },
+        { type: 'address' }
+      ]}],
+      [[
+        '0x499c9a20ef411aae60a07dd076428fd003cd25cd1016b2e1f7d47ac3d8e7dbf1', // hyperprover on solana mainnet
+        '0x', // empty metadata
+        '0x68eE9bec9B4dbB61f69D9D293Ae26a5AACb2e28f', // hyperlane merkle tree on optimism
+      ]]
+    )
 
     const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: IInboxAbi,
       functionName: 'fulfillAndProve',
       args: [
-        model.intent.route as any, // TODO: fix this
+        model.intent.hash,
+        model.intent.route as any,
         RewardDataModel.getHash(model.intent.reward),
-        claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
+        pad(claimant, { size: 32 }), // Convert address to bytes32
         hyperProverAddr as `0x${string}`,
-        messageData,
+        model.intent.destination,
+        data,
       ],
     })
 
@@ -448,14 +466,13 @@ export class WalletFulfillService implements IFulfillService {
         { type: 'address' }
       ]}],
       [[
-        '0x70f46a20db062880c4a4d21737d3effd3247b78cc48fdd2a08050f3a26285b69', // hyerprover on solana mainnet
+        '0x499c9a20ef411aae60a07dd076428fd003cd25cd1016b2e1f7d47ac3d8e7dbf1', // hyerprover on solana mainnet
         '0x', // emoty metadata
-        '0xd4C1905BB1D26BC93DAC913e13CaCC278CdCC80D', // hyperlane mailbox on optimism
+        '0x68eE9bec9B4dbB61f69D9D293Ae26a5AACb2e28f', // hyperlane merkle tree on optimism
       ]]
     )
 
     const encodedProofs = prepareEncodedProofs([model.intent.hash], [claimant])
-    console.log("SAQUON encodedProofs", model.intent.hash, claimant, encodedProofs);
 
     const callData = encodeFunctionData({
       abi: IMessageBridgeProverAbi,

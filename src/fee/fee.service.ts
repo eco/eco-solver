@@ -211,7 +211,6 @@ export class FeeService implements OnModuleInit {
     quote: QuoteIntentDataInterface,
   ): Promise<{ totalFillNormalized: NormalizedTotal; error?: Error }> {
     const { calls, error } = await this.getCallsNormalized(quote)
-    console.log("SAQUON calls", calls);
     if (error) {
       return { totalFillNormalized: { token: 0n, native: 0n }, error }
     }

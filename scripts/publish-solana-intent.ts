@@ -7,10 +7,11 @@ const { Connection, Keypair, PublicKey, SystemProgram } = web3
 import * as crypto from 'crypto'
 import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData } from 'viem'
-import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute, VmType } from '@eco-foundation/routes-ts'
+import { InboxAbi, EcoProtocolAddresses, RouteType, encodeRoute, VmType, Address } from '@eco-foundation/routes-ts'
 
 // Note: VmType import from @eco-foundation/routes-ts was failing, using string literals directly
 import config from '../config/solana'
+import { getChainConfig } from '@/eco-configs/utils'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -40,7 +41,7 @@ interface Call {
 interface Route {
   salt: number[]
   deadline: number
-  portal: number[]
+  portal: Address
   tokens: TokenAmount[]
   calls: Call[]
 }
@@ -87,8 +88,8 @@ async function publishSolanaIntent() {
   const salt = Array.from(Buffer.from(now.toString()))
   
   // Portal address as 32-byte array
-  const portalPubkey = new PublicKey('64Xrmg8iLpvW6ohBcjubTqXe56iNYqRi52yrnMfnbaA6')
-  const portalAddress = Array.from(portalPubkey.toBytes())
+  const portalPubkey = new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9')
+  const destinationportalAddress = getChainConfig(10).Inbox
   
   // Sample token amounts for the route
   const routeTokens: TokenAmount[] = [
@@ -110,7 +111,7 @@ async function publishSolanaIntent() {
   const reward: Reward = {
     deadline: now + 36000, // 10 hour from now
     creator: keypair.publicKey.toString(),
-    prover: 'B4pMQaAGPZ7Mza9XnDxJfXZ1cUa4aa67zrNkv8zYAjx4', 
+    prover: '5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp', 
     native_amount: 0, 
     tokens: rewardTokens
   }
@@ -165,7 +166,7 @@ async function publishSolanaIntent() {
   const route: Route = {
     salt: salt,
     deadline: now + 7200, // 2 hours from now
-    portal: portalAddress,
+    portal: destinationportalAddress,
     tokens: routeTokens,
     calls: [sampleCall]
   }
@@ -184,7 +185,7 @@ async function publishSolanaIntent() {
   const routeData = Buffer.concat([
     Buffer.from(route.salt),
     Buffer.from(route.deadline.toString()),
-    Buffer.from(route.portal)
+    Buffer.from(route.portal.toString())
   ])
   const routeHashBytes = keccak256(routeData).slice(0, 32)
   const routeHash = Array.from(routeHashBytes)
@@ -246,10 +247,6 @@ async function publishSolanaIntent() {
     
     // Get the proper inbox address for the destination chain
     const destinationChainId = intent.destination;
-    const inboxAddress = '0x716eE96c0fd9167de5943d9952C0a859E50f1B3F';
-    if (!inboxAddress) {
-      throw new Error(`No inbox address found for chain ID ${destinationChainId}`);
-    }
     if (!intent.destination) {
       throw new Error('Intent destination is undefined');
     }
@@ -261,7 +258,7 @@ async function publishSolanaIntent() {
         vm: 'EVM' as VmType.EVM,
         salt: `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`,
         deadline: BigInt(route.deadline),
-        portal: inboxAddress as `0x${string}`,
+        portal: route.portal as `0x${string}`,
         source: BigInt(1399811150),
         destination: BigInt(intent.destination),
         tokens: route.tokens.map(token => ({
@@ -340,7 +337,7 @@ async function publishSolanaIntent() {
         [{
           salt: `0x${now.toString(16).padStart(64, '0')}`,
           deadline: BigInt(route.deadline),
-          portal: inboxAddress,
+          portal: route.portal as `0x${string}`,
           tokens: [{
             token: config.intentSources[1].tokens[0] as `0x${string}`,
             amount: BigInt(10000)
