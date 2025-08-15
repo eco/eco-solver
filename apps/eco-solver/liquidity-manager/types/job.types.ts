@@ -14,6 +14,7 @@ export type BaseLiquidityManagerJob<
 // Specific job data types
 export interface CheckCCTPAttestationJobData extends LiquidityManagerQueueDataType {
   messageHash: Hex
+  messageBody: Hex
   sourceChainId: number
   destinationChainId: number
   attemptID?: string
@@ -50,6 +51,7 @@ export interface CheckCCTPV2AttestationJobData extends LiquidityManagerQueueData
   destinationChainId: number
   attemptID?: string
   walletAddress: string
+  context: any // Serialize<CCTPV2StrategyContext> - using any to avoid circular import issues
 }
 
 export interface ExecuteCCTPV2MintJobData extends LiquidityManagerQueueDataType {
@@ -58,6 +60,7 @@ export interface ExecuteCCTPV2MintJobData extends LiquidityManagerQueueDataType 
   messageBody: Hex
   attestation: Hex
   walletAddress: string
+  context: any // Serialize<CCTPV2StrategyContext> - using any to avoid circular import issues
 }
 
 export interface CheckEverclearIntentJobData extends LiquidityManagerQueueDataType {
@@ -69,6 +72,12 @@ export interface CheckEverclearIntentJobData extends LiquidityManagerQueueDataTy
 
 export interface CheckBalancesJobData extends LiquidityManagerQueueDataType {
   wallet: string
+}
+
+export interface RebalanceJobData extends LiquidityManagerQueueDataType {
+  network: string
+  walletAddress: string
+  rebalance: any // Serialize<RebalanceRequest> - using any to avoid circular imports
 }
 
 export interface CCTPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
@@ -131,6 +140,12 @@ export type CheckBalancesJobType = Job<
   LiquidityManagerJobName.CHECK_BALANCES
 >
 
+export type RebalanceJobType = Job<
+  RebalanceJobData,
+  unknown,
+  LiquidityManagerJobName.REBALANCE
+>
+
 // Union type of all liquidity manager jobs
 export type LiquidityManagerJobType =
   | CheckCCTPAttestationJobType
@@ -140,6 +155,7 @@ export type LiquidityManagerJobType =
   | ExecuteCCTPV2MintJobType
   | CheckEverclearIntentJobType
   | CheckBalancesJobType
+  | RebalanceJobType
 
 // Alias for backwards compatibility
 export type LiquidityManagerJob = LiquidityManagerJobType

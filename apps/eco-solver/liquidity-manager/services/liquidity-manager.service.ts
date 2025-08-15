@@ -17,7 +17,8 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
+import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
+import { RebalanceJobData } from '@/liquidity-manager/types/job.types'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
@@ -147,8 +148,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokens)
   }
 
-  startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
-    if (!rebalances.length) return
+  async startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
+    if (!rebalances.length) return Promise.resolve(null)
 
     const jobs = rebalances.map((rebalance) =>
       RebalanceJobManager.createJob(walletAddress, rebalance, this.liquidityManagerQueue.name),

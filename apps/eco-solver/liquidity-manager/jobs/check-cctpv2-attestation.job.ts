@@ -4,6 +4,7 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import { BaseLiquidityManagerJob, CheckCCTPV2AttestationJobData } from '@/liquidity-manager/types/job.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
@@ -16,16 +17,7 @@ import { deserialize, Serialize } from '@/common/utils/serialize'
 // Forward reference for job manager - will be properly injected
 declare const ExecuteCCTPV2MintJobManager: IExecuteCCTPV2MintJobManager
 
-export interface CheckCCTPV2AttestationJobData {
-  sourceDomain: number
-  destinationChainId: number
-  transactionHash: Hex
-  context: Serialize<CCTPV2StrategyContext>
-  id?: string
-  [key: string]: unknown
-}
-
-export type CheckCCTPV2AttestationJob = LiquidityManagerJob<
+export type CheckCCTPV2AttestationJob = BaseLiquidityManagerJob<
   LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION,
   CheckCCTPV2AttestationJobData,
   // The V2 attestation API returns the message body and attestation together

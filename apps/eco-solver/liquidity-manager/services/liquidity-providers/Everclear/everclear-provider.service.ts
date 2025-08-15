@@ -283,7 +283,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       }),
     )
 
-    await this.liquidityManagerQueue.startCheckEverclearIntent({
+    await this.liquidityManagerQueue.startEverclearIntentCheck({
       txHash,
       id: quote.id,
     })

@@ -4,32 +4,14 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import { BaseLiquidityManagerJob, CheckCCTPAttestationJobData } from '@/liquidity-manager/types/job.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 
-// Enhanced job data to support CCTPLiFi operations
-export interface CheckCCTPAttestationJobData {
-  destinationChainId: number
-  messageHash: Hex
-  messageBody: Hex
-  // Optional CCTPLiFi context for destination swap operations
-  cctpLiFiContext?: {
-    destinationSwapQuote: LiFiStrategyContext
-    walletAddress: string
-    originalTokenOut: {
-      address: Hex
-      chainId: number
-      decimals: number
-    }
-  }
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
-}
-
-export type CheckCCTPAttestationJob = LiquidityManagerJob<
+export type CheckCCTPAttestationJob = BaseLiquidityManagerJob<
   LiquidityManagerJobName.CHECK_CCTP_ATTESTATION,
   CheckCCTPAttestationJobData,
   { status: 'pending' } | { status: 'complete'; attestation: Hex }

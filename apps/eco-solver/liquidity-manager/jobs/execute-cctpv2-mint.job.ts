@@ -4,23 +4,14 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import { BaseLiquidityManagerJob, ExecuteCCTPV2MintJobData } from '@/liquidity-manager/types/job.types'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
 import { ILiquidityManagerProcessor } from '../interfaces/processor.interface'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 
-export interface ExecuteCCTPV2MintJobData {
-  destinationChainId: number
-  messageHash: Hex
-  messageBody: Hex
-  attestation: Hex
-  context: Serialize<CCTPV2StrategyContext>
-  id?: string
-  [key: string]: unknown
-}
-
-export type ExecuteCCTPV2MintJob = LiquidityManagerJob<
+export type ExecuteCCTPV2MintJob = BaseLiquidityManagerJob<
   LiquidityManagerJobName.EXECUTE_CCTPV2_MINT,
   ExecuteCCTPV2MintJobData,
   Hex

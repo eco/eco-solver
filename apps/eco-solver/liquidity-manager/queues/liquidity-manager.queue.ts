@@ -35,5 +35,24 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  // Job creation methods moved to LiquidityManagerJobFactory to break circular dependencies
+  // Job management methods
+  async startCronJobs(intervalDuration: number, walletAddress: string) {
+    const { CheckBalancesCronJobManager } = await import('@/liquidity-manager/jobs/check-balances-cron.job')
+    return CheckBalancesCronJobManager.start(this.queue, intervalDuration, walletAddress)
+  }
+
+  async startCCTPAttestationCheck(data: any) {
+    const { CheckCCTPAttestationJobManager } = await import('@/liquidity-manager/jobs/check-cctp-attestation.job')
+    return CheckCCTPAttestationJobManager.start(this.queue, data)
+  }
+
+  async startCCTPV2AttestationCheck(data: any) {
+    const { CheckCCTPV2AttestationJobManager } = await import('@/liquidity-manager/jobs/check-cctpv2-attestation.job')
+    return CheckCCTPV2AttestationJobManager.start(this.queue, data)
+  }
+
+  async startEverclearIntentCheck(data: any, delay?: number) {
+    const { CheckEverclearIntentJobManager } = await import('@/liquidity-manager/jobs/check-everclear-intent.job')
+    return CheckEverclearIntentJobManager.start(this.queue, data, delay)
+  }
 }

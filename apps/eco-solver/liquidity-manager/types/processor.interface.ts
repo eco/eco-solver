@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common'
 import { Queue } from 'bullmq'
+import { TokenData, TokenDataAnalyzed, RebalanceRequest } from '@/liquidity-manager/types/types'
 
 /**
  * Interface for the Liquidity Manager Processor to break circular dependencies
@@ -12,6 +13,21 @@ export interface LiquidityManagerProcessorInterface {
     liquidityProviderManager: {
       execute(walletAddress: string, quote: any): Promise<any>
     }
+    analyzeTokens(walletAddress: string): Promise<{
+      items: TokenDataAnalyzed[]
+      surplus: { total: number; items: TokenDataAnalyzed[] }
+      inrange: { total: number; items: TokenDataAnalyzed[] }
+      deficit: { total: number; items: TokenDataAnalyzed[] }
+    }>
+    getOptimizedRebalancing(
+      walletAddress: string,
+      deficitToken: TokenDataAnalyzed,
+      surplusTokens: TokenDataAnalyzed[]
+    ): Promise<any[]>
+    storeRebalancing(walletAddress: string, request: RebalanceRequest): Promise<void>
+    startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]): Promise<any>
+    executeRebalancing(rebalanceData: any): Promise<void>
+    analyzeToken(token: TokenData): any
   }
   readonly cctpProviderService: any
   readonly cctpv2ProviderService: any

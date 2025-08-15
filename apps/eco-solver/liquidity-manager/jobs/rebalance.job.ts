@@ -8,14 +8,13 @@ import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-ma
 import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 import { serialize, Serialize } from '@/common/utils/serialize'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
+import { BaseLiquidityManagerJob, RebalanceJobData } from '@/liquidity-manager/types/job.types'
 
-export type RebalanceJobData = {
-  network: string
-  walletAddress: string
-  rebalance: Serialize<RebalanceRequest>
-}
-
-type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
+type RebalanceJob = BaseLiquidityManagerJob<
+  LiquidityManagerJobName.REBALANCE,
+  RebalanceJobData,
+  unknown
+>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
   static createJob(

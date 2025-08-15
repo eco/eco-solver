@@ -4,17 +4,12 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import { BaseLiquidityManagerJob, CheckEverclearIntentJobData } from '@/liquidity-manager/types/job.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 
-export interface CheckEverclearIntentJobData {
-  txHash: Hex
-  id?: string
-  [key: string]: unknown
-}
-
-export type CheckEverclearIntentJob = LiquidityManagerJob<
+export type CheckEverclearIntentJob = BaseLiquidityManagerJob<
   LiquidityManagerJobName.CHECK_EVERCLEAR_INTENT,
   CheckEverclearIntentJobData,
   { status: 'pending' | 'complete' | 'failed'; intentId?: string }
@@ -66,6 +61,8 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       case 'failed':
         // this will move the job to the failed set without performing any retries
         throw new UnrecoverableError(`Everclear: Intent failed to complete for txHash: ${txHash}`)
+      default:
+        throw new UnrecoverableError(`Everclear: Unknown intent status: ${result.status}`)
     }
   }
 
