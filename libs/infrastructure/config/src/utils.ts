@@ -45,7 +45,7 @@ export function isPreEnv(): boolean {
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
-  const config = EcoProtocolAddresses[id]
+  const config = EcoProtocolAddresses[id as keyof typeof EcoProtocolAddresses]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)
   }

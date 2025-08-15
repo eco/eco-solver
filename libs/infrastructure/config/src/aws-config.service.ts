@@ -68,7 +68,8 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
         return secret as Record<string, string>
       }
     } catch (err) {
-      this.logger.error(EcoError.getErrorMessage({ message: err.message }))
+      const errorMessage = (err instanceof Error) ? err.message : String(err)
+      this.logger.error(EcoError.getErrorMessage({ message: errorMessage }))
     }
     return {}
   }

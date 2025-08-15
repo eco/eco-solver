@@ -364,7 +364,7 @@ export const ProverEcoRoutesProverAppend = 'append'
  */
 export class IntentSource {
   // The network that the prover is on
-  network: Network
+  network!: Network
   // The chain ID of the network
   chainID!: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
