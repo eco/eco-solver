@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger'
 import { getAddress, Hex } from 'viem'
 import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
-import { RewardTokensInterface } from '@/common/types/contract-interfaces'
+import { RewardTokensInterface } from '@eco/shared-types'
 import { RewardType } from '@eco/foundation-eco-adapter'
-import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
+import { ViemAddressTransform } from '@eco/shared-utils'
 
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except

@@ -1,6 +1,5 @@
 import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 import * as config from 'config'
-import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * The prefix for non-production deploys on a chain
@@ -47,7 +46,7 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
   const config = EcoProtocolAddresses[id as keyof typeof EcoProtocolAddresses]
   if (config === undefined) {
-    throw EcoError.ChainConfigNotFound(id)
+    throw new Error(`Chain config not found for chain ${id}`)
   }
   return config
 }

@@ -1,8 +1,8 @@
-import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRewardDataType } from '@eco/shared-types'
 import {
   QuoteRewardTokenDataModel,
   QuoteRewardTokenDataSchema,
-} from '@/quote/schemas/quote-token.schema'
+} from './quote-token.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

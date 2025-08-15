@@ -9,7 +9,7 @@ import {
   LiFiStrategyContext,
 } from '@/liquidity-manager/types'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 
 export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManager<CCTPLiFiDestinationSwapJob> {
   /**

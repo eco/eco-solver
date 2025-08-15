@@ -3,11 +3,7 @@ import { AnalyticsService, AnalyticsConfig } from './analytics.interface'
 import { PosthogService } from './posthog.service'
 import { EcoAnalyticsService } from './eco-analytics.service'
 
-/**
- * Injection token for the Analytics Service
- * Used to inject AnalyticsService instances via dependency injection
- */
-export const ANALYTICS_SERVICE = 'ANALYTICS_SERVICE'
+import { ANALYTICS_SERVICE } from './analytics.constants'
 
 /**
  * Global Analytics Module for PostHog integration

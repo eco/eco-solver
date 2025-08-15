@@ -1,4 +1,4 @@
-import { RewardTokensInterface } from '@/contracts'
+import { RewardTokensInterface } from '@eco/shared-types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

@@ -5,7 +5,7 @@ import {
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { BaseLiquidityManagerJob, ExecuteCCTPV2MintJobData } from '@/liquidity-manager/types/job.types'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 import { CCTPV2StrategyContext } from '../types/types'
 import { ILiquidityManagerProcessor } from '../interfaces/processor.interface'
 import { EcoLogMessage } from '@eco/infrastructure-logging'

@@ -7,7 +7,7 @@ import {
   ExecuteCCTPMintJobData,
 } from '@/liquidity-manager/types'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 
 // Type is now imported from shared types

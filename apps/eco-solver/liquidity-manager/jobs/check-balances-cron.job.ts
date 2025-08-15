@@ -6,7 +6,7 @@ import {
   LiquidityManagerJobManager,
   CheckBalancesJobType as CheckBalancesCronJob,
 } from '@/liquidity-manager/types'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 import { LiquidityManagerProcessorInterface, LiquidityManagerProcessor } from '@/liquidity-manager/types/processor.interface'
 import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'

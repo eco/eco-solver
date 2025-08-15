@@ -4,7 +4,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as config from 'config'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { EcoError } from '@/common/errors/eco-error'
 import { merge } from 'lodash'
 
 /**
@@ -69,7 +68,7 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
       }
     } catch (err) {
       const errorMessage = (err instanceof Error) ? err.message : String(err)
-      this.logger.error(EcoError.getErrorMessage({ message: errorMessage }))
+      this.logger.error(errorMessage)
     }
     return {}
   }

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import * as config from 'config'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
@@ -13,12 +13,11 @@ import {
   Solver,
 } from './eco-config.types'
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
-import { addressKeys } from '@/common/viem/utils'
-import { ChainsSupported } from '@/common/chains/supported'
+import { addressKeys } from '@eco/shared-utils'
+import { ChainsSupported } from '@eco/shared-types'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
-import { EcoError } from '@/common/errors/eco-error'
-import { TransportConfig } from '@/common/chains/transport'
+import { TransportConfig } from '@eco/shared-types'
 
 /**
  * Service class for managing application configuration from multiple sources.
@@ -344,7 +343,7 @@ export class EcoConfigService {
     }
 
     if (!rpcs.length) {
-      throw EcoError.ChainRPCNotFound(chain.id)
+      throw new Error(`Chain rpc not found for chain ${chain.id}`)
     }
 
     return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }

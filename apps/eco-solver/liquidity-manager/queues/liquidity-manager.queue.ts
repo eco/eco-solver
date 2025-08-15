@@ -5,8 +5,8 @@ import {
   LiquidityManagerQueueDataType,
 } from '@/liquidity-manager/types/queue.types'
 
-// Re-export types and enums for backward compatibility
-export { LiquidityManagerJobName, LiquidityManagerQueueType }
+// Re-export types for backward compatibility  
+export { LiquidityManagerQueueType }
 
 export class LiquidityManagerQueue {
   public static readonly prefix = '{liquidity-manager}'

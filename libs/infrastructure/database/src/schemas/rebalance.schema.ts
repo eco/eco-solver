@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { RebalanceTokenModel } from './rebalance-token.schema'
-import { Strategy, StrategyContext } from '@/liquidity-manager/types/types'
+import { Strategy, StrategyContext } from '@eco/shared-types'
 
 @Schema({ timestamps: true })
 export class RebalanceModel {

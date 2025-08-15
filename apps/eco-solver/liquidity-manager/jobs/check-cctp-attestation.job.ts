@@ -6,7 +6,7 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { BaseLiquidityManagerJob, CheckCCTPAttestationJobData } from '@/liquidity-manager/types/job.types'
 import { EcoLogMessage } from '@eco/infrastructure-logging'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'

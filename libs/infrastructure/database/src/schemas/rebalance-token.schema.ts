@@ -1,4 +1,4 @@
-import { TokenData } from '@/liquidity-manager/types/types'
+import { TokenData } from '@eco/shared-types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { formatUnits, Hex } from 'viem'
 

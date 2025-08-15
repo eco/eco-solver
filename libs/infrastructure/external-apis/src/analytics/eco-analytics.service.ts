@@ -1,10 +1,9 @@
 import { Injectable, Inject, Logger } from '@nestjs/common'
 import { AnalyticsService } from './analytics.interface'
-import { ANALYTICS_SERVICE } from './analytics.module'
-import { IntentSourceModel } from '@eco/infrastructure-database'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { IntentSource } from '@eco/infrastructure-config'
+import { ANALYTICS_SERVICE } from './analytics.constants'
+import { AnalyticsIntentModel as IntentSourceModel } from '@eco/shared-types'
+import { QuoteIntentDataDTO, QuoteDataDTO } from '@eco/shared-dto'
+import { AnalyticsIntentSource as IntentSource } from '@eco/shared-types'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
 
 /**

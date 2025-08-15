@@ -1,15 +1,13 @@
 import { EcoConfigService } from '@eco/infrastructure-config'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoResponse } from '@/common/eco-response'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoResponse } from '@eco/shared-types'
 import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
-import { QuoteRouteDataModel } from '@/quote/schemas/quote-route.schema'
-import { QuotesConfig } from '@/eco-configs/eco-config.types'
-import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
+import { QuoteIntentDataDTO } from '@eco/shared-dto'
+import { QuoteIntentModel } from '../schemas/quote-intent.schema'
+import { QuoteRouteDataModel } from '../schemas/quote-route.schema'
+import { QuotesConfig, UpdateQuoteParams } from '@eco/shared-types'
 import { EcoAnalyticsService, ANALYTICS_EVENTS } from '@eco/infrastructure-external-apis'
 
 type QuoteQuery = FilterQuery<QuoteIntentModel>
@@ -178,7 +176,7 @@ export class QuoteRepository {
       const quoteIntentData = await this.quoteIntentModel.findOne(query).lean()
 
       if (!quoteIntentData) {
-        return { error: EcoError.QuoteNotFound }
+        return { error: new Error('Quote not found') }
       }
 
       return { response: quoteIntentData }
@@ -251,7 +249,7 @@ export class QuoteRepository {
       })
 
       if (!updatedModel) {
-        return { error: EcoError.QuoteNotFound }
+        return { error: new Error('Quote not found') }
       }
 
       return { response: updatedModel }
@@ -265,7 +263,7 @@ export class QuoteRepository {
           },
         }),
       )
-      return { error: EcoError.QuoteDBUpdateError }
+      return { error: new Error('Quote database update error') }
     }
   }
 

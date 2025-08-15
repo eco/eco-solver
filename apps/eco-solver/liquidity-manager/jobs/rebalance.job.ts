@@ -4,7 +4,7 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 import { LiquidityManagerProcessorInterface } from '@/liquidity-manager/types/processor.interface'
 import { serialize, Serialize } from '@/common/utils/serialize'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'

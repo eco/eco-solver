@@ -1,9 +1,9 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoResponse } from '@/common/eco-response'
+import { EcoLogMessage } from '@eco/infrastructure-logging'
+import { EcoResponse } from '@eco/shared-types'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
-import { IntentFundedLog } from '@/contracts'
+import { IntentFundedEventModel } from '../schemas/intent-funded-events.schema'
+import { IntentFundedLog } from '@eco/shared-types'
 import { Model } from 'mongoose'
 
 /**

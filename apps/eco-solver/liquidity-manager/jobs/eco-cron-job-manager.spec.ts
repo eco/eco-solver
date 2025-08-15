@@ -3,7 +3,7 @@ import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager
 import { GenericContainer } from 'testcontainers'
 import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@/liquidity-manager/constants/job-names'
 
 jest.setTimeout(30000)
 

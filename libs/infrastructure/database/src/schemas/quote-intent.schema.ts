@@ -1,8 +1,7 @@
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { IntentExecutionType, QuoteIntentDataInterface } from '@eco/shared-dto'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRewardDataModel, QuoteRewardDataSchema } from '@/quote/schemas/quote-reward.schema'
-import { QuoteRouteDataModel, QuoteRouteDataSchema } from '@/quote/schemas/quote-route.schema'
+import { QuoteRewardDataModel, QuoteRewardDataSchema } from './quote-reward.schema'
+import { QuoteRouteDataModel, QuoteRouteDataSchema } from './quote-route.schema'
 import { Types } from 'mongoose'
 
 @Schema({ timestamps: true })

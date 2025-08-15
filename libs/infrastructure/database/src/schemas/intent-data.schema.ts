@@ -1,9 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoError, IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@eco/shared-types'
 import { getAddress, Hex, Mutable } from 'viem'
-import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
-import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
-import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
+import { RouteDataModel, RouteDataSchema } from './route-data.schema'
+import { RewardDataModel, RewardDataModelSchema } from './reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
 
 export interface CreateIntentDataModelParams {
