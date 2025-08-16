@@ -51,7 +51,7 @@ describe('IntentFulfillmentProcessor', () => {
     await manager.process(mockJob, processor)
 
     expect(fulfillIntentService.fulfill).toHaveBeenCalledTimes(1)
-    expect(fulfillIntentService.fulfill).toHaveBeenCalledWith(intentHash)
+    expect(fulfillIntentService.fulfill).toHaveBeenCalledWith({ intentHash })
   })
 
   it('should not process a job with an unknown name', async () => {
