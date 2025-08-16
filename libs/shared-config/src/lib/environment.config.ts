@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: AppConfig = {
     version: 'v1',
     cors: {
       enabled: true,
-      origin: '*'
+      origin: ['http://localhost:3000', 'http://localhost:3001']
     }
   },
   
@@ -173,7 +173,12 @@ export function createConfigFromEnvironment(): AppConfig {
     
     security: {
       jwt: {
-        secret: env.JWT_SECRET || baseConfig.security.jwt.secret,
+        secret: env.JWT_SECRET || (() => {
+          if (nodeEnv === 'production') {
+            throw new Error('JWT_SECRET environment variable is required in production');
+          }
+          return baseConfig.security.jwt.secret;
+        })(),
         expirationTime: env.JWT_EXPIRATION || baseConfig.security.jwt.expirationTime
       },
       bcrypt: {

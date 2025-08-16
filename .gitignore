@@ -98,3 +98,5 @@ dependency-tree.txt
 # Environment variables
 .env
 .env.*
+!.env.production.template
+!.env.test

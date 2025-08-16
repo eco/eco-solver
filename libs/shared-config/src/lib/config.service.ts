@@ -83,6 +83,16 @@ export class ConfigService {
       if (!this.config.database.password) {
         errors.push('Database password is required in production');
       }
+      
+      if (Array.isArray(this.config.api.cors.origin) && this.config.api.cors.origin.includes('*')) {
+        errors.push('CORS origin cannot include wildcard (*) in production');
+      } else if (this.config.api.cors.origin === '*') {
+        errors.push('CORS origin cannot be wildcard (*) in production');
+      }
+      
+      if (!this.config.database.ssl) {
+        errors.push('Database SSL must be enabled in production');
+      }
     }
     
     if (errors.length > 0) {

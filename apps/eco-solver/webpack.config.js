@@ -25,25 +25,12 @@ module.exports = composePlugins(withNx(), (config, { options, context }) => {
         PORT: process.env.PORT || '3000',
         HOST: process.env.HOST || 'localhost',
         
-        DB_HOST: process.env.DB_HOST || 'localhost',
-        DB_PORT: process.env.DB_PORT || '5432',
-        DB_USERNAME: process.env.DB_USERNAME || 'postgres',
-        DB_PASSWORD: process.env.DB_PASSWORD || 'password',
-        DB_DATABASE: process.env.DB_DATABASE || 'eco_solver_dev',
-        DB_SSL: process.env.DB_SSL || 'false',
-        
         LOG_LEVEL: process.env.LOG_LEVEL || 'info',
         LOG_CONSOLE: process.env.LOG_CONSOLE || 'true',
         LOG_FILE: process.env.LOG_FILE || 'false',
         
         API_PREFIX: process.env.API_PREFIX || '/api',
-        API_VERSION: process.env.API_VERSION || 'v1',
-        CORS_ENABLED: process.env.CORS_ENABLED || 'true',
-        CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
-        
-        JWT_SECRET: process.env.JWT_SECRET || 'dev-secret-key',
-        JWT_EXPIRATION: process.env.JWT_EXPIRATION || '1h',
-        BCRYPT_ROUNDS: process.env.BCRYPT_ROUNDS || '10'
+        API_VERSION: process.env.API_VERSION || 'v1'
       })
     })
   );
