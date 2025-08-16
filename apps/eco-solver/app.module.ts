@@ -18,6 +18,7 @@ import { IntentModule } from '@/intent/intent.module'
 import { SignModule } from '@/sign/sign.module'
 import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@eco/infrastructure-config'
+import { ConfigService, ConfigServiceProvider } from '@eco/shared-config'
 import { AnalyticsModule, getCurrentEnvironment } from '@eco/infrastructure-external-apis'
 import { ProverModule } from '@/prover/prover.module'
 import { SolverModule } from '@/solver/solver.module'
@@ -79,6 +80,8 @@ import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment
     ...getPino(),
   ],
   controllers: [],
+  providers: [ConfigServiceProvider],
+  exports: [ConfigService],
 })
 export class AppModule {}
 

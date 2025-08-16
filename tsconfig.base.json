@@ -17,6 +17,7 @@
     "paths": {
       "@/*": ["apps/eco-solver/*"],
       "@eco/domain-intent-core": ["libs/domain/intent-core/src/index.ts"],
+      "@eco/shared-config": ["libs/shared-config/src/index.ts"],
       "@eco/foundation-eco-adapter": ["libs/foundation/eco-adapter/src/index.ts"],
       "@eco/infrastructure-blockchain": ["libs/infrastructure/blockchain/src/index.ts"],
       "@eco/infrastructure-config": ["libs/infrastructure/config/src/index.ts"],

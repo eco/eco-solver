@@ -65,7 +65,11 @@
     "circular:orphans": "madge --extensions ts,js --exclude 'node_modules|dist|coverage|tmp|.nx' --orphans --no-color .",
     "circular:leaves": "madge --extensions ts,js --exclude 'node_modules|dist|coverage|tmp|.nx' --leaves --no-color .",
     "circular:summary": "madge --extensions ts,js --exclude 'node_modules|dist|coverage|tmp|.nx' --summary --no-color .",
-    "circular:test-eslint": "./scripts/test-eslint-rules.sh"
+    "circular:test-eslint": "./scripts/test-eslint-rules.sh",
+    "env:dev": "node scripts/setup-env.js development",
+    "env:prod": "node scripts/setup-env.js production",
+    "env:test": "node scripts/setup-env.js test",
+    "validate:config": "node scripts/validate-config.js"
   },
   "dependencies": {
     "@0xsquid/sdk": "^2.10.0",
@@ -156,6 +160,7 @@
     "@types/supertest": "^6.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "dotenv": "^17.2.1",
     "env-cmd": "^10.1.0",
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^9.0.0",
@@ -175,7 +180,8 @@
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "webpack": "^5.101.1",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "webpack-node-externals": "^3.0.0"
   },
   "workspaces": [
     "libs/*/*"
