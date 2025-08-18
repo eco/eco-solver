@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/eco-solver/src",
   "projectType": "application",
-  "tags": [],
+  "tags": ["scope:eco-solver", "type:app"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
@@ -15,6 +15,12 @@
       "configurations": {
         "development": {
           "args": ["--node-env=development"]
+        },
+        "preproduction": {
+          "args": ["--node-env=preproduction"]
+        },
+        "staging": {
+          "args": ["--node-env=staging"]
         }
       }
     },
@@ -58,6 +64,12 @@
         },
         "production": {
           "buildTarget": "eco-solver:build:production"
+        },
+        "preproduction": {
+          "buildTarget": "eco-solver:build:preproduction"
+        },
+        "staging": {
+          "buildTarget": "eco-solver:build:staging"
         }
       }
     },
