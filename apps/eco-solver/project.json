@@ -65,6 +65,13 @@
       "options": {
         "passWithNoTests": true
       }
+    },
+    "cli": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "ts-node src/commander/command-main.ts",
+        "cwd": "apps/eco-solver"
+      }
     }
   }
 }
