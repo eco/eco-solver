@@ -1,0 +1,17 @@
+{
+  "name": "eco-solver-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["eco-solver"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
+      "options": {
+        "jestConfig": "apps/eco-solver-e2e/jest.config.ts",
+        "passWithNoTests": true
+      },
+      "dependsOn": ["eco-solver:build", "eco-solver:serve"]
+    }
+  }
+}
