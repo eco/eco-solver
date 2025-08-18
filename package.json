@@ -2,7 +2,11 @@
   "name": "@mono-solver/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "dev": "nx serve eco-solver",
+    "build": "nx build eco-solver",
+    "test": "nx test eco-solver"
+  },
   "private": true,
   "dependencies": {
     "@nestjs/common": "^11.0.0",
