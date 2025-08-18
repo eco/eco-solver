@@ -1,21 +1,63 @@
-/**
- * This is not a production server yet!
- * This is only a minimal backend to get started.
- */
-
-import { Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app/app.module';
+import { NestFactory } from '@nestjs/core'
+import { AppModule } from './app.module'
+import { NestExpressApplication } from '@nestjs/platform-express'
+import { EcoConfigService } from './eco-configs/eco-config.service'
+import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
+import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-  Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
-  );
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
+  if (EcoConfigService.getStaticConfig().logger.usePino) {
+    app.useLogger(app.get(Logger))
+    app.useGlobalInterceptors(new LoggerErrorInterceptor())
+  }
+
+  //add dto validations, enable transformation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Enables DTO transformation for incoming requests
+    }),
+  )
+
+  //change all bigints to strings in the controller responses
+  app.useGlobalInterceptors(new BigIntToStringInterceptor())
+
+  //add swagger
+  addSwagger(app)
+
+  // Starts listening for shutdown hooks
+  app.enableShutdownHooks()
+  await app.listen(3000)
 }
 
-bootstrap();
+function getNestParams(): NestApplicationOptions {
+  let params = {
+    cors: true,
+    rawBody: true, //needed for AlchemyAuthMiddleware webhook verification
+  }
+  if (EcoConfigService.getStaticConfig().logger.usePino) {
+    params = {
+      ...params,
+      ...{
+        bufferLogs: true,
+      },
+    }
+  }
+
+  return params
+}
+
+function addSwagger(app: NestExpressApplication) {
+  const config = new DocumentBuilder()
+    .setTitle('Solver API')
+    .setDescription('The api for the solver queries')
+    .setVersion('0.1')
+    .addTag('solver')
+    .build()
+  const documentFactory = () => SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup('api', app, documentFactory)
+}
+
+bootstrap()

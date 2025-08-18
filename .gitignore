@@ -1,12 +1,50 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# compiled output
+# Compiled output
 dist
 tmp
 out-tsc
+/dist
+/build
+/coverage
+/.nyc_output
 
-# dependencies
+# Dependencies
 node_modules
+/node_modules
+
+# Package managers
+.yarn-offline-cache/
+.pnpm-store/
+.pnpm-debug.log*
+.pnpm-audit.log*
+package-lock.json
+yarn.lock
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Tests
+/coverage
+/.nyc_output
+globalConfig.json
+testem.log
+/typings
 
 # IDEs and editors
 /.idea
@@ -24,23 +62,44 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
 # System Files
 .DS_Store
 Thumbs.db
 
+# Temp directories
+.temp
+.tmp
+/.sass-cache
+/connect.lock
+/libpeerconnection.log
+
+# Environment variables
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+.env*
+!.env-cmdrc.test
+
+# Redis
+dump.rdb
+
+# App-specific configs (eco-solver)
+apps/eco-solver/config/*
+!apps/eco-solver/config/default.ts
+!apps/eco-solver/config/development.ts
+!apps/eco-solver/config/staging.ts
+!apps/eco-solver/config/preproduction.ts
+!apps/eco-solver/config/production.ts
+!apps/eco-solver/config/test.ts
+
+# AI
+CLAUDE.md
+**/.claude/settings.local.json
+
+# Nx
 .nx/cache
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
-
-.env*

@@ -1,0 +1,1 @@
+export const HealthPath = '/health'
