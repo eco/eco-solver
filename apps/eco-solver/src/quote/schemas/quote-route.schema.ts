@@ -1,12 +1,12 @@
 import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
-} from '@/intent/schemas/intent-token-amount.schema'
-import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
+} from '@eco-solver/intent/schemas/intent-token-amount.schema'
+import { QuoteRouteDataInterface } from '@eco-solver/quote/dto/quote.route.data.dto'
 import {
   QuoteRouteCallDataModel,
   QuoteRouteCallDataSchema,
-} from '@/quote/schemas/quote-call.schema'
+} from '@eco-solver/quote/schemas/quote-call.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

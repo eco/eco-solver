@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { StargateProviderService } from './stargate-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { KernelAccountClientV2Service } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
+import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
 import { StargateQuote, StargateStep } from './types/stargate-quote.interface'
 import { Hex } from 'viem'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
 
 // Mock global fetch
 global.fetch = jest.fn()

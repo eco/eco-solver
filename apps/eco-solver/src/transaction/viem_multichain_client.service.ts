@@ -1,9 +1,9 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { Chain, Client, ClientConfig, createClient, extractChain, Hex, zeroAddress } from 'viem'
-import { EcoError } from '@/common/errors/eco-error'
-import { getTransport } from '@/common/chains/transport'
-import { ChainsSupported } from '@/common/chains/supported'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { getTransport } from '@eco-solver/common/chains/transport'
+import { ChainsSupported } from '@eco-solver/common/chains/supported'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 
 @Injectable()
 export class ViemMultichainClientService<T extends Client, V extends ClientConfig>

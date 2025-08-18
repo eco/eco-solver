@@ -1,16 +1,16 @@
-import { CreateIntentService } from '@/intent/create-intent.service'
+import { CreateIntentService } from '@eco-solver/intent/create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { getModelToken } from '@nestjs/mongoose'
-import { IntentFundedChainSyncService } from '@/chain-monitor/intent-funded-chain-sync.service'
+import { IntentFundedChainSyncService } from '@eco-solver/chain-monitor/intent-funded-chain-sync.service'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '../../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { Solver, IntentSource } from '../../eco-configs/eco-config.types'
 import { Test, TestingModule } from '@nestjs/testing'
-import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
-import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
+import { WatchIntentFundedService } from '@eco-solver/watch/intent/intent-funded-events/services/watch-intent-funded.service'
+import { IntentFundedEventModel } from '@eco-solver/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 
 describe.skip('IntentFundedChainSyncService', () => {
   let chainSyncService: IntentFundedChainSyncService

@@ -1,28 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { parseUnits, Hex, formatUnits } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { BalanceService } from '@/balance/balance.service'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { BalanceService } from '@eco-solver/balance/balance.service'
+import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
 import {
   RebalanceQuote,
   TokenData,
   CCTPLiFiStrategyContext,
   LiFiStrategyContext,
-} from '@/liquidity-manager/types/types'
+} from '@eco-solver/liquidity-manager/types/types'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
+} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+import { LiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
+import { CCTPProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
-import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { CCTPLiFiConfig } from '@eco-solver/eco-configs/eco-config.types'
+import { EcoAnalyticsService } from '@eco-solver/analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {

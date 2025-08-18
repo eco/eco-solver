@@ -1,15 +1,15 @@
 import { encodeFunctionData, Hex } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
+import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
+import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
+import { Permit2TypedDataDetailsDTO } from '@eco-solver/quote/dto/permit2/permit2-typed-data-details.dto'
 import {
   Permit2BatchPermitAbi,
   Permit2SinglePermitAbi,
   PermitBatchArg,
   PermitSingleArg,
 } from './permit2-abis'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 
 /**
  * This class returns a transaction for a permit2.

@@ -1,7 +1,7 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
-import { FeeService } from '@/fee/fee.service'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { Solver } from '@eco-solver/eco-configs/eco-config.types'
+import { FeeService } from '@eco-solver/fee/fee.service'
 import {
   equivalentNativeGas,
   getFunctionCalls,
@@ -10,19 +10,19 @@ import {
   getTransactionTargetData,
   isNativeETH,
   isNativeIntent,
-} from '@/intent/utils'
-import { TransactionTargetData } from '@/intent/utils-intent.service'
-import { ProofService } from '@/prover/proof.service'
-import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
+} from '@eco-solver/intent/utils'
+import { TransactionTargetData } from '@eco-solver/intent/utils-intent.service'
+import { ProofService } from '@eco-solver/prover/proof.service'
+import { QuoteIntentDataInterface } from '@eco-solver/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
-import { CallDataInterface } from '@/contracts'
-import { EcoError } from '@/common/errors/eco-error'
-import { BalanceService } from '@/balance/balance.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { isGreaterEqual, normalizeBalance } from '@eco-solver/fee/utils'
+import { CallDataInterface } from '@eco-solver/contracts'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { BalanceService } from '@eco-solver/balance/balance.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
 
 interface IntentModelWithHashInterface {
   hash?: Hex

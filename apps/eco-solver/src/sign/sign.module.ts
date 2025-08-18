@@ -6,8 +6,8 @@ import { QUEUES } from '../common/redis/constants'
 import { SignerService } from './signer.service'
 import { AtomicSignerService } from './atomic-signer.service'
 import { NonceService } from './nonce.service'
-import { SignerKmsService } from '@/sign/signer-kms.service'
-import { KmsModule } from '@/kms/kms.module'
+import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
+import { KmsModule } from '@eco-solver/kms/kms.module'
 
 @Module({
   imports: [

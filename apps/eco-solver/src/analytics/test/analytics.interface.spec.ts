@@ -1,4 +1,4 @@
-import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
+import { AnalyticsService, AnalyticsConfig } from '@eco-solver/analytics/analytics.interface'
 
 describe('Analytics Interface', () => {
   describe('AnalyticsService interface', () => {

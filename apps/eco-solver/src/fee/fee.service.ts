@@ -1,31 +1,31 @@
-import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { BalanceService, TokenFetchAnalysis } from '@eco-solver/balance/balance.service'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { CallDataInterface, getERC20Selector, isERC20Target } from '@eco-solver/contracts'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import {
   FeeAlgorithmConfig,
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
-} from '@/eco-configs/eco-config.types'
-import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
-import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
+} from '@eco-solver/eco-configs/eco-config.types'
+import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@eco-solver/fee/types'
+import { isInsufficient, normalizeBalance, normalizeSum } from '@eco-solver/fee/utils'
 import {
   getFunctionCalls,
   getFunctionTargets,
   getNativeCalls,
   getTransactionTargetData,
   isNativeIntent,
-} from '@/intent/utils'
-import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteError } from '@/quote/errors'
-import { Mathb } from '@/utils/bigint'
+} from '@eco-solver/intent/utils'
+import { QuoteIntentDataInterface } from '@eco-solver/quote/dto/quote.intent.data.dto'
+import { QuoteError } from '@eco-solver/quote/errors'
+import { Mathb } from '@eco-solver/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
-import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { hasDuplicateStrings } from '@/common/utils/strings'
-import { EcoAnalyticsService } from '@/analytics'
+import { QuoteRouteDataInterface } from '@eco-solver/quote/dto/quote.route.data.dto'
+import { hasDuplicateStrings } from '@eco-solver/common/utils/strings'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 /**
  * The base decimal number for erc20 tokens.

@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { Cache } from '@nestjs/cache-manager'
 import { serializeWithBigInt, deserializeWithBigInt } from './utils'
 

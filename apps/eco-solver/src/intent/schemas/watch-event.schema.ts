@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Network } from '@/common/alchemy/network'
+import { Network } from '@eco-solver/common/alchemy/network'
 import { ViemEventLog } from '../../common/events/viem'
 import { Hex } from 'viem'
 

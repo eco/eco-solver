@@ -1,5 +1,5 @@
 import { CCTPLiFiRoutePlanner } from './route-planner'
-import { TokenData } from '@/liquidity-manager/types/types'
+import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 import { parseUnits, Hex } from 'viem'
 
 describe('CCTPLiFiRoutePlanner', () => {

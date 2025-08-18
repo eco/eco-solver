@@ -3,10 +3,10 @@ import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
 
 /**
  * This service subscribes has hooks for subscribing and unsubscribing to a contract event.

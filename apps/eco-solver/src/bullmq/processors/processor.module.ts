@@ -5,7 +5,7 @@ import { SolveIntentProcessor } from './solve-intent.processor'
 import { BalanceModule } from '../../balance/balance.module'
 import { IntentModule } from '../../intent/intent.module'
 import { SignModule } from '../../sign/sign.module'
-import { InboxProcessor } from '@/bullmq/processors/inbox.processor'
+import { InboxProcessor } from '@eco-solver/bullmq/processors/inbox.processor'
 
 @Module({
   imports: [BalanceModule, IntentModule, SignModule],

@@ -1,6 +1,6 @@
 import { FulfillmentEstimateService } from './fulfillment-estimate.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { Solver } from '@eco-solver/eco-configs/eco-config.types'
 
 // Mock EcoConfigService
 const mockFulfillmentConfig = {

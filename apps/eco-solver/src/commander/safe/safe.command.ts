@@ -1,6 +1,6 @@
 import { getAddress } from 'viem'
 import { Command, CommandRunner, Option } from 'nest-commander'
-import { getExecutorTransferData } from '@/transaction/smart-wallets/kernel/create.kernel.account'
+import { getExecutorTransferData } from '@eco-solver/transaction/smart-wallets/kernel/create.kernel.account'
 import { GLOBAL_CONSTANTS } from '@rhinestone/module-sdk'
 
 @Command({

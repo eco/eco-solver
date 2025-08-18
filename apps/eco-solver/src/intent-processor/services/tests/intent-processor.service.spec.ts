@@ -4,16 +4,16 @@ import { createMock } from '@golevelup/ts-jest'
 import * as _ from 'lodash'
 import { Queue } from 'bullmq'
 import { Chain, encodeFunctionData, Hex, PublicClient, Transport } from 'viem'
-import { Network } from '@/common/alchemy/network'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { IndexerService } from '@/indexer/services/indexer.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
-import * as Hyperlane from '@/intent-processor/utils/hyperlane'
-import * as MulticallUtils from '@/intent-processor/utils/multicall'
-import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
-import { Multicall3Abi } from '@/contracts/Multicall3'
-import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
+import { Network } from '@eco-solver/common/alchemy/network'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { IndexerService } from '@eco-solver/indexer/services/indexer.service'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
+import { IntentProcessorService } from '@eco-solver/intent-processor/services/intent-processor.service'
+import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'
+import * as MulticallUtils from '@eco-solver/intent-processor/utils/multicall'
+import { IntentProcessorQueue } from '@eco-solver/intent-processor/queues/intent-processor.queue'
+import { Multicall3Abi } from '@eco-solver/contracts/Multicall3'
+import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@eco-solver/eco-configs/eco-config.types'
 import { RouteType } from '@eco-foundation/routes-ts'
 
 jest.mock('@/intent-processor/utils/hyperlane')
@@ -170,7 +170,7 @@ describe('IntentProcessorService', () => {
     }) as any
 
     jest
-      .spyOn(require('@/eco-configs/utils'), 'getChainConfig')
+      .spyOn(require('@eco-solver/eco-configs/utils'), 'getChainConfig')
       .mockReturnValue({ HyperProver: '0x0000000000000000000000000000000000000010' })
 
     // Setup default mocks for indexer service methods

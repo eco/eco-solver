@@ -1,14 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Squid } from '@0xsquid/sdk'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
+import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { parseUnits } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoError } from '@/common/errors/eco-error'
-import { getSlippage } from '@/liquidity-manager/utils/math'
-import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { getSlippage } from '@eco-solver/liquidity-manager/utils/math'
+import { createApproveTransaction } from '@eco-solver/liquidity-manager/utils/transaction'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {

@@ -4,14 +4,14 @@ import { getModelToken } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Hex } from 'viem'
 
-import { FeasableIntentService } from '@/intent/feasable-intent.service'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
-import { FeeService } from '@/fee/fee.service'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoAnalyticsService } from '@/analytics'
-import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
-import { QuoteError } from '@/quote/errors'
+import { FeasableIntentService } from '@eco-solver/intent/feasable-intent.service'
+import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
+import { FeeService } from '@eco-solver/fee/fee.service'
+import { UtilsIntentService } from '@eco-solver/intent/utils-intent.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { IntentFulfillmentQueue } from '@eco-solver/intent-fulfillment/queues/intent-fulfillment.queue'
+import { QuoteError } from '@eco-solver/quote/errors'
 
 // Minimal re-mock of queue wrapper
 const mockQueue = () => createMock<IntentFulfillmentQueue>({ addFulfillIntentJob: jest.fn() })

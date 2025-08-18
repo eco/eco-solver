@@ -4,19 +4,19 @@ const mockEncodeAbiParameters = jest.fn()
 const mockGetChainConfig = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { CrowdLiquidityService } from '../crowd-liquidity.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoError } from '@/common/errors/eco-error'
-import { FeeService } from '@/fee/fee.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { FeeService } from '@eco-solver/fee/fee.service'
 import { Hex, zeroAddress, pad } from 'viem'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { ProofService } from '@/prover/proof.service'
+import { IntentDataModel } from '@eco-solver/intent/schemas/intent-data.schema'
+import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { ProofService } from '@eco-solver/prover/proof.service'
 import { RewardDataModel } from '../schemas/reward-data.schema'
 import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 jest.mock('viem', () => {
   return {

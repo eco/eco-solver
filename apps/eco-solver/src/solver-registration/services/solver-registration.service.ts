@@ -1,10 +1,10 @@
-import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@/common/routes/constants'
-import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
-import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoResponse } from '@/common/eco-response'
+import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@eco-solver/common/routes/constants'
+import { APIRequestExecutor } from '@eco-solver/common/rest-api/api-request-executor'
+import { CrossChainRoutesConfigDTO } from '@eco-solver/solver-registration/dtos/cross-chain-routes-config.dto'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoResponse } from '@eco-solver/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
 import { ModuleRef } from '@nestjs/core'
@@ -13,11 +13,11 @@ import {
   ServerConfig,
   Solver,
   SolverRegistrationConfig,
-} from '@/eco-configs/eco-config.types'
-import { EcoError } from '@/common/errors/eco-error'
-import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
-import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
-import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
+} from '@eco-solver/eco-configs/eco-config.types'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { RouteTokensDTO } from '@eco-solver/solver-registration/dtos/route-tokens.dto'
+import { SignatureHeaders } from '@eco-solver/request-signing/interfaces/signature-headers.interface'
+import { SolverRegistrationDTO } from '@eco-solver/solver-registration/dtos/solver-registration.dto'
 import { SigningService } from '../../request-signing/signing.service'
 
 @Injectable()

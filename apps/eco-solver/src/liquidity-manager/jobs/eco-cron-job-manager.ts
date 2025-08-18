@@ -1,6 +1,6 @@
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoResponse } from '@/common/eco-response'
+import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoResponse } from '@eco-solver/common/eco-response'
 import { Queue, JobSchedulerTemplateOptions, Job } from 'bullmq'
 
 interface JobTemplate {

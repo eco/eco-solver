@@ -7,10 +7,10 @@ import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
 import { DecodeFunctionDataReturnType, Hex } from 'viem'
-import { FulfillmentLog } from '@/contracts/inbox'
-import { Network } from '@/common/alchemy/network'
-import { ValidationChecks } from '@/intent/validation.sevice'
-import { EcoAnalyticsService } from '@/analytics'
+import { FulfillmentLog } from '@eco-solver/contracts/inbox'
+import { Network } from '@eco-solver/common/alchemy/network'
+import { ValidationChecks } from '@eco-solver/intent/validation.sevice'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 /**
  * Data for a transaction target

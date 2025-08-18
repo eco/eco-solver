@@ -1,9 +1,9 @@
-import { BatchPermitDataDTO } from '@/quote/dto/permit2/batch-permit-data.dto'
+import { BatchPermitDataDTO } from '@eco-solver/quote/dto/permit2/batch-permit-data.dto'
 import { Hex } from 'viem'
-import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { PermitDTO } from '@/quote/dto/permit/permit.dto'
-import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/permit-params.interface'
-import { SinglePermitDataDTO } from '@/quote/dto/permit2/single-permit-data.dto'
+import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
+import { PermitDTO } from '@eco-solver/quote/dto/permit/permit.dto'
+import { PermitParams } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit-params.interface'
+import { SinglePermitDataDTO } from '@eco-solver/quote/dto/permit2/single-permit-data.dto'
 import * as crypto from 'crypto'
 
 const AddressLen = 40

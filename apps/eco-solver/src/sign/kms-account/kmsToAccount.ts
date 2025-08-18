@@ -1,6 +1,6 @@
-import { signKms } from '@/sign/kms-account/signKms'
-import { signKmsTransaction } from '@/sign/kms-account/signKmsTransaction'
-import { signKmsTypedData } from '@/sign/kms-account/signKmsTypedData'
+import { signKms } from '@eco-solver/sign/kms-account/signKms'
+import { signKmsTransaction } from '@eco-solver/sign/kms-account/signKmsTransaction'
+import { signKmsTypedData } from '@eco-solver/sign/kms-account/signKmsTypedData'
 import { Signer } from '@eco-foundation/eco-kms-core'
 import { KMSWallets } from '@eco-foundation/eco-kms-wallets'
 import {

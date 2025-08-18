@@ -3,12 +3,12 @@ import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+} from '@eco-solver/liquidity-manager/jobs/liquidity-manager.job'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { LiquidityManagerJobName } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerProcessor } from '@eco-solver/liquidity-manager/processors/eco-protocol-intents.processor'
+import { ExecuteCCTPMintJobManager } from '@eco-solver/liquidity-manager/jobs/execute-cctp-mint.job'
+import { LiFiStrategyContext } from '@eco-solver/liquidity-manager/types/types'
 
 // Enhanced job data to support CCTPLiFi operations
 export interface CheckCCTPAttestationJobData {

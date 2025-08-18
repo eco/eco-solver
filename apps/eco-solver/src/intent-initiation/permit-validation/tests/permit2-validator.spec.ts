@@ -1,8 +1,8 @@
 import { Address, Hex, PublicClient, verifyTypedData } from 'viem'
 import { createMock } from '@golevelup/ts-jest'
-import { EcoError } from '@/common/errors/eco-error'
-import { Permit2Params } from '@/intent-initiation/permit-validation/interfaces/permit2-params.interface'
-import { Permit2Validator } from '@/intent-initiation/permit-validation/permit2-validator'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { Permit2Params } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit2-params.interface'
+import { Permit2Validator } from '@eco-solver/intent-initiation/permit-validation/permit2-validator'
 
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),

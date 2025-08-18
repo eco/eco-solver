@@ -1,12 +1,12 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
+import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
 import { Hex, TransactionReceipt, zeroAddress } from 'viem'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { Permit2Processor } from '@/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
-import { SignerKmsService } from '@/sign/signer-kms.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
+import { Permit2Processor } from '@eco-solver/permit-processing/permit2-processor'
+import { Permit2TxBuilder } from '@eco-solver/permit-processing/permit2-tx-builder'
+import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
 
 let $: EcoTester
 let processor: Permit2Processor

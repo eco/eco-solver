@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Hex } from 'viem'
-import { IndexerConfig } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { IndexerConfig } from '@eco-solver/eco-configs/eco-config.types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import {
   BatchWithdrawGasless,
   BatchWithdraws,
-} from '@/indexer/interfaces/batch-withdraws.interface'
-import { SendBatchData } from '@/indexer/interfaces/send-batch-data.interface'
+} from '@eco-solver/indexer/interfaces/batch-withdraws.interface'
+import { SendBatchData } from '@eco-solver/indexer/interfaces/send-batch-data.interface'
 
 @Injectable()
 export class IndexerService {

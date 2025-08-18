@@ -2,9 +2,9 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import {
   CheckCCTPAttestationJob,
   CheckCCTPAttestationJobManager,
-} from '@/liquidity-manager/jobs/check-cctp-attestation.job'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+} from '@eco-solver/liquidity-manager/jobs/check-cctp-attestation.job'
+import { LiquidityManagerProcessor } from '@eco-solver/liquidity-manager/processors/eco-protocol-intents.processor'
+import { ExecuteCCTPMintJobManager } from '@eco-solver/liquidity-manager/jobs/execute-cctp-mint.job'
 
 describe('CheckCCTPAttestationJobManager', () => {
   let checkCCTPAttestationJobManager: CheckCCTPAttestationJobManager

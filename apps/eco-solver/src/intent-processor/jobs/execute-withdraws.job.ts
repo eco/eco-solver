@@ -1,13 +1,13 @@
 import { BulkJobOptions, Job } from 'bullmq'
 import { Hex } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
-import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { deserialize, serialize, Serialize } from '@eco-solver/common/utils/serialize'
+import { IntentProcessorJobName } from '@eco-solver/intent-processor/queues/intent-processor.queue'
+import { IntentProcessor } from '@eco-solver/intent-processor/processors/intent.processor'
 import {
   IntentProcessorJob,
   IntentProcessorJobManager,
-} from '@/intent-processor/jobs/intent-processor.job'
+} from '@eco-solver/intent-processor/jobs/intent-processor.job'
 import { IntentType } from '@eco-foundation/routes-ts'
 
 export type ExecuteWithdrawsJobData = {

@@ -1,10 +1,10 @@
 // eslint-disable-next-line
 const canonicalize = require('canonicalize')
-import { DOMAIN, TYPES } from '@/request-signing/typed-data'
+import { DOMAIN, TYPES } from '@eco-solver/request-signing/typed-data'
 import { Injectable } from '@nestjs/common'
 import { LocalAccount } from 'viem'
-import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
-import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface'
+import { SignatureHeaders } from '@eco-solver/request-signing/interfaces/signature-headers.interface'
+import { SignedMessage } from '@eco-solver/request-signing/interfaces/signed-message.interface'
 
 @Injectable()
 export class SignatureGenerator {

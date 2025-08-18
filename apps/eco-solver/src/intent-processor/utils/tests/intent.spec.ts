@@ -1,6 +1,6 @@
 import { Hex } from 'viem'
-import { getWithdrawData } from '@/intent-processor/utils/intent'
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { getWithdrawData } from '@eco-solver/intent-processor/utils/intent'
+import { IndexerIntent } from '@eco-solver/indexer/interfaces/intent.interface'
 
 describe('Intent Utils', () => {
   describe('getWithdrawData', () => {

@@ -5,7 +5,7 @@ import { EcoConfigService } from './eco-configs/eco-config.service'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
 import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
+import { BigIntToStringInterceptor } from '@eco-solver/interceptors/big-int.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())

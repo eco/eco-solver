@@ -1,4 +1,4 @@
-import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
+import { EstimatedGasData } from '@eco-solver/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
 
 export interface EstimatedGasDataForIntentInitiation extends EstimatedGasData {
   gasEstimate: bigint

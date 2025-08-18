@@ -1,4 +1,4 @@
-import { normalizeBalance, isInsufficient } from '@/fee/utils'
+import { normalizeBalance, isInsufficient } from '@eco-solver/fee/utils'
 
 describe('Utils Tests', () => {
   describe('normalizeBalance', () => {

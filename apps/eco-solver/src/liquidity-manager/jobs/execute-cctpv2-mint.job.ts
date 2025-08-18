@@ -3,12 +3,12 @@ import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+} from '@eco-solver/liquidity-manager/jobs/liquidity-manager.job'
+import { LiquidityManagerJobName } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { deserialize, Serialize } from '@/common/utils/serialize'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { deserialize, Serialize } from '@eco-solver/common/utils/serialize'
 
 export interface ExecuteCCTPV2MintJobData {
   destinationChainId: number

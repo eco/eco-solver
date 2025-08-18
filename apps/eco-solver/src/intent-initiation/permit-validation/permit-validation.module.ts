@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
-import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
-import { TransactionModule } from '@/transaction/transaction.module'
+import { PermitValidationService } from '@eco-solver/intent-initiation/permit-validation/permit-validation.service'
+import { TransactionModule } from '@eco-solver/transaction/transaction.module'
 
 @Module({
   imports: [TransactionModule],

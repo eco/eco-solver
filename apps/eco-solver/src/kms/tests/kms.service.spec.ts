@@ -1,9 +1,9 @@
 const mockGetAddress = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { Logger } from '@nestjs/common'
-import { KmsService } from '@/kms/kms.service'
+import { KmsService } from '@eco-solver/kms/kms.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 
 jest.mock('viem', () => {

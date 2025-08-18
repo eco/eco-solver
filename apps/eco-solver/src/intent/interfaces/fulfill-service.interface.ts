@@ -1,5 +1,5 @@
-import { Solver } from '@/eco-configs/eco-config.types'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
+import { Solver } from '@eco-solver/eco-configs/eco-config.types'
+import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { Hex } from 'viem'
 
 export interface IFulfillService {

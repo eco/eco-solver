@@ -1,20 +1,20 @@
-import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoCronJobManager } from '@eco-solver/liquidity-manager/jobs/eco-cron-job-manager'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { formatUnits } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+} from '@eco-solver/liquidity-manager/jobs/liquidity-manager.job'
+import { LiquidityManagerJobName } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerProcessor } from '@eco-solver/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue } from 'bullmq'
-import { shortAddr } from '@/liquidity-manager/utils/address'
+import { shortAddr } from '@eco-solver/liquidity-manager/utils/address'
 import { table } from 'table'
 import {
   RebalanceQuote,
   RebalanceRequest,
   TokenDataAnalyzed,
-} from '@/liquidity-manager/types/types'
+} from '@eco-solver/liquidity-manager/types/types'
 
 type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,

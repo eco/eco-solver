@@ -1,12 +1,12 @@
 import { Job, Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { removeJobSchedulers } from '@/bullmq/utils/queue'
-import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { removeJobSchedulers } from '@eco-solver/bullmq/utils/queue'
+import { IntentProcessorJobName } from '@eco-solver/intent-processor/queues/intent-processor.queue'
+import { IntentProcessor } from '@eco-solver/intent-processor/processors/intent.processor'
 import {
   IntentProcessorJob,
   IntentProcessorJobManager,
-} from '@/intent-processor/jobs/intent-processor.job'
+} from '@eco-solver/intent-processor/jobs/intent-processor.job'
 
 export type CheckSendBatchJob = Job<undefined, undefined, IntentProcessorJobName.CHECK_SEND_BATCH>
 

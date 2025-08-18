@@ -12,22 +12,22 @@ import {
   Transport,
 } from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { IndexerService } from '@/indexer/services/indexer.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import * as Hyperlane from '@/intent-processor/utils/hyperlane'
-import { getWithdrawData } from '@/intent-processor/utils/intent'
-import { ExecuteWithdrawsJobData } from '@/intent-processor/jobs/execute-withdraws.job'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@eco-solver/eco-configs/eco-config.types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { IndexerService } from '@eco-solver/indexer/services/indexer.service'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
+import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'
+import { getWithdrawData } from '@eco-solver/intent-processor/utils/intent'
+import { ExecuteWithdrawsJobData } from '@eco-solver/intent-processor/jobs/execute-withdraws.job'
 import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
-} from '@/intent-processor/queues/intent-processor.queue'
-import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
-import { Multicall3Abi } from '@/contracts/Multicall3'
-import { getMulticall } from '@/intent-processor/utils/multicall'
-import { getChainConfig } from '@/eco-configs/utils'
+} from '@eco-solver/intent-processor/queues/intent-processor.queue'
+import { ExecuteSendBatchJobData } from '@eco-solver/intent-processor/jobs/execute-send-batch.job'
+import { Multicall3Abi } from '@eco-solver/contracts/Multicall3'
+import { getMulticall } from '@eco-solver/intent-processor/utils/multicall'
+import { getChainConfig } from '@eco-solver/eco-configs/utils'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {

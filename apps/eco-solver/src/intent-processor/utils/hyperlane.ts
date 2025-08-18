@@ -1,6 +1,6 @@
 import { encodeAbiParameters, encodeFunctionData, encodePacked, Hex, pad, PublicClient } from 'viem'
-import { HyperlaneMailboxAbi, MessageRecipientAbi } from '@/contracts/HyperlaneMailbox'
-import { HyperlaneConfig } from '@/eco-configs/eco-config.types'
+import { HyperlaneMailboxAbi, MessageRecipientAbi } from '@eco-solver/contracts/HyperlaneMailbox'
+import { HyperlaneConfig } from '@eco-solver/eco-configs/eco-config.types'
 
 export async function estimateMessageGas(
   publicClient: PublicClient,

@@ -1,6 +1,6 @@
-import { PosthogService } from '@/analytics/posthog.service'
-import { AnalyticsConfig } from '@/analytics/analytics.interface'
-import { AnalyticsError } from '@/analytics/errors'
+import { PosthogService } from '@eco-solver/analytics/posthog.service'
+import { AnalyticsConfig } from '@eco-solver/analytics/analytics.interface'
+import { AnalyticsError } from '@eco-solver/analytics/errors'
 import { PostHog } from 'posthog-node'
 
 // Mock PostHog

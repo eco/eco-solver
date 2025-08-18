@@ -11,11 +11,11 @@ import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
 import { EcoError } from '../../common/errors/eco-error'
 import { getFunctionBytes } from '../../common/viem/contracts'
-import { FulfillmentLog } from '@/contracts/inbox'
-import { CallDataInterface } from '@/contracts'
-import { ValidationChecks } from '@/intent/validation.sevice'
-import { QuoteError } from '@/quote/errors'
-import { EcoAnalyticsService } from '@/analytics'
+import { FulfillmentLog } from '@eco-solver/contracts/inbox'
+import { CallDataInterface } from '@eco-solver/contracts'
+import { ValidationChecks } from '@eco-solver/intent/validation.sevice'
+import { QuoteError } from '@eco-solver/quote/errors'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 jest.mock('viem', () => {
   return {

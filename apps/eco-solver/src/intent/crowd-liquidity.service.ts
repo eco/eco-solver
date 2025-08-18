@@ -9,7 +9,7 @@ import {
   LitPKPResource,
 } from '@lit-protocol/auth-helpers'
 
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
   Hex,
@@ -19,18 +19,18 @@ import {
   serializeTransaction,
   TransactionSerializableEIP1559,
 } from 'viem'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { IFulfillService } from '@/intent/interfaces/fulfill-service.interface'
-import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
-import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
-import { getERC20Selector } from '@/contracts'
-import { TokenData } from '@/liquidity-manager/types/types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { BalanceService } from '@/balance/balance.service'
-import { TokenConfig } from '@/balance/types'
-import { EcoError } from '@/common/errors/eco-error'
-import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { EcoAnalyticsService } from '@/analytics'
+import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
+import { IFulfillService } from '@eco-solver/intent/interfaces/fulfill-service.interface'
+import { CrowdLiquidityConfig, Solver } from '@eco-solver/eco-configs/eco-config.types'
+import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
+import { getERC20Selector } from '@eco-solver/contracts'
+import { TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { BalanceService } from '@eco-solver/balance/balance.service'
+import { TokenConfig } from '@eco-solver/balance/types'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { IntentDataModel } from '@eco-solver/intent/schemas/intent-data.schema'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {

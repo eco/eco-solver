@@ -1,13 +1,13 @@
-import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
+import { API_ROOT, QUOTE_ROUTE } from '@eco-solver/common/routes/constants'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { getEcoServiceException } from '@/common/errors/eco-service-exception'
-import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteErrorsInterface } from '@/quote/errors'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteService } from '@/quote/quote.service'
-import { EcoAnalyticsService } from '@/analytics'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { getEcoServiceException } from '@eco-solver/common/errors/eco-service-exception'
+import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
+import { QuoteErrorsInterface } from '@eco-solver/quote/errors'
+import { QuoteIntentDataDTO } from '@eco-solver/quote/dto/quote.intent.data.dto'
+import { QuoteService } from '@eco-solver/quote/quote.service'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
 
 @Controller(API_ROOT + QUOTE_ROUTE)
 export class QuoteController {

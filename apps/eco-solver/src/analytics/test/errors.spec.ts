@@ -1,4 +1,4 @@
-import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
+import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@eco-solver/analytics/errors'
 
 describe('Analytics Error Classes', () => {
   describe('AnalyticsError', () => {

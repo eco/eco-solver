@@ -1,9 +1,9 @@
-import { EcoError } from '@/common/errors/eco-error'
-import { FeeAlgorithm } from '@/eco-configs/eco-config.types'
-import { ValidationChecks } from '@/intent/validation.sevice'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { FeeAlgorithm } from '@eco-solver/eco-configs/eco-config.types'
+import { ValidationChecks } from '@eco-solver/intent/validation.sevice'
 import { Hex } from 'viem'
-import { NormalizedTotal } from '@/fee/types'
-import { formatNormalizedTotal } from '@/fee/utils'
+import { NormalizedTotal } from '@eco-solver/fee/types'
+import { formatNormalizedTotal } from '@eco-solver/fee/utils'
 
 /**
  * Errors that can be thrown by the quote service

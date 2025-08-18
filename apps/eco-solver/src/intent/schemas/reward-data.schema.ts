@@ -1,7 +1,7 @@
 import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
-} from '@/intent/schemas/intent-token-amount.schema'
+} from '@eco-solver/intent/schemas/intent-token-amount.schema'
 import { encodeReward, hashReward, RewardType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'

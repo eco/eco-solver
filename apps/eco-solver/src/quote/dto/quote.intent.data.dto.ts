@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { GaslessIntentDataDTO } from '@eco-solver/quote/dto/gasless-intent-data.dto'
+import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
 import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
-import { QuoteRewardDataDTO, QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
+import { QuoteRewardDataDTO, QuoteRewardDataType } from '@eco-solver/quote/dto/quote.reward.data.dto'
+import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@eco-solver/quote/dto/quote.route.data.dto'
 import { Type } from 'class-transformer'
 
 /**

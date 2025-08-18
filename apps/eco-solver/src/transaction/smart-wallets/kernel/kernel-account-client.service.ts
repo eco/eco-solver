@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { entryPoint07Address } from 'viem/account-abstraction'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import {
   Account,
   Chain,
@@ -23,12 +23,12 @@ import {
 import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { EcoLogMessage } from '../../../common/logging/eco-log-message'
-import { SignerKmsService } from '@/sign/signer-kms.service'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoResponse } from '@/common/eco-response'
-import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { KernelExecuteAbi } from '@/contracts'
+import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoResponse } from '@eco-solver/common/eco-response'
+import { EstimatedGasData } from '@eco-solver/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
+import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
+import { KernelExecuteAbi } from '@eco-solver/contracts'
 
 @Injectable()
 export class KernelAccountClientServiceBase<

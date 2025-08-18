@@ -5,10 +5,10 @@ import {
   IntentFulfillmentQueue,
   IntentFulfillmentJobName,
 } from '../queues/intent-fulfillment.queue'
-import { FulfillIntentService } from '@/intent/fulfill-intent.service'
+import { FulfillIntentService } from '@eco-solver/intent/fulfill-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { FulfillIntentJob } from '../jobs/fulfill-intent.job'
-import { serialize } from '@/common/utils/serialize'
+import { serialize } from '@eco-solver/common/utils/serialize'
 import { Hex } from 'viem'
 
 describe('IntentFulfillmentProcessor', () => {

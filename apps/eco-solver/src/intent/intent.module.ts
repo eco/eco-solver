@@ -13,11 +13,11 @@ import { TransactionModule } from '../transaction/transaction.module'
 import { MongooseModule } from '@nestjs/mongoose'
 import { SolverModule } from '../solver/solver.module'
 import { FlagsModule } from '../flags/flags.module'
-import { ValidationService } from '@/intent/validation.sevice'
-import { FeeModule } from '@/fee/fee.module'
-import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
+import { ValidationService } from '@eco-solver/intent/validation.sevice'
+import { FeeModule } from '@eco-solver/fee/fee.module'
+import { WalletFulfillService } from '@eco-solver/intent/wallet-fulfill.service'
+import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
+import { IntentFulfillmentModule } from '@eco-solver/intent-fulfillment/intent-fulfillment.module'
 
 @Module({
   imports: [

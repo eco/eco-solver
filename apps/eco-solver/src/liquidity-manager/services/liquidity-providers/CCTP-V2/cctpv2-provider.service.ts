@@ -1,20 +1,20 @@
 import { isAddressEqual, parseUnits, Hex, encodeFunctionData, pad, erc20Abi } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
+import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPV2Config } from '@/eco-configs/eco-config.types'
-import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'
-import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitter'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+import { CCTPV2Config } from '@eco-solver/eco-configs/eco-config.types'
+import { CCTPV2TokenMessengerABI } from '@eco-solver/contracts/CCTPV2TokenMessenger'
+import { CCTPV2MessageTransmitterABI } from '@eco-solver/contracts/CCTPV2MessageTransmitter'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
+import { serialize } from '@eco-solver/common/utils/serialize'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000

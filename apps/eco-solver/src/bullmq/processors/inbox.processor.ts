@@ -1,10 +1,10 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '@/common/redis/constants'
+import { QUEUES } from '@eco-solver/common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
-import { FulfillmentLog } from '@/contracts/inbox'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { UtilsIntentService } from '@eco-solver/intent/utils-intent.service'
+import { FulfillmentLog } from '@eco-solver/contracts/inbox'
 
 @Injectable()
 @Processor(QUEUES.INBOX.queue)

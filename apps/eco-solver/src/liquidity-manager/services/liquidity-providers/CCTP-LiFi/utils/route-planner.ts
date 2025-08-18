@@ -1,4 +1,4 @@
-import { TokenData } from '@/liquidity-manager/types/types'
+import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 import { isAddressEqual, Hex } from 'viem'
 
 export interface RouteStep {

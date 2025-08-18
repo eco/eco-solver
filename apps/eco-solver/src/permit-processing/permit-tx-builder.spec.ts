@@ -1,8 +1,8 @@
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { encodeFunctionData, Hex } from 'viem'
-import { PermitAbi } from '@/contracts/Permit.abi'
-import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
+import { PermitAbi } from '@eco-solver/contracts/Permit.abi'
+import { PermitProcessingParams } from '@eco-solver/permit-processing/interfaces/permit-processing-params.interface'
+import { PermitTxBuilder } from '@eco-solver/permit-processing/permit-tx-builder'
 
 let $: EcoTester
 let builder: PermitTxBuilder

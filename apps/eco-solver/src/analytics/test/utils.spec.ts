@@ -1,4 +1,4 @@
-import { getCurrentEnvironment } from '@/analytics/utils'
+import { getCurrentEnvironment } from '@eco-solver/analytics/utils'
 
 describe('Analytics Utils', () => {
   describe('getCurrentEnvironment', () => {

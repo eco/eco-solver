@@ -1,7 +1,7 @@
 const mockGetTransactionTargetData = jest.fn()
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { FeeService } from '@/fee/fee.service'
-import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { FeeService } from '@eco-solver/fee/fee.service'
+import { ValidationChecks, ValidationService } from '@eco-solver/intent/validation.sevice'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -10,26 +10,26 @@ import {
   InvalidQuoteIntent,
   QuoteError,
   SolverUnsupported,
-} from '@/quote/errors'
-import { QuoteService } from '@/quote/quote.service'
-import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
+} from '@eco-solver/quote/errors'
+import { QuoteService } from '@eco-solver/quote/quote.service'
+import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Model } from 'mongoose'
-import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
-import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import { QuotesConfig } from '@/eco-configs/eco-config.types'
+import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service'
+import { QuoteTestUtils } from '@eco-solver/intent-initiation/test-utils/quote-test-utils'
+import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
+import { QuotesConfig } from '@eco-solver/eco-configs/eco-config.types'
 import { zeroAddress } from 'viem'
-import { QuoteRepository } from '@/quote/quote.repository'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
-import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { QuoteRepository } from '@eco-solver/quote/quote.repository'
+import { IntentInitiationService } from '@eco-solver/intent-initiation/services/intent-initiation.service'
+import { PermitValidationService } from '@eco-solver/intent-initiation/permit-validation/permit-validation.service'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { Chain, PublicClient, Transport } from 'viem'
-import { EcoAnalyticsService } from '@/analytics'
-import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoError } from '@/common/errors/eco-error'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { UpdateQuoteParams } from '@eco-solver/quote/interfaces/update-quote-params.interface'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
 
 jest.mock('@/intent/utils', () => {
   return {

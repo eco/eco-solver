@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { BalanceController } from '../balance.controller'
-import { BalanceService } from '@/balance/balance.service'
+import { BalanceService } from '@eco-solver/balance/balance.service'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
 

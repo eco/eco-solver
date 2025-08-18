@@ -1,8 +1,8 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { SignatureGenerator } from '@/request-signing/signature-generator'
-import { SigningService } from '@/request-signing/signing.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
+import { SignatureGenerator } from '@eco-solver/request-signing/signature-generator'
+import { SigningService } from '@eco-solver/request-signing/signing.service'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { LocalAccount, privateKeyToAccount } from 'viem/accounts'
 import { Hex } from 'viem'
 

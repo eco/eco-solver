@@ -10,10 +10,10 @@ import {
   WalletClient,
   WalletClientConfig,
 } from 'viem'
-import { SignerService } from '@/sign/signer.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { SignerService } from '@eco-solver/sign/signer.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { ViemMultichainClientService } from '../viem_multichain_client.service'
-import { ChainsSupported } from '@/common/chains/supported'
+import { ChainsSupported } from '@eco-solver/common/chains/supported'
 
 export abstract class WalletClientService<
   transport extends Transport = Transport,

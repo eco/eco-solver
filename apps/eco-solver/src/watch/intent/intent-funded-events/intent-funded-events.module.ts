@@ -1,15 +1,15 @@
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { initBullMQ } from '@eco-solver/bullmq/bullmq.helper'
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
-import { QUEUES } from '@/common/redis/constants'
-import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
+import { QUEUES } from '@eco-solver/common/redis/constants'
+import { WatchIntentFundedService } from '@eco-solver/watch/intent/intent-funded-events/services/watch-intent-funded.service'
 import {
   IntentFundedEventModel,
   IntentFundedEventSchema,
-} from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
-import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
-import { TransactionModule } from '@/transaction/transaction.module'
-import { IntentModule } from '@/intent/intent.module'
+} from '@eco-solver/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
+import { IntentFundedEventRepository } from '@eco-solver/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
+import { TransactionModule } from '@eco-solver/transaction/transaction.module'
+import { IntentModule } from '@eco-solver/intent/intent.module'
 
 @Module({
   imports: [

@@ -10,21 +10,21 @@ import {
   RoutesRequest,
   SDKConfig,
 } from '@lifi/sdk'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { logLiFiProcess } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { logLiFiProcess } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import {
   LiFiAssetCacheManager,
   CacheStatus,
-} from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
-import { BalanceService } from '@/balance/balance.service'
-import { TokenConfig } from '@/balance/types'
+} from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
+import { KernelAccountClientV2Service } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
+import { EcoAnalyticsService } from '@eco-solver/analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
+import { BalanceService } from '@eco-solver/balance/balance.service'
+import { TokenConfig } from '@eco-solver/balance/types'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {

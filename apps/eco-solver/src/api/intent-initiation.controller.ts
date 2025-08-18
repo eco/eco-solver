@@ -1,4 +1,4 @@
-import { API_ROOT, INTENT_INITIATION_ROUTE } from '@/common/routes/constants'
+import { API_ROOT, INTENT_INITIATION_ROUTE } from '@eco-solver/common/routes/constants'
 import { ApiOperation, ApiResponse } from '@nestjs/swagger'
 import {
   Body,
@@ -8,13 +8,13 @@ import {
   OnModuleInit,
   Post,
 } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
-import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
-import { getEcoServiceException } from '@/common/errors/eco-service-exception'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { GaslessIntentRequestDTO } from '@eco-solver/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentResponseDTO } from '@eco-solver/intent-initiation/dtos/gasless-intent-response.dto'
+import { getEcoServiceException } from '@eco-solver/common/errors/eco-service-exception'
+import { IntentInitiationService } from '@eco-solver/intent-initiation/services/intent-initiation.service'
 import { ModuleRef } from '@nestjs/core'
-import { QuoteErrorsInterface } from '@/quote/errors'
+import { QuoteErrorsInterface } from '@eco-solver/quote/errors'
 
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
 export class IntentInitiationController implements OnModuleInit {

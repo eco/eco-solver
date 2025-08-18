@@ -6,9 +6,9 @@ import { Squid } from '@0xsquid/sdk'
 import { zeroAddress } from 'viem'
 
 import { SquidProviderService } from './squid-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenData } from '@/liquidity-manager/types/types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 
 const mockedSquid = jest.mocked(Squid)
 const mockSquidInstance = {

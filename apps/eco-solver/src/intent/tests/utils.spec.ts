@@ -1,9 +1,9 @@
 const mockDecodeFunctionData = jest.fn()
 const mockExtractChain = jest.fn()
 const mockIsEmptyData = jest.fn()
-import { EcoError } from '@/common/errors/eco-error'
-import { getFunctionBytes } from '@/common/viem/contracts'
-import { CallDataInterface } from '@/contracts'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { getFunctionBytes } from '@eco-solver/common/viem/contracts'
+import { CallDataInterface } from '@eco-solver/contracts'
 import {
   getTransactionTargetData,
   getWaitForTransactionTimeout,
@@ -14,7 +14,7 @@ import {
   getNativeFulfill,
   getFunctionTargets,
   isNativeETH,
-} from '@/intent/utils'
+} from '@eco-solver/intent/utils'
 import { Logger } from '@nestjs/common'
 
 jest.mock('viem', () => {

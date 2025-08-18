@@ -1,4 +1,4 @@
-import { CommanderAppModule } from '@/commander/commander-app.module'
+import { CommanderAppModule } from '@eco-solver/commander/commander-app.module'
 import { CommandFactory } from 'nest-commander'
 import { Logger } from 'nestjs-pino'
 

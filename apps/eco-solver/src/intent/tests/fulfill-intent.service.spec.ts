@@ -2,10 +2,10 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { FulfillIntentService } from '../fulfill-intent.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
+import { WalletFulfillService } from '@eco-solver/intent/wallet-fulfill.service'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 describe('FulfillIntentService', () => {
   let fulfillIntentService: FulfillIntentService

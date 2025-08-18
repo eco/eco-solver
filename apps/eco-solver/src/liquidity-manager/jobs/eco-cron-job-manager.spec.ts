@@ -1,9 +1,9 @@
 import { createMock } from '@golevelup/ts-jest'
-import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
+import { EcoCronJobManager } from '@eco-solver/liquidity-manager/jobs/eco-cron-job-manager'
 import { GenericContainer } from 'testcontainers'
 import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerJobName } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
 
 jest.setTimeout(30000)
 

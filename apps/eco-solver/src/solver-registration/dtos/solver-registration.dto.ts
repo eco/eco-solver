@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { CrossChainRoutesDTO } from '@/solver-registration/dtos/cross-chain-routes.dto'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { CrossChainRoutesDTO } from '@eco-solver/solver-registration/dtos/cross-chain-routes.dto'
+import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
 import { IsArray, IsString, IsIn, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator'
 
 export class SolverRegistrationDTO {

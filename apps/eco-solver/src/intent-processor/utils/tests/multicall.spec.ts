@@ -1,4 +1,4 @@
-import { getMulticall } from '@/intent-processor/utils/multicall'
+import { getMulticall } from '@eco-solver/intent-processor/utils/multicall'
 import { extractChain } from 'viem'
 
 // Mock the viem extractChain function

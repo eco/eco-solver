@@ -1,8 +1,8 @@
-import { BaseProcessor } from '@/common/bullmq/base.processor'
+import { BaseProcessor } from '@eco-solver/common/bullmq/base.processor'
 import { Job, Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { OnWorkerEvent } from '@nestjs/bullmq'
-import { BaseJobManager } from '@/common/bullmq/base-job'
+import { BaseJobManager } from '@eco-solver/common/bullmq/base-job'
 
 // Extract keys from `data` when `data` is defined
 type DataKeys<T> = T extends { data?: infer D } ? (D extends object ? keyof D : never) : never

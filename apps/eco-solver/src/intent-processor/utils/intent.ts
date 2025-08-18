@@ -1,7 +1,7 @@
 import { Hex } from 'viem'
 import { IntentType } from '@eco-foundation/routes-ts'
 
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { IndexerIntent } from '@eco-solver/indexer/interfaces/intent.interface'
 
 export function getWithdrawData(intent: IndexerIntent): IntentType {
   const reward = {

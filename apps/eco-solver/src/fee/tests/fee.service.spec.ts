@@ -1,17 +1,17 @@
 const mockGetTransactionTargetData = jest.fn()
 const mockIsERC20Target = jest.fn()
-import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
-import { getERC20Selector } from '@/contracts'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { BASE_DECIMALS, FeeService } from '@/fee/fee.service'
-import { NormalizedToken, NormalizedTotal } from '@/fee/types'
-import { QuoteError } from '@/quote/errors'
+import { BalanceService, TokenFetchAnalysis } from '@eco-solver/balance/balance.service'
+import { getERC20Selector } from '@eco-solver/contracts'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { FeeConfigType } from '@eco-solver/eco-configs/eco-config.types'
+import { BASE_DECIMALS, FeeService } from '@eco-solver/fee/fee.service'
+import { NormalizedToken, NormalizedTotal } from '@eco-solver/fee/types'
+import { QuoteError } from '@eco-solver/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Hex } from 'viem'
 import * as _ from 'lodash'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 function getFeeConfig(): FeeConfigType {
   return {

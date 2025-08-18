@@ -1,13 +1,13 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { createMock } from '@golevelup/ts-jest'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import { InternalSaveError, SolverUnsupported } from '@/quote/errors'
-import { QuoteController } from '@/api/quote.controller'
-import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
-import { QuoteService } from '@/quote/quote.service'
-import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
+import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
+import { InternalSaveError, SolverUnsupported } from '@eco-solver/quote/errors'
+import { QuoteController } from '@eco-solver/api/quote.controller'
+import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
+import { QuoteService } from '@eco-solver/quote/quote.service'
+import { QuoteTestUtils } from '@eco-solver/intent-initiation/test-utils/quote-test-utils'
 import { Test, TestingModule } from '@nestjs/testing'
-import { EcoAnalyticsService } from '@/analytics'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 
 describe('QuoteController Test', () => {
   let quoteController: QuoteController

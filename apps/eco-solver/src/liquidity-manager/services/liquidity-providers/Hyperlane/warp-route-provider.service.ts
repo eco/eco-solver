@@ -12,17 +12,17 @@ import {
   TransactionRequest,
   isAddress,
 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { TokenConfig } from '@/balance/types'
-import { BalanceService } from '@/balance/balance.service'
-import { hyperlaneCollateralERC20 } from '@/contracts/HyperlaneCollateralERC20'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
-import * as Hyperlane from '@/intent-processor/utils/hyperlane'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { TokenConfig } from '@eco-solver/balance/types'
+import { BalanceService } from '@eco-solver/balance/balance.service'
+import { hyperlaneCollateralERC20 } from '@eco-solver/contracts/HyperlaneCollateralERC20'
+import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
+import { LiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { HyperlaneMailboxAbi } from '@eco-solver/contracts/HyperlaneMailbox'
+import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'
 import {
   ActionPath,
   WarpRoute,

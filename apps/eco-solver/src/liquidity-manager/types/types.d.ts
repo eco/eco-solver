@@ -1,8 +1,8 @@
-import { TokenBalance, TokenConfig } from '@/balance/types'
+import { TokenBalance, TokenConfig } from '@eco-solver/balance/types'
 import * as LiFi from '@lifi/sdk'
 import { Hex } from 'viem'
 import { Execute as RelayQuote } from '@reservoir0x/relay-sdk'
-import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { StargateQuote } from '@eco-solver/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
 import { Route as SquidRoute } from '@0xsquid/sdk'
 
 type TokenState = 'DEFICIT' | 'SURPLUS' | 'IN_RANGE'

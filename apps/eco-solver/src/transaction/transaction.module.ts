@@ -4,8 +4,8 @@ import { SimpleAccountClientService } from './smart-wallets/simple-account/simpl
 import { MultichainPublicClientService } from './multichain-public-client.service'
 import { ViemMultichainClientService } from './viem_multichain_client.service'
 import { KernelAccountClientService } from './smart-wallets/kernel/kernel-account-client.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { KernelAccountClientV2Service } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 
 @Module({
   imports: [SignModule],

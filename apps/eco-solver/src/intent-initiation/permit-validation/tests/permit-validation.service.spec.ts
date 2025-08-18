@@ -1,14 +1,14 @@
 import { createMock } from '@golevelup/ts-jest'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { Permit2Validator } from '@/intent-initiation/permit-validation/permit2-validator'
-import { PermitTestUtils } from '@/intent-initiation/test-utils/permit-test-utils'
-import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
-import { PermitValidator } from '@/intent-initiation/permit-validation/permit-validator'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
+import { Permit2Validator } from '@eco-solver/intent-initiation/permit-validation/permit2-validator'
+import { PermitTestUtils } from '@eco-solver/intent-initiation/test-utils/permit-test-utils'
+import { PermitValidationService } from '@eco-solver/intent-initiation/permit-validation/permit-validation.service'
+import { PermitValidator } from '@eco-solver/intent-initiation/permit-validation/permit-validator'
 import { PublicClient, Signature } from 'viem'
-import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { QuoteRewardDataDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'
+import { QuoteTestUtils } from '@eco-solver/intent-initiation/test-utils/quote-test-utils'
+import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 
 jest.mock('@/intent-initiation/permit-validation/permit-validator', () => {
   // Import the real module first

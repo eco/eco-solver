@@ -1,7 +1,7 @@
 import { createMock } from '@golevelup/ts-jest'
-import { EcoError } from '@/common/errors/eco-error'
-import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/permit-params.interface'
-import { PermitValidator } from '@/intent-initiation/permit-validation/permit-validator'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { PermitParams } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit-params.interface'
+import { PermitValidator } from '@eco-solver/intent-initiation/permit-validation/permit-validator'
 import { PublicClient, Address } from 'viem'
 import * as viem from 'viem'
 

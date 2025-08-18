@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const canonicalize = require('canonicalize')
-import { DOMAIN, TYPES } from '@/request-signing/typed-data'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoResponse } from '@/common/eco-response'
+import { DOMAIN, TYPES } from '@eco-solver/request-signing/typed-data'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoResponse } from '@eco-solver/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { recoverTypedDataAddress, Hex } from 'viem'
 

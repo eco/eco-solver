@@ -1,4 +1,4 @@
-import { obscureCenter, hasDuplicateStrings } from '@/common/utils/strings'
+import { obscureCenter, hasDuplicateStrings } from '@eco-solver/common/utils/strings'
 
 describe('obscureCenter', () => {
   it('should obscure the center of a string with default visible characters', () => {

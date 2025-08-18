@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { initBullMQ } from '@eco-solver/bullmq/bullmq.helper'
 import { Hex } from 'viem/_types/types/misc'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'

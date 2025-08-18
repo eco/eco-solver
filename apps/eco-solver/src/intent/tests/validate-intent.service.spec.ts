@@ -11,11 +11,11 @@ import { UtilsIntentService } from '../utils-intent.service'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '../../common/redis/constants'
 import { Queue } from 'bullmq'
-import { ValidationService } from '@/intent/validation.sevice'
-import { EcoAnalyticsService } from '@/analytics'
+import { ValidationService } from '@eco-solver/intent/validation.sevice'
+import { EcoAnalyticsService } from '@eco-solver/analytics'
 import { zeroHash } from 'viem'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { EcoError } from '@/common/errors/eco-error'
+import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
 
 jest.mock('../../common/utils/strings', () => {
   return {

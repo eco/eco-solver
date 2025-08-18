@@ -1,13 +1,13 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
+import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
 import { Hex, TransactionReceipt } from 'viem'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
-import { PermitProcessor } from '@/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@/permit-processing/permit-tx-builder'
-import { SignerKmsService } from '@/sign/signer-kms.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { PermitProcessingParams } from '@eco-solver/permit-processing/interfaces/permit-processing-params.interface'
+import { PermitProcessor } from '@eco-solver/permit-processing/permit-processor'
+import { PermitTxBuilder } from '@eco-solver/permit-processing/permit-tx-builder'
+import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
 
 let $: EcoTester
 let processor: PermitProcessor

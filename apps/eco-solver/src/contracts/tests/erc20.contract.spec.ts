@@ -1,4 +1,4 @@
-import { isERC20Target } from '@/contracts/ERC20.contract'
+import { isERC20Target } from '@eco-solver/contracts/ERC20.contract'
 const address1 = '0x1111111111111111111111111111111111111111'
 
 describe('ERC20 contract', () => {

@@ -1,10 +1,10 @@
-import { Network } from '@/common/alchemy/network'
+import { Network } from '@eco-solver/common/alchemy/network'
 import { Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
-import { AwsCredential } from '@/eco-configs/eco-config.types'
-import { ProofType } from '@/contracts'
+import { AwsCredential } from '@eco-solver/eco-configs/eco-config.types'
+import { ProofType } from '@eco-solver/contracts'
 
 export class EcoError extends Error {
   // Alchemy Service

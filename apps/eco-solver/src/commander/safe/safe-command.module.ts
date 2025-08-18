@@ -1,5 +1,5 @@
-import { SafeCommand } from '@/commander/safe/safe.command'
-import { TransferCommandModule } from '@/commander/transfer/transfer-command.module'
+import { SafeCommand } from '@eco-solver/commander/safe/safe.command'
+import { TransferCommandModule } from '@eco-solver/commander/transfer/transfer-command.module'
 import { CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
 

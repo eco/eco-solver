@@ -11,7 +11,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@eco-solver/*": ["./src/*"]
     }
   },
   "exclude": [

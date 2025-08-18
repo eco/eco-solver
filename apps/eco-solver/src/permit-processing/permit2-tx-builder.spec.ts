@@ -1,9 +1,9 @@
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { encodeFunctionData, zeroAddress } from 'viem'
-import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
-import { Permit2SinglePermitAbi, Permit2BatchPermitAbi } from '@/permit-processing/permit2-abis'
-import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
-import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
+import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
+import { Permit2SinglePermitAbi, Permit2BatchPermitAbi } from '@eco-solver/permit-processing/permit2-abis'
+import { Permit2TxBuilder } from '@eco-solver/permit-processing/permit2-tx-builder'
+import { Permit2TypedDataDetailsDTO } from '@eco-solver/quote/dto/permit2/permit2-typed-data-details.dto'
 
 const address1 = '0x8c182a808f75a29c0f02d4ba80ab236ab01c0ace' as const
 const address2 = '0x577f7c37beC658F9035E88246f200dE361C33685' as const

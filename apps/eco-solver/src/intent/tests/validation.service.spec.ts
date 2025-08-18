@@ -1,20 +1,20 @@
 const mockGetTransactionTargetData = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { TransactionTargetData, UtilsIntentService } from '@/intent/utils-intent.service'
-import { ProofService } from '@/prover/proof.service'
+import { TransactionTargetData, UtilsIntentService } from '@eco-solver/intent/utils-intent.service'
+import { ProofService } from '@eco-solver/prover/proof.service'
 import {
   ValidationChecks,
   ValidationService,
   validationsSucceeded,
-} from '@/intent/validation.sevice'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+} from '@eco-solver/intent/validation.sevice'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { entries } from 'lodash'
-import { FeeService } from '@/fee/fee.service'
-import { FeeConfigType } from '@/eco-configs/eco-config.types'
-import { BalanceService } from '@/balance/balance.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { FeeService } from '@eco-solver/fee/fee.service'
+import { FeeConfigType } from '@eco-solver/eco-configs/eco-config.types'
+import { BalanceService } from '@eco-solver/balance/balance.service'
+import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 jest.mock('@/intent/utils', () => {
   return {
     ...jest.requireActual('@/intent/utils'),
@@ -271,9 +271,9 @@ describe('ValidationService', () => {
       let mockIsNativeETH: jest.SpyInstance
 
       beforeEach(() => {
-        mockIsNativeIntent = jest.spyOn(require('@/intent/utils'), 'isNativeIntent')
-        mockEquivalentNativeGas = jest.spyOn(require('@/intent/utils'), 'equivalentNativeGas')
-        mockIsNativeETH = jest.spyOn(require('@/intent/utils'), 'isNativeETH')
+        mockIsNativeIntent = jest.spyOn(require('@eco-solver/intent/utils'), 'isNativeIntent')
+        mockEquivalentNativeGas = jest.spyOn(require('@eco-solver/intent/utils'), 'equivalentNativeGas')
+        mockIsNativeETH = jest.spyOn(require('@eco-solver/intent/utils'), 'isNativeETH')
       })
 
       afterEach(() => {
@@ -359,7 +359,7 @@ describe('ValidationService', () => {
       let mockGetFunctionTargets: jest.SpyInstance
 
       beforeEach(() => {
-        mockGetFunctionTargets = jest.spyOn(require('@/intent/utils'), 'getFunctionTargets')
+        mockGetFunctionTargets = jest.spyOn(require('@eco-solver/intent/utils'), 'getFunctionTargets')
       })
 
       afterEach(() => {

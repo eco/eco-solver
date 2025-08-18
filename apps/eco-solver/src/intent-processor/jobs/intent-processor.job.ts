@@ -1,8 +1,8 @@
-import { BaseJobManager } from '@/common/bullmq/base-job'
-import { CheckWithdrawsCronJob } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
-import { ExecuteWithdrawsJob } from '@/intent-processor/jobs/execute-withdraws.job'
-import { CheckSendBatchJob } from '@/intent-processor/jobs/send-batches-cron.job'
-import { ExecuteSendBatchJob } from '@/intent-processor/jobs/execute-send-batch.job'
+import { BaseJobManager } from '@eco-solver/common/bullmq/base-job'
+import { CheckWithdrawsCronJob } from '@eco-solver/intent-processor/jobs/withdraw-rewards-cron.job'
+import { ExecuteWithdrawsJob } from '@eco-solver/intent-processor/jobs/execute-withdraws.job'
+import { CheckSendBatchJob } from '@eco-solver/intent-processor/jobs/send-batches-cron.job'
+import { ExecuteSendBatchJob } from '@eco-solver/intent-processor/jobs/execute-send-batch.job'
 
 export type IntentProcessorJob =
   | ExecuteWithdrawsJob

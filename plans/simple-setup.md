@@ -616,7 +616,7 @@ export default config;
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "es2015",
+    "target": "es2021",
     "module": "esnext",
     "lib": ["es2020", "dom"],
     "skipLibCheck": true,

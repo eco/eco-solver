@@ -1,7 +1,7 @@
 import { HttpModule } from '@nestjs/axios'
 import { Module } from '@nestjs/common'
-import { RequestSigningModule } from '@/request-signing/request-signing.module'
-import { SolverRegistrationService } from '@/solver-registration/services/solver-registration.service'
+import { RequestSigningModule } from '@eco-solver/request-signing/request-signing.module'
+import { SolverRegistrationService } from '@eco-solver/solver-registration/services/solver-registration.service'
 
 @Module({
   imports: [

@@ -1,4 +1,4 @@
-import { ERC20Abi } from '@/contracts'
+import { ERC20Abi } from '@eco-solver/contracts'
 import { PublicClient, Address } from 'viem'
 
 const ERC20PermitAbiWithVersion = [

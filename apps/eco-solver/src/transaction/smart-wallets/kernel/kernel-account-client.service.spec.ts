@@ -1,8 +1,8 @@
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Logger } from '@nestjs/common'
-import { SignerKmsService } from '@/sign/signer-kms.service'
+import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
 
 const logger = new Logger('KernelAccountClientServiceSpec')
 

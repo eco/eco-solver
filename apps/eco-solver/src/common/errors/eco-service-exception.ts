@@ -1,8 +1,8 @@
 /* eslint-disable prettier/prettier */
 import { BadRequestException, HttpException, Logger } from '@nestjs/common'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { HttpExceptionGenerator } from '@/common/errors/http-exception-generator'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { HttpExceptionGenerator } from '@eco-solver/common/errors/http-exception-generator'
 
 export interface EcoServiceExceptionParams {
   httpExceptionClass?: new (o: object) => HttpException

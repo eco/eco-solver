@@ -1,5 +1,5 @@
 import * as SlippageCalculator from './slippage-calculator'
-import { CCTPLiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { CCTPLiFiStrategyContext } from '@eco-solver/liquidity-manager/types/types'
 
 describe('SlippageCalculator', () => {
   describe('calculateTotalSlippage', () => {
