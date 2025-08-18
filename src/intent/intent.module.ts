@@ -4,12 +4,13 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { FeasableIntentService } from './feasable-intent.service'
 import { FeeModule } from '@/fee/fee.module'
 import { FlagsModule } from '../flags/flags.module'
+import { forwardRef, Module } from '@nestjs/common'
 import { FulfillIntentService } from './fulfill-intent.service'
 import { initBullMQ } from '../bullmq/bullmq.helper'
 import { IntentFulfilledService } from '@/intent/intent-fulfilled.service'
-import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
 import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
-import { Module } from '@nestjs/common'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { MongooseModule } from '@nestjs/mongoose'
 import { ProverModule } from '../prover/prover.module'
 import { QUEUES } from '../common/redis/constants'
@@ -30,6 +31,7 @@ import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
     SolverModule,
     TransactionModule,
     initBullMQ(QUEUES.SOURCE_INTENT),
+    forwardRef(() => IntentFulfillmentModule),
   ],
   providers: [
     CreateIntentService,

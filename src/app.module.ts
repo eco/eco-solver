@@ -8,6 +8,7 @@ import { FeeModule } from '@/fee/fee.module'
 import { FlagsModule } from '@/flags/flags.module'
 import { getCurrentEnvironment } from '@/analytics/utils'
 import { HealthModule } from '@/health/health.module'
+import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
 import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
 import { IntentModule } from '@/intent/intent.module'
 import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
@@ -73,6 +74,7 @@ import { WatchModule } from '@/watch/watch.module'
     LiquidityManagerModule,
     WatchModule,
     IntentProcessorModule,
+    IntentFulfillmentModule,
     ...getPino(),
   ],
   controllers: [],

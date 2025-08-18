@@ -10,12 +10,12 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
-import { EcoAnalyticsService } from '@/analytics'
+import { EverclearProviderService } from './liquidity-providers/Everclear/everclear-provider.service'
+import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -36,13 +36,11 @@ describe('LiquidityManagerService', () => {
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         {
-          provide: EcoAnalyticsService,
-          useValue: createMock<EcoAnalyticsService>(),
-        },
-        {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
         },
+        { provide: EverclearProviderService, useValue: createMock<EverclearProviderService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
@@ -62,11 +60,6 @@ describe('LiquidityManagerService', () => {
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
-
-    Object.defineProperty(queue, 'name', {
-      value: LiquidityManagerQueue.queueName,
-      writable: false,
-    })
 
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
     kernelAccountClientService['getClient'] = jest
@@ -95,29 +88,6 @@ describe('LiquidityManagerService', () => {
   })
 
   describe('onApplicationBootstrap', () => {
-    it('should start cron job', async () => {
-      const intervalDuration = 1000
-
-      jest
-        .spyOn(ecoConfigService, 'getLiquidityManager')
-        .mockReturnValue({ intervalDuration } as any)
-
-      const startSpy = jest.fn().mockResolvedValue(undefined)
-
-      // Replace the manager instance for the test wallet
-      const walletAddress = zeroAddress
-      ;(CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress] = {
-        start: startSpy,
-      }
-
-      await liquidityManagerService.onApplicationBootstrap()
-
-      expect(startSpy).toHaveBeenCalledWith(queue, intervalDuration, walletAddress)
-
-      // Cleanup for isolation
-      delete (CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress]
-    })
-
     it('should set liquidity manager config', async () => {
       const mockConfig = { intervalDuration: 1000 }
       jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)

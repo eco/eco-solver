@@ -84,6 +84,7 @@ export type EcoConfigType = {
   cctpLiFi: CCTPLiFiConfig
   squid: SquidConfig
   CCTPV2: CCTPV2Config
+  everclear: EverclearConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -518,5 +519,9 @@ export interface CCTPLiFiConfig {
 
 export interface SquidConfig {
   integratorId: string
+  baseUrl: string
+}
+
+export interface EverclearConfig {
   baseUrl: string
 }
