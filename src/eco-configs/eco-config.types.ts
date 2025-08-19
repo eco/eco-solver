@@ -84,6 +84,7 @@ export type EcoConfigType = {
   squid: SquidConfig
   CCTPV2: CCTPV2Config
   everclear: EverclearConfig
+  gateway: GatewayConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -523,4 +524,16 @@ export interface SquidConfig {
 
 export interface EverclearConfig {
   baseUrl: string
+}
+
+export interface GatewayConfig {
+  apiUrl: string
+  enabled?: boolean
+  chains: {
+    chainId: number
+    domain: number
+    usdc: Hex
+    wallet?: Hex
+    minter?: Hex
+  }[]
 }

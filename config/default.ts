@@ -311,4 +311,24 @@ export default {
   everclear: {
     baseUrl: 'https://api.everclear.org',
   },
+
+  gateway: {
+    apiUrl: 'https://gateway-api.circle.com',
+    chains: [
+      {
+        chainId: 1,
+        domain: 0,
+        usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 8453, // Base
+        domain: 6,
+        usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+    ],
+  },
 }
