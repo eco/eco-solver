@@ -20,6 +20,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
+import { PublicNegativeIntentRebalanceService } from '@/negative-intents/services/public-negative-intent-rebalance.service'
 
 // Types & Models
 import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
@@ -181,6 +182,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: EverclearProviderService,
           useValue: createMock<EverclearProviderService>(),
+        },
+        {
+          provide: PublicNegativeIntentRebalanceService,
+          useValue: createMock<PublicNegativeIntentRebalanceService>(),
         },
         {
           provide: BalanceService,

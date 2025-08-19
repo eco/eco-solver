@@ -1,19 +1,20 @@
-import { Test, TestingModule } from '@nestjs/testing'
-import { createMock } from '@golevelup/ts-jest'
-import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
-import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
-import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
-import * as uuid from 'uuid' // import as a namespace so we can spyOn later
-import { EcoAnalyticsService } from '@/analytics'
-import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { createMock } from '@golevelup/ts-jest'
+import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
+import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
+import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
+import { PublicNegativeIntentRebalanceService } from '@/negative-intents/services/public-negative-intent-rebalance.service'
+import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
+import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
+import { TestingModule, Test } from '@nestjs/testing'
+import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 
 const walletAddr = '0xWalletAddress'
 
@@ -28,6 +29,7 @@ describe('LiquidityProviderService', () => {
   let cctpLiFiProviderService: CCTPLiFiProviderService
   let squidProviderService: SquidProviderService
   let everclearProviderService: EverclearProviderService
+  let publicNegativeIntentRebalanceService: PublicNegativeIntentRebalanceService
 
   beforeAll(() => {
     jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
@@ -51,6 +53,10 @@ describe('LiquidityProviderService', () => {
         },
         { provide: CCTPLiFiProviderService, useValue: createMock<CCTPLiFiProviderService>() },
         { provide: SquidProviderService, useValue: createMock<SquidProviderService>() },
+        {
+          provide: PublicNegativeIntentRebalanceService,
+          useValue: createMock<PublicNegativeIntentRebalanceService>(),
+        },
         { provide: CCTPV2ProviderService, useValue: createMock<CCTPV2ProviderService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
@@ -72,6 +78,9 @@ describe('LiquidityProviderService', () => {
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     squidProviderService = module.get<SquidProviderService>(SquidProviderService)
     everclearProviderService = module.get<EverclearProviderService>(EverclearProviderService)
+    publicNegativeIntentRebalanceService = module.get<PublicNegativeIntentRebalanceService>(
+      PublicNegativeIntentRebalanceService,
+    )
 
     // Set up the mock for getLiquidityManager after getting the service
     const liquidityManagerConfigMock = {
@@ -119,6 +128,9 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(cctpLiFiProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(everclearProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
+      jest
+        .spyOn(publicNegativeIntentRebalanceService, 'getQuote')
+        .mockResolvedValue(mockQuote as any)
 
       const result = await liquidityProviderService.getQuote(
         walletAddr,

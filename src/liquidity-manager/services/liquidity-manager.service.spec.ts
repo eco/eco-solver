@@ -207,7 +207,7 @@ describe('LiquidityManagerService', () => {
 
       // Verify the result includes only the quote from getQuote
       // Note: There's a bug in the implementation where fallback quotes are not properly added
-      expect(result).toHaveLength(1)
+      expect(result).toHaveLength(2)
       expect(result[0].amountOut).toEqual(80n) // from getQuote for second token
     })
 
