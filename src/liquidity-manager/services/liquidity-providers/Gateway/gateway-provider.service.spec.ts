@@ -7,6 +7,7 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { Hex } from 'viem'
+import { serialize } from '@/common/utils/serialize'
 
 describe('GatewayProviderService', () => {
   let service: GatewayProviderService
@@ -225,7 +226,7 @@ describe('GatewayProviderService', () => {
         usdc: usdc1,
         gatewayWallet: wallet1,
         depositor: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-        amount: quote.amountIn,
+        amount: serialize(quote.amountIn),
       }),
     )
   })

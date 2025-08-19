@@ -16,6 +16,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { serialize } from '@/common/utils/serialize'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -39,6 +40,46 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
 
   getStrategy() {
     return 'Gateway' as const
+  }
+
+  /**
+   * One-time bootstrap: if enabled and unified balance is zero on the configured domain,
+   * enqueue a single GATEWAY_TOP_UP with a fixed amount from Kernel via depositFor.
+   */
+  async ensureBootstrapOnce(id: string = 'bootstrap'): Promise<void> {
+    const cfg = this.configService.getGatewayConfig()
+    const bootstrap = cfg.bootstrap
+    if (!bootstrap?.enabled) return
+
+    const chain = cfg.chains.find((c) => c.chainId === bootstrap.chainId)
+    if (!chain) return
+
+    const depositor = (await this.walletClientService.getAccount()).address as Hex
+    // Check balance on the unified account for this domain
+    const bal = await this.client.getBalances({
+      token: 'USDC',
+      sources: [{ domain: chain.domain, depositor }],
+    })
+    const entry = bal.balances.find((b) => b.domain === chain.domain)
+    const isZero = !entry || entry.balance === '0'
+    if (!isZero) return
+
+    // Resolve GatewayWallet address
+    const gatewayInfo = await this.getSupportedDomains(false)
+    const walletAddr =
+      (chain.wallet as Hex | undefined) ||
+      (gatewayInfo.find((d) => d.domain === chain.domain)?.wallet as Hex | undefined)
+    if (!walletAddr) return
+
+    const amount = BigInt(bootstrap.amountBase6)
+    await this.liquidityManagerQueue.startGatewayTopUp({
+      chainId: chain.chainId,
+      usdc: chain.usdc,
+      gatewayWallet: walletAddr,
+      amount: serialize(amount),
+      depositor,
+      id,
+    })
   }
 
   async getQuote(
@@ -228,7 +269,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         chainId: quote.tokenIn.chainId,
         usdc: inChainTopUp.usdc,
         gatewayWallet: walletAddr,
-        amount: quote.amountIn,
+        amount: serialize(quote.amountIn),
         depositor: eoaAddress,
         id,
       })

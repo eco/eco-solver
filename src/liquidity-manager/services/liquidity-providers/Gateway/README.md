@@ -11,6 +11,7 @@ Circle Gateway is used as a zero-slippage USDC cross-chain primitive. This strat
 - ABIs: `src/liquidity-manager/services/liquidity-providers/Gateway/constants/abis.ts`
 - Errors: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway.errors.ts`
 - Top-up job: `src/liquidity-manager/jobs/gateway-topup.job.ts`
+  - One-time bootstrap: `ensureBootstrapOnce()` in the provider (see below)
 
 #### Prerequisites
 
@@ -27,6 +28,11 @@ Add a `gateway` section and enable the strategy for the solver wallet via `liqui
 export interface GatewayConfig {
   apiUrl: string
   enabled?: boolean
+  bootstrap?: {
+    enabled: boolean
+    chainId: number // source chain to deposit from
+    amountBase6: string // fixed deposit (USDC base-6)
+  }
   chains: { chainId: number; domain: number; usdc: Hex; wallet?: Hex; minter?: Hex }[]
 }
 ```
@@ -35,6 +41,11 @@ Notes:
 
 - `wallet` (GatewayWallet) and `minter` (GatewayMinter) are optional overrides. The provider resolves these from the Gateway Info API by default and only uses config values if present.
 - No API key is required; requests are unauthenticated.
+
+Bootstrap config:
+
+- If `bootstrap.enabled` is true, on application startup the provider checks the depositor’s unified USDC balance on the configured domain. If it is zero, it enqueues a single `GATEWAY_TOP_UP` for `amountBase6` from Kernel via `depositFor`, then stops.
+- Depositor is the default signer (EOA); funds are spent by Kernel.
 
 #### How it works
 
@@ -57,6 +68,12 @@ Notes:
 - Kernel executes a batch: `ERC20.approve(GatewayWallet, amount)` + `GatewayWallet.depositFor(USDC, depositor=EOA, amount)`
 - Waits for receipt to mark the job complete
 
+4. Bootstrap deposit (optional)
+
+- Implemented in `ensureBootstrapOnce()` on the provider.
+- On boot: if `gateway.bootstrap.enabled` and `/v1/balances` shows zero for `{ domain, depositor }`, enqueue a single `GATEWAY_TOP_UP` with `id: 'bootstrap'`.
+- Uses configured `bootstrap.chainId` and `bootstrap.amountBase6`.
+
 #### Error handling & caching
 
 - Non-200 API responses throw `GatewayApiError` with `status` and response body
@@ -72,6 +89,7 @@ Add `'Gateway'` to the solver wallet strategies (e.g., `eco-wallet`) in `liquidi
 - Unit tests: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway-provider.service.spec.ts`
   - Quote validations and zero-slippage
   - Build typed data → sign → attestation → mint flow and top‑up enqueue
+  - Bootstrap: ensures enqueue is gated by zero balance
 
 #### References
 

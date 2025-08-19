@@ -1,5 +1,6 @@
 import { Queue } from 'bullmq'
 import { Hex, encodeFunctionData, erc20Abi } from 'viem'
+import { Serialize, deserialize } from '@/common/utils/serialize'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
@@ -13,7 +14,7 @@ export interface GatewayTopUpJobData {
   chainId: number
   usdc: Hex
   gatewayWallet: Hex
-  amount: bigint
+  amount: Serialize<bigint>
   depositor: Hex
   id?: string
   [k: string]: unknown
@@ -27,8 +28,9 @@ export type GatewayTopUpJob = LiquidityManagerJob<
 
 export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTopUpJob> {
   static async start(queue: Queue, data: GatewayTopUpJobData): Promise<void> {
+    const amountStr = (deserialize(data.amount) as bigint).toString()
     await queue.add(LiquidityManagerJobName.GATEWAY_TOP_UP, data, {
-      jobId: `${LiquidityManagerJobName.GATEWAY_TOP_UP}-${data.id}-${data.chainId}-${data.amount.toString()}`,
+      jobId: `${LiquidityManagerJobName.GATEWAY_TOP_UP}-${data.id}-${data.chainId}-${amountStr}`,
       removeOnComplete: true,
       removeOnFail: true,
       attempts: 3,
@@ -41,7 +43,8 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
   }
 
   async process(job: GatewayTopUpJob, processor: LiquidityManagerProcessor): Promise<Hex> {
-    const { chainId, usdc, gatewayWallet, amount, id } = job.data
+    const { chainId, usdc, gatewayWallet, id } = job.data
+    const amount = deserialize(job.data.amount) as bigint
 
     processor.logger.debug(
       EcoLogMessage.withId({

@@ -529,6 +529,11 @@ export interface EverclearConfig {
 export interface GatewayConfig {
   apiUrl: string
   enabled?: boolean
+  bootstrap?: {
+    enabled: boolean
+    chainId: number
+    amountBase6: string
+  }
   chains: {
     chainId: number
     domain: number
