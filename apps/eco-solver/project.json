@@ -56,20 +56,35 @@
       "dependsOn": ["build"],
       "options": {
         "buildTarget": "eco-solver:build",
-        "runBuildTargetDependencies": false
+        "runBuildTargetDependencies": false,
+        "env": {
+          "NODE_CONFIG_DIR": "apps/eco-solver/config"
+        }
       },
       "configurations": {
         "development": {
-          "buildTarget": "eco-solver:build:development"
+          "buildTarget": "eco-solver:build:development",
+          "env": {
+            "NODE_CONFIG_DIR": "apps/eco-solver/config"
+          }
         },
         "production": {
-          "buildTarget": "eco-solver:build:production"
+          "buildTarget": "eco-solver:build:production",
+          "env": {
+            "NODE_CONFIG_DIR": "apps/eco-solver/config"
+          }
         },
         "preproduction": {
-          "buildTarget": "eco-solver:build:preproduction"
+          "buildTarget": "eco-solver:build:preproduction",
+          "env": {
+            "NODE_CONFIG_DIR": "apps/eco-solver/config"
+          }
         },
         "staging": {
-          "buildTarget": "eco-solver:build:staging"
+          "buildTarget": "eco-solver:build:staging",
+          "env": {
+            "NODE_CONFIG_DIR": "apps/eco-solver/config"
+          }
         }
       }
     },
@@ -82,7 +97,10 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "ts-node src/commander/command-main.ts",
-        "cwd": "apps/eco-solver"
+        "cwd": "apps/eco-solver",
+        "env": {
+          "NODE_CONFIG_DIR": "./config"
+        }
       }
     }
   }
