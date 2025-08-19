@@ -259,7 +259,7 @@ export async function executorTransferERC20Token<
     abi: OwnableExecutorAbi,
     functionName: 'executeOnOwnedAccount',
     args: [client.kernelAccount.address, packed], //the owned account is the kernel account
-    account: client.kernelAccount.client.account, //assumes the kernel account signer is the owner of the executor for the kernel contract
+    account: (client.kernelAccount.client as WalletClient<Transport, Chain | undefined, Account>).account, //assumes the kernel account signer is the owner of the executor for the kernel contract
   })
 
   logger.log(

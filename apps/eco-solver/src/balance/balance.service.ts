@@ -58,7 +58,7 @@ export class BalanceService implements OnApplicationBootstrap {
       }),
     )
 
-    const intent = decodeTransferLog(balanceEvent.data, balanceEvent.topics)
+    const intent = decodeTransferLog(balanceEvent.data, (balanceEvent as any).topics)
     const key = getDestinationNetworkAddressKey(balanceEvent.sourceChainID, balanceEvent.address)
     const balanceObj = this.tokenBalances.get(key)
     if (balanceObj) {
