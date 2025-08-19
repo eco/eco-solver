@@ -81,6 +81,10 @@ describe('LiquidityManagerService', () => {
       'eco-wallet': ['LiFi', 'WarpRoute', 'CCTPLiFi'],
     },
     swapSlippage: 0.01,
+    negativeIntents: {
+      rebalancingPercentage: 0.05,
+      deadlineDuration: 5_400,
+    },
   } as LiquidityManagerConfig
 
   afterEach(() => {
