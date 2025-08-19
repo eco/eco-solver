@@ -1,0 +1,46 @@
+import { GatewayHttpClient } from './gateway-client'
+
+// These tests hit Circle Gateway testnet endpoints. Set GATEWAY_API_URL to override if needed.
+// Default: https://gateway-api-testnet.circle.com
+
+describe('GatewayHttpClient (integration)', () => {
+  const baseUrl = process.env.GATEWAY_API_URL || 'https://gateway-api-testnet.circle.com'
+  const client = new GatewayHttpClient(baseUrl)
+
+  // Allow enough time for network calls
+  jest.setTimeout(30000)
+
+  it('getInfo returns domains with expected shape', async () => {
+    const res = await client.getInfo()
+    expect(res).toBeDefined()
+    expect(Array.isArray(res.domains)).toBe(true)
+    expect(res.domains.length).toBeGreaterThan(0)
+
+    const d = res.domains[0]
+    expect(typeof d.domain).toBe('number')
+    expect(typeof d.chain).toBe('string')
+    expect(typeof d.network).toBe('string')
+    // walletContract/minterContract may be undefined depending on domain/role
+  })
+
+  it('getBalances returns balances array for a depositor/domain', async () => {
+    const info = await client.getInfo()
+    const anyDomain = info.domains.find((x) => typeof x.domain === 'number')?.domain
+    expect(typeof anyDomain).toBe('number')
+
+    // Use a placeholder depositor. Expect balance entry to exist (likely 0) and be a numeric string
+    const depositor = '0x000000000000000000000000000000000000dEaD'
+    const resp = await client.getBalances({
+      token: 'USDC',
+      sources: [{ domain: anyDomain!, depositor }],
+    })
+    expect(resp).toBeDefined()
+    expect(Array.isArray(resp.balances)).toBe(true)
+
+    const entry = resp.balances.find((b) => b.domain === anyDomain)
+    // Some environments may echo back only provided sources; ensure we can parse the balance string
+    expect(entry).toBeDefined()
+    expect(typeof entry!.balance).toBe('string')
+    expect(/^[0-9]+$/.test(entry!.balance)).toBe(true)
+  })
+})

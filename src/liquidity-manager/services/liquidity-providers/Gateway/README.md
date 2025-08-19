@@ -46,7 +46,7 @@ Notes:
 
 2. Execute (`execute`)
 
-- Uses `/v1/encode` to obtain EIP‑712 typed data (burn intent) with API-populated fields like `maxBlockHeight` and `maxFee`
+- Builds the EIP‑712 burn intent locally (the `/v1/encode` endpoint is currently unavailable). Uses conservative defaults for `maxBlockHeight` and `maxFee`.
 - Signs burn intent with the solver EOA from `WalletClientDefaultSignerService`
 - Submits to `/v1/transfers/attestations` and receives `{ attestation, signature, transferId }`
 - Calls destination `GatewayMinter.gatewayMint(attestation, signature)`
@@ -71,12 +71,11 @@ Add `'Gateway'` to the solver wallet strategies (e.g., `eco-wallet`) in `liquidi
 
 - Unit tests: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway-provider.service.spec.ts`
   - Quote validations and zero-slippage
-  - Encode → sign → attestation → mint flow and top‑up enqueue
+  - Build typed data → sign → attestation → mint flow and top‑up enqueue
 
 #### References
 
 - Gateway overview: https://developers.circle.com/gateway
 - Supported endpoints:
   - `/v1/info`
-  - `/v1/encode`
   - `/v1/transfers/attestations`

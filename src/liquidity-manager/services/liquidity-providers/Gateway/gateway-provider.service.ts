@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { Hex, isAddressEqual, parseUnits } from 'viem'
+import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -150,54 +150,44 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     // 0) Re-validate sufficient unified balance (protect against race conditions)
     await this.ensureSufficientUnifiedBalance(sourceDomain, amountBase6)
 
-    // 1) Call encode endpoint to build typed data with populated fee/expiry
-    const decimalValue = this.formatDecimal(amountBase6, 6)
-    const encodeResp = await this.client.encodeBurnIntents({
-      token: 'USDC',
-      value: decimalValue,
-      destination: { domain: destinationDomain, recipient: kernelAddress },
-      sources: [
-        {
-          domain: sourceDomain,
-          value: decimalValue,
-          depositor: eoaAddress,
-          signer: eoaAddress,
-        },
-      ],
+    // 1) Build EIP-712 burn-intent typed data locally (encode endpoint not available)
+    const sourceWallet = await this.getWalletAddress(sourceDomain)
+    const destinationMinter = await this.getMinterAddress(destinationDomain)
+    const typedData = this.buildBurnIntentTypedData({
+      sourceDomain,
+      destinationDomain,
+      sourceContract: sourceWallet,
+      destinationContract: destinationMinter,
+      sourceToken: inChainCfg.usdc,
+      destinationToken: outChainCfg.usdc,
+      sourceDepositor: eoaAddress,
+      destinationRecipient: kernelAddress,
+      sourceSigner: eoaAddress,
+      destinationCaller: '0x0000000000000000000000000000000000000000' as Hex,
+      value: amountBase6,
+      // Basic salt to ensure uniqueness; can be improved later
+      salt: keccak256(
+        toHex(`${Date.now()}-${id ?? ''}-${eoaAddress}-${amountBase6.toString()}`),
+      ) as Hex,
+      hookData: '0x',
+      // Conservative defaults if encode is unavailable
+      maxBlockHeight: BigInt(10_000_000_000),
+      maxFee: 0n,
     })
 
-    if ((encodeResp as any)?.success === false) {
-      throw new Error(`Gateway encode error: ${(encodeResp as any).message}`)
-    }
-
-    const burnIntents = (encodeResp as any).burnIntents as Array<{
-      intent: any
-      signer: string
-    }>
-
-    if (!burnIntents?.length) {
-      throw new Error('Gateway encode returned no burn intents')
-    }
-
-    // 2) Sign the EIP-712 intent(s)
+    // 2) Sign the EIP-712 intent
     const signerClient = await this.walletClientService.getClient(quote.tokenIn.chainId)
-    const signatures: Hex[] = []
-    for (const bi of burnIntents) {
-      const intent = bi.intent
-      if (typeof intent === 'string') {
-        throw new Error('Gateway encode returned byte-encoded intent for EVM domain')
-      }
-      const sig: Hex = await (signerClient as any).signTypedData(intent)
-      signatures.push(sig)
-    }
+    const signature: Hex = await (signerClient as any).signTypedData(typedData)
 
     // 3) Request attestation from Gateway API
     const attestationResp = await this.client.createTransferAttestation({
-      burnIntents: burnIntents.map((bi, i) => ({
-        intent: bi.intent,
-        signer: bi.signer,
-        signature: signatures[i],
-      })),
+      burnIntents: [
+        {
+          intent: typedData as any,
+          signer: eoaAddress,
+          signature,
+        },
+      ],
     })
     if ('message' in attestationResp) {
       throw new Error(`Gateway attestation error: ${attestationResp.message}`)
@@ -346,6 +336,93 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         domain,
         depositor,
       })
+    }
+  }
+
+  private async getWalletAddress(sourceDomain: number): Promise<Hex> {
+    const cfg = this.configService.getGatewayConfig()
+    const fromConfig = cfg.chains.find((c) => c.domain === sourceDomain)?.wallet as Hex | undefined
+    if (fromConfig) return fromConfig
+    const domains = await this.getSupportedDomains(false)
+    const match = domains.find((d) => d.domain === sourceDomain)
+    if (!match?.wallet) throw new Error(`Gateway wallet not found for domain ${sourceDomain}`)
+    return match.wallet as Hex
+  }
+
+  private buildBurnIntentTypedData(params: {
+    sourceDomain: number
+    destinationDomain: number
+    sourceContract: Hex
+    destinationContract: Hex
+    sourceToken: Hex
+    destinationToken: Hex
+    sourceDepositor: Hex
+    destinationRecipient: Hex
+    sourceSigner: Hex
+    destinationCaller: Hex
+    value: bigint
+    salt: Hex
+    hookData: Hex
+    maxBlockHeight: bigint
+    maxFee: bigint
+  }) {
+    const toBytes32 = (addr: Hex) => pad(addr, { size: 32 })
+    const types = {
+      EIP712Domain: [
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+      ],
+      TransferSpec: [
+        { name: 'version', type: 'uint32' },
+        { name: 'sourceDomain', type: 'uint32' },
+        { name: 'destinationDomain', type: 'uint32' },
+        { name: 'sourceContract', type: 'bytes32' },
+        { name: 'destinationContract', type: 'bytes32' },
+        { name: 'sourceToken', type: 'bytes32' },
+        { name: 'destinationToken', type: 'bytes32' },
+        { name: 'sourceDepositor', type: 'bytes32' },
+        { name: 'destinationRecipient', type: 'bytes32' },
+        { name: 'sourceSigner', type: 'bytes32' },
+        { name: 'destinationCaller', type: 'bytes32' },
+        { name: 'value', type: 'uint256' },
+        { name: 'salt', type: 'bytes32' },
+        { name: 'hookData', type: 'bytes' },
+      ],
+      BurnIntent: [
+        { name: 'maxBlockHeight', type: 'uint256' },
+        { name: 'maxFee', type: 'uint256' },
+        { name: 'spec', type: 'TransferSpec' },
+      ],
+    } as const
+
+    const domain = { name: 'GatewayWallet', version: '1' } as const
+
+    const message = {
+      maxBlockHeight: params.maxBlockHeight.toString(),
+      maxFee: params.maxFee.toString(),
+      spec: {
+        version: 1,
+        sourceDomain: params.sourceDomain,
+        destinationDomain: params.destinationDomain,
+        sourceContract: toBytes32(params.sourceContract),
+        destinationContract: toBytes32(params.destinationContract),
+        sourceToken: toBytes32(params.sourceToken),
+        destinationToken: toBytes32(params.destinationToken),
+        sourceDepositor: toBytes32(params.sourceDepositor),
+        destinationRecipient: toBytes32(params.destinationRecipient),
+        sourceSigner: toBytes32(params.sourceSigner),
+        destinationCaller: toBytes32(params.destinationCaller),
+        value: params.value.toString(),
+        salt: params.salt,
+        hookData: params.hookData,
+      },
+    }
+
+    return {
+      types,
+      domain,
+      primaryType: 'BurnIntent',
+      message,
     }
   }
 }

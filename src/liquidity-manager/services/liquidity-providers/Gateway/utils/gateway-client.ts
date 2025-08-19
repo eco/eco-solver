@@ -105,7 +105,12 @@ export class GatewayHttpClient {
   async getInfo(): Promise<GatewayInfoResponse> {
     const res = await fetch(new URL('/v1/info', this.baseUrl))
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
+      let text = ''
+      try {
+        text = (await res.text()) as any
+      } catch (_) {
+        text = ''
+      }
       throw new GatewayApiError('Gateway info failed', res.status, {
         endpoint: '/v1/info',
         body: text,
@@ -121,7 +126,12 @@ export class GatewayHttpClient {
       body: JSON.stringify(req),
     })
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
+      let text = ''
+      try {
+        text = (await res.text()) as any
+      } catch (_) {
+        text = ''
+      }
       throw new GatewayApiError('Gateway balances failed', res.status, {
         endpoint: '/v1/balances',
         body: text,
@@ -130,20 +140,9 @@ export class GatewayHttpClient {
     return res.json()
   }
 
-  async encodeBurnIntents(payload: EncodeRequest): Promise<EncodeResponse> {
-    const res = await fetch(new URL('/v1/encode', this.baseUrl), {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify(payload),
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new GatewayApiError('Gateway encode failed', res.status, {
-        endpoint: '/v1/encode',
-        body: text,
-      })
-    }
-    return res.json()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async encodeBurnIntents(_payload: EncodeRequest): Promise<EncodeResponse> {
+    throw new Error('encodeBurnIntents endpoint is not available')
   }
 
   async createTransferAttestation(payload: TransferRequest): Promise<TransferAttestationResponse> {
@@ -153,7 +152,12 @@ export class GatewayHttpClient {
       body: JSON.stringify(payload),
     })
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
+      let text = ''
+      try {
+        text = (await res.text()) as any
+      } catch (_) {
+        text = ''
+      }
       throw new GatewayApiError('Gateway attestation failed', res.status, {
         endpoint: '/v1/transfers/attestations',
         body: text,

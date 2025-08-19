@@ -14,7 +14,9 @@ export class GatewayApiError extends GatewayError {
     public readonly status: number,
     context?: Record<string, any>,
   ) {
-    super(message, context)
+    const bodyText =
+      context && typeof context.body === 'string' && context.body.length ? ` ${context.body}` : ''
+    super(`${message}: ${status}${bodyText}`, context)
     this.name = 'GatewayApiError'
   }
 }

@@ -13,6 +13,9 @@ describe('GatewayProviderService', () => {
   let configService: jest.Mocked<EcoConfigService>
   let walletClient: jest.Mocked<WalletClientDefaultSignerService>
   let kernelClient: jest.Mocked<KernelAccountClientService>
+  let sourceSigner: { signTypedData: jest.Mock }
+  let destSigner: { writeContract: jest.Mock }
+  let destPublic: { waitForTransactionReceipt: jest.Mock }
 
   const sourceChainId = 1
   const destinationChainId = 2
@@ -172,9 +175,9 @@ describe('GatewayProviderService', () => {
       address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
     } as any)
 
-    const sourceSigner = { signTypedData: jest.fn().mockResolvedValue('0xsigned') }
-    const destSigner = { writeContract: jest.fn().mockResolvedValue('0xtx' as Hex) }
-    const destPublic = { waitForTransactionReceipt: jest.fn().mockResolvedValue({}) }
+    sourceSigner = { signTypedData: jest.fn().mockResolvedValue('0xsigned') }
+    destSigner = { writeContract: jest.fn().mockResolvedValue('0xtx' as Hex) }
+    destPublic = { waitForTransactionReceipt: jest.fn().mockResolvedValue({}) }
 
     walletClient.getClient.mockImplementation(async (chainId: number) => {
       if (chainId === sourceChainId) return sourceSigner as any
@@ -211,8 +214,8 @@ describe('GatewayProviderService', () => {
 
     expect(txHash).toBe('0xtx')
 
-    // encode was called with expected payload
-    expect((service as any).client.encodeBurnIntents).toHaveBeenCalled()
+    // signTypedData was called to sign the locally built EIP-712 intent
+    expect(sourceSigner.signTypedData).toHaveBeenCalled()
     // attestation requested
     expect((service as any).client.createTransferAttestation).toHaveBeenCalled()
     // top-up enqueued
