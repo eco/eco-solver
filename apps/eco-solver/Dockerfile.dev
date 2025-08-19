@@ -1,0 +1,23 @@
+FROM node:20-alpine
+
+# Install pnpm globally
+RUN corepack enable pnpm
+
+WORKDIR /usr/src/app
+
+# Install dependencies first (for better Docker layer caching)
+COPY package*.json pnpm-lock.yaml ./
+COPY nx.json ./
+COPY tsconfig.base.json ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy the entire workspace for development
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start in development mode
+CMD ["pnpm", "nx", "serve", "eco-solver", "--host", "0.0.0.0"]

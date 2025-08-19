@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  eco-solver:
+    build:
+      context: .
+      dockerfile: apps/eco-solver/Dockerfile
+    container_name: eco-solver-app
+    ports:
+      - '3000:3000'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NODE_CONFIG_DIR: apps/eco-solver/config
+      NODE_CONFIG: |
+        {
+          "database": {
+            "auth": {
+              "enabled": false
+            },
+            "uriPrefix": "mongodb://",
+            "uri": "mongodb:27017",
+            "dbName": "eco-solver-local"
+          },
+          "redis": {
+            "connection": {
+              "host": "redis",
+              "port": 6379
+            }
+          }
+        }
+    restart: unless-stopped
+    networks:
+      - eco-solver-network
+
+  mongodb:
+    image: mongo:8.0
+    container_name: eco-solver-mongodb
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=eco-solver-local
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - eco-solver-network
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: eco-solver-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - eco-solver-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  eco-solver-network:
+    driver: bridge
