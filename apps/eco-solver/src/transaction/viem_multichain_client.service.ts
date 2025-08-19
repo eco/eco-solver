@@ -72,7 +72,7 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
     }
 
     const wallet = await this.getClient(Object.values(solvers)[0].chainID)
-    return (wallet as Client & { account?: Account }).account?.address || zeroAddress
+    return (wallet as any).account?.address || zeroAddress
   }
 
   private setChainConfigs() {
