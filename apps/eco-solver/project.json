@@ -51,40 +51,24 @@
     },
     "serve": {
       "continuous": true,
-      "executor": "@nx/js:node",
+      "executor": "nx:run-commands",
       "defaultConfiguration": "development",
       "dependsOn": ["build"],
       "options": {
-        "buildTarget": "eco-solver:build",
-        "runBuildTargetDependencies": false,
-        "env": {
-          "NODE_CONFIG_DIR": "apps/eco-solver/config"
-        }
+        "command": "NODE_CONFIG_DIR=apps/eco-solver/config node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
       },
       "configurations": {
         "development": {
-          "buildTarget": "eco-solver:build:development",
-          "env": {
-            "NODE_CONFIG_DIR": "apps/eco-solver/config"
-          }
+          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=development node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
         },
         "production": {
-          "buildTarget": "eco-solver:build:production",
-          "env": {
-            "NODE_CONFIG_DIR": "apps/eco-solver/config"
-          }
+          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=production node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
         },
         "preproduction": {
-          "buildTarget": "eco-solver:build:preproduction",
-          "env": {
-            "NODE_CONFIG_DIR": "apps/eco-solver/config"
-          }
+          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=preproduction node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
         },
         "staging": {
-          "buildTarget": "eco-solver:build:staging",
-          "env": {
-            "NODE_CONFIG_DIR": "apps/eco-solver/config"
-          }
+          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=staging node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
         }
       }
     },
