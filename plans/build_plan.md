@@ -208,32 +208,33 @@
 **Step 1: Create .env files for Nx configuration loading**
 ```bash
 # apps/eco-solver/.env.development
-NODE_ENV=development
 NODE_CONFIG_DIR=./config
 NX_PUBLIC_API_URL=http://localhost:3000
 
 # apps/eco-solver/.env.production  
-NODE_ENV=production
 NODE_CONFIG_DIR=./config
 NX_PUBLIC_API_URL=https://api.production.com
 
 # apps/eco-solver/.env.staging
-NODE_ENV=staging
 NODE_CONFIG_DIR=./config
 NX_PUBLIC_API_URL=https://api.staging.com
 
 # apps/eco-solver/.env.preproduction
-NODE_ENV=preproduction
 NODE_CONFIG_DIR=./config
 NX_PUBLIC_API_URL=https://api.preprod.com
 ```
 
+**Architecture Decision: Separation of Concerns**
+- **Build-time environment**: Managed through `fileReplacements` in Nx build configurations
+- **Runtime environment**: `NODE_ENV` set explicitly in serve target configurations  
+- **Configuration variables**: `NODE_CONFIG_DIR` and `NX_PUBLIC_*` managed through .env files
+- **No redundant NODE_ENV in .env files** since environment context is established through fileReplacements
+
 **Step 2: Create simplified environment files**
 ```typescript
-// apps/eco-solver/src/environments/environment.ts
+// apps/eco-solver/src/environments/environment.ts (Base/Development)
 export const environment = {
   production: false,
-  nodeEnv: process.env.NODE_ENV || 'development',
   configDir: process.env.NODE_CONFIG_DIR || './config',
   apiUrl: process.env.NX_PUBLIC_API_URL || 'http://localhost:3000'
 };
@@ -241,13 +242,26 @@ export const environment = {
 // apps/eco-solver/src/environments/environment.production.ts
 export const environment = {
   production: true,
-  nodeEnv: process.env.NODE_ENV || 'production',
   configDir: process.env.NODE_CONFIG_DIR || './config',
   apiUrl: process.env.NX_PUBLIC_API_URL || 'https://api.production.com'
 };
 
-// Similar simplified files for staging.ts, preproduction.ts
+// apps/eco-solver/src/environments/environment.staging.ts
+export const environment = {
+  production: false, // Staging is not production
+  configDir: process.env.NODE_CONFIG_DIR || './config',
+  apiUrl: process.env.NX_PUBLIC_API_URL || 'https://api.staging.com'
+};
+
+// apps/eco-solver/src/environments/environment.preproduction.ts
+export const environment = {
+  production: false, // Preproduction is not production
+  configDir: process.env.NODE_CONFIG_DIR || './config',
+  apiUrl: process.env.NX_PUBLIC_API_URL || 'https://api.preprod.com'
+};
 ```
+
+**Note**: Removed `nodeEnv` property since `NODE_ENV` is runtime-specific and handled by Node.js execution context, not build-time configuration.
 
 ### Phase 1.5: Install Required Dependencies (CRITICAL)
 
