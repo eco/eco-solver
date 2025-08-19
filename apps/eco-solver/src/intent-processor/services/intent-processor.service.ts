@@ -257,6 +257,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       address: intentSourceAddr,
       args: [intents],
       functionName: 'batchWithdraw',
+      chain: publicClient.chain,
     })
 
     this.logger.debug(
@@ -303,7 +304,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     const transaction = this.sendTransactions(chainId, sendBatchTransactions)
 
-    const txHash = await walletClient.sendTransaction(transaction)
+    const txHash = await walletClient.sendTransaction({
+      ...transaction,
+      chain: publicClient.chain,
+    } as any)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

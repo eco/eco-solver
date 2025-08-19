@@ -51,7 +51,7 @@ export const adaptKernelWallet = (
           : undefined,
         account: kernelClient.account as Account,
         chain: kernelClient.chain as Chain,
-      })
+      } as any)
     },
 
     // Handle transaction confirmation

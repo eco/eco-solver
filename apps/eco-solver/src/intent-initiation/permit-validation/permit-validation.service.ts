@@ -27,7 +27,7 @@ export class PermitValidationService {
 
   private async getClient(chainID: number): Promise<PublicClient> {
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainID)
-    return publicClient.extend(publicActions)
+    return publicClient as PublicClient
   }
 
   async validatePermits(validationArgs: PermitValidationArgs): Promise<EcoResponse<void>> {

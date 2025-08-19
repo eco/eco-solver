@@ -403,7 +403,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         chainId: response.chainId,
         nonce: response.nonce,
         to: response.to as Hex,
-        value: BigInt(response.value.hex ?? response.value ?? 0),
+        value: BigInt((response.value as any)?.hex ?? response.value ?? 0),
         data: response.data as Hex,
         gas: BigInt(response.gasLimit),
         maxFeePerGas: BigInt(response.maxFeePerGas),

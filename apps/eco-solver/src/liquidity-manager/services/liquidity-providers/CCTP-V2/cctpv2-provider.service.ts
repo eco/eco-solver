@@ -315,6 +315,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       address: v2ChainConfig.messageTransmitter,
       functionName: 'receiveMessage',
       args: [messageBody, attestation],
+      chain: publicClient.chain,
     })
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })

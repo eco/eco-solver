@@ -23,7 +23,7 @@ export class KmsService implements OnModuleInit {
   async onModuleInit() {
     const kmsConfig = this.ecoConfigService.getKmsConfig()
     if (!kmsConfig) {
-      throw EcoError.KmsCredentialsError(kmsConfig)
+      throw EcoError.KmsCredentialsError(kmsConfig as any)
     }
     this.keyID = kmsConfig.keyID
 
