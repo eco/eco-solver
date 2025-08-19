@@ -329,6 +329,34 @@ export default {
         wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
         minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
       },
+      {
+        chainId: 10, // Optimism
+        domain: 2,
+        usdc: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 42161, // Arbitrum
+        domain: 3,
+        usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 137, // Polygon PoS
+        domain: 7,
+        usdc: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 130, // Unichain
+        domain: 10,
+        usdc: '0x078D782b760474a361dDA0AF3839290b0EF57AD6',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
     ],
   },
 }
