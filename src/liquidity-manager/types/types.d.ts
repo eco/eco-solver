@@ -44,6 +44,7 @@ type GatewayStrategyContext = {
   sourceDomain: number
   destinationDomain: number
   amountBase6: bigint
+  sources?: { domain: number; amountBase6: bigint }[]
   transferId?: Hex | string
   attestation?: Hex
   signature?: Hex

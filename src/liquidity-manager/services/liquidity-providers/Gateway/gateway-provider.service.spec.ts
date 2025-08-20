@@ -22,8 +22,10 @@ describe('GatewayProviderService', () => {
   const destinationChainId = 2
   const sourceDomain = 100
   const destinationDomain = 200
+  const extraSourceDomain = 300
   const usdc1 = '0x1111111111111111111111111111111111111111' as Hex
   const usdc2 = '0x2222222222222222222222222222222222222222' as Hex
+  const usdc3 = '0x3333333333333333333333333333333333333333' as Hex
   const wallet1 = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex
   const minter2 = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
 
@@ -51,6 +53,12 @@ describe('GatewayProviderService', () => {
                   domain: destinationDomain,
                   usdc: usdc2,
                   minter: minter2,
+                },
+                {
+                  chainId: 3,
+                  domain: extraSourceDomain,
+                  usdc: usdc3,
+                  wallet: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
                 },
               ],
             }),
@@ -144,15 +152,21 @@ describe('GatewayProviderService', () => {
     }
 
     ;(service as any).client = {
-      getBalances: jest.fn().mockResolvedValue({
-        balances: [
-          { domain: sourceDomain, balance: '1000000' }, // plenty of balance
-        ],
+      getBalances: jest.fn(),
+      getBalancesForDepositor: jest.fn().mockResolvedValue({
+        token: 'USDC',
+        balances: [{ domain: sourceDomain, depositor: '0xeeee', balance: '1000000' }],
       }),
       getInfo: jest.fn().mockResolvedValue({
         domains: [
           { chain: 'src', network: 'test', domain: sourceDomain, walletContract: wallet1 },
           { chain: 'dst', network: 'test', domain: destinationDomain, minterContract: minter2 },
+          {
+            chain: 'src2',
+            network: 'test',
+            domain: extraSourceDomain,
+            walletContract: '0xcccccccccccccccccccccccccccccccccccccccc',
+          },
         ],
       }),
       encodeBurnIntents: jest.fn().mockResolvedValue({
@@ -229,5 +243,47 @@ describe('GatewayProviderService', () => {
         amount: serialize(quote.amountIn),
       }),
     )
+  })
+
+  it('getQuote returns multi-source context when balance spans domains', async () => {
+    // Arrange: two domains contributing to 1 USDC total
+    ;(service as any).client.getBalancesForDepositor.mockResolvedValue({
+      token: 'USDC',
+      balances: [
+        { domain: sourceDomain, depositor: '0xeeee', balance: '0.7' },
+        { domain: extraSourceDomain, depositor: '0xeeee', balance: '0.5' },
+      ],
+    })
+
+    const tokenIn = buildTokenData(sourceChainId, usdc1)
+    const tokenOut = buildTokenData(destinationChainId, usdc2)
+
+    const quote = await service.getQuote(tokenIn as any, tokenOut as any, 1, 'id-multi')
+
+    expect(quote.context.sources).toBeDefined()
+    expect(quote.context.sources!.length).toBeGreaterThan(1)
+    const sum = quote.context.sources!.reduce((acc, s) => acc + s.amountBase6, 0n)
+    expect(sum).toEqual(quote.context.amountBase6)
+  })
+
+  it('execute builds multiple intents and posts array when context.sources present', async () => {
+    // Arrange: make getQuote produce multi-sources then execute
+    ;(service as any).client.getBalancesForDepositor.mockResolvedValueOnce({
+      token: 'USDC',
+      balances: [
+        { domain: sourceDomain, depositor: '0xeeee', balance: '0.7' },
+        { domain: extraSourceDomain, depositor: '0xeeee', balance: '0.5' },
+      ],
+    })
+
+    const tokenIn = buildTokenData(sourceChainId, usdc1)
+    const tokenOut = buildTokenData(destinationChainId, usdc2)
+    const quote = await service.getQuote(tokenIn as any, tokenOut as any, 1, 'id-exec-multi')
+
+    await service.execute('0xwallet', quote)
+
+    const callArg = (service as any).client.createTransferAttestation.mock.calls[0][0]
+    expect(Array.isArray(callArg)).toBe(true)
+    expect(callArg.length).toBe(quote.context.sources!.length)
   })
 })

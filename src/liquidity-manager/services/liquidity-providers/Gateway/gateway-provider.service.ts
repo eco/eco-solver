@@ -138,16 +138,54 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     await this.ensureDomainsSupported(inChain.domain, outChain.domain, id)
 
     // Ensure sufficient unified balance at Gateway for the depositor (EOA)
-    await this.ensureSufficientUnifiedBalance(inChain.domain, amountBase6)
+    await this.ensureSufficientUnifiedBalance(amountBase6, id)
+
+    // Determine source domains to use based on actual per-domain balances
+    const depositor = (await this.walletClientService.getAccount()).address as Hex
+    const balanceResp = await this.client.getBalancesForDepositor('USDC', depositor)
+
+    const perDomain = (balanceResp?.balances || []).map((b) => ({
+      domain: b.domain,
+      available: parseUnits(b.balance || '0', 6),
+    }))
+    // Prefer domains with highest available balance first
+    perDomain.sort((a, b) => (a.available < b.available ? 1 : a.available > b.available ? -1 : 0))
+
+    // Build sources breakdown
+    const sources: { domain: number; amountBase6: bigint }[] = []
+    let remaining = amountBase6
+    for (const entry of perDomain) {
+      if (remaining <= 0n) break
+      if (entry.available <= 0n) continue
+      const take = entry.available >= remaining ? remaining : entry.available
+      if (take > 0n) {
+        sources.push({ domain: entry.domain, amountBase6: take })
+        remaining -= take
+      }
+    }
+
+    // remaining should be zero due to ensureSufficientUnifiedBalance; guard anyway
+    if (remaining > 0n) {
+      throw new GatewayQuoteValidationError(
+        'Insufficient Gateway unified balance after selection',
+        {
+          remaining: remaining.toString(),
+          requestedBase6: amountBase6.toString(),
+        },
+      )
+    }
+
+    const chosenSourceDomain = sources.length ? sources[0].domain : inChain.domain
 
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Gateway: building zero-slippage quote',
         id,
         properties: {
-          sourceDomain: inChain.domain,
+          chosenSourceDomain,
           destinationDomain: outChain.domain,
           amountBase6: amountBase6.toString(),
+          sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
         },
       }),
     )
@@ -160,9 +198,10 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       tokenOut,
       strategy: 'Gateway',
       context: {
-        sourceDomain: inChain.domain,
+        sourceDomain: chosenSourceDomain,
         destinationDomain: outChain.domain,
         amountBase6,
+        sources,
         id,
       },
       id,
@@ -172,7 +211,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Gateway'>): Promise<string> {
-    const { sourceDomain, destinationDomain, amountBase6, id } = quote.context
+    const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
 
     // Resolve addresses per Option A
     const eoa = await this.walletClientService.getAccount()
@@ -189,50 +228,88 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
 
     // 0) Re-validate sufficient unified balance (protect against race conditions)
-    await this.ensureSufficientUnifiedBalance(sourceDomain, amountBase6)
+    await this.ensureSufficientUnifiedBalance(amountBase6)
 
-    // 1) Build EIP-712 burn-intent typed data locally (encode endpoint not available)
-    const sourceWallet = await this.getWalletAddress(sourceDomain)
+    // 1) Build one or more EIP-712 burn-intent typed data items based on sources
     const destinationMinter = await this.getMinterAddress(destinationDomain)
-    const typedData = this.buildBurnIntentTypedData({
-      sourceDomain,
-      destinationDomain,
-      sourceContract: sourceWallet,
-      destinationContract: destinationMinter,
-      sourceToken: inChainCfg.usdc,
-      destinationToken: outChainCfg.usdc,
-      sourceDepositor: eoaAddress,
-      destinationRecipient: kernelAddress,
-      sourceSigner: eoaAddress,
-      destinationCaller: '0x0000000000000000000000000000000000000000' as Hex,
-      value: amountBase6,
-      // Basic salt to ensure uniqueness; can be improved later
-      salt: keccak256(
-        toHex(`${Date.now()}-${id ?? ''}-${eoaAddress}-${amountBase6.toString()}`),
-      ) as Hex,
-      hookData: '0x',
-      // Conservative defaults if encode is unavailable
-      maxBlockHeight: BigInt(10_000_000_000),
-      maxFee: 0n,
-    })
+    const sources =
+      contextSources && contextSources.length
+        ? contextSources
+        : [{ domain: quote.context.sourceDomain, amountBase6 }]
 
-    // 2) Sign the EIP-712 intent
     const signerClient = await this.walletClientService.getClient(quote.tokenIn.chainId)
-    const signature: Hex = await (signerClient as any).signTypedData(typedData)
+    const transferItems: Array<{ burnIntent: any; signature: Hex }> = []
 
-    // 3) Request attestation from Gateway API
-    const attestationResp = await this.client.createTransferAttestation({
-      burnIntents: [
-        {
-          intent: typedData as any,
-          signer: eoaAddress,
-          signature,
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: preparing transfer items',
+        id,
+        properties: {
+          sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
+          totalAmountBase6: amountBase6.toString(),
+          items: sources.length,
         },
-      ],
-    })
+      }),
+    )
+
+    for (const src of sources) {
+      const sourceWallet = await this.getWalletAddress(src.domain)
+      const srcChainCfg = cfg.chains.find((c) => c.domain === src.domain)
+      if (!srcChainCfg) {
+        throw new Error(`Gateway: Missing chain config for source domain ${src.domain}`)
+      }
+      const typedData = this.buildBurnIntentTypedData({
+        sourceDomain: src.domain,
+        destinationDomain,
+        sourceContract: sourceWallet,
+        destinationContract: destinationMinter,
+        sourceToken: srcChainCfg.usdc,
+        destinationToken: outChainCfg.usdc,
+        sourceDepositor: eoaAddress,
+        destinationRecipient: kernelAddress,
+        sourceSigner: eoaAddress,
+        destinationCaller: '0x0000000000000000000000000000000000000000' as Hex,
+        value: src.amountBase6,
+        salt: keccak256(
+          toHex(
+            `${Date.now()}-${id ?? ''}-${eoaAddress}-${src.domain}-${src.amountBase6.toString()}`,
+          ),
+        ) as Hex,
+        hookData: '0x',
+        maxBlockHeight: BigInt(10_000_000_000),
+        // Default to 2.01 USDC (base-6) per Quickstart guidance
+        maxFee: 2_010_000n,
+      })
+      const signature: Hex = await (signerClient as any).signTypedData(typedData)
+      transferItems.push({ burnIntent: (typedData as any).message, signature })
+
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: signed burn intent',
+          id,
+          properties: { sourceDomain: src.domain, value: src.amountBase6.toString() },
+        }),
+      )
+    }
+
+    // 2) Request attestation from Gateway API using an array of burn intents
+    const attestationStart = Date.now()
+    const attestationResp = await this.client.createTransferAttestation(transferItems as any)
     if ('message' in attestationResp) {
       throw new Error(`Gateway attestation error: ${attestationResp.message}`)
     }
+    const attestationMs = Date.now() - attestationStart
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: attestation received',
+        id,
+        properties: {
+          durationMs: attestationMs,
+          items: transferItems.length,
+          hasTransferId: !!(attestationResp as any).transferId,
+        },
+      }),
+    )
 
     // 3) Mint on destination
     const minterAddress = await this.getMinterAddress(destinationDomain)
@@ -251,18 +328,23 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       EcoLogMessage.withId({
         message: 'Gateway: Minted on destination',
         id,
-        properties: { txHash, destinationDomain, depositor: eoaAddress, recipient: kernelAddress },
+        properties: {
+          txHash,
+          chainId: quote.tokenOut.chainId,
+          depositor: eoaAddress,
+          recipient: kernelAddress,
+        },
       }),
     )
 
-    // Enqueue top-up of unified balance from Kernel via depositFor to EOA
+    // Enqueue top-up of unified balance from Kernel via depositFor to EOA (on tokenIn chain)
     const inChainTopUp = this.configService
       .getGatewayConfig()
       .chains.find((c) => c.chainId === quote.tokenIn.chainId)
     const gatewayInfo = await this.getSupportedDomains(false)
     const walletAddr =
       (inChainTopUp?.['wallet'] as Hex | undefined) ||
-      (gatewayInfo.find((d) => d.domain === sourceDomain)?.wallet as Hex | undefined)
+      (gatewayInfo.find((d) => d.domain === inChainTopUp?.domain)?.wallet as Hex | undefined)
 
     if (inChainTopUp?.usdc && walletAddr) {
       await this.liquidityManagerQueue.startGatewayTopUp({
@@ -273,6 +355,17 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         depositor: eoaAddress,
         id,
       })
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: top-up job enqueued',
+          id,
+          properties: {
+            chainId: quote.tokenIn.chainId,
+            amountBase6: quote.amountIn.toString(),
+            gatewayWallet: walletAddr,
+          },
+        }),
+      )
     } else {
       this.logger.warn(
         EcoLogMessage.withId({
@@ -340,16 +433,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
   }
 
-  // Formats a base-6 bigint amount into a decimal string with 6 decimals, without scientific notation
-  private formatDecimal(amountBase6: bigint, decimals: number): string {
-    const s = amountBase6.toString()
-    const padLen = Math.max(0, decimals - s.length)
-    const whole = s.length > decimals ? s.slice(0, -decimals) : '0'
-    const frac = (padLen ? '0'.repeat(padLen) : '') + s.slice(Math.max(0, s.length - decimals))
-    const trimmedFrac = frac.replace(/0+$/, '')
-    return trimmedFrac.length ? `${whole}.${trimmedFrac}` : whole
-  }
-
   private async getMinterAddress(destinationDomain: number): Promise<Hex> {
     const cfg = this.configService.getGatewayConfig()
     const fromConfig = cfg.chains.find((c) => c.domain === destinationDomain)?.minter as
@@ -362,20 +445,50 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     return match.minter as Hex
   }
 
-  private async ensureSufficientUnifiedBalance(domain: number, requiredBase6: bigint) {
+  private async ensureSufficientUnifiedBalance(requiredBase6: bigint, id?: string) {
     const depositor = (await this.walletClientService.getAccount()).address as Hex
-    const balanceResp = await this.client.getBalances({
-      token: 'USDC',
-      sources: [{ depositor, domain }],
-    })
-    const srcBalance = balanceResp.balances.find((b) => b.domain === domain)?.balance || '0'
-    const availableBase6 = parseUnits(srcBalance, 6)
+    const balanceResp = await (this.client as any).getBalancesForDepositor('USDC', depositor)
+
+    const domainToBalance = new Map<number, bigint>()
+    for (const b of balanceResp?.balances || []) {
+      domainToBalance.set(b.domain, parseUnits(b.balance || '0', 6))
+    }
+    const availableBase6 = Array.from(domainToBalance.values()).reduce((acc, v) => acc + v, 0n)
+
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: checking unified balance across domains',
+        id,
+        properties: {
+          requiredBase6: requiredBase6.toString(),
+          availableBase6: availableBase6.toString(),
+          depositor,
+          perDomain: Object.fromEntries(
+            Array.from(domainToBalance.entries()).map(([d, v]) => [d, v.toString()]),
+          ),
+        },
+      }),
+    )
+
     if (availableBase6 < requiredBase6) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: 'Gateway: Insufficient unified balance (across all domains)',
+          id,
+          properties: {
+            requiredBase6: requiredBase6.toString(),
+            availableBase6: availableBase6.toString(),
+            depositor,
+          },
+        }),
+      )
       throw new GatewayQuoteValidationError('Insufficient Gateway unified balance', {
         requestedBase6: requiredBase6.toString(),
         availableBase6: availableBase6.toString(),
-        domain,
         depositor,
+        perDomain: Object.fromEntries(
+          Array.from(domainToBalance.entries()).map(([d, v]) => [d, v.toString()]),
+        ),
       })
     }
   }

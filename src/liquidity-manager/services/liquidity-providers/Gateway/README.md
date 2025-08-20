@@ -53,15 +53,32 @@ Bootstrap config:
 
 - Validates cross-chain, USDC→USDC using configured addresses
 - Loads supported domains from Gateway Info (cached with `@Cacheable`)
-- Returns a zero-slippage quote with `amountIn == amountOut`
+- Fetches per-domain unified balances for the EOA and selects source domains that cover the requested amount
+- Returns a zero-slippage quote with `amountIn == amountOut` and sets `context.sources` to the selected breakdown
 
 2. Execute (`execute`)
 
-- Builds the EIP‑712 burn intent locally (the `/v1/encode` endpoint is currently unavailable). Uses conservative defaults for `maxBlockHeight` and `maxFee`.
-- Signs burn intent with the solver EOA from `WalletClientDefaultSignerService`
-- Submits to `/v1/transfers/attestations` and receives `{ attestation, signature, transferId }`
-- Calls destination `GatewayMinter.gatewayMint(attestation, signature)`
-- Enqueues `GATEWAY_TOP_UP` to replenish Gateway unified balance on the source chain
+- Builds one EIP‑712 burn intent per selected source domain (splitting by `context.sources`)
+- Signs each burn intent with the solver EOA
+- Submits an array payload to `/v1/transfer`:
+
+```json
+[
+  {
+    "burnIntent": {
+      "maxBlockHeight": "...",
+      "maxFee": "...",
+      "spec": {
+        /* TransferSpec */
+      }
+    },
+    "signature": "0x..."
+  }
+]
+```
+
+- Receives `{ attestation, signature, transferId }`, then calls destination `GatewayMinter.gatewayMint(attestation, signature)`
+- Enqueues a single `GATEWAY_TOP_UP` to replenish the solver EOA unified balance on the `tokenIn` chain for the full amount
 
 3. Top‑up job (`GATEWAY_TOP_UP`)
 
@@ -88,12 +105,12 @@ Add `'Gateway'` to the solver wallet strategies (e.g., `eco-wallet`) in `liquidi
 
 - Unit tests: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway-provider.service.spec.ts`
   - Quote validations and zero-slippage
-  - Build typed data → sign → attestation → mint flow and top‑up enqueue
+  - Multi-source selection in quote (`context.sources`)
+  - Execute: multi-intent signing → attestation array → mint → top‑up enqueue
   - Bootstrap: ensures enqueue is gated by zero balance
 
 #### References
 
 - Gateway overview: https://developers.circle.com/gateway
-- Supported endpoints:
-  - `/v1/info`
-  - `/v1/transfers/attestations`
+- Quickstart (multi-intent & balances): https://developers.circle.com/gateway/quickstarts/unified-balance
+- API: `/v1/info`, `/v1/balances`, `/v1/transfer`

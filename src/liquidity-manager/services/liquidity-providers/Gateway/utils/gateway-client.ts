@@ -81,13 +81,18 @@ export type EncodeResponse =
     }
 
 // Transfer API types (subset)
-export interface TransferRequest {
-  burnIntents: Array<{
-    intent: Hex | EIP712BurnIntent | EIP712BurnIntentSet
-    signer: string
-    signature: Hex
-  }>
-}
+// Transfer attestation request accepts either a single burnIntent or a burnIntentSet
+export type TransferRequest =
+  | {
+      burnIntent: EIP712BurnIntent['message']
+      signature: Hex
+    }
+  | {
+      burnIntentSet: { intents: Array<EIP712BurnIntent['message']> }
+      signature: Hex
+    }
+
+type TransferRequestPayload = TransferRequest | TransferRequest[]
 
 export type TransferAttestationResponse =
   | { message: string }
@@ -140,16 +145,26 @@ export class GatewayHttpClient {
     return res.json()
   }
 
+  // Convenience: fetch balances for a depositor across all supported domains
+  async getBalancesForDepositor(token: TokenSymbol, depositor: string): Promise<BalanceResponse> {
+    const info = await this.getInfo()
+    const sources = info.domains.map((d) => ({ depositor, domain: d.domain }))
+    return this.getBalances({ token, sources })
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async encodeBurnIntents(_payload: EncodeRequest): Promise<EncodeResponse> {
     throw new Error('encodeBurnIntents endpoint is not available')
   }
 
-  async createTransferAttestation(payload: TransferRequest): Promise<TransferAttestationResponse> {
-    const res = await fetch(new URL('/v1/transfers/attestations', this.baseUrl), {
+  async createTransferAttestation(
+    payload: TransferRequestPayload,
+  ): Promise<TransferAttestationResponse> {
+    const res = await fetch(new URL('/v1/transfer', this.baseUrl), {
       method: 'POST',
       headers: this.headers(),
-      body: JSON.stringify(payload),
+      // Some environments expect an array; wrap single requests automatically
+      body: JSON.stringify(Array.isArray(payload) ? payload : [payload]),
     })
     if (!res.ok) {
       let text = ''
@@ -159,7 +174,7 @@ export class GatewayHttpClient {
         text = ''
       }
       throw new GatewayApiError('Gateway attestation failed', res.status, {
-        endpoint: '/v1/transfers/attestations',
+        endpoint: '/v1/transfer',
         body: text,
       })
     }

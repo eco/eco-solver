@@ -43,4 +43,17 @@ describe('GatewayHttpClient (integration)', () => {
     expect(typeof entry!.balance).toBe('string')
     expect(/^[0-9]+$/.test(entry!.balance)).toBe(true)
   })
+
+  it('getBalancesForDepositor returns all-domain balances for a depositor', async () => {
+    const depositor = '0xca3C936c60DbF03CFA17a380DC0298E5bEC95107'
+    const resp = await (client as any).getBalancesForDepositor('USDC', depositor)
+    expect(resp).toBeDefined()
+    expect(Array.isArray(resp.balances)).toBe(true)
+    // Should include zero or non-zero balances across supported domains
+    for (const b of resp.balances) {
+      expect(typeof b.domain).toBe('number')
+      expect(typeof b.balance).toBe('string')
+      expect(/^[0-9]+(\.[0-9]+)?$/.test(b.balance) || /^[0-9]+$/.test(b.balance)).toBe(true)
+    }
+  })
 })
