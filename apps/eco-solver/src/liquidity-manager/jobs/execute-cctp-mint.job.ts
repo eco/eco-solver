@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,

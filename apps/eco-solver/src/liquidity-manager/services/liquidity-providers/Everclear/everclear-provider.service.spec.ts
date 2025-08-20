@@ -6,7 +6,8 @@ import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallet
 import { LiquidityManagerQueue } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
 import { getQueueToken } from '@nestjs/bullmq'
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'
-import { Hex, parseUnits } from 'viem'
+import { parseUnits } from "viem"
+import { Hex } from "viem"
 import { EverclearApiError } from './everclear.errors'
 
 import { CACHE_MANAGER } from '@nestjs/cache-manager'

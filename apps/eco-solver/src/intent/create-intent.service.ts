@@ -8,7 +8,7 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import {
   CallDataInterface,

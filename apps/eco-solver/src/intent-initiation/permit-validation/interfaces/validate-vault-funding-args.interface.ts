@@ -1,4 +1,5 @@
-import { Address, Hex, PublicClient } from 'viem'
+import { Address, PublicClient } from "viem"
+import { Hex } from "viem"
 
 export interface ValidateVaultFundingArgs {
   client: PublicClient

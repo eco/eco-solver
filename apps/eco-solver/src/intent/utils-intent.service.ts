@@ -6,7 +6,8 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
-import { DecodeFunctionDataReturnType, Hex } from 'viem'
+import { DecodeFunctionDataReturnType } from "viem"
+import { Hex } from "viem"
 import { FulfillmentLog } from '@eco-solver/contracts/inbox'
 import { Network } from '@eco-solver/common/alchemy/network'
 import { ValidationChecks } from '@eco-solver/intent/validation.sevice'

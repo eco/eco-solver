@@ -1,4 +1,5 @@
-import { Hex, keccak256, toBytes } from 'viem'
+import { keccak256, toBytes } from "viem"
+import { Hex } from "viem"
 
 /**
  * Deterministically serializes an object into a JSON string

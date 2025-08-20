@@ -104,29 +104,25 @@
         "development": {
           "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "development",
-            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
+            "NODE_ENV": "development"
           }
         },
         "production": {
           "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "production",
-            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
+            "NODE_ENV": "production"
           }
         },
         "staging": {
           "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "staging",
-            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
+            "NODE_ENV": "staging"
           }
         },
         "preproduction": {
           "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "preproduction",
-            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
+            "NODE_ENV": "preproduction"
           }
         }
       }

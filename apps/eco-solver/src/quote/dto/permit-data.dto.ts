@@ -1,10 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ArrayNotEmpty, IsArray, IsOptional, ValidateNested } from 'class-validator'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
 import { PermitDTO } from '@eco-solver/quote/dto/permit/permit.dto'
 import { Type } from 'class-transformer'
-import { zeroAddress } from 'viem'
+import { zeroAddress } from "viem"
 
 export class PermitDataDTO {
   @IsOptional()

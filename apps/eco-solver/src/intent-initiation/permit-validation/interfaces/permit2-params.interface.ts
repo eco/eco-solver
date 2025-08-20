@@ -1,4 +1,5 @@
-import { Address, Hex } from 'viem'
+import { Address } from "viem"
+import { Hex } from "viem"
 
 export interface Permit2Details {
   token: Address

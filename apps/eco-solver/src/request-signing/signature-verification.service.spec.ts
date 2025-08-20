@@ -6,7 +6,7 @@ import { SignatureVerificationService } from '@eco-solver/request-signing/signat
 import { SigningService } from '@eco-solver/request-signing/signing.service'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { LocalAccount, privateKeyToAccount } from 'viem/accounts'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 const TestWalletAddress = '0xc3dD6EB9cd9683c3dd8B3d48421B3d5404FeedAC'
 const TestPrivateKey = '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9'

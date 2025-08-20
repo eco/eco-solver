@@ -21,7 +21,11 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
   @Prop({ required: true, type: String })
   dAppID: string
 
-  @Prop({ required: true, enum: IntentExecutionType.enumKeys })
+  @Prop({ 
+    required: true, 
+    type: String,
+    enum: ['SELF_PUBLISH', 'GASLESS']
+  })
   intentExecutionType: string
 
   // @Prop({ required: true, type: String })
@@ -33,8 +37,8 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
   @Prop({ required: true, type: QuoteRewardDataSchema })
   reward: QuoteRewardDataModel
 
-  @Prop({ type: Object })
-  receipt: any
+  @Prop({ type: Object, required: false })
+  receipt?: any
 }
 
 export const QuoteIntentSchema = SchemaFactory.createForClass(QuoteIntentModel)

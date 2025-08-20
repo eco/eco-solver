@@ -13,23 +13,23 @@ export class RebalanceModel {
   @Prop({ required: true })
   tokenOut: RebalanceTokenModel
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: BigInt })
   amountIn: bigint
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: BigInt })
   amountOut: bigint
 
   @Prop({ required: true })
   slippage: number
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   strategy: Strategy
 
   @Prop({ required: false })
   groupId?: string
 
   @Prop({ required: false, type: Object })
-  context: StrategyContext
+  context?: StrategyContext
 }
 
 export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)

@@ -1,5 +1,6 @@
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { encodeFunctionData, Hex, hexToBigInt } from 'viem'
+import { encodeFunctionData, hexToBigInt } from "viem"
+import { Hex } from "viem"
 import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger } from '@nestjs/common'
 import { PermitAbi } from '@eco-solver/contracts/Permit.abi'

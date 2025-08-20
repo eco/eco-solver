@@ -4,7 +4,7 @@ import {
   QuoteRewardTokenDataSchema,
 } from '@eco-solver/quote/schemas/quote-token.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 @Schema({ timestamps: true })
 export class QuoteRewardDataModel implements QuoteRewardDataType {

@@ -3,7 +3,7 @@ import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ProofService } from '../../prover/proof.service'
 import { ProofType } from '../../contracts'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { addSeconds } from 'date-fns'
 

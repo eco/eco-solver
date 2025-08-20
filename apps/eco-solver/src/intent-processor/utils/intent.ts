@@ -1,4 +1,4 @@
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { IntentType } from '@eco-foundation/routes-ts'
 
 import { IndexerIntent } from '@eco-solver/indexer/interfaces/intent.interface'

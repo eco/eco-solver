@@ -3,7 +3,8 @@ import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { NonceService } from './nonce.service'
 import { privateKeyAndNonceToAccountSigner } from './sign.helper'
 import { SignerService } from './signer.service'
-import { Hex, PrivateKeyAccount } from 'viem'
+import { PrivateKeyAccount } from "viem"
+import { Hex } from "viem"
 
 @Injectable()
 export class AtomicSignerService extends SignerService {

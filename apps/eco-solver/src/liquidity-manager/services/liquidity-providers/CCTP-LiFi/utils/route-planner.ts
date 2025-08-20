@@ -1,5 +1,6 @@
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'
-import { isAddressEqual, Hex } from 'viem'
+import { isAddressEqual } from "viem"
+import { Hex } from "viem"
 
 export interface RouteStep {
   type: 'sourceSwap' | 'cctpBridge' | 'destinationSwap'

@@ -11,14 +11,14 @@ import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/t
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EverclearConfig } from '@eco-solver/eco-configs/eco-config.types'
-import { parseUnits } from 'viem'
-import { Hex } from 'viem'
+import { parseUnits } from "viem"
+import { Hex } from "viem"
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { EverclearApiError } from './everclear.errors'
 import { getSlippage } from '@eco-solver/liquidity-manager/utils/math'
 import { createApproveTransaction } from '@eco-solver/liquidity-manager/utils/transaction'
 import { Cacheable } from '@eco-solver/decorators/cacheable.decorator'
-import { erc20Abi } from 'viem'
+import { erc20Abi } from "viem"
 
 @Injectable()
 export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {

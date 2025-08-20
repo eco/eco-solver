@@ -3,7 +3,8 @@ import { getQueueToken } from '@nestjs/bullmq'
 import { createMock } from '@golevelup/ts-jest'
 import * as _ from 'lodash'
 import { Queue } from 'bullmq'
-import { Chain, encodeFunctionData, Hex, PublicClient, Transport } from 'viem'
+import { Chain, encodeFunctionData, PublicClient, Transport } from "viem"
+import { Hex } from "viem"
 import { Network } from '@eco-solver/common/alchemy/network'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { IndexerService } from '@eco-solver/indexer/services/indexer.service'

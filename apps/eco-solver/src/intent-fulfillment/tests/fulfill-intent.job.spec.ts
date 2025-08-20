@@ -1,7 +1,7 @@
 import { FulfillIntentJob, FulfillIntentJobManager } from '../jobs/fulfill-intent.job'
 import { IntentFulfillmentJobName } from '../queues/intent-fulfillment.queue'
 import { deserialize, serialize } from '@eco-solver/common/utils/serialize'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import * as stringUtils from '@eco-solver/common/utils/strings'
 import { createMock } from '@golevelup/ts-jest'
 

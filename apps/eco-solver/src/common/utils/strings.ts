@@ -1,4 +1,4 @@
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 export function getRandomString() {
   return Math.random().toString(36).slice(2)

@@ -8,76 +8,73 @@ const mockRoutes = {
 }
 import { getNodeEnv, isPreEnv, getChainConfig, NodeEnv, ChainPrefix } from '../utils'
 import { EcoError } from '../../common/errors/eco-error'
-import * as config from 'config'
-
-jest.mock('config')
 
 jest.mock('@eco-foundation/routes-ts', () => mockRoutes)
 
 describe('config utils tests', () => {
   describe('on getNodeEnv', () => {
     it('should return the correct NodeEnv value', () => {
-      config.util.getEnv = jest.fn().mockReturnValue('production')
+      process.env.NODE_ENV = 'production'
       expect(getNodeEnv()).toBe(NodeEnv.production)
 
-      config.util.getEnv = jest.fn().mockReturnValue('preproduction')
+      process.env.NODE_ENV = 'preproduction'
       expect(getNodeEnv()).toBe(NodeEnv.preproduction)
 
-      config.util.getEnv = jest.fn().mockReturnValue('staging')
+      process.env.NODE_ENV = 'staging'
       expect(getNodeEnv()).toBe(NodeEnv.staging)
 
-      config.util.getEnv = jest.fn().mockReturnValue('development')
+      process.env.NODE_ENV = 'development'
       expect(getNodeEnv()).toBe(NodeEnv.development)
 
-      config.util.getEnv = jest.fn().mockReturnValue('unknown')
+      process.env.NODE_ENV = 'unknown'
       expect(getNodeEnv()).toBe(NodeEnv.development)
     })
   })
 
   describe('on isPreEnv', () => {
     it('should return true if the environment is pre', () => {
-      config.util.getEnv = jest.fn().mockReturnValue('preproduction')
+      process.env.NODE_ENV = 'preproduction'
       expect(isPreEnv()).toBe(true)
 
-      config.util.getEnv = jest.fn().mockReturnValue('development')
+      process.env.NODE_ENV = 'development'
       expect(isPreEnv()).toBe(true)
     })
 
     it('should return false if the environment is not pre', () => {
-      config.util.getEnv = jest.fn().mockReturnValue('production')
+      process.env.NODE_ENV = 'production'
       expect(isPreEnv()).toBe(false)
 
-      config.util.getEnv = jest.fn().mockReturnValue('staging')
+      process.env.NODE_ENV = 'staging'
       expect(isPreEnv()).toBe(true)
     })
   })
 
   describe('on getChainConfig', () => {
     it('should return the correct chain configuration', () => {
-      config.util.getEnv = jest.fn().mockReturnValue('production')
+      process.env.NODE_ENV = 'production'
       expect(getChainConfig(10)).toEqual(mockRoutes.EcoProtocolAddresses['10'])
 
-      config.util.getEnv = jest.fn().mockReturnValue('preproduction')
+      process.env.NODE_ENV = 'preproduction'
       expect(getChainConfig(10)).toEqual(mockRoutes.EcoProtocolAddresses['10-pre'])
 
-      config.util.getEnv = jest.fn().mockReturnValue('staging')
+      process.env.NODE_ENV = 'staging'
       expect(getChainConfig(84523)).toEqual(mockRoutes.EcoProtocolAddresses['84523-pre'])
 
-      config.util.getEnv = jest.fn().mockReturnValue('development')
+      process.env.NODE_ENV = 'development'
       expect(getChainConfig(84523)).toEqual(mockRoutes.EcoProtocolAddresses['84523-pre'])
     })
 
     it('should throw an error if the chain configuration is not found', () => {
-      config.util.getEnv = jest.fn().mockReturnValue('production')
+      process.env.NODE_ENV = 'production'
       expect(() => getChainConfig(3)).toThrow(EcoError.ChainConfigNotFound('3'))
 
-      config.util.getEnv = jest.fn().mockReturnValue('preproduction')
+      process.env.NODE_ENV = 'preproduction'
       expect(() => getChainConfig(4)).toThrow(EcoError.ChainConfigNotFound('4-pre'))
 
-      config.util.getEnv = jest.fn().mockReturnValue('staging')
+      process.env.NODE_ENV = 'staging'
       expect(() => getChainConfig(3)).toThrow(EcoError.ChainConfigNotFound('3-pre'))
 
-      config.util.getEnv = jest.fn().mockReturnValue('development')
+      process.env.NODE_ENV = 'development'
       expect(() => getChainConfig(4)).toThrow(EcoError.ChainConfigNotFound('4-pre'))
     })
   })

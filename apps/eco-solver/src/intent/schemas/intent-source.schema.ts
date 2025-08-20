@@ -25,8 +25,8 @@ export class IntentSourceModel {
   @Prop({ required: true, type: IntentSourceDataSchema })
   intent: IntentDataModel
 
-  @Prop({ type: Object })
-  receipt: GetTransactionReceiptReturnType
+  @Prop({ type: Object, required: false })
+  receipt?: GetTransactionReceiptReturnType
 
   @Prop({ required: true, type: String })
   status: IntentSourceStatus

@@ -1,4 +1,5 @@
-import { Address, Hex, PublicClient, verifyTypedData } from 'viem'
+import { Address, PublicClient, verifyTypedData } from "viem"
+import { Hex } from "viem"
 import { createMock } from '@golevelup/ts-jest'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { Permit2Params } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit2-params.interface'

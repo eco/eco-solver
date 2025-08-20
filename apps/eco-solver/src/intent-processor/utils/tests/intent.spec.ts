@@ -1,4 +1,4 @@
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { getWithdrawData } from '@eco-solver/intent-processor/utils/intent'
 import { IndexerIntent } from '@eco-solver/indexer/interfaces/intent.interface'
 

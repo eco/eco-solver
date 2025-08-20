@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Network } from '@eco-solver/common/alchemy/network'
 import { ViemEventLog } from '../../common/events/viem'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 @Schema()
 export class WatchEventModel implements ViemEventLog {
@@ -29,7 +29,7 @@ export class WatchEventModel implements ViemEventLog {
   @Prop({ required: true, type: String })
   data: Hex
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: [String] })
   topics: [] | [Hex, ...Hex[]]
 
   @Prop({ required: true, type: String })

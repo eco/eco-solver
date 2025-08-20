@@ -1,7 +1,8 @@
 import { TokenFetchAnalysis } from '@eco-solver/balance/balance.service'
 import { RewardTokensInterface } from '@eco-solver/contracts'
 import { Solver } from '@eco-solver/eco-configs/eco-config.types'
-import { Hex, Prettify } from 'viem'
+import { Prettify } from "viem"
+import { Hex } from "viem"
 /**
  * The response quote data
  */

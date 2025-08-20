@@ -1,5 +1,5 @@
 import { BatchPermitDataDTO } from '@eco-solver/quote/dto/permit2/batch-permit-data.dto'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
 import { PermitDTO } from '@eco-solver/quote/dto/permit/permit.dto'
 import { PermitParams } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit-params.interface'

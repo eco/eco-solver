@@ -1,5 +1,6 @@
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
-import { encodeFunctionData, Hex } from 'viem'
+import { encodeFunctionData } from "viem"
+import { Hex } from "viem"
 import { PermitAbi } from '@eco-solver/contracts/Permit.abi'
 import { PermitProcessingParams } from '@eco-solver/permit-processing/interfaces/permit-processing-params.interface'
 import { PermitTxBuilder } from '@eco-solver/permit-processing/permit-tx-builder'

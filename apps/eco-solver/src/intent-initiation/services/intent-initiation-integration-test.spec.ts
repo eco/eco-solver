@@ -1,7 +1,8 @@
 import { Address, privateKeyToAccount } from 'viem/accounts'
-import { Chain } from 'viem'
+import { Chain } from "viem"
 import { CreateIntentService } from '@eco-solver/intent/create-intent.service'
-import { createTestClient, Hex, http, parseEther, publicActions } from 'viem'
+import { createTestClient, http, parseEther, publicActions } from "viem"
+import { Hex } from "viem"
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'

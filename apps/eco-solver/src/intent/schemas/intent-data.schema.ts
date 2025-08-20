@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { getAddress, Hex, Mutable } from 'viem'
+import { getAddress, Mutable } from "viem"
+import { Hex } from "viem"
 import {
   IntentCreatedEventLog,
   CallDataInterface,
@@ -49,7 +50,7 @@ export class IntentDataModel implements IntentType {
   @Prop({ required: true })
   logIndex: number
 
-  @Prop({ required: false })
+  @Prop({ required: false, type: String })
   funder?: Hex
 
   constructor(params: CreateIntentDataModelParams) {

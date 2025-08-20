@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { parseUnits, Hex } from 'viem'
+import { parseUnits } from "viem"
+import { Hex } from "viem"
 import { CCTPV2ProviderService } from './cctpv2-provider.service'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'

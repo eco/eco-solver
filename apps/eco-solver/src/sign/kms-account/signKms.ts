@@ -1,5 +1,6 @@
 import { Signer } from '@eco-foundation/eco-kms-core'
-import { Hex, parseSignature } from 'viem'
+import { parseSignature } from "viem"
+import { Hex } from "viem"
 import { SignReturnType } from 'viem/accounts'
 
 export type To = 'object' | 'bytes' | 'hex'

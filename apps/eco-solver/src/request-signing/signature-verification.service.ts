@@ -4,7 +4,8 @@ import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { EcoResponse } from '@eco-solver/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
-import { recoverTypedDataAddress, Hex } from 'viem'
+import { recoverTypedDataAddress } from "viem"
+import { Hex } from "viem"
 
 @Injectable()
 export class SignatureVerificationService {

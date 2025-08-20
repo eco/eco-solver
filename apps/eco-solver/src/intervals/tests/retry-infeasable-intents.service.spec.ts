@@ -9,7 +9,7 @@ import { Model } from 'mongoose'
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { QUEUES } from '@eco-solver/common/redis/constants'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { ProofType } from '@eco-solver/contracts'
 
 describe('RetryInfeasableIntentsService', () => {

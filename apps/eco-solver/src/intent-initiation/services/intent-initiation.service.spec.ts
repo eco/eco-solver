@@ -7,7 +7,8 @@ import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/sma
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { GaslessIntentRequestDTO } from '@eco-solver/quote/dto/gasless-intent-request.dto'
 import { getModelToken } from '@nestjs/mongoose'
-import { Hex, TransactionReceipt } from 'viem'
+import { TransactionReceipt } from "viem"
+import { Hex } from "viem"
 import { IntentInitiationService } from '@eco-solver/intent-initiation/services/intent-initiation.service'
 import { IntentTestUtils } from '@eco-solver/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@eco-solver/quote/errors'
@@ -25,7 +26,7 @@ import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
 import { ValidationService } from '@eco-solver/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { EcoAnalyticsService } from '@eco-solver/analytics'
-import * as viem from 'viem'
+import * as viem from 'viem/_types/types/misc'
 
 jest.spyOn(viem, 'verifyTypedData').mockResolvedValue(true)
 

@@ -1,4 +1,4 @@
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 /*
  * Extracted Permit2 ABI for single permit2 transfer

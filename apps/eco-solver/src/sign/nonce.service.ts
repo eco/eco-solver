@@ -8,7 +8,8 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { entries } from 'lodash'
 import { AtomicKeyClientParams, AtomicNonceService } from './atomic.nonce.service'
-import { createPublicClient, extractChain, Hex, sha256 } from 'viem'
+import { createPublicClient, extractChain, sha256 } from "viem"
+import { Hex } from "viem"
 import { SignerService } from './signer.service'
 import { getTransport } from '../common/chains/transport'
 import { ChainsSupported } from '../common/chains/supported'

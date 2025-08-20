@@ -4,7 +4,7 @@ import { SignatureGenerator } from '@eco-solver/request-signing/signature-genera
 import { SigningService } from '@eco-solver/request-signing/signing.service'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { LocalAccount, privateKeyToAccount } from 'viem/accounts'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 class MockWalletClientDefaultSignerService {
   private account: LocalAccount

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
-import * as config from 'config'
+import { ConfigLoader } from '@libs/eco-solver-config'
+import * as path from 'path'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
@@ -12,7 +13,8 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress, Hex, zeroAddress } from 'viem'
+import { Chain, getAddress, zeroAddress } from "viem"
+import { Hex } from "viem"
 import { addressKeys } from '@eco-solver/common/viem/utils'
 import { ChainsSupported } from '@eco-solver/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -46,24 +48,67 @@ import { TransportConfig } from '@eco-solver/common/chains/transport'
 export class EcoConfigService {
   private logger = new Logger(EcoConfigService.name)
   private externalConfigs: any = {}
-  private ecoConfig: config.IConfig
+  private configLoader: ConfigLoader
   private ecoChains: EcoChains
 
   constructor(private readonly sources: ConfigSource[]) {
     this.sources.reduce((prev, curr) => {
-      return config.util.extendDeep(prev, curr.getConfig())
+      return _.merge(prev, curr.getConfig())
     }, this.externalConfigs)
 
-    this.ecoConfig = config
+    this.configLoader = ConfigLoader.getInstance({
+      configDir: this.getConfigDir(),
+      nodeEnv: process.env.NODE_ENV
+    })
     this.initConfigs()
   }
 
+  private getConfigDir(): string {
+    const cwd = process.cwd()
+    if (cwd.includes('/dist/')) {
+      return path.join(cwd, 'config')
+    }
+    return path.join(cwd, 'apps/eco-solver/config')
+  }
+
   /**
-   * Returns the static configs  for the app, from the 'config' package
+   * Returns the static configs for the app, from the custom ConfigLoader
    * @returns the configs
    */
   static getStaticConfig(): EcoConfigType {
-    return config as unknown as EcoConfigType
+    const cwd = process.cwd()
+    const configDir = cwd.includes('/dist/') 
+      ? path.join(cwd, 'config')
+      : path.join(cwd, 'apps/eco-solver/config')
+    
+    try {
+      return ConfigLoader.load({ 
+        configDir,
+        nodeEnv: process.env.NODE_ENV 
+      }) as unknown as EcoConfigType
+    } catch (error) {
+      console.warn('Failed to load config with ConfigLoader, using fallback:', (error as Error).message)
+      // Fallback config with minimum required values
+      return {
+        logger: {
+          usePino: true,
+          pinoConfig: {
+            pinoHttp: {
+              level: 'debug',
+              useLevelLabels: true,
+              redact: {
+                paths: [],
+                remove: true,
+              },
+            },
+          },
+        },
+        cache: {
+          ttl: 10000,
+        },
+        // Add other minimum required config properties here
+      } as unknown as EcoConfigType
+    }
   }
 
   // Initialize the configs
@@ -74,8 +119,11 @@ export class EcoConfigService {
       }),
     )
 
-    // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
-    this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
+    // Load base config and merge with external configs
+    const baseConfig = this.configLoader.load()
+    
+    // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones  
+    const mergedConfig = _.merge(this.externalConfigs, baseConfig)
 
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
@@ -83,7 +131,7 @@ export class EcoConfigService {
 
   // Generic getter for key/val of config object
   get<T>(key: string): T {
-    return this.ecoConfig.get<T>(key)
+    return this.configLoader.get<T>(key)
   }
 
   // Returns the alchemy configs

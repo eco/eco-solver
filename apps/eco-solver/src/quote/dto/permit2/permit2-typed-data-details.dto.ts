@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { IsNotEmpty, IsNumberString, IsEthereumAddress } from 'class-validator'
 
 export class Permit2TypedDataDetailsDTO {

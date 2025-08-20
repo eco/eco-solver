@@ -9,7 +9,7 @@ import { FulfillIntentService } from '@eco-solver/intent/fulfill-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { FulfillIntentJob } from '../jobs/fulfill-intent.job'
 import { serialize } from '@eco-solver/common/utils/serialize'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 describe('IntentFulfillmentProcessor', () => {
   let processor: IntentFulfillmentProcessor

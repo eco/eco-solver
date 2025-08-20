@@ -1,8 +1,8 @@
 import { ClassConstructor } from 'class-transformer'
 import { GaslessIntentRequestDTO } from '@eco-solver/quote/dto/gasless-intent-request.dto'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
-import { PublicClient } from 'viem'
+import { PublicClient } from "viem"
 import { QuoteDataEntryDTO } from '@eco-solver/quote/dto/quote-data-entry.dto'
 import { QuoteIntentDataDTO } from '@eco-solver/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'

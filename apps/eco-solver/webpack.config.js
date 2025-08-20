@@ -74,5 +74,7 @@ module.exports = composePlugins(withNx(), (config) => ({
     /Can't resolve '@nestjs\/typeorm'/,
     // Ignore critical dependency warnings from NestJS dynamic imports
     /Critical dependency: the request of a dependency is an expression/,
+    // Ignore viem export warnings
+    /export 'Hex' \(imported as 'Hex'\) was not found in 'viem'/,
   ],
 }))

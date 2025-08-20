@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as _ from 'lodash'
-import { getAddress, Hex } from 'viem'
+import { getAddress } from "viem"
+import { Hex } from "viem"
 import { IProverAbi } from '@eco-foundation/routes-ts'
 import { addSeconds, compareAsc } from 'date-fns'
 import { ProofCall, ProofType } from '@eco-solver/contracts'

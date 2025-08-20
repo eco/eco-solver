@@ -8,7 +8,7 @@ import {
 } from '@eco-solver/intent/schemas/intent-token-amount.schema'
 import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 @Schema({ timestamps: true })
 export class RouteDataModel implements RouteType {

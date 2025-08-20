@@ -1,5 +1,5 @@
 import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
-import * as config from 'config'
+import { ConfigLoader } from '@libs/eco-solver-config'
 import { EcoError } from '../common/errors/eco-error'
 
 /**
@@ -21,7 +21,7 @@ export enum NodeEnv {
  * @returns
  */
 export function getNodeEnv(): NodeEnv {
-  const env: string = config.util.getEnv('NODE_ENV')
+  const env: string = process.env.NODE_ENV || 'development'
   const normalizedEnv = env.toLowerCase() as keyof typeof NodeEnv
   return NodeEnv[normalizedEnv] || NodeEnv.development
 }

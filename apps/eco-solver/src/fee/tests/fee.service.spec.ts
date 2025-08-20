@@ -9,7 +9,7 @@ import { NormalizedToken, NormalizedTotal } from '@eco-solver/fee/types'
 import { QuoteError } from '@eco-solver/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import * as _ from 'lodash'
 import { EcoAnalyticsService } from '@eco-solver/analytics'
 

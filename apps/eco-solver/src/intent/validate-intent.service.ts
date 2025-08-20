@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'

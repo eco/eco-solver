@@ -1,13 +1,14 @@
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { formatUnits, Hex } from 'viem'
+import { formatUnits } from "viem"
+import { Hex } from "viem"
 
 @Schema()
 export class RebalanceTokenModel {
   @Prop({ required: true })
   chainId: number
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   tokenAddress: Hex
 
   @Prop({ required: true })

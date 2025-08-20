@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { now } from 'mongoose'
 import { AtomicKeyParams } from '../atomic.nonce.service'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 import { getAtomicNonceVals } from '../sign.helper'
 
 @Schema({ timestamps: true })

@@ -8,7 +8,7 @@ import {
   QuoteRouteCallDataSchema,
 } from '@eco-solver/quote/schemas/quote-call.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 @Schema({ timestamps: true })
 export class QuoteRouteDataModel implements QuoteRouteDataInterface {

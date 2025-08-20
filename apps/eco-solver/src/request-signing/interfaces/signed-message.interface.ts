@@ -1,4 +1,4 @@
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 export interface SignedMessage {
   signature: Hex

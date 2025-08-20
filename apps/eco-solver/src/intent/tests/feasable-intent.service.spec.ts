@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { getModelToken } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import { Hex } from 'viem'
+import { Hex } from "viem"
 
 import { FeasableIntentService } from '@eco-solver/intent/feasable-intent.service'
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'

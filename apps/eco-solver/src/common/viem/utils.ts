@@ -1,4 +1,5 @@
-import { getAddress, Hex } from 'viem'
+import { getAddress } from "viem"
+import { Hex } from "viem"
 
 /**
  * Lowercase all top-level keys of the given `object` to lowercase.
