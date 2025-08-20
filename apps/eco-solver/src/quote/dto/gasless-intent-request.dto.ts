@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { GaslessIntentDataDTO } from '@eco-solver/quote/dto/gasless-intent-data.dto'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { IsNotEmpty, ValidateNested, IsString } from 'class-validator'
 import { plainToInstance, Type } from 'class-transformer'
 import { QuoteRewardDataDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'

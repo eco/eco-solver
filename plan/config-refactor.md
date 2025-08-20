@@ -17,11 +17,13 @@ This document outlines a comprehensive plan to refactor the eco-solver configura
 The current configuration system consists of:
 
 1. **Base Configuration Layer** (`apps/eco-solver/config/`)
+
    - `default.ts` - Base configuration with 300+ lines of complex nested config
    - Environment-specific configs (`development.ts`, `production.ts`, etc.)
    - Deep merge strategy using lodash
 
 2. **Configuration Services Layer**
+
    - `@libs/eco-solver-config` - ConfigLoader utility library
    - `EcoConfigService` - Main application configuration service
    - `AwsConfigService` - AWS Secrets Manager integration (using old SDK v2)
@@ -35,6 +37,7 @@ The current configuration system consists of:
 ### Current Pain Points
 
 1. **Architectural Issues**
+
    - Multiple config services with overlapping responsibilities
    - Complex initialization order dependencies
    - Tight coupling between config sources
@@ -42,6 +45,7 @@ The current configuration system consists of:
    - No conformance rule enforcement
 
 2. **Maintainability Concerns**
+
    - 400+ lines of configuration types in single file
    - Complex deep merging logic scattered across services
    - Joi validation instead of TypeScript-first Zod
@@ -49,6 +53,7 @@ The current configuration system consists of:
    - No automated scaffolding via Nx generators
 
 3. **Type Safety Issues**
+
    - Extensive use of `any` types in config interfaces
    - Runtime-only validation for critical config values
    - No automatic type inference from schemas
@@ -128,7 +133,7 @@ export const ServerConfigSchema = z.object({
   port: z.number().int().min(1000).max(65535),
   host: z.string().default('localhost'),
   enableHttps: z.boolean().default(false),
-  requestTimeout: z.number().positive().default(30000)
+  requestTimeout: z.number().positive().default(30000),
 })
 
 // Automatic type inference - no manual interface needed!
@@ -140,7 +145,7 @@ export const validateServerConfig = (data: unknown): ServerConfig => {
   if (!result.success) {
     throw new ConfigurationValidationError(
       'Server configuration validation failed',
-      result.error.format()
+      result.error.format(),
     )
   }
   return result.data
@@ -160,7 +165,7 @@ export default registerAs('server', () => {
     port: parseInt(process.env.PORT || '3000', 10),
     host: process.env.HOST || 'localhost',
     enableHttps: process.env.ENABLE_HTTPS === 'true',
-    requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '30000', 10)
+    requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '30000', 10),
   }
 
   // Validate with Zod and get strongly-typed result
@@ -182,11 +187,12 @@ export class AwsSecretsProvider {
   private readonly logger = new Logger(AwsSecretsProvider.name)
 
   constructor(
-    @Inject('AWS_CREDENTIALS') private readonly awsConfig: {
+    @Inject('AWS_CREDENTIALS')
+    private readonly awsConfig: {
       region: string
       accessKeyId?: string
       secretAccessKey?: string
-    }
+    },
   ) {
     // Require injected AWS config - no defaults allowed
     if (!awsConfig?.region) {
@@ -195,10 +201,12 @@ export class AwsSecretsProvider {
 
     this.client = new SecretsManagerClient({
       region: awsConfig.region,
-      credentials: awsConfig.accessKeyId ? {
-        accessKeyId: awsConfig.accessKeyId,
-        secretAccessKey: awsConfig.secretAccessKey!
-      } : undefined
+      credentials: awsConfig.accessKeyId
+        ? {
+            accessKeyId: awsConfig.accessKeyId,
+            secretAccessKey: awsConfig.secretAccessKey!,
+          }
+        : undefined,
     })
 
     this.logger.log(`AWS Secrets Provider initialized for region: ${awsConfig.region}`)
@@ -208,7 +216,7 @@ export class AwsSecretsProvider {
     try {
       const command = new GetSecretValueCommand({ SecretId: secretId })
       const response = await this.client.send(command)
-      
+
       if (!response.SecretString) {
         throw new Error(`No secret string found for ${secretId}`)
       }
@@ -220,16 +228,20 @@ export class AwsSecretsProvider {
   }
 
   // Factory for dependency injection with required AWS config
-  static forRootAsync(awsConfig: { region: string; accessKeyId?: string; secretAccessKey?: string }) {
+  static forRootAsync(awsConfig: {
+    region: string
+    accessKeyId?: string
+    secretAccessKey?: string
+  }) {
     return {
       providers: [
         {
           provide: 'AWS_CREDENTIALS',
-          useValue: awsConfig
+          useValue: awsConfig,
         },
-        AwsSecretsProvider
+        AwsSecretsProvider,
       ],
-      exports: [AwsSecretsProvider]
+      exports: [AwsSecretsProvider],
     }
   }
 }
@@ -266,25 +278,30 @@ export class ConfigurationCacheService {
 
     this.memoryCache.set(key, {
       value,
-      expires: Date.now() + ttlMs
+      expires: Date.now() + ttlMs,
     })
   }
 
   invalidate(pattern: string): void {
-    const keysToDelete = Array.from(this.memoryCache.keys())
-      .filter(key => key.includes(pattern))
-    
-    keysToDelete.forEach(key => this.memoryCache.delete(key))
+    const keysToDelete = Array.from(this.memoryCache.keys()).filter((key) => key.includes(pattern))
+
+    keysToDelete.forEach((key) => this.memoryCache.delete(key))
   }
 
   private isSensitiveKey(key: string): boolean {
     const sensitivePatterns = [
-      'secret', 'password', 'token', 'key', 'credential',
-      'aws', 'database', 'redis', 'auth', 'jwt'
+      'secret',
+      'password',
+      'token',
+      'key',
+      'credential',
+      'aws',
+      'database',
+      'redis',
+      'auth',
+      'jwt',
     ]
-    return sensitivePatterns.some(pattern => 
-      key.toLowerCase().includes(pattern)
-    )
+    return sensitivePatterns.some((pattern) => key.toLowerCase().includes(pattern))
   }
 
   // Clear all cache on shutdown
@@ -316,22 +333,22 @@ import { CacheModule } from '@nestjs/cache-manager'
       expandVariables: true,
       validationOptions: {
         allowUnknown: false,
-        abortEarly: true
+        abortEarly: true,
       },
       load: [
         // Lazy load configuration factories
-        () => import('@libs/config/core').then(m => m.serverConfig()),
-        () => import('@libs/config/core').then(m => m.databaseConfig()),
-        () => import('@libs/config/core').then(m => m.awsConfig())
-      ]
+        () => import('@libs/config/core').then((m) => m.serverConfig()),
+        () => import('@libs/config/core').then((m) => m.databaseConfig()),
+        () => import('@libs/config/core').then((m) => m.awsConfig()),
+      ],
     }),
     // In-memory cache only - NO Redis for sensitive data
     CacheModule.register({
       ttl: 300000, // 5 minutes in milliseconds
       max: 100, // Limited items for security
       // No external store - memory only for sensitive configs
-    })
-  ]
+    }),
+  ],
 })
 export class AppConfigModule {}
 ```
@@ -367,7 +384,7 @@ export const EnvironmentSchema = z.object({
   AWS_REGION: z.string().min(1),
   // Validate required secrets exist (don't validate values for security)
   SECRET_KEY_EXISTS: z.string().min(1),
-  API_KEY_EXISTS: z.string().min(1)
+  API_KEY_EXISTS: z.string().min(1),
 })
 
 // Validate at startup - fail fast if environment is invalid
@@ -398,11 +415,11 @@ export class SecretLoaderService {
 
     try {
       const secret = await this.awsSecretsProvider.loadSecret(secretId)
-      
+
       // Cache with expiration
       this.secretsCache.set(secretId, {
         value: secret,
-        expires: Date.now() + ttl
+        expires: Date.now() + ttl,
       })
 
       return secret
@@ -410,7 +427,7 @@ export class SecretLoaderService {
       // Log without exposing secret details
       this.logger.error(`Failed to load secret: ${secretId}`, {
         error: error.message,
-        secretId: secretId.substring(0, 10) + '***' // Partial ID only
+        secretId: secretId.substring(0, 10) + '***', // Partial ID only
       })
       throw error
     }
@@ -428,6 +445,7 @@ export class SecretLoaderService {
 ### Phase 1: Foundation & Nx Setup (Week 1-2)
 
 #### Objectives
+
 - Implement Nx Apps/Features/Libs architecture
 - Set up Zod schemas with automatic type inference
 - Configure Node.js 20+ optimizations
@@ -435,10 +453,11 @@ export class SecretLoaderService {
 #### Tasks
 
 1. **Create Modern Nx Libraries using Generators**
+
 ```bash
 # Use Nx generators for automatic setup with TypeScript project references
 nx g @nx/js:lib config-core --directory=libs/config --tags=scope:config,type:util
-nx g @nx/js:lib config-schemas --directory=libs/config --tags=scope:config,type:schema  
+nx g @nx/js:lib config-schemas --directory=libs/config --tags=scope:config,type:schema
 nx g @nx/js:lib config-providers --directory=libs/config --tags=scope:config,type:provider
 nx g @nx/js:lib config-testing --directory=libs/config --tags=scope:config,type:testing
 
@@ -450,6 +469,7 @@ nx g @nx/js:lib config-testing --directory=libs/config --tags=scope:config,type:
 ```
 
 2. **Implement Zod Schemas with Type Inference**
+
 ```typescript
 // libs/config/schemas/src/lib/database.schema.ts
 import { z } from 'zod'
@@ -463,8 +483,8 @@ export const DatabaseConfigSchema = z.object({
   ssl: z.boolean().default(true),
   pool: z.object({
     min: z.number().int().nonnegative().default(2),
-    max: z.number().int().positive().default(10)
-  })
+    max: z.number().int().positive().default(10),
+  }),
 })
 
 // Automatic type inference - no manual interfaces!
@@ -472,17 +492,19 @@ export type DatabaseConfig = z.infer<typeof DatabaseConfigSchema>
 ```
 
 3. **Install Node.js 20+ Optimized Dependencies**
+
 ```bash
 # Remove legacy dependencies
 pnpm remove joi @types/joi class-validator class-transformer
 
 # Add modern dependencies optimized for Node.js 20+
-pnpm add zod@^3.22.4 @nestjs/config@^3.1.1 
+pnpm add zod@^3.22.4 @nestjs/config@^3.1.1
 pnpm add @aws-sdk/client-secrets-manager@^3.485.0
 pnpm add @nestjs/cache-manager@^2.1.1  # Memory cache only, no Redis
 ```
 
 4. **Configure Conformance Rules**
+
 ```typescript
 // nx.json - Enforce organizational standards automatically
 {
@@ -521,6 +543,7 @@ pnpm add @nestjs/cache-manager@^2.1.1  # Memory cache only, no Redis
 ### Phase 2: Modern Provider Implementation (Week 3-4)
 
 #### Objectives
+
 - Implement AWS SDK v3 providers
 - Create async configuration factories
 - Set up performance caching with Redis
@@ -528,6 +551,7 @@ pnpm add @nestjs/cache-manager@^2.1.1  # Memory cache only, no Redis
 #### Tasks
 
 1. **AWS SDK v3 Provider with Async Patterns**
+
 ```typescript
 // libs/config/providers/src/lib/aws-v3/aws-config.provider.ts
 import { registerAs } from '@nestjs/config'
@@ -537,25 +561,21 @@ export default registerAs('aws', () => ({
   region: process.env.AWS_REGION || 'us-east-1',
   secretsManager: {
     enabled: process.env.AWS_SECRETS_ENABLED === 'true',
-    secrets: [
-      'eco-solver/database',
-      'eco-solver/redis', 
-      'eco-solver/auth'
-    ]
-  }
+    secrets: ['eco-solver/database', 'eco-solver/redis', 'eco-solver/auth'],
+  },
 }))
 
 // Async factory for secret loading
 export const createAwsConfigFactory = () => ({
   useFactory: async (): Promise<any> => {
     const client = new SecretsManagerClient({
-      region: process.env.AWS_REGION || 'us-east-1'
+      region: process.env.AWS_REGION || 'us-east-1',
     })
 
     const secrets = await Promise.allSettled([
       loadSecret(client, 'eco-solver/database'),
       loadSecret(client, 'eco-solver/redis'),
-      loadSecret(client, 'eco-solver/auth')
+      loadSecret(client, 'eco-solver/auth'),
     ])
 
     // Handle partial failures gracefully
@@ -569,19 +589,17 @@ export const createAwsConfigFactory = () => ({
     })
 
     return config
-  }
+  },
 })
 ```
 
 2. **Redis Caching Configuration**
+
 ```typescript
 // libs/config/core/src/lib/cache/redis-config.service.ts
 @Injectable()
 export class RedisConfigService {
-  constructor(
-    @Inject(CACHE_MANAGER) private cache: Cache,
-    private configService: ConfigService
-  ) {}
+  constructor(@Inject(CACHE_MANAGER) private cache: Cache, private configService: ConfigService) {}
 
   // Use built-in NestJS cache decorators instead of custom @Cacheable
   @CacheKey('config')
@@ -599,6 +617,7 @@ export class RedisConfigService {
 ```
 
 3. **Environment Variable Provider with Validation**
+
 ```typescript
 // libs/config/providers/src/lib/env/env-config.provider.ts
 import { registerAs } from '@nestjs/config'
@@ -607,12 +626,12 @@ import { EnvironmentSchema } from '@libs/config/schemas'
 export default registerAs('env', () => {
   // Validate environment early - fail fast if invalid
   const validatedEnv = EnvironmentSchema.parse(process.env)
-  
+
   return {
     nodeEnv: validatedEnv.NODE_ENV,
     port: validatedEnv.PORT,
     isProduction: validatedEnv.NODE_ENV === 'production',
-    isDevelopment: validatedEnv.NODE_ENV === 'development'
+    isDevelopment: validatedEnv.NODE_ENV === 'development',
   }
 })
 ```
@@ -620,6 +639,7 @@ export default registerAs('env', () => {
 ### Phase 3: Service Migration with Backward Compatibility (Week 5-6)
 
 #### Objectives
+
 - Implement new configuration service with Zod validation
 - Create backward compatibility layer
 - Migrate existing services without breaking changes
@@ -627,6 +647,7 @@ export default registerAs('env', () => {
 #### Tasks
 
 1. **Modern Configuration Service**
+
 ```typescript
 // libs/config/core/src/lib/services/configuration.service.ts
 @Injectable()
@@ -634,17 +655,13 @@ export class ConfigurationService {
   constructor(
     private readonly configService: ConfigService,
     private readonly cacheService: ConfigurationCacheService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
   ) {}
 
   // Type-safe configuration getter with Zod validation
-  async get<T>(
-    path: string, 
-    schema: z.ZodSchema<T>, 
-    defaultValue?: T
-  ): Promise<T> {
+  async get<T>(path: string, schema: z.ZodSchema<T>, defaultValue?: T): Promise<T> {
     const cacheKey = `config:${path}`
-    
+
     // Try cache first
     let config = await this.cacheService.get<T>(cacheKey)
     if (config !== undefined) {
@@ -654,19 +671,19 @@ export class ConfigurationService {
     // Load and validate with Zod
     const rawConfig = this.configService.get(path, defaultValue)
     const result = schema.safeParse(rawConfig)
-    
+
     if (!result.success) {
       throw new ConfigurationValidationError(
         `Invalid configuration for path: ${path}`,
-        result.error.format()
+        result.error.format(),
       )
     }
 
     config = result.data
-    
+
     // Cache validated config
     await this.cacheService.set(cacheKey, config)
-    
+
     return config
   }
 
@@ -681,13 +698,12 @@ export class ConfigurationService {
 ```
 
 2. **Backward Compatibility Layer**
+
 ```typescript
 // apps/eco-solver/src/config/eco-config.service.ts (Updated)
 @Injectable()
 export class EcoConfigService {
-  constructor(
-    private readonly modernConfigService: ConfigurationService
-  ) {}
+  constructor(private readonly modernConfigService: ConfigurationService) {}
 
   // Maintain existing API while using modern service internally
   async getServerConfig(): Promise<ServerConfig> {
@@ -710,6 +726,7 @@ export class EcoConfigService {
 ### Phase 4: Performance Optimization & Advanced Features (Week 7-8)
 
 #### Objectives
+
 - Implement lazy loading modules for optimal performance
 - Add distributed caching with Redis
 - Set up monitoring and observability
@@ -718,6 +735,7 @@ export class EcoConfigService {
 #### Tasks
 
 1. **Lazy Loading Implementation**
+
 ```typescript
 // apps/eco-solver/src/config/lazy-config.module.ts
 @Module({})
@@ -728,12 +746,11 @@ export class LazyConfigModule {
       module: LazyConfigModule,
       imports: [
         // Only load AWS config if secrets are enabled
-        ...(process.env.AWS_SECRETS_ENABLED === 'true' 
-          ? [await import('./aws-config.module').then(m => m.AwsConfigModule)]
-          : []
-        ),
+        ...(process.env.AWS_SECRETS_ENABLED === 'true'
+          ? [await import('./aws-config.module').then((m) => m.AwsConfigModule)]
+          : []),
         // Load database config lazily
-        await import('./db-config.module').then(m => m.DatabaseConfigModule)
+        await import('./db-config.module').then((m) => m.DatabaseConfigModule),
       ],
       providers: [
         {
@@ -742,15 +759,16 @@ export class LazyConfigModule {
             // Lazy load configuration factory
             const { createConfigLoader } = await import('@libs/config/core')
             return createConfigLoader()
-          }
-        }
-      ]
+          },
+        },
+      ],
     }
   }
 }
 ```
 
 2. **Node.js 20+ Optimizations**
+
 ```typescript
 // apps/eco-solver/src/main.ts
 import { NestFactory } from '@nestjs/core'
@@ -759,7 +777,7 @@ import { AppModule } from './app/app.module'
 async function bootstrap() {
   // Node.js 20+ optimization: Use native performance monitoring
   const { performance, PerformanceObserver } = await import('node:perf_hooks')
-  
+
   const obs = new PerformanceObserver((list) => {
     const entries = list.getEntries()
     entries.forEach((entry) => {
@@ -772,18 +790,21 @@ async function bootstrap() {
 
   // Mark config loading start
   performance.mark('config:start')
-  
+
   const app = await NestFactory.create(AppModule, {
     // Node.js 20+ native HTTP/2 support
-    httpsOptions: process.env.ENABLE_HTTP2 === 'true' ? {
-      allowHTTP1: true // Backward compatibility
-    } : undefined
+    httpsOptions:
+      process.env.ENABLE_HTTP2 === 'true'
+        ? {
+            allowHTTP1: true, // Backward compatibility
+          }
+        : undefined,
   })
 
   // Mark config loading complete
   performance.mark('config:end')
   performance.measure('config:total', 'config:start', 'config:end')
-  
+
   await app.listen(process.env.PORT || 3000)
 }
 
@@ -791,14 +812,12 @@ bootstrap()
 ```
 
 3. **Advanced Monitoring**
+
 ```typescript
 // libs/config/core/src/lib/monitoring/config-health.service.ts
 @Injectable()
 export class ConfigurationHealthService {
-  constructor(
-    private configService: ConfigurationService,
-    private logger: Logger
-  ) {}
+  constructor(private configService: ConfigurationService, private logger: Logger) {}
 
   @Cron('*/30 * * * * *') // Every 30 seconds
   async checkConfigHealth(): Promise<HealthStatus> {
@@ -806,19 +825,19 @@ export class ConfigurationHealthService {
       this.checkRedisConnection(),
       this.checkAwsSecretsAccess(),
       this.checkDatabaseConfig(),
-      this.checkMemoryUsage()
+      this.checkMemoryUsage(),
     ])
 
     const results = healthChecks.map((result, index) => ({
       check: ['redis', 'aws', 'database', 'memory'][index],
       status: result.status,
-      details: result.status === 'fulfilled' ? result.value : result.reason
+      details: result.status === 'fulfilled' ? result.value : result.reason,
     }))
 
     const healthStatus: HealthStatus = {
-      healthy: results.every(r => r.status === 'fulfilled'),
+      healthy: results.every((r) => r.status === 'fulfilled'),
       timestamp: new Date(),
-      checks: results
+      checks: results,
     }
 
     if (!healthStatus.healthy) {
@@ -834,25 +853,29 @@ export class ConfigurationHealthService {
 ## Implementation Timeline (Updated)
 
 ### Week 1-2: Foundation & Modern Setup
+
 - [ ] Nx Apps/Features/Libs structure with generators
-- [ ] Zod schemas with automatic type inference  
+- [ ] Zod schemas with automatic type inference
 - [ ] Node.js 20+ dependency updates
 - [ ] Conformance rules setup
 - [ ] Performance baseline measurements
 
 ### Week 3-4: Modern Providers
+
 - [ ] AWS SDK v3 async providers
 - [ ] Redis caching integration
 - [ ] Environment validation with Zod
 - [ ] Provider integration testing with modern tooling
 
-### Week 5-6: Service Migration  
+### Week 5-6: Service Migration
+
 - [ ] Modern configuration service with type safety
 - [ ] Backward compatibility layer
 - [ ] Automated migration utilities via Nx generators
 - [ ] Comprehensive testing with Node.js 20+ features
 
 ### Week 7-8: Performance & Advanced Features
+
 - [ ] Lazy loading module implementation
 - [ ] Distributed caching with Redis
 - [ ] Advanced monitoring and health checks
@@ -874,11 +897,11 @@ if (!isMainThread && parentPort) {
       const start = performance.now()
       const config = await loadHeavyConfiguration(data)
       const end = performance.now()
-      
+
       parentPort.postMessage({
         type: 'CONFIG_LOADED',
         config,
-        loadTime: end - start
+        loadTime: end - start,
       })
     }
   })
@@ -892,11 +915,8 @@ if (!isMainThread && parentPort) {
 @Injectable()
 export class MultiTierCacheService {
   private memoryCache = new Map<string, CacheItem>()
-  
-  constructor(
-    @Inject(CACHE_MANAGER) private redisCache: Cache,
-    private logger: Logger
-  ) {}
+
+  constructor(@Inject(CACHE_MANAGER) private redisCache: Cache, private logger: Logger) {}
 
   async get<T>(key: string): Promise<T | undefined> {
     // Tier 1: Memory cache (fastest)
@@ -911,7 +931,7 @@ export class MultiTierCacheService {
       // Populate memory cache
       this.memoryCache.set(key, {
         value: redisValue,
-        expires: Date.now() + 60000 // 1 minute memory cache
+        expires: Date.now() + 60000, // 1 minute memory cache
       })
       return redisValue
     }
@@ -923,9 +943,9 @@ export class MultiTierCacheService {
     // Set in both tiers
     this.memoryCache.set(key, {
       value,
-      expires: Date.now() + Math.min(ttl, 60000) // Max 1 min in memory
+      expires: Date.now() + Math.min(ttl, 60000), // Max 1 min in memory
     })
-    
+
     await this.redisCache.set(key, value, ttl)
   }
 }
@@ -937,20 +957,17 @@ export class MultiTierCacheService {
 // libs/config/core/src/lib/preloader/config-preloader.service.ts
 @Injectable()
 export class ConfigurationPreloaderService implements OnApplicationBootstrap {
-  constructor(
-    private configService: ConfigurationService,
-    private logger: Logger
-  ) {}
+  constructor(private configService: ConfigurationService, private logger: Logger) {}
 
   async onApplicationBootstrap() {
     const preloadStart = performance.now()
-    
+
     // Preload critical configurations in parallel
     await Promise.all([
       this.preloadServerConfig(),
       this.preloadDatabaseConfig(),
       this.preloadRedisConfig(),
-      this.preloadAwsConfig()
+      this.preloadAwsConfig(),
     ])
 
     const preloadTime = performance.now() - preloadStart
@@ -982,14 +999,14 @@ describe('ConfigurationService (2025)', () => {
           load: [
             // Use factory functions for testable config
             () => ({ server: { port: 3001, host: 'test' } }),
-            () => ({ database: { host: 'localhost', port: 5432 } })
-          ]
+            () => ({ database: { host: 'localhost', port: 5432 } }),
+          ],
         }),
         CacheModule.register({
-          store: 'memory' // Use memory store for tests
-        })
+          store: 'memory', // Use memory store for tests
+        }),
       ],
-      providers: [ConfigurationService, ConfigurationCacheService]
+      providers: [ConfigurationService, ConfigurationCacheService],
     }).compile()
 
     app = module.createNestApplication()
@@ -1002,26 +1019,24 @@ describe('ConfigurationService (2025)', () => {
     const config1 = await service.get('server', ServerConfigSchema)
     expect(config1).toEqual({
       port: 3001,
-      host: 'test'
+      host: 'test',
     })
 
     // Second call - should return cached result (faster)
     const start = performance.now()
     const config2 = await service.get('server', ServerConfigSchema)
     const duration = performance.now() - start
-    
+
     expect(config2).toEqual(config1)
     expect(duration).toBeLessThan(1) // Should be very fast from cache
   })
 
   it('should throw validation error for invalid config', async () => {
     const invalidSchema = z.object({
-      requiredField: z.string()
+      requiredField: z.string(),
     })
 
-    await expect(
-      service.get('server', invalidSchema)
-    ).rejects.toThrow(ConfigurationValidationError)
+    await expect(service.get('server', invalidSchema)).rejects.toThrow(ConfigurationValidationError)
   })
 })
 ```
@@ -1036,7 +1051,7 @@ describe('AWS Configuration Integration (SDK v3)', () => {
 
   beforeEach(() => {
     mockSecretsManager = {
-      send: jest.fn()
+      send: jest.fn(),
     } as any
 
     provider = new AwsSecretsProvider()
@@ -1047,25 +1062,19 @@ describe('AWS Configuration Integration (SDK v3)', () => {
   it('should load secrets from AWS SDK v3', async () => {
     const mockSecret = { username: 'test', password: 'secret' }
     mockSecretsManager.send.mockResolvedValueOnce({
-      SecretString: JSON.stringify(mockSecret)
+      SecretString: JSON.stringify(mockSecret),
     })
 
     const result = await provider.loadSecret('test-secret')
-    
+
     expect(result).toEqual(mockSecret)
-    expect(mockSecretsManager.send).toHaveBeenCalledWith(
-      expect.any(GetSecretValueCommand)
-    )
+    expect(mockSecretsManager.send).toHaveBeenCalledWith(expect.any(GetSecretValueCommand))
   })
 
   it('should handle AWS SDK v3 errors gracefully', async () => {
-    mockSecretsManager.send.mockRejectedValueOnce(
-      new Error('Secret not found')
-    )
+    mockSecretsManager.send.mockRejectedValueOnce(new Error('Secret not found'))
 
-    await expect(
-      provider.loadSecret('missing-secret')
-    ).rejects.toThrow(ConfigurationLoadError)
+    await expect(provider.loadSecret('missing-secret')).rejects.toThrow(ConfigurationLoadError)
   })
 })
 ```
@@ -1094,28 +1103,25 @@ export class ConfigSecurityMonitorService {
   private suspiciousAttempts = new Map<string, number>()
 
   @EventPattern('config:access')
-  handleConfigAccess(data: { path: string, source: string }) {
+  handleConfigAccess(data: { path: string; source: string }) {
     // Monitor for suspicious configuration access patterns
     if (this.isSuspiciousPath(data.path)) {
       const attempts = this.suspiciousAttempts.get(data.source) || 0
       this.suspiciousAttempts.set(data.source, attempts + 1)
-      
+
       if (attempts > 10) {
-        this.alertService.sendSecurityAlert(
-          'Suspicious configuration access detected',
-          { path: data.path, source: data.source, attempts }
-        )
+        this.alertService.sendSecurityAlert('Suspicious configuration access detected', {
+          path: data.path,
+          source: data.source,
+          attempts,
+        })
       }
     }
   }
 
   private isSuspiciousPath(path: string): boolean {
-    const suspiciousPaths = [
-      'password', 'secret', 'key', 'token', 'credential'
-    ]
-    return suspiciousPaths.some(keyword => 
-      path.toLowerCase().includes(keyword)
-    )
+    const suspiciousPaths = ['password', 'secret', 'key', 'token', 'credential']
+    return suspiciousPaths.some((keyword) => path.toLowerCase().includes(keyword))
   }
 }
 ```
@@ -1123,6 +1129,7 @@ export class ConfigSecurityMonitorService {
 ## Success Metrics (Updated for 2025)
 
 ### Performance Metrics (Enhanced)
+
 - Configuration load time < 200ms (improved from 500ms target)
 - Memory usage reduction > 30% (improved from 20%)
 - Hot reload time < 50ms (improved from 100ms)
@@ -1130,6 +1137,7 @@ export class ConfigSecurityMonitorService {
 - Node.js 20+ garbage collection efficiency > 95%
 
 ### Quality Metrics (Enhanced)
+
 - Type safety coverage > 98% (Zod automatic inference)
 - Unit test coverage > 95%
 - Integration test coverage > 85%
@@ -1137,6 +1145,7 @@ export class ConfigSecurityMonitorService {
 - Security audit score > 9.5/10
 
 ### Developer Experience Metrics (New)
+
 - Configuration change deployment time < 2 minutes (improved from 5)
 - New environment setup time < 5 minutes (improved from 10)
 - Configuration debugging time reduction > 60% (improved from 50%)
@@ -1144,6 +1153,7 @@ export class ConfigSecurityMonitorService {
 - Time to add new configuration < 15 minutes (improved from 30)
 
 ### Scalability Metrics (New)
+
 - Horizontal scaling readiness score > 95%
 - Configuration distribution latency < 100ms
 - Cache hit ratio > 85%
@@ -1156,18 +1166,21 @@ This updated 2025 refactoring plan leverages the latest best practices and moder
 ## Key Updates Made (Security & Best Practices)
 
 ### 1. **AWS Service Initialization (No Defaults)**
+
 - ✅ **Removed all default values** - AWS service now requires injected configuration
 - ✅ **Dependency injection required** - Must provide AWS credentials at initialization
 - ✅ **Fail-fast validation** - Throws error if region/credentials not provided
 - ✅ **No fallback behavior** - Eliminates security risks from default configurations
 
 ### 2. **Built-in NestJS Cache Decorators**
+
 - ✅ **Replaced custom @Cacheable decorator** with NestJS built-in `@CacheKey` and `@CacheTTL`
 - ✅ **Leverages official NestJS patterns** - Better maintenance and community support
 - ✅ **Cleaner implementation** - No custom decorator logic needed
 - ✅ **Better TypeScript integration** - Official decorators have better type support
 
 ### 3. **Memory-Only Caching (No Redis for Sensitive Data)**
+
 - ✅ **Removed all Redis dependencies** - No external cache stores for sensitive configs
 - ✅ **In-memory cache only** - Sensitive data never leaves application memory
 - ✅ **Sensitive data detection** - Automatic blocking of caching for sensitive keys
@@ -1175,9 +1188,10 @@ This updated 2025 refactoring plan leverages the latest best practices and moder
 - ✅ **Security-first approach** - Prevents sensitive data exposure through cache stores
 
 **Key 2025 Enhancements:**
+
 - **Nx Native**: Apps/Features/Libs pattern with source consumption eliminates versioning complexity
 - **TypeScript-First**: Zod schemas provide automatic type inference and superior security
-- **AWS SDK v3**: Modern async patterns with tree-shaking and performance optimizations  
+- **AWS SDK v3**: Modern async patterns with tree-shaking and performance optimizations
 - **Node.js 20+**: Native performance monitoring, HTTP/2 support, and optimized garbage collection
 - **Security-Enhanced**: No defaults, memory-only caching, minimal dependencies, runtime monitoring
 - **Developer-Optimized**: Built-in decorators, automated scaffolding, conformance rules

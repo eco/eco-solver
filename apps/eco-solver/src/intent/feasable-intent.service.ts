@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { EcoAnalyticsService } from '@eco-solver/analytics'

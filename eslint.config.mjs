@@ -26,6 +26,25 @@ export default [
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          // Allow @eco-solver/* imports within the eco-solver app
+          allow: ['^@eco-solver/.*'],
+          depConstraints: [
+            {
+              sourceTag: 'scope:eco-solver',
+              onlyDependOnLibsWithTags: ['scope:eco-solver'],
+            },
+            {
+              sourceTag: 'type:app',
+              onlyDependOnLibsWithTags: ['type:lib', 'type:util'],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: [

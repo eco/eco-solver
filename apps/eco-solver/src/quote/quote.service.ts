@@ -24,8 +24,8 @@ import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
 import { Mathb } from '@eco-solver/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import dayjs from 'dayjs'
-import { encodeFunctionData, erc20Abi, formatEther, parseGwei } from "viem"
-import { Hex } from "viem"
+import { encodeFunctionData, erc20Abi, formatEther, parseGwei } from 'viem'
+import { Hex } from 'viem'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { CalculateTokensType } from '@eco-solver/fee/types'
 import { EcoResponse } from '@eco-solver/common/eco-response'

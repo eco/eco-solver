@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { IndexerConfig } from '@eco-solver/eco-configs/eco-config.types'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import {

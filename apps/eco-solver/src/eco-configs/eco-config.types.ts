@@ -4,8 +4,8 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { HttpTransportConfig, WebSocketTransportConfig } from "viem"
-import { Hex } from "viem"
+import { HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { Hex } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'

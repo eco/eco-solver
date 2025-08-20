@@ -7,7 +7,7 @@ import { FeasableIntentService } from '@eco-solver/intent/feasable-intent.servic
 import { ValidateIntentService } from '@eco-solver/intent/validate-intent.service'
 import { CreateIntentService } from '@eco-solver/intent/create-intent.service'
 import { FulfillIntentService } from '@eco-solver/intent/fulfill-intent.service'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { IntentCreatedLog } from '@eco-solver/contracts'
 import { Serialize } from '@eco-solver/common/utils/serialize'
 import { EcoAnalyticsService } from '@eco-solver/analytics'

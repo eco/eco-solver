@@ -5,8 +5,8 @@ import { JobsOptions, Queue } from 'bullmq'
 import { QUEUES } from '../common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
 import { ViemEventLog } from '../common/events/viem'
-import { erc20Abi, WatchContractEventReturnType, zeroHash } from "viem"
-import { Hex } from "viem"
+import { erc20Abi, WatchContractEventReturnType, zeroHash } from 'viem'
+import { Hex } from 'viem'
 import { convertBigIntsToStrings } from '../common/viem/utils'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'

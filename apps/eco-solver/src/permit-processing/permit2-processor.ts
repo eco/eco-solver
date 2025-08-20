@@ -5,8 +5,8 @@ import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallet
 import { ModuleRef } from '@nestjs/core'
 import { Permit2DTO } from '@eco-solver/quote/dto/permit2/permit2.dto'
 import { Permit2TxBuilder } from '@eco-solver/permit-processing/permit2-tx-builder'
-import { TransactionReceipt } from "viem"
-import { Hex } from "viem"
+import { TransactionReceipt } from 'viem'
+import { Hex } from 'viem'
 
 /**
  * This class processes the permit2 transaction. It generates the transaction for the permits and executes it.

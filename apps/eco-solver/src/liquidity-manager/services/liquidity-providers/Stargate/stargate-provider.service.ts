@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { parseUnits } from "viem"
-import { Hex } from "viem"
+import { parseUnits } from 'viem'
+import { Hex } from 'viem'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'

@@ -16,7 +16,7 @@ import { ProofService } from '@eco-solver/prover/proof.service'
 import { QuoteIntentDataInterface } from '@eco-solver/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@eco-solver/fee/utils'
 import { CallDataInterface } from '@eco-solver/contracts'
 import { EcoError } from '@eco-solver/common/errors/eco-error'

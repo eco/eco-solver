@@ -1,6 +1,6 @@
 import { RewardTokensInterface } from '@eco-solver/contracts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
 export class TokenAmountDataModel implements RewardTokensInterface {

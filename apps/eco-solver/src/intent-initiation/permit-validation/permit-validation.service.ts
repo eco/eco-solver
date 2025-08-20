@@ -10,8 +10,8 @@ import { PermitDTO } from '@eco-solver/quote/dto/permit/permit.dto'
 import { PermitParams } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit-params.interface'
 import { PermitValidationArgs } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit-validation-args.interface'
 import { PermitValidator } from '@eco-solver/intent-initiation/permit-validation/permit-validator'
-import { PublicClient, publicActions, isAddressEqual, Address } from "viem"
-import { Hex } from "viem"
+import { PublicClient, publicActions, isAddressEqual, Address } from 'viem'
+import { Hex } from 'viem'
 import { QuoteRewardDataDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'
 import { ValidateVaultFundingArgs } from '@eco-solver/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
 import { VaultFundingValidator } from '@eco-solver/intent-initiation/permit-validation/vault-funding-validator'

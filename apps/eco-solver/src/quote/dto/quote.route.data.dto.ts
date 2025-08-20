@@ -5,7 +5,7 @@ import { RouteType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 
 /**
  * The DTO for the route data that the sender wants to make.

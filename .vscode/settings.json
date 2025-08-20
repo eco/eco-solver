@@ -1,3 +1,13 @@
 {
-  "nxConsole.generateAiAgentRules": true
+  "nxConsole.generateAiAgentRules": true,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": true,
+  "typescript.preferences.enableRenameShorthandProperties": true,
+  "typescript.tsc.autoDetect": "off",
+  "typescript.disableAutomaticTypeAcquisition": false,
+  "typescript.referencesCodeLens.enabled": true,
+  "typescript.suggest.paths": true,
+  "typescript.preferences.includeCompletePathIfNoMatches": true
 }

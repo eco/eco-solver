@@ -1,8 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { PermitDataDTO } from '@eco-solver/quote/dto/permit-data.dto'
 import { Type } from 'class-transformer'
-import { zeroAddress } from "viem"
+import { zeroAddress } from 'viem'
 
 import {
   IsNotEmpty,

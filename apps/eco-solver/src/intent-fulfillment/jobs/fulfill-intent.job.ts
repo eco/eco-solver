@@ -1,5 +1,5 @@
 import { JobsOptions, Job } from 'bullmq'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { BaseJobManager } from '@eco-solver/common/bullmq/base-job'
 import { IntentFulfillmentJobName } from '@eco-solver/intent-fulfillment/queues/intent-fulfillment.queue'
 import { serialize, Serialize, deserialize } from '@eco-solver/common/utils/serialize'

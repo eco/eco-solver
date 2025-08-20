@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
-import { parseUnits, formatUnits } from "viem"
-import { Hex } from "viem"
+import { parseUnits, formatUnits } from 'viem'
+import { Hex } from 'viem'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { BalanceService } from '@eco-solver/balance/balance.service'

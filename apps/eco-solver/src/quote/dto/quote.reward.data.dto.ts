@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { getAddress } from "viem"
-import { Hex } from "viem"
+import { getAddress } from 'viem'
+import { Hex } from 'viem'
 import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
 import { RewardTokensInterface } from '@eco-solver/contracts'

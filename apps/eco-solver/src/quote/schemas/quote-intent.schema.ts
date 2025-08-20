@@ -21,10 +21,10 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
   @Prop({ required: true, type: String })
   dAppID: string
 
-  @Prop({ 
-    required: true, 
+  @Prop({
+    required: true,
     type: String,
-    enum: ['SELF_PUBLISH', 'GASLESS']
+    enum: ['SELF_PUBLISH', 'GASLESS'],
   })
   intentExecutionType: string
 

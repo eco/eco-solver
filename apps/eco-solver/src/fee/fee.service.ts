@@ -26,7 +26,7 @@ import { QuoteIntentDataInterface } from '@eco-solver/quote/dto/quote.intent.dat
 import { QuoteError } from '@eco-solver/quote/errors'
 import { Mathb } from '@eco-solver/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress, zeroAddress , Hex} from 'viem'
+import { getAddress, zeroAddress, Hex } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@eco-solver/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@eco-solver/common/utils/strings'

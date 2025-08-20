@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@libs/eco-solver-config": ["libs/eco-solver/config/src/index.ts"],
+      "@eco-solver/*": ["apps/eco-solver/src/*"]
+    }
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./apps/eco-solver"
+    },
+    {
+      "path": "./apps/eco-solver-e2e"
+    }
+  ]
+}

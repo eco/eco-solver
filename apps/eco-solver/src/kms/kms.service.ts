@@ -6,8 +6,8 @@ import { Signer } from '@eco-foundation/eco-kms-core'
 import { KMSProviderAWS } from '@eco-foundation/eco-kms-provider-aws'
 import { KMSWallets } from '@eco-foundation/eco-kms-wallets'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { getAddress as viemGetAddress } from "viem"
-import { Hex } from "viem"
+import { getAddress as viemGetAddress } from 'viem'
+import { Hex } from 'viem'
 
 /**
  * A service class that initializes the kms signer and provides for signing of messages.

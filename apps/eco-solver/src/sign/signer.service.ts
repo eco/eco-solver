@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { PrivateKeyAccount } from "viem"
-import { Hex } from "viem"
+import { PrivateKeyAccount } from 'viem'
+import { Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 

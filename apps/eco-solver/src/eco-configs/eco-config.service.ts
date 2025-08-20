@@ -13,8 +13,8 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress, zeroAddress } from "viem"
-import { Hex } from "viem"
+import { Chain, getAddress, zeroAddress } from 'viem'
+import { Hex } from 'viem'
 import { addressKeys } from '@eco-solver/common/viem/utils'
 import { ChainsSupported } from '@eco-solver/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -58,7 +58,7 @@ export class EcoConfigService {
 
     this.configLoader = ConfigLoader.getInstance({
       configDir: this.getConfigDir(),
-      nodeEnv: process.env.NODE_ENV
+      nodeEnv: process.env.NODE_ENV,
     })
     this.initConfigs()
   }
@@ -77,17 +77,20 @@ export class EcoConfigService {
    */
   static getStaticConfig(): EcoConfigType {
     const cwd = process.cwd()
-    const configDir = cwd.includes('/dist/') 
+    const configDir = cwd.includes('/dist/')
       ? path.join(cwd, 'config')
       : path.join(cwd, 'apps/eco-solver/config')
-    
+
     try {
-      return ConfigLoader.load({ 
+      return ConfigLoader.load({
         configDir,
-        nodeEnv: process.env.NODE_ENV 
+        nodeEnv: process.env.NODE_ENV,
       }) as unknown as EcoConfigType
     } catch (error) {
-      console.warn('Failed to load config with ConfigLoader, using fallback:', (error as Error).message)
+      console.warn(
+        'Failed to load config with ConfigLoader, using fallback:',
+        (error as Error).message,
+      )
       // Fallback config with minimum required values
       return {
         logger: {
@@ -121,8 +124,8 @@ export class EcoConfigService {
 
     // Load base config and merge with external configs
     const baseConfig = this.configLoader.load()
-    
-    // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones  
+
+    // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     const mergedConfig = _.merge(this.externalConfigs, baseConfig)
 
     // Set the eco chain rpc token api keys

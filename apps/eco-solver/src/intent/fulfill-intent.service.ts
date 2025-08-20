@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { Solver } from '@eco-solver/eco-configs/eco-config.types'

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { Hex } from "viem"
+import { Hex } from 'viem'
 import { IsEthereumAddress, IsNotEmpty, ValidateNested } from 'class-validator'
 import { PermitSignatureDTO } from '@eco-solver/quote/dto/permit/permit-signature-data.dto'
 import { Type } from 'class-transformer'

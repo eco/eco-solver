@@ -1,7 +1,7 @@
 import { encode7579Calls } from 'permissionless'
 import { KernelVersion } from 'permissionless/accounts'
-import { type Address, encodeFunctionData } from "viem"
-import { type Hex } from "viem"
+import { type Address, encodeFunctionData } from 'viem'
+import { type Hex } from 'viem'
 import { isKernelV2 } from '../kernel-account.config'
 import { KernelExecuteAbi } from '../../../../contracts'
 

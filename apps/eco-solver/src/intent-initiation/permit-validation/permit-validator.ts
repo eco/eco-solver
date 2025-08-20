@@ -6,8 +6,8 @@ import { EcoResponse } from '@eco-solver/common/eco-response'
 import { getEip712DomainFromToken } from '@eco-solver/intent-initiation/permit-validation/signing-utils'
 import { PermitAbi } from '@eco-solver/contracts/Permit.abi'
 import { PermitParams } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit-params.interface'
-import { PublicClient, verifyTypedData, Address, parseSignature, Signature } from "viem"
-import { Hex } from "viem"
+import { PublicClient, verifyTypedData, Address, parseSignature, Signature } from 'viem'
+import { Hex } from 'viem'
 
 export class PermitValidator {
   private static logger = new EcoLogger(PermitValidator.name)

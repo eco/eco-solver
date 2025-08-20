@@ -1,7 +1,7 @@
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { formatUnits } from "viem"
-import { Hex } from "viem"
+import { formatUnits } from 'viem'
+import { Hex } from 'viem'
 
 @Schema()
 export class RebalanceTokenModel {
