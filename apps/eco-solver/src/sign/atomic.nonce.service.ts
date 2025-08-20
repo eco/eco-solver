@@ -86,6 +86,7 @@ export abstract class AtomicNonceService<T extends { nonce: number }>
     return await this.getIncNonce(parameters)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   async set(params: AtomicGetParameters, nonce: number): Promise<void> {} // eslint-disable-line @typescript-eslint/no-unused-vars
 
   async getIncNonce(parameters: AtomicGetParameters): Promise<number> {

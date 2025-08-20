@@ -33,15 +33,13 @@ export async function getEip712DomainFromToken(
 
   let version = '1'
 
-  try {
-    const value = await client.readContract({
-      address: tokenAddress,
-      abi: ERC20PermitAbiWithVersion,
-      functionName: 'version',
-    })
+  const value = await client.readContract({
+    address: tokenAddress,
+    abi: ERC20PermitAbiWithVersion,
+    functionName: 'version',
+  })
 
-    version = value.toString()
-  } catch {}
+  version = value.toString()
 
   return {
     name,

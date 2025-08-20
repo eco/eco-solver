@@ -57,9 +57,9 @@ export class APIRequestExecutor {
   }
 
   logRequest(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     requestOptions: RequestOptions,
-    // eslint-disable-next-line @typescript-eslint/no-empty-function, no-empty-function
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
   ) {}
 
   getRequestOptions(requestParams: ExecuteRequestParams): RequestOptions {
@@ -185,7 +185,7 @@ export class APIRequestExecutor {
   }
 
   getAuthorization(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     requestParams: ExecuteRequestParams,
   ): string | undefined {
     return undefined

@@ -1,8 +1,8 @@
-import { Global, Module, DynamicModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { EcoConfigService } from './eco-config.service';
-import { ConfigLoader } from '@mono-solver/eco-solver-config';
-import { join } from 'path';
+import { Global, Module, DynamicModule } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { EcoConfigService } from './eco-config.service'
+import { ConfigLoader } from '@libs/eco-solver-config'
+import { join } from 'path'
 
 @Global()
 @Module({})
@@ -32,7 +32,7 @@ export class EcoConfigModule {
         EcoConfigService,
       ],
       exports: [EcoConfigService],
-    };
+    }
   }
 
   /**
@@ -55,11 +55,9 @@ export class EcoConfigModule {
           ignoreEnvFile: process.env.NODE_ENV === 'production',
         }),
       ],
-      providers: [
-        EcoConfigService,
-      ],
+      providers: [EcoConfigService],
       exports: [EcoConfigService],
-    };
+    }
   }
 
   /**
@@ -76,10 +74,8 @@ export class EcoConfigModule {
           ignoreEnvFile: true,
         }),
       ],
-      providers: [
-        EcoConfigService,
-      ],
+      providers: [EcoConfigService],
       exports: [EcoConfigService],
-    };
+    }
   }
 }

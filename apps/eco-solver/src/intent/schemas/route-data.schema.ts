@@ -1,4 +1,7 @@
-import { TargetCallDataModel, TargetCallDataSchema } from '@eco-solver/intent/schemas/intent-call-data.schema'
+import {
+  TargetCallDataModel,
+  TargetCallDataSchema,
+} from '@eco-solver/intent/schemas/intent-call-data.schema'
 import {
   TokenAmountDataModel,
   TokenAmountDataSchema,

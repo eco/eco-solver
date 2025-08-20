@@ -8,7 +8,12 @@ import {
   IntentConfig,
   WhitelistFeeRecord,
 } from '@eco-solver/eco-configs/eco-config.types'
-import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@eco-solver/fee/types'
+import {
+  CalculateTokensType,
+  NormalizedCall,
+  NormalizedToken,
+  NormalizedTotal,
+} from '@eco-solver/fee/types'
 import { isInsufficient, normalizeBalance, normalizeSum } from '@eco-solver/fee/utils'
 import {
   getFunctionCalls,
@@ -30,7 +35,7 @@ import { EcoAnalyticsService } from '@eco-solver/analytics'
 /**
  * The base decimal number for erc20 tokens.
  */
-export const BASE_DECIMALS: number = 6
+export const BASE_DECIMALS = 6
 
 @Injectable()
 export class FeeService implements OnModuleInit {
@@ -164,13 +169,13 @@ export class FeeService implements OnModuleInit {
 
     const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
 
-    if (Boolean(totalFillError)) {
+    if (totalFillError) {
       return { error: totalFillError }
     }
 
     const { totalRewardsNormalized, error: totalRewardsError } = await this.getTotalRewards(quote)
 
-    if (Boolean(totalRewardsError)) {
+    if (totalRewardsError) {
       return { error: totalRewardsError }
     }
 
@@ -471,23 +476,20 @@ export class FeeService implements OnModuleInit {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
     }
 
-    const erc20Balances = Object.values(callERC20Balances).reduce(
-      (acc, tokenBalance) => {
-        const config = solver.targets[tokenBalance.address]
-        acc[tokenBalance.address] = {
-          token: tokenBalance,
-          config: {
-            ...config,
-            chainId: solver.chainID,
-            address: tokenBalance.address,
-            type: 'erc20',
-          },
+    const erc20Balances = Object.values(callERC20Balances).reduce((acc, tokenBalance) => {
+      const config = solver.targets[tokenBalance.address]
+      acc[tokenBalance.address] = {
+        token: tokenBalance,
+        config: {
+          ...config,
           chainId: solver.chainID,
-        }
-        return acc
-      },
-      {} as Record<Hex, TokenFetchAnalysis>,
-    )
+          address: tokenBalance.address,
+          type: 'erc20',
+        },
+        chainId: solver.chainID,
+      }
+      return acc
+    }, {} as Record<Hex, TokenFetchAnalysis>)
 
     let error: Error | undefined
     let calls: NormalizedCall[] = []
@@ -675,8 +677,8 @@ export class FeeService implements OnModuleInit {
       route.destination === ETH_MAINNET || route.source === ETH_MAINNET
         ? ETH_MAINNET
         : route.destination === ETH_SEPOLIA || route.source === ETH_SEPOLIA
-          ? ETH_SEPOLIA
-          : route.destination
+        ? ETH_SEPOLIA
+        : route.destination
 
     const solver = this.ecoConfigService.getSolver(destination)
     if (!solver) {

@@ -1,8 +1,6 @@
 import { RESTAPIResponse } from './interfaces/rest-api-response.interface'
 
 export class APIRequestUtils {
-  constructor() {}
-
   handleResponse<T>(response: any): RESTAPIResponse<T> {
     const { status, data: responseData } = response
 

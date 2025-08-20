@@ -51,7 +51,9 @@ export async function withRetry<T>(
       if (logger) {
         logger.debug(
           EcoLogMessage.withId({
-            message: `Retrying operation after error. Attempt ${attempt + 1}/${finalConfig.maxRetries}`,
+            message: `Retrying operation after error. Attempt ${attempt + 1}/${
+              finalConfig.maxRetries
+            }`,
             properties: {
               error: error.message,
               delay,

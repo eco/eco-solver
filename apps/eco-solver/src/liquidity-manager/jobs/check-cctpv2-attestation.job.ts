@@ -33,19 +33,15 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     data: CheckCCTPV2AttestationJobData,
     delay?: number,
   ): Promise<void> {
-    try {
-      await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
-        removeOnComplete: true,
-        delay,
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 10_000,
-        },
-      })
-    } catch (error) {
-      throw error
-    }
+    await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
+      removeOnComplete: true,
+      delay,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 10_000,
+      },
+    })
   }
 
   is(job: LiquidityManagerJob): job is CheckCCTPV2AttestationJob {

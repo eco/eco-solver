@@ -22,12 +22,12 @@ export type IntentCreatedEventViemType = Prettify<
 /**
  * Define the interface for the calls field in the IntentSource event
  */
-export interface CallDataInterface extends CallDataType {}
+export type CallDataInterface = CallDataType
 
 /**
  * Define the interface for the token amount field in the IntentSource event
  */
-export interface RewardTokensInterface extends RewardTokensType {}
+export type RewardTokensInterface = RewardTokensType
 
 /**
  * Define the type for the IntentSource event log

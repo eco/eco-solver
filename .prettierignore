@@ -3,3 +3,18 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+
+node_modules
+.github
+dist
+pnpm-lock.yaml
+package-lock.json
+.pnpm-store
+.pnpm-debug.log*
+.pnpm-audit.log*
+
+# Test files
+**/*.spec.ts
+**/*.spec.js
+**/*.spec.tsx
+**/*.spec.jsx

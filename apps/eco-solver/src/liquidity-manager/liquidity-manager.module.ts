@@ -9,7 +9,10 @@ import { LiquidityManagerService } from '@eco-solver/liquidity-manager/services/
 import { LiquidityManagerProcessor } from '@eco-solver/liquidity-manager/processors/eco-protocol-intents.processor'
 import { LiquidityProviderService } from '@eco-solver/liquidity-manager/services/liquidity-provider.service'
 import { LiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { RebalanceModel, RebalanceSchema } from '@eco-solver/liquidity-manager/schemas/rebalance.schema'
+import {
+  RebalanceModel,
+  RebalanceSchema,
+} from '@eco-solver/liquidity-manager/schemas/rebalance.schema'
 import { CCTPProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { WarpRouteProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { CCTPLiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'

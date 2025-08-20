@@ -1,5 +1,14 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { Chain, Client, ClientConfig, createClient, extractChain, Hex, zeroAddress, Account } from 'viem'
+import {
+  Chain,
+  Client,
+  ClientConfig,
+  createClient,
+  extractChain,
+  Hex,
+  zeroAddress,
+  Account,
+} from 'viem'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { getTransport } from '@eco-solver/common/chains/transport'
 import { ChainsSupported } from '@eco-solver/common/chains/supported'

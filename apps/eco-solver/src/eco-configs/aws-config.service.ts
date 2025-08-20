@@ -14,7 +14,6 @@ import { merge } from 'lodash'
 export class AwsConfigService implements OnModuleInit, ConfigSource {
   private logger = new Logger(AwsConfigService.name)
   private _awsConfigs: Record<string, string> = {}
-  constructor() {}
 
   async onModuleInit() {
     await this.initConfigs()

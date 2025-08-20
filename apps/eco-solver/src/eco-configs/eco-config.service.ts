@@ -66,8 +66,6 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() {}
-
   // Initialize the configs
   initConfigs() {
     this.logger.debug(
@@ -371,13 +369,10 @@ export class EcoConfigService {
     const cctp = this.getCCTP()
     return {
       maxSlippage: liquidityManager.maxQuoteSlippage,
-      usdcAddresses: cctp.chains.reduce(
-        (acc, chain) => {
-          acc[chain.chainId] = getAddress(chain.token)
-          return acc
-        },
-        {} as Record<number, Hex>,
-      ),
+      usdcAddresses: cctp.chains.reduce((acc, chain) => {
+        acc[chain.chainId] = getAddress(chain.token)
+        return acc
+      }, {} as Record<number, Hex>),
     }
   }
 }

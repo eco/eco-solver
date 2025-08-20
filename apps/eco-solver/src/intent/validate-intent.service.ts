@@ -14,7 +14,11 @@ import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@eco-solver/intent/schemas/intent-data.schema'
-import { ValidationChecks, ValidationService, validationsFailed } from '@eco-solver/intent/validation.sevice'
+import {
+  ValidationChecks,
+  ValidationService,
+  validationsFailed,
+} from '@eco-solver/intent/validation.sevice'
 import { EcoAnalyticsService } from '@eco-solver/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
 

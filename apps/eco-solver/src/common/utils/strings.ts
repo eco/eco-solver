@@ -22,7 +22,7 @@ export function getDestinationNetworkAddressKey(
 export function getIntentJobId(
   serviceName: string,
   intentHash: Hex | undefined,
-  logIndex: number = 0,
+  logIndex = 0,
 ): string {
   return `${serviceName}-${intentHash}-${logIndex}`
 }
@@ -33,7 +33,7 @@ export function getIntentJobId(
  * @param visibleChars number of characters at the start and end of the string to leave visible
  * @returns
  */
-export function obscureCenter(str: string, visibleChars: number = 2): string {
+export function obscureCenter(str: string, visibleChars = 2): string {
   if (visibleChars <= 0) {
     return str
   }

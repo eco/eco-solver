@@ -1,7 +1,11 @@
 import { isAddressEqual, parseUnits, Hex, encodeFunctionData, pad, erc20Abi } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
-import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import {
+  CCTPV2StrategyContext,
+  RebalanceQuote,
+  TokenData,
+} from '@eco-solver/liquidity-manager/types/types'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'

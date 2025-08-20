@@ -897,7 +897,7 @@ describe('FeeService', () => {
           args: [0, transferAmount],
         },
       } as any
-      let solverWithTargets: any = {
+      const solverWithTargets: any = {
         chainID: 1n,
         targets: {
           '0x1': {
@@ -1367,7 +1367,7 @@ describe('FeeService', () => {
     })
 
     it('should return the destination route solver', async () => {
-      let route = {
+      const route = {
         destination: 10n,
         source: 20n,
       } as any

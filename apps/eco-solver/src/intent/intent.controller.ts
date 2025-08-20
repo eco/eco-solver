@@ -128,7 +128,6 @@ const intentMainnet = [
   } as unknown as IntentCreatedLog,
 ]
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const intentPreprod = [
   {
     eventName: 'IntentCreated',

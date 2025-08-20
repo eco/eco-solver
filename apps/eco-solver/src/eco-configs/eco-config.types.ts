@@ -331,11 +331,11 @@ export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
       native: FeeAlgoLinear
     }
   : T extends 'quadratic'
-    ? {
-        token: FeeAlgoQuadratic
-        native: FeeAlgoQuadratic
-      }
-    : never
+  ? {
+      token: FeeAlgoQuadratic
+      native: FeeAlgoQuadratic
+    }
+  : never
 
 export type FeeAlgoLinear = { baseFee: bigint; tranche: { unitFee: bigint; unitSize: bigint } }
 export type FeeAlgoQuadratic = { baseFee: bigint; quadraticFactor: bigint }

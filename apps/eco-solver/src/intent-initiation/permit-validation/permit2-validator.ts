@@ -8,7 +8,6 @@ import { Permit2Params } from '@eco-solver/intent-initiation/permit-validation/i
 import { PublicClient, verifyTypedData } from 'viem'
 
 const KNOWN_PERMIT2_ADDRESSES = new Set(
-  // eslint-disable-next-line prettier/prettier
   ['0x000000000022D473030F116dDEE9F6B43aC78BA3'].map((addr) => addr.toLowerCase()),
 )
 
@@ -141,7 +140,6 @@ export class Permit2Validator {
     for (const detail of details) {
       const { nonce: expectedNonce, token } = detail
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [amount, onchainExpiration, actualNonce] = await client.readContract({
         address: permit2Address,
         abi: Permit2Abi,

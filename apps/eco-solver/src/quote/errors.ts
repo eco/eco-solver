@@ -210,13 +210,17 @@ export class QuoteError extends Error {
 
   static RouteIsInfeasable(ask: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
-      `The route is not infeasable: the reward ${formatNormalizedTotal(reward)} is less than the ask ${formatNormalizedTotal(ask)}`,
+      `The route is not infeasable: the reward ${formatNormalizedTotal(
+        reward,
+      )} is less than the ask ${formatNormalizedTotal(ask)}`,
     )
   }
 
   static RewardIsInfeasable(fee: NormalizedTotal, reward: NormalizedTotal) {
     return new EcoError(
-      `The reward is infeasable: the reward ${formatNormalizedTotal(reward)} is less than the fee ${formatNormalizedTotal(fee)}`,
+      `The reward is infeasable: the reward ${formatNormalizedTotal(
+        reward,
+      )} is less than the fee ${formatNormalizedTotal(fee)}`,
     )
   }
 

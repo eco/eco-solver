@@ -50,7 +50,10 @@ export class GitCommitHealthIndicator extends HealthIndicator {
         'undefined'
       return {
         version,
-        npm: `https://www.npmjs.com/package/${dependencyName}/v/${version.replace('^', '')}?activeTab=code`,
+        npm: `https://www.npmjs.com/package/${dependencyName}/v/${version.replace(
+          '^',
+          '',
+        )}?activeTab=code`,
       }
     } catch (error) {
       this.logger.error(

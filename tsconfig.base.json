@@ -15,7 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@mono-solver/eco-solver-config": ["libs/eco-solver/config/src/index.ts"],
+      "@libs/eco-solver-config": ["libs/eco-solver/config/src/index.ts"],
       "@eco-solver/*": ["apps/eco-solver/src/*"]
     }
   },

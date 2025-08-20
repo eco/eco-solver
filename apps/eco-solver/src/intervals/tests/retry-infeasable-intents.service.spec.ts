@@ -105,7 +105,7 @@ describe('RetryInfeasableIntentsService', () => {
   })
 
   describe('on retryInfeasableIntents', () => {
-    let mockGetInfeasableIntents = jest.fn()
+    const mockGetInfeasableIntents = jest.fn()
     const mockModels = [
       { intent: { hash: 'hash1', logIndex: 1 } },
       { intent: { hash: 'hash2', logIndex: 2 } },

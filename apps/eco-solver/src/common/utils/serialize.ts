@@ -6,21 +6,21 @@ export type Serialize<T> = T extends bigint
       [K in keyof T]: T[K] extends bigint
         ? SerializedBigInt
         : T[K] extends object
-          ? Serialize<T[K]>
-          : T[K]
+        ? Serialize<T[K]>
+        : T[K]
     }
 
 export type Deserialize<T> = T extends SerializedBigInt
   ? bigint
   : T extends object
-    ? {
-        [K in keyof T]: T[K] extends SerializedBigInt
-          ? bigint
-          : T[K] extends object
-            ? Deserialize<T[K]>
-            : T[K]
-      }
-    : T
+  ? {
+      [K in keyof T]: T[K] extends SerializedBigInt
+        ? bigint
+        : T[K] extends object
+        ? Deserialize<T[K]>
+        : T[K]
+    }
+  : T
 
 function isSerializedBigInt(data: any): data is SerializedBigInt {
   return data && data.type === 'BigInt' && typeof data.hex === 'string'

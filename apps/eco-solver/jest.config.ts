@@ -1,4 +1,4 @@
-import type { Config } from 'jest';
+import type { Config } from 'jest'
 
 const config: Config = {
   displayName: 'eco-solver',
@@ -9,7 +9,7 @@ const config: Config = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@mono-solver/eco-solver-config$': '<rootDir>/../../libs/eco-solver/config/src/index.ts',
+    '^@libs/eco-solver-config$': '<rootDir>/../../libs/eco-solver/config/src/index.ts',
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/apps/eco-solver',
@@ -21,10 +21,7 @@ const config: Config = {
     '!src/**/index.ts',
     '!src/**/*.d.ts',
   ],
-  testMatch: [
-    '<rootDir>/src/**/*.spec.ts',
-    '<rootDir>/test/**/*.spec.ts',
-  ],
-};
+  testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/test/**/*.spec.ts'],
+}
 
-export default config;
+export default config

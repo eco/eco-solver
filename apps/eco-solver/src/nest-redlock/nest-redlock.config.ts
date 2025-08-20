@@ -2,7 +2,7 @@ import { ModuleMetadata, Type } from '@nestjs/common'
 import { NestRedlockConfigFactory } from './nest-redlock.interface'
 import { RedisConfig } from '../eco-configs/eco-config.types'
 
-export interface NestRedlockConfig extends RedisConfig {}
+export type NestRedlockConfig = RedisConfig
 
 export interface NestRedlockDynamicConfig extends Pick<ModuleMetadata, 'imports'> {
   useFactory?: (...args: any[]) => Promise<NestRedlockConfig> | NestRedlockConfig

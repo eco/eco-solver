@@ -86,8 +86,9 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
 
     const { wallet: walletAddress } = job.data
 
-    const { deficit, surplus, items } =
-      await processor.liquidityManagerService.analyzeTokens(walletAddress)
+    const { deficit, surplus, items } = await processor.liquidityManagerService.analyzeTokens(
+      walletAddress,
+    )
 
     processor.logger.log(
       EcoLogMessage.fromDefault({

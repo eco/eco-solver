@@ -30,8 +30,6 @@ export class RedlockService extends Redlock {
 
     try {
       return await callback()
-    } catch (e) {
-      throw e
     } finally {
       await lock.release()
     }

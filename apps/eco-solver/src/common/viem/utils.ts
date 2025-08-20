@@ -32,13 +32,10 @@ export function convertBigIntsToStrings(obj: any): any {
   }
 
   if (typeof obj === 'object') {
-    return Object.entries(obj).reduce(
-      (carry, [key, value]) => {
-        carry[key] = convertBigIntsToStrings(value)
-        return carry
-      },
-      {} as Record<string, any>,
-    )
+    return Object.entries(obj).reduce((carry, [key, value]) => {
+      carry[key] = convertBigIntsToStrings(value)
+      return carry
+    }, {} as Record<string, any>)
   }
 
   return obj

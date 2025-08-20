@@ -5,19 +5,23 @@ This document outlines the Docker integration setup for the eco-solver applicati
 ## Files Created
 
 ### Production Docker Files
+
 - `apps/eco-solver/Dockerfile` - Production Dockerfile for building the eco-solver app
 - `docker-compose.yml` - Production compose with MongoDB and Redis dependencies
 
 ### Development Docker Files
+
 - `apps/eco-solver/Dockerfile.dev` - Development Dockerfile with hot reloading
 - `docker-compose.dev.yml` - Development compose with volume mounting for live changes
 
 ### Configuration Files
+
 - `.dockerignore` - Excludes unnecessary files from Docker build context
 
 ## Available Scripts
 
 ### Production
+
 ```bash
 # Build production Docker image
 pnpm run docker:build
@@ -33,6 +37,7 @@ pnpm run docker:down
 ```
 
 ### Development
+
 ```bash
 # Run development containers with live reloading
 pnpm run docker:dev
@@ -49,12 +54,14 @@ pnpm run docker:down:dev
 To test the Docker integration once Docker daemon is running:
 
 1. **Test production build**:
+
    ```bash
    pnpm run docker:build
    pnpm run docker:run
    ```
 
 2. **Test production compose**:
+
    ```bash
    pnpm run docker:prod:build
    # Verify at http://localhost:3000
@@ -71,6 +78,7 @@ To test the Docker integration once Docker daemon is running:
 ## Environment Configuration
 
 The Docker containers are configured to:
+
 - Use the monorepo Nx build system
 - Set proper `NODE_CONFIG_DIR` for configuration loading
 - Connect to MongoDB and Redis services

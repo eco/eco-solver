@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@eco-solver/request-signing/typed-data'
 import { EcoError } from '@eco-solver/common/errors/eco-error'

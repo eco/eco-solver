@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/array-type */
+
 import { createMock } from '@golevelup/ts-jest'
 import { DynamicModule, Provider } from '@nestjs/common'
 import { EcoConfigModule } from '../../eco-configs/eco-config.module'

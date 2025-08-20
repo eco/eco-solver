@@ -2,8 +2,15 @@ import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@eco-solver/contracts'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@eco-solver/intent/validation.sevice'
-import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@eco-solver/quote/dto/quote.intent.data.dto'
+import {
+  validationsSucceeded,
+  ValidationService,
+  TxValidationFn,
+} from '@eco-solver/intent/validation.sevice'
+import {
+  QuoteIntentDataDTO,
+  QuoteIntentDataInterface,
+} from '@eco-solver/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -16,7 +23,7 @@ import {
 import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
 import { Mathb } from '@eco-solver/utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { CalculateTokensType } from '@eco-solver/fee/types'
@@ -135,8 +142,9 @@ export class QuoteService implements OnModuleInit {
     // Track quote processing start
     this.ecoAnalytics.trackQuoteProcessingStarted(quoteIntentDataDTO, isReverseQuote)
 
-    const { response: quoteIntents, error: saveError } =
-      await this.storeQuoteIntentData(quoteIntentDataDTO)
+    const { response: quoteIntents, error: saveError } = await this.storeQuoteIntentData(
+      quoteIntentDataDTO,
+    )
 
     if (saveError) {
       // Track storage error
@@ -387,7 +395,7 @@ export class QuoteService implements OnModuleInit {
 
   private async generateBaseQuote(
     quoteIntentModel: QuoteIntentDataInterface,
-    isReverseQuote: boolean = false,
+    isReverseQuote = false,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
     try {
       if (isReverseQuote) {
@@ -468,7 +476,6 @@ export class QuoteService implements OnModuleInit {
       }),
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { quoteIntent, isReverseQuote } = params
     const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
 
@@ -544,9 +551,10 @@ export class QuoteService implements OnModuleInit {
 
     const { srcDeficitDescending: fundable, rewards } = calculated as CalculateTokensType
 
-    const { totalFillNormalized, error: totalFillError } =
-      await this.feeService.getTotalFill(quoteIntentModel)
-    if (Boolean(totalFillError)) {
+    const { totalFillNormalized, error: totalFillError } = await this.feeService.getTotalFill(
+      quoteIntentModel,
+    )
+    if (totalFillError) {
       return { error: totalFillError }
     }
     const totalAsk = this.feeService.getAsk(totalFillNormalized, quoteIntentModel)
@@ -560,7 +568,7 @@ export class QuoteService implements OnModuleInit {
 
     const { totalRewardsNormalized, error: totalRewardsError } =
       await this.feeService.getTotalRewards(quoteIntentModel)
-    if (Boolean(totalRewardsError)) {
+    if (totalRewardsError) {
       return { error: totalRewardsError }
     }
     if (isInsufficient(totalAsk, totalRewardsNormalized)) {
@@ -664,7 +672,7 @@ export class QuoteService implements OnModuleInit {
     const { destDeficitDescending: fundable, tokens, calls } = calculated as CalculateTokensType
     const { totalRewardsNormalized, error: totalRewardsError } =
       await this.feeService.getTotalRewards(intent)
-    if (Boolean(totalRewardsError)) {
+    if (totalRewardsError) {
       return { error: totalRewardsError }
     }
     const fee = this.feeService.getFee(totalRewardsNormalized, intent)

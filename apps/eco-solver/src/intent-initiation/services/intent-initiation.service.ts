@@ -113,8 +113,9 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
     // Get all the txs
-    const { response: allTxs, error } =
-      await this.generateGaslessIntentTransactions(gaslessIntentRequestDTO)
+    const { response: allTxs, error } = await this.generateGaslessIntentTransactions(
+      gaslessIntentRequestDTO,
+    )
 
     if (error) {
       return { error }
@@ -156,8 +157,9 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequest)
 
     // Generate the actual txs (permit(s) + fundFor)
-    const { response: allTxs, error } =
-      await this.generateGaslessIntentTransactions(gaslessIntentRequest)
+    const { response: allTxs, error } = await this.generateGaslessIntentTransactions(
+      gaslessIntentRequest,
+    )
 
     if (error) {
       return { error }
@@ -232,8 +234,9 @@ export class IntentInitiationService implements OnModuleInit {
     gaslessIntentRequestDTO = GaslessIntentRequestDTO.fromJSON(gaslessIntentRequestDTO)
 
     // Get the fundFor tx
-    const { response: fundForTx, error: fundForTxError } =
-      await this.getIntentFundForTx(gaslessIntentRequestDTO)
+    const { response: fundForTx, error: fundForTxError } = await this.getIntentFundForTx(
+      gaslessIntentRequestDTO,
+    )
 
     if (fundForTxError) {
       return { error: InternalQuoteError(fundForTxError) }

@@ -47,8 +47,9 @@ export class IntentInitiationController implements OnModuleInit {
       }),
     )
 
-    const { response: txReceipt, error } =
-      await this.intentInitiationService.initiateGaslessIntent(gaslessIntentRequestDTO)
+    const { response: txReceipt, error } = await this.intentInitiationService.initiateGaslessIntent(
+      gaslessIntentRequestDTO,
+    )
 
     if (!error) {
       return txReceipt!

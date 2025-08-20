@@ -1,29 +1,31 @@
-import nx from '@nx/eslint-plugin';
+import nx from '@nx/eslint-plugin'
+import prettier from 'eslint-plugin-prettier'
 
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist'],
+    ignores: [
+      '**/node_modules',
+      '**/artifacts',
+      '**/cache',
+      '**/coverage',
+      '**/typechain-types',
+      '**/dist',
+      '**/templates',
+      '**/*.spec.ts',
+      '**/*.spec.js',
+      '**/*.spec.tsx',
+      '**/*.spec.jsx',
+      '**/test-utils/**',
+      '**/*test-utils*',
+      '.nx/**',
+      '**/.nx/**',
+    ],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
-    rules: {
-      '@nx/enforce-module-boundaries': [
-        'error',
-        {
-          enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          depConstraints: [
-            {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
-            },
-          ],
-        },
-      ],
-    },
   },
   {
     files: [
@@ -36,7 +38,12 @@ export default [
       '**/*.cjs',
       '**/*.mjs',
     ],
-    // Override or add rules here
-    rules: {},
+    plugins: {
+      prettier,
+    },
+    rules: {
+      'prettier/prettier': 'error',
+      'no-case-declarations': 'off',
+    },
   },
-];
+]

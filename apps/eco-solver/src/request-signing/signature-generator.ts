@@ -1,4 +1,3 @@
-// eslint-disable-next-line
 const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@eco-solver/request-signing/typed-data'
 import { Injectable } from '@nestjs/common'

@@ -32,7 +32,7 @@ export class GaslessIntentDataDTO {
   @IsOptional()
   @IsBoolean()
   @ApiPropertyOptional()
-  allowPartial: boolean = false
+  allowPartial = false
 
   getPermitContractAddress?(): Hex {
     return this.permitData ? (this.permitData.getPermitContractAddress?.() as Hex) : zeroAddress

@@ -11,6 +11,7 @@ This plan outlines the minimal necessary changes to migrate the eco-solver appli
 ## Pre-Migration Analysis
 
 ### Source Application Profile
+
 - **Framework**: NestJS with TypeScript
 - **Architecture**: Domain-driven modular monolith
 - **Package Manager**: pnpm (enforced)
@@ -19,6 +20,7 @@ This plan outlines the minimal necessary changes to migrate the eco-solver appli
 - **Key Features**: REST API, CLI commands, MongoDB, Redis, BullMQ jobs
 
 ### Current Monorepo Status
+
 - **Nx Version**: 21.4.0
 - **Package Manager**: pnpm (already configured)
 - **Current eco-solver**: Basic placeholder app
@@ -27,11 +29,13 @@ This plan outlines the minimal necessary changes to migrate the eco-solver appli
 ## Phase 1: Environment Setup
 
 ### 1.1 Install Required Nx Plugins
+
 ```bash
 pnpm add --save-dev @nx/nest
 ```
 
 ### 1.2 Node Version Alignment
+
 - Ensure Node v20.19.2 is available
 - Copy `.nvmrc` from source to monorepo root if needed
 
@@ -40,6 +44,7 @@ pnpm add --save-dev @nx/nest
 ### 2.1 Merge Dependencies into Root package.json
 
 **Runtime Dependencies to Add:**
+
 ```json
 {
   "@nestjs/common": "^11.0.0",
@@ -65,6 +70,7 @@ pnpm add --save-dev @nx/nest
 ```
 
 **DevDependencies to Add:**
+
 ```json
 {
   "@nestjs/cli": "^11.0.0",
@@ -77,11 +83,12 @@ pnpm add --save-dev @nx/nest
 ```
 
 ### 2.2 Update Root package.json Scripts
+
 ```json
 {
   "scripts": {
     "eco-solver:build": "nx build eco-solver",
-    "eco-solver:serve": "nx serve eco-solver", 
+    "eco-solver:serve": "nx serve eco-solver",
     "eco-solver:dev": "nx serve eco-solver --watch",
     "eco-solver:test": "nx test eco-solver",
     "eco-solver:cli": "nx run eco-solver:cli"
@@ -92,12 +99,14 @@ pnpm add --save-dev @nx/nest
 ## Phase 3: File Migration
 
 ### 3.1 Backup Current State
+
 ```bash
 # Create backup of current placeholder
 mv apps/eco-solver apps/eco-solver-backup
 ```
 
 ### 3.2 Copy Source Application
+
 ```bash
 # Copy entire source application
 cp -r /Users/stoyan/git/eco-solver/src apps/eco-solver/src
@@ -110,6 +119,7 @@ cp /Users/stoyan/git/eco-solver/nest-cli.json apps/eco-solver/
 ```
 
 ### 3.3 Copy Docker Configuration (if needed)
+
 ```bash
 cp /Users/stoyan/git/eco-solver/Dockerfile apps/eco-solver/
 cp /Users/stoyan/git/eco-solver/docker-compose.yml apps/eco-solver/
@@ -123,6 +133,7 @@ cp /Users/stoyan/git/eco-solver/.dockerignore apps/eco-solver/
 ### 4.0 Configuration System Analysis
 
 **Current System**: Uses `npm config` library with hierarchical configuration merging:
+
 - **Static configs**: TypeScript files in `/config` directory (development.ts, production.ts, etc.)
 - **External configs**: AWS Secrets Manager via `ConfigSource` providers
 - **Runtime overrides**: `NODE_CONFIG` environment variable for Docker containers
@@ -130,6 +141,7 @@ cp /Users/stoyan/git/eco-solver/.dockerignore apps/eco-solver/
 **Migration Strategy**: Replace `npm config` with NestJS ConfigModule while preserving all functionality.
 
 ### 4.1 Install NestJS Config Dependencies
+
 ```bash
 pnpm add @nestjs/config
 ```
@@ -137,193 +149,196 @@ pnpm add @nestjs/config
 ### 4.2 Create Nx-Compatible Configuration System
 
 #### 4.2.1 Create apps/eco-solver/src/config/config-loader.ts
+
 ```typescript
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
 
 export interface ConfigEnvironments {
-  default: any;
-  development?: any;
-  production?: any;
-  preproduction?: any;
-  staging?: any;
-  test?: any;
+  default: any
+  development?: any
+  production?: any
+  preproduction?: any
+  staging?: any
+  test?: any
 }
 
 export class ConfigLoader {
-  private static configCache = new Map<string, any>();
-  private static configDir = join(__dirname, '../../../config');
+  private static configCache = new Map<string, any>()
+  private static configDir = join(__dirname, '../../../config')
 
   static load(): any {
-    const env = process.env.NODE_ENV || 'development';
-    
+    const env = process.env.NODE_ENV || 'development'
+
     if (this.configCache.has(env)) {
-      return this.configCache.get(env);
+      return this.configCache.get(env)
     }
 
     // Load base configuration
-    let config = this.loadConfigFile('default.ts') || {};
-    
+    let config = this.loadConfigFile('default.ts') || {}
+
     // Load environment-specific configuration
     if (env !== 'default') {
-      const envConfig = this.loadConfigFile(`${env}.ts`);
+      const envConfig = this.loadConfigFile(`${env}.ts`)
       if (envConfig) {
-        config = this.deepMerge(config, envConfig);
+        config = this.deepMerge(config, envConfig)
       }
     }
 
     // Apply NODE_CONFIG runtime overrides (for Docker containers)
     if (process.env.NODE_CONFIG) {
       try {
-        const runtimeConfig = JSON.parse(process.env.NODE_CONFIG);
-        config = this.deepMerge(config, runtimeConfig);
+        const runtimeConfig = JSON.parse(process.env.NODE_CONFIG)
+        config = this.deepMerge(config, runtimeConfig)
       } catch (error) {
-        console.warn('Invalid NODE_CONFIG format:', error.message);
+        console.warn('Invalid NODE_CONFIG format:', error.message)
       }
     }
 
-    this.configCache.set(env, config);
-    return config;
+    this.configCache.set(env, config)
+    return config
   }
 
   private static loadConfigFile(filename: string): any {
-    const filePath = join(this.configDir, filename);
-    
+    const filePath = join(this.configDir, filename)
+
     if (!existsSync(filePath)) {
-      return null;
+      return null
     }
 
     try {
       // Clear require cache to allow hot reloading
-      delete require.cache[require.resolve(filePath)];
-      const configModule = require(filePath);
-      return configModule.default || configModule;
+      delete require.cache[require.resolve(filePath)]
+      const configModule = require(filePath)
+      return configModule.default || configModule
     } catch (error) {
-      console.warn(`Failed to load config file ${filename}:`, error.message);
-      return null;
+      console.warn(`Failed to load config file ${filename}:`, error.message)
+      return null
     }
   }
 
   private static deepMerge(target: any, source: any): any {
-    const result = { ...target };
-    
+    const result = { ...target }
+
     for (const key in source) {
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        result[key] = this.deepMerge(result[key] || {}, source[key]);
+        result[key] = this.deepMerge(result[key] || {}, source[key])
       } else {
-        result[key] = source[key];
+        result[key] = source[key]
       }
     }
-    
-    return result;
+
+    return result
   }
 
   static get(path: string): any {
-    const config = this.load();
-    return this.getNestedValue(config, path);
+    const config = this.load()
+    return this.getNestedValue(config, path)
   }
 
   private static getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+    return path.split('.').reduce((current, key) => current?.[key], obj)
   }
 
   static has(path: string): boolean {
-    return this.get(path) !== undefined;
+    return this.get(path) !== undefined
   }
 
   static util = {
-    getEnv: (varName: string) => process.env[varName] || 'development'
-  };
+    getEnv: (varName: string) => process.env[varName] || 'development',
+  }
 }
 ```
 
 #### 4.2.2 Update eco-config.service.ts for Nx compatibility
+
 ```typescript
-import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ConfigLoader } from '../config/config-loader';
-import type { ConfigSource } from './config-source.interface';
+import { Injectable, Inject, OnModuleInit } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { ConfigLoader } from '../config/config-loader'
+import type { ConfigSource } from './config-source.interface'
 
 @Injectable()
 export class EcoConfigService implements OnModuleInit {
-  private mergedConfig: any = {};
-  private staticConfig: any = {};
+  private mergedConfig: any = {}
+  private staticConfig: any = {}
 
   constructor(
     private configService: ConfigService,
-    @Inject('CONFIG_SOURCES') private configSources: ConfigSource[] = []
+    @Inject('CONFIG_SOURCES') private configSources: ConfigSource[] = [],
   ) {
     // Load static configuration using our custom loader
-    this.staticConfig = ConfigLoader.load();
-    this.mergedConfig = { ...this.staticConfig };
+    this.staticConfig = ConfigLoader.load()
+    this.mergedConfig = { ...this.staticConfig }
   }
 
   async onModuleInit() {
     // Initialize external configurations (AWS, etc.)
     for (const source of this.configSources) {
       try {
-        const externalConfig = await source.getConfig();
-        this.mergedConfig = this.deepMerge(this.mergedConfig, externalConfig);
+        const externalConfig = await source.getConfig()
+        this.mergedConfig = this.deepMerge(this.mergedConfig, externalConfig)
       } catch (error) {
-        console.warn(`Failed to load config from ${source.constructor.name}:`, error.message);
+        console.warn(`Failed to load config from ${source.constructor.name}:`, error.message)
       }
     }
   }
 
   get<T = any>(path: string, defaultValue?: T): T {
     // First try merged config (includes external configs)
-    let value = this.getNestedValue(this.mergedConfig, path);
-    
+    let value = this.getNestedValue(this.mergedConfig, path)
+
     // Fall back to NestJS ConfigService for environment variables
     if (value === undefined) {
-      value = this.configService.get(path, defaultValue);
+      value = this.configService.get(path, defaultValue)
     }
-    
-    return value ?? defaultValue;
+
+    return value ?? defaultValue
   }
 
   has(path: string): boolean {
-    return this.get(path) !== undefined;
+    return this.get(path) !== undefined
   }
 
   // Static method for compile-time config access (preserves existing usage)
   static getStaticConfig(path?: string): any {
-    const config = ConfigLoader.load();
-    return path ? ConfigLoader.get(path) : config;
+    const config = ConfigLoader.load()
+    return path ? ConfigLoader.get(path) : config
   }
 
   // Utility methods to maintain compatibility with npm config API
   static util = {
-    getEnv: (varName: string) => process.env[varName] || 'development'
-  };
+    getEnv: (varName: string) => process.env[varName] || 'development',
+  }
 
   private getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+    return path.split('.').reduce((current, key) => current?.[key], obj)
   }
 
   private deepMerge(target: any, source: any): any {
-    const result = { ...target };
-    
+    const result = { ...target }
+
     for (const key in source) {
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        result[key] = this.deepMerge(result[key] || {}, source[key]);
+        result[key] = this.deepMerge(result[key] || {}, source[key])
       } else {
-        result[key] = source[key];
+        result[key] = source[key]
       }
     }
-    
-    return result;
+
+    return result
   }
 }
 ```
 
 #### 4.2.3 Update eco-config.module.ts
+
 ```typescript
-import { Global, Module, DynamicModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { EcoConfigService } from './eco-config.service';
-import { AwsConfigService } from './aws-config.service';
-import { ConfigLoader } from '../config/config-loader';
+import { Global, Module, DynamicModule } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { EcoConfigService } from './eco-config.service'
+import { AwsConfigService } from './aws-config.service'
+import { ConfigLoader } from '../config/config-loader'
 
 @Global()
 @Module({})
@@ -343,15 +358,15 @@ export class EcoConfigModule {
         {
           provide: 'CONFIG_SOURCES',
           useFactory: async (awsConfigService: AwsConfigService) => {
-            await awsConfigService.initConfigs();
-            return [awsConfigService];
+            await awsConfigService.initConfigs()
+            return [awsConfigService]
           },
           inject: [AwsConfigService],
         },
         EcoConfigService,
       ],
       exports: [EcoConfigService],
-    };
+    }
   }
 
   static base(): DynamicModule {
@@ -372,7 +387,7 @@ export class EcoConfigModule {
         EcoConfigService,
       ],
       exports: [EcoConfigService],
-    };
+    }
   }
 }
 ```
@@ -380,9 +395,11 @@ export class EcoConfigModule {
 ### 4.3 Configuration Directory Migration
 
 #### 4.3.1 Convert config files to Nx-compatible paths
+
 Update all configuration files to use relative paths:
 
 **apps/eco-solver/config/default.ts:**
+
 ```typescript
 export default {
   // Update any hardcoded paths to be relative to the app directory
@@ -390,11 +407,13 @@ export default {
   logLevel: process.env.LOG_LEVEL || 'info',
   port: process.env.PORT || 3000,
   // ... rest of configuration
-};
+}
 ```
 
 #### 4.3.2 Update config references in Docker
+
 Update any Docker configurations to mount the config directory:
+
 ```yaml
 # In docker-compose.yml or Dockerfile
 volumes:
@@ -404,7 +423,9 @@ volumes:
 ### 4.4 Remove npm config dependency
 
 #### 4.4.1 Update package.json dependencies
+
 Remove from root package.json:
+
 ```json
 {
   "dependencies": {
@@ -414,32 +435,38 @@ Remove from root package.json:
 ```
 
 #### 4.4.2 Update imports throughout codebase
+
 Find and replace all imports:
+
 ```typescript
 // Change from:
-import * as config from 'config';
+import * as config from 'config'
 
 // To:
-import { EcoConfigService } from '@/eco-configs/eco-config.service';
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 // Or use dependency injection in services
 ```
 
 ### 4.5 Preserve Environment Variable Support
 
 #### 4.5.1 Maintain NODE_CONFIG support
+
 The new ConfigLoader maintains compatibility with NODE_CONFIG for Docker containers:
+
 ```bash
 # This will still work in Docker containers:
 NODE_CONFIG='{"database":{"uri":"mongodb://mongo:27017"}}'
 ```
 
 #### 4.5.2 Support existing environment detection
+
 ```typescript
 // This pattern is preserved:
-const env = EcoConfigService.util.getEnv('NODE_ENV');
+const env = EcoConfigService.util.getEnv('NODE_ENV')
 ```
 
 ### 4.6 Update apps/eco-solver/project.json
+
 ```json
 {
   "name": "eco-solver",
@@ -455,10 +482,7 @@ const env = EcoConfigService.util.getEnv('NODE_ENV');
         "outputPath": "dist/apps/eco-solver",
         "main": "apps/eco-solver/src/main.ts",
         "tsConfig": "apps/eco-solver/tsconfig.app.json",
-        "assets": [
-          "apps/eco-solver/config",
-          "apps/eco-solver/.env*"
-        ],
+        "assets": ["apps/eco-solver/config", "apps/eco-solver/.env*"],
         "webpackConfig": "apps/eco-solver/webpack.config.js"
       },
       "configurations": {
@@ -517,6 +541,7 @@ const env = EcoConfigService.util.getEnv('NODE_ENV');
 ```
 
 ### 4.2 Create apps/eco-solver/tsconfig.app.json
+
 ```json
 {
   "extends": "../../tsconfig.base.json",
@@ -534,17 +559,13 @@ const env = EcoConfigService.util.getEnv('NODE_ENV');
       "@/*": ["./src/*"]
     }
   },
-  "exclude": [
-    "jest.config.ts",
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "test/**/*"
-  ],
+  "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "test/**/*"],
   "include": ["src/**/*"]
 }
 ```
 
 ### 4.3 Create apps/eco-solver/tsconfig.spec.json
+
 ```json
 {
   "extends": "./tsconfig.app.json",
@@ -564,8 +585,9 @@ const env = EcoConfigService.util.getEnv('NODE_ENV');
 ```
 
 ### 4.4 Create apps/eco-solver/jest.config.ts
+
 ```typescript
-import type { Config } from 'jest';
+import type { Config } from 'jest'
 
 const config: Config = {
   displayName: 'eco-solver',
@@ -581,13 +603,14 @@ const config: Config = {
   coverageDirectory: '../../coverage/apps/eco-solver',
   setupFiles: ['<rootDir>/test/jest.setup.js'],
   globalSetup: '<rootDir>/test/jest-global-setup.js',
-  globalTeardown: '<rootDir>/test/jest-global-teardown.js'
-};
+  globalTeardown: '<rootDir>/test/jest-global-teardown.js',
+}
 
-export default config;
+export default config
 ```
 
 ### 4.5 Update apps/eco-solver/nest-cli.json
+
 ```json
 {
   "$schema": "https://json.schemastore.org/nest-cli",
@@ -605,6 +628,7 @@ export default config;
 ## Phase 5: Path Resolution Fixes
 
 ### 5.1 Update tsconfig.base.json (root)
+
 ```json
 {
   "compileOnSave": false,
@@ -633,7 +657,9 @@ export default config;
 ## Phase 6: Environment and Configuration
 
 ### 6.1 Configuration Path Updates
+
 Update `apps/eco-solver/src/eco-configs/eco-config.service.ts` if it contains hardcoded paths:
+
 ```typescript
 // Change from:
 // configDir: './config'
@@ -642,7 +668,9 @@ Update `apps/eco-solver/src/eco-configs/eco-config.service.ts` if it contains ha
 ```
 
 ### 6.2 Environment Variables
+
 Copy environment files maintaining their current structure:
+
 - `.env-cmdrc`
 - `.env.development`
 - `.env.production`
@@ -650,7 +678,9 @@ Copy environment files maintaining their current structure:
 ## Phase 7: Docker Integration (Optional)
 
 ### 7.1 Update Docker Configuration
+
 If using Docker, update `apps/eco-solver/Dockerfile`:
+
 ```dockerfile
 FROM node:20-alpine
 
@@ -682,21 +712,25 @@ CMD ["node", "dist/apps/eco-solver/main.js"]
 ## Phase 8: Testing and Validation
 
 ### 8.1 Build Verification
+
 ```bash
 pnpm nx build eco-solver
 ```
 
 ### 8.2 Development Server Test
+
 ```bash
 pnpm nx serve eco-solver
 ```
 
 ### 8.3 Unit Tests
+
 ```bash
 pnpm nx test eco-solver
 ```
 
 ### 8.4 CLI Command Test
+
 ```bash
 pnpm nx run eco-solver:cli
 ```
@@ -704,12 +738,15 @@ pnpm nx run eco-solver:cli
 ## Phase 9: Clean Up
 
 ### 9.1 Remove Redundant Files
+
 ```bash
 rm -rf apps/eco-solver-backup
 ```
 
 ### 9.2 Update .gitignore
+
 Add Nx-specific ignores:
+
 ```
 /dist
 /.nx/cache
@@ -718,6 +755,7 @@ Add Nx-specific ignores:
 ## Expected Outcomes
 
 After successful migration:
+
 - ✅ Eco-solver application runs on `http://localhost:3000`
 - ✅ All existing API endpoints accessible
 - ✅ CLI commands work via `pnpm nx run eco-solver:cli`
@@ -737,6 +775,7 @@ After successful migration:
 ## Future Optimization Opportunities
 
 Once basic migration is complete, consider:
+
 1. **Library Extraction**: Move common utilities to `libs/`
 2. **Shared Types**: Extract TypeScript interfaces to shared library
 3. **Configuration Service**: Create reusable config library

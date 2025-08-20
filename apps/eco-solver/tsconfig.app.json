@@ -13,14 +13,11 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@eco-solver/*": ["./src/*"]
+      "@eco-solver/*": ["./src/*"],
+      "@eco-solver/liquidity-manager/types/types": ["./src/liquidity-manager/types/types.d.ts"],
+      "@libs/eco-solver-config": ["../../libs/eco-solver/config/src/index.ts"]
     }
   },
-  "exclude": [
-    "jest.config.ts",
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "test/**/*"
-  ],
+  "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "test/**/*"],
   "include": ["src/**/*"]
 }

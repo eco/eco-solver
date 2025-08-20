@@ -58,7 +58,7 @@ export class LiFiAssetCacheManager {
   private cache: LiFiSupportedAssets
   private refreshTimer?: NodeJS.Timeout
   private logger: Logger
-  private isInitialized: boolean = false
+  private isInitialized = false
   private initializationPromise?: Promise<void>
   private config: LiFiCacheConfig
 

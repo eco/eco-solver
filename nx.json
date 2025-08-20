@@ -18,6 +18,24 @@
     "sharedGlobals": ["{workspaceRoot}/.github/workflows/ci.yml"]
   },
   "nxCloudId": "68a3485600efd300211a996f",
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/.env.{configuration}",
+        "{projectRoot}/.env.{configuration}",
+        {
+          "externalDependencies": ["webpack"]
+        }
+      ]
+    },
+    "serve": {
+      "cache": false
+    }
+  },
   "plugins": [
     {
       "plugin": "@nx/webpack/plugin",

@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { BadRequestException, HttpException, Logger } from '@nestjs/common'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'

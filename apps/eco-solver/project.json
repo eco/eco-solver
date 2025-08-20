@@ -6,21 +6,65 @@
   "tags": ["scope:eco-solver", "type:app"],
   "targets": {
     "build": {
-      "executor": "nx:run-commands",
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
       "options": {
-        "command": "webpack-cli build",
-        "args": ["--node-env=production"],
-        "cwd": "apps/eco-solver"
+        "main": "apps/eco-solver/src/main.ts",
+        "tsConfig": "apps/eco-solver/tsconfig.app.json",
+        "webpackConfig": "apps/eco-solver/webpack.config.js",
+        "outputPath": "dist/apps/eco-solver",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/eco-solver/config",
+            "output": "config"
+          }
+        ]
       },
       "configurations": {
         "development": {
-          "args": ["--node-env=development"]
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "fileReplacements": [
+            {
+              "replace": "apps/eco-solver/src/environments/environment.ts",
+              "with": "apps/eco-solver/src/environments/environment.development.ts"
+            }
+          ]
         },
-        "preproduction": {
-          "args": ["--node-env=preproduction"]
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "sourceMap": false,
+          "fileReplacements": [
+            {
+              "replace": "apps/eco-solver/src/environments/environment.ts",
+              "with": "apps/eco-solver/src/environments/environment.production.ts"
+            }
+          ]
         },
         "staging": {
-          "args": ["--node-env=staging"]
+          "optimization": true,
+          "extractLicenses": true,
+          "sourceMap": false,
+          "fileReplacements": [
+            {
+              "replace": "apps/eco-solver/src/environments/environment.ts",
+              "with": "apps/eco-solver/src/environments/environment.staging.ts"
+            }
+          ]
+        },
+        "preproduction": {
+          "optimization": true,
+          "extractLicenses": true,
+          "sourceMap": false,
+          "fileReplacements": [
+            {
+              "replace": "apps/eco-solver/src/environments/environment.ts",
+              "with": "apps/eco-solver/src/environments/environment.preproduction.ts"
+            }
+          ]
         }
       }
     },
@@ -50,25 +94,36 @@
       "executor": "nx:noop"
     },
     "serve": {
-      "continuous": true,
       "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
       "dependsOn": ["build"],
       "options": {
-        "command": "NODE_CONFIG_DIR=apps/eco-solver/config node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
+        "command": "node dist/apps/eco-solver/main.js",
+        "cwd": "."
       },
       "configurations": {
         "development": {
-          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=development node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
+          "command": "node dist/apps/eco-solver/main.js",
+          "env": {
+            "NODE_ENV": "development"
+          }
         },
         "production": {
-          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=production node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
-        },
-        "preproduction": {
-          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=preproduction node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
+          "command": "node dist/apps/eco-solver/main.js",
+          "env": {
+            "NODE_ENV": "production"
+          }
         },
         "staging": {
-          "command": "NODE_CONFIG_DIR=apps/eco-solver/config NODE_ENV=staging node $(find .nx/cache -name 'main.js' -path '*/dist/apps/eco-solver/main.js' | head -1)"
+          "command": "node dist/apps/eco-solver/main.js",
+          "env": {
+            "NODE_ENV": "staging"
+          }
+        },
+        "preproduction": {
+          "command": "node dist/apps/eco-solver/main.js",
+          "env": {
+            "NODE_ENV": "preproduction"
+          }
         }
       }
     },

@@ -13,7 +13,11 @@ import {
 } from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@eco-solver/eco-configs/eco-config.types'
+import {
+  HyperlaneConfig,
+  SendBatchConfig,
+  WithdrawsConfig,
+} from '@eco-solver/eco-configs/eco-config.types'
 import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
 import { IndexerService } from '@eco-solver/indexer/services/indexer.service'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'

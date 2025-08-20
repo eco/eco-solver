@@ -8,8 +8,7 @@ import {
 import { SignTransactionParameters, SignTransactionReturnType } from 'viem/accounts'
 
 export async function signKmsTransaction<
-  serializer extends
-    SerializeTransactionFn<TransactionSerializable> = SerializeTransactionFn<TransactionSerializable>,
+  serializer extends SerializeTransactionFn<TransactionSerializable> = SerializeTransactionFn<TransactionSerializable>,
   transaction extends Parameters<serializer>[0] = Parameters<serializer>[0],
 >(
   parameters: Omit<SignTransactionParameters<serializer, transaction>, 'privateKey'> & {

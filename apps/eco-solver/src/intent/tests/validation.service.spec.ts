@@ -382,7 +382,7 @@ describe('ValidationService', () => {
       })
 
       it('should succeed if solver has no targets and there are no functional calls', async () => {
-        let nativeIntent = { route: { calls: [{ target: '0xa1', data: '0x', value: 10n }] } } as any
+        const nativeIntent = { route: { calls: [{ target: '0xa1', data: '0x', value: 10n }] } } as any
         expect(validationService.supportedTargets(nativeIntent, solver)).toBe(true)
         expect(mockGetFunctionTargets).toHaveBeenCalledTimes(1)
       })

@@ -30,7 +30,7 @@ export async function kmsToAccount(
   options: KmsToAccountOptions,
 ): Promise<KmsAccount> {
   const { nonceManager, keyID } = options
-  const publicKey = toHex(await wallets.getPublickey(keyID))
+  const publicKey = toHex((await wallets.getPublickey(keyID)) as any)
   const addressHex = getAddress(await wallets.getAddressHex(keyID))
   const addressBuffer = await wallets.getAddress(keyID)
 

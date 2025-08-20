@@ -121,6 +121,8 @@ export class LiquidityProviderService {
             id: quoteId,
           }),
         )
+
+        return undefined
       }
     })
 

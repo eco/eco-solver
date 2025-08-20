@@ -8,7 +8,10 @@ import { QuoteIntentDataDTO } from '@eco-solver/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
 import { QuoteRewardDataDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'
 import { QuoteRewardDataModel } from '@eco-solver/quote/schemas/quote-reward.schema'
-import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@eco-solver/quote/dto/quote.route.data.dto'
+import {
+  QuoteRouteDataDTO,
+  QuoteRouteDataInterface,
+} from '@eco-solver/quote/dto/quote.route.data.dto'
 import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
 import * as crypto from 'crypto'
 

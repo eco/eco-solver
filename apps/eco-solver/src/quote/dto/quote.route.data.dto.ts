@@ -67,4 +67,4 @@ export class QuoteCallDataDTO implements CallDataInterface {
   value: bigint
 }
 
-export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}
+export type QuoteRouteDataInterface = Omit<RouteType, 'salt'>

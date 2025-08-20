@@ -20,10 +20,7 @@ export abstract class BaseProcessor<
    * @param name - The name of the processor.
    * @param jobManagers - The array of job managers.
    */
-  constructor(
-    protected readonly name: string,
-    protected readonly jobManagers: JobManager[],
-  ) {
+  constructor(protected readonly name: string, protected readonly jobManagers: JobManager[]) {
     super()
     this.logger = new Logger(name)
   }

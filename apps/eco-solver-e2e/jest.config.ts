@@ -15,4 +15,4 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/eco-solver-e2e',
-};
+}

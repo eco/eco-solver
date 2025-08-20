@@ -6,8 +6,8 @@
  */
 export async function waitForInitialization(
   lock: { initialized: boolean },
-  interval: number = 100,
-  timeout: number = 10000,
+  interval = 100,
+  timeout = 10000,
 ) {
   let timeSpent = 0
   while (!lock.initialized) {

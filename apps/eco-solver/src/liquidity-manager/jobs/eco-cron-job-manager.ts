@@ -15,13 +15,10 @@ interface JobTemplate {
  */
 export class EcoCronJobManager {
   private logger: EcoLogger
-  private started: boolean = false
-  private stopRequested: boolean = false
+  private started = false
+  private stopRequested = false
 
-  constructor(
-    private readonly jobName: string,
-    private readonly jobIDPrefix: string,
-  ) {
+  constructor(private readonly jobName: string, private readonly jobIDPrefix: string) {
     this.logger = new EcoLogger(`${EcoCronJobManager.name}-${jobName}`)
   }
 

@@ -1,9 +1,5 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable consistent-this */
-/* eslint-disable no-use-before-define */
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
-/* eslint-disable @typescript-eslint/array-type */
-/* eslint-disable max-classes-per-file */
+
 import { Abstract, INestApplication } from '@nestjs/common/interfaces'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
@@ -68,7 +64,7 @@ export class EcoTester {
   }
 
   public get objectsUnderTest(): EcoTesterTuple {
-    return [...this.objectsToTest.map((obj) => ({}) as typeof obj)]
+    return [...this.objectsToTest.map((obj) => ({} as typeof obj))]
   }
 
   public get<TInput = any, TResult = TInput>(

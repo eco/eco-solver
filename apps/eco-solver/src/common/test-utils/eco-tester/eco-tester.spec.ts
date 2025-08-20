@@ -1,5 +1,5 @@
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable prefer-const */
+ 
 import { AnotherSimpleClass } from './test-classes/another-simple-class'
 import { ClassWithAllTheThings } from './test-classes/class-with-all-the-things'
 import { ClassWithConfig } from './test-classes/class-with-config'

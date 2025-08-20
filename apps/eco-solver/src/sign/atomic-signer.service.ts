@@ -7,10 +7,7 @@ import { Hex, PrivateKeyAccount } from 'viem'
 
 @Injectable()
 export class AtomicSignerService extends SignerService {
-  constructor(
-    readonly nonceService: NonceService,
-    readonly ecoConfigService: EcoConfigService,
-  ) {
+  constructor(readonly nonceService: NonceService, readonly ecoConfigService: EcoConfigService) {
     super(ecoConfigService)
   }
 
