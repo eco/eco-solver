@@ -1,4 +1,4 @@
-import { Solver } from '@libs/eco-solver-config'
+import { Solver } from '@libs/config-core'
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { Hex } from 'viem'
 

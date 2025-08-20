@@ -1,6 +1,6 @@
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { RewardTokensInterface } from '@eco-solver/contracts'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service'
 import {
   validationsSucceeded,
@@ -29,7 +29,7 @@ import { Hex } from 'viem'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { CalculateTokensType } from '@eco-solver/fee/types'
 import { EcoResponse } from '@eco-solver/common/eco-response'
-import { GasEstimationsConfig, QuotesConfig } from '@libs/eco-solver-config'
+import { GasEstimationsConfig, QuotesConfig } from '@libs/config-core'
 import { QuoteDataEntryDTO } from '@eco-solver/quote/dto/quote-data-entry.dto'
 import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
 import { QuoteRewardTokensDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'

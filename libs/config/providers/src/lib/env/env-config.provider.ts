@@ -1,5 +1,5 @@
 import { registerAs } from '@nestjs/config'
-import { EnvironmentSchema } from '@mono-solver/schemas'
+import { EnvironmentSchema } from '@libs/config-schemas'
 
 export default registerAs('env', () => {
   // Validate environment early - fail fast if invalid

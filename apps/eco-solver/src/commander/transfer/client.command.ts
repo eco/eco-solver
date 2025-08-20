@@ -1,5 +1,5 @@
 import { CommandRunner } from 'nest-commander'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { BalanceService } from '@eco-solver/balance/balance.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 

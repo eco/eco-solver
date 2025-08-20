@@ -1,6 +1,6 @@
 import { getAddress } from 'viem'
 import { Command, Option } from 'nest-commander'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { BalanceService } from '@eco-solver/balance/balance.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { jsonBigInt } from '@eco-solver/commander/utils'

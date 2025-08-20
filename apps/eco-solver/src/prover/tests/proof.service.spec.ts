@@ -1,5 +1,5 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ProofService } from '../../prover/proof.service'
 import { ProofType } from '../../contracts'

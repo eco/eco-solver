@@ -2,8 +2,8 @@ import { BalanceCommandModule } from '@eco-solver/commander/balance/balance-comm
 import { EcoConfigCommand } from '@eco-solver/commander/eco-config.command'
 import { SafeCommandModule } from '@eco-solver/commander/safe/safe-command.module'
 import { TransferCommandModule } from '@eco-solver/commander/transfer/transfer-command.module'
-import { EcoConfigModule } from '@libs/eco-solver-config'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigModule } from '@libs/config-core'
+import { EcoConfigService } from '@libs/config-core'
 import { Module } from '@nestjs/common'
 import { LoggerModule } from 'nestjs-pino'
 

@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { SignatureGenerator } from '@eco-solver/request-signing/signature-generator'
 import { SigningService } from '@eco-solver/request-signing/signing.service'

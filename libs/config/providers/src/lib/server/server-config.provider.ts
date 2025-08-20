@@ -1,5 +1,5 @@
 import { registerAs } from '@nestjs/config'
-import { ServerConfigSchema } from '@mono-solver/schemas'
+import { ServerConfigSchema } from '@libs/config-schemas'
 
 export default registerAs('server', () => {
   const config = {

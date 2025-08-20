@@ -5,7 +5,7 @@
  * This script tests the ConfigLoader and EcoConfigService functionality
  */
 
-import { ConfigLoader } from '@libs/eco-solver-config'
+import { ConfigLoader } from '@libs/config-core'
 
 async function testConfigurationSystem() {
   console.log('🧪 Testing Phase 4 Configuration System Migration...\n')

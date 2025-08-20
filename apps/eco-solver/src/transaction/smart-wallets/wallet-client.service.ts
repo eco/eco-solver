@@ -11,7 +11,7 @@ import {
   WalletClientConfig,
 } from 'viem'
 import { SignerService } from '@eco-solver/sign/signer.service'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { ViemMultichainClientService } from '../viem_multichain_client.service'
 import { ChainsSupported } from '@eco-solver/common/chains/supported'
 

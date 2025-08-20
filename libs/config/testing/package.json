@@ -1,5 +1,5 @@
 {
-  "name": "@mono-solver/testing",
+  "name": "@libs/config-testing",
   "version": "0.0.1",
   "private": true,
   "type": "commonjs",

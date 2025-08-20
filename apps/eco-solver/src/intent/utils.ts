@@ -1,7 +1,7 @@
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { getFunctionBytes } from '@eco-solver/common/viem/contracts'
 import { CallDataInterface, getERCAbi } from '@eco-solver/contracts'
-import { Solver, TargetContract } from '@libs/eco-solver-config'
+import { Solver, TargetContract } from '@libs/config-core'
 import { TransactionTargetData } from '@eco-solver/intent/utils-intent.service'
 import { includes } from 'lodash'
 import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'

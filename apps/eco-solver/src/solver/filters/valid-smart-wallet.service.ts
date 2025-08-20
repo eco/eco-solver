@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { Hex } from 'viem'
 import { EntryPointAbi_v6 } from '../../contracts/EntryPoint.V6.contract'
 import { EcoLogMessage } from '../../common/logging/eco-log-message'

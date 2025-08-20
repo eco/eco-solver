@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { NonceService } from './nonce.service'
 import { privateKeyAndNonceToAccountSigner } from './sign.helper'
 import { SignerService } from './signer.service'

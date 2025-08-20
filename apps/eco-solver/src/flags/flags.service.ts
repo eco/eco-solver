@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import * as ld from '@launchdarkly/node-server-sdk'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'

@@ -1,6 +1,6 @@
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoConfigService } from '@libs/eco-solver-config'
-import { Solver } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
+import { Solver } from '@libs/config-core'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import {
   equivalentNativeGas,

@@ -1,6 +1,6 @@
 import { TokenFetchAnalysis } from '@eco-solver/balance/balance.service'
 import { RewardTokensInterface } from '@eco-solver/contracts'
-import { Solver } from '@libs/eco-solver-config'
+import { Solver } from '@libs/config-core'
 import { Prettify } from 'viem'
 import { Hex } from 'viem'
 /**

@@ -1,7 +1,7 @@
 import { ContractFunctionName, decodeEventLog } from 'viem'
 import { Hex } from 'viem'
 import { getSelector } from '../common/viem/contracts'
-import { TargetContractType } from '@libs/eco-solver-config'
+import { TargetContractType } from '@libs/config-core'
 import { EcoError } from '../common/errors/eco-error'
 import { TransactionTargetData } from '@eco-solver/intent/utils-intent.service'
 

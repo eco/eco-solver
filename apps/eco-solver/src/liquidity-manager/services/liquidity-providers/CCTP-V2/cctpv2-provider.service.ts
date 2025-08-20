@@ -7,14 +7,14 @@ import {
   RebalanceQuote,
   TokenData,
 } from '@eco-solver/liquidity-manager/types/types'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPV2Config } from '@libs/eco-solver-config'
+import { CCTPV2Config } from '@libs/config-core'
 import { CCTPV2TokenMessengerABI } from '@eco-solver/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@eco-solver/contracts/CCTPV2MessageTransmitter'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'

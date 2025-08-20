@@ -1,6 +1,6 @@
 import { registerAs } from '@nestjs/config'
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager'
-import { AwsConfigSchema } from '@mono-solver/schemas'
+import { AwsConfigSchema } from '@libs/config-schemas'
 
 export default registerAs('aws', () => {
   const config = {

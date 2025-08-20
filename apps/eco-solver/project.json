@@ -25,46 +25,22 @@
         "development": {
           "optimization": false,
           "extractLicenses": false,
-          "sourceMap": true,
-          "fileReplacements": [
-            {
-              "replace": "apps/eco-solver/src/environments/environment.ts",
-              "with": "apps/eco-solver/src/environments/environment.development.ts"
-            }
-          ]
+          "sourceMap": true
         },
         "production": {
           "optimization": true,
           "extractLicenses": true,
-          "sourceMap": true,
-          "fileReplacements": [
-            {
-              "replace": "apps/eco-solver/src/environments/environment.ts",
-              "with": "apps/eco-solver/src/environments/environment.production.ts"
-            }
-          ]
+          "sourceMap": true
         },
         "staging": {
           "optimization": true,
           "extractLicenses": true,
-          "sourceMap": true,
-          "fileReplacements": [
-            {
-              "replace": "apps/eco-solver/src/environments/environment.ts",
-              "with": "apps/eco-solver/src/environments/environment.staging.ts"
-            }
-          ]
+          "sourceMap": true
         },
         "preproduction": {
           "optimization": true,
           "extractLicenses": true,
-          "sourceMap": true,
-          "fileReplacements": [
-            {
-              "replace": "apps/eco-solver/src/environments/environment.ts",
-              "with": "apps/eco-solver/src/environments/environment.preproduction.ts"
-            }
-          ]
+          "sourceMap": true
         }
       }
     },

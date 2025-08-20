@@ -9,7 +9,6 @@ const config: Config = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@libs/eco-solver-config$': '<rootDir>/../../libs/eco-solver/config/src/index.ts',
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/apps/eco-solver',

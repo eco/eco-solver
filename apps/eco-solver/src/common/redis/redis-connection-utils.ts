@@ -4,7 +4,7 @@ import * as Redis from 'ioredis'
 import { EcoError } from '../errors/eco-error'
 import { EcoLogMessage } from '../logging/eco-log-message'
 import { QueueMetadata } from './constants'
-import { RedisConfig } from '@libs/eco-solver-config'
+import { RedisConfig } from '@libs/config-core'
 import { RedlockRedisClient } from '../../nest-redlock/nest-redlock.service'
 
 export class RedisConnectionUtils {

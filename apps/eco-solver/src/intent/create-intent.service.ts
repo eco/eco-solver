@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { QUEUES } from '../common/redis/constants'
 import { JobsOptions, Queue } from 'bullmq'

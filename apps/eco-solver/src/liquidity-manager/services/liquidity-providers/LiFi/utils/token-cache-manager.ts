@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { getTokens, getChains, ChainType } from '@lifi/sdk'
 
 interface TokenInfo {

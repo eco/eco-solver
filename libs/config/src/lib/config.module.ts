@@ -17,7 +17,7 @@ import { ConfigurationCacheService } from './services/configuration-cache.servic
       },
       load: [
         // Configuration providers will be loaded dynamically
-        // Example: () => import('@mono-solver/providers').then((m) => m.serverConfig),
+        // Example: () => import('@libs/config-providers').then((m) => m.serverConfig),
       ],
     }),
     // In-memory cache only - NO Redis for sensitive data

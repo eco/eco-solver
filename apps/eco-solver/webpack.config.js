@@ -35,10 +35,6 @@ module.exports = composePlugins(withNx(), (config) => ({
     extensions: ['.ts', '.js'],
     alias: {
       ...config.resolve?.alias,
-      '@libs/eco-solver-config': path.resolve(
-        __dirname,
-        '../../libs/eco-solver/config/src/index.ts',
-      ),
       '@eco-solver': path.resolve(__dirname, 'src'),
       // Ignore problematic dependencies
       '@0xsquid/squid-types': false,

@@ -2,7 +2,7 @@ import { encodeAbiParameters, PublicClient } from "viem"
 import { Hex } from "viem"
 import { createMock } from '@golevelup/ts-jest'
 import { HyperlaneMailboxAbi } from '@eco-solver/contracts/HyperlaneMailbox'
-import { HyperlaneConfig } from '@libs/eco-solver-config'
+import { HyperlaneConfig } from '@libs/config-core'
 import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'
 
 describe('Hyperlane Utils', () => {

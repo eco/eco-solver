@@ -17,11 +17,10 @@
       "@eco-solver/liquidity-manager/types/types": [
         "apps/eco-solver/src/liquidity-manager/types/types.d.ts"
       ],
-      "@libs/eco-solver-config": ["libs/eco-solver/config/src/index.ts"],
-      "@mono-solver/config-core": ["libs/config/src/index.ts"],
-      "@mono-solver/providers": ["libs/config/providers/src/index.ts"],
-      "@mono-solver/schemas": ["libs/config/schemas/src/index.ts"],
-      "@mono-solver/testing": ["libs/config/testing/src/index.ts"]
+      "@libs/config-core": ["libs/config/src/index.ts"],
+      "@libs/config-providers": ["libs/config/providers/src/index.ts"],
+      "@libs/config-schemas": ["libs/config/schemas/src/index.ts"],
+      "@libs/config-testing": ["libs/config/testing/src/index.ts"]
     }
   },
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "test/**/*"],

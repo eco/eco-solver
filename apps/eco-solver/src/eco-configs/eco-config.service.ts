@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
-import { ConfigLoader } from '@libs/eco-solver-config'
+import { ConfigLoader } from '@libs/config-core'
 import * as path from 'path'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'

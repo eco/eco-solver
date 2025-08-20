@@ -6,7 +6,7 @@ import { Squid } from '@0xsquid/sdk'
 import { zeroAddress } from 'viem'
 
 import { SquidProviderService } from './squid-provider.service'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 

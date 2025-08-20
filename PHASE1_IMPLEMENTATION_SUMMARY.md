@@ -72,18 +72,18 @@ libs/
 
 ```typescript
 // tsconfig.base.json paths
-"@mono-solver/config-core": ["libs/config/src/index.ts"],
-"@mono-solver/schemas": ["libs/config/schemas/src/index.ts"],
-"@mono-solver/providers": ["libs/config/providers/src/index.ts"],
-"@mono-solver/testing": ["libs/config/testing/src/index.ts"]
+"@libs/config-core": ["libs/config/src/index.ts"],
+"@libs/config-schemas": ["libs/config/schemas/src/index.ts"],
+"@libs/config-providers": ["libs/config/providers/src/index.ts"],
+"@libs/config-testing": ["libs/config/testing/src/index.ts"]
 ```
 
 ## 🧪 Example Usage
 
 ```typescript
 // Type-safe configuration with automatic validation
-import { ConfigurationService } from '@mono-solver/config-core'
-import { ServerConfigSchema, DatabaseConfigSchema } from '@mono-solver/schemas'
+import { ConfigurationService } from '@libs/config-core'
+import { ServerConfigSchema, DatabaseConfigSchema } from '@libs/config-schemas'
 
 @Injectable()
 export class MyService {

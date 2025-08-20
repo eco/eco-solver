@@ -1,5 +1,5 @@
 {
-  "name": "@mono-solver/providers",
+  "name": "@libs/config-providers",
   "version": "0.0.1",
   "private": true,
   "type": "commonjs",

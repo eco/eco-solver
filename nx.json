@@ -63,7 +63,12 @@
             },
             {
               "sourceTag": "type:util",
-              "onlyDependOnLibsWithTags": ["type:util", "type:schema", "type:provider", "scope:shared"]
+              "onlyDependOnLibsWithTags": [
+                "type:util",
+                "type:schema",
+                "type:provider",
+                "scope:shared"
+              ]
             }
           ]
         }
@@ -95,5 +100,10 @@
       },
       "exclude": ["apps/eco-solver-e2e/**/*"]
     }
-  ]
+  ],
+  "release": {
+    "version": {
+      "preVersionCommand": "pnpm dlx nx run-many -t build"
+    }
+  }
 }

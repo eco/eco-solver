@@ -4,7 +4,7 @@ const mockEncodeAbiParameters = jest.fn()
 const mockGetChainConfig = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { CrowdLiquidityService } from '../crowd-liquidity.service'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { zeroAddress, pad } from "viem"

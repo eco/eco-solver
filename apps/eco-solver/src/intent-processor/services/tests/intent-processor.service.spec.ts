@@ -6,7 +6,7 @@ import { Queue } from 'bullmq'
 import { Chain, encodeFunctionData, PublicClient, Transport } from "viem"
 import { Hex } from "viem"
 import { Network } from '@eco-solver/common/alchemy/network'
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { IndexerService } from '@eco-solver/indexer/services/indexer.service'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { IntentProcessorService } from '@eco-solver/intent-processor/services/intent-processor.service'
@@ -14,7 +14,7 @@ import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'
 import * as MulticallUtils from '@eco-solver/intent-processor/utils/multicall'
 import { IntentProcessorQueue } from '@eco-solver/intent-processor/queues/intent-processor.queue'
 import { Multicall3Abi } from '@eco-solver/contracts/Multicall3'
-import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@libs/eco-solver-config'
+import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@libs/config-core'
 import { RouteType } from '@eco-foundation/routes-ts'
 
 jest.mock('@/intent-processor/utils/hyperlane')

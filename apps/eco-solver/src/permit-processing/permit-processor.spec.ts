@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/config-core'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
