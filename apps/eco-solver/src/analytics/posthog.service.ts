@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
 import { PostHog } from 'posthog-node'
-import { AnalyticsService, AnalyticsConfig } from '@eco-solver/analytics/analytics.interface'
-import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@eco-solver/analytics/errors'
+import { AnalyticsService, AnalyticsConfig } from './analytics.interface'
+import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from './errors'
 import { convertBigIntsToStrings } from '@eco-solver/common/viem/utils'
 
 /**

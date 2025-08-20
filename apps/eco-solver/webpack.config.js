@@ -5,9 +5,24 @@ module.exports = composePlugins(withNx(), (config) => ({
   ...config,
   target: 'node',
   externals: [],
+  devtool: config.mode === 'development' ? 'source-map' : 'source-map',
   output: {
     ...config.output,
     libraryTarget: 'commonjs2',
+    devtoolModuleFilenameTemplate: (info) => {
+      // Convert paths to be relative to project root for VS Code linking
+      if (info.absoluteResourcePath) {
+        const projectRoot = path.resolve(__dirname, '../..');
+        const relativePath = path.relative(projectRoot, info.absoluteResourcePath);
+        // Remove any leading '../' that might cause issues
+        return relativePath.replace(/^(\.\.\/)+/, '');
+      }
+      // For webpack generated paths, clean them up
+      if (info.resourcePath && info.resourcePath.startsWith('webpack:///')) {
+        return info.resourcePath.replace('webpack:///', '');
+      }
+      return info.resourcePath;
+    },
   },
   resolve: {
     ...config.resolve,

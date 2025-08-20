@@ -50,22 +50,22 @@
  */
 
 // Core module and configuration exports
-export { AnalyticsModule, ANALYTICS_SERVICE } from '@eco-solver/analytics/analytics.module'
+export { AnalyticsModule, ANALYTICS_SERVICE } from './analytics.module'
 
 // Service implementation export
-export { PosthogService } from '@eco-solver/analytics/posthog.service'
+export { PosthogService } from './posthog.service'
 
 // Interface and type exports
-export { AnalyticsService, AnalyticsConfig } from '@eco-solver/analytics/analytics.interface'
+export { AnalyticsService, AnalyticsConfig } from './analytics.interface'
 
 // Utility exports
-export { getCurrentEnvironment } from '@eco-solver/analytics/utils'
+export { getCurrentEnvironment } from './utils'
 
 // Error handling exports
-export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@eco-solver/analytics/errors'
+export { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from './errors'
 
 // Centralized analytics service export
-export { EcoAnalyticsService } from '@eco-solver/analytics/eco-analytics.service'
+export { EcoAnalyticsService } from './eco-analytics.service'
 
 // Event constants export
-export { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
+export { ANALYTICS_EVENTS } from './events.constants'

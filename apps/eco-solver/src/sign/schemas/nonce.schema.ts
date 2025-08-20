@@ -15,7 +15,7 @@ export class Nonce {
   @Prop({ required: true })
   chainID: number
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   address: Hex
 
   @Prop({ required: true, default: now() })

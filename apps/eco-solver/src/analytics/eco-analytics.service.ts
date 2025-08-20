@@ -1,5 +1,5 @@
-import { Injectable, Inject, Logger } from '@nestjs/common'
-import { AnalyticsService, ANALYTICS_SERVICE } from '@eco-solver/analytics'
+import { Injectable, Logger } from '@nestjs/common'
+import { AnalyticsService } from './analytics.interface'
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { QuoteIntentDataDTO } from '@eco-solver/quote/dto/quote.intent.data.dto'
 import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
@@ -15,7 +15,7 @@ import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
 export class EcoAnalyticsService {
   private readonly logger = new Logger(EcoAnalyticsService.name)
 
-  constructor(@Inject(ANALYTICS_SERVICE) private readonly analytics: AnalyticsService) {}
+  constructor(private readonly analytics: AnalyticsService) {}
 
   /**
    * Safe wrapper for analytics tracking that doesn't throw errors

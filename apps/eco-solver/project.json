@@ -36,7 +36,7 @@
         "production": {
           "optimization": true,
           "extractLicenses": true,
-          "sourceMap": false,
+          "sourceMap": true,
           "fileReplacements": [
             {
               "replace": "apps/eco-solver/src/environments/environment.ts",
@@ -47,7 +47,7 @@
         "staging": {
           "optimization": true,
           "extractLicenses": true,
-          "sourceMap": false,
+          "sourceMap": true,
           "fileReplacements": [
             {
               "replace": "apps/eco-solver/src/environments/environment.ts",
@@ -58,7 +58,7 @@
         "preproduction": {
           "optimization": true,
           "extractLicenses": true,
-          "sourceMap": false,
+          "sourceMap": true,
           "fileReplacements": [
             {
               "replace": "apps/eco-solver/src/environments/environment.ts",
@@ -97,32 +97,36 @@
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
       "options": {
-        "command": "node dist/apps/eco-solver/main.js",
+        "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
         "cwd": "."
       },
       "configurations": {
         "development": {
-          "command": "node dist/apps/eco-solver/main.js",
+          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "development"
+            "NODE_ENV": "development",
+            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
           }
         },
         "production": {
-          "command": "node dist/apps/eco-solver/main.js",
+          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "production"
+            "NODE_ENV": "production",
+            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
           }
         },
         "staging": {
-          "command": "node dist/apps/eco-solver/main.js",
+          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "staging"
+            "NODE_ENV": "staging",
+            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
           }
         },
         "preproduction": {
-          "command": "node dist/apps/eco-solver/main.js",
+          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
           "env": {
-            "NODE_ENV": "preproduction"
+            "NODE_ENV": "preproduction",
+            "NODE_CONFIG_DIR": "dist/apps/eco-solver/config"
           }
         }
       }
