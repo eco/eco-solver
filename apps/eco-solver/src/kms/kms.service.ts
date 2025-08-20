@@ -1,7 +1,7 @@
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { obscureCenter } from '@eco-solver/common/utils/strings'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { Signer } from '@eco-foundation/eco-kms-core'
 import { KMSProviderAWS } from '@eco-foundation/eco-kms-provider-aws'
 import { KMSWallets } from '@eco-foundation/eco-kms-wallets'

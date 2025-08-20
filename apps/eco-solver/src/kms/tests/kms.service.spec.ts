@@ -1,6 +1,6 @@
 const mockGetAddress = jest.fn()
 import { Test, TestingModule } from '@nestjs/testing'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { Logger } from '@nestjs/common'
 import { KmsService } from '@eco-solver/kms/kms.service'

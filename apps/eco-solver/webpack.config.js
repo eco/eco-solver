@@ -13,13 +13,19 @@ module.exports = composePlugins(withNx(), (config) => ({
       // Convert paths to be relative to project root for VS Code linking
       if (info.absoluteResourcePath) {
         const projectRoot = path.resolve(__dirname, '../..')
-        const relativePath = path.relative(projectRoot, info.absoluteResourcePath)
+        let relativePath = path.relative(projectRoot, info.absoluteResourcePath)
         // Remove any leading '../' that might cause issues
-        return relativePath.replace(/^(\.\.\/)+/, '')
+        relativePath = relativePath.replace(/^(\.\.\/)+/, '')
+        // Remove duplicate apps/eco-solver prefix if it exists
+        relativePath = relativePath.replace(/^apps\/eco-solver\/apps\/eco-solver\//, 'apps/eco-solver/')
+        return relativePath
       }
       // For webpack generated paths, clean them up
       if (info.resourcePath && info.resourcePath.startsWith('webpack:///')) {
-        return info.resourcePath.replace('webpack:///', '')
+        let cleanPath = info.resourcePath.replace('webpack:///', '')
+        // Remove duplicate apps/eco-solver prefix if it exists
+        cleanPath = cleanPath.replace(/^apps\/eco-solver\/apps\/eco-solver\//, 'apps/eco-solver/')
+        return cleanPath
       }
       return info.resourcePath
     },

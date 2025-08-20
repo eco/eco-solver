@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { EcoConfigService } from '../../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { SimpleAccountClient, SimpleAccountClientConfig } from '.'
 import { EcoError } from '../../../common/errors/eco-error'

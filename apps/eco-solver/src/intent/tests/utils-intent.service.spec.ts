@@ -1,6 +1,6 @@
 const mockDecodeFunctionData = jest.fn()
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getModelToken } from '@nestjs/mongoose'
 import { IntentSourceModel } from '../schemas/intent-source.schema'

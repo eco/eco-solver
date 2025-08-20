@@ -1,7 +1,7 @@
 import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@eco-solver/common/routes/constants'
 import { APIRequestExecutor } from '@eco-solver/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@eco-solver/solver-registration/dtos/cross-chain-routes-config.dto'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { EcoResponse } from '@eco-solver/common/eco-response'
@@ -13,7 +13,7 @@ import {
   ServerConfig,
   Solver,
   SolverRegistrationConfig,
-} from '@eco-solver/eco-configs/eco-config.types'
+} from '@libs/eco-solver-config'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { RouteTokensDTO } from '@eco-solver/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@eco-solver/request-signing/interfaces/signature-headers.interface'

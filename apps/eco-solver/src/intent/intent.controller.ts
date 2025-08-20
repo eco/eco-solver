@@ -4,7 +4,7 @@ import { Network } from '@eco-solver/common/alchemy/network'
 import { ValidateIntentService } from './validate-intent.service'
 import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { IntentSource } from '../eco-configs/eco-config.types'
+import { IntentSource } from '@libs/eco-solver-config'
 import { IntentCreatedLog } from '../contracts'
 
 @Controller('intent')

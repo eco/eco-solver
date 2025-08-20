@@ -4,8 +4,8 @@ import { erc20Abi, isAddressEqual } from 'viem'
 import { Hex } from 'viem'
 import { Network } from '@eco-solver/common/alchemy/network'
 import { entries, keyBy } from 'lodash'
-import { Solver } from '@eco-solver/eco-configs/eco-config.types'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { Solver } from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 type TokenType = {

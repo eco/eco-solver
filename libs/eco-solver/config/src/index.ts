@@ -1,1 +1,6 @@
 export * from './lib/config-loader'
+export * from './lib/static-config-loader'
+export * from './lib/eco-config.module'
+export * from './lib/eco-config.service'
+export * from './lib/config-source.provider'
+export * from './lib/eco-config.types'

@@ -1,0 +1,19 @@
+{
+  "name": "providers",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/config/providers/src",
+  "projectType": "library",
+  "tags": ["scope:config", "type:provider"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/config/providers",
+        "main": "libs/config/providers/src/index.ts",
+        "tsConfig": "libs/config/providers/tsconfig.lib.json",
+        "assets": ["libs/config/providers/*.md"]
+      }
+    }
+  }
+}

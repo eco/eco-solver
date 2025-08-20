@@ -4,7 +4,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { parseUnits } from "viem"
 import { Hex } from "viem"
 import { CCTPV2ProviderService } from './cctpv2-provider.service'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import { LiquidityManagerQueue } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'

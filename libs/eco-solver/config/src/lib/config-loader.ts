@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { merge } from 'lodash'
+import { StaticConfigLoader } from './static-config-loader'
 
 export interface ConfigEnvironments {
   default: any
@@ -47,21 +48,35 @@ export class ConfigLoader {
       return this.configCache.get(env)
     }
 
+    // Try static loading first (for bundled apps)
+    try {
+      return StaticConfigLoader.load({
+        nodeEnv: options.nodeEnv,
+        nodeConfig: options.nodeConfig,
+      })
+    } catch (staticError) {
+      console.warn('Static config loading failed, falling back to dynamic loading:', (staticError as Error).message)
+    }
+
+    // Fallback to dynamic file loading (original behavior)
     const configDir = options.configDir || new ConfigLoader().getDefaultConfigDir()
 
-    // Load base configuration (default.ts)
-    let config = this.loadConfigFile(join(configDir, 'default.ts')) || {}
+    // Load base configuration (try .js first, fallback to .ts)
+    let config = this.loadConfigFile(join(configDir, 'default.js')) || 
+                 this.loadConfigFile(join(configDir, 'default.ts')) || {}
 
     // Load environment-specific configuration
     if (env !== 'default') {
-      const envConfig = this.loadConfigFile(join(configDir, `${env}.ts`))
+      const envConfig = this.loadConfigFile(join(configDir, `${env}.js`)) ||
+                       this.loadConfigFile(join(configDir, `${env}.ts`))
       if (envConfig) {
         config = this.deepMerge(config, envConfig)
       }
     }
 
-    // Load local configuration override (local.ts) - highest priority
-    const localConfig = this.loadConfigFile(join(configDir, 'local.ts'))
+    // Load local configuration override (local.js/local.ts) - highest priority
+    const localConfig = this.loadConfigFile(join(configDir, 'local.js')) ||
+                       this.loadConfigFile(join(configDir, 'local.ts'))
     if (localConfig) {
       config = this.deepMerge(config, localConfig)
     }

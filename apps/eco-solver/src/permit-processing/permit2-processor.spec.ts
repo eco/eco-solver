@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
 import { TransactionReceipt, zeroAddress } from "viem"

@@ -1,5 +1,5 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ProofService } from '../../prover/proof.service'
 import { RetryInfeasableIntentsService } from '@eco-solver/intervals/retry-infeasable-intents.service'

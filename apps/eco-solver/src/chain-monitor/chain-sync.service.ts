@@ -1,6 +1,6 @@
-import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
-import { IntentSource } from '../eco-configs/eco-config.types'
+import { IntentSource } from '@libs/eco-solver-config'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Log } from 'viem'

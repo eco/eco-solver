@@ -1,5 +1,5 @@
 import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { FeeAlgorithm } from '@eco-solver/eco-configs/eco-config.types'
+import { FeeAlgorithm } from '@libs/eco-solver-config'
 import { ValidationChecks } from '@eco-solver/intent/validation.sevice'
 import { Hex } from 'viem'
 import { NormalizedTotal } from '@eco-solver/fee/types'

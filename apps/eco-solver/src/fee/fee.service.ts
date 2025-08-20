@@ -1,13 +1,13 @@
 import { BalanceService, TokenFetchAnalysis } from '@eco-solver/balance/balance.service'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@eco-solver/contracts'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import {
   FeeAlgorithmConfig,
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
-} from '@eco-solver/eco-configs/eco-config.types'
+} from '@libs/eco-solver-config'
 import {
   CalculateTokensType,
   NormalizedCall,

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy, zipWith } from 'lodash'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { getDestinationNetworkAddressKey } from '@eco-solver/common/utils/strings'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { erc20Abi, MulticallParameters, MulticallReturnType } from 'viem'

@@ -1,6 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { ConfigLoader } from '@libs/eco-solver-config'
+import { ConfigLoader } from './config-loader'
+import { ConfigurationService } from '@mono-solver/config-core'
+import { 
+  ServerConfigSchema, 
+  DatabaseConfigSchema, 
+  AwsConfigSchema,
+  LoggingConfigSchema,
+  RedisConfigSchema,
+  IntentConfigSchema 
+} from '@mono-solver/schemas'
 
 export interface DatabaseConfig {
   type: string
@@ -48,7 +57,10 @@ export class EcoConfigService {
   private readonly logger = new Logger(EcoConfigService.name)
   private configLoader: ConfigLoader
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly modernConfigService?: ConfigurationService // Optional for gradual migration
+  ) {
     this.configLoader = ConfigLoader.getInstance()
     this.validateConfiguration()
   }
@@ -57,6 +69,20 @@ export class EcoConfigService {
    * Get server configuration
    */
   getServerConfig(): ServerConfig {
+    // Try modern configuration service first
+    if (this.modernConfigService) {
+      try {
+        const modernConfig = this.modernConfigService.getSync('server', ServerConfigSchema)
+        return {
+          port: modernConfig.port,
+          host: modernConfig.host || '0.0.0.0', // Fallback for optional host
+        }
+      } catch (error) {
+        this.logger.warn('Modern config failed, falling back to legacy:', error.message)
+      }
+    }
+    
+    // Fallback to legacy configuration
     return {
       port: this.get<number>('server.port', 3000),
       host: this.get<string>('server.host', '0.0.0.0'),
@@ -67,6 +93,22 @@ export class EcoConfigService {
    * Get database configuration
    */
   getDatabaseConfig(): DatabaseConfig {
+    // Try modern configuration service first
+    if (this.modernConfigService) {
+      try {
+        const modernConfig = this.modernConfigService.getSync('database', DatabaseConfigSchema)
+        // Map modern schema to legacy interface
+        return {
+          type: 'mongodb', // Fixed type as modern schema doesn't expose this
+          url: `mongodb://${modernConfig.username}:${modernConfig.password}@${modernConfig.host}:${modernConfig.port}/${modernConfig.database}`,
+          options: modernConfig.pool || {},
+        }
+      } catch (error) {
+        this.logger.warn('Modern database config failed, falling back to legacy:', error.message)
+      }
+    }
+    
+    // Fallback to legacy configuration
     return {
       type: this.get<string>('database.type', 'mongodb'),
       url: this.get<string>('database.url'),
@@ -123,8 +165,14 @@ export class EcoConfigService {
 
   /**
    * Get configuration value by path
+   * @deprecated Use modernConfigService.get() with schema validation instead
    */
   get<T = any>(path: string, defaultValue?: T): T {
+    // Log deprecation warning occasionally (not on every call to avoid spam)
+    if (Math.random() < 0.01) { // 1% chance to log warning
+      this.logger.warn(`[DEPRECATED] Use modernConfigService.get() instead of legacy get('${path}')`)
+    }
+
     // First try NestJS ConfigService for environment variables
     const envValue = this.configService.get<T>(path)
     if (envValue !== undefined) {
@@ -153,10 +201,22 @@ export class EcoConfigService {
   /**
    * Reload configuration
    */
-  reload(): void {
+  async reload(): Promise<void> {
+    // Try modern configuration service first
+    if (this.modernConfigService) {
+      try {
+        await this.modernConfigService.reload()
+        this.logger.log('Modern configuration reloaded successfully')
+        return
+      } catch (error) {
+        this.logger.warn('Modern config reload failed, falling back to legacy:', error.message)
+      }
+    }
+    
+    // Fallback to legacy configuration reload
     ConfigLoader.reload()
     this.validateConfiguration()
-    this.logger.log('Configuration reloaded successfully')
+    this.logger.log('Legacy configuration reloaded successfully')
   }
 
   /**

@@ -17,8 +17,8 @@ import {
   HyperlaneConfig,
   SendBatchConfig,
   WithdrawsConfig,
-} from '@eco-solver/eco-configs/eco-config.types'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+} from '@libs/eco-solver-config'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { IndexerService } from '@eco-solver/indexer/services/indexer.service'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
 import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'

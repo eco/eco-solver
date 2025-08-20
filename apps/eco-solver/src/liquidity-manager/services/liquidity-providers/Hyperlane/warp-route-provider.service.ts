@@ -13,7 +13,7 @@ import {
   isAddress,
 } from 'viem'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { TokenConfig } from '@eco-solver/balance/types'
 import { BalanceService } from '@eco-solver/balance/balance.service'
 import { hyperlaneCollateralERC20 } from '@eco-solver/contracts/HyperlaneCollateralERC20'

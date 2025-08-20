@@ -1,6 +1,6 @@
 import { BullModule, RegisterQueueOptions } from '@nestjs/bullmq'
 import { DynamicModule } from '@nestjs/common'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { RedisConnectionUtils } from '@eco-solver/common/redis/redis-connection-utils'
 import { QueueMetadata } from '@eco-solver/common/redis/constants'
 

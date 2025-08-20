@@ -5,7 +5,7 @@ import { LiFiProviderService } from '@eco-solver/liquidity-manager/services/liqu
 import { CCTPProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
 import { WarpRouteProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { RelayProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { StargateProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { CCTPLiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'

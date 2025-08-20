@@ -15,8 +15,15 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@eco-solver/*": ["apps/eco-solver/src/*"],
       "@libs/eco-solver-config": ["libs/eco-solver/config/src/index.ts"],
-      "@eco-solver/*": ["apps/eco-solver/src/*"]
+      "@mono-solver/config-core": ["libs/config/src/index.ts"],
+      "@mono-solver/providers": ["libs/config/providers/src/index.ts"],
+      "@mono-solver/schemas": ["libs/config/schemas/src/index.ts"],
+      "@mono-solver/testing": ["libs/config/testing/src/index.ts"],
+      "config-core": ["libs/config/src/index.ts"],
+      "providers": ["libs/config/providers/src/index.ts"],
+      "schemas": ["libs/config/schemas/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

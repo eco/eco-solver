@@ -5,16 +5,20 @@
       "type": "node",
       "request": "launch",
       "name": "Debug eco-solver with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "eco-solver"],
+      "program": "${workspaceFolder}/dist/apps/eco-solver/main.js",
+      "args": [],
+      "cwd": "${workspaceFolder}",
       "env": {
-        "NODE_OPTIONS": "--inspect=9229"
+        "NODE_ENV": "development",
+        "NODE_CONFIG_DIR": "${workspaceFolder}/dist/apps/eco-solver/config"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "skipFiles": ["<node_internals>/**"],
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/apps/eco-solver/dist/**/*.(m|c|)js", "!**/node_modules/**"]
+      "outFiles": ["${workspaceFolder}/dist/apps/eco-solver/**/*.js"],
+      "preLaunchTask": "nx:build:eco-solver:development",
+      "stopOnEntry": false
     }
   ]
 }

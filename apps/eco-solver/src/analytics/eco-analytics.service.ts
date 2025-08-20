@@ -3,7 +3,7 @@ import { AnalyticsService } from './analytics.interface'
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { QuoteIntentDataDTO } from '@eco-solver/quote/dto/quote.intent.data.dto'
 import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
-import { IntentSource } from '@eco-solver/eco-configs/eco-config.types'
+import { IntentSource } from '@libs/eco-solver-config'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
 
 /**

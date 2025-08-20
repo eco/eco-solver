@@ -7,7 +7,7 @@ import { addSeconds, compareAsc } from 'date-fns'
 import { ProofCall, ProofType } from '@eco-solver/contracts'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
 
 interface ProverMetadata {

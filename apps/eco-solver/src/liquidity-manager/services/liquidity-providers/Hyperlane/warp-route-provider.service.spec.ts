@@ -4,11 +4,11 @@ import { pad, parseUnits, getAbiItem, encodeEventTopics, keccak256 } from "viem"
 import { Hex, toHex } from "viem"
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'
 import { WarpRouteProviderService } from './warp-route-provider.service'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { BalanceService } from '@eco-solver/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { WarpRoutesConfig } from '@eco-solver/eco-configs/eco-config.types'
+import { WarpRoutesConfig } from '@libs/eco-solver-config'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 

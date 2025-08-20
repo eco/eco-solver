@@ -1,5 +1,5 @@
 import { QUEUES } from '@eco-solver/common/redis/constants'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
 import { WatchFulfillmentService } from '@eco-solver/watch/intent/watch-fulfillment.service'
 import { EcoAnalyticsService } from '@eco-solver/analytics'

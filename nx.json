@@ -34,7 +34,41 @@
     },
     "serve": {
       "cache": false
+    },
+    "@nx/js:tsc": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     }
+  },
+  "conformance": {
+    "rules": [
+      {
+        "rule": "@nx/enforce-module-boundaries",
+        "options": {
+          "enforceBuildableLibDependency": true,
+          "allow": [],
+          "depConstraints": [
+            {
+              "sourceTag": "scope:config",
+              "onlyDependOnLibsWithTags": ["scope:config", "scope:shared"]
+            },
+            {
+              "sourceTag": "type:schema",
+              "onlyDependOnLibsWithTags": ["type:schema", "scope:shared"]
+            },
+            {
+              "sourceTag": "type:provider",
+              "onlyDependOnLibsWithTags": ["type:provider", "type:schema", "scope:shared"]
+            },
+            {
+              "sourceTag": "type:util",
+              "onlyDependOnLibsWithTags": ["type:util", "type:schema", "type:provider", "scope:shared"]
+            }
+          ]
+        }
+      }
+    ]
   },
   "plugins": [
     {

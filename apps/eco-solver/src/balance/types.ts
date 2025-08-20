@@ -1,4 +1,4 @@
-import { TargetContractType } from '@eco-solver/eco-configs/eco-config.types'
+import { TargetContractType } from '@libs/eco-solver-config'
 import { Hex } from 'viem'
 
 export type TokenConfig = {

@@ -8,10 +8,10 @@ import {
   ValidationService,
   validationsSucceeded,
 } from '@eco-solver/intent/validation.sevice'
-import { EcoConfigService } from '@eco-solver/eco-configs/eco-config.service'
+import { EcoConfigService } from '@libs/eco-solver-config'
 import { entries } from 'lodash'
 import { FeeService } from '@eco-solver/fee/fee.service'
-import { FeeConfigType } from '@eco-solver/eco-configs/eco-config.types'
+import { FeeConfigType } from '@libs/eco-solver-config'
 import { BalanceService } from '@eco-solver/balance/balance.service'
 import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
