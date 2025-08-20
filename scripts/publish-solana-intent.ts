@@ -3,10 +3,11 @@
 import { Program, AnchorProvider, Wallet, web3, BN } from '@coral-xyz/anchor'
 
 // Use Anchor's bundled web3.js to avoid type conflicts
-const { Connection, Keypair, PublicKey } = web3
+const { Connection, Keypair, PublicKey, ComputeBudgetProgram } = web3
 import * as crypto from 'crypto'
 import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData, Hex } from 'viem'
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
 import { VmType } from '@/eco-configs/eco-config.types'
 import { RouteType, IntentType, RewardType } from '@eco-foundation/routes-ts'
 
@@ -14,7 +15,7 @@ import { RouteType, IntentType, RewardType } from '@eco-foundation/routes-ts'
 import config from '../config/solana'
 import { getChainConfig } from '@/eco-configs/utils'
 import { RewardStruct, RouteStruct } from '@/intent/abi'
-import { hashIntent } from '@/intent/check-funded-solana'
+import { hashIntent, getVaultPda, hashIntentSvm } from '@/intent/check-funded-solana'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -35,6 +36,40 @@ interface Call {
 
 const deadlineWindow = 7200 // 2 hours
 
+// Helper function to confirm transaction without WebSocket subscription
+async function confirmTransactionPolling(connection: web3.Connection, signature: string, commitment: web3.Commitment = 'confirmed'): Promise<void> {
+  const maxRetries = 30 // 30 seconds with 1 second intervals
+  let retries = 0
+  
+  while (retries < maxRetries) {
+    try {
+      const result = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
+      
+      if (result?.value?.confirmationStatus === commitment || result?.value?.confirmationStatus === 'finalized') {
+        if (result.value.err) {
+          throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`)
+        }
+        console.log(`Transaction confirmed with ${result.value.confirmationStatus} commitment`)
+        return
+      }
+      
+      if (result?.value?.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`)
+      }
+      
+    } catch (error) {
+      if (retries === maxRetries - 1) {
+        throw error
+      }
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    retries++
+  }
+  
+  throw new Error(`Transaction confirmation timeout after ${maxRetries} seconds`)
+}
+
 // Parse command line arguments
 const args = process.argv.slice(2)
 const shouldFund = args.includes('--fund') && args[args.indexOf('--fund') + 1] === 'yes'
@@ -47,7 +82,8 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
   const connection = new Connection(solanaRpcUrl, {
     commitment: 'confirmed',
     disableRetryOnRateLimit: true,
-    wsEndpoint: undefined
+    wsEndpoint: undefined,
+    confirmTransactionInitialTimeout: 60000
   })
   
   // Load keypair from environment variable
@@ -163,21 +199,6 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
   // Update the intent with the route
   intent.route = route
 
-  // Calculate route hash
-  function keccak256(data: Buffer): Buffer {
-    // Note: Using SHA-256 as approximation since keccak256 requires additional library
-    // In production, use a proper keccak256 implementation like 'js-sha3'
-    return crypto.createHash('sha256').update(data).digest()
-  }
-
-  // Serialize route for hashing (simplified - in production, use proper serialization)
-  const routeData = Buffer.concat([
-    Buffer.from(route.salt),
-    Buffer.from(route.deadline.toString()),
-    Buffer.from(route.portal.toString())
-  ])
-  const routeHashBytes = keccak256(routeData).slice(0, 32)
-
   console.log('Intent Details:')
   console.log(`Destination Chain: ${intent.destination}`)
   console.log(`Route deadline: ${new Date(Number(route.deadline) * 1000).toISOString()}`)
@@ -196,7 +217,8 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
     const provider = new AnchorProvider(connection, wallet, {
       commitment: 'confirmed',
       preflightCommitment: 'confirmed',
-      skipPreflight: false
+      skipPreflight: false,
+      maxRetries: 3
     })
     
     console.log('Setting up program with provided IDL...')
@@ -214,19 +236,19 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
     }
     
     // Prepare Portal program types with BN for numeric fields
+    // Ensure tokens array is properly formatted for Borsh encoding
     const portalReward = {
       deadline: new BN(reward.deadline),
       creator: new PublicKey(reward.creator),
       prover: new PublicKey(reward.prover),
       nativeAmount: new BN(reward.nativeAmount),
-      tokens: reward.tokens.map(token => ({
+      tokens: Array.from(reward.tokens.map(token => ({
         token: new PublicKey(token.token),
         amount: new BN(token.amount)
-      }))
+      })))
     }
     
     console.log('Publishing intent...')
-    console.log(route.portal, route.tokens, route.calls)
 
     // Replace the encodeRoute call with this manual encoding using the exact ABI structure
     const routeBytes = Buffer.from(
@@ -246,45 +268,114 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
       'hex'
     )
     
-    // Call the Portal program's publish instruction with new structure
-    const signature = await program.methods
+    // Build the transaction manually to avoid Anchor's WebSocket subscription
+    const transaction = await program.methods
       .publish({
         destination: new BN(intent.destination),
         route: routeBytes,
         reward: portalReward
       })
       .accounts({})
-      .rpc({
-        commitment: 'confirmed',
-        skipPreflight: false
-      })
+      .transaction()
     
-    console.log(`Intent published! Transaction: ${signature}`)
+    // Send the transaction manually
+    console.log('Sending publish transaction...')
+    const signature = await connection.sendTransaction(transaction, [keypair], {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+      maxRetries: 3
+    })
+    
+    console.log(`Intent published! Transaction signature: ${signature}`)
+    console.log('Confirming transaction...')
+    
+    // Manually confirm the transaction using polling instead of WebSocket subscription
+    await confirmTransactionPolling(connection, signature, 'confirmed')
+    
+    console.log(`Intent published and confirmed! Transaction: ${signature}`)
     
     // Conditionally fund the intent if requested
-    let fundingSignature = null
+    let fundingSignature: string | null = null
     if (fundIntent) {
       console.log('Funding the published intent...')
       
       try {
-        // Calculate intent hash for funding (simplified - should match the actual intent hash calculation)
-        const intentHash = hashIntent(BigInt(intent.destination), intent.route, intent.reward)
+        const intentHash = hashIntentSvm(BigInt(intent.destination), intent.route, intent.reward)
+
+        console.log("JUSTLOGGING: intentHash", intentHash)
         
-        fundingSignature = await program.methods
+        // Calculate vault PDA from intent hash
+        const intentHashBytes = new Uint8Array(Buffer.from(intentHash.intentHash.slice(2), 'hex'))
+        const [vaultPda] = getVaultPda(intentHashBytes)
+        
+        console.log(`Intent hash: ${intentHash.intentHash}`)
+        console.log(`Intent hash bytes: ${Array.from(intentHashBytes).map(b => b.toString(16).padStart(2, '0')).join('')}`)
+        console.log(`Vault PDA: ${vaultPda.toString()}`)
+        
+        // Get token accounts for funding (matching Rust implementation)
+        const tokenMint = new PublicKey(reward.tokens[0].token) // USDC mint
+        const funderTokenAccount = await getAssociatedTokenAddress(tokenMint, keypair.publicKey)
+        
+        // For PDA vault, we need to use allowOwnerOffCurve: true
+        const vaultTokenAccount = await getAssociatedTokenAddress(
+          tokenMint, 
+          vaultPda, 
+          true // allowOwnerOffCurve for PDA
+        )
+        
+        console.log(`Token mint: ${tokenMint.toString()}`)
+        console.log(`Funder token account: ${funderTokenAccount.toString()}`)
+        console.log(`Vault token account: ${vaultTokenAccount.toString()}`)
+        
+        // Convert route hash from hex to bytes array for Solana program
+        const routeHashBytes = new Uint8Array(Buffer.from(intentHash.routeHash.slice(2), 'hex'))
+        
+        // Prepare token transfer accounts 
+        const tokenTransferAccounts = [
+          { pubkey: tokenMint, isWritable: false, isSigner: false },
+          { pubkey: funderTokenAccount, isWritable: true, isSigner: false },
+          { pubkey: vaultTokenAccount, isWritable: true, isSigner: false }
+        ]
+        
+        // Build the funding transaction with exact account ordering matching Rust
+        // The Rust code uses to_account_metas() which orders accounts in struct field order
+        const fundingTransaction = await program.methods
           .fund({
             destination: new BN(intent.destination),
-            route_hash: intentHash.routeHash,
+            route_hash: Array.from(routeHashBytes), // Use snake_case to match Rust
             reward: portalReward,
-            allow_partial: false
+            allow_partial: false // Use snake_case to match Rust
           })
           .accounts({
+            // associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            // funder: keypair.publicKey,
+            // payer: keypair.publicKey,
+            // systemProgram: new PublicKey('11111111111111111111111111111111'),
+            // token2022Program: TOKEN_2022_PROGRAM_ID,
+            // tokenProgram: TOKEN_PROGRAM_ID,
+            vault: vaultPda
           })
-          .rpc({
-            commitment: 'confirmed',
-            skipPreflight: false
-          })
+          // .remainingAccounts(tokenTransferAccounts)
+          .transaction()
+
+        console.log("MADDEN: fundingTransaction", fundingTransaction)
         
-        console.log(`Intent funded! Transaction: ${fundingSignature}`)
+        // Send the funding transaction manually
+        console.log('Sending funding transaction...')
+        fundingSignature = await connection.sendTransaction(fundingTransaction, [keypair], {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 3
+        })
+        
+        console.log(`Intent funding transaction signature: ${fundingSignature}`)
+        console.log('Confirming funding transaction...')
+        
+        // Manually confirm the funding transaction
+        if (fundingSignature) {
+          await confirmTransactionPolling(connection, fundingSignature, 'confirmed')
+          console.log(`Intent funded and confirmed! Transaction: ${fundingSignature}`)
+        }
       } catch (fundingError) {
         console.error('Failed to fund intent:', fundingError)
         // Don't throw, just log the error so publish still succeeds

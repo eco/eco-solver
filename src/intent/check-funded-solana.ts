@@ -5,10 +5,11 @@ import { IntentType, RewardType, RouteType } from '@eco-foundation/routes-ts';
 import { VmType } from '@/eco-configs/eco-config.types';
 import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
 import { RewardStruct, RouteStruct } from './abi';
+import { getChainConfig } from '@/eco-configs/utils';
 
 // Constants
 const VAULT_SEED = Buffer.from("vault");
-const PROGRAM_ID = new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9');
+const PROGRAM_ID = new PublicKey(getChainConfig(1399811149).Inbox);
 
 // Create BorshCoder instance for Solana reward serialization
 const portalIdl = require('src/solana/program/portal.json');
@@ -23,36 +24,22 @@ export interface SolanaTokenAmount {
 /**
  * Derive vault PDA from intent hash
  * Matches: Pubkey::find_program_address(&[VAULT_SEED, intent_hash.as_ref()], &crate::ID)
+ * Where VAULT_SEED = b"vault" and intent_hash is a 32-byte Bytes32
  */
 export function getVaultPda(intentHashBytes: Uint8Array): [PublicKey, number] {
+  // Ensure intent hash is exactly 32 bytes (matches Bytes32 in Rust)
+  if (intentHashBytes.length !== 32) {
+    throw new Error(`Intent hash must be exactly 32 bytes, got ${intentHashBytes.length}`);
+  }
+
   return PublicKey.findProgramAddressSync(
     [VAULT_SEED, intentHashBytes],
     PROGRAM_ID
   );
 }
 
-/**
- * Calculate reward hash for Solana reward structure
- * This should match your Solana reward encoding logic
- */
-export function calculateSolanaRewardHash(reward: RewardType<VmType.SVM>): Uint8Array {
-  // TODO: Implement proper Solana reward encoding/hashing
-  // This should match the reward.hash() implementation in your Solana program
-  const rewardData = encodePacked(
-    ['uint64', 'bytes32', 'bytes32', 'uint64'],
-    [
-      BigInt(reward.deadline),
-      `0x${Buffer.from(new PublicKey(reward.creator).toBytes()).toString('hex')}` as `0x${string}`,
-      `0x${Buffer.from(new PublicKey(reward.prover).toBytes()).toString('hex')}` as `0x${string}`,
-      BigInt(reward.nativeAmount)
-    ]
-  );
-  
-  const hash = keccak256(rewardData);
-  return new Uint8Array(Buffer.from(hash.slice(2), 'hex'));
-}
-
 export function hashReward(reward: RewardType): Hex {
+  console.log("MADDEN: encoded reward", encodeReward(reward))
   return keccak256(encodeReward(reward))
 }
 
@@ -104,19 +91,16 @@ export function encodeReward(reward: RewardType): Hex {
         [{ ...reward, nativeValue: reward.nativeAmount } as any], // need to cast to any because of nativeAmount -> nativeValue
       )
     case VmType.SVM:
-      console.log("JUSTLOGGING: SVM reward", reward)
-      // Use Anchor's BorshCoder for proper Solana serialization
-      // This matches the AnchorSerialize trait implementation in Rust
       const { deadline, creator, prover, nativeAmount, tokens } = reward;
       
       const encoded = svmCoder.types.encode('Reward', {
-        deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
+        deadline: new BN(deadline.toString()),
         creator: new PublicKey(creator),
         prover: new PublicKey(prover),
-        native_amount: new BN(nativeAmount.toString()), // Convert BigInt to BN for u64
+        native_amount: new BN(nativeAmount.toString()),
         tokens: tokens.map(({ token, amount }) => ({
           token: new PublicKey(token),
-          amount: new BN(amount.toString()) // Convert BigInt to BN for u64
+          amount: new BN(amount.toString())
         }))
       });
       
@@ -147,6 +131,45 @@ export function hashIntent(destination: bigint, route: RouteType, reward: Reward
   }
 }
 
+export function hashIntentSvm(destination: bigint, route: RouteType, reward: RewardType): {
+  routeHash: Hex
+  rewardHash: Hex
+  intentHash: Hex
+} {
+  console.log("MADDEN: destination", destination)
+  const routeHash = hashRoute(route)
+  console.log("MADDEN: routeHash", routeHash)
+  const rewardHash = hashReward(reward)
+  console.log("MADDEN: reward", reward)
+
+  console.log("MADDEN: rewardHash", rewardHash)
+
+
+  // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
+  const destinationBytes = new Uint8Array(8);
+  const view = new DataView(destinationBytes.buffer);
+  view.setBigUint64(0, destination, false);
+
+  // Match Rust: hasher.update(destination.to_be_bytes().as_slice());
+  const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
+  const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
+
+  const combined = new Uint8Array(8 + 32 + 32);
+  combined.set(destinationBytes, 0);
+  combined.set(routeHashBytes, 8);
+  combined.set(rewardHashBytes, 40);
+
+  const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
+
+  console.log("MADDEN: intentHash", intentHash)
+
+  return {
+    routeHash,
+    rewardHash,
+    intentHash,
+  }
+}
+
 /**
  * Check if a Solana intent is fully funded by examining vault balances
  */
@@ -155,9 +178,6 @@ export async function checkIntentFunding(
   intent: IntentType
 ): Promise<boolean> {
   try {
-    // 1. Calculate reward hash
-    const rewardHash = calculateSolanaRewardHash(intent.reward as RewardType<VmType.SVM>);
-    console.log("JUSTLOGGING: rewardHash", rewardHash)
     
     const { intentHash } = hashIntent(intent.destination, intent.route, intent.reward);
     const intentHashBytes = new Uint8Array(Buffer.from(intentHash.slice(2), 'hex'));

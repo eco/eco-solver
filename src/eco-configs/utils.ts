@@ -59,8 +59,8 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
   console
   if (id === '1399811149-pre') {
     return {
-      IntentSource: new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9'),
-      Inbox: new PublicKey('2Y57jksdfFgPy5a75tQNU21z8ESPyQnKCyuRTva3JSj9'),
+      IntentSource: new PublicKey('8U3vccx6SvoUPLKhVZyxoyRHLDGmTh55Rj38P9GQeKdX'),
+      Inbox: new PublicKey('8U3vccx6SvoUPLKhVZyxoyRHLDGmTh55Rj38P9GQeKdX'),
       MetaProver: '0x0000000000000000000000000000000000000000',
       HyperProver: new PublicKey('5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp'),
     }
