@@ -541,4 +541,12 @@ export interface GatewayConfig {
     wallet?: Hex
     minter?: Hex
   }[]
+  fees?: {
+    // percentage = numerator / denominator; e.g., 5 / 100000 = 0.5 bps
+    percent?: { numerator: number | string; denominator: number | string }
+    // per-domain base fees in base-6 USDC
+    base6ByDomain?: Record<number, number | string>
+    // fallback base fee in base-6 USDC (default: Ethereum base fee)
+    fallbackBase6?: number | string
+  }
 }

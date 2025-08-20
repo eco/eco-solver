@@ -245,6 +245,93 @@ describe('GatewayProviderService', () => {
     )
   })
 
+  it('fee helpers compute percent fee with rounding up and domain base fee lookup', async () => {
+    const svc = service as any
+    // Mock config fees: 0.5 bps and domain base of 10_000 for Arbitrum(3)
+    configService.getGatewayConfig.mockReturnValueOnce({
+      apiUrl: 'https://example.invalid',
+      enabled: true,
+      chains: [],
+      fees: {
+        percent: { numerator: 5, denominator: 100_000 },
+        base6ByDomain: { 3: 10_000 },
+        fallbackBase6: 2_000_000,
+      },
+    })
+    // Recompute internal fees cache per call via getter
+    const percentFee = svc.computePercentFeeBase6(13_367_330n) // 13.367330 base6 × 0.00005 = 668.3665 → ceil = 669
+    expect(percentFee.toString()).toBe('669')
+
+    const baseFee = svc.getBaseFeeForDomainBase6(3)
+    expect(baseFee.toString()).toBe('10000')
+  })
+
+  it('computeMaxTransferableOnDomain respects available = value + fee(value)', async () => {
+    const svc = service as any
+    // Fees: base(arb)=10_000, percent=0.5 bps
+    configService.getGatewayConfig.mockReturnValueOnce({
+      apiUrl: 'https://example.invalid',
+      enabled: true,
+      chains: [],
+      fees: {
+        percent: { numerator: 5, denominator: 100_000 },
+        base6ByDomain: { 3: 10_000 },
+        fallbackBase6: 2_000_000,
+      },
+    })
+
+    // available = 13.367330 base6 → 13_367_330
+    const available = 13_367_330n
+    const maxVal = svc.computeMaxTransferableOnDomain(3, available)
+    // fee = 10_000 + ceil(maxVal * 5 / 100000)
+    const fee = svc.computeMaxFeeBase6(3, maxVal)
+    expect(Number(maxVal + fee)).toBeLessThanOrEqual(Number(available))
+    // if we increase by 1, it should exceed available
+    const feeAtPlus1 = svc.computeMaxFeeBase6(3, maxVal + 1n)
+    expect(Number(maxVal + 1n + feeAtPlus1)).toBeGreaterThan(Number(available))
+  })
+
+  it('execute sets per-intent maxFee according to config-driven computation', async () => {
+    // Override config and info to use Arbitrum (domain 3) as source
+    configService.getGatewayConfig.mockReturnValue({
+      apiUrl: 'https://example.invalid',
+      enabled: true,
+      chains: [
+        { chainId: sourceChainId, domain: 3, usdc: usdc1, wallet: wallet1 },
+        { chainId: destinationChainId, domain: destinationDomain, usdc: usdc2, minter: minter2 },
+      ],
+      fees: {
+        percent: { numerator: 5, denominator: 100_000 },
+        base6ByDomain: { 3: 10_000 },
+        fallbackBase6: 2_000_000,
+      },
+    })
+    ;(service as any).client.getInfo.mockResolvedValueOnce({
+      domains: [
+        { chain: 'arb', network: 'test', domain: 3, walletContract: wallet1 },
+        { chain: 'dst', network: 'test', domain: destinationDomain, minterContract: minter2 },
+      ],
+    })
+    ;(service as any).client.getBalancesForDepositor.mockResolvedValue({
+      token: 'USDC',
+      balances: [{ domain: 3, depositor: '0xeeee', balance: '20' }], // 20 USDC
+    })
+
+    const tokenIn = buildTokenData(sourceChainId, usdc1)
+    const tokenOut = buildTokenData(destinationChainId, usdc2)
+    const quote = await service.getQuote(tokenIn as any, tokenOut as any, 1, 'id-fee-max')
+
+    await service.execute('0xwallet', quote)
+    const callArg = (service as any).client.createTransferAttestation.mock.calls[0][0]
+    expect(Array.isArray(callArg)).toBe(true)
+    expect(callArg.length).toBe(1)
+    const msg = callArg[0].burnIntent
+    const value = BigInt(msg.spec.value)
+    // Expected: base(arb)=10_000 + ceil(value * 5/100000)
+    const expectedMaxFee = 10_000n + (value * 5n + (100_000n - 1n)) / 100_000n
+    expect(BigInt(msg.maxFee)).toBe(expectedMaxFee)
+  })
+
   it('getQuote returns multi-source context when balance spans domains', async () => {
     // Arrange: two domains contributing to 1 USDC total
     ;(service as any).client.getBalancesForDepositor.mockResolvedValue({
@@ -253,6 +340,26 @@ describe('GatewayProviderService', () => {
         { domain: sourceDomain, depositor: '0xeeee', balance: '0.7' },
         { domain: extraSourceDomain, depositor: '0xeeee', balance: '0.5' },
       ],
+    })
+    // Use fee mapping for test domains (100 and 300)
+    configService.getGatewayConfig.mockReturnValue({
+      apiUrl: 'https://example.invalid',
+      enabled: true,
+      chains: [
+        { chainId: sourceChainId, domain: sourceDomain, usdc: usdc1, wallet: wallet1 },
+        { chainId: destinationChainId, domain: destinationDomain, usdc: usdc2, minter: minter2 },
+        {
+          chainId: 3,
+          domain: extraSourceDomain,
+          usdc: usdc3,
+          wallet: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        },
+      ],
+      fees: {
+        percent: { numerator: 5, denominator: 100_000 },
+        base6ByDomain: { [sourceDomain]: 10_000, [extraSourceDomain]: 10_000 },
+        fallbackBase6: 2_000_000,
+      },
     })
 
     const tokenIn = buildTokenData(sourceChainId, usdc1)

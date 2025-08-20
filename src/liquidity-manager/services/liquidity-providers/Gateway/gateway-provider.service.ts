@@ -25,6 +25,90 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   // cacheManager and configService are required by @Cacheable decorator
   private liquidityManagerQueue: LiquidityManagerQueue
 
+  // Fees configuration helpers (config-driven with robust defaults)
+  private getGatewayFeesConfig(): {
+    percent: { numerator: bigint; denominator: bigint }
+    base6ByDomain: Record<number, bigint>
+    fallbackBase6: bigint
+  } {
+    const cfg = this.configService.getGatewayConfig()
+    const defaultBase: Record<number, bigint> = {
+      // Ethereum
+      0: 2_000_000n,
+      // Avalanche
+      1: 20_000n,
+      // OP
+      2: 1_500n,
+      // Arbitrum
+      3: 10_000n,
+      // Base
+      6: 10_000n,
+      // Polygon PoS
+      7: 1_500n,
+      // Unichain
+      10: 1_000n,
+    }
+    const percent = cfg.fees?.percent
+      ? {
+          numerator: BigInt(cfg.fees.percent.numerator),
+          denominator: BigInt(cfg.fees.percent.denominator),
+        }
+      : { numerator: 5n, denominator: 100_000n } // 0.5 bps
+    const base6ByDomain: Record<number, bigint> = { ...defaultBase }
+    if (cfg.fees?.base6ByDomain) {
+      for (const [k, v] of Object.entries(cfg.fees.base6ByDomain)) {
+        base6ByDomain[Number(k)] = BigInt(v as any)
+      }
+    }
+    const fallbackBase6 = cfg.fees?.fallbackBase6
+      ? BigInt(cfg.fees.fallbackBase6 as any)
+      : 2_000_000n // conservative fallback to Ethereum base fee
+    return { percent, base6ByDomain, fallbackBase6 }
+  }
+
+  private computePercentFeeBase6(valueBase6: bigint): bigint {
+    if (valueBase6 <= 0n) return 0n
+    const { numerator, denominator } = this.getGatewayFeesConfig().percent
+    return (valueBase6 * numerator + (denominator - 1n)) / denominator
+  }
+
+  private getBaseFeeForDomainBase6(domain: number): bigint {
+    const fees = this.getGatewayFeesConfig()
+    return fees.base6ByDomain[domain] ?? fees.fallbackBase6
+  }
+
+  private computeMaxFeeBase6(domain: number, valueBase6: bigint): bigint {
+    const base = this.getBaseFeeForDomainBase6(domain)
+    const percent = this.computePercentFeeBase6(valueBase6)
+    return base + percent
+  }
+
+  // Find the maximum transferable amount on a domain such that value + fee(value) <= available
+  // Uses binary search for monotonic function value + fee(value)
+  private computeMaxTransferableOnDomain(
+    domain: number,
+    availableBase6: bigint,
+    capBase6?: bigint,
+  ): bigint {
+    const baseFee = this.getBaseFeeForDomainBase6(domain)
+    if (availableBase6 <= baseFee) return 0n
+    let lo = 0n
+    let hi = availableBase6 - baseFee
+    if (capBase6 !== undefined && capBase6 >= 0n) hi = hi < capBase6 ? hi : capBase6
+
+    const fits = (val: bigint) => val + this.computeMaxFeeBase6(domain, val) <= availableBase6
+
+    while (lo < hi) {
+      const mid = lo + (hi - lo + 1n) / 2n
+      if (fits(mid)) {
+        lo = mid
+      } else {
+        hi = mid - 1n
+      }
+    }
+    return lo
+  }
+
   constructor(
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly configService: EcoConfigService,
@@ -144,23 +228,25 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     const depositor = (await this.walletClientService.getAccount()).address as Hex
     const balanceResp = await this.client.getBalancesForDepositor('USDC', depositor)
 
-    const perDomain = (balanceResp?.balances || []).map((b) => ({
-      domain: b.domain,
-      available: parseUnits(b.balance || '0', 6),
-    }))
-    // Prefer domains with highest available balance first
-    perDomain.sort((a, b) => (a.available < b.available ? 1 : a.available > b.available ? -1 : 0))
+    const perDomain = (balanceResp?.balances || [])
+      .map((b) => ({ domain: b.domain, available: parseUnits(b.balance || '0', 6) }))
+      // Prefer domains with highest available balance first
+      .sort((a, b) => (a.available < b.available ? 1 : a.available > b.available ? -1 : 0))
 
-    // Build sources breakdown
+    // Build sources breakdown (fee-aware): ensure value + fee(value) <= domain.available
     const sources: { domain: number; amountBase6: bigint }[] = []
     let remaining = amountBase6
     for (const entry of perDomain) {
       if (remaining <= 0n) break
       if (entry.available <= 0n) continue
-      const take = entry.available >= remaining ? remaining : entry.available
-      if (take > 0n) {
-        sources.push({ domain: entry.domain, amountBase6: take })
-        remaining -= take
+      const maxOnDomain = this.computeMaxTransferableOnDomain(
+        entry.domain,
+        entry.available,
+        remaining,
+      )
+      if (maxOnDomain > 0n) {
+        sources.push({ domain: entry.domain, amountBase6: maxOnDomain })
+        remaining -= maxOnDomain
       }
     }
 
@@ -185,7 +271,10 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
           chosenSourceDomain,
           destinationDomain: outChain.domain,
           amountBase6: amountBase6.toString(),
-          sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
+          sources: sources.map((s) => {
+            const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
+            return `${s.domain}:${s.amountBase6.toString()}(+fee:${fee.toString()})`
+          }),
         },
       }),
     )
@@ -258,6 +347,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       if (!srcChainCfg) {
         throw new Error(`Gateway: Missing chain config for source domain ${src.domain}`)
       }
+      const maxFeeForIntent = this.computeMaxFeeBase6(src.domain, src.amountBase6)
       const typedData = this.buildBurnIntentTypedData({
         sourceDomain: src.domain,
         destinationDomain,
@@ -277,8 +367,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         ) as Hex,
         hookData: '0x',
         maxBlockHeight: BigInt(10_000_000_000),
-        // Default to 2.01 USDC (base-6) per Quickstart guidance
-        maxFee: 2_010_000n,
+        maxFee: maxFeeForIntent,
       })
       const signature: Hex = await (signerClient as any).signTypedData(typedData)
       transferItems.push({ burnIntent: (typedData as any).message, signature })
@@ -287,7 +376,11 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         EcoLogMessage.withId({
           message: 'Gateway: signed burn intent',
           id,
-          properties: { sourceDomain: src.domain, value: src.amountBase6.toString() },
+          properties: {
+            sourceDomain: src.domain,
+            value: src.amountBase6.toString(),
+            maxFee: maxFeeForIntent.toString(),
+          },
         }),
       )
     }

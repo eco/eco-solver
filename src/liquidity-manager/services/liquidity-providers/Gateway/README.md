@@ -54,7 +54,7 @@ Bootstrap config:
 - Validates cross-chain, USDC→USDC using configured addresses
 - Loads supported domains from Gateway Info (cached with `@Cacheable`)
 - Fetches per-domain unified balances for the EOA and selects source domains that cover the requested amount
-- Returns a zero-slippage quote with `amountIn == amountOut` and sets `context.sources` to the selected breakdown
+- Returns a zero-slippage quote with `amountIn == amountOut` and sets `context.sources` to the selected breakdown. Source selection is fee-aware: for each domain we allocate the value V such that V + maxFee(domain, V) ≤ available.
 
 2. Execute (`execute`)
 
@@ -67,7 +67,7 @@ Bootstrap config:
   {
     "burnIntent": {
       "maxBlockHeight": "...",
-      "maxFee": "...",
+      "maxFee": "...", // base(domain) + percentage(value), config-driven
       "spec": {
         /* TransferSpec */
       }
@@ -93,7 +93,25 @@ Bootstrap config:
 
 #### Error handling & caching
 
+- Fees are configured under `gateway.fees` with per-domain base fees and a percentage fraction (default 0.5 bps); fallback base uses the largest (Ethereum) for conservatism.
+
 - Non-200 API responses throw `GatewayApiError` with `status` and response body
+- Signed burn intent debug logs include `sourceDomain`, `value` (base-6), and `maxFee` (base-6) for per-intent tracing.
+
+### Ops runbook: adjusting Gateway fees
+
+- Config keys live under `gateway.fees` in your environment config (e.g., `config/default.ts`, `config/preproduction.ts`).
+- Keys:
+  - `percent { numerator, denominator }`: percentage fee fraction. Default is 0.5 bps (5/100000).
+  - `base6ByDomain { [domain]: base6 }`: per-source-domain base fee in USDC base-6. Seeded from Circle docs.
+  - `fallbackBase6`: conservative fallback base fee used when a domain has no explicit entry. Default is Ethereum base fee (2_000_000).
+- When to change:
+  - Circle updates the [Gateway Fees](https://developers.circle.com/gateway/references/fees) table.
+  - Temporary overrides in preprod to investigate insufficient balance errors.
+- Rollout guidance:
+  - Update the appropriate env file(s) and deploy.
+  - Watch logs for `Gateway attestation error` and per-intent `maxFee` in `Gateway: signed burn intent` logs.
+  - If errors persist for a specific domain, raise its `base6ByDomain[domain]` cautiously.
 - Supported domains (`/v1/info`) are cached for 1 hour via `@Cacheable`
 - Structured logs include correlation `id` and key properties
 

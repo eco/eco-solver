@@ -358,5 +358,21 @@ export default {
         minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
       },
     ],
+    fees: {
+      // Default promotional percentage: 0.5 bps
+      percent: { numerator: 5, denominator: 100_000 },
+      // Per-domain base fees in USDC base-6, from Circle docs
+      base6ByDomain: {
+        0: 2_000_000, // Ethereum
+        1: 20_000, // Avalanche
+        2: 1_500, // OP
+        3: 10_000, // Arbitrum
+        6: 10_000, // Base
+        7: 1_500, // Polygon PoS
+        10: 1_000, // Unichain
+      },
+      // Conservative fallback = Ethereum base fee
+      fallbackBase6: 2_000_000,
+    },
   },
 }
