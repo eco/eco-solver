@@ -26,7 +26,7 @@ export class RouteAmountLimitValidation implements Validation {
       this.otelService.startSpan('validation.RouteAmountLimitValidation', {
         attributes: {
           'validation.name': 'RouteAmountLimitValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.route.source?.toString(),
           'intent.destination_chain': intent.route.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
@@ -69,6 +69,18 @@ export class RouteAmountLimitValidation implements Validation {
 
         return normalizedLimit;
       });
+
+      // If no tokens in route, validation passes
+      if (tokenLimits.length === 0) {
+        span.setAttributes({
+          'route.has_tokens': false,
+          'route.within_limit': true,
+        });
+        if (!activeSpan) {
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        }
+        return true;
+      }
 
       const limit = min(tokenLimits);
       span.setAttributes({

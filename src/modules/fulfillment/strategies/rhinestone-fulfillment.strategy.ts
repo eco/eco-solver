@@ -75,7 +75,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     const span = this.otelService.startSpan('rhinestone-strategy.execute', {
       attributes: {
-        'intent.id': intent.intentHash,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.route.source.toString(),
         'intent.destination_chain': intent.route.destination.toString(),
         'intent.calls_count': intent.route.calls.length,

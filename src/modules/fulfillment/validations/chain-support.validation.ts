@@ -23,7 +23,7 @@ export class ChainSupportValidation implements Validation {
       this.otelService.startSpan('validation.ChainSupportValidation', {
         attributes: {
           'validation.name': 'ChainSupportValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.route.source?.toString(),
           'intent.destination_chain': intent.route.destination?.toString(),
         },
@@ -42,16 +42,14 @@ export class ChainSupportValidation implements Validation {
       span.setAttribute('chain.destination.id', intent.route.destination.toString());
 
       const sourceSupported = this.blockchainService.isChainSupported(intent.route.source);
-      const destSupported = this.blockchainService.isChainSupported(intent.route.destination);
-
-      span.setAttributes({
-        'chain.source.supported': sourceSupported,
-        'chain.destination.supported': destSupported,
-      });
+      span.setAttribute('chain.source.supported', sourceSupported);
 
       if (!sourceSupported) {
         throw new Error(`Source chain ${intent.route.source} is not supported`);
       }
+
+      const destSupported = this.blockchainService.isChainSupported(intent.route.destination);
+      span.setAttribute('chain.destination.supported', destSupported);
 
       if (!destSupported) {
         throw new Error(`Target chain ${intent.route.destination} is not supported`);

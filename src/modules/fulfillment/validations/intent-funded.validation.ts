@@ -27,7 +27,7 @@ export class IntentFundedValidation implements Validation {
       this.otelService.startSpan('validation.IntentFundedValidation', {
         attributes: {
           'validation.name': 'IntentFundedValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.route.source?.toString(),
         },
       });

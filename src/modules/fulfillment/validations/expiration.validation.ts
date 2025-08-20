@@ -25,7 +25,7 @@ export class ExpirationValidation implements Validation {
       this.otelService.startSpan('validation.ExpirationValidation', {
         attributes: {
           'validation.name': 'ExpirationValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.route.source?.toString(),
           'intent.destination_chain': intent.route.destination?.toString(),
         },

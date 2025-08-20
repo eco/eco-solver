@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { Address } from 'viem';
 
 // Mock the config service module before any imports
@@ -34,6 +34,17 @@ describe('StandardFeeValidation', () => {
       }),
     };
 
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
     const module = await Test.createTestingModule({
       providers: [
         StandardFeeValidation,
@@ -45,7 +56,11 @@ describe('StandardFeeValidation', () => {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
         },
-      ],
+              {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        ],
     }).compile();
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);

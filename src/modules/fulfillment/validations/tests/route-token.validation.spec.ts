@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { Address } from 'viem';
 
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
@@ -16,6 +16,17 @@ describe('RouteTokenValidation', () => {
       isTokenSupported: jest.fn(),
     };
 
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
     const module = await Test.createTestingModule({
       providers: [
         RouteTokenValidation,
@@ -23,7 +34,11 @@ describe('RouteTokenValidation', () => {
           provide: EvmConfigService,
           useValue: mockEvmConfigService,
         },
-      ],
+              {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        ],
     }).compile();
 
     validation = module.get<RouteTokenValidation>(RouteTokenValidation);

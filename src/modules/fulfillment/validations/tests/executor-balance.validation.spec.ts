@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { Address } from 'viem';
 
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
@@ -15,12 +15,27 @@ describe('ExecutorBalanceValidation', () => {
       // Not used in this validation
     };
 
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
     const module = await Test.createTestingModule({
       providers: [
         ExecutorBalanceValidation,
         {
           provide: BlockchainReaderService,
           useValue: mockBlockchainReaderService,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
         },
       ],
     }).compile();

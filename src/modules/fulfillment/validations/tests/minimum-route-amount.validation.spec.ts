@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { Address } from 'viem';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
@@ -17,12 +17,28 @@ describe('MinimumRouteAmountValidation', () => {
       getToken: jest.fn(),
     } as any;
 
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MinimumRouteAmountValidation,
         {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
         },
       ],
     }).compile();

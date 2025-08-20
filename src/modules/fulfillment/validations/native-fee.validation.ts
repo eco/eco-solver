@@ -23,7 +23,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       this.otelService.startSpan('validation.NativeFeeValidation', {
         attributes: {
           'validation.name': 'NativeFeeValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.destination_chain': intent.route.destination?.toString(),
         },
       });

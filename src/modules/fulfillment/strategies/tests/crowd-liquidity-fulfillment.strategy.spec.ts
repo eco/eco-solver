@@ -4,8 +4,9 @@ import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-execu
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
-import {
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   CrowdLiquidityFeeValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
@@ -34,13 +35,28 @@ jest.mock('@/modules/queue/queue.service', () => ({
   })),
 }));
 
+jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
+  OpenTelemetryService: jest.fn().mockImplementation(() => ({
+    startSpan: jest.fn().mockReturnValue({
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      addEvent: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    }),
+    getActiveSpan: jest.fn(),
+  })),
+}));
+
 describe('CrowdLiquidityFulfillmentStrategy', () => {
   let strategy: CrowdLiquidityFulfillmentStrategy;
   let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
-
+  let _otelService: jest.Mocked<OpenTelemetryService>;
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
+  let duplicateRewardTokensValidation: jest.Mocked<any>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
@@ -60,6 +76,17 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
 
     // Create mock validations
     const createMockValidation = (name: string) => ({
@@ -68,6 +95,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
     });
 
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
+    duplicateRewardTokensValidation = createMockValidation('DuplicateRewardTokensValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
@@ -93,8 +121,16 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
           useValue: mockQueueService,
         },
         {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        {
           provide: IntentFundedValidation,
           useValue: intentFundedValidation,
+        },
+        {
+          provide: DuplicateRewardTokensValidation,
+          useValue: duplicateRewardTokensValidation,
         },
         {
           provide: RouteTokenValidation,
@@ -147,16 +183,17 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(9);
+      expect(validations).toHaveLength(10);
       expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(routeTokenValidation);
-      expect(validations[2]).toBe(routeCallsValidation);
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(crowdLiquidityFeeValidation);
+      expect(validations[1]).toBe(duplicateRewardTokensValidation);
+      expect(validations[2]).toBe(routeTokenValidation);
+      expect(validations[3]).toBe(routeCallsValidation);
+      expect(validations[4]).toBe(routeAmountLimitValidation);
+      expect(validations[5]).toBe(expirationValidation);
+      expect(validations[6]).toBe(chainSupportValidation);
+      expect(validations[7]).toBe(proverSupportValidation);
+      expect(validations[8]).toBe(executorBalanceValidation);
+      expect(validations[9]).toBe(crowdLiquidityFeeValidation);
     });
 
     it('should use CrowdLiquidityFeeValidation instead of StandardFeeValidation', () => {
@@ -277,18 +314,19 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       });
     });
 
-    it('should stop and throw on first validation failure', async () => {
+    it('should throw aggregated error on validation failure', async () => {
       const mockIntent = createMockIntent();
 
       // Make the crowd liquidity fee validation fail
       crowdLiquidityFeeValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: CrowdLiquidityFeeValidation',
+        'Validation failures: Validation failed: CrowdLiquidityFeeValidation',
       );
 
       // Verify validations were called in order until failure
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
+      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
@@ -305,7 +343,9 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
       crowdLiquidityFeeValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError);
+      await expect(strategy.validate(mockIntent)).rejects.toThrow(
+        'Validation failures: ' + validationError.message,
+      );
     });
 
     it('should handle early validation failures', async () => {
@@ -315,14 +355,14 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       expirationValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: ExpirationValidation',
+        'Validation failures: Validation failed: ExpirationValidation',
       );
 
       // Verify later validations were not called
-      expect(chainSupportValidation.validate).not.toHaveBeenCalled();
-      expect(proverSupportValidation.validate).not.toHaveBeenCalled();
-      expect(executorBalanceValidation.validate).not.toHaveBeenCalled();
-      expect(crowdLiquidityFeeValidation.validate).not.toHaveBeenCalled();
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
+      expect(crowdLiquidityFeeValidation.validate).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -399,7 +439,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(9);
+      expect(validations).toHaveLength(10);
       expect(Object.isFrozen(validations)).toBe(true);
     });
 

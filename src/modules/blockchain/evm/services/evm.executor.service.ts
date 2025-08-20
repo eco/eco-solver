@@ -109,10 +109,21 @@ export class EvmExecutorService extends BaseChainExecutor {
       span.addEvent('evm.transaction.submitted');
 
       const publicClient = this.transportService.getPublicClient(destinationChainId);
-      await publicClient.waitForTransactionReceipt({
+
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 2,
       });
+
+      if (receipt.status === 'reverted') {
+        span.addEvent('evm.transaction.reverted');
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+
+        return {
+          success: false,
+          error: 'Fulfillment transaction reverted.',
+        };
+      }
 
       span.addEvent('evm.transaction.confirmed');
       if (!activeSpan) {

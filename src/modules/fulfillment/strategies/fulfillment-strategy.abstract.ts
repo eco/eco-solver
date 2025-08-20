@@ -43,7 +43,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
     const span = this.otelService.startSpan(`strategy.${this.name}.validate`, {
       attributes: {
         'strategy.name': this.name,
-        'intent.id': intent.intentHash,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.route.source.toString(),
         'intent.destination_chain': intent.route.destination.toString(),
       },
@@ -67,7 +67,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
         const validationSpan = this.otelService.startSpan(`validation.${validationName}`, {
           attributes: {
             'validation.name': validationName,
-            'intent.id': intent.intentHash,
+            'intent.hash': intent.intentHash,
           },
         });
 
@@ -110,8 +110,8 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
 
       // Collect all failures
       const failures = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map((result) => result.reason);
+        .filter((result) => result.status === 'fulfilled' && result.value.status === 'rejected')
+        .map((result) => (result as PromiseFulfilledResult<any>).value.reason);
 
       // If any validation failed, throw an aggregated error
       if (failures.length > 0) {
@@ -169,7 +169,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
     const span = this.otelService.startSpan(`strategy.${this.name}.getQuote`, {
       attributes: {
         'strategy.name': this.name,
-        'intent.id': intent.intentHash,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.route.source.toString(),
         'intent.destination_chain': intent.route.destination.toString(),
       },
@@ -198,7 +198,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
           const validationSpan = this.otelService.startSpan(`quote.validation.${validationName}`, {
             attributes: {
               'validation.name': validationName,
-              'intent.id': intent.intentHash,
+              'intent.hash': intent.intentHash,
             },
           });
 

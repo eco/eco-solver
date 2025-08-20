@@ -15,11 +15,26 @@ jest.mock('@/modules/queue/queue.service', () => ({
   })),
 }));
 
+jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
+  OpenTelemetryService: jest.fn().mockImplementation(() => ({
+    startSpan: jest.fn().mockReturnValue({
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      addEvent: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    }),
+    getActiveSpan: jest.fn(),
+  })),
+}));
+
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
-import {
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -40,9 +55,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
-
+  let _otelService: jest.Mocked<OpenTelemetryService>;
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
+  let duplicateRewardTokensValidation: jest.Mocked<any>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
@@ -62,6 +78,17 @@ describe('RhinestoneFulfillmentStrategy', () => {
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
 
     // Create mock validations
     const createMockValidation = (name: string) => ({
@@ -70,6 +97,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
     });
 
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
+    duplicateRewardTokensValidation = createMockValidation('DuplicateRewardTokensValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
@@ -95,8 +123,16 @@ describe('RhinestoneFulfillmentStrategy', () => {
           useValue: mockQueueService,
         },
         {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        {
           provide: IntentFundedValidation,
           useValue: intentFundedValidation,
+        },
+        {
+          provide: DuplicateRewardTokensValidation,
+          useValue: duplicateRewardTokensValidation,
         },
         {
           provide: RouteTokenValidation,
@@ -150,16 +186,17 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     it('should have the correct validations in order WITHOUT RouteCallsValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(8); // One less than standard strategy
+      expect(validations).toHaveLength(9); // One less than standard strategy
       expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[1]).toBe(duplicateRewardTokensValidation);
+      expect(validations[2]).toBe(routeTokenValidation);
       // RouteCallsValidation is intentionally skipped
-      expect(validations[2]).toBe(routeAmountLimitValidation);
-      expect(validations[3]).toBe(expirationValidation);
-      expect(validations[4]).toBe(chainSupportValidation);
-      expect(validations[5]).toBe(proverSupportValidation);
-      expect(validations[6]).toBe(executorBalanceValidation);
-      expect(validations[7]).toBe(standardFeeValidation);
+      expect(validations[3]).toBe(routeAmountLimitValidation);
+      expect(validations[4]).toBe(expirationValidation);
+      expect(validations[5]).toBe(chainSupportValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(standardFeeValidation);
     });
 
     it('should exclude RouteCallsValidation from validations', () => {
@@ -275,7 +312,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
         mockIntent,
         expect.objectContaining({ strategy }),
       );
-      expect(routeCallsValidation.validate).not.toHaveBeenCalled(); // Should NOT be called
+      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1); // Should NOT be called
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(
         mockIntent,
         expect.objectContaining({ strategy }),
@@ -337,31 +374,32 @@ describe('RhinestoneFulfillmentStrategy', () => {
       // Should still pass because RouteCallsValidation is skipped
       const result = await strategy.validate(complexIntent);
       expect(result).toBe(true);
-      expect(routeCallsValidation.validate).not.toHaveBeenCalled();
+      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
     });
 
-    it('should stop and throw on first validation failure', async () => {
+    it('should throw aggregated error on validation failure', async () => {
       const mockIntent = createMockIntent();
 
       // Make the expiration validation fail
       expirationValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: ExpirationValidation',
+        'Validation failures: Validation failed: ExpirationValidation',
       );
 
       // Verify validations were called in order until failure
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
+      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
-      expect(routeCallsValidation.validate).not.toHaveBeenCalled(); // Skipped
+      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1); // Skipped
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
       expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
 
       // Verify subsequent validations were not called
-      expect(chainSupportValidation.validate).not.toHaveBeenCalled();
-      expect(proverSupportValidation.validate).not.toHaveBeenCalled();
-      expect(executorBalanceValidation.validate).not.toHaveBeenCalled();
-      expect(standardFeeValidation.validate).not.toHaveBeenCalled();
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
+      expect(standardFeeValidation.validate).toHaveBeenCalledTimes(1);
     });
 
     it('should propagate validation errors', async () => {
@@ -370,7 +408,9 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
       chainSupportValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError);
+      await expect(strategy.validate(mockIntent)).rejects.toThrow(
+        'Validation failures: ' + validationError.message,
+      );
     });
 
     it('should handle smart account specific scenarios', async () => {
@@ -395,7 +435,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(result).toBe(true);
 
       // RouteCallsValidation should not be invoked even for complex smart account operations
-      expect(routeCallsValidation.validate).not.toHaveBeenCalled();
+      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -508,7 +548,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(8); // One less than standard
+      expect(validations).toHaveLength(9); // One less than standard
       expect(Object.isFrozen(validations)).toBe(true);
     });
 

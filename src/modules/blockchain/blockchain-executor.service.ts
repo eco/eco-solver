@@ -81,7 +81,7 @@ export class BlockchainExecutorService {
   async executeIntent(intent: Intent, walletId?: WalletType): Promise<void> {
     const span = this.otelService.startSpan('intent.blockchain.execute', {
       attributes: {
-        'intent.id': intent.intentHash,
+        'intent.hash': intent.intentHash,
         'intent.destination_chain': intent.route.destination.toString(),
         'intent.wallet_type': walletId || 'default',
         'intent.route.tokens_count': intent.route.tokens.length,

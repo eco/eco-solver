@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
+import * as api from '@opentelemetry/api';
+
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { DataDogService } from '@/modules/datadog';
 import {
@@ -48,7 +50,7 @@ export class FulfillmentService {
   async submitIntent(intent: Intent, strategy: FulfillmentStrategyName): Promise<Intent> {
     const span = this.otelService.startSpan('intent.submit', {
       attributes: {
-        'intent.id': intent.intentHash,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.route.source.toString(),
         'intent.destination_chain': intent.route.destination.toString(),
         'intent.strategy': strategy,
@@ -106,7 +108,7 @@ export class FulfillmentService {
 
     const processSpan = this.otelService.startSpan('intent.process', {
       attributes: {
-        'intent.id': intent.intentHash,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.route.source.toString(),
         'intent.destination_chain': intent.route.destination.toString(),
         'intent.strategy': strategyName,
@@ -161,7 +163,9 @@ export class FulfillmentService {
       // Run strategy validation (which includes all configured validations)
       try {
         processSpan.addEvent('intent.validation.started');
-        await strategy.validate(intent);
+        await api.context.with(api.trace.setSpan(api.context.active(), processSpan), async () => {
+          await strategy.validate(intent);
+        });
         processSpan.addEvent('intent.validation.completed');
         this.dataDogService.recordIntent(
           'validated',
@@ -193,7 +197,9 @@ export class FulfillmentService {
 
       // Execute the strategy
       processSpan.addEvent('intent.execution.started');
-      await strategy.execute(intent);
+      await api.context.with(api.trace.setSpan(api.context.active(), processSpan), async () => {
+        await strategy.execute(intent);
+      });
       processSpan.addEvent('intent.execution.completed');
 
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.EXECUTING);

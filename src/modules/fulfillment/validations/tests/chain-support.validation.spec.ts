@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 // Mock the blockchain executor service module before any imports
 jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
   BlockchainExecutorService: jest.fn().mockImplementation(() => ({
@@ -21,12 +21,27 @@ describe('ChainSupportValidation', () => {
       isChainSupported: jest.fn(),
     };
 
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
     const module = await Test.createTestingModule({
       providers: [
         ChainSupportValidation,
         {
           provide: BlockchainExecutorService,
           useValue: mockBlockchainExecutorService,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
         },
       ],
     }).compile();

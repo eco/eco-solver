@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { Address } from 'viem';
 
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { IntentFundedValidation } from '../intent-funded.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
@@ -16,12 +17,39 @@ describe('IntentFundedValidation', () => {
       isIntentFunded: jest.fn(),
     };
 
+    const mockLoggerService = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
     const module = await Test.createTestingModule({
       providers: [
         IntentFundedValidation,
         {
           provide: BlockchainReaderService,
           useValue: mockBlockchainReaderService,
+        },
+        {
+          provide: SystemLoggerService,
+          useValue: mockLoggerService,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
         },
       ],
     }).compile();

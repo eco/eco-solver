@@ -26,7 +26,7 @@ export class MinimumRouteAmountValidation implements Validation {
       this.otelService.startSpan('validation.MinimumRouteAmountValidation', {
         attributes: {
           'validation.name': 'MinimumRouteAmountValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.destination_chain': intent.route.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
         },

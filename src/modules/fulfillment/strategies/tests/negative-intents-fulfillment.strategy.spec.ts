@@ -15,11 +15,27 @@ jest.mock('@/modules/queue/queue.service', () => ({
   })),
 }));
 
+jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
+  OpenTelemetryService: jest.fn().mockImplementation(() => ({
+    startSpan: jest.fn().mockReturnValue({
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      addEvent: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    }),
+    getActiveSpan: jest.fn(),
+  })),
+}));
+
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -40,9 +56,11 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
   let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
+  let _otelService: jest.Mocked<OpenTelemetryService>;
 
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
+  let duplicateRewardTokensValidation: jest.Mocked<any>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
@@ -62,6 +80,17 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
 
     // Create mock validations
     const createMockValidation = (name: string) => ({
@@ -70,6 +99,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
     });
 
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
+    duplicateRewardTokensValidation = createMockValidation('DuplicateRewardTokensValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
@@ -95,8 +125,16 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
           useValue: mockQueueService,
         },
         {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        {
           provide: IntentFundedValidation,
           useValue: intentFundedValidation,
+        },
+        {
+          provide: DuplicateRewardTokensValidation,
+          useValue: duplicateRewardTokensValidation,
         },
         {
           provide: RouteTokenValidation,
@@ -150,21 +188,22 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
 
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(9);
+      expect(validations).toHaveLength(10);
       expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(routeTokenValidation);
-      expect(validations[2]).toBe(routeCallsValidation);
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(nativeFeeValidation);
+      expect(validations[1]).toBe(duplicateRewardTokensValidation);
+      expect(validations[2]).toBe(routeTokenValidation);
+      expect(validations[3]).toBe(routeCallsValidation);
+      expect(validations[4]).toBe(routeAmountLimitValidation);
+      expect(validations[5]).toBe(expirationValidation);
+      expect(validations[6]).toBe(chainSupportValidation);
+      expect(validations[7]).toBe(proverSupportValidation);
+      expect(validations[8]).toBe(executorBalanceValidation);
+      expect(validations[9]).toBe(nativeFeeValidation);
     });
 
     it('should use NativeFeeValidation for negative intents', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations[8]).toBe(nativeFeeValidation);
+      expect(validations[9]).toBe(nativeFeeValidation);
       expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
         false,
       );
@@ -324,28 +363,27 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       });
     });
 
-    it('should stop and throw on first validation failure', async () => {
+    it('should throw aggregated error on validation failure', async () => {
       const mockIntent = createMockIntent();
 
       // Make a middle validation fail
       routeAmountLimitValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: RouteAmountLimitValidation',
+        'Validation failures: Validation failed: RouteAmountLimitValidation',
       );
 
-      // Verify validations were called in order until failure
+      // All validations should have been called (parallel execution)
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
+      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
-
-      // Verify subsequent validations were not called
-      expect(expirationValidation.validate).not.toHaveBeenCalled();
-      expect(chainSupportValidation.validate).not.toHaveBeenCalled();
-      expect(proverSupportValidation.validate).not.toHaveBeenCalled();
-      expect(executorBalanceValidation.validate).not.toHaveBeenCalled();
-      expect(nativeFeeValidation.validate).not.toHaveBeenCalled();
+      expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
+      expect(nativeFeeValidation.validate).toHaveBeenCalledTimes(1);
     });
 
     it('should propagate validation errors', async () => {
@@ -354,7 +392,9 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
 
       proverSupportValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError);
+      await expect(strategy.validate(mockIntent)).rejects.toThrow(
+        'Validation failures: Negative intent validation error',
+      );
     });
 
     it('should handle complex negative intent scenarios', async () => {
@@ -515,7 +555,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(9);
+      expect(validations).toHaveLength(10);
       expect(Object.isFrozen(validations)).toBe(true);
     });
 

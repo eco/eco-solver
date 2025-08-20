@@ -15,11 +15,27 @@ jest.mock('@/modules/queue/queue.service', () => ({
   })),
 }));
 
+jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
+  OpenTelemetryService: jest.fn().mockImplementation(() => ({
+    startSpan: jest.fn().mockReturnValue({
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      addEvent: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    }),
+    getActiveSpan: jest.fn(),
+  })),
+}));
+
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import {
   ChainSupportValidation,
+  DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
   IntentFundedValidation,
@@ -40,9 +56,11 @@ describe('StandardFulfillmentStrategy', () => {
   let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
+  let _otelService: jest.Mocked<OpenTelemetryService>;
 
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
+  let duplicateRewardTokensValidation: jest.Mocked<any>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
@@ -62,6 +80,17 @@ describe('StandardFulfillmentStrategy', () => {
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
 
     // Create mock validations
     const createMockValidation = (name: string) => ({
@@ -70,6 +99,7 @@ describe('StandardFulfillmentStrategy', () => {
     });
 
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
+    duplicateRewardTokensValidation = createMockValidation('DuplicateRewardTokensValidation') as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
@@ -95,8 +125,16 @@ describe('StandardFulfillmentStrategy', () => {
           useValue: mockQueueService,
         },
         {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        {
           provide: IntentFundedValidation,
           useValue: intentFundedValidation,
+        },
+        {
+          provide: DuplicateRewardTokensValidation,
+          useValue: duplicateRewardTokensValidation,
         },
         {
           provide: RouteTokenValidation,
@@ -150,16 +188,17 @@ describe('StandardFulfillmentStrategy', () => {
 
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(9);
+      expect(validations).toHaveLength(10);
       expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(routeTokenValidation);
-      expect(validations[2]).toBe(routeCallsValidation);
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(standardFeeValidation);
+      expect(validations[1]).toBe(duplicateRewardTokensValidation);
+      expect(validations[2]).toBe(routeTokenValidation);
+      expect(validations[3]).toBe(routeCallsValidation);
+      expect(validations[4]).toBe(routeAmountLimitValidation);
+      expect(validations[5]).toBe(expirationValidation);
+      expect(validations[6]).toBe(chainSupportValidation);
+      expect(validations[7]).toBe(proverSupportValidation);
+      expect(validations[8]).toBe(executorBalanceValidation);
+      expect(validations[9]).toBe(standardFeeValidation);
     });
 
     it('should have immutable validations array', () => {
@@ -258,28 +297,27 @@ describe('StandardFulfillmentStrategy', () => {
       });
     });
 
-    it('should stop and throw on first validation failure', async () => {
+    it('should throw aggregated error on validation failure', async () => {
       const mockIntent = createMockIntent();
 
       // Make the third validation (routeTokenValidation) fail
       routeTokenValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: RouteTokenValidation',
+        'Validation failures: Validation failed: RouteTokenValidation',
       );
 
-      // Verify validations were called in order until failure
+      // Verify all validations were called (parallel execution)
       expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
+      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
-
-      // Verify subsequent validations were not called
-      expect(routeCallsValidation.validate).not.toHaveBeenCalled();
-      expect(routeAmountLimitValidation.validate).not.toHaveBeenCalled();
-      expect(expirationValidation.validate).not.toHaveBeenCalled();
-      expect(chainSupportValidation.validate).not.toHaveBeenCalled();
-      expect(proverSupportValidation.validate).not.toHaveBeenCalled();
-      expect(executorBalanceValidation.validate).not.toHaveBeenCalled();
-      expect(standardFeeValidation.validate).not.toHaveBeenCalled();
+      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(1);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
+      expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
+      expect(standardFeeValidation.validate).toHaveBeenCalledTimes(1);
     });
 
     it('should propagate validation errors', async () => {
@@ -288,7 +326,9 @@ describe('StandardFulfillmentStrategy', () => {
 
       intentFundedValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError);
+      await expect(strategy.validate(mockIntent)).rejects.toThrow(
+        'Validation failures: Custom validation error',
+      );
     });
 
     it('should handle multiple validation failures correctly', async () => {
@@ -298,13 +338,14 @@ describe('StandardFulfillmentStrategy', () => {
       routeTokenValidation.validate.mockResolvedValue(false);
       chainSupportValidation.validate.mockResolvedValue(false);
 
-      // Should fail on the first one
+      // Should aggregate both failures
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: RouteTokenValidation',
+        'Validation failures: Validation failed: RouteTokenValidation; Validation failed: ChainSupportValidation',
       );
 
-      // chainSupportValidation should not have been reached
-      expect(chainSupportValidation.validate).not.toHaveBeenCalled();
+      // All validations should have been called (parallel execution)
+      expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -365,7 +406,7 @@ describe('StandardFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(9);
+      expect(validations).toHaveLength(10);
       expect(Object.isFrozen(validations)).toBe(true);
     });
   });

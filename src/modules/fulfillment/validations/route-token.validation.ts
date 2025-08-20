@@ -23,7 +23,7 @@ export class RouteTokenValidation implements Validation {
       this.otelService.startSpan('validation.RouteTokenValidation', {
         attributes: {
           'validation.name': 'RouteTokenValidation',
-          'intent.id': intent.intentHash,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.route.source?.toString(),
           'intent.destination_chain': intent.route.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,

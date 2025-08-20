@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { Address } from 'viem';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
@@ -17,6 +17,17 @@ describe('RouteAmountLimitValidation', () => {
       getToken: jest.fn(),
     };
 
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+      getActiveSpan: jest.fn(),
+    };
     const module = await Test.createTestingModule({
       providers: [
         RouteAmountLimitValidation,
@@ -24,7 +35,11 @@ describe('RouteAmountLimitValidation', () => {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
         },
-      ],
+              {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
+        ],
     }).compile();
 
     validation = module.get<RouteAmountLimitValidation>(RouteAmountLimitValidation);
