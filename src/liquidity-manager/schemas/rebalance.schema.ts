@@ -1,4 +1,6 @@
+import { plainToInstance } from 'class-transformer'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { RebalanceTokenModel } from './rebalance-token.schema'
 import { Strategy, StrategyContext } from '@/liquidity-manager/types/types'
 
@@ -30,6 +32,32 @@ export class RebalanceModel {
 
   @Prop({ required: false, type: Object })
   context: StrategyContext
+
+  @Prop({
+    required: true,
+    enum: RebalanceStatus.enumKeys,
+    default: RebalanceStatus.PENDING.toString(),
+  })
+  status: string
+
+  @Prop({ required: false })
+  createdAt?: Date
+
+  @Prop({ required: false })
+  updatedAt?: Date
+
+  getStatus?(): RebalanceStatus {
+    return RebalanceStatus.fromString(this.status)!
+  }
+
+  static fromJSON(json: any): RebalanceModel {
+    return json.getStatus ? json : plainToInstance(RebalanceModel, json)
+  }
 }
 
 export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)
+
+// Define indexes
+RebalanceSchema.index({ status: 1 }, { unique: false })
+RebalanceSchema.index({ createdAt: 1 }, { unique: false })
+RebalanceSchema.index({ updatedAt: 1 }, { unique: false })
