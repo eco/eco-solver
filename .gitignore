@@ -43,6 +43,7 @@ lerna-debug.log*
 
 # Configuration files
 config.yaml
+config-2.yaml
 config.yml
 *.config.yaml
 *.config.yml

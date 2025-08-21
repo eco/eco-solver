@@ -11,6 +11,7 @@ import {
   QueueSchema,
   RedisSchema,
   SolanaSchema,
+  TvmSchema,
 } from '@/config/schemas';
 
 // Re-export individual schemas for use in config services
@@ -25,6 +26,7 @@ export {
   QueueSchema,
   RedisSchema,
   SolanaSchema,
+  TvmSchema,
 } from '@/config/schemas';
 
 /**
@@ -37,6 +39,7 @@ export const ConfigSchema = z
     redis: RedisSchema,
     evm: EvmSchema,
     solana: SolanaSchema,
+    tvm: TvmSchema,
     queue: QueueSchema,
     aws: AwsSchema,
     fulfillment: FulfillmentSchema,

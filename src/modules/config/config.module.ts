@@ -13,6 +13,7 @@ import {
   QueueConfigService,
   RedisConfigService,
   SolanaConfigService,
+  TvmConfigService,
 } from '@/modules/config/services';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 
@@ -21,6 +22,7 @@ const configProviders = [
   RedisConfigService,
   EvmConfigService,
   SolanaConfigService,
+  TvmConfigService,
   QueueConfigService,
   AppConfigService,
   AwsConfigService,

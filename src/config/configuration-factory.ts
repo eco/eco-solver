@@ -13,6 +13,7 @@ import {
   queueConfig,
   redisConfig,
   solanaConfig,
+  tvmConfig,
 } from '@/config/schemas';
 import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
 import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
@@ -34,6 +35,7 @@ export const configurationFactory = async () => {
     redis: await redisConfig(),
     evm: await evmConfig(),
     solana: await solanaConfig(),
+    tvm: await tvmConfig(),
     queue: await queueConfig(),
     aws: await awsConfig(),
     fulfillment: await fulfillmentConfig(),

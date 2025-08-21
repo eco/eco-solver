@@ -3,13 +3,14 @@ import { Injectable, Optional } from '@nestjs/common';
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
-import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
 import { SvmExecutorService } from './svm/services/svm.executor.service';
+import { TvmExecutorService } from './tvm/services/tvm.executor.service';
 
 @Injectable()
 export class BlockchainExecutorService {
@@ -18,11 +19,13 @@ export class BlockchainExecutorService {
   constructor(
     private evmConfigService: EvmConfigService,
     private solanaConfigService: SolanaConfigService,
+    private tvmConfigService: TvmConfigService,
     private intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
+    @Optional() private tvmExecutor?: TvmExecutorService,
   ) {
     this.logger.setContext(BlockchainExecutorService.name);
     this.initializeExecutors();
@@ -41,6 +44,14 @@ export class BlockchainExecutorService {
     if (this.svmExecutor && this.solanaConfigService.isConfigured()) {
       this.executors.set('solana-mainnet', this.svmExecutor);
       this.executors.set('solana-devnet', this.svmExecutor);
+    }
+
+    // Register TVM executor only if available and configured
+    if (this.tvmExecutor && this.tvmConfigService.isConfigured()) {
+      const tvmChainIds = this.tvmConfigService.supportedChainIds;
+      for (const chainId of tvmChainIds) {
+        this.executors.set(chainId, this.tvmExecutor);
+      }
     }
   }
 

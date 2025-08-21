@@ -8,3 +8,4 @@ export * from './opentelemetry.schema';
 export * from './queue.schema';
 export * from './redis.schema';
 export * from './solana.schema';
+export * from './tvm.schema';

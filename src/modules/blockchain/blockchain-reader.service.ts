@@ -4,11 +4,12 @@ import { Address, Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmReaderService } from './evm/services/evm.reader.service';
 import { SvmReaderService } from './svm/services/svm.reader.service';
+import { TvmReaderService } from './tvm/services/tvm.reader.service';
 
 @Injectable()
 export class BlockchainReaderService {
@@ -17,9 +18,11 @@ export class BlockchainReaderService {
   constructor(
     private evmConfigService: EvmConfigService,
     private solanaConfigService: SolanaConfigService,
+    private tvmConfigService: TvmConfigService,
     private readonly logger: SystemLoggerService,
     @Optional() private evmReader?: EvmReaderService,
     @Optional() private svmReader?: SvmReaderService,
+    @Optional() private tvmReader?: TvmReaderService,
   ) {
     this.logger.setContext(BlockchainReaderService.name);
     this.initializeReaders();
@@ -155,6 +158,15 @@ export class BlockchainReaderService {
     if (this.svmReader && this.solanaConfigService.isConfigured()) {
       this.readers.set('solana-mainnet', this.svmReader);
       this.readers.set('solana-devnet', this.svmReader);
+    }
+
+    // Register TVM reader only if available and configured
+    if (this.tvmReader && this.tvmConfigService.isConfigured()) {
+      const tvmChainIds = this.tvmConfigService.supportedChainIds;
+      for (const chainId of tvmChainIds) {
+        // Use the same reader instance for all chains
+        this.readers.set(chainId, this.tvmReader);
+      }
     }
   }
 }
