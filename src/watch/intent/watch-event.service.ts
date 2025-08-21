@@ -34,12 +34,10 @@ export abstract class WatchEventService<T extends { chainID: number }>
   protected recoveryAttempts: Record<number, number> = {}
   protected recoveryInProgress: Record<number, boolean> = {}
   protected recoveryIgnoredAttempts: Record<number, number> = {}
-  protected readonly recoveryBackoffBaseMs = 1_000
-  protected readonly recoveryBackoffMaxMs = 30_000
-  // Timestamp of last successful recovery per chain; used to decide when to reset attempts
+  protected recoveryBackoffBaseMs: number
+  protected recoveryBackoffMaxMs: number
   protected recoveryLastRecoveredAt: Record<number, number> = {}
-  // If no errors occur for this period after a recovery, we reset attempts on the next error
-  protected readonly recoveryStabilityWindowMs = 60_000
+  protected recoveryStabilityWindowMs: number
 
   constructor(
     protected readonly queue: Queue,
@@ -53,6 +51,10 @@ export abstract class WatchEventService<T extends { chainID: number }>
    */
   async onModuleInit() {
     this.watchJobConfig = this.ecoConfigService.getRedis().jobs.watchJobConfig
+    const watchCfg = this.ecoConfigService.getWatch()
+    this.recoveryBackoffBaseMs = watchCfg.recoveryBackoffBaseMs
+    this.recoveryBackoffMaxMs = watchCfg.recoveryBackoffMaxMs
+    this.recoveryStabilityWindowMs = watchCfg.recoveryStabilityWindowMs
   }
 
   /**
@@ -157,6 +159,9 @@ export abstract class WatchEventService<T extends { chainID: number }>
       })
     }
 
+    // Reset ignored attempts counter after logging
+    this.recoveryIgnoredAttempts[chainID] = 0
+
     // Capped exponential backoff between attempts for this chain
     const now = Date.now()
     let attemptsSoFar = this.recoveryAttempts[chainID] ?? 0
@@ -218,7 +223,6 @@ export abstract class WatchEventService<T extends { chainID: number }>
       throw recoveryError
     } finally {
       this.recoveryInProgress[chainID] = false
-      this.recoveryIgnoredAttempts[chainID] = 0
     }
   }
 

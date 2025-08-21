@@ -375,4 +375,10 @@ export default {
       fallbackBase6: 2_000_000,
     },
   },
+
+  watch: {
+    recoveryBackoffBaseMs: 1_000,
+    recoveryBackoffMaxMs: 30_000,
+    recoveryStabilityWindowMs: 60_000,
+  },
 }

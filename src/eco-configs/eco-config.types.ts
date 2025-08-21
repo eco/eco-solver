@@ -85,6 +85,7 @@ export type EcoConfigType = {
   CCTPV2: CCTPV2Config
   everclear: EverclearConfig
   gateway: GatewayConfig
+  watch: WatchConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -549,4 +550,9 @@ export interface GatewayConfig {
     // fallback base fee in base-6 USDC (default: Ethereum base fee)
     fallbackBase6?: number | string
   }
+}
+export interface WatchConfig {
+  recoveryBackoffBaseMs: number
+  recoveryBackoffMaxMs: number
+  recoveryStabilityWindowMs: number
 }

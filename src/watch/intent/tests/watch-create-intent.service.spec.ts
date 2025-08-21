@@ -332,6 +332,10 @@ describe('WatchIntentService', () => {
       ;(watchIntentService as any)['delay'] = jest.fn().mockResolvedValue(undefined)
       jest.spyOn(watchIntentService as any, 'unsubscribeFrom').mockResolvedValue(undefined)
       jest.spyOn(watchIntentService as any, 'subscribeTo').mockResolvedValue(undefined)
+      // ensure backoff config is set (onModuleInit not invoked in these unit tests)
+      ;(watchIntentService as any)['recoveryBackoffBaseMs'] = 1_000
+      ;(watchIntentService as any)['recoveryBackoffMaxMs'] = 30_000
+      ;(watchIntentService as any)['recoveryStabilityWindowMs'] = 60_000
     })
 
     afterEach(() => jest.clearAllMocks())
