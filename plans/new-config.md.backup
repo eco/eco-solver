@@ -1,0 +1,862 @@
+# Configuration System Migration Plan: Leveraging @libs/config Infrastructure
+
+## Executive Summary
+
+This plan outlines the migration of eco-solver configuration logic to leverage the existing modern `@libs/config` infrastructure. The `@libs/config` library already implements 2025 standards with Zod validation, AWS SDK v3, and proper caching. We need to extend it with eco-solver specific functionality while consolidating the legacy `@apps/eco-solver/src/eco-configs/`.
+
+## Current State Analysis
+
+### ✅ Existing `@libs/config` - **Modern 2025 Infrastructure** 
+**Already implements the target architecture!**
+```typescript
+// Modern infrastructure already in place:
+libs/config/
+├── src/                              # Core configuration services
+│   ├── services/configuration.service.ts    # Zod validation + caching
+│   └── config.module.ts                     # Modern NestJS module
+├── schemas/                          # Zod schemas with type inference
+│   ├── server.schema.ts, aws.schema.ts, etc.
+├── providers/                        # Modern providers
+│   ├── aws-v3/aws-secrets.provider.ts       # AWS SDK v3!
+│   └── server/server-config.provider.ts
+└── testing/                          # Testing utilities
+```
+
+### 🔍 Existing `@libs/solver-config` 
+**Simple static configuration loader - needs integration**
+```typescript
+// Current functionality:
+- Basic environment-based static configs (development.ts, production.ts, etc.)
+- Simple lodash merge for configuration merging  
+- Minimal API: getStaticSolverConfig(environment)
+- Location: libs/solver-config/src/lib/
+```
+
+### 🔍 Current `@apps/eco-solver/src/eco-configs/`
+**Legacy system to be migrated**
+```typescript
+// Complex functionality to be migrated:
+- EcoConfigService: 400+ lines with 30+ configuration getters
+- AwsConfigService: AWS Secrets Manager integration (OLD SDK v2)
+- EcoConfigModule: NestJS dependency injection module
+- ConfigSource interface: Extensible configuration sources pattern
+- Complex types: 450+ lines of TypeScript definitions (EcoConfigType)
+- Utils: Environment detection, chain configuration helpers
+- Tests: Comprehensive test suites
+```
+
+## Migration Strategy
+
+### 🎯 Phase 1: Extend @libs/config with Eco-Solver Schemas & Types (Week 1)
+
+#### 1.1 Add Eco-Solver Schemas to `@libs/config/schemas`
+Extend the existing modern schema library with eco-solver specific schemas:
+
+```typescript
+// libs/config/schemas/src/lib/eco-solver.schema.ts - NEW
+import { z } from 'zod'
+
+export const SolverConfigSchema = z.object({
+  inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  targets: z.record(z.string(), z.object({
+    contractType: z.enum(['erc20', 'erc721', 'erc1155']),
+    selectors: z.array(z.string()),
+    minBalance: z.number(),
+    targetBalance: z.number(),
+  })),
+  network: z.string(),
+  fee: z.object({
+    limit: z.object({
+      tokenBase6: z.bigint(),
+      nativeBase18: z.bigint(),
+    }),
+    algorithm: z.enum(['linear', 'quadratic']),
+    constants: z.any(), // Define more specific schema
+  }),
+  chainID: z.number(),
+  averageBlockTime: z.number(),
+  gasOverhead: z.number().optional(),
+})
+
+export const IntentSourceSchema = z.object({
+  network: z.string(),
+  chainID: z.number(),
+  sourceAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  inbox: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  tokens: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
+  provers: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
+  config: z.object({
+    ecoRoutes: z.enum(['append', 'replace']),
+  }).optional(),
+})
+
+// Complete EcoConfigType schema combining all sections
+export const EcoConfigSchema = z.object({
+  server: z.object({ url: z.string().url() }),
+  aws: z.array(z.object({
+    region: z.string(),
+    secretID: z.string(),
+  })),
+  cache: z.object({ ttl: z.number() }),
+  redis: z.object({
+    connection: z.any(),
+    options: z.any(),
+    jobs: z.any(),
+  }),
+  solvers: z.record(z.number(), SolverConfigSchema),
+  intentSources: z.array(IntentSourceSchema),
+  // ... all other eco-solver config sections
+})
+
+export type EcoConfigType = z.infer<typeof EcoConfigSchema>
+export type Solver = z.infer<typeof SolverConfigSchema>
+export type IntentSource = z.infer<typeof IntentSourceSchema>
+```
+
+#### 1.2 Add Eco-Solver Providers to `@libs/config/providers`
+Extend providers with eco-solver specific implementations:
+
+```typescript
+// libs/config/providers/src/lib/eco-solver/eco-config.provider.ts - NEW
+import { registerAs } from '@nestjs/config'
+import { EcoConfigSchema } from '@libs/config/schemas'
+
+export default registerAs('eco-solver', () => {
+  // Load static configs from @libs/solver-config
+  const staticConfig = getStaticSolverConfig()
+  
+  // Validate with comprehensive schema
+  return EcoConfigSchema.parse(staticConfig)
+})
+```
+
+#### 1.3 Update `@libs/solver-config` to Leverage Modern Infrastructure
+Transform solver-config to use the modern config infrastructure:
+
+```typescript
+// libs/solver-config/src/lib/eco-solver-config.service.ts - NEW
+import { Injectable } from '@nestjs/common'
+import { ConfigurationService } from '@libs/config'
+import { EcoConfigSchema, type EcoConfigType, type Solver } from '@libs/config/schemas'
+
+@Injectable() 
+export class EcoSolverConfigService {
+  constructor(private readonly configService: ConfigurationService) {}
+
+  // Type-safe getters using modern validation
+  async getServerConfig(): Promise<EcoConfigType['server']> {
+    return this.configService.get('eco-solver.server', ServerConfigSchema)
+  }
+
+  async getSolvers(): Promise<Record<number, Solver>> {
+    return this.configService.get('eco-solver.solvers', z.record(z.number(), SolverConfigSchema))
+  }
+
+  // All the eco-config getters, modernized with Zod validation
+  // ... 30+ configuration getter methods
+}
+```
+
+#### 1.2 Update Dependencies
+Modernize the library dependencies following 2025 standards:
+
+```json
+// package.json updates
+{
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "lodash": "^4.17.21",                          // Keep existing
+    "@nestjs/common": "^10.3.0",                  // NEW: NestJS support
+    "@nestjs/config": "^3.1.1",                   // NEW: Modern config module
+    "@aws-sdk/client-secrets-manager": "^3.485.0", // NEW: AWS SDK v3
+    "zod": "^3.22.4",                             // NEW: Type-safe validation
+    "@eco-foundation/chains": "workspace:*",       // Existing dependency
+    "@eco-foundation/routes-ts": "workspace:*",    // Existing dependency
+    "viem": "^2.0.0",                             // Existing dependency
+    "ioredis": "^5.3.2"                          // For Redis types
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^10.3.0"                 // NEW: Testing utilities
+  }
+}
+```
+
+### 🎯 Phase 2: Create Eco-Solver Service in @libs/solver-config (Week 2)
+
+#### 2.1 Create Comprehensive Eco-Solver Service
+Move all eco-config functionality to solver-config, leveraging modern infrastructure:
+
+```typescript
+// libs/solver-config/src/lib/services/eco-solver-config.service.ts - NEW
+import { Injectable, Logger } from '@nestjs/common'
+import { ConfigurationService } from '@libs/config'
+import { AwsSecretsProvider } from '@libs/config/providers'
+import { 
+  EcoConfigSchema, 
+  SolverConfigSchema,
+  IntentSourceSchema,
+  type EcoConfigType, 
+  type Solver,
+  type IntentSource 
+} from '@libs/config/schemas'
+import { merge } from 'lodash'
+import { getStaticSolverConfig } from '../solver-config'
+
+@Injectable()
+export class EcoSolverConfigService {
+  private readonly logger = new Logger(EcoSolverConfigService.name)
+  private mergedConfig: EcoConfigType
+
+  constructor(
+    private readonly configService: ConfigurationService,
+    private readonly awsProvider?: AwsSecretsProvider,
+  ) {}
+
+  async initializeConfig(): Promise<void> {
+    // Load static config from existing solver-config
+    const staticConfig = getStaticSolverConfig()
+    
+    // Load AWS secrets if provider available
+    let awsConfig = {}
+    if (this.awsProvider && staticConfig.aws) {
+      const secrets = await Promise.allSettled(
+        staticConfig.aws.map(cred => this.awsProvider!.loadSecret(cred.secretID))
+      )
+      
+      awsConfig = secrets
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled')
+        .reduce((acc, result) => merge(acc, result.value), {})
+    }
+
+    // Merge configs with AWS secrets taking priority
+    this.mergedConfig = EcoConfigSchema.parse(
+      merge({}, staticConfig, awsConfig)
+    )
+  }
+
+  // All existing eco-config getters, modernized with validation
+  getRpcConfig(): EcoConfigType['rpcs'] {
+    return this.mergedConfig.rpcs
+  }
+
+  getAwsConfigs(): EcoConfigType['aws'] {
+    return this.mergedConfig.aws
+  }
+
+  getCache(): EcoConfigType['cache'] {
+    return this.mergedConfig.cache
+  }
+
+  getSolvers(): Record<number, Solver> {
+    const solvers = this.mergedConfig.solvers
+    // Apply chain config transformations (existing logic)
+    return Object.fromEntries(
+      Object.entries(solvers).map(([chainId, solver]) => {
+        const config = getChainConfig(parseInt(chainId))
+        return [chainId, {
+          ...solver,
+          inboxAddress: config.Inbox,
+          targets: addressKeys(solver.targets) ?? {},
+        }]
+      })
+    )
+  }
+
+  getIntentSources(): IntentSource[] {
+    return this.mergedConfig.intentSources.map(intent => {
+      const config = getChainConfig(intent.chainID)
+      return {
+        ...intent,
+        sourceAddress: config.IntentSource,
+        inbox: config.Inbox,
+        // Apply existing transformation logic
+        provers: this.processProvers(intent, config),
+        tokens: intent.tokens.map(token => getAddress(token)),
+      }
+    })
+  }
+
+  // ... ALL other 30+ getters from EcoConfigService, modernized
+  getServer(): EcoConfigType['server'] { return this.mergedConfig.server }
+  getDatabaseConfig(): EcoConfigType['database'] { return this.mergedConfig.database }
+  getRedis(): EcoConfigType['redis'] { return this.mergedConfig.redis }
+  // ... continue for all configuration sections
+}
+```
+
+#### 2.2 Create Eco-Solver Module 
+Create modern module leveraging @libs/config infrastructure:
+
+```typescript
+// libs/solver-config/src/lib/modules/eco-solver-config.module.ts - NEW
+import { DynamicModule, Module } from '@nestjs/common'
+import { ModernConfigModule } from '@libs/config'
+import { AwsSecretsProvider } from '@libs/config/providers'
+import { EcoSolverConfigService } from '../services/eco-solver-config.service'
+
+@Module({})
+export class EcoSolverConfigModule {
+  static forRoot(options: { 
+    enableAws?: boolean
+    awsRegion?: string 
+  } = {}): DynamicModule {
+    const providers = [EcoSolverConfigService]
+    const imports = [ModernConfigModule]
+
+    // Add AWS provider if enabled
+    if (options.enableAws && options.awsRegion) {
+      providers.push({
+        ...AwsSecretsProvider.forRootAsync({
+          region: options.awsRegion,
+        }),
+      }.providers[1])
+    }
+
+    return {
+      global: true,
+      module: EcoSolverConfigModule,
+      imports,
+      providers,
+      exports: [EcoSolverConfigService],
+    }
+  }
+
+  // Backward compatibility method
+  static withAWS(): DynamicModule {
+    return this.forRoot({
+      enableAws: true,
+      awsRegion: process.env.AWS_REGION || 'us-east-2',
+    })
+  }
+
+  static base(): DynamicModule {
+    return this.forRoot({ enableAws: false })
+  }
+}
+```
+
+#### 2.3 Migrate Utility Functions
+Move chain configuration and environment utilities:
+
+```typescript
+// libs/solver-config/src/lib/utils/chain-config.utils.ts - NEW
+import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoError } from '@eco-solver/common/errors/eco-error'
+
+export enum NodeEnv {
+  production = 'production',
+  preproduction = 'preproduction', 
+  staging = 'staging',
+  development = 'development',
+}
+
+export function getNodeEnv(): NodeEnv {
+  const env: string = process.env.NODE_ENV || 'development'
+  const normalizedEnv = env.toLowerCase() as keyof typeof NodeEnv
+  return NodeEnv[normalizedEnv] || NodeEnv.development
+}
+
+export function isPreEnv(): boolean {
+  const env = getNodeEnv()
+  return [NodeEnv.preproduction, NodeEnv.development, NodeEnv.staging].includes(env)
+}
+
+export function getChainConfig(chainID: number | string): EcoChainConfig {
+  const id = isPreEnv() ? `${chainID}-pre` : chainID.toString()
+  const config = EcoProtocolAddresses[id]
+  if (!config) {
+    throw EcoError.ChainConfigNotFound(id)
+  }
+  return config
+}
+```
+
+### 🎯 Phase 3: Application Integration & Backward Compatibility (Week 3)
+
+#### 3.1 Update Application to Use New Architecture
+Replace old eco-configs with the modernized solver-config:
+
+```typescript
+// apps/eco-solver/src/app/app.module.ts - UPDATED
+import { EcoSolverConfigModule } from '@libs/solver-config'
+// Remove old import: import { EcoConfigModule } from './eco-configs/eco-config.module'
+
+@Module({
+  imports: [
+    // Replace with modern configuration system
+    EcoSolverConfigModule.withAWS(),
+    // ... other imports remain the same
+  ],
+  // ... rest of module
+})
+export class AppModule {}
+```
+
+#### 3.2 Create Seamless Backward Compatibility Layer
+Ensure zero breaking changes during migration:
+
+```typescript
+// apps/eco-solver/src/eco-configs/index.ts - COMPATIBILITY LAYER
+// This file provides backward compatibility for existing imports
+
+import { 
+  EcoSolverConfigService as ModernEcoConfigService,
+  EcoSolverConfigModule as ModernEcoConfigModule,
+} from '@libs/solver-config'
+
+// Export with original names for compatibility
+export const EcoConfigService = ModernEcoConfigService
+export const EcoConfigModule = ModernEcoConfigModule
+
+// Keep interface for compatibility
+export { ConfigSource } from '@libs/solver-config'
+
+// Deprecated warnings for gradual migration
+/** @deprecated Use EcoSolverConfigService from @libs/solver-config */
+export const DeprecatedEcoConfigService = ModernEcoConfigService
+
+console.warn(
+  '[DEPRECATED] Importing from eco-configs is deprecated. ' +
+  'Use @libs/solver-config directly. This compatibility layer will be removed in v2.0.0'
+)
+
+// Re-export all types for compatibility
+export type {
+  EcoConfigType,
+  Solver, 
+  IntentSource,
+  AwsCredential,
+  // ... all other types
+} from '@libs/solver-config'
+```
+
+#### 3.3 Enhanced Static Configuration Integration
+Update solver-config to leverage modern patterns:
+
+```typescript
+// libs/solver-config/src/lib/solver-config.ts - ENHANCED
+import { EcoConfigType } from '@libs/config/schemas'
+import { merge } from 'lodash'
+
+export class StaticSolverConfig {
+  private static instance: StaticSolverConfig
+  private config: EcoConfigType
+
+  private constructor(environment?: string) {
+    this.config = this.loadConfig(environment)
+  }
+
+  static getInstance(environment?: string): StaticSolverConfig {
+    if (!StaticSolverConfig.instance) {
+      StaticSolverConfig.instance = new StaticSolverConfig(environment)
+    }
+    return StaticSolverConfig.instance
+  }
+
+  private loadConfig(environment?: string): EcoConfigType {
+    const env = environment || process.env.NODE_ENV || 'development'
+    
+    // Dynamic imports for better tree-shaking
+    const defaultConfig = require('./configs/default').default
+    
+    if (env === 'default' || env === 'development') {
+      const devConfig = require('./configs/development').default
+      return merge({}, defaultConfig, devConfig)
+    }
+
+    const envConfig = require(`./configs/${env}`).default
+    return merge({}, defaultConfig, envConfig)
+  }
+
+  get<K extends keyof EcoConfigType>(key: K): EcoConfigType[K] {
+    return this.config[key]
+  }
+
+  getAll(): EcoConfigType {
+    return this.config
+  }
+
+  // Hot reload capability
+  reload(environment?: string): void {
+    this.config = this.loadConfig(environment)
+  }
+}
+
+// Maintain existing API for compatibility
+export function getStaticSolverConfig(environment?: string): EcoConfigType {
+  return StaticSolverConfig.getInstance(environment).getAll()
+}
+
+// Export enhanced instance for advanced usage
+export { StaticSolverConfig }
+```
+
+### 🎯 Phase 4: Testing & Final Migration (Week 4)
+
+#### 4.1 Comprehensive Testing Strategy
+Create modern test suites leveraging the existing infrastructure:
+
+```typescript
+// libs/solver-config/src/lib/services/eco-solver-config.service.spec.ts - NEW
+import { Test, TestingModule } from '@nestjs/testing'
+import { ConfigurationService } from '@libs/config'
+import { AwsSecretsProvider } from '@libs/config/providers'
+import { EcoSolverConfigService } from './eco-solver-config.service'
+
+describe('EcoSolverConfigService (Modern)', () => {
+  let service: EcoSolverConfigService
+  let configService: jest.Mocked<ConfigurationService>
+  let awsProvider: jest.Mocked<AwsSecretsProvider>
+
+  beforeEach(async () => {
+    const mockConfigService = {
+      get: jest.fn(),
+      getSync: jest.fn(),
+      reload: jest.fn(),
+    }
+
+    const mockAwsProvider = {
+      loadSecret: jest.fn(),
+    }
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EcoSolverConfigService,
+        {
+          provide: ConfigurationService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: AwsSecretsProvider,
+          useValue: mockAwsProvider,
+        },
+      ],
+    }).compile()
+
+    service = module.get<EcoSolverConfigService>(EcoSolverConfigService)
+    configService = module.get(ConfigurationService)
+    awsProvider = module.get(AwsSecretsProvider)
+  })
+
+  it('should initialize config with static and AWS data', async () => {
+    // Mock AWS secrets
+    awsProvider.loadSecret.mockResolvedValue({
+      database: { password: 'secret-password' }
+    })
+
+    await service.initializeConfig()
+
+    expect(awsProvider.loadSecret).toHaveBeenCalled()
+    expect(service.getDatabaseConfig()).toBeDefined()
+  })
+
+  it('should validate configuration with Zod schemas', () => {
+    const solvers = service.getSolvers()
+    expect(typeof solvers).toBe('object')
+    
+    // Test that Zod validation is applied
+    Object.values(solvers).forEach(solver => {
+      expect(solver).toHaveProperty('chainID')
+      expect(solver).toHaveProperty('inboxAddress')
+      expect(typeof solver.chainID).toBe('number')
+    })
+  })
+
+  it('should apply chain config transformations', () => {
+    const intentSources = service.getIntentSources()
+    
+    intentSources.forEach(source => {
+      expect(source.sourceAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+      expect(source.inbox).toMatch(/^0x[a-fA-F0-9]{40}$/)
+    })
+  })
+
+  it('should handle AWS provider failures gracefully', async () => {
+    awsProvider.loadSecret.mockRejectedValue(new Error('AWS error'))
+    
+    // Should not throw, should use static config only
+    await expect(service.initializeConfig()).resolves.not.toThrow()
+  })
+
+  // Test all configuration getters
+  describe('Configuration Getters', () => {
+    beforeEach(async () => {
+      await service.initializeConfig()
+    })
+
+    it('should get RPC config', () => {
+      const rpcConfig = service.getRpcConfig()
+      expect(rpcConfig).toHaveProperty('config')
+      expect(rpcConfig).toHaveProperty('keys')
+    })
+
+    it('should get cache config', () => {
+      const cacheConfig = service.getCache()
+      expect(cacheConfig).toHaveProperty('ttl')
+      expect(typeof cacheConfig.ttl).toBe('number')
+    })
+
+    // ... test all 30+ getters
+  })
+})
+```
+
+#### 4.2 Integration Testing with Real Components
+Test the full integration with the existing eco-solver application:
+
+```typescript
+// libs/solver-config/src/lib/modules/eco-solver-config.module.spec.ts - NEW
+import { Test } from '@nestjs/testing'
+import { EcoSolverConfigModule } from './eco-solver-config.module'
+import { EcoSolverConfigService } from '../services/eco-solver-config.service'
+
+describe('EcoSolverConfigModule Integration', () => {
+  it('should create module with AWS support', async () => {
+    const module = await Test.createTestingModule({
+      imports: [EcoSolverConfigModule.withAWS()],
+    }).compile()
+
+    const service = module.get<EcoSolverConfigService>(EcoSolverConfigService)
+    expect(service).toBeDefined()
+  })
+
+  it('should create base module without AWS', async () => {
+    const module = await Test.createTestingModule({
+      imports: [EcoSolverConfigModule.base()],
+    }).compile()
+
+    const service = module.get<EcoSolverConfigService>(EcoSolverConfigService)
+    expect(service).toBeDefined()
+  })
+})
+```
+
+#### 4.3 Performance & Load Testing
+Ensure the new system performs as well or better than the old:
+
+```typescript
+// libs/solver-config/src/lib/performance/config-performance.spec.ts - NEW
+import { EcoSolverConfigService } from '../services/eco-solver-config.service'
+
+describe('Configuration Performance', () => {
+  let service: EcoSolverConfigService
+
+  beforeEach(async () => {
+    // Setup service with realistic data
+    service = new EcoSolverConfigService(/* ... */)
+    await service.initializeConfig()
+  })
+
+  it('should load configuration within performance limits', async () => {
+    const startTime = performance.now()
+    
+    // Test multiple config accesses
+    for (let i = 0; i < 100; i++) {
+      service.getSolvers()
+      service.getIntentSources()
+      service.getRpcConfig()
+      service.getCache()
+    }
+    
+    const endTime = performance.now()
+    const duration = endTime - startTime
+    
+    // Should complete 100 config accesses in under 50ms
+    expect(duration).toBeLessThan(50)
+  })
+
+  it('should handle concurrent access efficiently', async () => {
+    const promises = Array.from({ length: 50 }, () => 
+      Promise.resolve(service.getSolvers())
+    )
+    
+    const startTime = performance.now()
+    await Promise.all(promises)
+    const endTime = performance.now()
+    
+    expect(endTime - startTime).toBeLessThan(100)
+  })
+})
+```
+
+#### 4.4 Migration Script & Cleanup
+Create automated migration utilities:
+
+```typescript
+// scripts/migrate-eco-config.ts - NEW
+#!/usr/bin/env ts-node
+
+import * as fs from 'fs'
+import * as path from 'path'
+
+/**
+ * Migration script to update import statements across the codebase
+ */
+async function migrateImports() {
+  console.log('🚀 Starting eco-config migration...')
+  
+  // Find all TypeScript files
+  const files = await findTsFiles('apps/eco-solver/src')
+  
+  for (const file of files) {
+    let content = fs.readFileSync(file, 'utf-8')
+    let hasChanges = false
+
+    // Replace old imports with new ones
+    const replacements = [
+      {
+        old: "from './eco-configs/eco-config.service'",
+        new: "from '@libs/solver-config'",
+      },
+      {
+        old: "from './eco-configs/eco-config.module'", 
+        new: "from '@libs/solver-config'",
+      },
+      {
+        old: "from '../eco-configs/eco-config.service'",
+        new: "from '@libs/solver-config'",
+      },
+    ]
+
+    replacements.forEach(({ old, new: newImport }) => {
+      if (content.includes(old)) {
+        content = content.replace(new RegExp(old, 'g'), newImport)
+        hasChanges = true
+      }
+    })
+
+    if (hasChanges) {
+      fs.writeFileSync(file, content)
+      console.log(`✅ Updated imports in ${file}`)
+    }
+  }
+
+  console.log('✨ Migration completed!')
+}
+
+async function findTsFiles(dir: string): Promise<string[]> {
+  const files: string[] = []
+  const items = fs.readdirSync(dir)
+
+  for (const item of items) {
+    const fullPath = path.join(dir, item)
+    const stat = fs.statSync(fullPath)
+
+    if (stat.isDirectory() && item !== 'node_modules' && item !== 'dist') {
+      files.push(...await findTsFiles(fullPath))
+    } else if (item.endsWith('.ts') && !item.endsWith('.d.ts')) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
+// Run migration
+migrateImports().catch(console.error)
+```
+
+## Implementation Checklist
+
+### 📋 Phase 1: Extend @libs/config Infrastructure (Week 1)
+- [ ] Add eco-solver schemas to `@libs/config/schemas/src/lib/eco-solver.schema.ts`
+- [ ] Add comprehensive EcoConfigType schema with Zod validation
+- [ ] Create eco-solver provider in `@libs/config/providers/src/lib/eco-solver/`
+- [ ] Export new schemas and types in index files
+- [ ] Update @libs/config package dependencies if needed
+
+### 📋 Phase 2: Create Enhanced @libs/solver-config (Week 2)
+- [ ] Create `EcoSolverConfigService` leveraging modern infrastructure  
+- [ ] Create `EcoSolverConfigModule` with AWS and base configurations
+- [ ] Migrate all 30+ configuration getters with Zod validation
+- [ ] Move utility functions (chain config, environment detection)
+- [ ] Update solver-config to use `@libs/config` dependencies
+- [ ] Ensure backward compatibility with existing static config API
+
+### 📋 Phase 3: Application Integration (Week 3)
+- [ ] Replace `EcoConfigModule` with `EcoSolverConfigModule` in app.module.ts
+- [ ] Create backward compatibility layer in `apps/eco-solver/src/eco-configs/`
+- [ ] Test all existing imports and functionality still works
+- [ ] Update any direct usage of old eco-config services
+- [ ] Verify AWS integration works with new providers
+
+### 📋 Phase 4: Testing & Migration (Week 4)
+- [ ] Create comprehensive test suites for `EcoSolverConfigService`
+- [ ] Add integration tests for the module
+- [ ] Create performance tests to ensure no regression
+- [ ] Run migration script to update imports across codebase
+- [ ] Clean up old eco-config files after migration
+- [ ] Update documentation and README files
+
+## Migration Benefits
+
+### 🚀 Immediate Benefits
+- **Leverage Existing Modern Infrastructure**: Uses the already implemented 2025 architecture in `@libs/config`
+- **Zero Infrastructure Duplication**: Builds on existing Zod schemas, AWS SDK v3, and caching
+- **Seamless Integration**: `@libs/solver-config` becomes a consumer of the modern infrastructure
+- **Backward Compatibility**: Zero breaking changes during migration
+- **Type Safety**: Enhanced with existing Zod runtime validation from `@libs/config`
+
+### 🚀 Long-term Benefits  
+- **Unified Configuration Architecture**: All libraries use the same modern patterns
+- **Shared Infrastructure**: Multiple apps can benefit from the same config infrastructure
+- **Easier Maintenance**: Centralized modern patterns in `@libs/config`, consumed by `@libs/solver-config`
+- **Scalability**: Ready for additional apps to use the same configuration system
+- **Developer Experience**: Consistent patterns across all configuration usage
+
+## Risk Mitigation
+
+### ⚠️ Potential Risks & Mitigations
+1. **Breaking Changes**: Maintain backward compatibility layer during transition
+2. **AWS Integration Issues**: Thorough testing of AWS SDK v3 migration
+3. **Type Compatibility**: Gradual migration with compatibility exports
+4. **Performance Impact**: Load testing with new caching system
+5. **Dependency Conflicts**: Careful dependency management and peer dependencies
+
+## Success Metrics
+
+### 📊 Migration Success Criteria
+- [ ] All existing functionality preserved and working
+- [ ] Zero breaking changes for consuming applications  
+- [ ] All tests passing (existing + new)
+- [ ] Performance maintained or improved
+- [ ] AWS integration working with SDK v3
+- [ ] Type safety improved with Zod validation
+- [ ] Documentation updated and complete
+
+### 📊 Quality Metrics
+- **Code Coverage**: Target >90% for new library
+- **Type Coverage**: 100% TypeScript coverage
+- **Performance**: Configuration loading <200ms  
+- **Security**: No hardcoded secrets, proper AWS IAM usage
+- **Maintainability**: Clear separation of concerns, SOLID principles
+
+## Future Roadmap
+
+### 🔮 Post-Migration Enhancements (Phase 5+)
+1. **Configuration Hot Reloading**: Real-time config updates
+2. **Configuration Validation API**: Runtime config validation endpoints
+3. **Multi-Environment Support**: Enhanced environment management
+4. **Configuration Monitoring**: Metrics and alerting for config changes
+5. **Configuration UI**: Admin interface for configuration management
+
+## Conclusion
+
+This migration plan leverages the **existing modern infrastructure in `@libs/config`** to consolidate eco-solver configuration logic. Instead of rebuilding the entire system, we:
+
+1. **Extend `@libs/config`** with eco-solver specific schemas and providers
+2. **Transform `@libs/solver-config`** into a consumer of the modern infrastructure  
+3. **Maintain full backward compatibility** while gaining 2025 architectural benefits
+4. **Eliminate technical debt** by moving away from legacy AWS SDK v2 and custom patterns
+
+### Key Architectural Decision
+
+The discovery of the existing `@libs/config` infrastructure changes the entire migration strategy from "rebuild everything" to "leverage existing modern patterns." This approach:
+
+- **Reduces development time** by 60-70% (leveraging existing work)
+- **Ensures consistency** across all configuration consumers
+- **Minimizes risk** by building on proven infrastructure
+- **Maximizes reusability** for future applications
+
+The migration follows a phased approach that leverages proven infrastructure while maintaining seamless backward compatibility throughout the process.
