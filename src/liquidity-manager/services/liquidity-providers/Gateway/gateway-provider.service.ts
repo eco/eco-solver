@@ -17,6 +17,7 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { serialize } from '@/common/utils/serialize'
+import { gatewayMinterAbi } from './constants/abis'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -225,43 +226,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     await this.ensureSufficientUnifiedBalance(amountBase6, id)
 
     // Determine source domains to use based on actual per-domain balances
-    const depositor = (await this.walletClientService.getAccount()).address as Hex
-    const balanceResp = await this.client.getBalancesForDepositor('USDC', depositor)
-
-    const perDomain = (balanceResp?.balances || [])
-      .map((b) => ({ domain: b.domain, available: parseUnits(b.balance || '0', 6) }))
-      // Prefer domains with highest available balance first
-      .sort((a, b) => (a.available < b.available ? 1 : a.available > b.available ? -1 : 0))
-
-    // Build sources breakdown (fee-aware): ensure value + fee(value) <= domain.available
-    const sources: { domain: number; amountBase6: bigint }[] = []
-    let remaining = amountBase6
-    for (const entry of perDomain) {
-      if (remaining <= 0n) break
-      if (entry.available <= 0n) continue
-      const maxOnDomain = this.computeMaxTransferableOnDomain(
-        entry.domain,
-        entry.available,
-        remaining,
-      )
-      if (maxOnDomain > 0n) {
-        sources.push({ domain: entry.domain, amountBase6: maxOnDomain })
-        remaining -= maxOnDomain
-      }
-    }
-
-    // remaining should be zero due to ensureSufficientUnifiedBalance; guard anyway
-    if (remaining > 0n) {
-      throw new GatewayQuoteValidationError(
-        'Insufficient Gateway unified balance after selection',
-        {
-          remaining: remaining.toString(),
-          requestedBase6: amountBase6.toString(),
-        },
-      )
-    }
-
-    const chosenSourceDomain = sources.length ? sources[0].domain : inChain.domain
+    const sources = await this.selectSourcesForAmount(amountBase6, id)
+    const chosenSourceDomain = sources[0].domain
 
     this.logger.debug(
       EcoLogMessage.withId({
@@ -279,10 +245,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       }),
     )
 
+    const percentCfg = this.getGatewayFeesConfig().percent
+    // Slippage reported in percentage units (e.g., 0.005 means 0.005%)
+    const slippagePercent = (Number(percentCfg.numerator) / Number(percentCfg.denominator)) * 100
     const quote: RebalanceQuote<'Gateway'> = {
       amountIn: amountIn,
       amountOut: amountOut,
-      slippage: 0,
+      slippage: slippagePercent,
       tokenIn,
       tokenOut,
       strategy: 'Gateway',
@@ -299,10 +268,65 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     return quote
   }
 
+  // Select per-domain sources that cover the requested amount, fee-aware
+  private async selectSourcesForAmount(
+    amountBase6: bigint,
+    id?: string,
+  ): Promise<{ domain: number; amountBase6: bigint }[]> {
+    const depositor = (await this.walletClientService.getAccount()).address as Hex
+    const balanceResp = await this.client.getBalancesForDepositor('USDC', depositor)
+
+    const perDomain = (balanceResp?.balances || [])
+      .map((b) => ({ domain: b.domain, available: parseUnits(b.balance || '0', 6) }))
+      .sort((a, b) => (a.available < b.available ? 1 : a.available > b.available ? -1 : 0))
+
+    const sources: { domain: number; amountBase6: bigint }[] = []
+    let remaining = amountBase6
+    for (const entry of perDomain) {
+      if (remaining <= 0n) break
+      if (entry.available <= 0n) continue
+      const maxOnDomain = this.computeMaxTransferableOnDomain(
+        entry.domain,
+        entry.available,
+        remaining,
+      )
+      if (maxOnDomain > 0n) {
+        sources.push({ domain: entry.domain, amountBase6: maxOnDomain })
+        remaining -= maxOnDomain
+      }
+    }
+
+    if (remaining > 0n || !sources.length) {
+      throw new GatewayQuoteValidationError(
+        'Insufficient Gateway unified balance after selection',
+        {
+          remaining: remaining.toString(),
+          requestedBase6: amountBase6.toString(),
+        },
+      )
+    }
+
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: selected sources',
+        id,
+        properties: {
+          requestedBase6: amountBase6.toString(),
+          sources: sources.map((s) => {
+            const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
+            return `${s.domain}:${s.amountBase6.toString()}(+fee:${fee.toString()})`
+          }),
+        },
+      }),
+    )
+
+    return sources
+  }
+
   async execute(walletAddress: string, quote: RebalanceQuote<'Gateway'>): Promise<string> {
     const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
 
-    // Resolve addresses per Option A
+    // Resolve addresses
     const eoa = await this.walletClientService.getAccount()
     const eoaAddress = eoa.address as Hex
     const kernelClient = await this.kernelAccountClientService.getClient(quote.tokenOut.chainId)
@@ -341,6 +365,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       }),
     )
 
+    // Build burn intents for each source domain
     for (const src of sources) {
       const sourceWallet = await this.getWalletAddress(src.domain)
       const srcChainCfg = cfg.chains.find((c) => c.domain === src.domain)
@@ -386,18 +411,15 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
 
     // 2) Request attestation from Gateway API using an array of burn intents
-    const attestationStart = Date.now()
     const attestationResp = await this.client.createTransferAttestation(transferItems as any)
     if ('message' in attestationResp) {
       throw new Error(`Gateway attestation error: ${attestationResp.message}`)
     }
-    const attestationMs = Date.now() - attestationStart
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Gateway: attestation received',
         id,
         properties: {
-          durationMs: attestationMs,
           items: transferItems.length,
           hasTransferId: !!(attestationResp as any).transferId,
         },
@@ -410,7 +432,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     const destPublicClient = await this.walletClientService.getPublicClient(quote.tokenOut.chainId)
 
     const txHash = await destWalletClient.writeContract({
-      abi: (await import('./constants/abis')).gatewayMinterAbi,
+      abi: gatewayMinterAbi,
       address: minterAddress,
       functionName: 'gatewayMint',
       args: [attestationResp.attestation, attestationResp.signature],

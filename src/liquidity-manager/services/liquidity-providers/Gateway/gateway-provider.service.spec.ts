@@ -213,7 +213,8 @@ describe('GatewayProviderService', () => {
     const quote = await service.getQuote(tokenIn as any, tokenOut as any, 1, 'id-1')
 
     expect(quote.strategy).toBe('Gateway')
-    expect(quote.slippage).toBe(0)
+    // 0.5 bps = 0.005% (percentage units)
+    expect(quote.slippage).toBeCloseTo(0.005, 10)
     expect(quote.amountIn).toBeGreaterThan(0n)
     expect(quote.amountOut).toBe(quote.amountIn)
     expect(quote.context.sourceDomain).toBe(sourceDomain)

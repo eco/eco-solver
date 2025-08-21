@@ -76,6 +76,10 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       await this.initializeRebalances()
     }
 
+    await this.ensureGatewayBootstrap()
+  }
+
+  private async ensureGatewayBootstrap() {
     // Gateway bootstrap deposit (simple one-time) if enabled
     try {
       // Access provider through manager; it may not be enabled in strategies, but method is safe

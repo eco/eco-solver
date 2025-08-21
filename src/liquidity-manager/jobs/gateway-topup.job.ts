@@ -70,10 +70,49 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     const client =
       await processor.liquidityManagerService.kernelAccountClientService.getClient(chainId)
 
-    const txHash = await client.execute([
-      { to: usdc, data: approveData },
-      { to: gatewayWallet, data: depositForData },
-    ])
+    // Idempotency: if a previous attempt already broadcasted a tx, resume waiting for it
+    const existingTxHash = (job.progress as any)?.txHash as Hex | undefined
+    if (existingTxHash) {
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'GatewayTopUp: Resuming existing transaction',
+          id,
+          properties: { chainId, txHash: existingTxHash },
+        }),
+      )
+
+      await client.waitForTransactionReceipt({ hash: existingTxHash })
+
+      processor.logger.log(
+        EcoLogMessage.withId({
+          message: 'GatewayTopUp: Completed',
+          id,
+          properties: { chainId, txHash: existingTxHash },
+        }),
+      )
+      return existingTxHash
+    }
+
+    let txHash: Hex
+    try {
+      txHash = await client.execute([
+        { to: usdc, data: approveData },
+        { to: gatewayWallet, data: depositForData },
+      ])
+
+      // Persist txHash so retries will not double-spend
+      await job.updateProgress({ txHash })
+    } catch (error) {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message: 'GatewayTopUp: Broadcast failed',
+          id,
+          properties: { chainId, error: (error as any)?.message ?? error },
+        }),
+      )
+      throw error
+    }
+
     await client.waitForTransactionReceipt({ hash: txHash })
 
     processor.logger.log(

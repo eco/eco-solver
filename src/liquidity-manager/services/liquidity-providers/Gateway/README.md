@@ -33,7 +33,34 @@ export interface GatewayConfig {
     chainId: number // source chain to deposit from
     amountBase6: string // fixed deposit (USDC base-6)
   }
+  // Fees configuration (optional)
+  fees?: {
+    // Percentage fee (fraction). slippage = numerator / denominator
+    percent?: { numerator: number; denominator: number }
+    // Per-domain base fee in USDC base-6
+    base6ByDomain?: Record<number, number | string>
+    // Fallback base fee when domain not present
+    fallbackBase6?: number | string
+  }
   chains: { chainId: number; domain: number; usdc: Hex; wallet?: Hex; minter?: Hex }[]
+}
+```
+
+Example (default values shown):
+
+```ts
+gateway: {
+  apiUrl: 'https://gateway-api-testnet.circle.com',
+  enabled: true,
+  fees: {
+    percent: { numerator: 5, denominator: 100_000 }, // 0.5 bps
+    base6ByDomain: { 0: 2_000_000, 1: 20_000, 2: 1_500, 3: 10_000, 6: 10_000, 7: 1_500, 10: 1_000 },
+    fallbackBase6: 2_000_000,
+  },
+  chains: [
+    { chainId: 1, domain: 0, usdc: '0x...' },
+    { chainId: 8453, domain: 6, usdc: '0x...' },
+  ],
 }
 ```
 
@@ -54,7 +81,11 @@ Bootstrap config:
 - Validates cross-chain, USDC→USDC using configured addresses
 - Loads supported domains from Gateway Info (cached with `@Cacheable`)
 - Fetches per-domain unified balances for the EOA and selects source domains that cover the requested amount
-- Returns a zero-slippage quote with `amountIn == amountOut` and sets `context.sources` to the selected breakdown. Source selection is fee-aware: for each domain we allocate the value V such that V + maxFee(domain, V) ≤ available.
+- Returns a quote with:
+  - `slippage` set to the configured percentage fee (`gateway.fees.percent` → numerator/denominator)
+  - `amountIn == amountOut` (mint is 1:1)
+  - `context.sources` set to the selected domain/value breakdown
+- Source selection is fee-aware: for each domain we allocate the value `V` such that `V + maxFee(domain, V) ≤ available`, where `maxFee = base6ByDomain[domain] (or fallback) + ceil(V * percent)`.
 
 2. Execute (`execute`)
 
@@ -93,8 +124,8 @@ Bootstrap config:
 
 #### Error handling & caching
 
-- Fees are configured under `gateway.fees` with per-domain base fees and a percentage fraction (default 0.5 bps); fallback base uses the largest (Ethereum) for conservatism.
-
+- Fees are configured under `gateway.fees` with per-domain base fees and a percentage fraction; fallback base uses the largest (Ethereum) for conservatism.
+- Slippage equals the configured percentage fee fraction: `fees.percent.numerator / fees.percent.denominator`.
 - Non-200 API responses throw `GatewayApiError` with `status` and response body
 - Signed burn intent debug logs include `sourceDomain`, `value` (base-6), and `maxFee` (base-6) for per-intent tracing.
 
@@ -102,7 +133,7 @@ Bootstrap config:
 
 - Config keys live under `gateway.fees` in your environment config (e.g., `config/default.ts`, `config/preproduction.ts`).
 - Keys:
-  - `percent { numerator, denominator }`: percentage fee fraction. Default is 0.5 bps (5/100000).
+  - `percent { numerator, denominator }`: percentage fee fraction. Default is 0.5 bps (5/100000). Also used as quote `slippage`.
   - `base6ByDomain { [domain]: base6 }`: per-source-domain base fee in USDC base-6. Seeded from Circle docs.
   - `fallbackBase6`: conservative fallback base fee used when a domain has no explicit entry. Default is Ethereum base fee (2_000_000).
 - When to change:
@@ -122,7 +153,7 @@ Add `'Gateway'` to the solver wallet strategies (e.g., `eco-wallet`) in `liquidi
 #### Tests
 
 - Unit tests: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway-provider.service.spec.ts`
-  - Quote validations and zero-slippage
+  - Quote validations and slippage = configured percentage
   - Multi-source selection in quote (`context.sources`)
   - Execute: multi-intent signing → attestation array → mint → top‑up enqueue
   - Bootstrap: ensures enqueue is gated by zero balance
