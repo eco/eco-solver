@@ -1,7 +1,9 @@
-import { solverConfig } from './solver-config'
+import { getStaticSolverConfig } from './solver-config'
 
 describe('solverConfig', () => {
-  it('should work', () => {
-    expect(solverConfig()).toEqual('solver-config')
+  it('should load static config', () => {
+    const config = getStaticSolverConfig()
+    expect(config).toBeDefined()
+    expect(config).toHaveProperty('cache')
   })
 })

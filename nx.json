@@ -54,6 +54,10 @@
               "onlyDependOnLibsWithTags": ["scope:config", "scope:shared"]
             },
             {
+              "sourceTag": "scope:eco-solver", 
+              "onlyDependOnLibsWithTags": ["scope:eco-solver", "scope:config", "scope:shared"]
+            },
+            {
               "sourceTag": "type:schema",
               "onlyDependOnLibsWithTags": ["type:schema", "scope:shared"]
             },

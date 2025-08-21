@@ -11,13 +11,12 @@ import { KmsModule } from '@eco-solver/kms/kms.module'
 import { IntentProcessorModule } from '@eco-solver/intent-processor/intent-processor.module'
 import { BalanceModule } from '@eco-solver/balance/balance.module'
 import { ChainMonitorModule } from '@eco-solver/chain-monitor/chain-monitor.module'
-import { EcoConfigModule } from '@libs/config-core'
+import { EcoSolverConfigModule, EcoSolverConfigService } from '@libs/solver-config'
 import { FlagsModule } from '@eco-solver/flags/flags.module'
 import { HealthModule } from '@eco-solver/health/health.module'
 import { IntentModule } from '@eco-solver/intent/intent.module'
 import { SignModule } from '@eco-solver/sign/sign.module'
 import { ProcessorModule } from '@eco-solver/bullmq/processors/processor.module'
-import { EcoConfigService } from '@libs/config-core'
 import { AnalyticsModule } from '@eco-solver/analytics/analytics.module'
 import { getCurrentEnvironment } from '@eco-solver/analytics/utils'
 import { ProverModule } from '@eco-solver/prover/prover.module'
@@ -31,7 +30,7 @@ import { IntentFulfillmentModule } from '@eco-solver/intent-fulfillment/intent-f
   imports: [
     ApiModule,
     AnalyticsModule.withAsyncConfig({
-      useFactory: async (configService: EcoConfigService) => {
+      useFactory: async (configService: EcoSolverConfigService) => {
         const analyticsConfig = configService.getAnalyticsConfig()
 
         // Get the current environment for group identification
@@ -45,11 +44,11 @@ import { IntentFulfillmentModule } from '@eco-solver/intent-fulfillment/intent-f
           },
         }
       },
-      inject: [EcoConfigService],
+      inject: [EcoSolverConfigService],
     }),
     BalanceModule,
     ChainMonitorModule,
-    EcoConfigModule.withAWS(),
+    EcoSolverConfigModule.withAWS(),
     FeeModule,
     FlagsModule,
     HealthModule,
@@ -62,12 +61,10 @@ import { IntentFulfillmentModule } from '@eco-solver/intent-fulfillment/intent-f
     IntervalModule,
     ProcessorModule,
     MongooseModule.forRootAsync({
-      inject: [EcoConfigService],
-      useFactory: async (configService: EcoConfigService) => {
+      inject: [EcoSolverConfigService],
+      useFactory: async (configService: EcoSolverConfigService) => {
         const uri = configService.getMongooseUri()
-        return {
-          uri,
-        }
+        return { uri }
       },
     }),
     ProverModule,
@@ -87,14 +84,16 @@ export class AppModule {}
  * Returns the Pino module if the configs have it on ( its off in dev )
  */
 function getPino() {
-  return EcoConfigService.getStaticConfig().logger.usePino
+  // Use static config to determine if Pino should be enabled
+  const staticConfig = require('@libs/solver-config').getStaticSolverConfig()
+  return staticConfig.logger?.usePino
     ? [
         LoggerModule.forRootAsync({
-          inject: [EcoConfigService],
-          useFactory: async (configService: EcoConfigService) => {
+          inject: [EcoSolverConfigService],
+          useFactory: async (configService: EcoSolverConfigService) => {
             const loggerConfig = configService.getLoggerConfig()
             return {
-              pinoHttp: loggerConfig.pinoConfig.pinoHttp,
+              pinoHttp: loggerConfig?.pinoConfig?.pinoHttp,
             }
           },
         }),
