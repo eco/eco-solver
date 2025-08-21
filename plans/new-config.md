@@ -6,6 +6,60 @@ This plan outlines the migration of eco-solver configuration logic with **proper
 
 ## Corrected Architecture Approach
 
+## 🎯 Key Architectural Improvements: Enhanced Dynamic Provider System
+
+### Current Problems:
+- AWS provider is hardcoded in the module
+- Service knows about specific provider types (AWS, static)
+- No standardized interface for different config sources
+- Manual provider management
+
+### Proposed Solution:
+```typescript
+interface ConfigSource {
+  getConfig(): Promise<Record<string, any>>
+  priority: number // For merge order
+  name: string     // For logging/debugging
+}
+
+// Module creates providers based on static config
+// Service works with generic ConfigSource[] array
+```
+
+## 🏗️ Enhanced Architecture Design
+
+```
+┌─────────────────────────────────────────────┐
+│  EcoSolverConfigModule.forRoot(config)      │
+│  ┌─────────────────────────────────────────┐ │
+│  │ 1. Analyze static config                │ │
+│  │ 2. Create providers based on needs:     │ │
+│  │    - StaticConfigProvider (always)      │ │
+│  │    - AwsSecretsProvider (if aws found)  │ │
+│  │    - FileOverrideProvider (if files)    │ │
+│  │    - EnvVarProvider (if enabled)        │ │
+│  │ 3. Inject providers as ConfigSource[]   │ │
+│  └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+             │ Provides ConfigSource[]
+             ▼
+┌─────────────────────────────────────────────┐
+│  EcoSolverConfigService                     │
+│  ┌─────────────────────────────────────────┐ │
+│  │ constructor(sources: ConfigSource[])     │ │
+│  │                                         │ │
+│  │ async initializeConfig() {              │ │
+│  │   const results = await Promise        │ │
+│  │     .allSettled(sources.map(s =>       │ │
+│  │       s.getConfig()))                  │ │
+│  │                                         │ │
+│  │   // Merge by priority order           │ │
+│  │   mergedConfig = mergeConfigs(results)  │ │
+│  │ }                                       │ │
+│  └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+```
+
 ### 🎯 **Key Architectural Principle: Separation of Concerns**
 
 ```
@@ -203,84 +257,91 @@ Add dependencies to consume generic infrastructure:
 
 ### 🎯 Phase 2: Create EcoSolverConfigService in @libs/solver-config (Week 2)
 
-#### 2.1 Create Eco-Solver Service Using Generic Infrastructure
-Build eco-solver service that **consumes** `@libs/config`:
+#### 2.1 Create Provider-Agnostic Service Using Promise.allSettled
+Build eco-solver service that works with **standardized ConfigSource[]** interface:
 
 ```typescript
-// libs/solver-config/src/lib/services/eco-solver-config.service.ts - NEW
+// libs/solver-config/src/lib/services/eco-solver-config.service.ts - ENHANCED
 import { Injectable, Logger } from '@nestjs/common'
+import { ConfigSource } from '../interfaces/config-source.interface'
+import { EcoSolverConfigSchema, type EcoSolverConfigType } from '../schemas/eco-solver.schema'
 import { merge } from 'lodash'
-
-// Import generic infrastructure from @libs/config
-import { 
-  ConfigurationService,
-  AwsSecretsProvider 
-} from '@libs/config'
-
-// Import eco-solver specific schemas (in this library)
-import { 
-  EcoSolverConfigSchema,
-  type EcoSolverConfigType,
-  type Solver,
-  type IntentSource
-} from '../schemas/eco-solver.schema'
-
-// Static config is now handled by generic ConfigurationService
-// No direct imports from solver-config files
-
-// Import utilities (will be created)
-import { getChainConfig } from '../utils/chain-config.utils'
-import { addressKeys } from '../utils/address.utils'
 
 @Injectable()
 export class EcoSolverConfigService {
   private readonly logger = new Logger(EcoSolverConfigService.name)
   private mergedConfig: EcoSolverConfigType
-
-  constructor(
-    private readonly configService: ConfigurationService, // Generic service
-    private readonly awsProvider?: AwsSecretsProvider,     // Generic AWS provider
-  ) {}
-
-  async initializeConfig(): Promise<void> {
-    // Load base configuration using generic infrastructure
-    // The generic ConfigurationService handles file loading, environment merging
-    const staticConfig = await this.configService.get('eco-solver', EcoSolverConfigSchema)
-    
-    // Load AWS secrets using generic provider
-    let awsConfig = {}
-    if (this.awsProvider && staticConfig.aws) {
-      const secrets = await Promise.allSettled(
-        staticConfig.aws.map(cred => 
-          this.awsProvider!.loadSecret(cred.secretID, cred.region)
-        )
-      )
-      
-      awsConfig = secrets
-        .filter((result): result is PromiseFulfilledResult<any> => 
-          result.status === 'fulfilled')
-        .reduce((acc, result) => merge(acc, result.value), {})
-    }
-
-    // Merge configs and validate with eco-solver schema
-    const mergedRawConfig = merge({}, awsConfig, staticConfig )
-    this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
+  private initialized = false
+  
+  constructor(private readonly configSources: ConfigSource[]) {
+    // Service doesn't know about specific providers - just works with ConfigSource[]
+    this.logger.log(`Initialized with ${configSources.length} config sources: ${
+      configSources.map(s => s.name).join(', ')
+    }`)
   }
-
-  // All eco-solver specific getters with validation
+  
+  async initializeConfig(): Promise<void> {
+    if (this.initialized) return
+    
+    this.logger.log('Loading configuration from all sources...')
+    
+    // Use Promise.allSettled to handle failures gracefully
+    const results = await Promise.allSettled(
+      this.configSources
+        .filter(source => source.enabled)
+        .map(async source => ({
+          name: source.name,
+          priority: source.priority,
+          config: await source.getConfig()
+        }))
+    )
+    
+    // Process results
+    const configs = results
+      .filter((result): result is PromiseFulfilledResult<any> => {
+        if (result.status === 'rejected') {
+          this.logger.warn(`Config source failed: ${result.reason.message}`)
+          return false
+        }
+        return true
+      })
+      .map(result => result.value)
+      .sort((a, b) => b.priority - a.priority) // Sort by priority (highest first)
+    
+    this.logger.log(`Successfully loaded configs from: ${configs.map(c => c.name).join(', ')}`)
+    
+    // Merge configs in priority order (last wins in lodash merge)
+    const mergedRawConfig = configs.reduce((acc, { config }) => merge(acc, config), {})
+    
+    // Validate merged config with Zod schema
+    try {
+      this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
+      this.initialized = true
+      this.logger.log('Configuration validation successful')
+    } catch (error) {
+      this.logger.error('Configuration validation failed:', error)
+      throw new Error(`Invalid eco-solver configuration: ${error.message}`)
+    }
+  }
+  
+  // All existing getter methods remain the same
   getRpcConfig(): EcoSolverConfigType['rpcs'] {
+    this.ensureInitialized()
     return this.mergedConfig.rpcs
   }
-
+  
   getAwsConfigs(): EcoSolverConfigType['aws'] {
+    this.ensureInitialized()
     return this.mergedConfig.aws
   }
 
   getCache(): EcoSolverConfigType['cache'] {
+    this.ensureInitialized()
     return this.mergedConfig.cache
   }
 
   getSolvers(): Record<number, Solver> {
+    this.ensureInitialized()
     const solvers = this.mergedConfig.solvers
     // Apply chain config transformations (existing business logic)
     return Object.fromEntries(
@@ -301,6 +362,7 @@ export class EcoSolverConfigService {
   }
 
   getIntentSources(): IntentSource[] {
+    this.ensureInitialized()
     return this.mergedConfig.intentSources.map(intent => {
       const config = getChainConfig(intent.chainID)
       return {
@@ -320,15 +382,36 @@ export class EcoSolverConfigService {
 
   // All other 30+ configuration getters from EcoConfigService
   getServer(): EcoSolverConfigType['server'] {
+    this.ensureInitialized()
     return this.mergedConfig.server
   }
 
   getDatabaseConfig(): EcoSolverConfigType['database'] {
+    this.ensureInitialized()
     return this.mergedConfig.database  
   }
 
   // ... continue with all other getters, applying business logic as needed
   // getFulfill(), getKmsConfig(), getSafe(), etc.
+  
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      throw new Error('EcoSolverConfigService not initialized. Call initializeConfig() first.')
+    }
+  }
+  
+  // Debug method for development
+  getDebugInfo() {
+    return {
+      initialized: this.initialized,
+      sourcesCount: this.configSources.length,
+      sources: this.configSources.map(s => ({
+        name: s.name,
+        priority: s.priority,
+        enabled: s.enabled
+      }))
+    }
+  }
 
   private processProvers(intent: IntentSource, config: any): string[] {
     // Existing prover processing logic from EcoConfigService
@@ -347,58 +430,227 @@ export class EcoSolverConfigService {
 }
 ```
 
-#### 2.2 Create Eco-Solver Module
-Create module that uses generic infrastructure:
+#### 2.2 Create Enhanced Dynamic Module with Smart Provider Creation
+Create module that dynamically creates providers based on static config analysis:
 
 ```typescript
-// libs/solver-config/src/lib/modules/eco-solver-config.module.ts - NEW
-import { DynamicModule, Module } from '@nestjs/common'
+// libs/solver-config/src/lib/interfaces/config-source.interface.ts - NEW
+export interface ConfigSource {
+  getConfig(): Promise<Record<string, any>>
+  priority: number  // Lower = higher priority (0 = highest)
+  name: string      // For logging/debugging  
+  enabled: boolean  // Allow dynamic enable/disable
+}
 
-// Import generic infrastructure
-import { 
-  ConfigModule,           // Generic config module  
-  AwsSecretsProvider     // Generic AWS provider
-} from '@libs/config'
+export abstract class BaseConfigSource implements ConfigSource {
+  abstract priority: number
+  abstract name: string
+  
+  enabled: boolean = true
+  
+  abstract getConfig(): Promise<Record<string, any>>
+  
+  protected handleError(error: any, context: string): Record<string, any> {
+    console.warn(`[${this.name}] Failed to load config from ${context}:`, error.message)
+    return {} // Return empty config on failure
+  }
+}
 
-// Import eco-solver specific service
+// libs/solver-config/src/lib/providers/static-config.provider.ts - NEW
+import { Injectable } from '@nestjs/common'
+import { ConfigurationService } from '@libs/config'
+import { BaseConfigSource } from '../interfaces/config-source.interface'
+import { EcoSolverConfigSchema } from '../schemas/eco-solver.schema'
+
+@Injectable()
+export class StaticConfigProvider extends BaseConfigSource {
+  priority = 100 // Lowest priority - base config
+  name = 'StaticConfig'
+  
+  constructor(private readonly configService: ConfigurationService) {
+    super()
+  }
+  
+  async getConfig(): Promise<Record<string, any>> {
+    try {
+      return await this.configService.get('eco-solver', EcoSolverConfigSchema)
+    } catch (error) {
+      return this.handleError(error, 'static configuration files')
+    }
+  }
+}
+
+// libs/solver-config/src/lib/providers/aws-secrets.provider.ts - NEW
+import { Injectable } from '@nestjs/common'
+import { AwsSecretsProvider as GenericAwsProvider } from '@libs/config'
+import { BaseConfigSource } from '../interfaces/config-source.interface'
+
+@Injectable() 
+export class AwsSecretsConfigProvider extends BaseConfigSource {
+  priority = 50 // Medium priority - external secrets
+  name = 'AwsSecrets'
+  
+  constructor(
+    private readonly awsProvider: GenericAwsProvider,
+    private readonly awsCredentials: any[]
+  ) {
+    super()
+  }
+  
+  async getConfig(): Promise<Record<string, any>> {
+    if (!this.awsCredentials?.length) {
+      return {}
+    }
+    
+    try {
+      const results = await Promise.allSettled(
+        this.awsCredentials.map(cred => 
+          this.awsProvider.loadSecret(cred.secretID, cred.region)
+        )
+      )
+      
+      return results
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled')
+        .reduce((acc, result) => ({ ...acc, ...result.value }), {})
+    } catch (error) {
+      return this.handleError(error, 'AWS Secrets Manager')
+    }
+  }
+}
+
+// libs/solver-config/src/lib/providers/env-override.provider.ts - NEW
+import { Injectable } from '@nestjs/common'
+import { BaseConfigSource } from '../interfaces/config-source.interface'
+
+@Injectable()
+export class EnvOverrideProvider extends BaseConfigSource {
+  priority = 10 // High priority - environment overrides
+  name = 'EnvOverride'
+  
+  async getConfig(): Promise<Record<string, any>> {
+    // Parse environment variables with ECO_CONFIG_ prefix
+    const envConfig: Record<string, any> = {}
+    
+    Object.keys(process.env).forEach(key => {
+      if (key.startsWith('ECO_CONFIG_')) {
+        const configKey = key.replace('ECO_CONFIG_', '').toLowerCase()
+        const value = process.env[key]
+        
+        try {
+          // Try to parse as JSON, fallback to string
+          envConfig[configKey] = JSON.parse(value!)
+        } catch {
+          envConfig[configKey] = value
+        }
+      }
+    })
+    
+    return envConfig
+  }
+}
+
+// libs/solver-config/src/lib/modules/eco-solver-config.module.ts - ENHANCED
+import { DynamicModule, Module, Provider } from '@nestjs/common'
+import { ConfigModule } from '@libs/config'
 import { EcoSolverConfigService } from '../services/eco-solver-config.service'
+import { StaticConfigProvider } from '../providers/static-config.provider'
+import { AwsSecretsConfigProvider } from '../providers/aws-secrets.provider'
+import { EnvOverrideProvider } from '../providers/env-override.provider'
+import { getStaticSolverConfig } from '../solver-config'
+
+export interface EcoSolverConfigOptions {
+  enableAws?: boolean
+  enableEnvOverrides?: boolean
+  awsRegion?: string
+  customProviders?: Provider[]
+}
 
 @Module({})
 export class EcoSolverConfigModule {
-  static forRoot(options: { 
-    enableAws?: boolean
-    awsRegion?: string 
-  } = {}): DynamicModule {
-    const providers = [EcoSolverConfigService]
-    const imports = [ConfigModule] // Use generic config module
-
-    // Add AWS provider if enabled
-    if (options.enableAws && options.awsRegion) {
+  static forRoot(options: EcoSolverConfigOptions = {}): DynamicModule {
+    // 1. Analyze static config to determine what providers are needed
+    const staticConfig = getStaticSolverConfig()
+    const needsAws = staticConfig.aws?.length > 0 || options.enableAws
+    
+    // 2. Build provider array based on analysis
+    const providers: Provider[] = [
+      // Always include static config provider
+      StaticConfigProvider,
+      
+      // Core service that receives the providers
+      {
+        provide: EcoSolverConfigService,
+        useFactory: async (...configSources: any[]) => {
+          const service = new EcoSolverConfigService(configSources)
+          await service.initializeConfig()
+          return service
+        },
+        inject: [
+          StaticConfigProvider,
+          ...(needsAws ? [AwsSecretsConfigProvider] : []),
+          ...(options.enableEnvOverrides ? [EnvOverrideProvider] : []),
+        ],
+      },
+    ]
+    
+    // 3. Conditionally add AWS provider if needed
+    if (needsAws) {
       providers.push({
-        provide: AwsSecretsProvider,
-        useFactory: () => AwsSecretsProvider.create({
-          region: options.awsRegion!,
-        }),
+        provide: AwsSecretsConfigProvider,
+        useFactory: (staticProvider: StaticConfigProvider, awsProvider: any) => {
+          return new AwsSecretsConfigProvider(awsProvider, staticConfig.aws)
+        },
+        inject: [StaticConfigProvider, 'AWS_SECRETS_PROVIDER'],
+      })
+      
+      // Add generic AWS provider
+      providers.push({
+        provide: 'AWS_SECRETS_PROVIDER',
+        useFactory: () => {
+          const { AwsSecretsProvider } = require('@libs/config')
+          return AwsSecretsProvider.create({
+            region: options.awsRegion || process.env.AWS_REGION || 'us-east-2'
+          })
+        }
       })
     }
-
+    
+    // 4. Add environment override provider if enabled  
+    if (options.enableEnvOverrides) {
+      providers.push(EnvOverrideProvider)
+    }
+    
+    // 5. Add any custom providers
+    if (options.customProviders?.length) {
+      providers.push(...options.customProviders)
+    }
+    
     return {
       global: true,
       module: EcoSolverConfigModule,
-      imports,
+      imports: [ConfigModule], // Generic config infrastructure
       providers,
       exports: [EcoSolverConfigService],
     }
   }
-
-  // Backward compatibility methods
-  static withAWS(): DynamicModule {
-    return this.forRoot({
-      enableAws: true,
-      awsRegion: process.env.AWS_REGION || 'us-east-2',
+  
+  // Convenience methods for common configurations
+  static withAWS(region = 'us-east-2'): DynamicModule {
+    return this.forRoot({ 
+      enableAws: true, 
+      enableEnvOverrides: true,
+      awsRegion: region 
     })
   }
-
+  
+  static withFullFeatures(): DynamicModule {
+    return this.forRoot({
+      enableAws: true,
+      enableEnvOverrides: true,
+    })
+  }
+  
   static base(): DynamicModule {
     return this.forRoot({ enableAws: false })
   }
@@ -878,6 +1130,44 @@ migrateToProperArchitecture().catch(console.error)
 - [ ] Clean up legacy eco-config files after successful migration
 - [ ] Update documentation to reflect proper architectural separation
 
+## 🎯 Migration Benefits
+
+### 1. **Dynamic Provider System**
+- Module analyzes static config and creates only needed providers
+- No hardcoded AWS logic - providers created conditionally
+- Easy to add new provider types (Redis, Consul, etc.)
+
+### 2. **Service Simplicity**  
+- Service doesn't know about specific provider types
+- Works with standardized ConfigSource[] interface
+- Uses Promise.allSettled for robust error handling
+
+### 3. **Flexible Configuration**
+```typescript
+// Development: Only static config
+EcoSolverConfigModule.base()
+
+// Production: Static + AWS + Environment overrides  
+EcoSolverConfigModule.withFullFeatures()
+
+// Custom: Fine-grained control
+EcoSolverConfigModule.forRoot({
+  enableAws: true,
+  enableEnvOverrides: false,
+  customProviders: [MyCustomProvider]
+})
+```
+
+### 4. **Error Resilience**
+- Promise.allSettled handles individual provider failures
+- Graceful degradation - service works even if some sources fail
+- Detailed logging for troubleshooting
+
+### 5. **Testability** 
+- Easy to mock ConfigSource[] for testing
+- Test different provider combinations
+- Validate priority-based merging logic
+
 ## Architectural Benefits
 
 ### 🏗️ **Proper Separation of Concerns**
@@ -947,3 +1237,12 @@ Instead of polluting the generic infrastructure with application-specific code, 
 - **Enable future growth** - other applications can use the generic infrastructure
 
 This approach follows **SOLID principles**, maintains **clean architecture**, and ensures long-term maintainability while leveraging existing modern infrastructure.
+
+## 🚀 Implementation Timeline
+
+1. **Week 1**: Create ConfigSource interface and base providers
+2. **Week 2**: Build enhanced dynamic module with smart provider creation  
+3. **Week 3**: Implement service with Promise.allSettled pattern
+4. **Week 4**: Testing, validation, and documentation
+
+This architecture provides a robust, flexible, and maintainable configuration system that scales with the application's needs while maintaining clean separation of concerns.
