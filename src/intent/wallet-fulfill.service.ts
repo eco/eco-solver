@@ -240,7 +240,8 @@ export class WalletFulfillService implements IFulfillService {
     inboxAddress: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const claimant = this.ecoConfigService.getEth().claimant
+    const claimant = '0x7be25af5a56cd191427e8f4d0389f2c7cf5b08d5a57bfed2d9b274d45cc26d30'
+
 
     if (model.intent.destination === 1399811149n) {
       throw new Error('Fulfill not yet supported for solana');
@@ -362,7 +363,7 @@ export class WalletFulfillService implements IFulfillService {
       [[
         '0x499c9a20ef411aae60a07dd076428fd003cd25cd1016b2e1f7d47ac3d8e7dbf1', // hyperprover on solana mainnet
         '0x', // empty metadata
-        '0x68eE9bec9B4dbB61f69D9D293Ae26a5AACb2e28f', // hyperlane merkle tree on optimism
+        '0xD8A76C4D91fCbB7Cc8eA795DFDF870E48368995C', // hyperlane merkle tree on optimism
       ]]
     )
 
@@ -373,7 +374,7 @@ export class WalletFulfillService implements IFulfillService {
         model.intent.hash,
         model.intent.route as any,
         RewardDataModel.getHash(model.intent.reward),
-        pad(claimant, { size: 32 }), // Convert address to bytes32
+        pad('0x7be25af5a56cd191427e8f4d0389f2c7cf5b08d5a57bfed2d9b274d45cc26d30', { size: 32 }), // Convert address to bytes32
         hyperProverAddr as `0x${string}`,
         model.intent.source,
         data,
@@ -468,7 +469,7 @@ export class WalletFulfillService implements IFulfillService {
       [[
         '0x499c9a20ef411aae60a07dd076428fd003cd25cd1016b2e1f7d47ac3d8e7dbf1', // hyerprover on solana mainnet
         '0x', // emoty metadata
-        '0x68eE9bec9B4dbB61f69D9D293Ae26a5AACb2e28f', // hyperlane merkle tree on optimism
+        '0xD8A76C4D91fCbB7Cc8eA795DFDF870E48368995C', // hyperlane igp on optimism
       ]]
     )
 

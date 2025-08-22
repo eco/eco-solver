@@ -134,7 +134,7 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
     vm: VmType.SVM,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     creator: keypair.publicKey,
-    prover: new PublicKey('5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp'), 
+    prover: new PublicKey('9LbLXMSsyJ3P1NsPBtZSuisCyDrGhJFGac5AGB4h1QCP'), 
     nativeAmount: 0n, 
     tokens: rewardTokens.map(token => ({
       token: new PublicKey(token.token),
@@ -346,16 +346,16 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
             reward: portalReward,
             allow_partial: false // Use snake_case to match Rust
           })
-          .accounts({
-            // associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            // funder: keypair.publicKey,
-            // payer: keypair.publicKey,
-            // systemProgram: new PublicKey('11111111111111111111111111111111'),
-            // token2022Program: TOKEN_2022_PROGRAM_ID,
-            // tokenProgram: TOKEN_PROGRAM_ID,
-            vault: vaultPda
+          .accountsStrict({
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: new PublicKey('11111111111111111111111111111111'),
+            token2022Program: TOKEN_2022_PROGRAM_ID,
+            tokenProgram: TOKEN_PROGRAM_ID,            
+            vault: vaultPda,
+            payer: keypair.publicKey,
+            funder: keypair.publicKey,
           })
-          // .remainingAccounts(tokenTransferAccounts)
+          .remainingAccounts(tokenTransferAccounts)
           .transaction()
 
         console.log("MADDEN: fundingTransaction", fundingTransaction)
