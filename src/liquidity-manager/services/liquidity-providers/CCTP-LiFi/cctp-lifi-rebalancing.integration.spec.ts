@@ -33,6 +33,7 @@ import { RelayProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { serialize } from '@/common/utils/serialize'
+import { GatewayProviderService } from '../Gateway/gateway-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -181,6 +182,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: EverclearProviderService,
           useValue: createMock<EverclearProviderService>(),
+        },
+        {
+          provide: GatewayProviderService,
+          useValue: createMock<GatewayProviderService>(),
         },
         {
           provide: BalanceService,

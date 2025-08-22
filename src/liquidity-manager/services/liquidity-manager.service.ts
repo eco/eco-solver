@@ -75,6 +75,26 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     if (this.config.enabled !== false) {
       await this.initializeRebalances()
     }
+
+    await this.ensureGatewayBootstrap()
+  }
+
+  private async ensureGatewayBootstrap() {
+    // Gateway bootstrap deposit (simple one-time) if enabled
+    try {
+      // Access provider through manager; it may not be enabled in strategies, but method is safe
+      const anyProvider = (this.liquidityProviderManager as any).gatewayProviderService
+      if (anyProvider?.ensureBootstrapOnce) {
+        await anyProvider.ensureBootstrapOnce('bootstrap')
+      }
+    } catch (e) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'Gateway bootstrap deposit skipped or failed',
+          properties: { error: (e as any)?.message ?? e },
+        }),
+      )
+    }
   }
 
   async initializeRebalances() {

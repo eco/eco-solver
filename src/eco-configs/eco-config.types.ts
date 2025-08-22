@@ -84,6 +84,7 @@ export type EcoConfigType = {
   squid: SquidConfig
   CCTPV2: CCTPV2Config
   everclear: EverclearConfig
+  gateway: GatewayConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -523,4 +524,29 @@ export interface SquidConfig {
 
 export interface EverclearConfig {
   baseUrl: string
+}
+
+export interface GatewayConfig {
+  apiUrl: string
+  enabled?: boolean
+  bootstrap?: {
+    enabled: boolean
+    chainId: number
+    amountBase6: string
+  }
+  chains: {
+    chainId: number
+    domain: number
+    usdc: Hex
+    wallet?: Hex
+    minter?: Hex
+  }[]
+  fees?: {
+    // percentage = numerator / denominator; e.g., 5 / 100000 = 0.5 bps
+    percent?: { numerator: number | string; denominator: number | string }
+    // per-domain base fees in base-6 USDC
+    base6ByDomain?: Record<number, number | string>
+    // fallback base fee in base-6 USDC (default: Ethereum base fee)
+    fallbackBase6?: number | string
+  }
 }
