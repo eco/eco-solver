@@ -13,5 +13,6 @@
     },
     "externalHelpers": false
   },
-  "minify": false
+  "minify": false,
+  "$schema": "https://json.schemastore.org/swcrc"
 }

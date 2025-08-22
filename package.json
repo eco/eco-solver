@@ -75,7 +75,7 @@
     "mongoose": "^8.0.0",
     "nest-commander": "^3.19.0",
     "nestjs-pino": "^4.0.0",
-    "permissionless": "^0.2.49",
+    "permissionless": "^0.2.54",
     "pino-pretty": "^13.1.1",
     "redlock": "5.0.0-beta.2",
     "reflect-metadata": "^0.1.13",

@@ -8,6 +8,8 @@
     "target": "es2021",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "baseUrl": "../../",
     "paths": {
       "@eco-solver/*": ["apps/eco-solver/src/*"],
@@ -21,6 +23,6 @@
       "@libs/solver-config": ["libs/solver-config/src/index.ts"]
     }
   },
-  "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "test/**/*"],
-  "include": ["src/**/*"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/*.spec.ts", "**/__tests__/**", "**/node_modules/**"]
 }
