@@ -9,5 +9,5 @@ export enum ChainId {
   POLYGON = 137,
   ARBITRUM = 42161,
   SOLANA = 'solana-mainnet',
-  TRON = 'tron-mainnet',
+  TRON = 728126428, // 0x2b6653dc
 }

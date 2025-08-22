@@ -27,7 +27,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     isConfigured: jest.fn().mockReturnValue(true),
     networks: [
       {
-        chainId: 'tron-mainnet',
+        chainId: 728126428, // Tron mainnet numeric chain ID
         rpc: {
           fullNode: 'https://api.trongrid.io',
           solidityNode: 'https://api.trongrid.io',
@@ -59,11 +59,10 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
         },
       },
     ],
-    supportedChainIds: ['tron-mainnet'],
+    supportedChainIds: [728126428],
     getChain: jest.fn().mockImplementation((chainId) => {
-      // Handle both 'tron-mainnet' string and numeric chain ID 728126428 (0x2b6653dc)
-      const normalizedChainId = chainId === 728126428 ? 'tron-mainnet' : chainId;
-      const network = mockTvmConfig.networks.find((n) => n.chainId === normalizedChainId);
+      // Find network by chain ID
+      const network = mockTvmConfig.networks.find((n) => n.chainId === chainId);
       if (!network) throw new Error(`Network not found: ${chainId}`);
       return network;
     }),
@@ -73,18 +72,18 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     getBasicWalletConfig: jest.fn().mockReturnValue({
       // Use a test private key that will generate a valid Tron address
       // This is a well-known test private key - DO NOT USE IN PRODUCTION
-      privateKey: '0',
+      privateKey: '0000000000000000000000000000000000000000000000000000000000000001',
     }),
     getIntentSourceAddress: jest.fn().mockImplementation((chainId) => {
       // Handle numeric Tron chain ID
-      if (chainId === 728126428 || chainId === 'tron-mainnet') {
+      if (chainId === 728126428) {
         return 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG';
       }
       throw new Error(`Network not found: ${chainId}`);
     }),
     getInboxAddress: jest.fn().mockImplementation((chainId) => {
       // Handle numeric Tron chain ID
-      if (chainId === 728126428 || chainId === 'tron-mainnet') {
+      if (chainId === 728126428) {
         return 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN';
       }
       throw new Error(`Network not found: ${chainId}`);

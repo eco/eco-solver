@@ -10,7 +10,7 @@ To enable TVM support, you need to configure the following environment variables
 
 ```bash
 # TVM Network Configuration
-TVM_NETWORKS_0_CHAIN_ID=tron-mainnet
+TVM_NETWORKS_0_CHAIN_ID=728126428  # Tron mainnet numeric chain ID (0x2b6653dc)
 TVM_NETWORKS_0_RPC_FULL_NODE=https://api.trongrid.io
 TVM_NETWORKS_0_RPC_SOLIDITY_NODE=https://api.trongrid.io
 TVM_NETWORKS_0_RPC_EVENT_SERVER=https://api.trongrid.io
@@ -42,12 +42,12 @@ You can configure multiple TVM networks (e.g., mainnet and testnet):
 
 ```bash
 # Mainnet
-TVM_NETWORKS_0_CHAIN_ID=tron-mainnet
+TVM_NETWORKS_0_CHAIN_ID=728126428  # Tron mainnet numeric chain ID (0x2b6653dc)
 TVM_NETWORKS_0_RPC_FULL_NODE=https://api.trongrid.io
 # ... other mainnet config
 
 # Testnet (Shasta)
-TVM_NETWORKS_1_CHAIN_ID=tron-testnet
+TVM_NETWORKS_1_CHAIN_ID=2494104990  # Tron testnet numeric chain ID (0x94a9059e)
 TVM_NETWORKS_1_RPC_FULL_NODE=https://api.shasta.trongrid.io
 TVM_NETWORKS_1_RPC_SOLIDITY_NODE=https://api.shasta.trongrid.io
 TVM_NETWORKS_1_RPC_EVENT_SERVER=https://api.shasta.trongrid.io
@@ -69,7 +69,7 @@ To test your TVM configuration:
 2. Set the environment variables above
 3. Start the application: `pnpm run start:dev`
 4. The TVM listener will automatically start if configured correctly
-5. Check logs for "Started TVM listener for chain tron-mainnet"
+5. Check logs for "Started TVM listener for chain 728126428"
 
 ## Contract Deployment
 

@@ -238,19 +238,7 @@ export class TvmExecutorService extends BaseChainExecutor {
 
   private getChainId(chainId: bigint | number | string): number | string {
     if (typeof chainId === 'bigint') {
-      // Check if it's a known TVM chain ID
-      const chainIdNum = Number(chainId);
-      if (chainIdNum === 728126428) {
-        // 0x2b6653dc
-        return 'tron-mainnet';
-      }
-      const chainIdStr = chainId.toString();
-      if (chainIdStr === '1' || chainIdStr === 'tron-mainnet') {
-        return 'tron-mainnet';
-      } else if (chainIdStr === '2' || chainIdStr === 'tron-testnet') {
-        return 'tron-testnet';
-      }
-      return chainIdNum;
+      return Number(chainId);
     }
     return chainId;
   }
