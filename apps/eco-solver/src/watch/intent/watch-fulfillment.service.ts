@@ -22,7 +22,7 @@ import { ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
  * to the queue to update the intent in the database.
  */
 @Injectable()
-export class WatchFulfillmentService extends WatchEventService<Solver> {
+export class WatchFulfillmentService extends WatchEventService<any> {
   protected logger = new Logger(WatchFulfillmentService.name)
 
   constructor(

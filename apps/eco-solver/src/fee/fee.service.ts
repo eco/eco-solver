@@ -5,7 +5,7 @@ import { EcoConfigService } from '@libs/solver-config'
 import {
   FeeAlgorithmConfig,
   FeeConfigType,
-  IntentConfig,
+  EcoIntentConfig,
   WhitelistFeeRecord,
 } from '@libs/solver-config'
 import {
@@ -40,7 +40,7 @@ export const BASE_DECIMALS = 6
 @Injectable()
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
-  private intentConfigs: IntentConfig
+  private intentConfigs: EcoIntentConfig
   private whitelist: WhitelistFeeRecord
 
   constructor(
@@ -113,8 +113,8 @@ export class FeeService implements OnModuleInit {
       // 0.02 cents + $0.015 per 100$
       // 20_000n + (totalFulfill * 15_000n) / 100_000_000n
       case 'linear':
-        const tokenConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
-        const nativeConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).native
+        const tokenConfig = (feeConfig.constants as any).token
+        const nativeConfig = (feeConfig.constants as any).native
         if (normalizedTotal.token !== 0n) {
           const unitSize = BigInt(tokenConfig.tranche.unitSize)
           const units =
@@ -527,7 +527,7 @@ export class FeeService implements OnModuleInit {
         const normMinBalance = this.getNormalizedMinBalance(callTarget)
 
         if (
-          !this.intentConfigs.skipBalanceCheck &&
+          !this.intentConfigs?.skipBalanceCheck &&
           transferAmount > callTarget.token.balance - normMinBalance
         ) {
           const err = QuoteError.SolverLacksLiquidity(

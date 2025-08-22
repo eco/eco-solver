@@ -7,6 +7,7 @@ import {
   IntentSource,
   EcoSolverDatabaseConfig,
 } from '../schemas/eco-solver.schema'
+import { type Hex } from 'viem'
 import { merge } from 'lodash'
 import { getChainConfig } from '../utils/chain-config.utils'
 import { getAddress, zeroAddress } from 'viem'
@@ -152,11 +153,11 @@ export class EcoSolverConfigService {
       const config = getChainConfig(intent.chainID)
       return {
         ...intent,
-        sourceAddress: config.IntentSource,
-        inbox: config.Inbox,
+        sourceAddress: config.IntentSource as Hex,
+        inbox: config.Inbox as Hex,
         // Apply existing business logic transformations
         provers: this.processProvers(intent, config),
-        tokens: intent.tokens.map((token: string) => getAddress(token)),
+        tokens: intent.tokens.map((token: string) => getAddress(token) as Hex),
       }
     })
   }
@@ -194,6 +195,12 @@ export class EcoSolverConfigService {
   getWhitelist(): EcoSolverConfigType['whitelist'] {
     this.ensureInitialized()
     return this.mergedConfig.whitelist
+  }
+
+  // Returns the crowd liquidity config
+  getCrowdLiquidity(): any {
+    this.ensureInitialized()
+    return this.mergedConfig.crowdLiquidity || {}
   }
 
   // Returns the fulfillment estimate config
@@ -304,6 +311,67 @@ export class EcoSolverConfigService {
     return this.mergedConfig.analytics
   }
 
+  // Alias for getRedisConfig for backward compatibility
+  getRedis(): EcoSolverConfigType['redis'] {
+    return this.getRedisConfig()
+  }
+
+  // Returns supported chain IDs
+  getSupportedChains(): number[] {
+    this.ensureInitialized()
+    return Object.keys(this.mergedConfig.solvers || {}).map(Number)
+  }
+
+  // Returns liquidity manager config  
+  getLiquidityManager(): EcoSolverConfigType['liquidityManager'] {
+    this.ensureInitialized()
+    return this.mergedConfig.liquidityManager
+  }
+
+  // Alias for getGasEstimations for backward compatibility
+  getGasEstimationsConfig(): EcoSolverConfigType['gasEstimations'] {
+    return this.getGasEstimations()
+  }
+
+  // Alias for getFulfillmentEstimate for backward compatibility
+  getFulfillmentEstimateConfig(): EcoSolverConfigType['fulfillmentEstimate'] {
+    return this.getFulfillmentEstimate()
+  }
+
+  // Returns RPC URLs for a chain
+  getRpcUrls(chainId: number): { rpcUrls: string[]; config: any } {
+    this.ensureInitialized()
+    const rpcs = this.mergedConfig.rpcs || {}
+    const chainRpcs = rpcs[chainId] || []
+    return {
+      rpcUrls: chainRpcs.map((rpc: any) => rpc.url || rpc),
+      config: rpcs
+    }
+  }
+
+  // Returns chain RPCs mapping for LiFi SDK
+  getChainRpcs(): Record<string, string> {
+    this.ensureInitialized()
+    const rpcs = this.mergedConfig.rpcs || {}
+    const chainRpcs: Record<string, string> = {}
+    
+    for (const chainId in rpcs.keys || {}) {
+      const rpcUrls = rpcs.keys[chainId]
+      if (rpcUrls && typeof rpcUrls === 'string') {
+        chainRpcs[chainId] = rpcUrls
+      }
+    }
+    
+    return chainRpcs
+  }
+
+  // Static method for backward compatibility
+  static getStaticConfig(): EcoSolverConfigType {
+    // This is a legacy compatibility method - in production, use the service instance
+    const { getStaticSolverConfig } = require('../solver-config')
+    return getStaticSolverConfig()
+  }
+
   // Returns the ETH config
   getEth(): EcoSolverConfigType['eth'] {
     this.ensureInitialized()
@@ -347,12 +415,12 @@ export class EcoSolverConfigService {
     }
   }
 
-  private processProvers(intent: IntentSource, config: any): string[] {
+  private processProvers(intent: IntentSource, config: any): Hex[] {
     // Existing prover processing logic from EcoConfigService
     const ecoNpm = intent.config?.ecoRoutes || 'append'
     const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
       (prover) => getAddress(prover) !== zeroAddress,
-    )
+    ) as Hex[]
 
     switch (ecoNpm) {
       case 'replace':
@@ -378,5 +446,16 @@ export class EcoSolverConfigService {
     })
 
     return result
+  }
+
+  // Additional missing methods from the eco-config service
+  getWarpRoutes(): EcoSolverConfigType['warpRoutes'] {
+    this.ensureInitialized()
+    return this.mergedConfig.warpRoutes
+  }
+
+  getLiFi(): EcoSolverConfigType['liFi'] {
+    this.ensureInitialized()
+    return this.mergedConfig.liFi
   }
 }

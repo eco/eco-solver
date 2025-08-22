@@ -120,7 +120,7 @@ export class ProofService implements OnModuleInit {
   private async loadProofTypes() {
     const proofPromises = this.ecoConfigService
       .getIntentSources()
-      .map((source) => this.getProofTypes(source.chainID, source.provers))
+      .map((source) => this.getProofTypes(source.chainID, source.provers as `0x${string}`[]))
 
     // get the proof types for each prover address from on chain
     const proofs = await Promise.all(proofPromises)

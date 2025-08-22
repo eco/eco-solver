@@ -3,6 +3,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import * as _ from 'lodash'
 import {
   Chain,
+  createPublicClient,
   encodeAbiParameters,
   encodeFunctionData,
   Hex,
@@ -77,7 +78,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     const batches = await Promise.all(
       intentSourceAddrs.map(async (addr) => {
-        const withdrawals = await this.indexerService.getNextBatchWithdrawals(addr)
+        const withdrawals = await this.indexerService.getNextBatchWithdrawals(addr as `0x${string}`)
         this.logger.debug(
           EcoLogMessage.fromDefault({
             message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Per address result`,
@@ -134,7 +135,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
           const intentSourceAddr = withdrawalChunk[0].intentSourceAddr
           jobsData.push({
             chainId: parseInt(sourceChainId),
-            intentSourceAddr,
+            intentSourceAddr: intentSourceAddr as `0x${string}`,
             intents: chunk,
           })
         }
@@ -159,7 +160,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     const allProvesWithAddr = await Promise.all(
       intentSourceAddrs.map(async (addr) => {
-        const proves = await this.indexerService.getNextSendBatch(addr)
+        const proves = await this.indexerService.getNextSendBatch(addr as `0x${string}`)
         this.logger.debug(
           EcoLogMessage.fromDefault({
             message: `${IntentProcessorService.name}.getNextSendBatch(): Per address result`,
@@ -210,7 +211,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
           hash: prove.hash,
           prover: prove.prover,
           source: prove.chainId,
-          intentSourceAddr: prove.intentSourceAddr,
+          intentSourceAddr: prove.intentSourceAddr as `0x${string}`,
           inbox,
         }))
 
@@ -253,6 +254,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
 
     const txHash = await walletClient.writeContract({
+      account: walletClient.account,
       abi: IntentSourceAbi,
       address: intentSourceAddr,
       args: [intents],
@@ -291,7 +293,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       Object.values(batches).map((batch) => {
         const { prover, source } = batch[0]
         const hashes = _.map(batch, 'hash')
-        return this.getSendBatchTransaction(publicClient, inboxAddr, prover, source, hashes)
+        return this.getSendBatchTransaction(publicClient as PublicClient<Transport, Chain>, inboxAddr, prover, source, hashes)
       }),
     )
 
@@ -369,7 +371,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       throw new Error(`Intent source not found for address: ${intentSourceAddr}`)
     }
 
-    return intentSource.inbox
+    return intentSource.inbox as `0x${string}`
   }
 
   private getInbox() {
@@ -489,7 +491,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
       const publicClient = await this.walletClientDefaultSignerService.getPublicClient(source)
       return await Hyperlane.estimateMessageGas(
-        publicClient,
+        publicClient as PublicClient,
         mailbox as Hex,
         prover,
         origin,

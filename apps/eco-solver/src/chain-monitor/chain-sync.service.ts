@@ -18,7 +18,7 @@ export abstract class ChainSyncService implements OnApplicationBootstrap {
   constructor(
     protected intentModel: Model<IntentSourceModel>,
     protected kernelAccountClientService: KernelAccountClientService,
-    protected watchIntentService: WatchEventService<IntentSource>,
+    protected watchIntentService: WatchEventService<IntentSource & { chainID: number }>,
     protected ecoConfigService: EcoConfigService,
     protected logger: Logger,
   ) {}
@@ -55,7 +55,7 @@ export abstract class ChainSyncService implements OnApplicationBootstrap {
       return
     }
 
-    return this.watchIntentService.addJob(source)(createIntentLogs)
+    return this.watchIntentService.addJob(source as IntentSource & { chainID: number })(createIntentLogs)
   }
 
   /**

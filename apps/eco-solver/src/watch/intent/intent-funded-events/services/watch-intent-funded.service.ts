@@ -10,6 +10,7 @@ import { IntentFundedLog } from '@eco-solver/contracts'
 import { IntentSource } from '@libs/solver-config'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { Log, PublicClient } from 'viem'
+import { Network } from '@eco-solver/common/alchemy/network'
 import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@eco-solver/common/redis/constants'
@@ -23,7 +24,7 @@ import { ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
  * adds it intent queue for processing.
  */
 @Injectable()
-export class WatchIntentFundedService extends WatchEventService<IntentSource> {
+export class WatchIntentFundedService extends WatchEventService<any> {
   protected logger = new Logger(WatchIntentFundedService.name)
 
   constructor(
@@ -71,7 +72,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
       onError: async (error) => {
         await this.onError(error, client, source)
       },
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
       args: {
@@ -123,7 +124,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         }
 
         log.sourceChainID = BigInt(source.chainID)
-        log.sourceNetwork = source.network
+        log.sourceNetwork = source.network as Network
 
         // bigint as it can't serialize to JSON
         const intentFunded = log

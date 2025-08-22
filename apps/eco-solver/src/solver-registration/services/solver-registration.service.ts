@@ -1,5 +1,6 @@
 import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@eco-solver/common/routes/constants'
 import { APIRequestExecutor } from '@eco-solver/common/rest-api/api-request-executor'
+import { APIConfig } from '@eco-solver/common/rest-api/interfaces/api-config.interface'
 import { CrossChainRoutesConfigDTO } from '@eco-solver/solver-registration/dtos/cross-chain-routes-config.dto'
 import { EcoConfigService } from '@libs/solver-config'
 import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
@@ -42,7 +43,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     this.apiRequestExecutor = new APIRequestExecutor(
       this.httpService,
-      this.solverRegistrationConfig.apiOptions,
+      (this.solverRegistrationConfig?.apiOptions ?? { baseUrl: 'http://localhost:3000' }) as APIConfig,
       this.logger,
     )
 

@@ -436,7 +436,7 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   validDestination(intent: ValidationIntentInterface): boolean {
-    return this.ecoConfigService.getSupportedChains().includes(intent.route.destination)
+    return this.ecoConfigService.getSupportedChains().includes(Number(intent.route.destination))
   }
 
   /**

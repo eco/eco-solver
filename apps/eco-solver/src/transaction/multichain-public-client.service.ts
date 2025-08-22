@@ -4,12 +4,12 @@ import { ViemMultichainClientService } from './viem_multichain_client.service'
 
 @Injectable()
 export class MultichainPublicClientService extends ViemMultichainClientService<
-  PublicClient,
+  any,
   PublicClientConfig
 > {
   protected override async createInstanceClient(
     configs: PublicClientConfig,
-  ): Promise<PublicClient> {
-    return createPublicClient(configs)
+  ): Promise<any> {
+    return createPublicClient(configs as any)
   }
 }

@@ -82,24 +82,27 @@ export async function createKernelAccountClientV2<
     version: '0.7',
   } as const
 
-  const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
+  const ecdsaValidator = await signerToEcdsaValidator(publicClient as any, {
     signer: account as LocalAccount,
     entryPoint,
     kernelVersion,
   })
 
-  const kernelAccount: CreateKernelAccountReturnType = await createKernelAccount(publicClient, {
-    plugins: {
-      sudo: ecdsaValidator,
+  const kernelAccount: CreateKernelAccountReturnType = await createKernelAccount(
+    publicClient as any,
+    {
+      plugins: {
+        sudo: ecdsaValidator,
+      },
+      useMetaFactory: false,
+      entryPoint,
+      kernelVersion,
     },
-    useMetaFactory: false,
-    entryPoint,
-    kernelVersion,
-  })
+  )
 
   return createKernelAccountClient({
     account: kernelAccount,
-    client: publicClient,
+    client: publicClient as any,
     bundlerTransport: parameters.transport,
     chain: parameters.chain!,
   }).extend(kernelAccountClientActions(ownerClient)) as unknown as KernelAccountClient<
@@ -138,6 +141,7 @@ export async function executeTransactionsWithKernel(
   const calls = transactions.map((tx) => ({ to: tx.to, data: tx.data, value: tx.value }))
   const data = encodeKernelExecuteCallData({ calls, kernelVersion: '0.3.1' })
   return walletClient.sendTransaction({
+    account: walletClient.account,
     data: data,
     kzg: undefined,
     to: kernelClient.account?.address,

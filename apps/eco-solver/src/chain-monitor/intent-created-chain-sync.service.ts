@@ -71,19 +71,19 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
     }
 
     const allCreateIntentLogs = await client.getContractEvents({
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentCreated',
       strict: true,
       args: {
-        prover: source.provers,
+        prover: source.provers as `0x${string}`[],
       },
       fromBlock,
       toBlock,
     })
 
     const createIntentLogs = allCreateIntentLogs.filter((log) =>
-      supportedChains.includes(log.args.destination),
+      supportedChains.includes(Number(log.args.destination)),
     )
 
     //todo clean out already fulfilled intents

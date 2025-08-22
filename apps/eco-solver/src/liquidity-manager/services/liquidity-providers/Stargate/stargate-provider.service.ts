@@ -177,9 +177,12 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
 
         // Execute the transaction
         const hash = await client.sendTransaction({
+          account: client.account,
           to: transaction.to as Hex,
           data: transaction.data as Hex,
           value: BigInt(transaction.value ?? 0),
+          chain: null,
+          kzg: undefined,
         })
 
         // Wait for transaction confirmation

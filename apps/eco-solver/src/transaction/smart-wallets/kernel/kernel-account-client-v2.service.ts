@@ -30,7 +30,7 @@ class KernelAccountClientV2ServiceBase<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
   > = LocalAccount,
 > extends ViemMultichainClientService<
-  KernelAccountClient<Transport, Chain, SmartAccount, Client>,
+  any,
   KernelAccountClientV2Config<entryPointVersion, kernelVersion, owner>
 > {
   private logger = new Logger(KernelAccountClientV2ServiceBase.name)

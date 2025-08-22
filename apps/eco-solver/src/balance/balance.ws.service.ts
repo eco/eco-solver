@@ -47,7 +47,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
   }
 
   async subscribeWS() {
-    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
+    this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig as any
 
     const websocketTasks = Object.entries(this.ecoConfigService.getSolvers()).map(
       async ([, solver]) => {
@@ -63,7 +63,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
               eventName: 'Transfer',
               // restrict transfers from anyone to the simple account address
               args: { to: client.kernelAccount.address },
-              onLogs: this.addJob(solver.network, solver.chainID) as any,
+              onLogs: this.addJob(solver.network as any, solver.chainID) as any,
             })
           }
         })

@@ -21,7 +21,7 @@ import { ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
  * adds it intent queue for processing.
  */
 @Injectable()
-export class WatchCreateIntentService extends WatchEventService<IntentSource> {
+export class WatchCreateIntentService extends WatchEventService<any> {
   protected logger = new Logger(WatchCreateIntentService.name)
 
   constructor(
@@ -85,13 +85,13 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       onError: async (error) => {
         await this.onError(error, client, source)
       },
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentCreated',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
-        prover: source.provers,
+        prover: source.provers as `0x${string}`[],
       },
       onLogs: this.addJob(source),
     })
@@ -106,7 +106,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
 
       for (const log of logs) {
         log.sourceChainID = BigInt(source.chainID)
-        log.sourceNetwork = source.network
+        log.sourceNetwork = source.network as any
 
         // bigint as it can't serialize to JSON
         const createIntent = BigIntSerializer.serialize(log)

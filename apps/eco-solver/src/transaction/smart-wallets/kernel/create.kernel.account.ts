@@ -76,13 +76,13 @@ export async function createKernelAccountClient<
     }
   }
 
-  const ecdsaValidator = await signerToEcdsaValidator(walletClient, {
+  const ecdsaValidator = await signerToEcdsaValidator(walletClient as any, {
     signer: account as LocalAccount,
     entryPoint: entryPoint!,
     kernelVersion,
   })
 
-  const kernelAccount = await createKernelAccount(walletClient as any as PublicClient, {
+  const kernelAccount = await createKernelAccount(walletClient as any, {
     plugins: {
       sudo: ecdsaValidator,
     },

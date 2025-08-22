@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import { type Hex } from 'viem'
+
+// Custom Zod schemas for Viem compatibility
+export const hexSchema = z.string().regex(/^0x[a-fA-F0-9]+$/).transform((val) => val as Hex)
+export const addressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((val) => val as Hex)
 
 // Simple generic schemas - inline for now to avoid import issues
 const ServerConfigSchema = z.object({
@@ -45,11 +50,8 @@ const DatabaseConfigSchema = z.object({
 // Eco-solver specific schemas
 export const SolverConfigSchema = z.object({
   chainID: z.number(),
-  inboxAddress: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .optional(),
-  network: z.string(),
+  inboxAddress: addressSchema.optional(),
+  network: z.string().optional(),
   targets: z.record(
     z.string(),
     z.object({
@@ -58,7 +60,7 @@ export const SolverConfigSchema = z.object({
       minBalance: z.number(),
       targetBalance: z.number().optional(),
     }),
-  ),
+  ).optional(),
   fee: z
     .object({
       limit: z.object({
@@ -69,23 +71,17 @@ export const SolverConfigSchema = z.object({
       constants: z.any(),
     })
     .optional(),
-  averageBlockTime: z.number(),
+  averageBlockTime: z.number().optional(),
   gasOverhead: z.number().optional(),
 })
 
 export const IntentSourceSchema = z.object({
-  network: z.string(),
+  network: z.string().optional(),
   chainID: z.number(),
-  sourceAddress: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .optional(),
-  inbox: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .optional(),
-  tokens: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
-  provers: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/)).optional(),
+  sourceAddress: addressSchema.optional(),
+  inbox: addressSchema.optional(),
+  tokens: z.array(addressSchema).optional(),
+  provers: z.array(addressSchema).optional(),
   config: z
     .object({
       ecoRoutes: z.enum(['append', 'replace']),
@@ -138,10 +134,7 @@ export const RedisConfigSchema = z.object({
           removeOnComplete: z.boolean(),
           removeOnFail: z.boolean(),
           attempts: z.number(),
-          backoff: z.object({
-            type: z.string(),
-            delay: z.number(),
-          }),
+          backoff: z.any().optional(),
         })
         .optional(),
       watchJobConfig: z
@@ -149,10 +142,7 @@ export const RedisConfigSchema = z.object({
           removeOnComplete: z.boolean(),
           removeOnFail: z.boolean(),
           attempts: z.number(),
-          backoff: z.object({
-            type: z.string(),
-            delay: z.number(),
-          }),
+          backoff: z.any().optional(),
         })
         .optional(),
     })
@@ -176,17 +166,7 @@ export const IntervalsConfigSchema = z.object({
     .object({
       repeatOpts: z.object({
         every: z.number(),
-      }),
-      jobTemplate: z.object({
-        name: z.string(),
-        data: z.record(z.any()),
-      }),
-    })
-    .optional(),
-  defaults: z
-    .object({
-      repeatOpts: z.object({
-        every: z.number(),
+        immediately: z.boolean().optional(),
       }),
       jobTemplate: z.object({
         name: z.string(),
@@ -195,10 +175,25 @@ export const IntervalsConfigSchema = z.object({
           removeOnComplete: z.boolean(),
           removeOnFail: z.boolean(),
           attempts: z.number(),
-          backoff: z.object({
-            type: z.string(),
-            delay: z.number(),
-          }),
+          backoff: z.any().optional(),
+        }).optional(),
+      }),
+    })
+    .optional(),
+  defaults: z
+    .object({
+      repeatOpts: z.object({
+        every: z.number(),
+        immediately: z.boolean().optional(),
+      }),
+      jobTemplate: z.object({
+        name: z.string(),
+        data: z.record(z.any()),
+        opts: z.object({
+          removeOnComplete: z.boolean(),
+          removeOnFail: z.boolean(),
+          attempts: z.number(),
+          backoff: z.any().optional(),
         }),
       }),
     })
@@ -213,10 +208,13 @@ export const LoggerConfigSchema = z.object({
       pinoHttp: z.object({
         level: z.string(),
         useLevelLabels: z.boolean(),
-        redact: z.object({
-          paths: z.array(z.string()),
-          remove: z.boolean().optional(),
-        }),
+        redact: z.union([
+          z.array(z.string()),
+          z.object({
+            paths: z.array(z.string()),
+            remove: z.boolean().optional(),
+          })
+        ]).optional(),
       }),
     })
     .optional(),
@@ -254,20 +252,24 @@ export const IntentConfigSchema = z.object({
   intentFundedRetries: z.number(),
   intentFundedRetryDelayMs: z.number(),
   defaultGasOverhead: z.number(),
+  isNativeETHSupported: z.boolean().optional(),
 })
 
 // CCTP configuration schema
 export const CCTPConfigSchema = z.object({
-  apiUrl: z.string().url(),
+  apiUrl: z.string().url().optional(),
+  maxSlippage: z.number().optional(),
+  fastTransferEnabled: z.boolean().optional(),
+  usdcAddresses: z.record(z.string(), addressSchema).optional(),
   chains: z.array(
     z.object({
       chainId: z.number(),
       domain: z.number(),
-      token: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-      tokenMessenger: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-      messageTransmitter: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+      token: addressSchema,
+      tokenMessenger: addressSchema,
+      messageTransmitter: addressSchema,
     }),
-  ),
+  ).optional(),
 })
 
 // Database configuration schema specific to eco-solver
@@ -282,6 +284,21 @@ export const EcoSolverDatabaseConfigSchema = z.object({
   uri: z.string(),
   dbName: z.string(),
   enableJournaling: z.boolean(),
+})
+
+// ETH configuration schema
+export const EthConfigSchema = z.object({
+  simpleAccount: z.object({
+    signerPrivateKey: hexSchema,
+    minEthBalanceWei: z.string(),
+    contracts: z.record(z.string(), z.any()),
+    walletAddr: addressSchema.optional(),
+  }),
+  pollingInterval: z.number(),
+  claimant: addressSchema.optional(),
+  nonce: z.object({
+    update_interval_ms: z.number(),
+  }).optional(),
 })
 
 // Complete eco-solver config schema using generic base schemas
@@ -299,7 +316,9 @@ export const EcoSolverConfigSchema = z.object({
   redis: RedisConfigSchema.optional(),
   intervals: IntervalsConfigSchema.optional(),
   logger: LoggerConfigSchema.optional(),
-  intentConfigs: IntentConfigSchema.optional(),
+  intentConfigs: IntentConfigSchema.extend({
+    skipBalanceCheck: z.boolean().optional(),
+  }).optional(),
 
   // External service configurations
   fulfill: z.any().optional(), // Define more specific schemas as needed
@@ -307,13 +326,21 @@ export const EcoSolverConfigSchema = z.object({
   safe: z.any().optional(),
   launchDarkly: z.any().optional(),
   analytics: z.any().optional(),
-  eth: z.any().optional(),
+  eth: EthConfigSchema.optional(),
   CCTP: CCTPConfigSchema.optional(),
   CCTPV2: CCTPConfigSchema.optional(),
   CCTPLiFi: CCTPConfigSchema.optional(),
   hyperlane: z
     .object({
       useHyperlaneDefaultHook: z.boolean(),
+      chains: z.record(
+        z.string(),
+        z.object({
+          mailbox: addressSchema,
+          aggregationHook: addressSchema,
+          hyperlaneAggregationHook: addressSchema,
+        })
+      ),
     })
     .optional(),
 
@@ -321,6 +348,25 @@ export const EcoSolverConfigSchema = z.object({
   quotesConfig: z
     .object({
       intentExecutionTypes: z.array(z.string()),
+    })
+    .optional(),
+  liquidityManager: z
+    .object({
+      enabled: z.boolean().optional(),
+      maxQuoteSlippage: z.number().optional(),
+      swapSlippage: z.number().optional(),
+      coreTokens: z.array(z.object({
+        token: addressSchema,
+        chainID: z.number(),
+      })).optional(),
+      intervalDuration: z.number().optional(),
+      targetSlippage: z.number().optional(),
+      thresholds: z.object({
+        surplus: z.number().optional(),
+        shortage: z.number().optional(),
+        deficit: z.number().optional(),
+      }).optional(),
+      walletStrategies: z.record(z.string(), z.any()).optional(),
     })
     .optional(),
   gaslessIntentdAppIDs: z.array(z.string()).optional(),
@@ -359,9 +405,11 @@ export const EcoSolverConfigSchema = z.object({
     })
     .optional(),
   externalAPIs: z.record(z.any()).optional(),
+  crowdLiquidity: z.any().optional(),
   squid: z
     .object({
-      baseUrl: z.string().url(),
+      baseUrl: z.string().url().optional(),
+      integratorId: z.string().optional(),
     })
     .optional(),
   everclear: z
@@ -373,9 +421,23 @@ export const EcoSolverConfigSchema = z.object({
     .object({
       apiOptions: z.object({
         baseUrl: z.string().url(),
+        apiKey: z.string().optional(),
+        apiSecret: z.string().optional(),
+        apiPath: z.string().optional(),
+        passPhrase: z.string().optional(),
+        socketUrl: z.string().url().optional(),
+        addVersionToUrl: z.boolean().optional(),
+        idempotentIDHeader: z.string().optional(),
+        apiKeyHeader: z.string().optional(),
+        apiSecretHeader: z.string().optional(),
       }),
     })
     .optional(),
+
+  // Additional missing config sections from eco-config service
+  warpRoutes: z.any().optional(),
+  liFi: z.any().optional(),
+  cctpLiFi: z.any().optional(),
 })
 
 export type EcoSolverConfigType = z.infer<typeof EcoSolverConfigSchema>
@@ -384,7 +446,16 @@ export type IntentSource = z.infer<typeof IntentSourceSchema>
 export type RpcConfig = z.infer<typeof RpcConfigSchema>
 export type RedisConfig = z.infer<typeof RedisConfigSchema>
 export type IntentConfig = z.infer<typeof IntentConfigSchema>
+export type EcoIntentConfig = z.infer<typeof IntentConfigSchema> & { skipBalanceCheck?: boolean }
 export type CCTPConfig = z.infer<typeof CCTPConfigSchema>
 export type CCTPLiFiConfig = z.infer<typeof CCTPConfigSchema>
 export type CCTPV2Config = z.infer<typeof CCTPConfigSchema>
 export type EcoSolverDatabaseConfig = z.infer<typeof EcoSolverDatabaseConfigSchema>
+
+// Target config type (the object structure for each target)
+export type TargetConfig = {
+  contractType: 'erc20' | 'erc721' | 'erc1155'
+  selectors: string[]
+  minBalance: number
+  targetBalance?: number
+}

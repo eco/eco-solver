@@ -68,7 +68,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
     }
 
     const allIntentFundedLogs = await client.getContractEvents({
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
       strict: true,

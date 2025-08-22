@@ -9,7 +9,7 @@ import { Chain } from 'viem'
 
 @Injectable()
 export class SimpleAccountClientService extends ViemMultichainClientService<
-  SimpleAccountClient,
+  any,
   SimpleAccountClientConfig
 > {
   constructor(

@@ -4,8 +4,8 @@ import { Hex } from 'viem'
 export type TokenConfig = {
   address: Hex
   chainId: number
-  minBalance: number
-  targetBalance: number
+  minBalance?: number
+  targetBalance?: number
   type: TargetContractType
 }
 

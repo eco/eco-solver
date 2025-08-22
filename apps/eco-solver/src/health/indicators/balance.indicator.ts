@@ -29,7 +29,8 @@ export class BalanceHealthIndicator extends HealthIndicator {
   }
 
   async checkBalances(): Promise<HealthIndicatorResult> {
-    const minEthBalanceWei = this.configService.getEth().simpleAccount.minEthBalanceWei
+    const minEthBalanceWeiStr = this.configService.getEth().simpleAccount.minEthBalanceWei
+    const minEthBalanceWei = BigInt(minEthBalanceWeiStr)
     const [accounts, solvers, sources] = await Promise.all([
       this.getAccount(),
       this.getSolvers(),
@@ -58,7 +59,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
   }
 
   private async getAccount(): Promise<any[]> {
-    const minEthBalanceWei = this.configService.getEth().simpleAccount.minEthBalanceWei
+    const minEthBalanceWei = Number(this.configService.getEth().simpleAccount.minEthBalanceWei)
     const accountBalance: {
       kernelAddress: `0x${string}`
       eocAddress: `0x${string}`
@@ -99,13 +100,22 @@ export class BalanceHealthIndicator extends HealthIndicator {
     }> = []
     const IntentSources = this.configService.getIntentSources()
     for (const IntentSource of IntentSources) {
+      if (!IntentSource.chainID || !IntentSource.tokens) continue
+
       const client = await this.kernelAccountClientService.getClient(IntentSource.chainID)
       const accountAddress = client.kernelAccountAddress
 
-      const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens)
+      const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens as Hex[])
       const sourceBalances = this.joinBalance(balances)
 
-      sources.push({ ...IntentSource, accountAddress, tokens: sourceBalances })
+      sources.push({ 
+        accountAddress,
+        tokens: sourceBalances,
+        chainID: IntentSource.chainID,
+        network: IntentSource.network as Network,
+        sourceAddress: IntentSource.sourceAddress as Hex,
+        provers: (IntentSource.provers || []) as Hex[]
+      })
     }
     sources.reverse()
     return sources
@@ -139,9 +149,11 @@ export class BalanceHealthIndicator extends HealthIndicator {
         })
 
         solverBalances.push({
-          ...solver,
           accountAddress,
           tokens: sourceBalancesString,
+          inboxAddress: solver.inboxAddress as Hex,
+          network: solver.network as Network,
+          chainID: solver.chainID,
         })
       }),
     )

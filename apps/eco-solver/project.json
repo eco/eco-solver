@@ -6,7 +6,7 @@
   "tags": ["scope:eco-solver", "type:app"],
   "targets": {
     "build": {
-      "executor": "@nx/js:swc",
+      "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/apps/eco-solver",
@@ -17,7 +17,6 @@
           "apps/eco-solver/**/*.graphql",
           "apps/eco-solver/**/*.proto"
         ],
-        "swcrc": ".swcrc",
         "buildLibsFromSource": false,
         "updateBuildableProjectDepsInPackageJson": true
       },
@@ -38,15 +37,6 @@
         },
         "production": {
           "buildTarget": "eco-solver:build:production"
-        }
-      }
-    },
-    "typecheck": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "tsc --noEmit -p {options.tsConfig}",
-        "args": {
-          "tsConfig": "apps/eco-solver/tsconfig.app.json"
         }
       }
     },

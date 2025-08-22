@@ -4,7 +4,7 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoConfigService } from '@libs/solver-config'
-import { Solver, TargetContract } from '@libs/solver-config'
+import { Solver, TargetConfig } from '@libs/solver-config'
 import { EcoError } from '../common/errors/eco-error'
 import { DecodeFunctionDataReturnType } from 'viem'
 import { Hex } from 'viem'
@@ -19,7 +19,7 @@ import { EcoAnalyticsService } from '@eco-solver/analytics'
 export interface TransactionTargetData {
   decodedFunctionData: DecodeFunctionDataReturnType
   selector: Hex
-  targetConfig: TargetContract
+  targetConfig: TargetConfig
 }
 
 /**

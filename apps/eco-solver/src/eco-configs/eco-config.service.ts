@@ -12,7 +12,7 @@ import {
   ProverEcoRoutesProverAppend,
   SafeType,
   Solver,
-} from './eco-config.types'
+} from '@libs/solver-config'
 import { Chain, getAddress, zeroAddress } from 'viem'
 import { Hex } from 'viem'
 import { addressKeys } from '@eco-solver/common/viem/utils'
@@ -404,7 +404,7 @@ export class EcoConfigService {
    * @returns the supported chains for the event
    */
   getSupportedChains(): bigint[] {
-    return _.entries(this.getSolvers()).map(([, solver]) => BigInt(solver.chainID))
+    return _.entries(this.getSolvers()).map(([, solver]) => BigInt((solver as any).chainID))
   }
 
   /**

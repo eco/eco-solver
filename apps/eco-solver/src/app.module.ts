@@ -93,7 +93,7 @@ function getPino() {
           useFactory: async (configService: EcoSolverConfigService) => {
             const loggerConfig = configService.getLoggerConfig()
             return {
-              pinoHttp: loggerConfig?.pinoConfig?.pinoHttp,
+              pinoHttp: loggerConfig?.pinoConfig?.pinoHttp as any,
             }
           },
         }),

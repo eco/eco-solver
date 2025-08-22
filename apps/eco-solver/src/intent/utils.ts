@@ -1,7 +1,7 @@
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { getFunctionBytes } from '@eco-solver/common/viem/contracts'
 import { CallDataInterface, getERCAbi } from '@eco-solver/contracts'
-import { Solver, TargetContract } from '@libs/solver-config'
+import { Solver, TargetConfig } from '@libs/solver-config'
 import { TransactionTargetData } from '@eco-solver/intent/utils-intent.service'
 import { includes } from 'lodash'
 import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
@@ -27,7 +27,7 @@ export function getTransactionTargetData(
   solver: Solver,
   call: CallDataInterface,
 ): TransactionTargetData | null {
-  const targetConfig = solver.targets[call.target as string] as TargetContract
+  const targetConfig = solver.targets[call.target as string] as TargetConfig
   if (!targetConfig) {
     //shouldn't happen since we do this.targetsSupported(model, solver) before this call
     throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)

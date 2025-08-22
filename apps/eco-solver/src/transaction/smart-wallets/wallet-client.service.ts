@@ -14,6 +14,7 @@ import { SignerService } from '@eco-solver/sign/signer.service'
 import { EcoConfigService } from '@libs/solver-config'
 import { ViemMultichainClientService } from '../viem_multichain_client.service'
 import { ChainsSupported } from '@eco-solver/common/chains/supported'
+import { getTransport } from '@eco-solver/common/chains/transport'
 
 export abstract class WalletClientService<
   transport extends Transport = Transport,
@@ -31,16 +32,22 @@ export abstract class WalletClientService<
     accountOrAddress,
     undefined
   > = WalletClientConfig<transport, chain, accountOrAddress, undefined>,
-> extends ViemMultichainClientService<instance, config> {
+> extends ViemMultichainClientService<any, config> {
   async getPublicClient(chainID: number) {
     const chain = extractChain({
       chains: ChainsSupported,
       id: chainID,
     })
 
-    const config = await super.buildChainConfig(chain)
-
-    return createPublicClient(config)
+    // Create a pure public client config without any account information
+    const { rpcUrls, config } = this.ecoConfigService.getRpcUrls(chain.id)
+    const rpcTransport = getTransport(rpcUrls, config)
+    
+    return createPublicClient({
+      transport: rpcTransport,
+      chain: chain,
+      pollingInterval: this.ecoConfigService.getEth().pollingInterval,
+    })
   }
 
   abstract getAccount(): Promise<accountOrAddress>

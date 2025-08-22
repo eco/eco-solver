@@ -38,7 +38,7 @@ export class KernelAccountClientServiceBase<
     EthereumProvider | WalletClient<Transport, Chain | undefined, Account> | LocalAccount
   >,
 > extends ViemMultichainClientService<
-  KernelAccountClient<entryPointVersion>,
+  any,
   KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>
 > {
   protected logger = new Logger(KernelAccountClientServiceBase.name)

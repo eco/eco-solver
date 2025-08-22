@@ -21,7 +21,7 @@ import { LoggerModule } from 'nestjs-pino'
           pinoHttp: {
             ...loggerConfig.pinoConfig.pinoHttp,
             level: 'warn',
-          },
+          } as any,
         }
       },
     }),

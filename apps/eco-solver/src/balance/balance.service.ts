@@ -200,7 +200,7 @@ export class BalanceService implements OnApplicationBootstrap {
     if (!intentSource) {
       return undefined
     }
-    return this.fetchTokenBalances(chainID, intentSource.tokens)
+    return this.fetchTokenBalances(chainID, intentSource.tokens as `0x${string}`[])
   }
 
   @Cacheable()

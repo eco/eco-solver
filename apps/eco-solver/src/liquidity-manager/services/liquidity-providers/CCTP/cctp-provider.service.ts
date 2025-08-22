@@ -268,10 +268,12 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const publicClient = await this.walletClientService.getPublicClient(chainId)
 
     const txHash = await walletClient.writeContract({
+      account: walletClient.account,
       abi: CCTPMessageTransmitterABI,
       address: cctpChainConfig.messageTransmitter,
       functionName: 'receiveMessage',
       args: [messageBytes, attestation],
+      chain: null,
     })
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })

@@ -166,7 +166,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       { operation: 'waitForReceipt', txHash },
     )
 
-    const { messageId } = this.getMessageFromReceipt(receipt)
+    const { messageId } = this.getMessageFromReceipt(receipt as any)
 
     this.logger.log(
       EcoLogMessage.withId({
@@ -287,7 +287,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const transferRemoteTx: TransactionRequest = {
       to: warpToken.warpContract,
-      value: transferRemoteFee,
+      value: transferRemoteFee as bigint,
       data: transferRemoteData,
     }
 

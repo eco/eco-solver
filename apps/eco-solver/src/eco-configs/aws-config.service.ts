@@ -1,5 +1,5 @@
 import { SecretsManager } from '@aws-sdk/client-secrets-manager'
-import { AwsCredential } from './eco-config.types'
+import { AwsCredential } from '@libs/solver-config'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ConfigLoader } from '@libs/solver-config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
