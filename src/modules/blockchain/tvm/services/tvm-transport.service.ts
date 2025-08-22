@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, Optional } from '@nestjs/common';
 
 import { TronWeb } from 'tronweb';
+import { Address } from 'viem';
 
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging';
@@ -107,10 +108,30 @@ export class TvmTransportService implements OnModuleInit {
   }
 
   toHex(address: string): string {
+    // If already hex (starts with 0x), remove the prefix and return
+    if (address.startsWith('0x')) {
+      return address.substring(2);
+    }
+    // Otherwise, assume it's a Base58 address and convert
     return TronWeb.address.toHex(address);
   }
 
   fromHex(hexAddress: string): string {
-    return TronWeb.address.fromHex(hexAddress);
+    // Remove 0x prefix if present
+    const cleanHex = hexAddress.startsWith('0x') ? hexAddress.substring(2) : hexAddress;
+    return TronWeb.address.fromHex(cleanHex);
+  }
+
+  toEvmHex(address: string): Address {
+    // If already hex (starts with 0x), remove the prefix and return
+    if (address.startsWith('0x')) {
+      return address.substring(2) as Address;
+    }
+    // Otherwise, assume it's a Base58 address and convert
+    return ('0x' + TronWeb.address.toHex(address).substring(2)) as Address;
+  }
+
+  fromEvmHex(hexAddress: Address): string {
+    return TronWeb.address.fromHex('41' + hexAddress.substring(2));
   }
 }

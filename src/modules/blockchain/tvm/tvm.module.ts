@@ -4,20 +4,16 @@ import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { ProverModule } from '@/modules/prover/prover.module';
 
 import { TvmListenersManagerService } from './listeners/tvm-listeners-manager.service';
+import { BasicWalletModule } from './wallets/basic-wallet';
 import {
   TvmExecutorService,
   TvmReaderService,
   TvmTransportService,
   TvmWalletManagerService,
 } from './services';
-import { BasicWalletModule } from './wallets/basic-wallet';
 
 @Module({
-  imports: [
-    BasicWalletModule,
-    ProverModule,
-    forwardRef(() => FulfillmentModule),
-  ],
+  imports: [BasicWalletModule, ProverModule, forwardRef(() => FulfillmentModule)],
   providers: [
     TvmTransportService,
     TvmReaderService,

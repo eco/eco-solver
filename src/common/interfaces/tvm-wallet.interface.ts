@@ -1,3 +1,8 @@
+import { TronWeb } from 'tronweb';
+import { Abi, ContractFunctionName } from 'viem';
+
+import { ContractFunctionParameter } from '@/common/abstractions/base-tvm-wallet.abstract';
+
 export interface TvmCall {
   to: string; // Tron address (base58 format)
   value?: bigint; // Amount in SUN
@@ -15,12 +20,19 @@ export interface TvmTransactionOptions {
 }
 
 export interface ITvmWallet {
+  tronWeb: TronWeb;
+
   getAddress(): Promise<string>; // Returns base58 Tron address
   sendTrx(to: string, amount: bigint): Promise<string>; // Send TRX
-  triggerSmartContract(
+
+  triggerSmartContract<
+    const abi extends Abi | readonly unknown[],
+    functionName extends ContractFunctionName<abi, 'payable' | 'nonpayable'>,
+  >(
     contractAddress: string,
-    functionSelector: string,
-    parameter: any[],
+    abi: abi,
+    functionSelector: functionName,
+    parameter: ContractFunctionParameter[],
     options?: TvmTransactionOptions,
-  ): Promise<string>; // Call smart contract
+  ): Promise<string>;
 }

@@ -27,7 +27,10 @@ export class TvmWalletManagerService {
     }
   }
 
-  async getWalletAddress(chainId: number | string, walletType: TvmWalletType = 'basic'): Promise<string> {
+  async getWalletAddress(
+    chainId: number | string,
+    walletType: TvmWalletType = 'basic',
+  ): Promise<string> {
     const wallet = this.createWallet(chainId, walletType);
     return wallet.getAddress();
   }

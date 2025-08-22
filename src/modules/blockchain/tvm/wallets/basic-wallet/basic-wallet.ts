@@ -1,13 +1,17 @@
 import { TronWeb } from 'tronweb';
+import { Abi, ContractFunctionName, erc20Abi, getAbiItem, toFunctionSignature } from 'viem';
 
-import { BaseTvmWallet } from '@/common/abstractions/base-tvm-wallet.abstract';
+import {
+  BaseTvmWallet,
+  ContractFunctionParameter,
+} from '@/common/abstractions/base-tvm-wallet.abstract';
 import { TvmTransactionOptions } from '@/common/interfaces/tvm-wallet.interface';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 export class BasicWallet extends BaseTvmWallet {
   constructor(
-    private readonly tronWeb: TronWeb,
+    public readonly tronWeb: TronWeb,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {
@@ -68,16 +72,20 @@ export class BasicWallet extends BaseTvmWallet {
     }
   }
 
-  async triggerSmartContract(
+  async triggerSmartContract<
+    const abi extends Abi | readonly unknown[],
+    functionName extends ContractFunctionName<abi, 'payable' | 'nonpayable'>,
+  >(
     contractAddress: string,
-    functionSelector: string,
-    parameter: any[],
+    abi: abi,
+    functionName: functionName,
+    parameter: ContractFunctionParameter[],
     options?: TvmTransactionOptions,
   ): Promise<string> {
     const span = this.otelService.startSpan('tvm.wallet.triggerSmartContract', {
       attributes: {
         'tvm.contract_address': contractAddress,
-        'tvm.function_selector': functionSelector,
+        'tvm.function_name': functionName,
         'tvm.operation': 'triggerSmartContract',
         'tvm.has_call_value': !!options?.callValue,
         'tvm.fee_limit': options?.feeLimit || 150000000, // Default 150 TRX
@@ -85,6 +93,9 @@ export class BasicWallet extends BaseTvmWallet {
     });
 
     try {
+      const abiItem = getAbiItem({ abi, name: functionName } as any);
+      const functionSelector = toFunctionSignature(abiItem as any);
+
       const fromAddress = await this.getAddress();
       span.setAttribute('tvm.from_address', fromAddress);
 
@@ -151,7 +162,7 @@ export class BasicWallet extends BaseTvmWallet {
       { type: 'uint256', value: amount.toString() },
     ];
 
-    return this.triggerSmartContract(tokenAddress, 'approve(address,uint256)', parameter, options);
+    return this.triggerSmartContract(tokenAddress, erc20Abi, 'approve', parameter, options);
   }
 
   /**
@@ -168,6 +179,6 @@ export class BasicWallet extends BaseTvmWallet {
       { type: 'uint256', value: amount.toString() },
     ];
 
-    return this.triggerSmartContract(tokenAddress, 'transfer(address,uint256)', parameter, options);
+    return this.triggerSmartContract(tokenAddress, erc20Abi, 'transfer', parameter, options);
   }
 }

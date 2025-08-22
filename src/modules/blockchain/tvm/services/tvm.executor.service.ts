@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
-import { hashIntent } from '@eco-foundation/routes-ts';
+import { hashIntent, InboxAbi } from '@eco-foundation/routes-ts';
 import * as api from '@opentelemetry/api';
+import { erc20Abi } from 'viem';
 
 import {
   BaseChainExecutor,
@@ -56,6 +57,10 @@ export class TvmExecutorService extends BaseChainExecutor {
       const claimant = await wallet.getAddress();
       span.setAttribute('tvm.claimant_address', claimant);
 
+      // Convert to hex with a 0x prefix for compatibility with other parts of the system
+      const claimantHexRaw = this.transportService.toHex(claimant);
+      const claimantHex = claimantHexRaw.startsWith('0x') ? claimantHexRaw : '0x' + claimantHexRaw;
+
       // Get prover information
       const sourceChainIdNum = typeof sourceChainId === 'string' ? 0 : sourceChainId; // Use 0 for non-numeric chains
       const prover = this.proverService.getProver(sourceChainIdNum, intent.reward.prover);
@@ -64,9 +69,10 @@ export class TvmExecutorService extends BaseChainExecutor {
       }
 
       const destChainIdNum = typeof destinationChainId === 'string' ? 0 : destinationChainId;
-      const proverAddr = prover.getContractAddress(destChainIdNum);
-      const proverFee = await prover.getFee(intent, claimant as any);
-      const proverMessageData = await prover.getMessageData(intent);
+      const proverAddrRaw = prover.getContractAddress(destChainIdNum);
+      // Ensure prover address has 0x prefix for consistency
+      const proverAddr = proverAddrRaw.startsWith('0x') ? proverAddrRaw : '0x' + proverAddrRaw;
+      const proverFee = await prover.getFee(intent, claimantHex as any);
 
       span.setAttributes({
         'tvm.prover_address': proverAddr,
@@ -82,20 +88,18 @@ export class TvmExecutorService extends BaseChainExecutor {
       const approvalTxIds: string[] = [];
       span.setAttribute('tvm.approval_count', intent.route.tokens.length);
 
-      for (const { token, amount } of intent.route.tokens) {
+      for (const { token: tokenHex, amount } of intent.route.tokens) {
+        const token = this.transportService.fromHex('41' + tokenHex.substring(2));
+
         span.addEvent('tvm.token.approving', {
           token_address: token,
           amount: amount.toString(),
         });
 
-        const txId = await wallet.triggerSmartContract(
-          token,
-          'approve(address,uint256)',
-          [
-            { type: 'address', value: this.transportService.toHex(inboxAddr) },
-            { type: 'uint256', value: amount.toString() },
-          ],
-        );
+        const txId = await wallet.triggerSmartContract(token, erc20Abi, 'approve', [
+          { type: 'address', value: this.transportService.toHex(inboxAddr) },
+          { type: 'uint256', value: amount.toString() },
+        ]);
 
         approvalTxIds.push(txId);
         span.addEvent('tvm.token.approved', { transaction_id: txId });
@@ -106,46 +110,30 @@ export class TvmExecutorService extends BaseChainExecutor {
         await this.waitForTransactions(approvalTxIds, destinationChainId);
       }
 
-      // Prepare parameters for fulfillAndProve
-      const fulfillParams = [
-        // Route struct
-        {
-          type: 'tuple',
-          value: {
-            salt: intent.route.salt,
-            source: intent.route.source.toString(),
-            destination: intent.route.destination.toString(),
-            inbox: this.transportService.toHex(intent.route.inbox),
-            tokens: intent.route.tokens.map(t => ({
-              token: this.transportService.toHex(t.token),
-              amount: t.amount.toString(),
-            })),
-            calls: intent.route.calls.map(c => ({
-              target: this.transportService.toHex(c.target),
-              value: c.value.toString(),
-              data: c.data,
-            })),
-          },
-        },
-        { type: 'bytes32', value: rewardHash },
-        { type: 'address', value: this.transportService.toHex(claimant) },
-        { type: 'bytes32', value: intentHash },
-        { type: 'address', value: this.transportService.toHex(proverAddr) },
-        { type: 'bytes', value: proverMessageData },
-      ];
-
       span.addEvent('tvm.fulfillment.submitting');
 
-      // Execute fulfillAndProve
-      const fulfillTxId = await wallet.triggerSmartContract(
-        inboxAddr,
-        'fulfillAndProve(tuple,bytes32,address,bytes32,address,bytes)',
-        fulfillParams,
-        {
-          callValue: Number(proverFee), // Convert bigint to number for TronWeb
-          feeLimit: 300000000, // 300 TRX fee limit
-        },
-      );
+      const contract = await wallet.tronWeb.contract(InboxAbi, inboxAddr);
+      // the first arg is the nested tuple as arrays in field order
+      const fulfillTxId = await contract
+        .fulfill(
+          [
+            intent.route.salt,
+            intent.route.source,
+            intent.route.destination,
+            this.transportService.fromEvmHex(intent.route.inbox),
+            intent.route.tokens.map((t) => [this.transportService.fromEvmHex(t.token), t.amount]),
+            intent.route.calls.map((c) => [
+              this.transportService.fromEvmHex(c.target),
+              c.data,
+              c.value,
+            ]),
+          ],
+          rewardHash,
+          this.transportService.toHex(claimant),
+          intentHash,
+          '410000000000000000000000000000000000000000',
+        )
+        .send({ feeLimit: 150e6 });
 
       span.setAttribute('tvm.transaction_hash', fulfillTxId);
       span.addEvent('tvm.fulfillment.submitted');
@@ -191,9 +179,7 @@ export class TvmExecutorService extends BaseChainExecutor {
 
   async getBalance(address: string, chainId: number | string): Promise<bigint> {
     const client = this.transportService.getClient(chainId);
-    const hexAddress = address.startsWith('T') 
-      ? this.transportService.toHex(address)
-      : address;
+    const hexAddress = address.startsWith('T') ? this.transportService.toHex(address) : address;
     const balance = await client.trx.getBalance(hexAddress);
     return BigInt(balance);
   }
@@ -217,10 +203,10 @@ export class TvmExecutorService extends BaseChainExecutor {
       const txInfo = await client.trx.getTransactionInfo(txHash);
 
       const isConfirmed = txInfo && txInfo.blockNumber && txInfo.receipt?.result === 'SUCCESS';
-      
+
       span.setAttribute('tvm.transaction_confirmed', isConfirmed);
       span.setStatus({ code: api.SpanStatusCode.OK });
-      
+
       return isConfirmed;
     } catch (error) {
       span.recordException(error as Error);
@@ -232,8 +218,8 @@ export class TvmExecutorService extends BaseChainExecutor {
   }
 
   private async waitForTransaction(
-    txId: string, 
-    chainId: number | string, 
+    txId: string,
+    chainId: number | string,
     maxAttempts: number = 30,
   ): Promise<boolean> {
     for (let i = 0; i < maxAttempts; i++) {
@@ -241,28 +227,30 @@ export class TvmExecutorService extends BaseChainExecutor {
         return true;
       }
       // Wait 2 seconds between checks
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
     return false;
   }
 
-  private async waitForTransactions(
-    txIds: string[], 
-    chainId: number | string,
-  ): Promise<void> {
-    await Promise.all(txIds.map(txId => this.waitForTransaction(txId, chainId)));
+  private async waitForTransactions(txIds: string[], chainId: number | string): Promise<void> {
+    await Promise.all(txIds.map((txId) => this.waitForTransaction(txId, chainId)));
   }
 
   private getChainId(chainId: bigint | number | string): number | string {
     if (typeof chainId === 'bigint') {
       // Check if it's a known TVM chain ID
+      const chainIdNum = Number(chainId);
+      if (chainIdNum === 728126428) {
+        // 0x2b6653dc
+        return 'tron-mainnet';
+      }
       const chainIdStr = chainId.toString();
       if (chainIdStr === '1' || chainIdStr === 'tron-mainnet') {
         return 'tron-mainnet';
       } else if (chainIdStr === '2' || chainIdStr === 'tron-testnet') {
         return 'tron-testnet';
       }
-      return chainIdStr;
+      return chainIdNum;
     }
     return chainId;
   }
