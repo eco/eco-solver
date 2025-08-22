@@ -1,63 +1,58 @@
-import { ConfigSource } from '../interfaces/config-source.interface'
-import {
-  type EcoSolverConfigType,
-  Solver,
-  IntentSource,
-  EcoSolverDatabaseConfig,
-} from '../schemas/eco-solver.schema'
+import { ConfigSource } from '../interfaces/config-source.interface';
+import { type EcoSolverConfigType, Solver, IntentSource, EcoSolverDatabaseConfig } from '../schemas/eco-solver.schema';
 export declare class EcoSolverConfigService {
-  private readonly configSources
-  private readonly logger
-  private mergedConfig
-  private initialized
-  constructor(configSources: ConfigSource[])
-  initializeConfig(): Promise<void>
-  get<T>(key: string): T
-  getRpcConfig(): EcoSolverConfigType['rpcs']
-  getAwsConfigs(): EcoSolverConfigType['aws']
-  getCache(): EcoSolverConfigType['cache']
-  getServer(): EcoSolverConfigType['server']
-  getDatabaseConfig(): EcoSolverDatabaseConfig | undefined
-  getRedisConfig(): EcoSolverConfigType['redis']
-  getSolvers(): Record<number, Solver>
-  getSolver(chainID: number | bigint): Solver | undefined
-  getIntentSources(): IntentSource[]
-  getIntentSource(chainID: number): IntentSource | undefined
-  getIntervals(): EcoSolverConfigType['intervals']
-  getIntentConfigs(): EcoSolverConfigType['intentConfigs']
-  getQuotesConfig(): EcoSolverConfigType['quotesConfig']
-  getGaslessIntentdAppIDs(): string[]
-  getWhitelist(): EcoSolverConfigType['whitelist']
-  getFulfillmentEstimate(): EcoSolverConfigType['fulfillmentEstimate']
-  getGasEstimations(): EcoSolverConfigType['gasEstimations']
-  getIndexer(): EcoSolverConfigType['indexer']
-  getWithdraws(): EcoSolverConfigType['withdraws']
-  getSendBatch(): EcoSolverConfigType['sendBatch']
-  getCCTP(): EcoSolverConfigType['CCTP']
-  getCCTPV2(): EcoSolverConfigType['CCTPV2']
-  getHyperlane(): EcoSolverConfigType['hyperlane']
-  getExternalAPIs(): EcoSolverConfigType['externalAPIs']
-  getSquid(): EcoSolverConfigType['squid']
-  getEverclear(): EcoSolverConfigType['everclear']
-  getSolverRegistrationConfig(): EcoSolverConfigType['solverRegistrationConfig']
-  getFulfill(): EcoSolverConfigType['fulfill']
-  getKmsConfig(): EcoSolverConfigType['kms']
-  getSafe(): EcoSolverConfigType['safe']
-  getLaunchDarkly(): EcoSolverConfigType['launchDarkly']
-  getAnalyticsConfig(): EcoSolverConfigType['analytics']
-  getEth(): EcoSolverConfigType['eth']
-  getMongooseUri(): string
-  getLoggerConfig(): EcoSolverConfigType['logger']
-  private ensureInitialized
-  getDebugInfo(): {
-    initialized: boolean
-    sourcesCount: number
-    sources: {
-      name: string
-      priority: number
-      enabled: boolean
-    }[]
-  }
-  private processProvers
-  private addressKeys
+    private readonly configSources;
+    private readonly logger;
+    private mergedConfig;
+    private initialized;
+    constructor(configSources: ConfigSource[]);
+    initializeConfig(): Promise<void>;
+    get<T>(key: string): T;
+    getRpcConfig(): EcoSolverConfigType['rpcs'];
+    getAwsConfigs(): EcoSolverConfigType['aws'];
+    getCache(): EcoSolverConfigType['cache'];
+    getServer(): EcoSolverConfigType['server'];
+    getDatabaseConfig(): EcoSolverDatabaseConfig | undefined;
+    getRedisConfig(): EcoSolverConfigType['redis'];
+    getSolvers(): Record<number, Solver>;
+    getSolver(chainID: number | bigint): Solver | undefined;
+    getIntentSources(): IntentSource[];
+    getIntentSource(chainID: number): IntentSource | undefined;
+    getIntervals(): EcoSolverConfigType['intervals'];
+    getIntentConfigs(): EcoSolverConfigType['intentConfigs'];
+    getQuotesConfig(): EcoSolverConfigType['quotesConfig'];
+    getGaslessIntentdAppIDs(): string[];
+    getWhitelist(): EcoSolverConfigType['whitelist'];
+    getFulfillmentEstimate(): EcoSolverConfigType['fulfillmentEstimate'];
+    getGasEstimations(): EcoSolverConfigType['gasEstimations'];
+    getIndexer(): EcoSolverConfigType['indexer'];
+    getWithdraws(): EcoSolverConfigType['withdraws'];
+    getSendBatch(): EcoSolverConfigType['sendBatch'];
+    getCCTP(): EcoSolverConfigType['CCTP'];
+    getCCTPV2(): EcoSolverConfigType['CCTPV2'];
+    getHyperlane(): EcoSolverConfigType['hyperlane'];
+    getExternalAPIs(): EcoSolverConfigType['externalAPIs'];
+    getSquid(): EcoSolverConfigType['squid'];
+    getEverclear(): EcoSolverConfigType['everclear'];
+    getSolverRegistrationConfig(): EcoSolverConfigType['solverRegistrationConfig'];
+    getFulfill(): EcoSolverConfigType['fulfill'];
+    getKmsConfig(): EcoSolverConfigType['kms'];
+    getSafe(): EcoSolverConfigType['safe'];
+    getLaunchDarkly(): EcoSolverConfigType['launchDarkly'];
+    getAnalyticsConfig(): EcoSolverConfigType['analytics'];
+    getEth(): EcoSolverConfigType['eth'];
+    getMongooseUri(): string;
+    getLoggerConfig(): EcoSolverConfigType['logger'];
+    private ensureInitialized;
+    getDebugInfo(): {
+        initialized: boolean;
+        sourcesCount: number;
+        sources: {
+            name: string;
+            priority: number;
+            enabled: boolean;
+        }[];
+    };
+    private processProvers;
+    private addressKeys;
 }
