@@ -10,6 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
+    "noEmitOnError": false,
     "baseUrl": "../../",
     "paths": {
       "@eco-solver/*": ["apps/eco-solver/src/*"],
@@ -24,5 +25,13 @@
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["**/*.spec.ts", "**/__tests__/**", "**/node_modules/**"]
+  "exclude": [
+    "**/*.spec.ts", 
+    "**/__tests__/**", 
+    "**/node_modules/**",
+    "**/node_modules/.pnpm/@zerodev+sdk@*/**",
+    "**/node_modules/.pnpm/permissionless@*/**",
+    "node_modules/@zerodev/**",
+    "node_modules/permissionless/**"
+  ]
 }

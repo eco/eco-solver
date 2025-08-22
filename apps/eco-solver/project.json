@@ -6,19 +6,11 @@
   "tags": ["scope:eco-solver", "type:app"],
   "targets": {
     "build": {
-      "executor": "@nx/js:tsc",
+      "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/apps/eco-solver",
-        "main": "apps/eco-solver/src/main.ts",
-        "tsConfig": "apps/eco-solver/tsconfig.app.json",
-        "assets": [
-          "apps/eco-solver/src/assets/**",
-          "apps/eco-solver/**/*.graphql",
-          "apps/eco-solver/**/*.proto"
-        ],
-        "buildLibsFromSource": false,
-        "updateBuildableProjectDepsInPackageJson": true
+        "command": "./scripts/build-eco-solver.sh",
+        "cwd": "."
       },
       "configurations": {
         "development": { "watch": true, "sourceMaps": true },
