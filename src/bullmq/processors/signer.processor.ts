@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq'
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '../../common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
@@ -37,5 +37,43 @@ export class SignerProcessor extends WorkerHost {
         )
         return Promise.reject('Invalid job type')
     }
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<any, any, string>, error: Error) {
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `SignerProcessor: Error processing job`,
+        properties: {
+          job,
+          error,
+        },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev?: string) {
+    this.logger.warn(
+      EcoLogMessage.fromDefault({
+        message: `SignerProcessor: Job stalled`,
+        properties: {
+          jobId,
+          prev,
+        },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('error')
+  onWorkerError(error: Error) {
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `SignerProcessor: Worker error`,
+        properties: {
+          error,
+        },
+      }),
+    )
   }
 }

@@ -63,6 +63,14 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
               // restrict transfers from anyone to the simple account address
               args: { to: client.kernelAccount.address },
               onLogs: this.addJob(solver.network, solver.chainID) as any,
+              onError: (error) => {
+                this.logger.error(
+                  EcoLogMessage.withError({
+                    message: 'ws: balance event error',
+                    error,
+                  }),
+                )
+              },
             })
           }
         })
@@ -73,32 +81,41 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
 
   addJob(network: Network, chainID: number) {
     return async (logs: ViemEventLog[]) => {
-      const logTasks = logs.map((transferEvent) => {
-        transferEvent.sourceChainID = BigInt(chainID)
-        //add network to the event
-        transferEvent.sourceNetwork = network
+      try {
+        const logTasks = logs.map((transferEvent) => {
+          transferEvent.sourceChainID = BigInt(chainID)
+          //add network to the event
+          transferEvent.sourceNetwork = network
 
-        //bigint as it cant serialize to json
-        transferEvent = convertBigIntsToStrings(transferEvent)
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `ws: balance transfer`,
-            properties: {
-              transferEvent: transferEvent,
-            },
+          //bigint as it cant serialize to json
+          transferEvent = convertBigIntsToStrings(transferEvent)
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `ws: balance transfer`,
+              properties: {
+                transferEvent: transferEvent,
+              },
+            }),
+          )
+          //add to processing queue
+          return this.ethQueue.add(QUEUES.ETH_SOCKET.jobs.erc20_balance_socket, transferEvent, {
+            jobId: getIntentJobId(
+              'websocket',
+              transferEvent.transactionHash ?? zeroHash,
+              transferEvent.logIndex ?? 0,
+            ),
+            ...this.intentJobConfig,
+          })
+        })
+        await Promise.all(logTasks)
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.withError({
+            message: 'ws: balance addJob error',
+            error,
           }),
         )
-        //add to processing queue
-        return this.ethQueue.add(QUEUES.ETH_SOCKET.jobs.erc20_balance_socket, transferEvent, {
-          jobId: getIntentJobId(
-            'websocket',
-            transferEvent.transactionHash ?? zeroHash,
-            transferEvent.logIndex ?? 0,
-          ),
-          ...this.intentJobConfig,
-        })
-      })
-      await Promise.all(logTasks)
+      }
     }
   }
 }

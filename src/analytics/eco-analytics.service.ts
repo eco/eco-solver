@@ -22,9 +22,20 @@ export class EcoAnalyticsService {
    * @private
    */
   private safeTrack(eventName: string, data: Record<string, any>): void {
-    this.analytics.trackEvent(eventName, data).catch((error) => {
-      this.logger.warn(`Analytics tracking failed for event '${eventName}':`, error.message)
-    })
+    try {
+      const maybePromise = this.analytics.trackEvent(eventName, data)
+      Promise.resolve(maybePromise).catch((error) => {
+        this.logger.warn(
+          `Analytics tracking failed for event '${eventName}':`,
+          error?.message || error,
+        )
+      })
+    } catch (error: any) {
+      this.logger.warn(
+        `Analytics tracking threw synchronously for event '${eventName}':`,
+        error?.message || error,
+      )
+    }
   }
 
   /**

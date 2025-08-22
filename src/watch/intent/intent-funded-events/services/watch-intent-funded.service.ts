@@ -80,11 +80,20 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         prover: source.provers,
       },
       onLogs: async (logs: Log[]): Promise<void> => {
-        // Track intent funded events detected
-        if (logs.length > 0) {
-          this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
+        try {
+          // Track intent funded events detected
+          if (logs.length > 0) {
+            this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
+          }
+          await this.addJob(source, { doValidation: true })(logs)
+        } catch (error) {
+          this.logger.error(
+            EcoLogMessage.withError({
+              message: 'watch intent-funded onLogs handler error',
+              error,
+            }),
+          )
         }
-        await this.addJob(source, { doValidation: true })(logs)
       },
     })
   }
@@ -113,60 +122,64 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
 
   addJob(source: IntentSource, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void> {
     return async (logs: IntentFundedLog[]) => {
-      for (const log of logs) {
-        // Validate the log to ensure it is an IntentFunded event we care about
-        if (opts?.doValidation) {
-          const isValidLog = await this.isOurIntent(log)
-          if (!isValidLog) {
-            continue
+      await this.processLogsResiliently(
+        logs,
+        async (log) => {
+          // Validate the log to ensure it is an IntentFunded event we care about
+          if (opts?.doValidation) {
+            const isValidLog = await this.isOurIntent(log)
+            if (!isValidLog) {
+              return
+            }
           }
-        }
 
-        log.sourceChainID = BigInt(source.chainID)
-        log.sourceNetwork = source.network
+          log.sourceChainID = BigInt(source.chainID)
+          log.sourceNetwork = source.network
 
-        // bigint as it can't serialize to JSON
-        const intentFunded = log
-        const intentHash = intentFunded.args.intentHash
+          // bigint as it can't serialize to JSON
+          const intentFunded = log
+          const intentHash = intentFunded.args.intentHash
 
-        const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
+          const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `addJob: watch intent funded`,
-            properties: { intentFunded, jobId },
-          }),
-        )
-
-        // Add to db
-        await this.addIntentFundedEvent(intentFunded)
-
-        try {
-          // Add to processing queue
-          await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
-            jobId,
-            ...this.watchJobConfig,
-          })
-
-          // Track successful job addition
-          this.ecoAnalytics.trackWatchIntentFundedJobQueued(intentFunded, jobId, source)
-        } catch (error) {
-          // Track job queue failure with complete context
-          this.ecoAnalytics.trackWatchJobQueueError(
-            error,
-            ERROR_EVENTS.INTENT_FUNDED_JOB_QUEUE_FAILED,
-            {
-              intent: intentFunded,
-              intentHash,
-              jobId,
-              source,
-              transactionHash: intentFunded.transactionHash,
-              logIndex: intentFunded.logIndex,
-            },
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `addJob: watch intent funded`,
+              properties: { intentFunded, jobId },
+            }),
           )
-          throw error
-        }
-      }
+
+          // Add to db
+          await this.addIntentFundedEvent(intentFunded)
+
+          try {
+            // Add to processing queue
+            await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
+              jobId,
+              ...this.watchJobConfig,
+            })
+
+            // Track successful job addition
+            this.ecoAnalytics.trackWatchIntentFundedJobQueued(intentFunded, jobId, source)
+          } catch (error) {
+            // Track job queue failure with complete context
+            this.ecoAnalytics.trackWatchJobQueueError(
+              error,
+              ERROR_EVENTS.INTENT_FUNDED_JOB_QUEUE_FAILED,
+              {
+                intent: intentFunded,
+                intentHash,
+                jobId,
+                source,
+                transactionHash: intentFunded.transactionHash,
+                logIndex: intentFunded.logIndex,
+              },
+            )
+            throw error
+          }
+        },
+        'watch intent-funded',
+      )
     }
   }
 
