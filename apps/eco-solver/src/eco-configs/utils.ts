@@ -1,5 +1,5 @@
 import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
-import { ConfigLoader } from '@libs/config-core'
+import { ConfigLoader } from '@libs/solver-config'
 import { EcoError } from '../common/errors/eco-error'
 
 /**

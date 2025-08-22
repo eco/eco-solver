@@ -12,7 +12,7 @@ import {
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { getTransport } from '@eco-solver/common/chains/transport'
 import { ChainsSupported } from '@eco-solver/common/chains/supported'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 
 @Injectable()
 export class ViemMultichainClientService<T extends Client, V extends ClientConfig>

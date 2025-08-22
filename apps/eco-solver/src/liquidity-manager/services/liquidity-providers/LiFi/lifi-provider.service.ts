@@ -12,7 +12,7 @@ import {
 } from '@lifi/sdk'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { logLiFiProcess } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import {
   LiFiAssetCacheManager,

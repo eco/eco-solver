@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { getModelToken } from '@nestjs/mongoose'

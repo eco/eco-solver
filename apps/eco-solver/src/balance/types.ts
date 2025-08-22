@@ -1,4 +1,4 @@
-import { TargetContractType } from '@libs/config-core'
+import { TargetContractType } from '@libs/solver-config'
 import { Hex } from 'viem'
 
 export type TokenConfig = {

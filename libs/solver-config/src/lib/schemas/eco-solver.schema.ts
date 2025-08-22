@@ -215,7 +215,7 @@ export const LoggerConfigSchema = z.object({
         useLevelLabels: z.boolean(),
         redact: z.object({
           paths: z.array(z.string()),
-          remove: z.boolean(),
+          remove: z.boolean().optional(),
         }),
       }),
     })
@@ -310,6 +310,7 @@ export const EcoSolverConfigSchema = z.object({
   eth: z.any().optional(),
   CCTP: CCTPConfigSchema.optional(),
   CCTPV2: CCTPConfigSchema.optional(),
+  CCTPLiFi: CCTPConfigSchema.optional(),
   hyperlane: z
     .object({
       useHyperlaneDefaultHook: z.boolean(),
@@ -384,4 +385,6 @@ export type RpcConfig = z.infer<typeof RpcConfigSchema>
 export type RedisConfig = z.infer<typeof RedisConfigSchema>
 export type IntentConfig = z.infer<typeof IntentConfigSchema>
 export type CCTPConfig = z.infer<typeof CCTPConfigSchema>
+export type CCTPLiFiConfig = z.infer<typeof CCTPConfigSchema>
+export type CCTPV2Config = z.infer<typeof CCTPConfigSchema>
 export type EcoSolverDatabaseConfig = z.infer<typeof EcoSolverDatabaseConfigSchema>

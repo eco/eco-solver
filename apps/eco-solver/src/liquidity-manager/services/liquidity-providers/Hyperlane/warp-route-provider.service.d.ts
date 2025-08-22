@@ -1,0 +1,34 @@
+import { EcoConfigService } from '@libs/solver-config';
+import { BalanceService } from '@eco-solver/balance/balance.service';
+import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types';
+import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider';
+import { LiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service';
+import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service';
+export declare class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
+    private readonly ecoConfigService;
+    private readonly balanceService;
+    private readonly liFiProviderService;
+    private readonly kernelAccountClientService;
+    private logger;
+    constructor(ecoConfigService: EcoConfigService, balanceService: BalanceService, liFiProviderService: LiFiProviderService, kernelAccountClientService: KernelAccountClientService);
+    getStrategy(): "WarpRoute";
+    getQuote(tokenIn: TokenData, tokenOut: TokenData, swapAmount: number, id?: string): Promise<RebalanceQuote[]>;
+    execute(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>): Promise<`0x${string}`>;
+    private getRemoteTransferQuote;
+    private _execute;
+    private executeWithKernel;
+    private executeRemoteTransfer;
+    private validateTokenData;
+    private getWarpRoute;
+    private getAllWarpRoutes;
+    private determineWarpRoutes;
+    private getPartialQuote;
+    private getTokenConfig;
+    private getBestLiFiQuote;
+    private getMessageFromReceipt;
+    private waitMessageRelay;
+    private handleSyntheticToTokenPath;
+    private handleCollateralToTokenPath;
+    private handleTokenToSyntheticPath;
+    private handleTokenToCollateralPath;
+}

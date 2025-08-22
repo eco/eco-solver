@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Hex } from 'viem'
-import { IndexerConfig } from '@libs/config-core'
-import { EcoConfigService } from '@libs/config-core'
+import { IndexerConfig } from '@libs/solver-config'
+import { EcoConfigService } from '@libs/solver-config'
 import {
   BatchWithdrawGasless,
   BatchWithdraws,

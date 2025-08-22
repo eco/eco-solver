@@ -3,6 +3,7 @@ export * from './lib/solver-config'
 
 // Export new eco-solver config system
 export * from './lib/schemas/eco-solver.schema'
+export type { CCTPLiFiConfig, CCTPV2Config, CCTPConfig } from './lib/schemas/eco-solver.schema'
 export * from './lib/interfaces/config-source.interface'
 export * from './lib/services/eco-solver-config.service'
 export * from './lib/modules/eco-solver-config.module'

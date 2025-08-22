@@ -9,7 +9,7 @@ import {
   LitPKPResource,
 } from '@lit-protocol/auth-helpers'
 
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
   Hex,
@@ -21,7 +21,7 @@ import {
 } from 'viem'
 import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
 import { IFulfillService } from '@eco-solver/intent/interfaces/fulfill-service.interface'
-import { CrowdLiquidityConfig, Solver } from '@libs/config-core'
+import { CrowdLiquidityConfig, Solver } from '@libs/solver-config'
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@eco-solver/contracts'
 import { TokenData } from '@eco-solver/liquidity-manager/types/types'

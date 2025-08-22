@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
 import { PrivateKeyAccount } from 'viem'
 import { Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 
 @Injectable()
 export class SignerService implements OnModuleInit {

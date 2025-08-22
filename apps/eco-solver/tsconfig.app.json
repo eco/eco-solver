@@ -14,7 +14,7 @@
       "@eco-solver/liquidity-manager/types/types": [
         "apps/eco-solver/src/liquidity-manager/types/types.d.ts"
       ],
-      "@libs/config-core": ["libs/solver-config/src/index.ts"],
+      "@libs/config-core": ["libs/config/src/index.ts"],
       "@libs/config-providers": ["libs/config/providers/src/index.ts"],
       "@libs/config-schemas": ["libs/config/schemas/src/index.ts"],
       "@libs/config-testing": ["libs/config/testing/src/index.ts"],

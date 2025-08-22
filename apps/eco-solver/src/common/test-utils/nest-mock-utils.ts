@@ -3,7 +3,7 @@
 import { createMock } from '@golevelup/ts-jest'
 import { DynamicModule, Provider } from '@nestjs/common'
 import { EcoConfigModule } from '../../eco-configs/eco-config.module'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { MongooseModule } from '@nestjs/mongoose'
 
 export function provideEcoConfigService(ecoConfig: any): Provider {

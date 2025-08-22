@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { JobsOptions, Queue } from 'bullmq'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'

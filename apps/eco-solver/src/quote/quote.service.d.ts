@@ -1,0 +1,142 @@
+import { EcoConfigService } from '@libs/solver-config';
+import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service';
+import { ValidationService, TxValidationFn } from '@eco-solver/intent/validation.sevice';
+import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@eco-solver/quote/dto/quote.intent.data.dto';
+import { Quote400 } from '@eco-solver/quote/errors';
+import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema';
+import { OnModuleInit } from '@nestjs/common';
+import { FeeService } from '@eco-solver/fee/fee.service';
+import { EcoResponse } from '@eco-solver/common/eco-response';
+import { QuoteDataEntryDTO } from '@eco-solver/quote/dto/quote-data-entry.dto';
+import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto';
+import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum';
+import { QuoteRepository } from '@eco-solver/quote/quote.repository';
+import { UpdateQuoteParams } from '@eco-solver/quote/interfaces/update-quote-params.interface';
+import { GaslessIntentRequestDTO } from '@eco-solver/quote/dto/gasless-intent-request.dto';
+import { ModuleRef } from '@nestjs/core';
+import { EcoAnalyticsService } from '@eco-solver/analytics';
+type QuoteFeasibilityCheckFn = (quote: QuoteIntentDataInterface) => Promise<{
+    error?: Error;
+}>;
+interface GenerateQuoteParams {
+    quoteIntent: QuoteIntentDataInterface;
+    intentExecutionType: IntentExecutionType;
+    isReverseQuote: boolean;
+    gaslessIntentRequest: GaslessIntentRequestDTO;
+}
+/**
+ * Service class for getting configs for the app
+ */
+export declare class QuoteService implements OnModuleInit {
+    private readonly quoteRepository;
+    private readonly feeService;
+    private readonly validationService;
+    private readonly ecoConfigService;
+    private readonly fulfillmentEstimateService;
+    private readonly moduleRef;
+    private readonly ecoAnalytics;
+    private logger;
+    private quotesConfig;
+    private gasEstimationsConfig;
+    private intentInitiationService;
+    constructor(quoteRepository: QuoteRepository, feeService: FeeService, validationService: ValidationService, ecoConfigService: EcoConfigService, fulfillmentEstimateService: FulfillmentEstimateService, moduleRef: ModuleRef, ecoAnalytics: EcoAnalyticsService);
+    onModuleInit(): void;
+    /**
+     * Generates a quote for the quote intent data.
+     * The network quoteIntentDataDTO is stored in the db.
+     *
+     * @param quoteIntentDataDTO the quote intent data
+     * @returns
+     */
+    getQuote(quoteIntentDataDTO: QuoteIntentDataDTO): Promise<EcoResponse<QuoteDataDTO>>;
+    getReverseQuote(quoteIntentDataDTO: QuoteIntentDataDTO): Promise<EcoResponse<QuoteDataDTO>>;
+    private _getQuote;
+    private getGaslessIntentRequest;
+    /**
+     * Stores the quote into the db
+     * @param quoteIntentDataDTO the quote intent data
+     * @returns the stored record or an error
+     */
+    storeQuoteIntentData(quoteIntentDataDTO: QuoteIntentDataDTO): Promise<EcoResponse<QuoteIntentModel[]>>;
+    /**
+     * Fetch a quote from the db
+     * @param query the quote intent data
+     * @returns the quote or an error
+     */
+    fetchQuoteIntentData(query: object): Promise<EcoResponse<QuoteIntentModel>>;
+    /**
+     * Fetch a quote from the db
+     * @param query the quote intent data
+     * @returns the quote or an error
+     */
+    quoteExists(query: object): Promise<boolean>;
+    /**
+     * Validates that the quote intent data is valid.
+     * Checks that there is a solver, that the assert validations pass,
+     * and that the quote intent is feasible.
+     * @param quoteIntentModel the model to validate
+     * @returns an res 400, or undefined if the quote intent is valid
+     */
+    validateQuoteIntentData(quoteIntentModel: QuoteIntentModel, txValidationFn?: TxValidationFn, quoteFeasibilityCheckFn?: QuoteFeasibilityCheckFn): Promise<Quote400 | undefined>;
+    private generateBaseQuote;
+    /**
+     * Generates a quote for given IntentExecutionType
+     * @param quoteIntentModel parameters for the quote
+     * @param intentExecutionType the intent execution type
+     * @returns the quote or an error
+     */
+    private generateQuoteForIntentExecutionType;
+    /**
+     * Generates a quote for the self publish case.
+     * @param quoteIntentModel parameters for the quote
+     * @returns the quote or an error
+     */
+    generateQuoteForSelfPublish(params: GenerateQuoteParams): Promise<EcoResponse<QuoteDataEntryDTO>>;
+    /**
+     * Generates a quote for the gasless case.
+     * @param quoteIntentModel parameters for the quote
+     * @returns the quote or an error
+     */
+    generateQuoteForGasless(params: GenerateQuoteParams): Promise<EcoResponse<QuoteDataEntryDTO>>;
+    estimateFlatFee(chainID: number, quoteDataEntry: QuoteDataEntryDTO): Promise<bigint>;
+    /**
+     * Generates a quote for the quote intent model. The quote is generated by:
+     * 1. Converting the call and reward tokens to a standard reserve value for comparisons
+     * 2. Adding a fee to the ask of the normalized call tokens
+     * 3. Fulfilling the ask with the reward tokens starting with any deficit tokens the solver
+     * has on the source chain
+     * 4. If there are any remaining tokens, they are used to fulfill the solver token
+     * starting with the smallest delta(minBalance - balance) tokens
+     * @param quoteIntentModel the quote intent model
+     * @returns the quote or an error 400 for insufficient reward to generate the quote
+     */
+    generateQuote(quoteIntentModel: QuoteIntentDataInterface): Promise<EcoResponse<QuoteDataEntryDTO>>;
+    /**
+     * Generates a reverse quote for the quote intent model. The quote is generated by:
+     * 1. Converting the call and reward tokens to a standard reserve value for comparisons
+     * 2. Subtracting the fee from the normalized reward tokens
+     * 3. Distributing the remaining reward amount to the calls starting with the tokens the solver needs the least
+     * @param intent the quote intent model
+     * @returns the quote or an error 400 for insufficient reward to generate the quote
+     */
+    generateReverseQuote(intent: QuoteIntentDataInterface): Promise<EcoResponse<QuoteDataEntryDTO>>;
+    /**
+     * @returns the expiry time of the quote
+     */
+    getQuoteExpiryTime(): string;
+    /**
+     * @returns the gas overhead of the quote
+     */
+    getGasOverhead(quoteIntentModel: QuoteIntentDataInterface): number;
+    /**
+     * @returns the default gas overhead
+     */
+    private getDefaultGasOverhead;
+    /**
+     * Updates the quote intent model in the db
+     * @param quoteIntentModel the model to update
+     * @returns
+     */
+    updateQuoteDb(quoteIntentModel: QuoteIntentModel, updateQuoteParams: UpdateQuoteParams): Promise<EcoResponse<QuoteIntentModel>>;
+}
+export {};

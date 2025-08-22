@@ -1,5 +1,5 @@
 const mockGetTransactionTargetData = jest.fn()
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { ValidationChecks, ValidationService } from '@eco-solver/intent/validation.sevice'
 import {
@@ -20,7 +20,7 @@ import { Model } from 'mongoose'
 import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service'
 import { QuoteTestUtils } from '@eco-solver/intent-initiation/test-utils/quote-test-utils'
 import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
-import { QuotesConfig } from '@libs/config-core'
+import { QuotesConfig } from '@libs/solver-config'
 import { zeroAddress } from 'viem'
 import { QuoteRepository } from '@eco-solver/quote/quote.repository'
 import { IntentInitiationService } from '@eco-solver/intent-initiation/services/intent-initiation.service'

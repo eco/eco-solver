@@ -8,7 +8,7 @@ import { FeasableIntentService } from '@eco-solver/intent/feasable-intent.servic
 import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { UtilsIntentService } from '@eco-solver/intent/utils-intent.service'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { EcoAnalyticsService } from '@eco-solver/analytics'
 import { IntentFulfillmentQueue } from '@eco-solver/intent-fulfillment/queues/intent-fulfillment.queue'
 import { QuoteError } from '@eco-solver/quote/errors'

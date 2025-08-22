@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { EcoConfigService } from '@libs/config-core'
-import { Solver } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
+import { Solver } from '@libs/solver-config'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@eco-solver/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'

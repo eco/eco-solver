@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { parseUnits, formatUnits } from 'viem'
 import { Hex } from 'viem'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { BalanceService } from '@eco-solver/balance/balance.service'
 import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
 import {
@@ -21,7 +21,7 @@ import { CCTPProviderService } from '@eco-solver/liquidity-manager/services/liqu
 import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
-import { CCTPLiFiConfig } from '@libs/config-core'
+import { CCTPLiFiConfig } from '@libs/solver-config'
 import { EcoAnalyticsService } from '@eco-solver/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
 

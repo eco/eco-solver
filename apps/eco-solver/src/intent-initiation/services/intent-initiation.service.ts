@@ -1,5 +1,5 @@
 import { CreateIntentService } from '@eco-solver/intent/create-intent.service'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'

@@ -23,8 +23,8 @@ import {
 } from '@eco-solver/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@eco-solver/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@eco-solver/common/utils/serialize'
-import { LiquidityManagerConfig } from '@libs/config-core'
-import { EcoConfigService } from '@libs/config-core'
+import { LiquidityManagerConfig } from '@libs/solver-config'
+import { EcoConfigService } from '@libs/solver-config'
 import { RebalanceModel } from '@eco-solver/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceTokenModel } from '@eco-solver/liquidity-manager/schemas/rebalance-token.schema'
 import {

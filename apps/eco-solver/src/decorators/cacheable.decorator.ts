@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { Cache } from '@nestjs/cache-manager'
 import { serializeWithBigInt, deserializeWithBigInt } from './utils'
 

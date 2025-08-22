@@ -1,5 +1,5 @@
 import { QUEUES } from '@eco-solver/common/redis/constants'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { WatchCreateIntentService } from '@eco-solver/watch/intent/watch-create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'

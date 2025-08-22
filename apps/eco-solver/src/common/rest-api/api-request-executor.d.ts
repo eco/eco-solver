@@ -1,0 +1,35 @@
+import { APIConfig } from './interfaces/api-config.interface';
+import { ExecuteRequestParams } from './interfaces/execute-request-params.interface';
+import { HttpService } from '@nestjs/axios';
+import { Logger } from '@nestjs/common';
+import { RequestOptions } from './interfaces/request-options.interface';
+import { RequestUrlParams } from './interfaces/request-url-params.interface';
+import { RESTAPIResponse } from './interfaces/rest-api-response.interface';
+export declare class APIRequestExecutor {
+    private httpService;
+    private apiConfig;
+    protected logger: Logger;
+    private apiRequestUtils;
+    constructor(httpService: HttpService, apiConfig: APIConfig, logger: Logger);
+    executeRequest<T>(requestParams: ExecuteRequestParams): Promise<RESTAPIResponse<T>>;
+    logRequest(requestOptions: RequestOptions): void;
+    getRequestOptions(requestParams: ExecuteRequestParams): RequestOptions;
+    private getAxiosRequestConfig;
+    getBaseURLString(urlParams: RequestUrlParams): string;
+    private getBaseURL;
+    private getURL;
+    getIdempotentIDHeader(): string | undefined;
+    private getAPIKeyHeader;
+    private getAPISecretHeader;
+    protected getAPIKey(): string | undefined;
+    private getAPISecret;
+    getDefaultAPIVersion(): string;
+    getDefaultRequestHeaders(): object;
+    getRequestHeaders(requestParams: ExecuteRequestParams): object;
+    getAuthorization(requestParams: ExecuteRequestParams): string | undefined;
+    getQueryString(queryParamsObject: any): string;
+    private _executeRequest;
+    private getRequestForLogging;
+    private handleResponse;
+    private handleError;
+}

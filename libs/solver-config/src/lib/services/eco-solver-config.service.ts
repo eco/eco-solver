@@ -238,6 +238,12 @@ export class EcoSolverConfigService {
     return this.mergedConfig.CCTPV2
   }
 
+  // Returns the CCTP LiFi config
+  getCCTPLiFiConfig(): EcoSolverConfigType['CCTPLiFi'] {
+    this.ensureInitialized()
+    return this.mergedConfig.CCTPLiFi
+  }
+
   // Returns the Hyperlane config
   getHyperlane(): EcoSolverConfigType['hyperlane'] {
     this.ensureInitialized()

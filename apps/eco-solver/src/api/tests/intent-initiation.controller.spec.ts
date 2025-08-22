@@ -17,7 +17,7 @@ import { QuoteService } from '@eco-solver/quote/quote.service'
 import { QuoteTestUtils } from '@eco-solver/intent-initiation/test-utils/quote-test-utils'
 import { TransactionReceipt } from 'viem'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { createMock } from '@golevelup/ts-jest'
 
 const intentTestUtils = new IntentTestUtils()

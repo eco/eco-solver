@@ -1,4 +1,4 @@
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@eco-solver/fee/fee.service'
 import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service'

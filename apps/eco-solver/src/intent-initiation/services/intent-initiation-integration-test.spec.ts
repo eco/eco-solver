@@ -3,7 +3,7 @@ import { Chain } from "viem"
 import { CreateIntentService } from '@eco-solver/intent/create-intent.service'
 import { createTestClient, http, parseEther, publicActions } from "viem"
 import { Hex } from "viem"
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
 import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
 import { EcoTester } from '@eco-solver/common/test-utils/eco-tester/eco-tester'

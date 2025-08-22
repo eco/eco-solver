@@ -2,8 +2,8 @@ const mockGetTransactionTargetData = jest.fn()
 const mockIsERC20Target = jest.fn()
 import { BalanceService, TokenFetchAnalysis } from '@eco-solver/balance/balance.service'
 import { getERC20Selector } from '@eco-solver/contracts'
-import { EcoConfigService } from '@libs/config-core'
-import { FeeConfigType } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
+import { FeeConfigType } from '@libs/solver-config'
 import { BASE_DECIMALS, FeeService } from '@eco-solver/fee/fee.service'
 import { NormalizedToken, NormalizedTotal } from '@eco-solver/fee/types'
 import { QuoteError } from '@eco-solver/quote/errors'

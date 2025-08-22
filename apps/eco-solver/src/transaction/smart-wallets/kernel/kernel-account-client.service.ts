@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { entryPoint07Address } from 'viem/account-abstraction'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import {
   Account,
   Chain,

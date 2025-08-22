@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EverclearProviderService } from './everclear-provider.service'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { LiquidityManagerQueue } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
 import { getQueueToken } from '@nestjs/bullmq'

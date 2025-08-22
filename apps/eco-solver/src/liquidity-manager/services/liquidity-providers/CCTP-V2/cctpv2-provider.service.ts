@@ -7,14 +7,14 @@ import {
   RebalanceQuote,
   TokenData,
 } from '@eco-solver/liquidity-manager/types/types'
-import { EcoConfigService } from '@libs/config-core'
+import { EcoConfigService } from '@libs/solver-config'
 import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPV2Config } from '@libs/config-core'
+import { CCTPV2Config } from '@libs/solver-config'
 import { CCTPV2TokenMessengerABI } from '@eco-solver/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@eco-solver/contracts/CCTPV2MessageTransmitter'
 import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
@@ -321,6 +321,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       functionName: 'receiveMessage',
       args: [messageBody, attestation],
       chain: publicClient.chain,
+      account: walletClient.account,
     })
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
