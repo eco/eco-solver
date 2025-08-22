@@ -9,7 +9,11 @@ export default registerAs('aws', () => {
     secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY'],
     secretsManager: {
       enabled: process.env['AWS_SECRETS_ENABLED'] === 'true',
-      secrets: process.env['AWS_SECRETS_LIST']?.split(',') || ['eco-solver/database', 'eco-solver/redis', 'eco-solver/auth'],
+      secrets: process.env['AWS_SECRETS_LIST']?.split(',') || [
+        'eco-solver/database',
+        'eco-solver/redis',
+        'eco-solver/auth',
+      ],
     },
   }
 
@@ -20,7 +24,7 @@ export default registerAs('aws', () => {
 // Helper function to load a single secret
 export const loadSecret = async (
   client: SecretsManagerClient,
-  secretId: string
+  secretId: string,
 ): Promise<Record<string, unknown>> => {
   try {
     const command = new GetSecretValueCommand({ SecretId: secretId })
@@ -32,7 +36,10 @@ export const loadSecret = async (
 
     return JSON.parse(response.SecretString)
   } catch (error) {
-    console.warn(`Failed to load secret ${secretId}:`, error instanceof Error ? error.message : error)
+    console.warn(
+      `Failed to load secret ${secretId}:`,
+      error instanceof Error ? error.message : error,
+    )
     return {}
   }
 }
@@ -42,7 +49,7 @@ export const createAwsSecretsFactory = () => ({
   useFactory: async (): Promise<Record<string, unknown>> => {
     const awsRegion = process.env['AWS_REGION'] || 'us-east-1'
     const secretsEnabled = process.env['AWS_SECRETS_ENABLED'] === 'true'
-    
+
     if (!secretsEnabled) {
       console.log('AWS Secrets Manager disabled - skipping secret loading')
       return {}
@@ -60,12 +67,12 @@ export const createAwsSecretsFactory = () => ({
 
     const secretIds = process.env['AWS_SECRETS_LIST']?.split(',') || [
       'eco-solver/database',
-      'eco-solver/redis', 
+      'eco-solver/redis',
       'eco-solver/auth',
     ]
 
     const secrets = await Promise.allSettled(
-      secretIds.map((secretId) => loadSecret(client, secretId))
+      secretIds.map((secretId) => loadSecret(client, secretId)),
     )
 
     // Handle partial failures gracefully - collect successful secrets

@@ -4,10 +4,12 @@ export const AwsConfigSchema = z.object({
   region: z.string().min(1),
   accessKeyId: z.string().optional(),
   secretAccessKey: z.string().optional(),
-  secretsManager: z.object({
-    enabled: z.boolean().default(false),
-    secrets: z.array(z.string()).default([]),
-  }).optional(),
+  secretsManager: z
+    .object({
+      enabled: z.boolean().default(false),
+      secrets: z.array(z.string()).default([]),
+    })
+    .optional(),
 })
 
 // Automatic type inference

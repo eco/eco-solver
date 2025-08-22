@@ -13,7 +13,9 @@ export type IntentConfig = z.infer<typeof IntentConfigSchema>
 export const validateIntentConfig = (data: unknown): IntentConfig => {
   const result = IntentConfigSchema.safeParse(data)
   if (!result.success) {
-    throw new Error(`Intent configuration validation failed: ${JSON.stringify(result.error.format())}`)
+    throw new Error(
+      `Intent configuration validation failed: ${JSON.stringify(result.error.format())}`,
+    )
   }
   return result.data
 }

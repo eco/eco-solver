@@ -18,12 +18,12 @@ export class EcoSolverConfigModule {
     // 1. Analyze static config to determine what providers are needed
     const staticConfig = getStaticSolverConfig()
     const needsAws = staticConfig.aws?.length > 0 || options.enableAws
-    
+
     // 2. Build provider array based on analysis
     const providers: Provider[] = [
       // Always include static config provider
       StaticConfigProvider,
-      
+
       // Core service that receives the providers
       {
         provide: EcoSolverConfigService,
@@ -39,7 +39,7 @@ export class EcoSolverConfigModule {
         ],
       },
     ]
-    
+
     // 3. Conditionally add AWS provider if needed
     if (needsAws) {
       providers.push({
@@ -49,7 +49,7 @@ export class EcoSolverConfigModule {
         },
         inject: [StaticConfigProvider, 'AWS_SECRETS_PROVIDER'],
       })
-      
+
       // Add generic AWS provider
       providers.push({
         provide: 'AWS_SECRETS_PROVIDER',
@@ -60,22 +60,22 @@ export class EcoSolverConfigModule {
             loadSecret: async (secretId: string, region: string) => {
               console.warn(`AWS Secrets Provider not yet implemented for ${secretId} in ${region}`)
               return {}
-            }
+            },
           }
-        }
+        },
       })
     }
-    
-    // 4. Add environment override provider if enabled  
+
+    // 4. Add environment override provider if enabled
     if (options.enableEnvOverrides) {
       providers.push(EnvOverrideProvider)
     }
-    
+
     // 5. Add any custom providers
     if (options.customProviders?.length) {
       providers.push(...options.customProviders)
     }
-    
+
     return {
       global: true,
       module: EcoSolverConfigModule,
@@ -83,23 +83,23 @@ export class EcoSolverConfigModule {
       exports: [EcoSolverConfigService],
     }
   }
-  
+
   // Convenience methods for common configurations
   static withAWS(region = 'us-east-2'): DynamicModule {
-    return this.forRoot({ 
-      enableAws: true, 
+    return this.forRoot({
+      enableAws: true,
       enableEnvOverrides: true,
-      awsRegion: region 
+      awsRegion: region,
     })
   }
-  
+
   static withFullFeatures(): DynamicModule {
     return this.forRoot({
       enableAws: true,
       enableEnvOverrides: true,
     })
   }
-  
+
   static base(): DynamicModule {
     return this.forRoot({ enableAws: false })
   }

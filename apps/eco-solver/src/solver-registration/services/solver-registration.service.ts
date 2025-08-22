@@ -8,12 +8,7 @@ import { EcoResponse } from '@eco-solver/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
 import { ModuleRef } from '@nestjs/core'
-import {
-  QuotesConfig,
-  ServerConfig,
-  Solver,
-  SolverRegistrationConfig,
-} from '@libs/config-core'
+import { QuotesConfig, ServerConfig, Solver, SolverRegistrationConfig } from '@libs/config-core'
 import { EcoError } from '@eco-solver/common/errors/eco-error'
 import { RouteTokensDTO } from '@eco-solver/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@eco-solver/request-signing/interfaces/signature-headers.interface'

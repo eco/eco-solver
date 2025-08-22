@@ -9,17 +9,19 @@ This plan outlines the migration of eco-solver configuration logic with **proper
 ## 🎯 Key Architectural Improvements: Enhanced Dynamic Provider System
 
 ### Current Problems:
+
 - AWS provider is hardcoded in the module
 - Service knows about specific provider types (AWS, static)
 - No standardized interface for different config sources
 - Manual provider management
 
 ### Proposed Solution:
+
 ```typescript
 interface ConfigSource {
   getConfig(): Promise<Record<string, any>>
   priority: number // For merge order
-  name: string     // For logging/debugging
+  name: string // For logging/debugging
 }
 
 // Module creates providers based on static config
@@ -68,7 +70,7 @@ interface ConfigSource {
 │    Generic Infrastructure Layer     │
 │  ┌─────────────────────────────────┐ │
 │  │ • Zod validation framework      │ │
-│  │ • AWS SDK v3 providers         │ │  
+│  │ • AWS SDK v3 providers         │ │
 │  │ • Configuration caching        │ │
 │  │ • Generic schemas (server,     │ │
 │  │   database, aws, cache, etc.)  │ │
@@ -95,13 +97,14 @@ interface ConfigSource {
 ## Current State Analysis
 
 ### ✅ **@libs/config** - Generic Infrastructure (KEEP GENERIC)
+
 ```typescript
 // Modern 2025 infrastructure already in place:
 libs/config/
 ├── src/services/                     # Generic configuration services
 │   ├── configuration.service.ts      # Zod validation + caching
 │   └── configuration-cache.service.ts
-├── schemas/                          # Generic Zod schemas  
+├── schemas/                          # Generic Zod schemas
 │   ├── server.schema.ts              # Generic server config
 │   ├── aws.schema.ts                 # Generic AWS config
 │   ├── database.schema.ts            # Generic database config
@@ -115,7 +118,8 @@ libs/config/
 **ARCHITECTURE DECISION**: Keep `@libs/config` completely generic and reusable
 
 ### 🔧 **@libs/solver-config** - Simple Static Loader (EXTEND)
-```typescript  
+
+```typescript
 // Current minimal functionality:
 libs/solver-config/
 └── src/lib/
@@ -127,6 +131,7 @@ libs/solver-config/
 **ARCHITECTURE DECISION**: Transform into eco-solver specific consumer of `@libs/config`
 
 ### 🚛 **@apps/eco-solver/src/eco-configs/** - Legacy System (MIGRATE)
+
 ```typescript
 // Complex eco-solver functionality to migrate:
 eco-configs/
@@ -144,6 +149,7 @@ eco-configs/
 ### 🎯 Phase 1: Create Eco-Solver Schemas in @libs/solver-config (Week 1)
 
 #### 1.1 Add Eco-Solver Specific Schemas
+
 Create eco-solver schemas in the **correct location** - `@libs/solver-config`:
 
 ```typescript
@@ -151,11 +157,11 @@ Create eco-solver schemas in the **correct location** - `@libs/solver-config`:
 import { z } from 'zod'
 
 // Import generic schemas from @libs/config
-import { 
+import {
   ServerConfigSchema,
-  AwsConfigSchema, 
+  AwsConfigSchema,
   CacheConfigSchema,
-  DatabaseConfigSchema 
+  DatabaseConfigSchema,
 } from '@libs/config/schemas'
 
 // Eco-solver specific schemas
@@ -163,12 +169,15 @@ export const SolverConfigSchema = z.object({
   chainID: z.number(),
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   network: z.string(),
-  targets: z.record(z.string(), z.object({
-    contractType: z.enum(['erc20', 'erc721', 'erc1155']),
-    selectors: z.array(z.string()),
-    minBalance: z.number(),
-    targetBalance: z.number(),
-  })),
+  targets: z.record(
+    z.string(),
+    z.object({
+      contractType: z.enum(['erc20', 'erc721', 'erc1155']),
+      selectors: z.array(z.string()),
+      minBalance: z.number(),
+      targetBalance: z.number(),
+    }),
+  ),
   fee: z.object({
     limit: z.object({
       tokenBase6: z.bigint(),
@@ -188,19 +197,21 @@ export const IntentSourceSchema = z.object({
   inbox: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
   provers: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/)),
-  config: z.object({
-    ecoRoutes: z.enum(['append', 'replace']),
-  }).optional(),
+  config: z
+    .object({
+      ecoRoutes: z.enum(['append', 'replace']),
+    })
+    .optional(),
 })
 
 // Complete eco-solver config schema using generic base schemas
 export const EcoSolverConfigSchema = z.object({
   // Use generic schemas from @libs/config
   server: ServerConfigSchema,
-  aws: z.array(AwsConfigSchema),  
+  aws: z.array(AwsConfigSchema),
   cache: CacheConfigSchema,
   database: DatabaseConfigSchema,
-  
+
   // Add eco-solver specific sections
   solvers: z.record(z.number(), SolverConfigSchema),
   intentSources: z.array(IntentSourceSchema),
@@ -227,6 +238,7 @@ export type IntentSource = z.infer<typeof IntentSourceSchema>
 ```
 
 #### 1.2 Update @libs/solver-config Dependencies
+
 Add dependencies to consume generic infrastructure:
 
 ```json
@@ -235,15 +247,15 @@ Add dependencies to consume generic infrastructure:
   "dependencies": {
     "tslib": "^2.3.0",
     "lodash": "^4.17.21",
-    
+
     // NEW: Consume generic infrastructure from @libs/config
     "@libs/config": "workspace:*",
-    
+
     // NEW: Modern dependencies for NestJS integration
     "@nestjs/common": "^10.3.0",
     "@nestjs/config": "^3.1.1",
     "zod": "^3.22.4",
-    
+
     // Existing dependencies
     "@eco-foundation/chains": "workspace:*",
     "@eco-foundation/routes-ts": "workspace:*",
@@ -258,6 +270,7 @@ Add dependencies to consume generic infrastructure:
 ### 🎯 Phase 2: Create EcoSolverConfigService in @libs/solver-config (Week 2)
 
 #### 2.1 Create Provider-Agnostic Service Using Promise.allSettled
+
 Build eco-solver service that works with **standardized ConfigSource[]** interface:
 
 ```typescript
@@ -272,30 +285,32 @@ export class EcoSolverConfigService {
   private readonly logger = new Logger(EcoSolverConfigService.name)
   private mergedConfig: EcoSolverConfigType
   private initialized = false
-  
+
   constructor(private readonly configSources: ConfigSource[]) {
     // Service doesn't know about specific providers - just works with ConfigSource[]
-    this.logger.log(`Initialized with ${configSources.length} config sources: ${
-      configSources.map(s => s.name).join(', ')
-    }`)
+    this.logger.log(
+      `Initialized with ${configSources.length} config sources: ${configSources
+        .map((s) => s.name)
+        .join(', ')}`,
+    )
   }
-  
+
   async initializeConfig(): Promise<void> {
     if (this.initialized) return
-    
+
     this.logger.log('Loading configuration from all sources...')
-    
+
     // Use Promise.allSettled to handle failures gracefully
     const results = await Promise.allSettled(
       this.configSources
-        .filter(source => source.enabled)
-        .map(async source => ({
+        .filter((source) => source.enabled)
+        .map(async (source) => ({
           name: source.name,
           priority: source.priority,
-          config: await source.getConfig()
-        }))
+          config: await source.getConfig(),
+        })),
     )
-    
+
     // Process results
     const configs = results
       .filter((result): result is PromiseFulfilledResult<any> => {
@@ -305,14 +320,14 @@ export class EcoSolverConfigService {
         }
         return true
       })
-      .map(result => result.value)
+      .map((result) => result.value)
       .sort((a, b) => b.priority - a.priority) // Sort by priority (highest first)
-    
-    this.logger.log(`Successfully loaded configs from: ${configs.map(c => c.name).join(', ')}`)
-    
+
+    this.logger.log(`Successfully loaded configs from: ${configs.map((c) => c.name).join(', ')}`)
+
     // Merge configs in priority order (last wins in lodash merge)
     const mergedRawConfig = configs.reduce((acc, { config }) => merge(acc, config), {})
-    
+
     // Validate merged config with Zod schema
     try {
       this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
@@ -323,13 +338,13 @@ export class EcoSolverConfigService {
       throw new Error(`Invalid eco-solver configuration: ${error.message}`)
     }
   }
-  
+
   // All existing getter methods remain the same
   getRpcConfig(): EcoSolverConfigType['rpcs'] {
     this.ensureInitialized()
     return this.mergedConfig.rpcs
   }
-  
+
   getAwsConfigs(): EcoSolverConfigType['aws'] {
     this.ensureInitialized()
     return this.mergedConfig.aws
@@ -347,12 +362,15 @@ export class EcoSolverConfigService {
     return Object.fromEntries(
       Object.entries(solvers).map(([chainId, solver]) => {
         const config = getChainConfig(parseInt(chainId))
-        return [chainId, {
-          ...solver,
-          inboxAddress: config.Inbox,
-          targets: addressKeys(solver.targets) ?? {},
-        }]
-      })
+        return [
+          chainId,
+          {
+            ...solver,
+            inboxAddress: config.Inbox,
+            targets: addressKeys(solver.targets) ?? {},
+          },
+        ]
+      }),
     )
   }
 
@@ -363,7 +381,7 @@ export class EcoSolverConfigService {
 
   getIntentSources(): IntentSource[] {
     this.ensureInitialized()
-    return this.mergedConfig.intentSources.map(intent => {
+    return this.mergedConfig.intentSources.map((intent) => {
       const config = getChainConfig(intent.chainID)
       return {
         ...intent,
@@ -371,13 +389,13 @@ export class EcoSolverConfigService {
         inbox: config.Inbox,
         // Apply existing business logic transformations
         provers: this.processProvers(intent, config),
-        tokens: intent.tokens.map(token => getAddress(token)),
+        tokens: intent.tokens.map((token) => getAddress(token)),
       }
     })
   }
 
   getIntentSource(chainID: number): IntentSource | undefined {
-    return this.getIntentSources().find(intent => intent.chainID === chainID)
+    return this.getIntentSources().find((intent) => intent.chainID === chainID)
   }
 
   // All other 30+ configuration getters from EcoConfigService
@@ -388,36 +406,37 @@ export class EcoSolverConfigService {
 
   getDatabaseConfig(): EcoSolverConfigType['database'] {
     this.ensureInitialized()
-    return this.mergedConfig.database  
+    return this.mergedConfig.database
   }
 
   // ... continue with all other getters, applying business logic as needed
   // getFulfill(), getKmsConfig(), getSafe(), etc.
-  
+
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error('EcoSolverConfigService not initialized. Call initializeConfig() first.')
     }
   }
-  
+
   // Debug method for development
   getDebugInfo() {
     return {
       initialized: this.initialized,
       sourcesCount: this.configSources.length,
-      sources: this.configSources.map(s => ({
+      sources: this.configSources.map((s) => ({
         name: s.name,
         priority: s.priority,
-        enabled: s.enabled
-      }))
+        enabled: s.enabled,
+      })),
     }
   }
 
   private processProvers(intent: IntentSource, config: any): string[] {
     // Existing prover processing logic from EcoConfigService
     const ecoNpm = intent.config?.ecoRoutes || 'append'
-    const ecoNpmProvers = [config.HyperProver, config.MetaProver]
-      .filter(prover => getAddress(prover) !== zeroAddress)
+    const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
+      (prover) => getAddress(prover) !== zeroAddress,
+    )
 
     switch (ecoNpm) {
       case 'replace':
@@ -431,25 +450,26 @@ export class EcoSolverConfigService {
 ```
 
 #### 2.2 Create Enhanced Dynamic Module with Smart Provider Creation
+
 Create module that dynamically creates providers based on static config analysis:
 
 ```typescript
 // libs/solver-config/src/lib/interfaces/config-source.interface.ts - NEW
 export interface ConfigSource {
   getConfig(): Promise<Record<string, any>>
-  priority: number  // Lower = higher priority (0 = highest)
-  name: string      // For logging/debugging  
-  enabled: boolean  // Allow dynamic enable/disable
+  priority: number // Lower = higher priority (0 = highest)
+  name: string // For logging/debugging
+  enabled: boolean // Allow dynamic enable/disable
 }
 
 export abstract class BaseConfigSource implements ConfigSource {
   abstract priority: number
   abstract name: string
-  
+
   enabled: boolean = true
-  
+
   abstract getConfig(): Promise<Record<string, any>>
-  
+
   protected handleError(error: any, context: string): Record<string, any> {
     console.warn(`[${this.name}] Failed to load config from ${context}:`, error.message)
     return {} // Return empty config on failure
@@ -466,11 +486,11 @@ import { EcoSolverConfigSchema } from '../schemas/eco-solver.schema'
 export class StaticConfigProvider extends BaseConfigSource {
   priority = 100 // Lowest priority - base config
   name = 'StaticConfig'
-  
+
   constructor(private readonly configService: ConfigurationService) {
     super()
   }
-  
+
   async getConfig(): Promise<Record<string, any>> {
     try {
       return await this.configService.get('eco-solver', EcoSolverConfigSchema)
@@ -485,33 +505,30 @@ import { Injectable } from '@nestjs/common'
 import { AwsSecretsProvider as GenericAwsProvider } from '@libs/config'
 import { BaseConfigSource } from '../interfaces/config-source.interface'
 
-@Injectable() 
+@Injectable()
 export class AwsSecretsConfigProvider extends BaseConfigSource {
   priority = 50 // Medium priority - external secrets
   name = 'AwsSecrets'
-  
+
   constructor(
     private readonly awsProvider: GenericAwsProvider,
-    private readonly awsCredentials: any[]
+    private readonly awsCredentials: any[],
   ) {
     super()
   }
-  
+
   async getConfig(): Promise<Record<string, any>> {
     if (!this.awsCredentials?.length) {
       return {}
     }
-    
+
     try {
       const results = await Promise.allSettled(
-        this.awsCredentials.map(cred => 
-          this.awsProvider.loadSecret(cred.secretID, cred.region)
-        )
+        this.awsCredentials.map((cred) => this.awsProvider.loadSecret(cred.secretID, cred.region)),
       )
-      
+
       return results
-        .filter((result): result is PromiseFulfilledResult<any> => 
-          result.status === 'fulfilled')
+        .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
         .reduce((acc, result) => ({ ...acc, ...result.value }), {})
     } catch (error) {
       return this.handleError(error, 'AWS Secrets Manager')
@@ -527,16 +544,16 @@ import { BaseConfigSource } from '../interfaces/config-source.interface'
 export class EnvOverrideProvider extends BaseConfigSource {
   priority = 10 // High priority - environment overrides
   name = 'EnvOverride'
-  
+
   async getConfig(): Promise<Record<string, any>> {
     // Parse environment variables with ECO_CONFIG_ prefix
     const envConfig: Record<string, any> = {}
-    
-    Object.keys(process.env).forEach(key => {
+
+    Object.keys(process.env).forEach((key) => {
       if (key.startsWith('ECO_CONFIG_')) {
         const configKey = key.replace('ECO_CONFIG_', '').toLowerCase()
         const value = process.env[key]
-        
+
         try {
           // Try to parse as JSON, fallback to string
           envConfig[configKey] = JSON.parse(value!)
@@ -545,7 +562,7 @@ export class EnvOverrideProvider extends BaseConfigSource {
         }
       }
     })
-    
+
     return envConfig
   }
 }
@@ -572,12 +589,12 @@ export class EcoSolverConfigModule {
     // 1. Analyze static config to determine what providers are needed
     const staticConfig = getStaticSolverConfig()
     const needsAws = staticConfig.aws?.length > 0 || options.enableAws
-    
+
     // 2. Build provider array based on analysis
     const providers: Provider[] = [
       // Always include static config provider
       StaticConfigProvider,
-      
+
       // Core service that receives the providers
       {
         provide: EcoSolverConfigService,
@@ -593,7 +610,7 @@ export class EcoSolverConfigModule {
         ],
       },
     ]
-    
+
     // 3. Conditionally add AWS provider if needed
     if (needsAws) {
       providers.push({
@@ -603,29 +620,29 @@ export class EcoSolverConfigModule {
         },
         inject: [StaticConfigProvider, 'AWS_SECRETS_PROVIDER'],
       })
-      
+
       // Add generic AWS provider
       providers.push({
         provide: 'AWS_SECRETS_PROVIDER',
         useFactory: () => {
           const { AwsSecretsProvider } = require('@libs/config')
           return AwsSecretsProvider.create({
-            region: options.awsRegion || process.env.AWS_REGION || 'us-east-2'
+            region: options.awsRegion || process.env.AWS_REGION || 'us-east-2',
           })
-        }
+        },
       })
     }
-    
-    // 4. Add environment override provider if enabled  
+
+    // 4. Add environment override provider if enabled
     if (options.enableEnvOverrides) {
       providers.push(EnvOverrideProvider)
     }
-    
+
     // 5. Add any custom providers
     if (options.customProviders?.length) {
       providers.push(...options.customProviders)
     }
-    
+
     return {
       global: true,
       module: EcoSolverConfigModule,
@@ -634,23 +651,23 @@ export class EcoSolverConfigModule {
       exports: [EcoSolverConfigService],
     }
   }
-  
+
   // Convenience methods for common configurations
   static withAWS(region = 'us-east-2'): DynamicModule {
-    return this.forRoot({ 
-      enableAws: true, 
+    return this.forRoot({
+      enableAws: true,
       enableEnvOverrides: true,
-      awsRegion: region 
+      awsRegion: region,
     })
   }
-  
+
   static withFullFeatures(): DynamicModule {
     return this.forRoot({
       enableAws: true,
       enableEnvOverrides: true,
     })
   }
-  
+
   static base(): DynamicModule {
     return this.forRoot({ enableAws: false })
   }
@@ -658,6 +675,7 @@ export class EcoSolverConfigModule {
 ```
 
 #### 2.3 Create Eco-Solver Utility Functions
+
 Move utilities to the correct location:
 
 ```typescript
@@ -667,7 +685,7 @@ import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
 export enum NodeEnv {
   production = 'production',
   preproduction = 'preproduction',
-  staging = 'staging', 
+  staging = 'staging',
   development = 'development',
 }
 
@@ -693,7 +711,8 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
 
 ### 🎯 Phase 3: Application Integration & Backward Compatibility (Week 3)
 
-#### 3.1 Update Application Module  
+#### 3.1 Update Application Module
+
 Replace legacy eco-configs with modernized solver-config:
 
 ```typescript
@@ -718,13 +737,14 @@ export class AppModule {}
 ```
 
 #### 3.2 Create Backward Compatibility Layer
+
 Ensure zero breaking changes during migration:
 
 ```typescript
 // apps/eco-solver/src/eco-configs/index.ts - COMPATIBILITY LAYER
 // This file provides backward compatibility for existing imports
 
-import { 
+import {
   EcoSolverConfigService as ModernEcoConfigService,
   EcoSolverConfigModule as ModernEcoConfigModule,
 } from '@libs/solver-config'
@@ -744,11 +764,12 @@ export type {
 // Deprecated warnings for gradual migration
 console.warn(
   '[DEPRECATED] Importing from eco-configs is deprecated. ' +
-  'Use @libs/solver-config directly. This compatibility layer will be removed in v2.0.0'
+    'Use @libs/solver-config directly. This compatibility layer will be removed in v2.0.0',
 )
 ```
 
 #### 3.3 Enhanced Static Configuration Integration
+
 Update static config to work with generic infrastructure:
 
 ```typescript
@@ -765,17 +786,14 @@ export class StaticSolverConfig {
   private static instance: StaticSolverConfig
   private config: EcoSolverConfigType
 
-  private constructor(
-    private readonly configService: ConfigurationService,
-    environment?: string
-  ) {
+  private constructor(private readonly configService: ConfigurationService, environment?: string) {
     // Config is provided by the generic infrastructure, not loaded directly
     this.config = this.processConfig(environment)
   }
 
   static async createInstance(
     configService: ConfigurationService,
-    environment?: string
+    environment?: string,
   ): Promise<StaticSolverConfig> {
     if (!StaticSolverConfig.instance) {
       StaticSolverConfig.instance = new StaticSolverConfig(configService, environment)
@@ -827,7 +845,7 @@ export class StaticSolverConfig {
  */
 export async function createStaticSolverConfig(
   configService: ConfigurationService,
-  environment?: string
+  environment?: string,
 ): Promise<EcoSolverConfigType> {
   const instance = await StaticSolverConfig.createInstance(configService, environment)
   return instance.getAll()
@@ -838,7 +856,9 @@ export async function createStaticSolverConfig(
  * @deprecated Use createStaticSolverConfig with ConfigurationService instead
  */
 export function getStaticSolverConfig(environment?: string): EcoSolverConfigType {
-  console.warn('[DEPRECATED] getStaticSolverConfig should be replaced with createStaticSolverConfig')
+  console.warn(
+    '[DEPRECATED] getStaticSolverConfig should be replaced with createStaticSolverConfig',
+  )
   // Return minimal config for backward compatibility during migration
   return {
     aws: [],
@@ -852,6 +872,7 @@ export function getStaticSolverConfig(environment?: string): EcoSolverConfigType
 ### 🎯 Phase 4: Testing & Migration Cleanup (Week 4)
 
 #### 4.1 Comprehensive Testing Strategy
+
 Create test suites that validate the architectural separation:
 
 ```typescript
@@ -903,12 +924,12 @@ describe('EcoSolverConfigService (Architectural Separation)', () => {
 
   it('should validate eco-solver specific schemas', async () => {
     await service.initializeConfig()
-    
+
     const solvers = service.getSolvers()
     expect(typeof solvers).toBe('object')
-    
+
     // Verify Zod validation is applied to eco-solver specific data
-    Object.values(solvers).forEach(solver => {
+    Object.values(solvers).forEach((solver) => {
       expect(solver).toHaveProperty('chainID')
       expect(solver).toHaveProperty('inboxAddress')
       expect(typeof solver.chainID).toBe('number')
@@ -917,9 +938,9 @@ describe('EcoSolverConfigService (Architectural Separation)', () => {
 
   it('should apply eco-solver specific business logic', () => {
     const intentSources = service.getIntentSources()
-    
+
     // Verify eco-solver specific transformations
-    intentSources.forEach(source => {
+    intentSources.forEach((source) => {
       expect(source.sourceAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       expect(source.inbox).toMatch(/^0x[a-fA-F0-9]{40}$/)
     })
@@ -927,11 +948,11 @@ describe('EcoSolverConfigService (Architectural Separation)', () => {
 
   it('should handle AWS integration via generic provider', async () => {
     awsProvider.loadSecret.mockResolvedValue({
-      database: { password: 'secret-password' }
+      database: { password: 'secret-password' },
     })
-    
+
     await service.initializeConfig()
-    
+
     // Verify AWS provider is used correctly
     expect(awsProvider.loadSecret).toHaveBeenCalled()
     expect(service.getDatabaseConfig()).toBeDefined()
@@ -940,52 +961,57 @@ describe('EcoSolverConfigService (Architectural Separation)', () => {
 ```
 
 #### 4.2 Architecture Validation Tests
+
 Ensure architectural boundaries are maintained:
 
 ```typescript
-// libs/solver-config/src/lib/architecture.spec.ts - NEW  
+// libs/solver-config/src/lib/architecture.spec.ts - NEW
 describe('Architecture Validation', () => {
   it('should not have direct imports from apps/ directories', () => {
     // Verify no imports from application layer
-    const sourceFiles = /* get all source files */
-    
-    sourceFiles.forEach(file => {
-      const content = fs.readFileSync(file, 'utf-8')
-      expect(content).not.toContain("from '../../../apps/")
-      expect(content).not.toContain("from '@apps/")
-    })
+    const sourceFiles =
+      /* get all source files */
+
+      sourceFiles.forEach((file) => {
+        const content = fs.readFileSync(file, 'utf-8')
+        expect(content).not.toContain("from '../../../apps/")
+        expect(content).not.toContain("from '@apps/")
+      })
   })
 
   it('should only import generic infrastructure from @libs/config', () => {
     // Verify only imports from generic config, not application-specific
-    const imports = /* extract imports from source files */
-    
-    imports.forEach(importPath => {
-      if (importPath.includes('@libs/config')) {
-        // Should only import from generic parts
-        expect(importPath).not.toContain('eco-')
-        expect(importPath).not.toContain('solver-')
-      }
-    })
+    const imports =
+      /* extract imports from source files */
+
+      imports.forEach((importPath) => {
+        if (importPath.includes('@libs/config')) {
+          // Should only import from generic parts
+          expect(importPath).not.toContain('eco-')
+          expect(importPath).not.toContain('solver-')
+        }
+      })
   })
 
   it('should properly separate generic and specific concerns', () => {
     // Verify @libs/config remains generic
-    const configFiles = /* get @libs/config source files */
-    
-    configFiles.forEach(file => {
-      const content = fs.readFileSync(file, 'utf-8')
-      
-      // Should not contain eco-solver specific terms
-      expect(content).not.toContain('solver')
-      expect(content).not.toContain('intent')
-      expect(content).not.toContain('eco-')
-    })
+    const configFiles =
+      /* get @libs/config source files */
+
+      configFiles.forEach((file) => {
+        const content = fs.readFileSync(file, 'utf-8')
+
+        // Should not contain eco-solver specific terms
+        expect(content).not.toContain('solver')
+        expect(content).not.toContain('intent')
+        expect(content).not.toContain('eco-')
+      })
   })
 })
 ```
 
 #### 4.3 Migration Script & Cleanup
+
 Create automated migration utilities:
 
 ```typescript
@@ -1012,7 +1038,7 @@ async function migrateToProperArchitecture() {
 
 async function updateImports() {
   const files = await findTsFiles('apps/eco-solver/src')
-  
+
   for (const file of files) {
     let content = fs.readFileSync(file, 'utf-8')
     let hasChanges = false
@@ -1045,10 +1071,10 @@ async function updateImports() {
 
 async function validateGenericLibrary() {
   const configFiles = await findTsFiles('libs/config/src')
-  
+
   for (const file of configFiles) {
     const content = fs.readFileSync(file, 'utf-8')
-    
+
     // Ensure @libs/config remains generic
     if (content.includes('solver') || content.includes('eco-') || content.includes('intent')) {
       console.error(`❌ Generic library contaminated: ${file}`)
@@ -1056,16 +1082,16 @@ async function validateGenericLibrary() {
       process.exit(1)
     }
   }
-  
+
   console.log('✅ Generic library validation passed')
 }
 
 async function cleanupLegacyConfigs() {
   console.log('🧹 Cleaning up legacy eco-configs...')
-  
+
   // After migration is complete and tested
   const legacyDir = 'apps/eco-solver/src/eco-configs'
-  
+
   if (fs.existsSync(legacyDir)) {
     // Move to backup directory instead of deleting
     const backupDir = 'apps/eco-solver/src/eco-configs.backup'
@@ -1100,6 +1126,7 @@ migrateToProperArchitecture().catch(console.error)
 ## Implementation Checklist
 
 ### 📋 Phase 1: Create Eco-Solver Schemas in @libs/solver-config (Week 1)
+
 - [ ] Create `libs/solver-config/src/lib/schemas/eco-solver.schema.ts`
 - [ ] Add eco-solver specific Zod schemas (Solver, IntentSource, etc.)
 - [ ] Import and use generic schemas from `@libs/config/schemas`
@@ -1108,6 +1135,7 @@ migrateToProperArchitecture().catch(console.error)
 - [ ] Update `@libs/solver-config` dependencies to include `@libs/config`
 
 ### 📋 Phase 2: Create EcoSolverConfigService in @libs/solver-config (Week 2)
+
 - [ ] Create `EcoSolverConfigService` that uses `ConfigurationService` from `@libs/config`
 - [ ] Create `EcoSolverConfigModule` that uses generic `ConfigModule`
 - [ ] Migrate all 30+ configuration getters with Zod validation
@@ -1115,7 +1143,8 @@ migrateToProperArchitecture().catch(console.error)
 - [ ] Ensure service consumes `AwsSecretsProvider` from `@libs/config`
 - [ ] Preserve all existing business logic transformations
 
-### 📋 Phase 3: Application Integration (Week 3)  
+### 📋 Phase 3: Application Integration (Week 3)
+
 - [ ] Replace `EcoConfigModule` with `EcoSolverConfigModule` in app.module.ts
 - [ ] Create backward compatibility layer in `apps/eco-solver/src/eco-configs/`
 - [ ] Test all existing functionality works with new architecture
@@ -1123,8 +1152,9 @@ migrateToProperArchitecture().catch(console.error)
 - [ ] Update static config integration with enhanced patterns
 
 ### 📋 Phase 4: Testing & Cleanup (Week 4)
+
 - [ ] Create comprehensive test suites validating architectural separation
-- [ ] Add architecture validation tests to prevent boundary violations  
+- [ ] Add architecture validation tests to prevent boundary violations
 - [ ] Create performance tests to ensure no regression
 - [ ] Run migration script with proper architecture validation
 - [ ] Clean up legacy eco-config files after successful migration
@@ -1133,37 +1163,42 @@ migrateToProperArchitecture().catch(console.error)
 ## 🎯 Migration Benefits
 
 ### 1. **Dynamic Provider System**
+
 - Module analyzes static config and creates only needed providers
 - No hardcoded AWS logic - providers created conditionally
 - Easy to add new provider types (Redis, Consul, etc.)
 
-### 2. **Service Simplicity**  
+### 2. **Service Simplicity**
+
 - Service doesn't know about specific provider types
 - Works with standardized ConfigSource[] interface
 - Uses Promise.allSettled for robust error handling
 
 ### 3. **Flexible Configuration**
+
 ```typescript
 // Development: Only static config
 EcoSolverConfigModule.base()
 
-// Production: Static + AWS + Environment overrides  
+// Production: Static + AWS + Environment overrides
 EcoSolverConfigModule.withFullFeatures()
 
 // Custom: Fine-grained control
 EcoSolverConfigModule.forRoot({
   enableAws: true,
   enableEnvOverrides: false,
-  customProviders: [MyCustomProvider]
+  customProviders: [MyCustomProvider],
 })
 ```
 
 ### 4. **Error Resilience**
+
 - Promise.allSettled handles individual provider failures
 - Graceful degradation - service works even if some sources fail
 - Detailed logging for troubleshooting
 
-### 5. **Testability** 
+### 5. **Testability**
+
 - Easy to mock ConfigSource[] for testing
 - Test different provider combinations
 - Validate priority-based merging logic
@@ -1171,19 +1206,22 @@ EcoSolverConfigModule.forRoot({
 ## Architectural Benefits
 
 ### 🏗️ **Proper Separation of Concerns**
+
 - **@libs/config**: Remains completely generic and reusable by any application
 - **@libs/solver-config**: Contains all eco-solver specific functionality
 - **Clear boundaries**: No eco-solver code pollutes the generic infrastructure
 - **Maintainable**: Each library has a single, well-defined responsibility
 
-### 🚀 **Leverages Existing Infrastructure**  
+### 🚀 **Leverages Existing Infrastructure**
+
 - **No duplication**: `@libs/solver-config` uses existing modern patterns
 - **Consistent**: All configuration follows same architectural approach
-- **Validated**: Zod schemas ensure type safety across the system  
+- **Validated**: Zod schemas ensure type safety across the system
 - **Cached**: Benefits from existing caching infrastructure
 - **Modern**: Uses AWS SDK v3, NestJS patterns, etc.
 
 ### 🔧 **Easy Extension**
+
 - **New applications** can use generic `@libs/config` infrastructure
 - **Domain-specific libraries** can be created following same pattern
 - **Reusable**: Generic infrastructure serves multiple use cases
@@ -1192,12 +1230,14 @@ EcoSolverConfigModule.forRoot({
 ## Risk Mitigation
 
 ### ⚠️ **Architectural Governance**
+
 1. **Linting Rules**: Add rules to prevent importing app-specific code into generic libraries
 2. **CI/CD Validation**: Automated checks for architectural boundary violations
 3. **Code Reviews**: Enforce separation of concerns during development
 4. **Documentation**: Clear guidelines for maintaining architectural boundaries
 
 ### ⚠️ **Migration Safety**
+
 1. **Backward Compatibility**: Maintain compatibility layer throughout migration
 2. **Incremental Migration**: Migrate one service at a time with full testing
 3. **Rollback Plan**: Keep legacy system functional until migration is verified
@@ -1206,12 +1246,14 @@ EcoSolverConfigModule.forRoot({
 ## Success Metrics
 
 ### 📊 **Architectural Quality**
-- [ ] Zero eco-solver specific code in `@libs/config` 
+
+- [ ] Zero eco-solver specific code in `@libs/config`
 - [ ] All eco-solver logic properly contained in `@libs/solver-config`
 - [ ] Generic infrastructure successfully reused by eco-solver application
 - [ ] Clear dependency graph: solver-config → config (not bidirectional)
 
-### 📊 **Migration Success**  
+### 📊 **Migration Success**
+
 - [ ] All existing functionality preserved and working
 - [ ] Zero breaking changes for consuming applications
 - [ ] All tests passing (existing + new architecture validation)
@@ -1223,7 +1265,7 @@ EcoSolverConfigModule.forRoot({
 This corrected migration plan ensures **proper architectural separation**:
 
 1. **@libs/config** remains a **generic infrastructure library** - no eco-solver contamination
-2. **@libs/solver-config** becomes the **eco-solver specific consumer** - uses generic infrastructure  
+2. **@libs/solver-config** becomes the **eco-solver specific consumer** - uses generic infrastructure
 3. **Clear separation of concerns** - each library has well-defined responsibilities
 4. **Maintainable architecture** - easy to extend, modify, and understand
 
@@ -1232,7 +1274,7 @@ This corrected migration plan ensures **proper architectural separation**:
 Instead of polluting the generic infrastructure with application-specific code, we:
 
 - **Keep `@libs/config` pure** - only generic, reusable patterns
-- **Make `@libs/solver-config` the consumer** - contains all eco-solver specifics  
+- **Make `@libs/solver-config` the consumer** - contains all eco-solver specifics
 - **Establish clear boundaries** - prevents architectural erosion over time
 - **Enable future growth** - other applications can use the generic infrastructure
 
@@ -1241,7 +1283,7 @@ This approach follows **SOLID principles**, maintains **clean architecture**, an
 ## 🚀 Implementation Timeline
 
 1. **Week 1**: Create ConfigSource interface and base providers
-2. **Week 2**: Build enhanced dynamic module with smart provider creation  
+2. **Week 2**: Build enhanced dynamic module with smart provider creation
 3. **Week 3**: Implement service with Promise.allSettled pattern
 4. **Week 4**: Testing, validation, and documentation
 

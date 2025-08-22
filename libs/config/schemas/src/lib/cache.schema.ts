@@ -11,7 +11,9 @@ export type CacheConfig = z.infer<typeof CacheConfigSchema>
 export const validateCacheConfig = (data: unknown): CacheConfig => {
   const result = CacheConfigSchema.safeParse(data)
   if (!result.success) {
-    throw new Error(`Cache configuration validation failed: ${JSON.stringify(result.error.format())}`)
+    throw new Error(
+      `Cache configuration validation failed: ${JSON.stringify(result.error.format())}`,
+    )
   }
   return result.data
 }

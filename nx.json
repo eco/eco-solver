@@ -17,7 +17,6 @@
     ],
     "sharedGlobals": ["{workspaceRoot}/.github/workflows/ci.yml"]
   },
-  "nxCloudId": "68a3485600efd300211a996f",
   "targetDefaults": {
     "build": {
       "cache": true,
@@ -54,7 +53,7 @@
               "onlyDependOnLibsWithTags": ["scope:config", "scope:shared"]
             },
             {
-              "sourceTag": "scope:eco-solver", 
+              "sourceTag": "scope:eco-solver",
               "onlyDependOnLibsWithTags": ["scope:eco-solver", "scope:config", "scope:shared"]
             },
             {
@@ -80,17 +79,6 @@
     ]
   },
   "plugins": [
-    {
-      "plugin": "@nx/webpack/plugin",
-      "options": {
-        "buildTargetName": "build",
-        "serveTargetName": "serve",
-        "previewTargetName": "preview",
-        "buildDepsTargetName": "build-deps",
-        "watchDepsTargetName": "watch-deps",
-        "serveStaticTargetName": "serve-static"
-      }
-    },
     {
       "plugin": "@nx/eslint/plugin",
       "options": {

@@ -5,7 +5,7 @@ export const ChainPrefix = 'pre'
 export enum NodeEnv {
   production = 'production',
   preproduction = 'preproduction',
-  staging = 'staging', 
+  staging = 'staging',
   development = 'development',
 }
 

@@ -13,25 +13,27 @@ export * from './lib/utils/chain-config.utils'
 
 // Backward compatibility exports for @libs/config-core imports
 // This allows existing imports to work without changes during migration
-export { 
-  EcoSolverConfigService as EcoConfigService
-} from './lib/services/eco-solver-config.service'
+export { EcoSolverConfigService as EcoConfigService } from './lib/services/eco-solver-config.service'
 export { EcoSolverConfigModule as EcoConfigModule } from './lib/modules/eco-solver-config.module'
 
 // Legacy ConfigLoader compatibility
 export class ConfigLoader {
   static getInstance(options?: any) {
-    console.warn('[DEPRECATED] ConfigLoader.getInstance is deprecated. Use EcoSolverConfigService instead.')
+    console.warn(
+      '[DEPRECATED] ConfigLoader.getInstance is deprecated. Use EcoSolverConfigService instead.',
+    )
     return {
       load: () => {
         const { getStaticSolverConfig } = require('./lib/solver-config')
         return getStaticSolverConfig()
-      }
+      },
     }
   }
-  
+
   static load(options?: any) {
-    console.warn('[DEPRECATED] ConfigLoader.load is deprecated. Use EcoSolverConfigService instead.')
+    console.warn(
+      '[DEPRECATED] ConfigLoader.load is deprecated. Use EcoSolverConfigService instead.',
+    )
     const { getStaticSolverConfig } = require('./lib/solver-config')
     return getStaticSolverConfig()
   }

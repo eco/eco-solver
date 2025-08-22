@@ -7,7 +7,6 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libs/config/testing",
         "main": "libs/config/testing/src/index.ts",

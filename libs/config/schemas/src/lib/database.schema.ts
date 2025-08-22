@@ -19,7 +19,9 @@ export type DatabaseConfig = z.infer<typeof DatabaseConfigSchema>
 export const validateDatabaseConfig = (data: unknown): DatabaseConfig => {
   const result = DatabaseConfigSchema.safeParse(data)
   if (!result.success) {
-    throw new Error(`Database configuration validation failed: ${JSON.stringify(result.error.format())}`)
+    throw new Error(
+      `Database configuration validation failed: ${JSON.stringify(result.error.format())}`,
+    )
   }
   return result.data
 }

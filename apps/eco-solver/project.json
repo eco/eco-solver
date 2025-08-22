@@ -6,116 +6,60 @@
   "tags": ["scope:eco-solver", "type:app"],
   "targets": {
     "build": {
-      "executor": "@nx/webpack:webpack",
+      "executor": "@nx/js:swc",
       "outputs": ["{options.outputPath}"],
       "options": {
+        "outputPath": "dist/apps/eco-solver",
         "main": "apps/eco-solver/src/main.ts",
         "tsConfig": "apps/eco-solver/tsconfig.app.json",
-        "webpackConfig": "apps/eco-solver/webpack.config.js",
-        "outputPath": "dist/apps/eco-solver",
         "assets": [
-          {
-            "glob": "**/*",
-            "input": "apps/eco-solver/config",
-            "output": "config"
-          }
-        ]
+          "apps/eco-solver/src/assets/**",
+          "apps/eco-solver/**/*.graphql",
+          "apps/eco-solver/**/*.proto"
+        ],
+        "swcrc": ".swcrc",
+        "buildLibsFromSource": false,
+        "updateBuildableProjectDepsInPackageJson": true
       },
       "configurations": {
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
-        },
-        "production": {
-          "optimization": true,
-          "extractLicenses": true,
-          "sourceMap": true
-        },
-        "staging": {
-          "optimization": true,
-          "extractLicenses": true,
-          "sourceMap": true
-        },
-        "preproduction": {
-          "optimization": true,
-          "extractLicenses": true,
-          "sourceMap": true
-        }
-      }
-    },
-    "prune-lockfile": {
-      "dependsOn": ["build"],
-      "cache": true,
-      "executor": "@nx/js:prune-lockfile",
-      "outputs": [
-        "{workspaceRoot}/dist/apps/eco-solver/package.json",
-        "{workspaceRoot}/dist/apps/eco-solver/package-lock.json"
-      ],
-      "options": {
-        "buildTarget": "build"
-      }
-    },
-    "copy-workspace-modules": {
-      "dependsOn": ["build"],
-      "cache": true,
-      "outputs": ["{workspaceRoot}/dist/apps/eco-solver/workspace_modules"],
-      "executor": "@nx/js:copy-workspace-modules",
-      "options": {
-        "buildTarget": "build"
-      }
-    },
-    "prune": {
-      "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
-      "executor": "nx:noop"
+        "development": { "watch": true, "sourceMaps": true },
+        "production": { "watch": false, "sourceMaps": false }
+      },
+      "dependsOn": ["^build"]
     },
     "serve": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "executor": "@nx/js:node",
       "options": {
-        "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
-        "cwd": "."
+        "buildTarget": "eco-solver:build"
       },
       "configurations": {
         "development": {
-          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
-          "env": {
-            "NODE_ENV": "development"
-          }
+          "buildTarget": "eco-solver:build:development"
         },
         "production": {
-          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
-          "env": {
-            "NODE_ENV": "production"
-          }
-        },
-        "staging": {
-          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
-          "env": {
-            "NODE_ENV": "staging"
-          }
-        },
-        "preproduction": {
-          "command": "node --enable-source-maps dist/apps/eco-solver/main.js",
-          "env": {
-            "NODE_ENV": "preproduction"
-          }
+          "buildTarget": "eco-solver:build:production"
         }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p {options.tsConfig}",
+        "args": {
+          "tsConfig": "apps/eco-solver/tsconfig.app.json"
+        }
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint apps/eco-solver --ext .ts"
       }
     },
     "test": {
-      "options": {
-        "passWithNoTests": true
-      }
-    },
-    "cli": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "ts-node src/commander/command-main.ts",
-        "cwd": "apps/eco-solver",
-        "env": {
-          "NODE_CONFIG_DIR": "./config"
-        }
+        "command": "jest --config jest.config.ts --runInBand"
       }
     }
   }

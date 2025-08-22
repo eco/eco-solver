@@ -7,12 +7,17 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libs/solver-config",
-        "main": "libs/solver-config/src/index.ts",
         "tsConfig": "libs/solver-config/tsconfig.lib.json",
-        "assets": ["libs/solver-config/*.md"]
+        "main": "libs/solver-config/src/index.ts",
+        "assets": [
+          "libs/solver-config/*.md"
+        ]
+      },
+      "configurations": {
+        "development": { "watch": true },
+        "production": { "watch": false }
       }
     }
   }

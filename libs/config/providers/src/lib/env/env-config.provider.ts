@@ -23,7 +23,7 @@ export default registerAs('env', () => {
 export const createEnvFactory = () => ({
   useFactory: () => {
     const env = EnvironmentSchema.parse(process.env)
-    
+
     console.log(`Environment configuration loaded: ${env.NODE_ENV}`)
     return {
       ...env,

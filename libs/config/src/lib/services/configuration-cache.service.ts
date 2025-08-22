@@ -18,7 +18,7 @@ export class ConfigurationCacheService {
     return undefined
   }
 
-  set<T>(key: string, value: T, ttlMs: number = 300000): void {
+  set<T>(key: string, value: T, ttlMs = 300000): void {
     // Never cache sensitive data - only non-sensitive config
     if (this.isSensitiveKey(key)) {
       throw new Error(`Cannot cache sensitive data: ${key}`)
