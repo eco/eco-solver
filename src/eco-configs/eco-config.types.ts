@@ -203,6 +203,18 @@ export type SolverRegistrationConfig = {
 }
 
 /**
+ * The config type for git configuration
+ */
+export interface GitConfig {
+  repo: string
+  hash?: string
+  branch?: string
+  tag?: string
+  env: string
+  token?: string
+}
+
+/**
  * The config type for the aws credentials
  */
 export type AwsCredential = {

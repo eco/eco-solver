@@ -12,17 +12,14 @@ export default {
       region: 'us-east-2',
       secretID: process.env.AWS_SECRET_ID_MISC || 'eco-solver-secrets-pre-prod',
     },
+  ],
+
+  git: [
     {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CONFIGS || 'eco-solver-configs-pre-prod',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CHAINS || 'eco-solver-configs-chains-preprod',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_WHITELIST || 'eco-solver-whitelist-pre-prod',
+      repo: 'eco-incorp/config-eco-solver',
+      branch: 'preprod-stoyan',
+      env: 'preprod',
+      token: process.env.GITHUB_TOKEN,
     },
   ],
   //don't add anything else here

@@ -4,14 +4,6 @@ export default {
       region: 'us-east-2',
       secretID: 'eco-solver-secrets-dev',
     },
-    {
-      region: 'us-east-2',
-      secretID: 'eco-solver-configs-dev',
-    },
-    {
-      region: 'us-east-2',
-      secretID: 'eco-solver-whitelist-dev',
-    },
   ],
   cache: {
     ttl: 10_000, // milliseconds till cache key expires
