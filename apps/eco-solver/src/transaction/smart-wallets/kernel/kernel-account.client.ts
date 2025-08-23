@@ -45,6 +45,7 @@ export function KernelAccountActions<
   account extends Account | undefined = Account | undefined,
 >(client: KernelAccountClient<entryPointVersion, transport, chain, account>): KernelWalletActions {
   return {
+    // @ts-expect-error complains about deep types
     execute: (args) => execute(client, args),
     deployKernelAccount: () => deployKernelAccount(client),
   }

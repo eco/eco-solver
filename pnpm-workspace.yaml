@@ -1,0 +1,4 @@
+patchedDependencies:
+  '@zerodev/sdk@5.4.41': patches/@zerodev__sdk@5.4.41.patch
+  permissionless: patches/permissionless.patch
+  permissionless@0.2.54: patches/permissionless@0.2.54.patch

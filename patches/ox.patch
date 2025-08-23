@@ -1,0 +1,1953 @@
+diff --git a/_types/core/Abi.d.ts b/_types/core/Abi.d.ts
+index ca191a7476fa9177c1876105469d6408282cfb70..e664d0fd1dfc0f01409e14981cf14b5539cfdf35 100644
+--- a/_types/core/Abi.d.ts
++++ b/_types/core/Abi.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import type * as Errors from './Errors.js';
+ import type * as AbiItem_internal from './internal/abiItem.js';
+diff --git a/_types/core/AbiConstructor.d.ts b/_types/core/AbiConstructor.d.ts
+index daaf25e26d39c160707b3b189f727bb08b4803e9..3ff373414f7c3c41c8677752971eaa30ce1fddc3 100644
+--- a/_types/core/AbiConstructor.d.ts
++++ b/_types/core/AbiConstructor.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import type * as Abi from './Abi.js';
+ import * as AbiItem from './AbiItem.js';
+diff --git a/_types/core/AbiError.d.ts b/_types/core/AbiError.d.ts
+index 2d3ea37269e499fbee82f2302ae6e57524765473..1e74fbb3c4c7d38e6740ef2bcdc6e178f84e334e 100644
+--- a/_types/core/AbiError.d.ts
++++ b/_types/core/AbiError.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import type * as Abi from './Abi.js';
+ import * as AbiItem from './AbiItem.js';
+diff --git a/_types/core/AbiEvent.d.ts b/_types/core/AbiEvent.d.ts
+index 7a6275e49280c7916e725a4123f6c44d43648f85..e7bc4b77d9c5080ea819b851b915eedb53b3fcbb 100644
+--- a/_types/core/AbiEvent.d.ts
++++ b/_types/core/AbiEvent.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import type * as Abi from './Abi.js';
+ import * as AbiItem from './AbiItem.js';
+diff --git a/_types/core/AbiFunction.d.ts b/_types/core/AbiFunction.d.ts
+index 97ec1be319125d4718985741b6b716ec784448f5..795b8e27dffc8de302fdce8528f0b0154e9e285a 100644
+--- a/_types/core/AbiFunction.d.ts
++++ b/_types/core/AbiFunction.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import type * as Abi from './Abi.js';
+ import * as AbiItem from './AbiItem.js';
+diff --git a/_types/core/AbiItem.d.ts b/_types/core/AbiItem.d.ts
+index 80e8e7640069602295c5ac7e9edc8d52e8e10994..44e34ea8b5a5160b3fb5837df9d0e8e1a64ef9dc 100644
+--- a/_types/core/AbiItem.d.ts
++++ b/_types/core/AbiItem.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import type * as Abi from './Abi.js';
+ import * as Errors from './Errors.js';
+diff --git a/_types/core/AbiParameters.d.ts b/_types/core/AbiParameters.d.ts
+index 28f9196485748a99ff23c99a32db22e2ed284bff..cdf603ce6c26c0641f256a248fdc21ab36027c9c 100644
+--- a/_types/core/AbiParameters.d.ts
++++ b/_types/core/AbiParameters.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype';
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+diff --git a/_types/core/AccessList.d.ts b/_types/core/AccessList.d.ts
+index 3bd2c8db53951fad20e9c2e6feabbed5d66b8dc9..775a135b60051726d905465f8b1c30b5171c682c 100644
+--- a/_types/core/AccessList.d.ts
++++ b/_types/core/AccessList.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js';
+ import * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/AccountProof.d.ts b/_types/core/AccountProof.d.ts
+index 22b7490392e519d20a61b88fbe457a8082916f03..788617bf59efa5e6a0e2725e059ad5ebcf3110c0 100644
+--- a/_types/core/AccountProof.d.ts
++++ b/_types/core/AccountProof.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Address, Hex } from '../index.js';
+ /** An Account Proof as defined in the [Execution API specification](https://github.com/ethereum/execution-apis/blob/main/src/schemas/state.yaml). */
+ export type AccountProof<bigintType = bigint, numberType = number> = {
+diff --git a/_types/core/Address.d.ts b/_types/core/Address.d.ts
+index 212e3a3596e600a811bd0cffb96d429c6a0d57a6..b14583a50fa16c6e981c20d2f46f3cfaa9e563bc 100644
+--- a/_types/core/Address.d.ts
++++ b/_types/core/Address.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Address as abitype_Address } from 'abitype';
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+diff --git a/_types/core/AesGcm.d.ts b/_types/core/AesGcm.d.ts
+index df99cd34b5181d3f4be00470e93631657832ea2e..f7d267eb2a0f252299e221bf8f5b0d412386ccdb 100644
+--- a/_types/core/AesGcm.d.ts
++++ b/_types/core/AesGcm.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Authorization.d.ts b/_types/core/Authorization.d.ts
+index dca96eee2cb7a4989af92c334449ab608d58255c..88d08f2cc49503a6eab3409fea3b539a7c3e7247 100644
+--- a/_types/core/Authorization.d.ts
++++ b/_types/core/Authorization.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+ import * as Hash from './Hash.js';
+diff --git a/_types/core/Base58.d.ts b/_types/core/Base58.d.ts
+index 271ab16ad6c67d5875678c2b45f4fa1cbfe902c5..b4928c822ab0a2dad34b94aed9031cde8ae4a3c8 100644
+--- a/_types/core/Base58.d.ts
++++ b/_types/core/Base58.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Base64.d.ts b/_types/core/Base64.d.ts
+index 8700ace0812272aec932abb33870dd20a152f19f..fca306c030312f1f386c4fc9adfb21ddff40acf1 100644
+--- a/_types/core/Base64.d.ts
++++ b/_types/core/Base64.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/BinaryStateTree.d.ts b/_types/core/BinaryStateTree.d.ts
+index 7c7cf3398c9652b36e20c9688f146b16af55e56e..eeaddabc396a19bc43cac2411433ecc5e12fc713 100644
+--- a/_types/core/BinaryStateTree.d.ts
++++ b/_types/core/BinaryStateTree.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type { OneOf } from './internal/types.js';
+ /** Type that defines a Binary State Tree instance. */
+diff --git a/_types/core/Blobs.d.ts b/_types/core/Blobs.d.ts
+index 2978edc8b044a87162d72993f4da9fa851bb2f66..3769b5c307b5bb5f37b5aba11a3ae4a510c3c541 100644
+--- a/_types/core/Blobs.d.ts
++++ b/_types/core/Blobs.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Block.d.ts b/_types/core/Block.d.ts
+index 2a2275ac8afbbfc15095a6812bcda56f2dff85ad..654bb1d4079fdf57ab970d8c9f6642750ecb47da 100644
+--- a/_types/core/Block.d.ts
++++ b/_types/core/Block.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/BlockOverrides.d.ts b/_types/core/BlockOverrides.d.ts
+index 53145e33815f057f0a2b257b3af8aa3e2cfd4719..427260eca4d09bc4df01b69efef3554fd49c6766 100644
+--- a/_types/core/BlockOverrides.d.ts
++++ b/_types/core/BlockOverrides.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import * as Hex from './Hex.js';
+ import * as Withdrawal from './Withdrawal.js';
+diff --git a/_types/core/Bloom.d.ts b/_types/core/Bloom.d.ts
+index b39ac24f73f73e0c5f9eb7b0b1d6c1557bf3599b..db880bde17db6e9afeafbfdccafe80369ba55b01 100644
+--- a/_types/core/Bloom.d.ts
++++ b/_types/core/Bloom.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hash from './Hash.js';
+diff --git a/_types/core/Bls.d.ts b/_types/core/Bls.d.ts
+index 4de068d60acd17466a1eeb65df19b19e700de2b5..d58bc98b4097bc95e0c51ab1d2738fc6ca3d550d 100644
+--- a/_types/core/Bls.d.ts
++++ b/_types/core/Bls.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as BlsPoint from './BlsPoint.js';
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/BlsPoint.d.ts b/_types/core/BlsPoint.d.ts
+index b739ac8d5f927472194cbf104ae63c2c899d73f7..e418992934a8aa64c244e12c819bb95964f16634 100644
+--- a/_types/core/BlsPoint.d.ts
++++ b/_types/core/BlsPoint.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Bytes.d.ts b/_types/core/Bytes.d.ts
+index 25ae0edad8a2494b913b4fc62cb968b48c21c9b7..d5fcf2d28ec0ba6601ca6dd42d369fca6afd9164 100644
+--- a/_types/core/Bytes.d.ts
++++ b/_types/core/Bytes.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+ import * as internal from './internal/bytes.js';
+diff --git a/_types/core/Caches.d.ts b/_types/core/Caches.d.ts
+index 06ce9d4b94d28d53cdfdab88895016a1406f2561..0b7409d7dfc10c815d963136166279a96596594f 100644
+--- a/_types/core/Caches.d.ts
++++ b/_types/core/Caches.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { LruMap } from './internal/lru.js';
+ export declare const checksum: LruMap<`0x${string}`>;
+ /**
+diff --git a/_types/core/ContractAddress.d.ts b/_types/core/ContractAddress.d.ts
+index 1338b52ced2a9f318d71c281bc3a456398638ddd..12a07aeec5c46acd939de28b977debed358fcf76 100644
+--- a/_types/core/ContractAddress.d.ts
++++ b/_types/core/ContractAddress.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js';
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/Ed25519.d.ts b/_types/core/Ed25519.d.ts
+index c5ea0f81a7581b13b6ef43157833ff35c58b81d2..6c5c65dd9a1bf745ceb7f30869e74e9e98a8ba5a 100644
+--- a/_types/core/Ed25519.d.ts
++++ b/_types/core/Ed25519.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Ens.d.ts b/_types/core/Ens.d.ts
+index 56887170f0759cde58bbea90d577a1d699f94d29..0e0243819f1346a4e8f87b71166d466420929b82 100644
+--- a/_types/core/Ens.d.ts
++++ b/_types/core/Ens.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hash from './Hash.js';
+diff --git a/_types/core/Errors.d.ts b/_types/core/Errors.d.ts
+index 23b765240263ac7463b071416824e9741f3c82db..7c2419c9c64292218736f30836c3a9e19f5fe7e0 100644
+--- a/_types/core/Errors.d.ts
++++ b/_types/core/Errors.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export type GlobalErrorType<name extends string = 'Error'> = Error & {
+     name: name;
+ };
+diff --git a/_types/core/Fee.d.ts b/_types/core/Fee.d.ts
+index e350014aeb60db51e7e3932eb6ae29106533d619..4a3b1fefc9335ffd4c2d21143b1ce75b82a25908 100644
+--- a/_types/core/Fee.d.ts
++++ b/_types/core/Fee.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Hex from './Hex.js';
+ import type { Compute, OneOf } from './internal/types.js';
+ export type FeeHistory<bigintType = bigint> = Compute<{
+diff --git a/_types/core/Filter.d.ts b/_types/core/Filter.d.ts
+index ad58eb5d2e5ba36266164eaa4dcea71de3322555..0d9fd1aec771a55636804fa7d5774a4fd3e54290 100644
+--- a/_types/core/Filter.d.ts
++++ b/_types/core/Filter.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import type * as Block from './Block.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/Hash.d.ts b/_types/core/Hash.d.ts
+index 578666014e51eac974a273b43dbd21b06567163d..70ff8aa4c6c83bbc919dd54c2f43674580cba829 100644
+--- a/_types/core/Hash.d.ts
++++ b/_types/core/Hash.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/HdKey.d.ts b/_types/core/HdKey.d.ts
+index 994354527e487eec088ef1f7a4b97ae9660e4d2a..57cd05a80759a894d2c2fec068b5368fbb10c3c0 100644
+--- a/_types/core/HdKey.d.ts
++++ b/_types/core/HdKey.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { type Versions } from '@scure/bip32';
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/Hex.d.ts b/_types/core/Hex.d.ts
+index 7a51762c90a439fcfd02bcfa06c34856ad5702ef..6238d0c9972336789c31cf27494d1001fc74484e 100644
+--- a/_types/core/Hex.d.ts
++++ b/_types/core/Hex.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+ import * as internal_bytes from './internal/bytes.js';
+diff --git a/_types/core/Json.d.ts b/_types/core/Json.d.ts
+index 2da923ad9c771e1246b065e539a751518519471e..cc6a21ad8108ea01b258c4a533f4ed6429bb11c4 100644
+--- a/_types/core/Json.d.ts
++++ b/_types/core/Json.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from './Errors.js';
+ /**
+  * Parses a JSON string, with support for `bigint`.
+diff --git a/_types/core/Keystore.d.ts b/_types/core/Keystore.d.ts
+index 52ae0ac1b20347653d380d1aa52183852b52df8d..15abca1271abd8788eb5b217d9fe330d88b44cf4 100644
+--- a/_types/core/Keystore.d.ts
++++ b/_types/core/Keystore.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Hex from './Hex.js';
+ /** Base Derivation Options. */
+diff --git a/_types/core/Kzg.d.ts b/_types/core/Kzg.d.ts
+index 05cdc23c6547a8fbad4e4eb34bba6771f4f61873..8baaaa42cfe9398fe9166950d14ecbef6a105511 100644
+--- a/_types/core/Kzg.d.ts
++++ b/_types/core/Kzg.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ /** @see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4844.md#parameters */
+diff --git a/_types/core/Log.d.ts b/_types/core/Log.d.ts
+index 2fddce26a0d23a31f8572ede4ea096bdb1bcb5c2..c710108fe68fe6248351d358ff6040ea528fa692 100644
+--- a/_types/core/Log.d.ts
++++ b/_types/core/Log.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Mnemonic.d.ts b/_types/core/Mnemonic.d.ts
+index 3906b001da8d4c3cdb2ce1c80882fa7498fdb3a4..e98db73ecdf09e71d0d6b9b75679c4f56bd7ba3d 100644
+--- a/_types/core/Mnemonic.d.ts
++++ b/_types/core/Mnemonic.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as HdKey from './HdKey.js';
+diff --git a/_types/core/P256.d.ts b/_types/core/P256.d.ts
+index 4d0dadad240c66c8fbc2b8b4a4519ca0e1193eb3..44d843ee9dcb97305ae46567eb6257d9ca4d591f 100644
+--- a/_types/core/P256.d.ts
++++ b/_types/core/P256.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/PersonalMessage.d.ts b/_types/core/PersonalMessage.d.ts
+index 2b7dd63a10f18101367e35432187350aaae876c7..1ba7c17a2432307fa199eeebd18930b203c26221 100644
+--- a/_types/core/PersonalMessage.d.ts
++++ b/_types/core/PersonalMessage.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hash from './Hash.js';
+diff --git a/_types/core/Provider.d.ts b/_types/core/Provider.d.ts
+index 5516fefa7bf79a64d144e9ad61403318ae268b33..7b18e16db6634c13ce95448d29e2348c9007ee7b 100644
+--- a/_types/core/Provider.d.ts
++++ b/_types/core/Provider.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { EventEmitter } from 'eventemitter3';
+ import type * as Address from './Address.js';
+ import * as Errors from './Errors.js';
+diff --git a/_types/core/PublicKey.d.ts b/_types/core/PublicKey.d.ts
+index a5fc707408dd525b22097999c3c88066ef26e2e6..f4694b9bfc8bd55ab3182b3e9b78d669e27561e2 100644
+--- a/_types/core/PublicKey.d.ts
++++ b/_types/core/PublicKey.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Rlp.d.ts b/_types/core/Rlp.d.ts
+index 534e0b1721c4e1516efb5f005fd36987de6d5370..bfaecb528062eb1e6adec00935b5c45484c2fab8 100644
+--- a/_types/core/Rlp.d.ts
++++ b/_types/core/Rlp.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/RpcRequest.d.ts b/_types/core/RpcRequest.d.ts
+index b3fa7ecf14008123cf0d7d718eb4bd75e1cced2e..107bbe88d46c6d12166fc761b646ebfaca12e8a4 100644
+--- a/_types/core/RpcRequest.d.ts
++++ b/_types/core/RpcRequest.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Errors } from '../index.js';
+ import type * as RpcSchema from './RpcSchema.js';
+ import type * as RpcSchema_internal from './internal/rpcSchema.js';
+diff --git a/_types/core/RpcResponse.d.ts b/_types/core/RpcResponse.d.ts
+index 907f3b403644523bb0d1fa823f5db920dcc5162f..5b6cc21ee7511c82e51af0d5154f5b3df774ec6b 100644
+--- a/_types/core/RpcResponse.d.ts
++++ b/_types/core/RpcResponse.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Errors, RpcRequest } from '../index.js';
+ import type { Compute, IsNarrowable, IsNever, OneOf, UnionPartialBy } from './internal/types.js';
+ /** A JSON-RPC response object as per the [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification#request_object). */
+diff --git a/_types/core/RpcSchema.d.ts b/_types/core/RpcSchema.d.ts
+index 0e5df2098b0894cb36966c51f82976519bc7518e..a81931b17878d4239661076b592e7f70f83f01c7 100644
+--- a/_types/core/RpcSchema.d.ts
++++ b/_types/core/RpcSchema.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { ResolvedRegister } from './internal/register.js';
+ import type { Compute, IsNarrowable } from './internal/types.js';
+ export type { Eth } from './internal/rpcSchemas/eth.js';
+diff --git a/_types/core/RpcTransport.d.ts b/_types/core/RpcTransport.d.ts
+index 6d5c67f751afd4d98bc794732e9c7998e88e77ed..4213756a92cab6237ed9b14797bec83d05fe1576 100644
+--- a/_types/core/RpcTransport.d.ts
++++ b/_types/core/RpcTransport.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from './Errors.js';
+ import type * as RpcResponse from './RpcResponse.js';
+ import type * as RpcSchema from './RpcSchema.js';
+diff --git a/_types/core/Secp256k1.d.ts b/_types/core/Secp256k1.d.ts
+index 8ccc25aa3b1949b9678b6a1995a8d6a7434176b6..189194472ffb4ed6dbc181abc374b192c2321d2d 100644
+--- a/_types/core/Secp256k1.d.ts
++++ b/_types/core/Secp256k1.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js';
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/Signature.d.ts b/_types/core/Signature.d.ts
+index 341c8784bead8f473c144aab6ce4195e616ff531..8beb52b6b99128f55fc3497a97f0e15b6d468ae5 100644
+--- a/_types/core/Signature.d.ts
++++ b/_types/core/Signature.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Siwe.d.ts b/_types/core/Siwe.d.ts
+index a8b59629aeb4344d94ec4c01401496390cc29676..69f839770c4e6ae44aa126d61d5c289536bf967b 100644
+--- a/_types/core/Siwe.d.ts
++++ b/_types/core/Siwe.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js';
+ import * as Errors from './Errors.js';
+ import type { ExactPartial } from './internal/types.js';
+diff --git a/_types/core/Solidity.d.ts b/_types/core/Solidity.d.ts
+index d1f6fe98e9490946e102f5902185630680817df0..4c12c10f68ea818fe2b551c1325d6503a0a1b55d 100644
+--- a/_types/core/Solidity.d.ts
++++ b/_types/core/Solidity.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export declare const arrayRegex: RegExp;
+ export declare const bytesRegex: RegExp;
+ export declare const integerRegex: RegExp;
+diff --git a/_types/core/StateOverrides.d.ts b/_types/core/StateOverrides.d.ts
+index 0a2c98e6644ebc336945dda4fccb5bfc9a6e4ca9..acef0347ea8535d48e706fbad8b9bea56c916805 100644
+--- a/_types/core/StateOverrides.d.ts
++++ b/_types/core/StateOverrides.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import * as Hex from './Hex.js';
+ import type { Compute, OneOf } from './internal/types.js';
+diff --git a/_types/core/Transaction.d.ts b/_types/core/Transaction.d.ts
+index f8b9914575ff89e0d39dcd677d854c40c256e1c6..31e2b9126c9dcaf2ba821c6d72f725cd45b7488c 100644
+--- a/_types/core/Transaction.d.ts
++++ b/_types/core/Transaction.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AccessList from './AccessList.js';
+ import type * as Address from './Address.js';
+ import * as Authorization from './Authorization.js';
+diff --git a/_types/core/TransactionEnvelope.d.ts b/_types/core/TransactionEnvelope.d.ts
+index 261c97476829b1ca31d9ed57eddbab4e2b4bcb78..c9ef68315cc54bbf657d64fa52e531140d2d75ba 100644
+--- a/_types/core/TransactionEnvelope.d.ts
++++ b/_types/core/TransactionEnvelope.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import * as Errors from './Errors.js';
+ import type * as Hex from './Hex.js';
+diff --git a/_types/core/TransactionEnvelopeEip1559.d.ts b/_types/core/TransactionEnvelopeEip1559.d.ts
+index 8b259f175ae319cac5f9e0a551aa69996b3e1003..1b41e4510a18d32fcfa1cceeebf9957dbf982d5b 100644
+--- a/_types/core/TransactionEnvelopeEip1559.d.ts
++++ b/_types/core/TransactionEnvelopeEip1559.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AccessList from './AccessList.js';
+ import * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/TransactionEnvelopeEip2930.d.ts b/_types/core/TransactionEnvelopeEip2930.d.ts
+index 93fdf8f0e3a28c262fb69636f9bfc54348777c83..ee1b1fd200d81dc164c1091f2cc4b377a007fca4 100644
+--- a/_types/core/TransactionEnvelopeEip2930.d.ts
++++ b/_types/core/TransactionEnvelopeEip2930.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AccessList from './AccessList.js';
+ import * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/TransactionEnvelopeEip4844.d.ts b/_types/core/TransactionEnvelopeEip4844.d.ts
+index 9efbb04dbd744cc08f8343effdfc3596bfcb5ed5..f2a90879a178c40fa9171ba63b67874f879e950d 100644
+--- a/_types/core/TransactionEnvelopeEip4844.d.ts
++++ b/_types/core/TransactionEnvelopeEip4844.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AccessList from './AccessList.js';
+ import * as Blobs from './Blobs.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/TransactionEnvelopeEip7702.d.ts b/_types/core/TransactionEnvelopeEip7702.d.ts
+index 7944daedc52aa71479a443987024715dc543b4b4..5f6a7fd8c3267fde186b904fafaacf1cebce7c09 100644
+--- a/_types/core/TransactionEnvelopeEip7702.d.ts
++++ b/_types/core/TransactionEnvelopeEip7702.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Assign } from './internal/types.js';
+ import type { PartialBy, UnionPartialBy } from './internal/types.js';
+ import * as AccessList from './AccessList.js';
+diff --git a/_types/core/TransactionEnvelopeLegacy.d.ts b/_types/core/TransactionEnvelopeLegacy.d.ts
+index 581419207aeb10832100f6f10c5535fe4da9e40a..8307adbd6690c9555d94b72a5c6c0efe8f87d750 100644
+--- a/_types/core/TransactionEnvelopeLegacy.d.ts
++++ b/_types/core/TransactionEnvelopeLegacy.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+ import * as Hash from './Hash.js';
+diff --git a/_types/core/TransactionReceipt.d.ts b/_types/core/TransactionReceipt.d.ts
+index 7efcc28e71a258502b50a0bc38f017a324b1bf45..03a4070696708c3da9d4d0c9959ca39f8e47c633 100644
+--- a/_types/core/TransactionReceipt.d.ts
++++ b/_types/core/TransactionReceipt.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/TransactionRequest.d.ts b/_types/core/TransactionRequest.d.ts
+index 7325de8de2266e53e75e7390518e3a5c6be28e7f..3f500ca4719eab666bae6c173ca229a5fbd01902 100644
+--- a/_types/core/TransactionRequest.d.ts
++++ b/_types/core/TransactionRequest.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AccessList from './AccessList.js';
+ import type * as Address from './Address.js';
+ import * as Authorization from './Authorization.js';
+diff --git a/_types/core/TypedData.d.ts b/_types/core/TypedData.d.ts
+index 6d59f660272a05dea1228b55fd92402b37b9d2e5..25533745ff4217b2b7a7c3bef101e1eb08970a18 100644
+--- a/_types/core/TypedData.d.ts
++++ b/_types/core/TypedData.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as abitype from 'abitype';
+ import * as AbiParameters from './AbiParameters.js';
+ import * as Address from './Address.js';
+diff --git a/_types/core/ValidatorData.d.ts b/_types/core/ValidatorData.d.ts
+index 12c7d60ca86c0261769869262780c848c5a677f3..5db08e1ecd0422a0657472ac8b54ac7d691594b6 100644
+--- a/_types/core/ValidatorData.d.ts
++++ b/_types/core/ValidatorData.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js';
+ import type * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+diff --git a/_types/core/Value.d.ts b/_types/core/Value.d.ts
+index 2dd6682845692fd344472493d73b589200c344fe..4af9d7aafc8571a997bde1482ba23a2236deebf2 100644
+--- a/_types/core/Value.d.ts
++++ b/_types/core/Value.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from './Errors.js';
+ /** @see https://ethereum.github.io/yellowpaper/paper.pdf */
+ export declare const exponents: {
+diff --git a/_types/core/WebAuthnP256.d.ts b/_types/core/WebAuthnP256.d.ts
+index 2e164e17df9929cf06d6dfaf9388201714b035b1..a2d16fb012580f26cab728c5417bb9223aa6d5b1 100644
+--- a/_types/core/WebAuthnP256.d.ts
++++ b/_types/core/WebAuthnP256.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Base64 from './Base64.js';
+ import * as Bytes from './Bytes.js';
+ import * as Errors from './Errors.js';
+diff --git a/_types/core/WebCryptoP256.d.ts b/_types/core/WebCryptoP256.d.ts
+index 006dd14a91310dd65d8af65c34cc5e6699a9ee7a..1070b2ef89954e4e82a69f115d2c3361f7afc583 100644
+--- a/_types/core/WebCryptoP256.d.ts
++++ b/_types/core/WebCryptoP256.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/Withdrawal.d.ts b/_types/core/Withdrawal.d.ts
+index 33a631bed5b7f74127b1865e5b2ea7c416e321b7..03d9d9fcac79e533e984be342f16038d4325ffb4 100644
+--- a/_types/core/Withdrawal.d.ts
++++ b/_types/core/Withdrawal.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+ /** A Withdrawal as defined in the [Execution API specification](https://github.com/ethereum/execution-apis/blob/main/src/schemas/withdrawal.yaml). */
+diff --git a/_types/core/X25519.d.ts b/_types/core/X25519.d.ts
+index 4ca7e3953c15fd1af1259fe728cfd823c3a22ac6..848a207bb880f29f4558d5e737258d807caa462a 100644
+--- a/_types/core/X25519.d.ts
++++ b/_types/core/X25519.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js';
+ import type * as Errors from './Errors.js';
+ import * as Hex from './Hex.js';
+diff --git a/_types/core/internal/abi.d.ts b/_types/core/internal/abi.d.ts
+index b46a1d47f1689c6807ac020250e2279931326adc..15176971832d4877754ad14209e13c19c0632d05 100644
+--- a/_types/core/internal/abi.d.ts
++++ b/_types/core/internal/abi.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Abi from '../Abi.js';
+ /** @internal */
+ export declare function isSignatures(value: Abi.Abi | readonly string[]): value is readonly string[];
+diff --git a/_types/core/internal/abiConstructor.d.ts b/_types/core/internal/abiConstructor.d.ts
+index 5701e95cd8f582393abd00c286e4a825ac5fb94e..aaefe75831d048d2ac6380f2413367cb2a3c192b 100644
+--- a/_types/core/internal/abiConstructor.d.ts
++++ b/_types/core/internal/abiConstructor.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AbiItem_internal from './abiItem.js';
+ import type { TypeErrorMessage } from './types.js';
+ /** @internal */
+diff --git a/_types/core/internal/abiError.d.ts b/_types/core/internal/abiError.d.ts
+index f224d4abd2c62d2659a0bf7c50dd7c159dc3a72b..8e23bca05c58ab36ca729f31b51a883e7e62d2f3 100644
+--- a/_types/core/internal/abiError.d.ts
++++ b/_types/core/internal/abiError.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AbiItem_internal from './abiItem.js';
+ import type { TypeErrorMessage } from './types.js';
+ /** @internal */
+diff --git a/_types/core/internal/abiEvent.d.ts b/_types/core/internal/abiEvent.d.ts
+index 91f01de603f35b37e7081a863aa743236cce1fc3..72b4bf72c0a2635dec8809778b94fd4f3622884f 100644
+--- a/_types/core/internal/abiEvent.d.ts
++++ b/_types/core/internal/abiEvent.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as abitype from 'abitype';
+ import type * as Filter from '../Filter.js';
+ import type * as Hex from '../Hex.js';
+diff --git a/_types/core/internal/abiFunction.d.ts b/_types/core/internal/abiFunction.d.ts
+index fb7214f5873d95d47a03b3aa457a667ca1f1fdc0..bd703ccba7941343a0b95595eee4b936696cbc3d 100644
+--- a/_types/core/internal/abiFunction.d.ts
++++ b/_types/core/internal/abiFunction.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AbiItem_internal from './abiItem.js';
+ import type { TypeErrorMessage } from './types.js';
+ /** @internal */
+diff --git a/_types/core/internal/abiItem.d.ts b/_types/core/internal/abiItem.d.ts
+index 539662e0650b39bf829a8b50a0b8bdaccede1282..e662d4062b6e149dc6b4bb46b8c8a1a3a43c4a1a 100644
+--- a/_types/core/internal/abiItem.d.ts
++++ b/_types/core/internal/abiItem.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as abitype from 'abitype';
+ import type * as Abi from '../Abi.js';
+ import type * as AbiItem from '../AbiItem.js';
+diff --git a/_types/core/internal/abiParameters.d.ts b/_types/core/internal/abiParameters.d.ts
+index 6319097f6a62dfeb42c81da8393b03f0c002cf92..8f26ac6daa561cf71d4241cb028c755a32740ffa 100644
+--- a/_types/core/internal/abiParameters.d.ts
++++ b/_types/core/internal/abiParameters.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { AbiParameter, AbiParameterKind, AbiParameterToPrimitiveType, AbiParametersToPrimitiveTypes } from 'abitype';
+ import * as AbiParameters from '../AbiParameters.js';
+ import * as Address from '../Address.js';
+diff --git a/_types/core/internal/base58.d.ts b/_types/core/internal/base58.d.ts
+index 23e82a24086fdd824f1f4a2af1ec2a3d3dbd3897..ba076186e0ab1ff4f57770c5ba8a46b6800ae319 100644
+--- a/_types/core/internal/base58.d.ts
++++ b/_types/core/internal/base58.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from '../Bytes.js';
+ import type * as Errors from '../Errors.js';
+ import * as Hex from '../Hex.js';
+diff --git a/_types/core/internal/bytes.d.ts b/_types/core/internal/bytes.d.ts
+index 3b3910c4617a1ad545588174aa3ec505b6a4474c..0afdabdc742bbf485225e9caa0c9234fbb7676ed 100644
+--- a/_types/core/internal/bytes.d.ts
++++ b/_types/core/internal/bytes.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from '../Bytes.js';
+ import type * as Errors from '../Errors.js';
+ /** @internal */
+diff --git a/_types/core/internal/cursor.d.ts b/_types/core/internal/cursor.d.ts
+index bf4598120fc8757331b8d7a99edc7d9739b41a3d..4b16ed472f89b9a875b8c53ed78e2b9d79b5619a 100644
+--- a/_types/core/internal/cursor.d.ts
++++ b/_types/core/internal/cursor.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Bytes } from '../Bytes.js';
+ import * as Errors from '../Errors.js';
+ /** @internal */
+diff --git a/_types/core/internal/ens.d.ts b/_types/core/internal/ens.d.ts
+index 5533cbc1f8cf6eacd6c23fd0fb699dace5003b47..794f30e408bae85e0f90e5fba1c6e92ed092bd79 100644
+--- a/_types/core/internal/ens.d.ts
++++ b/_types/core/internal/ens.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { Bytes } from '../../index.js';
+ import * as Ens from '../Ens.js';
+ import type * as Errors from '../Errors.js';
+diff --git a/_types/core/internal/entropy.d.ts b/_types/core/internal/entropy.d.ts
+index 9848ec4232afe3a5e4b7429489de10416c60f7f1..045f8caf198dc78ec3c8b530e73961435237cc4e 100644
+--- a/_types/core/internal/entropy.d.ts
++++ b/_types/core/internal/entropy.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export declare let extraEntropy: boolean;
+ /** @internal */
+ export declare function setExtraEntropy(entropy: boolean): void;
+diff --git a/_types/core/internal/errors.d.ts b/_types/core/internal/errors.d.ts
+index 34d617d1ae99a421d14e640d13ad3f0205ec0f8d..653e140bb5acb24e7c95b94f59329ce877a24cb1 100644
+--- a/_types/core/internal/errors.d.ts
++++ b/_types/core/internal/errors.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @internal */
+ export declare function getUrl(url: string): string;
+ /** @internal */
+diff --git a/_types/core/internal/hdKey.d.ts b/_types/core/internal/hdKey.d.ts
+index 419bd903e7de56eadff13b3d03a78c16ec12fa92..e3c67e6d2b9d40b380753aa77f7bd17cb1eb0463 100644
+--- a/_types/core/internal/hdKey.d.ts
++++ b/_types/core/internal/hdKey.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { HDKey } from '@scure/bip32';
+ import type * as Errors from '../Errors.js';
+ import type * as HdKey from '../HdKey.js';
+diff --git a/_types/core/internal/hex.d.ts b/_types/core/internal/hex.d.ts
+index 7dd2088265369d6783e8c635e12be72a3b369174..e1e2e9e9dbf5e1ea5d2cca83a94baeceff1c8f89 100644
+--- a/_types/core/internal/hex.d.ts
++++ b/_types/core/internal/hex.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from '../Errors.js';
+ import * as Hex from '../Hex.js';
+ /** @internal */
+diff --git a/_types/core/internal/lru.d.ts b/_types/core/internal/lru.d.ts
+index daab659b5d49c99d126a51e0240520f1a41c271c..8cb0dbc33b34fcfaf3db5bd52de5d08792b51256 100644
+--- a/_types/core/internal/lru.d.ts
++++ b/_types/core/internal/lru.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /**
+  * @internal
+  *
+diff --git a/_types/core/internal/mnemonic/wordlists.d.ts b/_types/core/internal/mnemonic/wordlists.d.ts
+index 594bc92c07485cca89faf181d9ab5403d6af83e0..2a32e00058814a640002116cff30db498a47fe13 100644
+--- a/_types/core/internal/mnemonic/wordlists.d.ts
++++ b/_types/core/internal/mnemonic/wordlists.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export { wordlist as czech } from '@scure/bip39/wordlists/czech';
+ export { wordlist as english } from '@scure/bip39/wordlists/english';
+ export { wordlist as french } from '@scure/bip39/wordlists/french';
+diff --git a/_types/core/internal/promise.d.ts b/_types/core/internal/promise.d.ts
+index 8c602eb4954617c1d4a6a5d400afbeb279821e70..bb4b1ac4687a5421745da57c78e4f9633d731bd2 100644
+--- a/_types/core/internal/promise.d.ts
++++ b/_types/core/internal/promise.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from '../Errors.js';
+ /** @internal */
+ export declare function withTimeout<data>(fn: withTimeout.Fn<data>, options: withTimeout.Options): Promise<data>;
+diff --git a/_types/core/internal/register.d.ts b/_types/core/internal/register.d.ts
+index 8661f90960e69a1f59d7f1d6520bcb30380d708a..25bf36b493236ff79d89eb70d83d97639732d337 100644
+--- a/_types/core/internal/register.d.ts
++++ b/_types/core/internal/register.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as RpcSchema from '../RpcSchema.js';
+ export interface Register {
+ }
+diff --git a/_types/core/internal/rpcSchema.d.ts b/_types/core/internal/rpcSchema.d.ts
+index b58ae9f142903bf2705d0b2d2fa01f9b0ab2a938..deb0c5bc9eeb05af5a253865bbafd50dc4a414f5 100644
+--- a/_types/core/internal/rpcSchema.d.ts
++++ b/_types/core/internal/rpcSchema.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Generic, MethodNameGeneric } from '../RpcSchema.js';
+ import type { Compute, IsNarrowable } from './types.js';
+ /** @internal */
+diff --git a/_types/core/internal/rpcSchemas/eth.d.ts b/_types/core/internal/rpcSchemas/eth.d.ts
+index 3492a2a839138e917bbc0007556d8abce2642ef8..957f6854a103c8244562229e3018652ae79633c2 100644
+--- a/_types/core/internal/rpcSchemas/eth.d.ts
++++ b/_types/core/internal/rpcSchemas/eth.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AccountProof from '../../AccountProof.js';
+ import type * as Address from '../../Address.js';
+ import type * as Block from '../../Block.js';
+diff --git a/_types/core/internal/rpcSchemas/wallet.d.ts b/_types/core/internal/rpcSchemas/wallet.d.ts
+index 226feae4af89cb044ce5853faf09bf17de387231..b496093b3b50b22ba236f015dd97056446ca571c 100644
+--- a/_types/core/internal/rpcSchemas/wallet.d.ts
++++ b/_types/core/internal/rpcSchemas/wallet.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from '../../Address.js';
+ import type * as Hex from '../../Hex.js';
+ import type * as RpcSchema from '../../RpcSchema.js';
+diff --git a/_types/core/internal/rpcTransport.d.ts b/_types/core/internal/rpcTransport.d.ts
+index f559617674219f0edf00b5ee5cca13e4f345f95d..a549a02d66e399efee7c0ed54c787f034f9a4578 100644
+--- a/_types/core/internal/rpcTransport.d.ts
++++ b/_types/core/internal/rpcTransport.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from '../Errors.js';
+ import * as RpcRequest from '../RpcRequest.js';
+ import * as RpcResponse from '../RpcResponse.js';
+diff --git a/_types/core/internal/types.d.ts b/_types/core/internal/types.d.ts
+index f0d5b7196636d2fd8de3ffe79ec2d706fa2a5e56..2a47eb0b45ebd17fb244c15a2cc90cf8fa0097be 100644
+--- a/_types/core/internal/types.d.ts
++++ b/_types/core/internal/types.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** Combines members of an intersection into a readable type. */
+ export type Compute<type> = {
+     [key in keyof type]: type[key];
+diff --git a/_types/core/internal/uid.d.ts b/_types/core/internal/uid.d.ts
+index 37b1292cacac3b6259c4873ffc9ee1a71be82b9b..544c8c7bdd4e012667c55a63277665e1ff88de4a 100644
+--- a/_types/core/internal/uid.d.ts
++++ b/_types/core/internal/uid.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @internal */
+ export declare function uid(length?: number): string;
+ //# sourceMappingURL=uid.d.ts.map
+\ No newline at end of file
+diff --git a/_types/core/internal/webauthn.d.ts b/_types/core/internal/webauthn.d.ts
+index dae0c58c2fb48e43f8c47629d2e9924359845c04..7247db604ca3bbe66540bb71dbef046285979208 100644
+--- a/_types/core/internal/webauthn.d.ts
++++ b/_types/core/internal/webauthn.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from '../Errors.js';
+ import * as PublicKey from '../PublicKey.js';
+ import { CredentialCreationFailedError } from '../WebAuthnP256.js';
+diff --git a/_types/core/version.d.ts b/_types/core/version.d.ts
+index 5d5cf004bd6d9b00a7a470d3d0a6b9e4cf31d116..b71dcaf0a1a0443f8c6d347e070d55d36748afb9 100644
+--- a/_types/core/version.d.ts
++++ b/_types/core/version.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @internal */
+ export declare const version = "0.1.1";
+ //# sourceMappingURL=version.d.ts.map
+\ No newline at end of file
+diff --git a/_types/erc4337/EntryPoint.d.ts b/_types/erc4337/EntryPoint.d.ts
+index 7370a44c6f9d0435d2bbeff4adf0ab09507a1e81..24ccc437cdcf1df39a6bd421f77f8fad7bd0ee32 100644
+--- a/_types/erc4337/EntryPoint.d.ts
++++ b/_types/erc4337/EntryPoint.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /**
+  * EntryPoint version.
+  *
+diff --git a/_types/erc4337/RpcSchema.d.ts b/_types/erc4337/RpcSchema.d.ts
+index f8b596b44253b9d13e7c4e39267801f39a543503..a5060a2cb45e3a11c75fe3b91d0368b29516081d 100644
+--- a/_types/erc4337/RpcSchema.d.ts
++++ b/_types/erc4337/RpcSchema.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from '../core/Address.js';
+ import type * as Hex from '../core/Hex.js';
+ import type * as RpcSchema from '../core/RpcSchema.js';
+diff --git a/_types/erc4337/UserOperation.d.ts b/_types/erc4337/UserOperation.d.ts
+index 515493967ab2487996f6521565bd571db42254d4..d57322506487dd6b95529bb3f320d8a61669ded2 100644
+--- a/_types/erc4337/UserOperation.d.ts
++++ b/_types/erc4337/UserOperation.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AbiParameters from '../core/AbiParameters.js';
+ import type * as Address from '../core/Address.js';
+ import type * as Authorization from '../core/Authorization.js';
+diff --git a/_types/erc4337/UserOperationGas.d.ts b/_types/erc4337/UserOperationGas.d.ts
+index 56840babce879c938a65fdb26379325777b1a09a..100a3dc47f3d8ce249275de8c15f100a9f846232 100644
+--- a/_types/erc4337/UserOperationGas.d.ts
++++ b/_types/erc4337/UserOperationGas.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Hex from '../core/Hex.js';
+ import type { OneOf } from '../core/internal/types.js';
+ import type * as EntryPoint from './EntryPoint.js';
+diff --git a/_types/erc4337/UserOperationReceipt.d.ts b/_types/erc4337/UserOperationReceipt.d.ts
+index bc25e9daac9d907092ed9c4c48e1c9fa92e67833..46f5f57bfee165077e0ba8747b198c70870a0dbd 100644
+--- a/_types/erc4337/UserOperationReceipt.d.ts
++++ b/_types/erc4337/UserOperationReceipt.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from '../core/Address.js';
+ import * as Hex from '../core/Hex.js';
+ import * as Log from '../core/Log.js';
+diff --git a/_types/erc4337/index.d.ts b/_types/erc4337/index.d.ts
+index 4efb5dd52885a9ded824b7b295ef39fd36375243..87628bd12a0adb74425bf7b1ab6c820a68174f1e 100644
+--- a/_types/erc4337/index.d.ts
++++ b/_types/erc4337/index.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @entrypointCategory ERCs */
+ export type {};
+ /**
+diff --git a/_types/erc6492/WrappedSignature.d.ts b/_types/erc6492/WrappedSignature.d.ts
+index 16dceb65c45b8d284d441087eb3c46b092a498d5..0436ff373cc7def8491b6a075d2a697b1012df10 100644
+--- a/_types/erc6492/WrappedSignature.d.ts
++++ b/_types/erc6492/WrappedSignature.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AbiParameters from '../core/AbiParameters.js';
+ import type * as Address from '../core/Address.js';
+ import * as Errors from '../core/Errors.js';
+diff --git a/_types/erc6492/index.d.ts b/_types/erc6492/index.d.ts
+index 966a81dd01b2421e689a6db0a81f781144b96549..cf8419730e9a2ebde05e3fcddec94b3a9defcddd 100644
+--- a/_types/erc6492/index.d.ts
++++ b/_types/erc6492/index.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @entrypointCategory ERCs */
+ export type {};
+ /**
+diff --git a/_types/index.d.ts b/_types/index.d.ts
+index 138d9d8458cc7281f6322ff16ebc107b39a39b9d..bc68322780029c3dd7fee39d44b5b23d8fd6fd02 100644
+--- a/_types/index.d.ts
++++ b/_types/index.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @entrypointCategory Core */
+ export type {};
+ /**
+diff --git a/_types/index.docs.d.ts b/_types/index.docs.d.ts
+index 93eed9e2557dd2a68e0d38f9d0a7e19b4fb4548f..491cb74626eb7e605d8bc0edb51918d293f6f3d6 100644
+--- a/_types/index.docs.d.ts
++++ b/_types/index.docs.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** Used by api-extractor for docgen. https://github.com/microsoft/rushstack/issues/3557 */
+ export * from './index.js';
+ export * from './erc4337/index.js';
+diff --git a/_types/trusted-setups/Paths.d.ts b/_types/trusted-setups/Paths.d.ts
+index b60e9f011b6c3e44766610cc3480c0cf4e63f4da..d2ae77805efb5ec3c49307d0f4c9b3c840e24740 100644
+--- a/_types/trusted-setups/Paths.d.ts
++++ b/_types/trusted-setups/Paths.d.ts
+@@ -1,2 +1,3 @@
++// @ts-nocheck
+ export declare const mainnet: string;
+ //# sourceMappingURL=Paths.d.ts.map
+\ No newline at end of file
+diff --git a/_types/trusted-setups/index.d.ts b/_types/trusted-setups/index.d.ts
+index 6bf40e083a66edc0d86c19122ad684e6927d13bd..e43b9822691d00b65f70c47b9cad136be68cc59a 100644
+--- a/_types/trusted-setups/index.d.ts
++++ b/_types/trusted-setups/index.d.ts
+@@ -1,2 +1,3 @@
++// @ts-nocheck
+ export * as Paths from './Paths.js';
+ //# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/_types/trusted-setups/internal/paths.d.ts b/_types/trusted-setups/internal/paths.d.ts
+index e4cfaa81f1ef86fcd194961687a8cccff103f59b..48f866735f1e4f1461ff03ea8926a34116fb20e5 100644
+--- a/_types/trusted-setups/internal/paths.d.ts
++++ b/_types/trusted-setups/internal/paths.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @internal */
+ export declare function path(name: string): string;
+ //# sourceMappingURL=paths.d.ts.map
+\ No newline at end of file
+diff --git a/_types/version.d.ts b/_types/version.d.ts
+index 2f224831c6eda74cee67084be7c85df6e3ff7f7c..0093992da45535789fc0914b41a0e9f64a83bfdb 100644
+--- a/_types/version.d.ts
++++ b/_types/version.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @internal */
+ export declare const version = "0.8.7";
+ //# sourceMappingURL=version.d.ts.map
+\ No newline at end of file
+diff --git a/_types/window/index.d.ts b/_types/window/index.d.ts
+index 0c22c91a670cf1b89cf12b26dbbecae9bb54951c..f58f48d49bbedbda96e060e3556473d5f4771913 100644
+--- a/_types/window/index.d.ts
++++ b/_types/window/index.d.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Provider } from '../core/Provider.js';
+ declare global {
+     interface Window {
+diff --git a/core/Abi.ts b/core/Abi.ts
+index 6b76063c50d4edfafe0362c457301414694cbc38..3884a1f082b19ef1030294b809d2f57cdb7cf231 100644
+--- a/core/Abi.ts
++++ b/core/Abi.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import type * as Errors from './Errors.js'
+ import * as internal from './internal/abi.js'
+diff --git a/core/AbiConstructor.ts b/core/AbiConstructor.ts
+index 8e902a126b97856e841e28def2819dcff6adf89a..4ead65d5ee288c752fc0e173a9315c1ef82e667f 100644
+--- a/core/AbiConstructor.ts
++++ b/core/AbiConstructor.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import type * as Abi from './Abi.js'
+ import * as AbiItem from './AbiItem.js'
+diff --git a/core/AbiError.ts b/core/AbiError.ts
+index 4740eb83ca0449837e0eec6b8c28dca08f1e0c6b..3ab3ef0540a985cd0752933caaecf59c98e20965 100644
+--- a/core/AbiError.ts
++++ b/core/AbiError.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import type * as Abi from './Abi.js'
+ import * as AbiItem from './AbiItem.js'
+diff --git a/core/AbiEvent.ts b/core/AbiEvent.ts
+index 77d36759012e947eeded4db59651cb00be29faea..da5c2df2314cde09073ceb06899890bf7c9c9dc4 100644
+--- a/core/AbiEvent.ts
++++ b/core/AbiEvent.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import type * as Abi from './Abi.js'
+ import * as AbiItem from './AbiItem.js'
+diff --git a/core/AbiFunction.ts b/core/AbiFunction.ts
+index 40315c2b3e133950d324624e49a9625cdf92fbd0..5e31bbd8095bcc28416f11f189f5605f43429ba5 100644
+--- a/core/AbiFunction.ts
++++ b/core/AbiFunction.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import type * as Abi from './Abi.js'
+ import * as AbiItem from './AbiItem.js'
+diff --git a/core/AbiItem.ts b/core/AbiItem.ts
+index da5e785f97baf6e0d23a920ec33a88afe793a657..0f45f3079a74b9e53365fcb227265cd158c0b2e6 100644
+--- a/core/AbiItem.ts
++++ b/core/AbiItem.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import type * as Abi from './Abi.js'
+ import * as Errors from './Errors.js'
+diff --git a/core/AbiParameters.ts b/core/AbiParameters.ts
+index d47d87e2afb00186abd06d9653f39d454b18bb10..c04333f6a71343c31f531258c08a2b58508f7bc6 100644
+--- a/core/AbiParameters.ts
++++ b/core/AbiParameters.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as abitype from 'abitype'
+ import * as Address from './Address.js'
+ import * as Bytes from './Bytes.js'
+diff --git a/core/AccessList.ts b/core/AccessList.ts
+index 8fc6adbabb441298465f26249c9bf08ae5c924ae..27b8a541bbe8940441f63f18f6d57184bf3cbce2 100644
+--- a/core/AccessList.ts
++++ b/core/AccessList.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js'
+ import * as Errors from './Errors.js'
+ import * as Hash from './Hash.js'
+diff --git a/core/AccountProof.ts b/core/AccountProof.ts
+index 74ef26abaf555854aa53f9f84907bf3716771fe2..92e2508a1b7e0a0d71e32a470c91570ec332dbbd 100644
+--- a/core/AccountProof.ts
++++ b/core/AccountProof.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Address, Hex } from '../index.js'
+ 
+ /** An Account Proof as defined in the [Execution API specification](https://github.com/ethereum/execution-apis/blob/main/src/schemas/state.yaml). */
+diff --git a/core/Address.ts b/core/Address.ts
+index 04a6fe0540fe3373ad3352967a5c9852e12b6b80..bb8b751181911e8abf681a5ba0bb7b2e04073858 100644
+--- a/core/Address.ts
++++ b/core/Address.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Address as abitype_Address } from 'abitype'
+ import * as Bytes from './Bytes.js'
+ import * as Caches from './Caches.js'
+diff --git a/core/AesGcm.ts b/core/AesGcm.ts
+index 891faf20f26eeca62912e9ef4f3f27dbb301d4e6..6b729d32ba5293dadac1a963dbc6219bfeacc1f0 100644
+--- a/core/AesGcm.ts
++++ b/core/AesGcm.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/Authorization.ts b/core/Authorization.ts
+index b5807b5235191dfcc45bccdca87e497bd36b309c..12792a8664a9f3fa77cb93b88e65a88fc7ec0c3c 100644
+--- a/core/Authorization.ts
++++ b/core/Authorization.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+ import * as Hash from './Hash.js'
+diff --git a/core/Base58.ts b/core/Base58.ts
+index 34a07226a2b455fda132eb444b980a9a9d647b99..406f2a39bea70cf7f7abe2a607b4334ae0e319f6 100644
+--- a/core/Base58.ts
++++ b/core/Base58.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/Base64.ts b/core/Base64.ts
+index e054b281c628ba530ae7f2bfd59b9843a8fd8246..26bf6370cb3f27dde0f4db1c069c61d451fd75fd 100644
+--- a/core/Base64.ts
++++ b/core/Base64.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/BinaryStateTree.ts b/core/BinaryStateTree.ts
+index e3440568d73cc282160be21bc51f05819988cc2c..fb8e748984083236aa2f3b6d232f3be6f3384f97 100644
+--- a/core/BinaryStateTree.ts
++++ b/core/BinaryStateTree.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { blake3 } from '@noble/hashes/blake3'
+ 
+ import * as Bytes from './Bytes.js'
+diff --git a/core/Blobs.ts b/core/Blobs.ts
+index 7c1cc77fb4bd1802aca9c4732557b0fbe86611f1..dec2509d93907366d71954925c37c06fd8287d08 100644
+--- a/core/Blobs.ts
++++ b/core/Blobs.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import * as Errors from './Errors.js'
+ import * as Hash from './Hash.js'
+diff --git a/core/Block.ts b/core/Block.ts
+index 71e2dcbc2c98656381d4a301855b9f6279f1f22e..601b20f982e31d69864cc53fe55222a9a711d3aa 100644
+--- a/core/Block.ts
++++ b/core/Block.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/BlockOverrides.ts b/core/BlockOverrides.ts
+index 4b8511c45f7f88e4e111e765af073494e4c3ff30..34d91a8711fdee8a6408b61b060bb8005ba2e4e7 100644
+--- a/core/BlockOverrides.ts
++++ b/core/BlockOverrides.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import * as Hex from './Hex.js'
+ import * as Withdrawal from './Withdrawal.js'
+diff --git a/core/Bloom.ts b/core/Bloom.ts
+index 8d4c8b85e0e5ceed75c07d6bff07930288068054..615512bc8ee7384fb0f2134456999e959494b2f7 100644
+--- a/core/Bloom.ts
++++ b/core/Bloom.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+ import * as Hash from './Hash.js'
+diff --git a/core/Bls.ts b/core/Bls.ts
+index a69f06d408b2afc510946f745e87a92c46b6aa0a..57ca91429bcfee492819e3c1997cd64ebe88fe13 100644
+--- a/core/Bls.ts
++++ b/core/Bls.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { ProjPointType } from '@noble/curves/abstract/weierstrass'
+ import { bls12_381 as bls } from '@noble/curves/bls12-381'
+ 
+diff --git a/core/BlsPoint.ts b/core/BlsPoint.ts
+index 97a47874db6555c7d2dcac5be6084310a2049da9..9908231a888cbff36389264dddf015e39de89ade 100644
+--- a/core/BlsPoint.ts
++++ b/core/BlsPoint.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { bls12_381 as bls } from '@noble/curves/bls12-381'
+ 
+ import type * as Bytes from './Bytes.js'
+diff --git a/core/Bytes.ts b/core/Bytes.ts
+index d861362f7560ef76a11b37c873276e693f965f76..44f4ad1681c55901e0b7659452e1b1bf3578a884 100644
+--- a/core/Bytes.ts
++++ b/core/Bytes.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { equalBytes } from '@noble/curves/abstract/utils'
+ import * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/Caches.ts b/core/Caches.ts
+index dfcb3e50682562699b685ecac7b209eb39671192..bbd3307694ed2191e07322d28357d6a54e97d7a9 100644
+--- a/core/Caches.ts
++++ b/core/Caches.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import { LruMap } from './internal/lru.js'
+ 
+diff --git a/core/ContractAddress.ts b/core/ContractAddress.ts
+index c5ad739a7068986c8f5b57f8c42f24e575078baa..fb04caf804bc0ff328505401bd3f1e7422df6bac 100644
+--- a/core/ContractAddress.ts
++++ b/core/ContractAddress.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Ed25519.ts b/core/Ed25519.ts
+index 7a9eebacf90f152d924a2e30c35f0978b5ba8ac0..2c878fa1a1f69922225e5e89fb5845965947f1ec 100644
+--- a/core/Ed25519.ts
++++ b/core/Ed25519.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { ed25519 } from '@noble/curves/ed25519'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Ens.ts b/core/Ens.ts
+index a08cd581b3ae2cce04054c6157de30dfe5691116..7b1583d2406984a1161dce14a311140a3f45b6ca 100644
+--- a/core/Ens.ts
++++ b/core/Ens.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { ens_normalize } from '@adraffy/ens-normalize'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Errors.ts b/core/Errors.ts
+index 06e2bdc52705248cacc2ddb3fbed7f9dc79fc954..9af2124a9fb006743ff29cda95b65ae49ee0c621 100644
+--- a/core/Errors.ts
++++ b/core/Errors.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { getVersion } from './internal/errors.js'
+ 
+ export type GlobalErrorType<name extends string = 'Error'> = Error & {
+diff --git a/core/Fee.ts b/core/Fee.ts
+index 70addc8bba7d62afb30055be79ee5443f35f361f..bfbe6a8ea901f2e6bfd1c1715e4375da81f01320 100644
+--- a/core/Fee.ts
++++ b/core/Fee.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Hex from './Hex.js'
+ import type { Compute, OneOf } from './internal/types.js'
+ 
+diff --git a/core/Filter.ts b/core/Filter.ts
+index 672b0d721106778c44f466f386f5bc7877155131..8f0644dcfcaa27386f3053839e83fd83fc304701 100644
+--- a/core/Filter.ts
++++ b/core/Filter.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import type * as Block from './Block.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Hash.ts b/core/Hash.ts
+index 5f389618833e360c2f29dea221cee61bfa5caeb7..7a6bbb2af90a296df01c1dacc89619eee73fe3ad 100644
+--- a/core/Hash.ts
++++ b/core/Hash.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { ripemd160 as noble_ripemd160 } from '@noble/hashes/ripemd160'
+ import { keccak_256 as noble_keccak256 } from '@noble/hashes/sha3'
+ import { sha256 as noble_sha256 } from '@noble/hashes/sha256'
+diff --git a/core/HdKey.ts b/core/HdKey.ts
+index 19e18c757be5262264140d9e2747344076e15fb8..d805dd8245a5bd1780731398cc20f783d6100f1d 100644
+--- a/core/HdKey.ts
++++ b/core/HdKey.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { HDKey, type Versions } from '@scure/bip32'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Hex.ts b/core/Hex.ts
+index d62a79d4556d85906e120f8ee137ec6207359f8e..9f83ace1477f1e169445c1e5b54ef1360e7e8861 100644
+--- a/core/Hex.ts
++++ b/core/Hex.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { equalBytes } from '@noble/curves/abstract/utils'
+ import * as Bytes from './Bytes.js'
+ import * as Errors from './Errors.js'
+diff --git a/core/Json.ts b/core/Json.ts
+index 174df8dd24fd873d07f89511f792437eb3136396..db6fbc1094fecf48e3218a76663ea152d19676c1 100644
+--- a/core/Json.ts
++++ b/core/Json.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from './Errors.js'
+ 
+ const bigIntSuffix = '#__bigint'
+diff --git a/core/Keystore.ts b/core/Keystore.ts
+index b9a686f009485bab22c268d8fc46751bfee2448e..3877abe93317c55818e7f6104f702095d2d997c0 100644
+--- a/core/Keystore.ts
++++ b/core/Keystore.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { ctr } from '@noble/ciphers/aes'
+ import {
+   pbkdf2Async as pbkdf2Async_noble,
+diff --git a/core/Kzg.ts b/core/Kzg.ts
+index 14c533fd475bc260e531f666be16bd95024bd186..ee722832098c595b0750efdd889cc91787737c8d 100644
+--- a/core/Kzg.ts
++++ b/core/Kzg.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+ 
+diff --git a/core/Log.ts b/core/Log.ts
+index 243e11acbf370882d236a8e865e04639edadaa9f..b4e09ab2354e02ef154d67b802c972c2c586ff61 100644
+--- a/core/Log.ts
++++ b/core/Log.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/Mnemonic.ts b/core/Mnemonic.ts
+index 4ba0e1730a92d5b29a0f11fafc0c231d24afc79f..da74a4dc49bca9e82b920b0b647b0dc5dbfca34c 100644
+--- a/core/Mnemonic.ts
++++ b/core/Mnemonic.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import {
+   generateMnemonic,
+   mnemonicToSeedSync,
+diff --git a/core/P256.ts b/core/P256.ts
+index 68fb891dff422773e454695438e066d4d5cac927..34eba4fcc301e1fc6a02a86f23a43c6212ad496e 100644
+--- a/core/P256.ts
++++ b/core/P256.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { secp256r1 } from '@noble/curves/p256'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/PersonalMessage.ts b/core/PersonalMessage.ts
+index 1f30602ecf92f87f014f085232faa47ed2bc23a7..86f117c43d80f9fc674227b17696eeffb7b0630f 100644
+--- a/core/PersonalMessage.ts
++++ b/core/PersonalMessage.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+ import * as Hash from './Hash.js'
+diff --git a/core/Provider.ts b/core/Provider.ts
+index f27739fb038dca25c756e82c9a4ebfc7655dc2f2..80d4bf1ba81bc1d4761316267c4a2f9e686665de 100644
+--- a/core/Provider.ts
++++ b/core/Provider.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { EventEmitter } from 'eventemitter3'
+ import type * as Address from './Address.js'
+ import * as Errors from './Errors.js'
+diff --git a/core/PublicKey.ts b/core/PublicKey.ts
+index d807f69639ee3153ea433a387edeb81ce93a3f91..65c69d3b210fb4630cae971e73eb5bac70818d12 100644
+--- a/core/PublicKey.ts
++++ b/core/PublicKey.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/Rlp.ts b/core/Rlp.ts
+index bbe30345e6ad5b4596da8471dca0a04d2d8a28e8..94af8ff114249429f48968a8f66736f9ce99b678 100644
+--- a/core/Rlp.ts
++++ b/core/Rlp.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from './Bytes.js'
+ import * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/RpcRequest.ts b/core/RpcRequest.ts
+index 2875b6e7a6a8b659050326cb7a359d01b1124970..e77f440f761a3350b692ead18069c9714d5aa0b1 100644
+--- a/core/RpcRequest.ts
++++ b/core/RpcRequest.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Errors } from '../index.js'
+ import type * as RpcSchema from './RpcSchema.js'
+ import type * as RpcSchema_internal from './internal/rpcSchema.js'
+diff --git a/core/RpcResponse.ts b/core/RpcResponse.ts
+index d6529bf15f857daaa8656ac8a1fec104e2646a6b..1a43b51f8682b1e9f8a17c3e69cd8bca1e5a2bb7 100644
+--- a/core/RpcResponse.ts
++++ b/core/RpcResponse.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Errors, RpcRequest } from '../index.js'
+ import type {
+   Compute,
+diff --git a/core/RpcSchema.ts b/core/RpcSchema.ts
+index 0b1cf0616584701048a22ad8084fa89f58f0a026..4a40e1fe82672543068b7b50aed30fcaaef3c1ec 100644
+--- a/core/RpcSchema.ts
++++ b/core/RpcSchema.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { ResolvedRegister } from './internal/register.js'
+ import type { Compute, IsNarrowable } from './internal/types.js'
+ 
+diff --git a/core/RpcTransport.ts b/core/RpcTransport.ts
+index e23f13b4ed57cde503205006bed81777d35b9cec..49a65fa901472123ed5aa1068e2d2d1e8edc0e75 100644
+--- a/core/RpcTransport.ts
++++ b/core/RpcTransport.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from './Errors.js'
+ import type * as RpcResponse from './RpcResponse.js'
+ import type * as RpcSchema from './RpcSchema.js'
+diff --git a/core/Secp256k1.ts b/core/Secp256k1.ts
+index c809c3744468e6facd28775d7e2683b1c5563dc4..228176e7846d1ee60b34c8e1c71b6abff4c812d5 100644
+--- a/core/Secp256k1.ts
++++ b/core/Secp256k1.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { secp256k1 } from '@noble/curves/secp256k1'
+ import * as Address from './Address.js'
+ import * as Bytes from './Bytes.js'
+diff --git a/core/Signature.ts b/core/Signature.ts
+index 3995b2950f9efa35c68224b373648b3924dc2c39..d544ea6565810986a7db6c9a2488f702b9be7b40 100644
+--- a/core/Signature.ts
++++ b/core/Signature.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { secp256k1 } from '@noble/curves/secp256k1'
+ import * as Bytes from './Bytes.js'
+ import * as Errors from './Errors.js'
+diff --git a/core/Siwe.ts b/core/Siwe.ts
+index 37976dab0d5f1ec6107fb87358876da8afd92d2b..c6a42d348efbde6740c1cd87a618d24fcd8ef44d 100644
+--- a/core/Siwe.ts
++++ b/core/Siwe.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js'
+ import * as Errors from './Errors.js'
+ import type { ExactPartial } from './internal/types.js'
+diff --git a/core/Solidity.ts b/core/Solidity.ts
+index 47d89bbaf41153b6b3e475ea0352a5b831c12088..353ac977f3597a1a4e7be2debd9240892cbbee40 100644
+--- a/core/Solidity.ts
++++ b/core/Solidity.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export const arrayRegex = /^(.*)\[([0-9]*)\]$/
+ 
+ // `bytes<M>`: binary type of `M` bytes, `0 < M <= 32`
+diff --git a/core/StateOverrides.ts b/core/StateOverrides.ts
+index 3e81fe04d3867ba1167676b70c869e57b8193138..4a2959d7aadf092f0d5b8f849c3462247458d97d 100644
+--- a/core/StateOverrides.ts
++++ b/core/StateOverrides.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import * as Hex from './Hex.js'
+ import type { Compute, OneOf } from './internal/types.js'
+diff --git a/core/Transaction.ts b/core/Transaction.ts
+index 9ac746db217b0b27a8bf7fd432bda11c7cefa8c5..7e08d5e47e0cce9662e8e114a938ae00a61b5a39 100644
+--- a/core/Transaction.ts
++++ b/core/Transaction.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AccessList from './AccessList.js'
+ import type * as Address from './Address.js'
+ import * as Authorization from './Authorization.js'
+diff --git a/core/TransactionEnvelope.ts b/core/TransactionEnvelope.ts
+index 0e56d88a0f1b33f386e3761e171c251e144f6999..4eeae8d797e445730e2daaa4ef91ea14e9f56d58 100644
+--- a/core/TransactionEnvelope.ts
++++ b/core/TransactionEnvelope.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import * as Errors from './Errors.js'
+ import type * as Hex from './Hex.js'
+diff --git a/core/TransactionEnvelopeEip1559.ts b/core/TransactionEnvelopeEip1559.ts
+index 9f92b6ce2710b9521e3e5d0fdd8eae8aecd42120..082f4dd816cdef8294b958b215875656f18f05bf 100644
+--- a/core/TransactionEnvelopeEip1559.ts
++++ b/core/TransactionEnvelopeEip1559.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AccessList from './AccessList.js'
+ import * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/TransactionEnvelopeEip2930.ts b/core/TransactionEnvelopeEip2930.ts
+index d865dc26be56a1f407275f58bfe498e601a9e2c3..b451f89641f80bd92ca9fba91a793d4c8785f1a8 100644
+--- a/core/TransactionEnvelopeEip2930.ts
++++ b/core/TransactionEnvelopeEip2930.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AccessList from './AccessList.js'
+ import * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/TransactionEnvelopeEip4844.ts b/core/TransactionEnvelopeEip4844.ts
+index cf3c7044a2a1cf09bcde6011658708f3d322738b..d0031042534037a4944759b4ce583ea63a817247 100644
+--- a/core/TransactionEnvelopeEip4844.ts
++++ b/core/TransactionEnvelopeEip4844.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AccessList from './AccessList.js'
+ import * as Blobs from './Blobs.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/TransactionEnvelopeEip7702.ts b/core/TransactionEnvelopeEip7702.ts
+index acd6d76b069406095a39c0abb1d9df0ea98990e0..ec9629dee024907c0397f2f04ef21d3c5d467c45 100644
+--- a/core/TransactionEnvelopeEip7702.ts
++++ b/core/TransactionEnvelopeEip7702.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Assign } from './internal/types.js'
+ 
+ import type { PartialBy, UnionPartialBy } from './internal/types.js'
+diff --git a/core/TransactionEnvelopeLegacy.ts b/core/TransactionEnvelopeLegacy.ts
+index 3c520e2933e418c6b093504dfd0839da6d681d89..812c91f6eece6c8410e24a199a18cd855e64e21a 100644
+--- a/core/TransactionEnvelopeLegacy.ts
++++ b/core/TransactionEnvelopeLegacy.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+ import * as Hash from './Hash.js'
+diff --git a/core/TransactionReceipt.ts b/core/TransactionReceipt.ts
+index 6b2c6c3dc54aec755830e810cfe71994ff11f77c..1dfb306c7fc589b347872c4cc2fc7cef647b09f0 100644
+--- a/core/TransactionReceipt.ts
++++ b/core/TransactionReceipt.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+diff --git a/core/TransactionRequest.ts b/core/TransactionRequest.ts
+index 526cfb03103a899f7cf9ff8f1a45860d1ce535fc..088b1c124b184cffd95535f66c48127eba40d1a8 100644
+--- a/core/TransactionRequest.ts
++++ b/core/TransactionRequest.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AccessList from './AccessList.js'
+ import type * as Address from './Address.js'
+ import * as Authorization from './Authorization.js'
+diff --git a/core/TypedData.ts b/core/TypedData.ts
+index 2ebc1bf815e0641ae3729816bb9192e297523811..cd31e9bd2d513f617d4659c66dbb29c39ec03feb 100644
+--- a/core/TypedData.ts
++++ b/core/TypedData.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as abitype from 'abitype'
+ import * as AbiParameters from './AbiParameters.js'
+ import * as Address from './Address.js'
+diff --git a/core/ValidatorData.ts b/core/ValidatorData.ts
+index f9443d464d47876328b0d9f1b4cf91dfcba4ff0d..1b8bc81da129eb69b349ce4813c16723179d806a 100644
+--- a/core/ValidatorData.ts
++++ b/core/ValidatorData.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from './Address.js'
+ import type * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Value.ts b/core/Value.ts
+index 048c3e6cac320a46165b09f367f15b0758ab901d..93f6a84b0550ffaffe3169407c6f57f60e4de065 100644
+--- a/core/Value.ts
++++ b/core/Value.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from './Errors.js'
+ 
+ /** @see https://ethereum.github.io/yellowpaper/paper.pdf */
+diff --git a/core/WebAuthnP256.ts b/core/WebAuthnP256.ts
+index 6b439e3bddf856422e22cff901fa51122894a678..5620f8ca15ea65af460d337072c55dbec86b9920 100644
+--- a/core/WebAuthnP256.ts
++++ b/core/WebAuthnP256.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Base64 from './Base64.js'
+ import * as Bytes from './Bytes.js'
+ import * as Errors from './Errors.js'
+diff --git a/core/WebCryptoP256.ts b/core/WebCryptoP256.ts
+index cd36baddd124ed5cb95f2d5c81aed208ba7b8ea6..2dc560afaa249e77c65d2a21dcd2b140b168532b 100644
+--- a/core/WebCryptoP256.ts
++++ b/core/WebCryptoP256.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { p256 } from '@noble/curves/p256'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/Withdrawal.ts b/core/Withdrawal.ts
+index 642c6efb7d5a4515140e8a9636b35d64f93430e6..7c43a8a8d1d13002cef6417a4c55e41149f36ab9 100644
+--- a/core/Withdrawal.ts
++++ b/core/Withdrawal.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from './Errors.js'
+ import * as Hex from './Hex.js'
+ 
+diff --git a/core/X25519.ts b/core/X25519.ts
+index e8be78455e17ef06512e4ae99cab4cbfa57cc704..b9c1ca0e1f315858f35728219d8c77d86dabb8b4 100644
+--- a/core/X25519.ts
++++ b/core/X25519.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { x25519 } from '@noble/curves/ed25519'
+ import * as Bytes from './Bytes.js'
+ import type * as Errors from './Errors.js'
+diff --git a/core/internal/abi.ts b/core/internal/abi.ts
+index 276b61488dc1e7fd4e08e5fb3e233cf7552bee97..6d3ff3402eecca69350d644d040ee33324a15d4a 100644
+--- a/core/internal/abi.ts
++++ b/core/internal/abi.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Abi from '../Abi.js'
+ 
+ /** @internal */
+diff --git a/core/internal/abiConstructor.ts b/core/internal/abiConstructor.ts
+index 081360f953b56ce5597c0c2cb7bfefce28d0ec78..bb390f31d4f3dbba195335e19f5013ce69c10c96 100644
+--- a/core/internal/abiConstructor.ts
++++ b/core/internal/abiConstructor.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AbiItem_internal from './abiItem.js'
+ import type { TypeErrorMessage } from './types.js'
+ 
+diff --git a/core/internal/abiError.ts b/core/internal/abiError.ts
+index c6897303f3833feadd480cc72cb78c2459ae579b..cd4265899c8050fcc426208184285f0741a71362 100644
+--- a/core/internal/abiError.ts
++++ b/core/internal/abiError.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AbiItem_internal from './abiItem.js'
+ import type { TypeErrorMessage } from './types.js'
+ 
+diff --git a/core/internal/abiEvent.ts b/core/internal/abiEvent.ts
+index 319be24a01c2c97c7fe0f04654ced8e5b4078a01..9e38f9ccaf230b45ec7066246e20a8e0c6924b4c 100644
+--- a/core/internal/abiEvent.ts
++++ b/core/internal/abiEvent.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as abitype from 'abitype'
+ import type * as Filter from '../Filter.js'
+ import type * as Hex from '../Hex.js'
+diff --git a/core/internal/abiFunction.ts b/core/internal/abiFunction.ts
+index 9569518fddbf3b1441cef84344b5b6eeb5a69a5c..84fffe398bc1defbaa15dce83c2021b5738924fd 100644
+--- a/core/internal/abiFunction.ts
++++ b/core/internal/abiFunction.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AbiItem_internal from './abiItem.js'
+ import type { TypeErrorMessage } from './types.js'
+ 
+diff --git a/core/internal/abiItem.ts b/core/internal/abiItem.ts
+index 23043ee4104ff2f766115d62fbcdd6c127abaca8..876fb44b2d7e7ea5342672ab3a4c6f5a0a03f744 100644
+--- a/core/internal/abiItem.ts
++++ b/core/internal/abiItem.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as abitype from 'abitype'
+ import type * as Abi from '../Abi.js'
+ import type * as AbiItem from '../AbiItem.js'
+diff --git a/core/internal/abiParameters.ts b/core/internal/abiParameters.ts
+index b36c8883137566e66aa904be5f719781d051911c..25e5b31fa3f037e46d3ef37aafa2b35a0e5f727c 100644
+--- a/core/internal/abiParameters.ts
++++ b/core/internal/abiParameters.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type {
+   AbiParameter,
+   AbiParameterKind,
+diff --git a/core/internal/base58.ts b/core/internal/base58.ts
+index c9dc818a8901527f9350dc632d5f6d20fa2d427e..ced8ff27396b9b99805d5d470aed911e4d119774 100644
+--- a/core/internal/base58.ts
++++ b/core/internal/base58.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from '../Bytes.js'
+ import type * as Errors from '../Errors.js'
+ import * as Hex from '../Hex.js'
+diff --git a/core/internal/bytes.ts b/core/internal/bytes.ts
+index f7f33a29a4377ef08755209c8fa776d86fb37318..f12bc2f069debbb8fe3e1d65eb532759b074fe8f 100644
+--- a/core/internal/bytes.ts
++++ b/core/internal/bytes.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Bytes from '../Bytes.js'
+ import type * as Errors from '../Errors.js'
+ 
+diff --git a/core/internal/cursor.ts b/core/internal/cursor.ts
+index d9f2145092880c89461783b4b0e5d427eb383f71..c5d54d9a7be810c89983019db5e7acdbb4d8b970 100644
+--- a/core/internal/cursor.ts
++++ b/core/internal/cursor.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Bytes } from '../Bytes.js'
+ import * as Errors from '../Errors.js'
+ 
+diff --git a/core/internal/ens.ts b/core/internal/ens.ts
+index 0284afd0314c42d6ee61c687a7f0c0252e5534ff..dd5b6ac53680a5fa00fbdbe9b28cbe2ecbc1e8e4 100644
+--- a/core/internal/ens.ts
++++ b/core/internal/ens.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { Bytes } from '../../index.js'
+ import * as Ens from '../Ens.js'
+ import type * as Errors from '../Errors.js'
+diff --git a/core/internal/entropy.ts b/core/internal/entropy.ts
+index 471239ac601d744d2d9e4b9dcae901e6a6ff70d2..9ad52f21f05c701552ee0f9c3451bf6d1b27663a 100644
+--- a/core/internal/entropy.ts
++++ b/core/internal/entropy.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export let extraEntropy = false
+ 
+ /** @internal */
+diff --git a/core/internal/errors.ts b/core/internal/errors.ts
+index 8905c6eb1d3c08f23b165c2d949da8c8b95757cd..f026e241ff4537baacfa0101ecff10838f31ace4 100644
+--- a/core/internal/errors.ts
++++ b/core/internal/errors.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { version } from '../version.js'
+ 
+ /** @internal */
+diff --git a/core/internal/hdKey.ts b/core/internal/hdKey.ts
+index 685ab5030f001d30e2627f24957a9ca179de5fd3..ee0c3b247a68d174184c134c5971a6fe2c7b5144 100644
+--- a/core/internal/hdKey.ts
++++ b/core/internal/hdKey.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { HDKey } from '@scure/bip32'
+ import type * as Errors from '../Errors.js'
+ import type * as HdKey from '../HdKey.js'
+diff --git a/core/internal/hex.ts b/core/internal/hex.ts
+index 5e97147410415649f6b1824561295481a77b79eb..12579067a016bb6fc17be5e016ba2d15b7814e40 100644
+--- a/core/internal/hex.ts
++++ b/core/internal/hex.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from '../Errors.js'
+ import * as Hex from '../Hex.js'
+ 
+diff --git a/core/internal/lru.ts b/core/internal/lru.ts
+index 0395e314b41c77d9136ca86f690380f5e97bfeb1..e517074cd0b7242c019ff0f24a1fac60c6ac41bd 100644
+--- a/core/internal/lru.ts
++++ b/core/internal/lru.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /**
+  * @internal
+  *
+diff --git a/core/internal/mnemonic/wordlists.ts b/core/internal/mnemonic/wordlists.ts
+index aef60660a2e9abd7aba64c7d5a1f95b1bb6eea14..912dd171d159059b487e3291c882a1d916649a4d 100644
+--- a/core/internal/mnemonic/wordlists.ts
++++ b/core/internal/mnemonic/wordlists.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ export { wordlist as czech } from '@scure/bip39/wordlists/czech'
+ export { wordlist as english } from '@scure/bip39/wordlists/english'
+ export { wordlist as french } from '@scure/bip39/wordlists/french'
+diff --git a/core/internal/promise.ts b/core/internal/promise.ts
+index c3a27d14fe8eeb9d859c2504f61c29f37d097fad..550d65c23abc470b0e2d63c318350e43c6f6f14e 100644
+--- a/core/internal/promise.ts
++++ b/core/internal/promise.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Errors from '../Errors.js'
+ 
+ /** @internal */
+diff --git a/core/internal/register.ts b/core/internal/register.ts
+index c76f2e68059f3f65e326d168c814985d0ec357f1..6e955cdf7d69ee6d809f85d70767c87becc7aa5e 100644
+--- a/core/internal/register.ts
++++ b/core/internal/register.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as RpcSchema from '../RpcSchema.js'
+ 
+ // biome-ignore lint/suspicious/noEmptyInterface:
+diff --git a/core/internal/rpcSchema.ts b/core/internal/rpcSchema.ts
+index 74616fba5dcd121a5d08ea45246355df46bf57db..b2158189cb7dd134891724dcbe422ba83c1aa6f8 100644
+--- a/core/internal/rpcSchema.ts
++++ b/core/internal/rpcSchema.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Generic, MethodNameGeneric } from '../RpcSchema.js'
+ import type { Compute, IsNarrowable } from './types.js'
+ 
+diff --git a/core/internal/rpcSchemas/eth.ts b/core/internal/rpcSchemas/eth.ts
+index f8e59d365a39c2a77de95c0c9a48aa060552bb21..4f6ae763d8a1a3b23a6f666fa617e545d877c96f 100644
+--- a/core/internal/rpcSchemas/eth.ts
++++ b/core/internal/rpcSchemas/eth.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as AccountProof from '../../AccountProof.js'
+ import type * as Address from '../../Address.js'
+ import type * as Block from '../../Block.js'
+diff --git a/core/internal/rpcSchemas/wallet.ts b/core/internal/rpcSchemas/wallet.ts
+index 94ac5ec8a92fa0c0a684729c578079e066337d85..8ae14274f0e73f0e493a19e4732d90e9572d911e 100644
+--- a/core/internal/rpcSchemas/wallet.ts
++++ b/core/internal/rpcSchemas/wallet.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from '../../Address.js'
+ import type * as Hex from '../../Hex.js'
+ import type * as RpcSchema from '../../RpcSchema.js'
+diff --git a/core/internal/rpcTransport.ts b/core/internal/rpcTransport.ts
+index 3883e0cfbb84a28c69eae7a589ac3cfa7cb2a1d0..4bab719045e7cda6f5b7b163780480fedf246a88 100644
+--- a/core/internal/rpcTransport.ts
++++ b/core/internal/rpcTransport.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Errors from '../Errors.js'
+ import * as RpcRequest from '../RpcRequest.js'
+ import * as RpcResponse from '../RpcResponse.js'
+diff --git a/core/internal/types.ts b/core/internal/types.ts
+index 66400cdf18adf74b71de0276c3537dea2eec3e0f..3e3bd3011c79be4a17127a4bc0b7e08bf315a901 100644
+--- a/core/internal/types.ts
++++ b/core/internal/types.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** Combines members of an intersection into a readable type. */
+ // https://twitter.com/mattpocockuk/status/1622730173446557697?s=20&t=NdpAcmEFXY01xkqU3KO0Mg
+ export type Compute<type> = { [key in keyof type]: type[key] } & unknown
+diff --git a/core/internal/uid.ts b/core/internal/uid.ts
+index 1744b1667a6806bc406af90cc01f421aa7c5b753..8b25c4d6904f83e9da78efef6ba68644725466e3 100644
+--- a/core/internal/uid.ts
++++ b/core/internal/uid.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ const size = 256
+ let index = size
+ let buffer: string
+diff --git a/core/internal/webauthn.ts b/core/internal/webauthn.ts
+index 73471400a6d2c397272c30fb6f956dd5f11382cf..bf8bc541a12d8c8ab382a29f83a6730b517f71df 100644
+--- a/core/internal/webauthn.ts
++++ b/core/internal/webauthn.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { p256 } from '@noble/curves/p256'
+ import type * as Errors from '../Errors.js'
+ import * as Hex from '../Hex.js'
+diff --git a/core/version.ts b/core/version.ts
+index 19880b3d64a9015163f480ab42a554407b99ce57..bd09f709484d31485fc7532d0299710d479d6746 100644
+--- a/core/version.ts
++++ b/core/version.ts
+@@ -1,2 +1,3 @@
++// @ts-nocheck
+ /** @internal */
+ export const version = '0.1.1'
+diff --git a/erc4337/EntryPoint.ts b/erc4337/EntryPoint.ts
+index 0b704ebcb184c88e019a1e1a0533939c2e25e2c9..1ea77b16a0acb0e6643c0231dc29ba13f511c6d8 100644
+--- a/erc4337/EntryPoint.ts
++++ b/erc4337/EntryPoint.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /**
+  * EntryPoint version.
+  *
+diff --git a/erc4337/RpcSchema.ts b/erc4337/RpcSchema.ts
+index b2797842694dd99782e64fe5fc516e80da6fdbbc..e1a2626888a5db2d5684cf424c5c7264e7a666e9 100644
+--- a/erc4337/RpcSchema.ts
++++ b/erc4337/RpcSchema.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from '../core/Address.js'
+ import type * as Hex from '../core/Hex.js'
+ import type * as RpcSchema from '../core/RpcSchema.js'
+diff --git a/erc4337/UserOperation.ts b/erc4337/UserOperation.ts
+index 2f30a07845bca3204fb203322f4332b0d1730539..eb5c3b85612ae692cc633bad630662dd5fc1b716 100644
+--- a/erc4337/UserOperation.ts
++++ b/erc4337/UserOperation.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as AbiParameters from '../core/AbiParameters.js'
+ import type * as Address from '../core/Address.js'
+ import type * as Authorization from '../core/Authorization.js'
+diff --git a/erc4337/UserOperationGas.ts b/erc4337/UserOperationGas.ts
+index b20211b245851a214b3f39661147b643cc778edc..314c0d97eef14150bcf85a54dc685145a1ce30db 100644
+--- a/erc4337/UserOperationGas.ts
++++ b/erc4337/UserOperationGas.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import * as Hex from '../core/Hex.js'
+ import type { OneOf } from '../core/internal/types.js'
+ import type * as EntryPoint from './EntryPoint.js'
+diff --git a/erc4337/UserOperationReceipt.ts b/erc4337/UserOperationReceipt.ts
+index 8c998d0d8a361a9e775428d37ad0191152a021ef..284210ed304bdb385b1ce119addbeec9958d86ea 100644
+--- a/erc4337/UserOperationReceipt.ts
++++ b/erc4337/UserOperationReceipt.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Address from '../core/Address.js'
+ import * as Hex from '../core/Hex.js'
+ import * as Log from '../core/Log.js'
+diff --git a/erc4337/index.ts b/erc4337/index.ts
+index 773a59095c63ff99858687498c0f83b3ce684ac9..1d3ae199929c5b41031e7e4db29d4498895b589a 100644
+--- a/erc4337/index.ts
++++ b/erc4337/index.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @entrypointCategory ERCs */
+ // biome-ignore lint/complexity/noUselessEmptyExport: tsdoc
+ export type {}
+diff --git a/erc6492/WrappedSignature.ts b/erc6492/WrappedSignature.ts
+index 6dc197ea190014a9b8bde29ea769607d0312fbd7..f82c55e200c99bf24d26f003b5c027de09c9ac0c 100644
+--- a/erc6492/WrappedSignature.ts
++++ b/erc6492/WrappedSignature.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type * as Abi from '../core/Abi.js'
+ import * as AbiParameters from '../core/AbiParameters.js'
+ import type * as Address from '../core/Address.js'
+diff --git a/erc6492/index.ts b/erc6492/index.ts
+index cab50d6c267cac247c0d585c6af2f787bb17a7c8..1c232a430ced262853894a3e8f03e40fdc22b1c9 100644
+--- a/erc6492/index.ts
++++ b/erc6492/index.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @entrypointCategory ERCs */
+ // biome-ignore lint/complexity/noUselessEmptyExport: tsdoc
+ export type {}
+diff --git a/index.ts b/index.ts
+index 65037cb11a50450f2975f21d7d65726d61688ef8..49d923eca155f6225409951c079e57699a229658 100644
+--- a/index.ts
++++ b/index.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ /** @entrypointCategory Core */
+ // biome-ignore lint/complexity/noUselessEmptyExport: tsdoc
+ export type {}
+diff --git a/trusted-setups/Paths.ts b/trusted-setups/Paths.ts
+index f34577d9731fd49d4ae964d5263464b9355294e0..adb1b1237fe2ef29ca8b3f865279f064ee7b2a54 100644
+--- a/trusted-setups/Paths.ts
++++ b/trusted-setups/Paths.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { path } from './internal/paths.js'
+ 
+ export const mainnet = path('mainnet')
+diff --git a/trusted-setups/index.ts b/trusted-setups/index.ts
+index 1bc595710eda453ff6ad70d327571789775e8bd1..0daf41a7b8c79820557fb665aeb7639334b37067 100644
+--- a/trusted-setups/index.ts
++++ b/trusted-setups/index.ts
+@@ -1 +1,2 @@
++// @ts-nocheck
+ export * as Paths from './Paths.js'
+diff --git a/trusted-setups/internal/paths.ts b/trusted-setups/internal/paths.ts
+index bdc821f61cfe6ca182299378a64f744b32ff894a..1f6a7b3497985c7bac761a0f3e9f73668ce19501 100644
+--- a/trusted-setups/internal/paths.ts
++++ b/trusted-setups/internal/paths.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import { dirname, resolve } from 'node:path'
+ import { fileURLToPath } from 'node:url'
+ 
+diff --git a/version.ts b/version.ts
+index 81ad375d82ef79db6ec7a9717a38f0d4728a9594..27fd1e632e641d636dfb0c1dfb6007f311d50aa8 100644
+--- a/version.ts
++++ b/version.ts
+@@ -1,2 +1,3 @@
++// @ts-nocheck
+ /** @internal */
+ export const version = '0.8.7'
+diff --git a/window/index.ts b/window/index.ts
+index aff4cb85913a879469e5a606dcb549866db7f440..b729ea73e704610efb06e92e7eb4a42d2d778d22 100644
+--- a/window/index.ts
++++ b/window/index.ts
+@@ -1,3 +1,4 @@
++// @ts-nocheck
+ import type { Provider } from '../core/Provider.js'
+ 
+ declare global {
