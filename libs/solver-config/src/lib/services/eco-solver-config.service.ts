@@ -6,10 +6,12 @@ import {
   Solver,
   IntentSource,
   EcoSolverDatabaseConfig,
+  RpcConfig,
 } from '../schemas/eco-solver.schema'
 import { type Hex } from 'viem'
 import { merge } from 'lodash'
 import { getChainConfig } from '../utils/chain-config.utils'
+import { EcoChainConfig } from '@eco-foundation/routes-ts'
 import { getAddress, zeroAddress } from 'viem'
 
 @Injectable()
@@ -45,13 +47,21 @@ export class EcoSolverConfigService {
 
     // Process results
     const configs = results
-      .filter((result): result is PromiseFulfilledResult<any> => {
-        if (result.status === 'rejected') {
-          this.logger.warn(`Config source failed: ${result.reason.message}`)
-          return false
-        }
-        return true
-      })
+      .filter(
+        (
+          result,
+        ): result is PromiseFulfilledResult<{
+          name: string
+          priority: number
+          config: Record<string, unknown>
+        }> => {
+          if (result.status === 'rejected') {
+            this.logger.warn(`Config source failed: ${result.reason.message}`)
+            return false
+          }
+          return true
+        },
+      )
       .map((result) => result.value)
       .sort((a, b) => b.priority - a.priority) // Sort by priority (highest first)
 
@@ -198,7 +208,7 @@ export class EcoSolverConfigService {
   }
 
   // Returns the crowd liquidity config
-  getCrowdLiquidity(): any {
+  getCrowdLiquidity(): EcoSolverConfigType['crowdLiquidity'] {
     this.ensureInitialized()
     return this.mergedConfig.crowdLiquidity || {}
   }
@@ -322,7 +332,7 @@ export class EcoSolverConfigService {
     return Object.keys(this.mergedConfig.solvers || {}).map(Number)
   }
 
-  // Returns liquidity manager config  
+  // Returns liquidity manager config
   getLiquidityManager(): EcoSolverConfigType['liquidityManager'] {
     this.ensureInitialized()
     return this.mergedConfig.liquidityManager
@@ -339,13 +349,15 @@ export class EcoSolverConfigService {
   }
 
   // Returns RPC URLs for a chain
-  getRpcUrls(chainId: number): { rpcUrls: string[]; config: any } {
+  getRpcUrls(chainId: number): { rpcUrls: string[]; config: RpcConfig } {
     this.ensureInitialized()
     const rpcs = this.mergedConfig.rpcs || {}
     const chainRpcs = rpcs[chainId] || []
     return {
-      rpcUrls: chainRpcs.map((rpc: any) => rpc.url || rpc),
-      config: rpcs
+      rpcUrls: chainRpcs.map((rpc: string | { url: string }) =>
+        typeof rpc === 'string' ? rpc : rpc.url,
+      ),
+      config: rpcs,
     }
   }
 
@@ -354,14 +366,14 @@ export class EcoSolverConfigService {
     this.ensureInitialized()
     const rpcs = this.mergedConfig.rpcs || {}
     const chainRpcs: Record<string, string> = {}
-    
+
     for (const chainId in rpcs.keys || {}) {
       const rpcUrls = rpcs.keys[chainId]
       if (rpcUrls && typeof rpcUrls === 'string') {
         chainRpcs[chainId] = rpcUrls
       }
     }
-    
+
     return chainRpcs
   }
 
@@ -415,7 +427,7 @@ export class EcoSolverConfigService {
     }
   }
 
-  private processProvers(intent: IntentSource, config: any): Hex[] {
+  private processProvers(intent: IntentSource, config: EcoChainConfig): Hex[] {
     // Existing prover processing logic from EcoConfigService
     const ecoNpm = intent.config?.ecoRoutes || 'append'
     const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
@@ -432,8 +444,8 @@ export class EcoSolverConfigService {
   }
 
   // Helper method to convert address keys (replicated from existing utils)
-  private addressKeys(targets: Record<string, any> = {}): Record<string, any> {
-    const result: Record<string, any> = {}
+  private addressKeys(targets: Record<string, unknown> = {}): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
 
     Object.entries(targets).forEach(([key, value]) => {
       try {

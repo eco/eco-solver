@@ -7,7 +7,7 @@ export class StaticConfigProvider extends BaseConfigSource {
   priority = 100 // Lowest priority - base config
   name = 'StaticConfig'
 
-  async getConfig(): Promise<Record<string, any>> {
+  async getConfig(): Promise<Record<string, unknown>> {
     try {
       return getStaticSolverConfig()
     } catch (error) {

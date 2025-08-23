@@ -4,11 +4,17 @@ import { StaticConfigProvider } from '../providers/static-config.provider'
 import { AwsSecretsConfigProvider } from '../providers/aws-secrets.provider'
 import { EnvOverrideProvider } from '../providers/env-override.provider'
 import { getStaticSolverConfig } from '../solver-config'
+import { ConfigSource } from '../interfaces/config-source.interface'
+import { AwsCredential, AwsSecretsProvider as RealAwsSecretsProvider } from '@libs/config-providers'
+
+// Interface for AWS provider functionality (matches real provider signature)
+interface AwsSecretsProvider {
+  loadSecret(secretId: string): Promise<Record<string, unknown>>
+}
 
 export interface EcoSolverConfigOptions {
   enableAws?: boolean
   enableEnvOverrides?: boolean
-  awsRegion?: string
   customProviders?: Provider[]
 }
 
@@ -17,7 +23,8 @@ export class EcoSolverConfigModule {
   static forRoot(options: EcoSolverConfigOptions = {}): DynamicModule {
     // 1. Analyze static config to determine what providers are needed
     const staticConfig = getStaticSolverConfig()
-    const needsAws = staticConfig.aws?.length > 0 || options.enableAws
+    const awsCredentials = (staticConfig.aws as AwsCredential[] | undefined) || []
+    const needsAws = awsCredentials.length > 0 && options.enableAws
 
     // 2. Build provider array based on analysis
     const providers: Provider[] = [
@@ -27,7 +34,7 @@ export class EcoSolverConfigModule {
       // Core service that receives the providers
       {
         provide: EcoSolverConfigService,
-        useFactory: async (...configSources: any[]) => {
+        useFactory: async (...configSources: ConfigSource[]) => {
           const service = new EcoSolverConfigService(configSources)
           await service.initializeConfig()
           return service
@@ -44,25 +51,22 @@ export class EcoSolverConfigModule {
     if (needsAws) {
       providers.push({
         provide: AwsSecretsConfigProvider,
-        useFactory: (staticProvider: StaticConfigProvider, awsProvider: any) => {
-          return new AwsSecretsConfigProvider(awsProvider, staticConfig.aws)
+        useFactory: (staticProvider: StaticConfigProvider, awsProvider: AwsSecretsProvider) => {
+          return new AwsSecretsConfigProvider(awsProvider, awsCredentials)
         },
         inject: [StaticConfigProvider, 'AWS_SECRETS_PROVIDER'],
       })
 
-      // Add generic AWS provider
+      // Add real AWS secrets provider using the imported provider
+      const awsProviderConfig = RealAwsSecretsProvider.forRootAsync(awsCredentials)
+
+      // Add all providers from the real AWS provider
+      providers.push(...awsProviderConfig.providers)
+
+      // Map the real provider to our expected token
       providers.push({
         provide: 'AWS_SECRETS_PROVIDER',
-        useFactory: () => {
-          // For now, return a simple provider that we can enhance later
-          // TODO: Integrate with @libs/config AWS provider when available
-          return {
-            loadSecret: async (secretId: string, region: string) => {
-              console.warn(`AWS Secrets Provider not yet implemented for ${secretId} in ${region}`)
-              return {}
-            },
-          }
-        },
+        useExisting: RealAwsSecretsProvider,
       })
     }
 
@@ -85,11 +89,10 @@ export class EcoSolverConfigModule {
   }
 
   // Convenience methods for common configurations
-  static withAWS(region = 'us-east-2'): DynamicModule {
+  static withAWS(): DynamicModule {
     return this.forRoot({
       enableAws: true,
       enableEnvOverrides: true,
-      awsRegion: region,
     })
   }
 

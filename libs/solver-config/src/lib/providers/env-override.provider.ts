@@ -6,9 +6,9 @@ export class EnvOverrideProvider extends BaseConfigSource {
   priority = 10 // High priority - environment overrides
   name = 'EnvOverride'
 
-  async getConfig(): Promise<Record<string, any>> {
+  async getConfig(): Promise<Record<string, unknown>> {
     // Parse environment variables with ECO_CONFIG_ prefix
-    const envConfig: Record<string, any> = {}
+    const envConfig: Record<string, unknown> = {}
 
     Object.keys(process.env).forEach((key) => {
       if (key.startsWith('ECO_CONFIG_')) {

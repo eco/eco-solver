@@ -2,8 +2,14 @@ import { z } from 'zod'
 import { type Hex } from 'viem'
 
 // Custom Zod schemas for Viem compatibility
-export const hexSchema = z.string().regex(/^0x[a-fA-F0-9]+$/).transform((val) => val as Hex)
-export const addressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((val) => val as Hex)
+export const hexSchema = z
+  .string()
+  .regex(/^0x[a-fA-F0-9]+$/)
+  .transform((val) => val as Hex)
+export const addressSchema = z
+  .string()
+  .regex(/^0x[a-fA-F0-9]{40}$/)
+  .transform((val) => val as Hex)
 
 // Simple generic schemas - inline for now to avoid import issues
 const ServerConfigSchema = z.object({
@@ -52,15 +58,17 @@ export const SolverConfigSchema = z.object({
   chainID: z.number(),
   inboxAddress: addressSchema.optional(),
   network: z.string().optional(),
-  targets: z.record(
-    z.string(),
-    z.object({
-      contractType: z.enum(['erc20', 'erc721', 'erc1155']),
-      selectors: z.array(z.string()),
-      minBalance: z.number(),
-      targetBalance: z.number().optional(),
-    }),
-  ).optional(),
+  targets: z
+    .record(
+      z.string(),
+      z.object({
+        contractType: z.enum(['erc20', 'erc721', 'erc1155']),
+        selectors: z.array(z.string()),
+        minBalance: z.number(),
+        targetBalance: z.number().optional(),
+      }),
+    )
+    .optional(),
   fee: z
     .object({
       limit: z.object({
@@ -171,12 +179,14 @@ export const IntervalsConfigSchema = z.object({
       jobTemplate: z.object({
         name: z.string(),
         data: z.record(z.any()),
-        opts: z.object({
-          removeOnComplete: z.boolean(),
-          removeOnFail: z.boolean(),
-          attempts: z.number(),
-          backoff: z.any().optional(),
-        }).optional(),
+        opts: z
+          .object({
+            removeOnComplete: z.boolean(),
+            removeOnFail: z.boolean(),
+            attempts: z.number(),
+            backoff: z.any().optional(),
+          })
+          .optional(),
       }),
     })
     .optional(),
@@ -208,13 +218,15 @@ export const LoggerConfigSchema = z.object({
       pinoHttp: z.object({
         level: z.string(),
         useLevelLabels: z.boolean(),
-        redact: z.union([
-          z.array(z.string()),
-          z.object({
-            paths: z.array(z.string()),
-            remove: z.boolean().optional(),
-          })
-        ]).optional(),
+        redact: z
+          .union([
+            z.array(z.string()),
+            z.object({
+              paths: z.array(z.string()),
+              remove: z.boolean().optional(),
+            }),
+          ])
+          .optional(),
       }),
     })
     .optional(),
@@ -261,15 +273,17 @@ export const CCTPConfigSchema = z.object({
   maxSlippage: z.number().optional(),
   fastTransferEnabled: z.boolean().optional(),
   usdcAddresses: z.record(z.string(), addressSchema).optional(),
-  chains: z.array(
-    z.object({
-      chainId: z.number(),
-      domain: z.number(),
-      token: addressSchema,
-      tokenMessenger: addressSchema,
-      messageTransmitter: addressSchema,
-    }),
-  ).optional(),
+  chains: z
+    .array(
+      z.object({
+        chainId: z.number(),
+        domain: z.number(),
+        token: addressSchema,
+        tokenMessenger: addressSchema,
+        messageTransmitter: addressSchema,
+      }),
+    )
+    .optional(),
 })
 
 // Database configuration schema specific to eco-solver
@@ -296,9 +310,11 @@ export const EthConfigSchema = z.object({
   }),
   pollingInterval: z.number(),
   claimant: addressSchema.optional(),
-  nonce: z.object({
-    update_interval_ms: z.number(),
-  }).optional(),
+  nonce: z
+    .object({
+      update_interval_ms: z.number(),
+    })
+    .optional(),
 })
 
 // Complete eco-solver config schema using generic base schemas
@@ -339,7 +355,7 @@ export const EcoSolverConfigSchema = z.object({
           mailbox: addressSchema,
           aggregationHook: addressSchema,
           hyperlaneAggregationHook: addressSchema,
-        })
+        }),
       ),
     })
     .optional(),
@@ -355,17 +371,23 @@ export const EcoSolverConfigSchema = z.object({
       enabled: z.boolean().optional(),
       maxQuoteSlippage: z.number().optional(),
       swapSlippage: z.number().optional(),
-      coreTokens: z.array(z.object({
-        token: addressSchema,
-        chainID: z.number(),
-      })).optional(),
+      coreTokens: z
+        .array(
+          z.object({
+            token: addressSchema,
+            chainID: z.number(),
+          }),
+        )
+        .optional(),
       intervalDuration: z.number().optional(),
       targetSlippage: z.number().optional(),
-      thresholds: z.object({
-        surplus: z.number().optional(),
-        shortage: z.number().optional(),
-        deficit: z.number().optional(),
-      }).optional(),
+      thresholds: z
+        .object({
+          surplus: z.number().optional(),
+          shortage: z.number().optional(),
+          deficit: z.number().optional(),
+        })
+        .optional(),
       walletStrategies: z.record(z.string(), z.any()).optional(),
     })
     .optional(),

@@ -1,6 +1,12 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager'
 import { Injectable, Logger, Inject } from '@nestjs/common'
 
+// Interface for AWS credentials configuration
+export interface AwsCredential {
+  secretID: string
+  region: string
+}
+
 export class ConfigurationLoadError extends Error {
   constructor(message: string, public cause?: any) {
     super(message)
@@ -13,39 +19,34 @@ export class ConfigurationLoadError extends Error {
 
 @Injectable()
 export class AwsSecretsProvider {
-  private readonly client: SecretsManagerClient
+  private readonly clients: Map<string, SecretsManagerClient> = new Map()
   private readonly logger = new Logger(AwsSecretsProvider.name)
 
   constructor(
     @Inject('AWS_CREDENTIALS')
-    private readonly awsConfig: {
-      region: string
-      accessKeyId?: string
-      secretAccessKey?: string
-    },
+    private readonly awsCredentials: AwsCredential[],
   ) {
-    // Require injected AWS config - no defaults allowed
-    if (!awsConfig?.region) {
-      throw new Error('AWS region is required and must be injected - no defaults allowed')
+    // Require injected AWS credentials - no defaults allowed
+    if (!awsCredentials?.length) {
+      throw new Error('AWS credentials are required and must be injected - no defaults allowed')
     }
-
-    this.client = new SecretsManagerClient({
-      region: awsConfig.region,
-      credentials: awsConfig.accessKeyId
-        ? {
-            accessKeyId: awsConfig.accessKeyId,
-            secretAccessKey: awsConfig.secretAccessKey!,
-          }
-        : undefined,
-    })
-
-    this.logger.log(`AWS Secrets Provider initialized for region: ${awsConfig.region}`)
   }
 
   async loadSecret(secretId: string): Promise<Record<string, unknown>> {
+    // Find the credential that matches this secretId
+    const credential = this.awsCredentials.find((cred) => cred.secretID === secretId)
+    if (!credential) {
+      throw new ConfigurationLoadError(`No credential configuration found for secret ${secretId}`)
+    }
+
+    const client = this.clients.get(credential.region)
+    if (!client) {
+      throw new ConfigurationLoadError(`No AWS client found for region ${credential.region}`)
+    }
+
     try {
       const command = new GetSecretValueCommand({ SecretId: secretId })
-      const response = await this.client.send(command)
+      const response = await client.send(command)
 
       if (!response.SecretString) {
         throw new Error(`No secret string found for ${secretId}`)
@@ -53,21 +54,20 @@ export class AwsSecretsProvider {
 
       return JSON.parse(response.SecretString)
     } catch (error) {
-      throw new ConfigurationLoadError(`Failed to load secret ${secretId}`, error)
+      throw new ConfigurationLoadError(
+        `Failed to load secret ${secretId} from region ${credential.region}`,
+        error,
+      )
     }
   }
 
-  // Factory for dependency injection with required AWS config
-  static forRootAsync(awsConfig: {
-    region: string
-    accessKeyId?: string
-    secretAccessKey?: string
-  }) {
+  // Factory for dependency injection with required AWS credentials
+  static forRootAsync(awsCredentials: AwsCredential[]) {
     return {
       providers: [
         {
           provide: 'AWS_CREDENTIALS',
-          useValue: awsConfig,
+          useValue: awsCredentials,
         },
         AwsSecretsProvider,
       ],
