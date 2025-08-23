@@ -96,6 +96,16 @@ const TvmNetworkSchema = z.object({
 });
 
 /**
+ * TVM transaction settings schema
+ */
+const TvmTransactionSettingsSchema = z.object({
+  defaultFeeLimit: z.number().int().positive().default(150000000), // 150 TRX in SUN
+  maxTransactionAttempts: z.number().int().positive().default(30),
+  transactionCheckInterval: z.number().int().positive().default(2000), // milliseconds
+  listenerPollInterval: z.number().int().positive().default(3000), // milliseconds
+});
+
+/**
  * TVM configuration schema
  */
 export const TvmSchema = z.object({
@@ -103,6 +113,7 @@ export const TvmSchema = z.object({
   wallets: WalletsSchema.default({
     basic: {},
   }),
+  transactionSettings: TvmTransactionSettingsSchema.default({}),
 });
 
 export type TvmConfig = z.infer<typeof TvmSchema>;
@@ -111,6 +122,7 @@ export type TvmTokenConfig = z.infer<typeof TvmTokenSchema>;
 export type TvmFeeLogicConfig = z.infer<typeof TvmFeeSchema>;
 export type TvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type TvmBasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
+export type TvmTransactionSettings = z.infer<typeof TvmTransactionSettingsSchema>;
 
 /**
  * TVM configuration factory using registerAs

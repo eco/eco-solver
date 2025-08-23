@@ -1,17 +1,19 @@
 import { TronWeb } from 'tronweb';
 import { Abi, ContractFunctionName, erc20Abi, getAbiItem, toFunctionSignature } from 'viem';
 
+import { BaseTvmWallet } from '@/common/abstractions/base-tvm-wallet.abstract';
 import {
-  BaseTvmWallet,
   ContractFunctionParameter,
-} from '@/common/abstractions/base-tvm-wallet.abstract';
-import { TvmTransactionOptions } from '@/common/interfaces/tvm-wallet.interface';
+  TvmTransactionOptions,
+} from '@/common/interfaces/tvm-wallet.interface';
+import { TvmTransactionSettings } from '@/config/schemas';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 export class BasicWallet extends BaseTvmWallet {
   constructor(
     public readonly tronWeb: TronWeb,
+    private readonly transactionSettings: TvmTransactionSettings,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {
@@ -19,6 +21,10 @@ export class BasicWallet extends BaseTvmWallet {
     this.logger.setContext('TvmBasicWallet');
   }
 
+  /**
+   * Gets the wallet address in base58 format
+   * @returns The wallet address
+   */
   async getAddress(): Promise<string> {
     const address = this.tronWeb.defaultAddress.base58;
     if (!address) {
@@ -27,6 +33,12 @@ export class BasicWallet extends BaseTvmWallet {
     return address;
   }
 
+  /**
+   * Sends TRX (native token) to an address
+   * @param to - The recipient address
+   * @param amount - The amount in SUN to send
+   * @returns The transaction ID
+   */
   async sendTrx(to: string, amount: bigint): Promise<string> {
     const span = this.otelService.startSpan('tvm.wallet.sendTrx', {
       attributes: {
@@ -72,6 +84,16 @@ export class BasicWallet extends BaseTvmWallet {
     }
   }
 
+  /**
+   * Triggers a smart contract function call
+   * @param contractAddress - The contract address to interact with
+   * @param abi - The contract ABI
+   * @param functionName - The function name to call
+   * @param parameter - The function parameters
+   * @param options - Optional transaction options (feeLimit, callValue, etc.)
+   * @returns The transaction ID
+   * @throws Error if contract call or broadcast fails
+   */
   async triggerSmartContract<
     const abi extends Abi | readonly unknown[],
     functionName extends ContractFunctionName<abi, 'payable' | 'nonpayable'>,
@@ -88,7 +110,7 @@ export class BasicWallet extends BaseTvmWallet {
         'tvm.function_name': functionName,
         'tvm.operation': 'triggerSmartContract',
         'tvm.has_call_value': !!options?.callValue,
-        'tvm.fee_limit': options?.feeLimit || 150000000, // Default 150 TRX
+        'tvm.fee_limit': options?.feeLimit || this.transactionSettings.defaultFeeLimit,
       },
     });
 
@@ -101,10 +123,10 @@ export class BasicWallet extends BaseTvmWallet {
 
       // Default options
       const txOptions = {
-        feeLimit: options?.feeLimit || 150000000, // 150 TRX default
+        feeLimit: options?.feeLimit || this.transactionSettings.defaultFeeLimit,
         callValue: options?.callValue || 0,
         tokenValue: options?.tokenValue,
-        tokenId: options?.tokenId,
+        tokenId: options?.tokenId?.toString(),
         permissionId: options?.permissionId,
       };
 

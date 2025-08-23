@@ -2,22 +2,27 @@ import { Injectable } from '@nestjs/common';
 
 import { TronWeb } from 'tronweb';
 
-import { TvmTransportService } from '@/modules/blockchain/tvm/services';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
+import { TvmClientUtils } from '../../utils';
 import { BasicWallet } from './basic-wallet';
 
 @Injectable()
 export class BasicWalletFactory {
   constructor(
     private readonly tvmConfigService: TvmConfigService,
-    private readonly tvmTransportService: TvmTransportService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
+  /**
+   * Creates a new BasicWallet instance for the specified chain
+   * @param chainId - The chain ID to create wallet for
+   * @returns A configured BasicWallet instance
+   * @throws Error if private key is not configured
+   */
   create(chainId: number | string): BasicWallet {
     const walletConfig = this.tvmConfigService.getBasicWalletConfig();
 
@@ -27,15 +32,9 @@ export class BasicWalletFactory {
 
     // Create a new instance with the private key
     const network = this.tvmConfigService.getChain(chainId);
-    const rpc = network.rpc;
+    const tronWebWithKey = TvmClientUtils.createClient(network, walletConfig.privateKey);
 
-    const tronWebWithKey = new TronWeb({
-      fullNode: rpc.fullNode,
-      solidityNode: rpc.solidityNode || rpc.fullNode,
-      eventServer: rpc.eventServer || rpc.fullNode,
-      privateKey: walletConfig.privateKey,
-    });
-
-    return new BasicWallet(tronWebWithKey, this.logger, this.otelService);
+    const transactionSettings = this.tvmConfigService.getTransactionSettings();
+    return new BasicWallet(tronWebWithKey, transactionSettings, this.logger, this.otelService);
   }
 }

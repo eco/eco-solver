@@ -1,10 +1,12 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
+import { TronWeb } from 'tronweb';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { TvmNetworkConfig } from '@/config/schemas';
-import { TvmTransportService } from '@/modules/blockchain/tvm/services/tvm-transport.service';
+import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
+import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
+import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -15,7 +17,8 @@ export class TronListener extends BaseChainListener {
 
   constructor(
     private readonly config: TvmNetworkConfig,
-    private readonly transportService: TvmTransportService,
+    private readonly transactionSettings: TvmTransactionSettings,
+    private readonly utilsService: TvmUtilsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
@@ -24,6 +27,9 @@ export class TronListener extends BaseChainListener {
     this.logger.setContext(`${TronListener.name}:${config.chainId}`);
   }
 
+  /**
+   * Starts the blockchain listener for monitoring new intents
+   */
   async start(): Promise<void> {
     this.logger.log(
       `Starting TronListener for chain ${this.config.chainId}, intent source: ${this.config.intentSourceAddress}`,
@@ -32,7 +38,7 @@ export class TronListener extends BaseChainListener {
     this.isRunning = true;
 
     // Get the current block number to start from
-    const client = this.transportService.getClient(this.config.chainId);
+    const client = this.createTronWebClient();
     const currentBlock = await client.trx.getCurrentBlock();
     this.lastBlockNumber = currentBlock.block_header.raw_data.number;
 
@@ -41,18 +47,29 @@ export class TronListener extends BaseChainListener {
       this.pollForEvents().catch((error) => {
         this.logger.error(`Error polling for events: ${error.message}`, error);
       });
-    }, 3000); // Poll every 3 seconds
+    }, this.transactionSettings.listenerPollInterval);
   }
 
+  /**
+   * Stops the blockchain listener
+   */
   async stop(): Promise<void> {
     this.isRunning = false;
-    
+
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    
+
     this.logger.warn(`TVM listener stopped for chain ${this.config.chainId}`);
+  }
+
+  /**
+   * Creates a TronWeb instance for this listener
+   * @returns TronWeb instance
+   */
+  private createTronWebClient(): TronWeb {
+    return TvmClientUtils.createClient(this.config);
   }
 
   private async pollForEvents(): Promise<void> {
@@ -67,8 +84,8 @@ export class TronListener extends BaseChainListener {
     });
 
     try {
-      const client = this.transportService.getClient(this.config.chainId);
-      
+      const client = this.createTronWebClient();
+
       // Get current block
       const currentBlock = await client.trx.getCurrentBlock();
       const currentBlockNumber = currentBlock.block_header.raw_data.number;
@@ -83,20 +100,17 @@ export class TronListener extends BaseChainListener {
       }
 
       // Convert address to hex for event filtering
-      const hexIntentSourceAddress = this.config.intentSourceAddress.startsWith('T') 
-        ? this.transportService.toHex(this.config.intentSourceAddress)
+      const hexIntentSourceAddress = this.config.intentSourceAddress.startsWith('T')
+        ? this.utilsService.toHex(this.config.intentSourceAddress)
         : this.config.intentSourceAddress;
 
       // Get events from the last processed block to current
-      const events = await client.event.getEventsByContractAddress(
-        hexIntentSourceAddress,
-        {
-          onlyConfirmed: true,
-          minBlockTimestamp: this.lastBlockNumber,
-          orderBy: 'block_timestamp,asc',
-          limit: 200,
-        },
-      );
+      const events = await client.event.getEventsByContractAddress(hexIntentSourceAddress, {
+        onlyConfirmed: true,
+        minBlockTimestamp: this.lastBlockNumber,
+        orderBy: 'block_timestamp,asc',
+        limit: 200,
+      });
 
       span.setAttribute('tvm.event_count', events && Array.isArray(events) ? events.length : 0);
 
@@ -112,7 +126,7 @@ export class TronListener extends BaseChainListener {
       // Update last processed block
       this.lastBlockNumber = currentBlockNumber;
       span.setAttribute('tvm.updated_last_block', this.lastBlockNumber);
-      
+
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
       span.recordException(error as Error);
@@ -133,16 +147,22 @@ export class TronListener extends BaseChainListener {
       },
     });
 
+    // Helper to serialize objects with BigInt
+    const serializeWithBigInt = (obj: any) =>
+      JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value));
+
+    this.logger.log(serializeWithBigInt(event));
+
     try {
       // Parse event result
       const result = event.result;
-      
+
       // Construct intent from event data
       const intent = {
         intentHash: result.hash,
         reward: {
-          prover: this.transportService.fromHex(result.prover),
-          creator: this.transportService.fromHex(result.creator),
+          prover: this.utilsService.fromHex(result.prover),
+          creator: this.utilsService.fromHex(result.creator),
           deadline: BigInt(result.deadline),
           nativeValue: BigInt(result.nativeValue),
           tokens: this.parseTokenArray(result.rewardTokens),
@@ -151,7 +171,7 @@ export class TronListener extends BaseChainListener {
           source: BigInt(result.source),
           destination: BigInt(result.destination),
           salt: result.salt,
-          inbox: this.transportService.fromHex(result.inbox),
+          inbox: this.utilsService.fromHex(result.inbox),
           calls: this.parseCallArray(result.calls),
           tokens: this.parseTokenArray(result.routeTokens),
         },
@@ -170,7 +190,7 @@ export class TronListener extends BaseChainListener {
 
       span.addEvent('intent.emitted');
       span.setStatus({ code: api.SpanStatusCode.OK });
-      
+
       this.logger.log(`Intent discovered: ${intent.intentHash}`);
     } catch (error) {
       this.logger.error(`Error processing intent event: ${error.message}`, error);
@@ -187,7 +207,7 @@ export class TronListener extends BaseChainListener {
     }
 
     return tokens.map((token) => ({
-      token: this.transportService.fromHex(token.token),
+      token: this.utilsService.fromHex(token.token),
       amount: BigInt(token.amount),
     }));
   }
@@ -198,7 +218,7 @@ export class TronListener extends BaseChainListener {
     }
 
     return calls.map((call) => ({
-      target: this.transportService.fromHex(call.target),
+      target: this.utilsService.fromHex(call.target),
       value: BigInt(call.value),
       data: call.data,
     }));

@@ -8,14 +8,14 @@ import { BasicWalletModule } from './wallets/basic-wallet';
 import {
   TvmExecutorService,
   TvmReaderService,
-  TvmTransportService,
+  TvmUtilsService,
   TvmWalletManagerService,
 } from './services';
 
 @Module({
   imports: [BasicWalletModule, ProverModule, forwardRef(() => FulfillmentModule)],
   providers: [
-    TvmTransportService,
+    TvmUtilsService,
     TvmReaderService,
     TvmExecutorService,
     TvmWalletManagerService,

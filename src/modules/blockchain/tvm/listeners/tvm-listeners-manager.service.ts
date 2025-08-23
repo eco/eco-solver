@@ -6,7 +6,7 @@ import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
-import { TvmTransportService } from '../services/tvm-transport.service';
+import { TvmUtilsService } from '../services/tvm-utils.service';
 import { TronListener } from './tron.listener';
 
 @Injectable()
@@ -15,7 +15,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
   constructor(
     private readonly tvmConfigService: TvmConfigService,
-    private readonly transportService: TvmTransportService,
+    private readonly utilsService: TvmUtilsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
@@ -46,7 +46,8 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
       const listener = new TronListener(
         network,
-        this.transportService,
+        this.tvmConfigService.getTransactionSettings(),
+        this.utilsService,
         this.eventEmitter,
         this.logger,
         this.otelService,

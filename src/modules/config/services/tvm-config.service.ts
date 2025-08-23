@@ -5,6 +5,7 @@ import {
   TvmFeeLogicConfig,
   TvmNetworkConfig,
   TvmTokenConfig,
+  TvmTransactionSettings,
   TvmWalletsConfig,
 } from '@/config/schemas';
 
@@ -101,5 +102,18 @@ export class TvmConfigService {
   ): string | undefined {
     const network = this.getChain(chainId);
     return network.provers?.[proverType];
+  }
+
+  /**
+   * Gets transaction settings configuration
+   * @returns Transaction settings
+   */
+  getTransactionSettings(): TvmTransactionSettings {
+    return this.configService.get<TvmTransactionSettings>('tvm.transactionSettings', {
+      defaultFeeLimit: 150000000,
+      maxTransactionAttempts: 30,
+      transactionCheckInterval: 2000,
+      listenerPollInterval: 3000,
+    });
   }
 }

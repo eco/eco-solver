@@ -1,15 +1,17 @@
 import { TronWeb } from 'tronweb';
 import { Abi, ContractFunctionName } from 'viem';
 
-import { ITvmWallet, TvmTransactionOptions } from '@/common/interfaces/tvm-wallet.interface';
+import {
+  ContractFunctionParameter,
+  ITvmWallet,
+  TvmTransactionOptions,
+} from '@/common/interfaces/tvm-wallet.interface';
 
-export interface ContractFunctionParameter {
-  type: string;
-  value: unknown;
-}
-
+/**
+ * Base abstract class for TVM wallet implementations
+ */
 export abstract class BaseTvmWallet implements ITvmWallet {
-  tronWeb: TronWeb;
+  abstract readonly tronWeb: TronWeb;
 
   abstract getAddress(): Promise<string>;
 
@@ -21,8 +23,22 @@ export abstract class BaseTvmWallet implements ITvmWallet {
   >(
     contractAddress: string,
     abi: abi,
-    functionSelector: functionName,
+    functionName: functionName,
     parameter: ContractFunctionParameter[],
+    options?: TvmTransactionOptions,
+  ): Promise<string>;
+
+  abstract approveTrc20(
+    tokenAddress: string,
+    spenderAddress: string,
+    amount: bigint,
+    options?: TvmTransactionOptions,
+  ): Promise<string>;
+
+  abstract transferTrc20(
+    tokenAddress: string,
+    toAddress: string,
+    amount: bigint,
     options?: TvmTransactionOptions,
   ): Promise<string>;
 }

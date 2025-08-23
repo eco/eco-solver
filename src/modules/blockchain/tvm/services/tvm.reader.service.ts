@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { TronWeb } from 'tronweb';
 import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
@@ -9,12 +10,13 @@ import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
-import { TvmTransportService } from './tvm-transport.service';
+import { TvmClientUtils, TvmErrorHandler } from '../utils';
+import { TvmUtilsService } from './tvm-utils.service';
 
 @Injectable()
 export class TvmReaderService extends BaseChainReader {
   constructor(
-    private transportService: TvmTransportService,
+    private utilsService: TvmUtilsService,
     private tvmConfigService: TvmConfigService,
     protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
@@ -23,6 +25,22 @@ export class TvmReaderService extends BaseChainReader {
     this.logger.setContext(TvmReaderService.name);
   }
 
+  /**
+   * Creates a TronWeb instance for the given chain
+   * @param chainId - The chain ID to create client for
+   * @returns TronWeb instance
+   */
+  private createTronWebClient(chainId: number | string): TronWeb {
+    const network = this.tvmConfigService.getChain(chainId);
+    return TvmClientUtils.createClient(network);
+  }
+
+  /**
+   * Gets the native token balance for an address
+   * @param address - The address to check (base58 or hex format)
+   * @param chainId - The chain ID to query
+   * @returns The balance in SUN (smallest unit)
+   */
   async getBalance(address: string, chainId: number | string): Promise<bigint> {
     const span = this.otelService.startSpan('tvm.reader.getBalance', {
       attributes: {
@@ -33,24 +51,29 @@ export class TvmReaderService extends BaseChainReader {
     });
 
     try {
-      const client = this.transportService.getClient(chainId);
-      
-      // Convert base58 address to hex if needed
-      const hexAddress = address.startsWith('T') 
-        ? this.transportService.toHex(address)
-        : address;
-      
-      // Get balance in SUN (1 TRX = 1,000,000 SUN)
-      const balance = await client.trx.getBalance(hexAddress);
-      const balanceBigInt = BigInt(balance);
+      const balance = await TvmErrorHandler.wrapAsync(
+        async () => {
+          const client = this.createTronWebClient(chainId);
+          
+          // Convert base58 address to hex if needed
+          const hexAddress = address.startsWith('T') 
+            ? this.utilsService.toHex(address)
+            : address;
+          
+          // Get balance in SUN (1 TRX = 1,000,000 SUN)
+          const balance = await client.trx.getBalance(hexAddress);
+          const balanceBigInt = BigInt(balance);
 
-      span.setAttribute('tvm.balance', balanceBigInt.toString());
-      span.setStatus({ code: api.SpanStatusCode.OK });
-      return balanceBigInt;
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
+          span.setAttribute('tvm.balance', balanceBigInt.toString());
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return balanceBigInt;
+        },
+        { operation: 'getBalance', chainId, address },
+        span,
+        this.logger,
+      );
+      
+      return balance;
     } finally {
       span.end();
     }
@@ -71,14 +94,14 @@ export class TvmReaderService extends BaseChainReader {
     });
 
     try {
-      const client = this.transportService.getClient(chainId);
+      const client = this.createTronWebClient(chainId);
       
       // Convert addresses to hex if needed
       const hexTokenAddress = tokenAddress.startsWith('T') 
-        ? this.transportService.toHex(tokenAddress)
+        ? this.utilsService.toHex(tokenAddress)
         : tokenAddress;
       const hexWalletAddress = walletAddress.startsWith('T') 
-        ? this.transportService.toHex(walletAddress)
+        ? this.utilsService.toHex(walletAddress)
         : walletAddress;
 
       // Call TRC20 balanceOf function
@@ -111,10 +134,21 @@ export class TvmReaderService extends BaseChainReader {
     }
   }
 
+  /**
+   * Validates if the given address is a valid Tron address
+   * @param address - The address to validate
+   * @returns true if valid Tron address, false otherwise
+   */
   isAddressValid(address: string): boolean {
-    return this.transportService.isValidAddress(address);
+    return this.utilsService.isValidAddress(address);
   }
 
+  /**
+   * Checks if an intent is funded on the IntentSource contract
+   * @param intent - The intent to check
+   * @param chainId - The chain ID to query
+   * @returns True if the intent is funded, false otherwise
+   */
   async isIntentFunded(intent: Intent, chainId: number | string): Promise<boolean> {
     const span = this.otelService.startSpan('tvm.reader.isIntentFunded', {
       attributes: {
@@ -137,11 +171,11 @@ export class TvmReaderService extends BaseChainReader {
       }
 
       span.setAttribute('tvm.intent_source_address', intentSourceAddress);
-      const client = this.transportService.getClient(chainId);
+      const client = this.createTronWebClient(chainId);
       
       // Convert address to hex
       const hexIntentSourceAddress = intentSourceAddress.startsWith('T') 
-        ? this.transportService.toHex(intentSourceAddress)
+        ? this.utilsService.toHex(intentSourceAddress)
         : intentSourceAddress;
 
       // Prepare intent struct parameter for the contract call
@@ -150,24 +184,24 @@ export class TvmReaderService extends BaseChainReader {
           salt: intent.route.salt,
           source: intent.route.source.toString(),
           destination: intent.route.destination.toString(),
-          inbox: this.transportService.toHex(intent.route.inbox),
+          inbox: this.utilsService.toHex(intent.route.inbox),
           tokens: intent.route.tokens.map(token => ({
-            token: this.transportService.toHex(token.token),
+            token: this.utilsService.toHex(token.token),
             amount: token.amount.toString(),
           })),
           calls: intent.route.calls.map(call => ({
-            target: this.transportService.toHex(call.target),
+            target: this.utilsService.toHex(call.target),
             value: call.value.toString(),
             data: call.data,
           })),
         },
         reward: {
-          creator: this.transportService.toHex(intent.reward.creator),
-          prover: this.transportService.toHex(intent.reward.prover),
+          creator: this.utilsService.toHex(intent.reward.creator),
+          prover: this.utilsService.toHex(intent.reward.prover),
           deadline: intent.reward.deadline.toString(),
           nativeValue: intent.reward.nativeValue.toString(),
           tokens: intent.reward.tokens.map(token => ({
-            token: this.transportService.toHex(token.token),
+            token: this.utilsService.toHex(token.token),
             amount: token.amount.toString(),
           })),
         },
@@ -220,11 +254,11 @@ export class TvmReaderService extends BaseChainReader {
     });
 
     try {
-      const client = this.transportService.getClient(chainId);
+      const client = this.createTronWebClient(chainId);
       
       // Convert addresses to hex
-      const hexProverAddress = this.transportService.toHex(intent.reward.prover);
-      const hexClaimantAddress = claimant ? this.transportService.toHex(claimant) : hexProverAddress;
+      const hexProverAddress = this.utilsService.toHex(intent.reward.prover);
+      const hexClaimantAddress = claimant ? this.utilsService.toHex(claimant) : hexProverAddress;
 
       // Prepare parameters for fetchFee call
       const parameters = [

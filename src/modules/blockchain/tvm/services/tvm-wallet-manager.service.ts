@@ -16,6 +16,13 @@ export class TvmWalletManagerService {
     this.logger.setContext(TvmWalletManagerService.name);
   }
 
+  /**
+   * Creates a wallet instance for the specified chain and type
+   * @param chainId - The chain ID to create wallet for
+   * @param walletType - The type of wallet to create (default: 'basic')
+   * @returns A wallet instance
+   * @throws Error if wallet type is not supported
+   */
   createWallet(chainId: number | string, walletType: TvmWalletType = 'basic'): BaseTvmWallet {
     this.logger.log(`Creating TVM wallet of type ${walletType} for chain ${chainId}`);
 
@@ -27,6 +34,12 @@ export class TvmWalletManagerService {
     }
   }
 
+  /**
+   * Gets the address for a specific wallet type
+   * @param chainId - The chain ID
+   * @param walletType - The type of wallet (default: 'basic')
+   * @returns The wallet address in base58 format
+   */
   async getWalletAddress(
     chainId: number | string,
     walletType: TvmWalletType = 'basic',

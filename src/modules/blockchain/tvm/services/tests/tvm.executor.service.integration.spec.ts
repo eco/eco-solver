@@ -14,13 +14,13 @@ import { TvmListenersManagerService } from '../../listeners/tvm-listeners-manage
 import { BasicWalletFactory } from '../../wallets/basic-wallet';
 import { TvmExecutorService } from '../tvm.executor.service';
 import { TvmReaderService } from '../tvm.reader.service';
-import { TvmTransportService } from '../tvm-transport.service';
+import { TvmUtilsService } from '../tvm-utils.service';
 import { TvmWalletManagerService } from '../tvm-wallet-manager.service';
 
 describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
   let module: TestingModule;
   let executorService: TvmExecutorService;
-  let transportService: TvmTransportService;
+  let utilsService: TvmUtilsService;
 
   // Mock configuration
   const mockTvmConfig = {
@@ -110,6 +110,12 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
         scalarBps: 50,
       },
     }),
+    getTransactionSettings: jest.fn().mockReturnValue({
+      defaultFeeLimit: 150000000,
+      maxTransactionAttempts: 30,
+      transactionCheckInterval: 2000,
+      listenerPollInterval: 3000,
+    }),
   };
 
   // Mock ProverService - handle both numeric and string chain IDs
@@ -155,7 +161,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       imports: [EventEmitterModule.forRoot()],
       providers: [
         // TVM module services
-        TvmTransportService,
+        TvmUtilsService,
         TvmReaderService,
         TvmExecutorService,
         TvmWalletManagerService,
@@ -186,7 +192,61 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     }).compile();
 
     executorService = module.get<TvmExecutorService>(TvmExecutorService);
-    transportService = module.get<TvmTransportService>(TvmTransportService);
+    utilsService = module.get<TvmUtilsService>(TvmUtilsService);
+
+    // Mock utils service methods with proper address mappings
+    const mockAddressMap = new Map([
+      ['TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG', '0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41'],
+      ['TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN', '0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'],
+      ['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c'], // USDT on Tron
+      ['TLRwjRfjxa4wEDom56qCo1nYiAfJaozJVi', '0x742d35cc6634c0532925a3b844bc9e7595ed5f3f'],
+    ]);
+
+    jest.spyOn(utilsService, 'toHex').mockImplementation((addr) => {
+      if (addr.startsWith('T')) {
+        const evmAddr = mockAddressMap.get(addr);
+        return evmAddr ? evmAddr.substring(2) : '41' + addr.substring(1).padEnd(40, '0');
+      }
+      return addr;
+    });
+    jest.spyOn(utilsService, 'fromHex').mockImplementation((hex) => {
+      for (const [tronAddr, evmAddr] of mockAddressMap.entries()) {
+        if (evmAddr.substring(2) === hex || '0x' + hex === evmAddr) {
+          return tronAddr;
+        }
+      }
+      return 'T' + hex.substring(2);
+    });
+    jest.spyOn(utilsService, 'toEvmHex').mockImplementation((addr) => {
+      if (addr.startsWith('T')) {
+        const evmAddr = mockAddressMap.get(addr);
+        return (evmAddr || '0x0000000000000000000000000000000000000000') as any;
+      }
+      return addr as any;
+    });
+    jest.spyOn(utilsService, 'fromEvmHex').mockImplementation((hex) => {
+      for (const [tronAddr, evmAddr] of mockAddressMap.entries()) {
+        if (evmAddr === hex) {
+          return tronAddr;
+        }
+      }
+      return 'T' + hex.substring(2);
+    });
+
+    // Mock wallet manager to return a mock wallet
+    const walletManager = module.get<TvmWalletManagerService>(TvmWalletManagerService);
+    const mockWallet = {
+      getAddress: jest.fn().mockResolvedValue('TN8Y1ykJxXZqxDiPBBbAqJxDK4kESfPVjZ'),
+      triggerSmartContract: jest.fn().mockResolvedValue('mockTxId123'),
+      tronWeb: {
+        contract: jest.fn().mockReturnValue({
+          fulfill: jest.fn().mockReturnValue({
+            send: jest.fn().mockResolvedValue('mockFulfillTxId456'),
+          }),
+        }),
+      },
+    };
+    jest.spyOn(walletManager, 'createWallet').mockReturnValue(mockWallet as any);
 
     jest.spyOn(executorService as any, 'waitForTransaction').mockResolvedValue(true);
     jest.spyOn(executorService as any, 'waitForTransactions').mockResolvedValue(undefined);
@@ -200,11 +260,11 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
   it('should successfully fulfill an intent on Tron mainnet', async () => {
     // Convert Tron addresses to hex format
-    const proverAddress = transportService.toEvmHex('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG');
-    const creatorAddress = transportService.toEvmHex('TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN');
-    const inboxAddress = transportService.toEvmHex('TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN');
-    const usdtAddress = transportService.toEvmHex('TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
-    const recipientAddress = transportService.toEvmHex('TLRwjRfjxa4wEDom56qCo1nYiAfJaozJVi');
+    const proverAddress = utilsService.toEvmHex('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG');
+    const creatorAddress = utilsService.toEvmHex('TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN');
+    const inboxAddress = utilsService.toEvmHex('TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN');
+    const usdtAddress = utilsService.toEvmHex('TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
+    const recipientAddress = utilsService.toEvmHex('TLRwjRfjxa4wEDom56qCo1nYiAfJaozJVi');
 
     // Create a test intent with Tron mainnet data
     const testIntent: Intent = {
