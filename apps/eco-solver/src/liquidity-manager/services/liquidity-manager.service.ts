@@ -5,42 +5,42 @@ import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { TokenState } from '@eco-solver/liquidity-manager/types/token-state.enum'
+import { TokenState } from '../types/token-state.enum'
 import {
   analyzeToken,
   analyzeTokenGroup,
   getGroupTotal,
   getSortGroupByDiff,
-} from '@eco-solver/liquidity-manager/utils/token'
+} from '../utils/token'
 import {
   LiquidityManagerJobName,
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+} from '../queues/liquidity-manager.queue'
 import {
   RebalanceJobData,
   RebalanceJobManager,
-} from '@eco-solver/liquidity-manager/jobs/rebalance.job'
-import { LiquidityProviderService } from '@eco-solver/liquidity-manager/services/liquidity-provider.service'
-import { deserialize } from '@eco-solver/common/utils/serialize'
+} from '../jobs/rebalance.job'
+import { LiquidityProviderService } from './liquidity-provider.service'
+import { deserialize } from '../../common/utils/serialize'
 import { LiquidityManagerConfig } from '@libs/solver-config'
 import { EcoConfigService } from '@libs/solver-config'
-import { RebalanceModel } from '@eco-solver/liquidity-manager/schemas/rebalance.schema'
-import { RebalanceTokenModel } from '@eco-solver/liquidity-manager/schemas/rebalance-token.schema'
+import { RebalanceModel } from '../schemas/rebalance.schema'
+import { RebalanceTokenModel } from '../schemas/rebalance-token.schema'
 import {
   RebalanceQuote,
   RebalanceRequest,
   TokenData,
   TokenDataAnalyzed,
-} from '@eco-solver/liquidity-manager/types/types'
-import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { TokenConfig } from '@eco-solver/balance/types'
-import { removeJobSchedulers } from '@eco-solver/bullmq/utils/queue'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoAnalyticsService } from '@eco-solver/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
-import { BalanceService } from '@eco-solver/balance/balance.service'
+} from '../types/types'
+import { CrowdLiquidityService } from '../../intent/crowd-liquidity.service'
+import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { TokenConfig } from '../../balance/types'
+import { removeJobSchedulers } from '../../bullmq/utils/queue'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { EcoAnalyticsService } from '../../analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '../../analytics/events.constants'
+import { BalanceService } from '../../balance/balance.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {

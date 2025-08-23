@@ -1,10 +1,10 @@
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { encodeFunctionData, hexToBigInt } from 'viem'
 import { Hex } from 'viem'
-import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
+import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
 import { Injectable, Logger } from '@nestjs/common'
-import { PermitAbi } from '@eco-solver/contracts/Permit.abi'
-import { PermitProcessingParams } from '@eco-solver/permit-processing/interfaces/permit-processing-params.interface'
+import { PermitAbi } from '../contracts/Permit.abi'
+import { PermitProcessingParams } from './interfaces/permit-processing-params.interface'
 
 interface SplitSignature {
   r: Hex

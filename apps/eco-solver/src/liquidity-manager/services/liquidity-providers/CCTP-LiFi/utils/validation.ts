@@ -1,4 +1,4 @@
-import { TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { TokenData } from '../../../../types/types'
 import { CCTPLiFiRoutePlanner } from './route-planner'
 
 export interface ValidationResult {

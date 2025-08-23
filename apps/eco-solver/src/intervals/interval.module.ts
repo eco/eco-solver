@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common'
-import { RetryInfeasableIntentsService } from '@eco-solver/intervals/retry-infeasable-intents.service'
-import { initBullMQ } from '@eco-solver/bullmq/bullmq.helper'
-import { QUEUES } from '@eco-solver/common/redis/constants'
-import { IntentModule } from '@eco-solver/intent/intent.module'
-import { ProverModule } from '@eco-solver/prover/prover.module'
-import { IntervalProcessor } from '@eco-solver/bullmq/processors/interval.processor'
+import { RetryInfeasableIntentsService } from './retry-infeasable-intents.service'
+import { initBullMQ } from '../bullmq/bullmq.helper'
+import { QUEUES } from '../common/redis/constants'
+import { IntentModule } from '../intent/intent.module'
+import { ProverModule } from '../prover/prover.module'
+import { IntervalProcessor } from '../bullmq/processors/interval.processor'
 
 @Module({
   imports: [

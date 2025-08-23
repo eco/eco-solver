@@ -3,7 +3,7 @@ import { Hex } from 'viem'
 import { getSelector } from '../common/viem/contracts'
 import { TargetConfig, TargetContractType } from '@libs/solver-config'
 import { EcoError } from '../common/errors/eco-error'
-import { TransactionTargetData } from '@eco-solver/intent/utils-intent.service'
+import { TransactionTargetData } from '../intent/utils-intent.service'
 
 // Need to define the ABI as a const array to use in the type definition
 export const ERC20Abi = [

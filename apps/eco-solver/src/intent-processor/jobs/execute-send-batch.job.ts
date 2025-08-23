@@ -2,14 +2,14 @@ import * as _ from 'lodash'
 import { BulkJobOptions, Job } from 'bullmq'
 import { encodePacked, keccak256 } from 'viem'
 import { Hex } from 'viem'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { deserialize, serialize, Serialize } from '@eco-solver/common/utils/serialize'
-import { IntentProcessorJobName } from '@eco-solver/intent-processor/queues/intent-processor.queue'
-import { IntentProcessor } from '@eco-solver/intent-processor/processors/intent.processor'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { deserialize, serialize, Serialize } from '../../common/utils/serialize'
+import { IntentProcessorJobName } from '../queues/intent-processor.queue'
+import { IntentProcessor } from '../processors/intent.processor'
 import {
   IntentProcessorJob,
   IntentProcessorJobManager,
-} from '@eco-solver/intent-processor/jobs/intent-processor.job'
+} from './intent-processor.job'
 
 export interface ProveIntentData {
   hash: Hex

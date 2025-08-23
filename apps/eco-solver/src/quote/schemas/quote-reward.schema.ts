@@ -1,8 +1,8 @@
-import { QuoteRewardDataType } from '@eco-solver/quote/dto/quote.reward.data.dto'
+import { QuoteRewardDataType } from '../dto/quote.reward.data.dto'
 import {
   QuoteRewardTokenDataModel,
   QuoteRewardTokenDataSchema,
-} from '@eco-solver/quote/schemas/quote-token.schema'
+} from './quote-token.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

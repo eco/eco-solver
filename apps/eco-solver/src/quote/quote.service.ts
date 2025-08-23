@@ -1,16 +1,16 @@
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { RewardTokensInterface } from '@eco-solver/contracts'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { RewardTokensInterface } from '../contracts'
 import { EcoConfigService } from '@libs/solver-config'
-import { FulfillmentEstimateService } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.service'
+import { FulfillmentEstimateService } from '../fulfillment-estimate/fulfillment-estimate.service'
 import {
   validationsSucceeded,
   ValidationService,
   TxValidationFn,
-} from '@eco-solver/intent/validation.sevice'
+} from '../intent/validation.sevice'
 import {
   QuoteIntentDataDTO,
   QuoteIntentDataInterface,
-} from '@eco-solver/quote/dto/quote.intent.data.dto'
+} from './dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -19,33 +19,33 @@ import {
   InvalidQuoteIntent,
   Quote400,
   SolverUnsupported,
-} from '@eco-solver/quote/errors'
-import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
-import { Mathb } from '@eco-solver/utils/bigint'
+} from './errors'
+import { QuoteIntentModel } from './schemas/quote-intent.schema'
+import { Mathb } from '../utils/bigint'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import dayjs from 'dayjs'
 import { encodeFunctionData, erc20Abi, formatEther, parseGwei } from 'viem'
 import { Hex } from 'viem'
-import { FeeService } from '@eco-solver/fee/fee.service'
-import { CalculateTokensType } from '@eco-solver/fee/types'
-import { EcoResponse } from '@eco-solver/common/eco-response'
+import { FeeService } from '../fee/fee.service'
+import { CalculateTokensType } from '../fee/types'
+import { EcoResponse } from '../common/eco-response'
 import { GasEstimationsConfig, QuotesConfig } from '@libs/solver-config'
-import { QuoteDataEntryDTO } from '@eco-solver/quote/dto/quote-data-entry.dto'
-import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
-import { QuoteRewardTokensDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'
-import { QuoteCallDataDTO } from '@eco-solver/quote/dto/quote.route.data.dto'
-import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
-import { QuoteRepository } from '@eco-solver/quote/quote.repository'
-import { TransactionTargetData } from '@eco-solver/intent/utils-intent.service'
-import { UpdateQuoteParams } from '@eco-solver/quote/interfaces/update-quote-params.interface'
-import { IntentInitiationService } from '@eco-solver/intent-initiation/services/intent-initiation.service'
-import { GaslessIntentRequestDTO } from '@eco-solver/quote/dto/gasless-intent-request.dto'
+import { QuoteDataEntryDTO } from './dto/quote-data-entry.dto'
+import { QuoteDataDTO } from './dto/quote-data.dto'
+import { QuoteRewardTokensDTO } from './dto/quote.reward.data.dto'
+import { QuoteCallDataDTO } from './dto/quote.route.data.dto'
+import { IntentExecutionType } from './enums/intent-execution-type.enum'
+import { QuoteRepository } from './quote.repository'
+import { TransactionTargetData } from '../intent/utils-intent.service'
+import { UpdateQuoteParams } from './interfaces/update-quote-params.interface'
+import { IntentInitiationService } from '../intent-initiation/services/intent-initiation.service'
+import { GaslessIntentRequestDTO } from './dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
-import { serialize } from '@eco-solver/common/utils/serialize'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
-import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { serialize } from '../common/utils/serialize'
+import { EcoAnalyticsService } from '../analytics'
+import { ANALYTICS_EVENTS } from '../analytics/events.constants'
+import { EcoError } from '../common/errors/eco-error'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 

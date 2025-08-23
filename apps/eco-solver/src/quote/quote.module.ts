@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common'
 import { QuoteService } from './quote.service'
 import { MongooseModule } from '@nestjs/mongoose'
-import { QuoteIntentModel, QuoteIntentSchema } from '@eco-solver/quote/schemas/quote-intent.schema'
-import { IntentModule } from '@eco-solver/intent/intent.module'
-import { FeeModule } from '@eco-solver/fee/fee.module'
-import { QuoteRepository } from '@eco-solver/quote/quote.repository'
-import { FulfillmentEstimateModule } from '@eco-solver/fulfillment-estimate/fulfillment-estimate.module'
+import { QuoteIntentModel, QuoteIntentSchema } from './schemas/quote-intent.schema'
+import { IntentModule } from '../intent/intent.module'
+import { FeeModule } from '../fee/fee.module'
+import { QuoteRepository } from './quote.repository'
+import { FulfillmentEstimateModule } from '../fulfillment-estimate/fulfillment-estimate.module'
 @Module({
   imports: [
     FeeModule,

@@ -1,14 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { parseUnits } from 'viem'
 import { Hex } from 'viem'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoError } from '../../../../common/errors/eco-error'
+import { EcoLogMessage } from '../../../../common/logging/eco-log-message'
 import { EcoConfigService } from '@libs/solver-config'
-import { KernelAccountClientV2Service } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
-import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
-import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
-import { StargateQuote } from '@eco-solver/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { KernelAccountClientV2Service } from '../../../../transaction/smart-wallets/kernel/kernel-account-client-v2.service'
+import { RebalanceQuote, TokenData } from '../../../types/types'
+import { IRebalanceProvider } from '../../../interfaces/IRebalanceProvider'
+import { MultichainPublicClientService } from '../../../../transaction/multichain-public-client.service'
+import { StargateQuote } from './types/stargate-quote.interface'
 
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {

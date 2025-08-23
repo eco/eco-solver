@@ -1,4 +1,4 @@
-import { ChainSyncService } from '@eco-solver/chain-monitor/chain-sync.service'
+import { ChainSyncService } from './chain-sync.service'
 import { EcoConfigService } from '@libs/solver-config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'

@@ -1,4 +1,4 @@
-import { CCTPLiFiStrategyContext } from '@eco-solver/liquidity-manager/types/types'
+import { CCTPLiFiStrategyContext } from '../../../../types/types'
 
 /**
  * Calculates the total slippage for a CCTPLiFi route

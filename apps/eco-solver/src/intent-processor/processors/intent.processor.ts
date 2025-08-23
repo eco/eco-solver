@@ -1,17 +1,17 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { IntentProcessorJob } from '@eco-solver/intent-processor/jobs/intent-processor.job'
-import { IntentProcessorService } from '@eco-solver/intent-processor/services/intent-processor.service'
-import { ExecuteWithdrawsJobManager } from '@eco-solver/intent-processor/jobs/execute-withdraws.job'
-import { CheckSendBatchCronJobManager } from '@eco-solver/intent-processor/jobs/send-batches-cron.job'
-import { CheckWithdrawalsCronJobManager } from '@eco-solver/intent-processor/jobs/withdraw-rewards-cron.job'
+import { IntentProcessorJob } from '../jobs/intent-processor.job'
+import { IntentProcessorService } from '../services/intent-processor.service'
+import { ExecuteWithdrawsJobManager } from '../jobs/execute-withdraws.job'
+import { CheckSendBatchCronJobManager } from '../jobs/send-batches-cron.job'
+import { CheckWithdrawalsCronJobManager } from '../jobs/withdraw-rewards-cron.job'
 import {
   IntentProcessorJobName,
   IntentProcessorQueue,
   IntentProcessorQueueType,
-} from '@eco-solver/intent-processor/queues/intent-processor.queue'
-import { GroupedJobsProcessor } from '@eco-solver/common/bullmq/grouped-jobs.processor'
-import { ExecuteSendBatchJobManager } from '@eco-solver/intent-processor/jobs/execute-send-batch.job'
+} from '../queues/intent-processor.queue'
+import { GroupedJobsProcessor } from '../../common/bullmq/grouped-jobs.processor'
+import { ExecuteSendBatchJobManager } from '../jobs/execute-send-batch.job'
 
 /**
  * Processor for handling liquidity manager jobs.

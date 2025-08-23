@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { AnalyticsService } from './analytics.interface'
-import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
-import { QuoteIntentDataDTO } from '@eco-solver/quote/dto/quote.intent.data.dto'
-import { QuoteDataDTO } from '@eco-solver/quote/dto/quote-data.dto'
+import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
+import { QuoteIntentDataDTO } from '../quote/dto/quote.intent.data.dto'
+import { QuoteDataDTO } from '../quote/dto/quote-data.dto'
 import { IntentSource } from '@libs/solver-config'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
 

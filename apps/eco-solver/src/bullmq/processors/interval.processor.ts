@@ -1,9 +1,9 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
-import { QUEUES } from '@eco-solver/common/redis/constants'
+import { QUEUES } from '../../common/redis/constants'
 import { Injectable, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { RetryInfeasableIntentsService } from '@eco-solver/intervals/retry-infeasable-intents.service'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { RetryInfeasableIntentsService } from '../../intervals/retry-infeasable-intents.service'
 
 @Injectable()
 @Processor(QUEUES.INTERVAL.queue)

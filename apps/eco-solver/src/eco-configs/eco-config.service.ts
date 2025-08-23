@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import * as _ from 'lodash'
 import { ConfigLoader } from '@libs/solver-config'
 import * as path from 'path'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
@@ -15,12 +15,12 @@ import {
 } from '@libs/solver-config'
 import { Chain, getAddress, zeroAddress } from 'viem'
 import { Hex } from 'viem'
-import { addressKeys } from '@eco-solver/common/viem/utils'
-import { ChainsSupported } from '@eco-solver/common/chains/supported'
+import { addressKeys } from '../common/viem/utils'
+import { ChainsSupported } from '../common/chains/supported'
 import { getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { TransportConfig } from '@eco-solver/common/chains/transport'
+import { EcoError } from '../common/errors/eco-error'
+import { TransportConfig } from '../common/chains/transport'
 
 /**
  * Service class for managing application configuration from multiple sources.

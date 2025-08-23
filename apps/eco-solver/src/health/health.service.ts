@@ -7,7 +7,7 @@ import { EcoRedisHealthIndicator } from './indicators/eco-redis.indicator'
 import { MongoDBHealthIndicator } from './indicators/mongodb.indicator'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { GitCommitHealthIndicator } from './indicators/git-commit.indicator'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { EcoAnalyticsService } from '../analytics'
 
 @Injectable()
 export class HealthService {

@@ -1,8 +1,8 @@
 import { encodeFunctionData, getAddress, erc20Abi, parseEther } from 'viem'
 import { Hex } from 'viem'
 import { Command, CommandRunner, Option } from 'nest-commander'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { BalanceService } from '@eco-solver/balance/balance.service'
+import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { BalanceService } from '../../balance/balance.service'
 
 @Command({
   name: 'transfer',

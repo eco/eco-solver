@@ -1,5 +1,5 @@
-import { KmsService } from '@eco-solver/kms/kms.service'
-import { KmsAccount, kmsToAccount } from '@eco-solver/sign/kms-account/kmsToAccount'
+import { KmsService } from '../kms/kms.service'
+import { KmsAccount, kmsToAccount } from './kms-account/kmsToAccount'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 
 /**

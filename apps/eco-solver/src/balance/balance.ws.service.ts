@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import { EcoConfigService } from '@libs/solver-config'
-import { Network } from '@eco-solver/common/alchemy/network'
+import { Network } from '../common/alchemy/network'
 import { JobsOptions, Queue } from 'bullmq'
 import { QUEUES } from '../common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
@@ -11,7 +11,7 @@ import { convertBigIntsToStrings } from '../common/viem/utils'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
+import { EcoError } from '../common/errors/eco-error'
 
 @Injectable()
 export class BalanceWebsocketService implements OnApplicationBootstrap, OnModuleDestroy {

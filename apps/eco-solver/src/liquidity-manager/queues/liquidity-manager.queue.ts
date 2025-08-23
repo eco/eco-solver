@@ -1,14 +1,14 @@
 import { Queue } from 'bullmq'
-import { initBullMQ, initFlowBullMQ } from '@eco-solver/bullmq/bullmq.helper'
-import { CheckBalancesCronJobManager } from '@eco-solver/liquidity-manager/jobs/check-balances-cron.job'
+import { initBullMQ, initFlowBullMQ } from '../../bullmq/bullmq.helper'
+import { CheckBalancesCronJobManager } from '../jobs/check-balances-cron.job'
 import {
   CheckCCTPAttestationJob,
   CheckCCTPAttestationJobManager,
-} from '@eco-solver/liquidity-manager/jobs/check-cctp-attestation.job'
+} from '../jobs/check-cctp-attestation.job'
 import {
   CCTPLiFiDestinationSwapJobData,
   CCTPLiFiDestinationSwapJobManager,
-} from '@eco-solver/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+} from '../jobs/cctp-lifi-destination-swap.job'
 import { ExecuteCCTPMintJob, ExecuteCCTPMintJobManager } from '../jobs/execute-cctp-mint.job'
 import {
   CheckCCTPV2AttestationJobData,

@@ -11,21 +11,21 @@ import {
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../../../../common/logging/eco-log-message'
 import { EcoConfigService } from '@libs/solver-config'
-import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
-import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
-import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
-import { CCTPTokenMessengerABI } from '@eco-solver/contracts/CCTPTokenMessenger'
+import { RebalanceQuote, TokenData } from '../../../types/types'
+import { IRebalanceProvider } from '../../../interfaces/IRebalanceProvider'
+import { CrowdLiquidityService } from '../../../../intent/crowd-liquidity.service'
+import { CCTPTokenMessengerABI } from '../../../../contracts/CCTPTokenMessenger'
 import { CCTPConfig } from '@libs/solver-config'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { CCTPMessageTransmitterABI } from '@eco-solver/contracts/CCTPMessageTransmitter'
+import { KernelAccountClientService } from '../../../../transaction/smart-wallets/kernel/kernel-account-client.service'
+import { CCTPMessageTransmitterABI } from '../../../../contracts/CCTPMessageTransmitter'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
-import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
+} from '../../../queues/liquidity-manager.queue'
+import { WalletClientDefaultSignerService } from '../../../../transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {

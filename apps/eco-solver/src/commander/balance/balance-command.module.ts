@@ -1,6 +1,6 @@
-import { BalanceService } from '@eco-solver/balance/balance.service'
-import { BalanceCommand } from '@eco-solver/commander/balance/balance.command'
-import { TransferCommandModule } from '@eco-solver/commander/transfer/transfer-command.module'
+import { BalanceService } from '../../balance/balance.service'
+import { BalanceCommand } from './balance.command'
+import { TransferCommandModule } from '../transfer/transfer-command.module'
 import { CacheModule } from '@nestjs/cache-manager'
 import { Module } from '@nestjs/common'
 

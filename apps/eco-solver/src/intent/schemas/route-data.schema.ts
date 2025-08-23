@@ -1,11 +1,11 @@
 import {
   TargetCallDataModel,
   TargetCallDataSchema,
-} from '@eco-solver/intent/schemas/intent-call-data.schema'
+} from './intent-call-data.schema'
 import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
-} from '@eco-solver/intent/schemas/intent-token-amount.schema'
+} from './intent-token-amount.schema'
 import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'

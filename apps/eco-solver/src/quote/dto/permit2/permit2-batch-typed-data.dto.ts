@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
-import { Permit2TypedDataDetailsDTO } from '@eco-solver/quote/dto/permit2/permit2-typed-data-details.dto'
+import { Permit2TypedDataDetailsDTO } from './permit2-typed-data-details.dto'
 import { Transform, Type } from 'class-transformer'
 
 import {

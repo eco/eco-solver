@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../../../../common/logging/eco-log-message'
 
 export interface RetryConfig {
   maxRetries: number

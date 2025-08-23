@@ -1,4 +1,4 @@
-import { CallDataInterface } from '@eco-solver/contracts'
+import { CallDataInterface } from '../../contracts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

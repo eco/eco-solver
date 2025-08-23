@@ -1,4 +1,4 @@
-import { RebalanceQuote, Strategy, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { RebalanceQuote, Strategy, TokenData } from '../types/types'
 
 export interface IRebalanceProvider<S extends Strategy> {
   getQuote(

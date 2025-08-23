@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Hex } from 'viem'
 import { UtilsIntentService } from './utils-intent.service'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Solver } from '@libs/solver-config'
 import { EcoConfigService } from '@libs/solver-config'
-import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
-import { WalletFulfillService } from '@eco-solver/intent/wallet-fulfill.service'
-import { CrowdLiquidityService } from '@eco-solver/intent/crowd-liquidity.service'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { WalletFulfillService } from './wallet-fulfill.service'
+import { CrowdLiquidityService } from './crowd-liquidity.service'
 import { isNativeIntent } from './utils'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
-import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
+import { EcoAnalyticsService } from '../analytics'
+import { ANALYTICS_EVENTS, ERROR_EVENTS } from '../analytics/events.constants'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.

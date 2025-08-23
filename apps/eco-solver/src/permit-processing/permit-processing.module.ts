@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common'
-import { Permit2Processor } from '@eco-solver/permit-processing/permit2-processor'
-import { Permit2TxBuilder } from '@eco-solver/permit-processing/permit2-tx-builder'
-import { PermitProcessor } from '@eco-solver/permit-processing/permit-processor'
-import { PermitTxBuilder } from '@eco-solver/permit-processing/permit-tx-builder'
+import { Permit2Processor } from './permit2-processor'
+import { Permit2TxBuilder } from './permit2-tx-builder'
+import { PermitProcessor } from './permit-processor'
+import { PermitTxBuilder } from './permit-tx-builder'
 
 @Module({
   imports: [],

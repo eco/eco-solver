@@ -1,10 +1,10 @@
 /* eslint-disable prettier/prettier */
-import { GaslessIntentDataDTO } from '@eco-solver/quote/dto/gasless-intent-data.dto'
-import { GaslessIntentRequestDTO } from '@eco-solver/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentDataDTO } from '../../quote/dto/gasless-intent-data.dto'
+import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
 import { Hex } from 'viem'
-import { PermitTestUtils } from '@eco-solver/intent-initiation/test-utils/permit-test-utils'
-import { QuoteRewardDataDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'
-import { QuoteTestUtils } from '@eco-solver/intent-initiation/test-utils/quote-test-utils'
+import { PermitTestUtils } from './permit-test-utils'
+import { QuoteRewardDataDTO } from '../../quote/dto/quote.reward.data.dto'
+import { QuoteTestUtils } from './quote-test-utils'
 import { zeroAddress } from 'viem'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {

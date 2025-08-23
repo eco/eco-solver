@@ -1,11 +1,11 @@
 import { JobsOptions, Job } from 'bullmq'
 import { Hex } from 'viem'
-import { BaseJobManager } from '@eco-solver/common/bullmq/base-job'
-import { IntentFulfillmentJobName } from '@eco-solver/intent-fulfillment/queues/intent-fulfillment.queue'
-import { serialize, Serialize, deserialize } from '@eco-solver/common/utils/serialize'
-import { getIntentJobId } from '@eco-solver/common/utils/strings'
-import { IntentFulfillmentProcessor } from '@eco-solver/intent-fulfillment/processors/intent-fulfillment.processor'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { BaseJobManager } from '../../common/bullmq/base-job'
+import { IntentFulfillmentJobName } from '../queues/intent-fulfillment.queue'
+import { serialize, Serialize, deserialize } from '../../common/utils/serialize'
+import { getIntentJobId } from '../../common/utils/strings'
+import { IntentFulfillmentProcessor } from '../processors/intent-fulfillment.processor'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
 
 export type FulfillIntentJobData = {
   intentHash: Hex

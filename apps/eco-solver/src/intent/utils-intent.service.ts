@@ -8,10 +8,10 @@ import { Solver, TargetConfig } from '@libs/solver-config'
 import { EcoError } from '../common/errors/eco-error'
 import { DecodeFunctionDataReturnType } from 'viem'
 import { Hex } from 'viem'
-import { FulfillmentLog } from '@eco-solver/contracts/inbox'
-import { Network } from '@eco-solver/common/alchemy/network'
-import { ValidationChecks } from '@eco-solver/intent/validation.sevice'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { FulfillmentLog } from '../contracts/inbox'
+import { Network } from '../common/alchemy/network'
+import { ValidationChecks } from './validation.sevice'
+import { EcoAnalyticsService } from '../analytics'
 
 /**
  * Data for a transaction target

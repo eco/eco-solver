@@ -18,12 +18,12 @@ import {
 } from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
-import { deserialize, Serialize } from '@eco-solver/common/utils/serialize'
+import { deserialize, Serialize } from '../common/utils/serialize'
 import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
-import { QuoteRewardDataModel } from '@eco-solver/quote/schemas/quote-reward.schema'
-import { EcoResponse } from '@eco-solver/common/eco-response'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
+import { QuoteRewardDataModel } from '../quote/schemas/quote-reward.schema'
+import { EcoResponse } from '../common/eco-response'
+import { EcoError } from '../common/errors/eco-error'
+import { EcoAnalyticsService } from '../analytics'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is

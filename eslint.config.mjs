@@ -30,16 +30,12 @@ export default [
       '@nx/enforce-module-boundaries': [
         'error',
         {
-          // Allow @eco-solver/* imports within the eco-solver app
-          allow: ['^@eco-solver/.*'],
+          enforceBuildableLibDependency: true,
+          allow: [],
           depConstraints: [
             {
-              sourceTag: 'scope:eco-solver',
-              onlyDependOnLibsWithTags: ['scope:eco-solver'],
-            },
-            {
-              sourceTag: 'type:app',
-              onlyDependOnLibsWithTags: ['type:lib', 'type:util'],
+              sourceTag: '*',
+              onlyDependOnLibsWithTags: ['*'],
             },
           ],
         },

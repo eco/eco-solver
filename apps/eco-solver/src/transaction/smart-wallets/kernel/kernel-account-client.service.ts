@@ -23,12 +23,12 @@ import {
 import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { EcoLogMessage } from '../../../common/logging/eco-log-message'
-import { SignerKmsService } from '@eco-solver/sign/signer-kms.service'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoResponse } from '@eco-solver/common/eco-response'
-import { EstimatedGasData } from '@eco-solver/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
-import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
-import { KernelExecuteAbi } from '@eco-solver/contracts'
+import { SignerKmsService } from '../../../sign/signer-kms.service'
+import { EcoError } from '../../../common/errors/eco-error'
+import { EcoResponse } from '../../../common/eco-response'
+import { EstimatedGasData } from './interfaces/estimated-gas-data.interface'
+import { ExecuteSmartWalletArg } from '../smart-wallet.types'
+import { KernelExecuteAbi } from '../../../contracts'
 
 @Injectable()
 export class KernelAccountClientServiceBase<

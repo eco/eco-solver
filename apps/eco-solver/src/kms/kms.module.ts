@@ -1,4 +1,4 @@
-import { KmsService } from '@eco-solver/kms/kms.service'
+import { KmsService } from './kms.service'
 import { Module } from '@nestjs/common'
 
 @Module({

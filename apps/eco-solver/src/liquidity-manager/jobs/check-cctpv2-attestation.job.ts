@@ -3,13 +3,13 @@ import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@eco-solver/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+} from './liquidity-manager.job'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { LiquidityManagerJobName } from '../queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
 import { ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
-import { deserialize, Serialize } from '@eco-solver/common/utils/serialize'
+import { deserialize, Serialize } from '../../common/utils/serialize'
 
 export interface CheckCCTPV2AttestationJobData {
   sourceDomain: number

@@ -6,7 +6,7 @@ import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/
 import { Log } from 'viem'
 import { Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { Model } from 'mongoose'
-import { WatchEventService } from '@eco-solver/watch/intent/watch-event.service'
+import { WatchEventService } from '../watch/intent/watch-event.service'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.

@@ -13,7 +13,7 @@
  * @example Basic Usage
  * ```typescript
  * // In app.module.ts
- * import { AnalyticsModule } from '@eco-solver/analytics'
+ * import { AnalyticsModule } from './'
  *
  * @Module({
  *   imports: [
@@ -30,7 +30,7 @@
  * ```typescript
  * // In any service
  * import { Injectable, Inject } from '@nestjs/common'
- * import { AnalyticsService, ANALYTICS_SERVICE } from '@eco-solver/analytics'
+ * import { AnalyticsService, ANALYTICS_SERVICE } from './'
  *
  * @Injectable()
  * export class SomeService {

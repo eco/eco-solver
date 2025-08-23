@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { BatchPermitDataDTO } from '@eco-solver/quote/dto/permit2/batch-permit-data.dto'
+import { BatchPermitDataDTO } from './batch-permit-data.dto'
 import { Hex } from 'viem'
 import { IsOptional, ValidateNested } from 'class-validator'
-import { Permit2TypedDataDetailsDTO } from '@eco-solver/quote/dto/permit2/permit2-typed-data-details.dto'
-import { SinglePermitDataDTO } from '@eco-solver/quote/dto/permit2/single-permit-data.dto'
+import { Permit2TypedDataDetailsDTO } from './permit2-typed-data-details.dto'
+import { SinglePermitDataDTO } from './single-permit-data.dto'
 import { Type } from 'class-transformer'
 
 export class Permit2DataDTO {

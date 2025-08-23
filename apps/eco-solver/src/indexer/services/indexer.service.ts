@@ -5,8 +5,8 @@ import { EcoConfigService } from '@libs/solver-config'
 import {
   BatchWithdrawGasless,
   BatchWithdraws,
-} from '@eco-solver/indexer/interfaces/batch-withdraws.interface'
-import { SendBatchData } from '@eco-solver/indexer/interfaces/send-batch-data.interface'
+} from '../interfaces/batch-withdraws.interface'
+import { SendBatchData } from '../interfaces/send-batch-data.interface'
 
 @Injectable()
 export class IndexerService {

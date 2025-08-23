@@ -19,6 +19,9 @@ importers:
       '@0xsquid/sdk':
         specifier: ^2.10.1
         version: 2.10.1(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+      '@0xsquid/squid-types':
+        specifier: 0.1.182
+        version: 0.1.182(typescript@5.8.3)
       '@aws-sdk/client-kms':
         specifier: ^3.0.0
         version: 3.873.0
@@ -354,6 +357,11 @@ packages:
 
   '@0xsquid/sdk@2.10.1':
     resolution: {integrity: sha512-w5wMP3TJIXXImGy35DsUaa2apcqik8RjJRFnF89CyfNx4rkOc0AXxJEyEit5Qe4W31EdlAqgI3hI/GBwUmLIww==}
+
+  '@0xsquid/squid-types@0.1.182':
+    resolution: {integrity: sha512-xPVjzW6nKAWDxJRZfHNNzuYFpcfv7UQokRcJsi39FP8toWhsBb+UaXHHcqOkDneN7Gs5KXJl8BWNdlOJYp9sbQ==}
+    peerDependencies:
+      typescript: ^5.3.3
 
   '@adraffy/ens-normalize@1.10.1':
     resolution: {integrity: sha512-96Z2IP3mYmF1Xg2cDm8f1gWGf/HUVedQ3FMifV4kG/PQ4yEP51xDtRAEfhVNt5f/uzpNkZHwWQuUcu6D6K+Ekw==}
@@ -8201,6 +8209,11 @@ snapshots:
       - encoding
       - typescript
       - utf-8-validate
+
+  '@0xsquid/squid-types@0.1.182(typescript@5.8.3)':
+    dependencies:
+      long: 5.3.2
+      typescript: 5.8.3
 
   '@adraffy/ens-normalize@1.10.1': {}
 

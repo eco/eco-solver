@@ -1,4 +1,4 @@
-import { signKms, KmsSignParameters } from '@eco-solver/sign/kms-account/signKms'
+import { signKms, KmsSignParameters } from './signKms'
 import {
   keccak256,
   serializeTransaction,

@@ -1,13 +1,13 @@
 import { formatUnits, parseUnits } from 'viem'
-import { TokenBalance, TokenConfig } from '@eco-solver/balance/types'
-import { TokenState } from '@eco-solver/liquidity-manager/types/token-state.enum'
-import { getSlippageRange } from '@eco-solver/liquidity-manager/utils/math'
-import { Mathb } from '@eco-solver/utils/bigint'
+import { TokenBalance, TokenConfig } from '../../balance/types'
+import { TokenState } from '../types/token-state.enum'
+import { getSlippageRange } from './math'
+import { Mathb } from '../../utils/bigint'
 import {
   TokenAnalysis,
   TokenBalanceAnalysis,
   TokenDataAnalyzed,
-} from '@eco-solver/liquidity-manager/types/types'
+} from '../types/types'
 
 /**
  * Analyzes a token's balance against its configuration and returns the analysis.

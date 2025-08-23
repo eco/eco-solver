@@ -1,22 +1,22 @@
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { BaseProcessor } from '@eco-solver/common/bullmq/base.processor'
-import { LiquidityManagerService } from '@eco-solver/liquidity-manager/services/liquidity-manager.service'
-import { RebalanceJobManager } from '@eco-solver/liquidity-manager/jobs/rebalance.job'
-import { LiquidityManagerJob } from '@eco-solver/liquidity-manager/jobs/liquidity-manager.job'
-import { CheckBalancesCronJobManager } from '@eco-solver/liquidity-manager/jobs/check-balances-cron.job'
+import { BaseProcessor } from '../../common/bullmq/base.processor'
+import { LiquidityManagerService } from '../services/liquidity-manager.service'
+import { RebalanceJobManager } from '../jobs/rebalance.job'
+import { LiquidityManagerJob } from '../jobs/liquidity-manager.job'
+import { CheckBalancesCronJobManager } from '../jobs/check-balances-cron.job'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
-import { CheckCCTPAttestationJobManager } from '@eco-solver/liquidity-manager/jobs/check-cctp-attestation.job'
-import { ExecuteCCTPMintJobManager } from '@eco-solver/liquidity-manager/jobs/execute-cctp-mint.job'
-import { CCTPLiFiDestinationSwapJobManager } from '@eco-solver/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+} from '../queues/liquidity-manager.queue'
+import { CCTPProviderService } from '../services/liquidity-providers/CCTP/cctp-provider.service'
+import { CheckCCTPAttestationJobManager } from '../jobs/check-cctp-attestation.job'
+import { ExecuteCCTPMintJobManager } from '../jobs/execute-cctp-mint.job'
+import { CCTPLiFiDestinationSwapJobManager } from '../jobs/cctp-lifi-destination-swap.job'
 import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
 import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
-import { CheckEverclearIntentJobManager } from '@eco-solver/liquidity-manager/jobs/check-everclear-intent.job'
+import { CheckEverclearIntentJobManager } from '../jobs/check-everclear-intent.job'
 import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
 
 /**

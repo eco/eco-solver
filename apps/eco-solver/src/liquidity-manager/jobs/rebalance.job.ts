@@ -1,13 +1,13 @@
 import { FlowChildJob, Job } from 'bullmq'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
-} from '@eco-solver/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
-import { LiquidityManagerProcessor } from '@eco-solver/liquidity-manager/processors/eco-protocol-intents.processor'
-import { serialize, Serialize } from '@eco-solver/common/utils/serialize'
-import { RebalanceRequest } from '@eco-solver/liquidity-manager/types/types'
+} from './liquidity-manager.job'
+import { LiquidityManagerJobName } from '../queues/liquidity-manager.queue'
+import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
+import { serialize, Serialize } from '../../common/utils/serialize'
+import { RebalanceRequest } from '../types/types'
 
 export type RebalanceJobData = {
   network: string

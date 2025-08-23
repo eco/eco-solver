@@ -1,5 +1,5 @@
-import { BalanceModule } from '@eco-solver/balance/balance.module'
-import { FeeService } from '@eco-solver/fee/fee.service'
+import { BalanceModule } from '../balance/balance.module'
+import { FeeService } from './fee.service'
 import { Module } from '@nestjs/common'
 
 @Module({

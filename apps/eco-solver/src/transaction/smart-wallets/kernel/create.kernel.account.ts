@@ -34,8 +34,8 @@ import {
   isModuleInstalled,
 } from '@rhinestone/module-sdk'
 import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { OwnableExecutorAbi } from '@eco-solver/contracts'
+import { EcoLogMessage } from '../../../common/logging/eco-log-message'
+import { OwnableExecutorAbi } from '../../../contracts'
 import { GetKernelVersion } from '@zerodev/sdk/types'
 
 export type entryPointV_0_7 = '0.7'

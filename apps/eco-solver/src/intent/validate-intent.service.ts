@@ -6,21 +6,21 @@ import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { Solver } from '@libs/solver-config'
 import { EcoConfigService } from '@libs/solver-config'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
-import { delay } from '@eco-solver/common/utils/time'
-import { QUEUES } from '@eco-solver/common/redis/constants'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { getIntentJobId } from '@eco-solver/common/utils/strings'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { delay } from '../common/utils/time'
+import { QUEUES } from '../common/redis/constants'
+import { EcoError } from '../common/errors/eco-error'
+import { getIntentJobId } from '../common/utils/strings'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { IntentSourceModel } from './schemas/intent-source.schema'
-import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
-import { IntentDataModel } from '@eco-solver/intent/schemas/intent-data.schema'
+import { MultichainPublicClientService } from '../transaction/multichain-public-client.service'
+import { IntentDataModel } from './schemas/intent-data.schema'
 import {
   ValidationChecks,
   ValidationService,
   validationsFailed,
-} from '@eco-solver/intent/validation.sevice'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
-import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
+} from './validation.sevice'
+import { EcoAnalyticsService } from '../analytics'
+import { ANALYTICS_EVENTS, ERROR_EVENTS } from '../analytics/events.constants'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check

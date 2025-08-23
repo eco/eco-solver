@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
-import { SignatureGenerator } from '@eco-solver/request-signing/signature-generator'
-import { SignatureVerificationService } from '@eco-solver/request-signing/signature-verification.service'
-import { SigningService } from '@eco-solver/request-signing/signing.service'
+import { SignatureGenerator } from './signature-generator'
+import { SignatureVerificationService } from './signature-verification.service'
+import { SigningService } from './signing.service'
 
 @Module({
   imports: [],

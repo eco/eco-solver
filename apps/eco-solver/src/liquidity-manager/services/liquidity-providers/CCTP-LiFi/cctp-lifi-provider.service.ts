@@ -2,28 +2,28 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { parseUnits, formatUnits } from 'viem'
 import { Hex } from 'viem'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../../../../common/logging/eco-log-message'
 import { EcoConfigService } from '@libs/solver-config'
-import { BalanceService } from '@eco-solver/balance/balance.service'
-import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
+import { BalanceService } from '../../../../balance/balance.service'
+import { IRebalanceProvider } from '../../../interfaces/IRebalanceProvider'
 import {
   RebalanceQuote,
   TokenData,
   CCTPLiFiStrategyContext,
   LiFiStrategyContext,
-} from '@eco-solver/liquidity-manager/types/types'
+} from '../../../types/types'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
-import { LiFiProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { CCTPProviderService } from '@eco-solver/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
+} from '../../../queues/liquidity-manager.queue'
+import { LiFiProviderService } from '../LiFi/lifi-provider.service'
+import { CCTPProviderService } from '../CCTP/cctp-provider.service'
 import { CCTPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@libs/solver-config'
-import { EcoAnalyticsService } from '@eco-solver/analytics/eco-analytics.service'
-import { ANALYTICS_EVENTS } from '@eco-solver/analytics/events.constants'
+import { EcoAnalyticsService } from '../../../../analytics/eco-analytics.service'
+import { ANALYTICS_EVENTS } from '../../../../analytics/events.constants'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {

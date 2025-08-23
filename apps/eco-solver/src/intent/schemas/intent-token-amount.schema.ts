@@ -1,4 +1,4 @@
-import { RewardTokensInterface } from '@eco-solver/contracts'
+import { RewardTokensInterface } from '../../contracts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

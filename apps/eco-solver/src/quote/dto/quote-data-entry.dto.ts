@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IntentExecutionType } from '@eco-solver/quote/enums/intent-execution-type.enum'
+import { IntentExecutionType } from '../enums/intent-execution-type.enum'
 import {
   ArrayNotEmpty,
   IsArray,
@@ -9,8 +9,8 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator'
-import { QuoteRewardTokensDTO } from '@eco-solver/quote/dto/quote.reward.data.dto'
-import { QuoteCallDataDTO, QuoteRouteDataDTO } from '@eco-solver/quote/dto/quote.route.data.dto'
+import { QuoteRewardTokensDTO } from './quote.reward.data.dto'
+import { QuoteCallDataDTO, QuoteRouteDataDTO } from './quote.route.data.dto'
 import { Transform, Type } from 'class-transformer'
 
 export class QuoteDataEntryDTO {

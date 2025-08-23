@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common'
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
 import { erc20Abi, isAddressEqual } from 'viem'
 import { Hex } from 'viem'
-import { Network } from '@eco-solver/common/alchemy/network'
+import { Network } from '../../common/alchemy/network'
 import { entries, keyBy } from 'lodash'
 import { Solver } from '@libs/solver-config'
 import { EcoConfigService } from '@libs/solver-config'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 
 type TokenType = {
   token: Hex

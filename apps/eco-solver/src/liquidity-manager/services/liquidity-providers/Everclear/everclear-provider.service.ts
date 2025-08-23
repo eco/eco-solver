@@ -4,20 +4,20 @@ import { Cache } from 'cache-manager'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+} from '../../../queues/liquidity-manager.queue'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
-import { RebalanceQuote, TokenData } from '@eco-solver/liquidity-manager/types/types'
+import { IRebalanceProvider } from '../../../interfaces/IRebalanceProvider'
+import { RebalanceQuote, TokenData } from '../../../types/types'
 import { EcoConfigService } from '@libs/solver-config'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { KernelAccountClientService } from '../../../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EverclearConfig } from '@libs/solver-config'
 import { parseUnits } from 'viem'
 import { Hex } from 'viem'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../../../../common/logging/eco-log-message'
 import { EverclearApiError } from './everclear.errors'
-import { getSlippage } from '@eco-solver/liquidity-manager/utils/math'
-import { createApproveTransaction } from '@eco-solver/liquidity-manager/utils/transaction'
-import { Cacheable } from '@eco-solver/decorators/cacheable.decorator'
+import { getSlippage } from '../../../utils/math'
+import { createApproveTransaction } from '../../../utils/transaction'
+import { Cacheable } from '../../../../decorators/cacheable.decorator'
 import { erc20Abi } from 'viem'
 
 @Injectable()

@@ -1,7 +1,7 @@
 import { CommandRunner } from 'nest-commander'
 import { EcoConfigService } from '@libs/solver-config'
-import { BalanceService } from '@eco-solver/balance/balance.service'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { BalanceService } from '../../balance/balance.service'
+import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 
 export abstract class ClientCommand extends CommandRunner {
   constructor(

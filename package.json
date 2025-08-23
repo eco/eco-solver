@@ -29,6 +29,7 @@
   "private": true,
   "dependencies": {
     "@0xsquid/sdk": "^2.10.1",
+    "@0xsquid/squid-types": "0.1.182",
     "@aws-sdk/client-kms": "^3.0.0",
     "@aws-sdk/client-secrets-manager": "^3.864.0",
     "@eco-foundation/chains": "^1.0.48",
@@ -141,9 +142,7 @@
   "pnpm": {
     "patchedDependencies": {
       "@zerodev/sdk@5.4.41": "patches/@zerodev__sdk@5.4.41.patch",
-      "permissionless": "patches/permissionless.patch",
-      "permissionless@0.2.54": "patches/permissionless@0.2.54.patch",
-      "ox": "patches/ox.patch"
+      "permissionless@0.2.54": "patches/permissionless@0.2.54.patch"
     }
   },
   "nx": {

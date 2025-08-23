@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common'
 import { Job as BullMQJob } from 'bullmq'
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { BaseJobManager } from '@eco-solver/common/bullmq/base-job'
+import { EcoLogMessage } from '../logging/eco-log-message'
+import { BaseJobManager } from './base-job'
 
 /**
  * Abstract class representing a base processor for liquidity manager jobs.

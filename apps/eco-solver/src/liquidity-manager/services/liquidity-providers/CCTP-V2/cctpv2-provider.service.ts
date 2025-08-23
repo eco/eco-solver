@@ -1,25 +1,25 @@
 import { isAddressEqual, parseUnits, encodeFunctionData, pad, erc20Abi } from 'viem'
 import { Hex } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
-import { IRebalanceProvider } from '@eco-solver/liquidity-manager/interfaces/IRebalanceProvider'
+import { IRebalanceProvider } from '../../../interfaces/IRebalanceProvider'
 import {
   CCTPV2StrategyContext,
   RebalanceQuote,
   TokenData,
-} from '@eco-solver/liquidity-manager/types/types'
+} from '../../../types/types'
 import { EcoConfigService } from '@libs/solver-config'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { KernelAccountClientService } from '../../../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-} from '@eco-solver/liquidity-manager/queues/liquidity-manager.queue'
+} from '../../../queues/liquidity-manager.queue'
 import { CCTPV2Config } from '@libs/solver-config'
-import { CCTPV2TokenMessengerABI } from '@eco-solver/contracts/CCTPV2TokenMessenger'
-import { CCTPV2MessageTransmitterABI } from '@eco-solver/contracts/CCTPV2MessageTransmitter'
-import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
-import { serialize } from '@eco-solver/common/utils/serialize'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { CCTPV2TokenMessengerABI } from '../../../../contracts/CCTPV2TokenMessenger'
+import { CCTPV2MessageTransmitterABI } from '../../../../contracts/CCTPV2MessageTransmitter'
+import { WalletClientDefaultSignerService } from '../../../../transaction/smart-wallets/wallet-client.service'
+import { serialize } from '../../../../common/utils/serialize'
+import { EcoLogMessage } from '../../../../common/logging/eco-log-message'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000

@@ -13,22 +13,22 @@ import {
   Transport,
 } from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@libs/solver-config'
 import { EcoConfigService } from '@libs/solver-config'
-import { IndexerService } from '@eco-solver/indexer/services/indexer.service'
-import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
-import * as Hyperlane from '@eco-solver/intent-processor/utils/hyperlane'
-import { getWithdrawData } from '@eco-solver/intent-processor/utils/intent'
-import { ExecuteWithdrawsJobData } from '@eco-solver/intent-processor/jobs/execute-withdraws.job'
+import { IndexerService } from '../../indexer/services/indexer.service'
+import { WalletClientDefaultSignerService } from '../../transaction/smart-wallets/wallet-client.service'
+import * as Hyperlane from '../utils/hyperlane'
+import { getWithdrawData } from '../utils/intent'
+import { ExecuteWithdrawsJobData } from '../jobs/execute-withdraws.job'
 import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
-} from '@eco-solver/intent-processor/queues/intent-processor.queue'
-import { ExecuteSendBatchJobData } from '@eco-solver/intent-processor/jobs/execute-send-batch.job'
-import { Multicall3Abi } from '@eco-solver/contracts/Multicall3'
-import { getMulticall } from '@eco-solver/intent-processor/utils/multicall'
-import { getChainConfig } from '@eco-solver/eco-configs/utils'
+} from '../queues/intent-processor.queue'
+import { ExecuteSendBatchJobData } from '../jobs/execute-send-batch.job'
+import { Multicall3Abi } from '../../contracts/Multicall3'
+import { getMulticall } from '../utils/multicall'
+import { getChainConfig } from '../../eco-configs/utils'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {

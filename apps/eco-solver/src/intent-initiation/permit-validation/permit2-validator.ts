@@ -1,10 +1,10 @@
-import { Call } from '@eco-solver/intent-initiation/permit-validation/interfaces/call.interface'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoResponse } from '@eco-solver/common/eco-response'
-import { Permit2Abi } from '@eco-solver/contracts/Permit2.abi'
-import { Permit2Params } from '@eco-solver/intent-initiation/permit-validation/interfaces/permit2-params.interface'
+import { Call } from './interfaces/call.interface'
+import { EcoError } from '../../common/errors/eco-error'
+import { EcoLogger } from '../../common/logging/eco-logger'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { EcoResponse } from '../../common/eco-response'
+import { Permit2Abi } from '../../contracts/Permit2.abi'
+import { Permit2Params } from './interfaces/permit2-params.interface'
 import { PublicClient, verifyTypedData } from 'viem'
 
 const KNOWN_PERMIT2_ADDRESSES = new Set(

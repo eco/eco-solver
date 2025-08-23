@@ -1,9 +1,9 @@
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoLogger } from '@eco-solver/common/logging/eco-logger'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
-import { EcoResponse } from '@eco-solver/common/eco-response'
+import { EcoError } from '../../common/errors/eco-error'
+import { EcoLogger } from '../../common/logging/eco-logger'
+import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { EcoResponse } from '../../common/eco-response'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { ValidateVaultFundingArgs } from '@eco-solver/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
+import { ValidateVaultFundingArgs } from './interfaces/validate-vault-funding-args.interface'
 
 /*
 IVaultStorage.RewardStatus

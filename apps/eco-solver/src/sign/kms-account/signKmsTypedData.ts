@@ -1,4 +1,4 @@
-import { KmsSignParameters, signKms } from '@eco-solver/sign/kms-account/signKms'
+import { KmsSignParameters, signKms } from './signKms'
 import { hashTypedData, SignTypedDataReturnType, TypedData } from 'viem'
 import { SignTypedDataParameters } from 'viem/accounts'
 

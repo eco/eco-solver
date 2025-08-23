@@ -1,9 +1,9 @@
 import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Log, Prettify } from 'viem'
 import { Hex } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
-import { Network } from '@eco-solver/common/alchemy/network'
+import { Network } from '../common/alchemy/network'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { CallDataType, RewardTokensType } from '@eco-solver/quote/dto/types'
+import { CallDataType, RewardTokensType } from '../quote/dto/types'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<

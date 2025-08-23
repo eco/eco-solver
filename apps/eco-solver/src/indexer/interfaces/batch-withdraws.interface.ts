@@ -1,4 +1,4 @@
-import { IndexerIntent } from '@eco-solver/indexer/interfaces/intent.interface'
+import { IndexerIntent } from './intent.interface'
 
 export interface BatchWithdraws {
   intent: IndexerIntent

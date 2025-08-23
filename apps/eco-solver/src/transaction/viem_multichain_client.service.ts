@@ -9,9 +9,9 @@ import {
   zeroAddress,
   Account,
 } from 'viem'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { getTransport } from '@eco-solver/common/chains/transport'
-import { ChainsSupported } from '@eco-solver/common/chains/supported'
+import { EcoError } from '../common/errors/eco-error'
+import { getTransport } from '../common/chains/transport'
+import { ChainsSupported } from '../common/chains/supported'
 import { EcoConfigService } from '@libs/solver-config'
 
 @Injectable()

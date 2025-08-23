@@ -1,15 +1,15 @@
 import { Queue } from 'bullmq'
-import { initBullMQ } from '@eco-solver/bullmq/bullmq.helper'
-import { CheckWithdrawalsCronJobManager } from '@eco-solver/intent-processor/jobs/withdraw-rewards-cron.job'
+import { initBullMQ } from '../../bullmq/bullmq.helper'
+import { CheckWithdrawalsCronJobManager } from '../jobs/withdraw-rewards-cron.job'
 import {
   ExecuteWithdrawsJobData,
   ExecuteWithdrawsJobManager,
-} from '@eco-solver/intent-processor/jobs/execute-withdraws.job'
-import { CheckSendBatchCronJobManager } from '@eco-solver/intent-processor/jobs/send-batches-cron.job'
+} from '../jobs/execute-withdraws.job'
+import { CheckSendBatchCronJobManager } from '../jobs/send-batches-cron.job'
 import {
   ExecuteSendBatchJobData,
   ExecuteSendBatchJobManager,
-} from '@eco-solver/intent-processor/jobs/execute-send-batch.job'
+} from '../jobs/execute-send-batch.job'
 
 export enum IntentProcessorJobName {
   CHECK_WITHDRAWS = 'CHECK_WITHDRAWS',

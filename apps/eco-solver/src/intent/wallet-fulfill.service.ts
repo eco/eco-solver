@@ -10,28 +10,28 @@ import {
 } from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
-import { CallDataInterface, getERC20Selector } from '@eco-solver/contracts'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { CallDataInterface, getERC20Selector } from '../contracts'
+import { EcoError } from '../common/errors/eco-error'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Solver } from '@libs/solver-config'
 import { EcoConfigService } from '@libs/solver-config'
-import { FeeService } from '@eco-solver/fee/fee.service'
-import { ProofService } from '@eco-solver/prover/proof.service'
-import { ExecuteSmartWalletArg } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
-import { KernelAccountClientService } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { FeeService } from '../fee/fee.service'
+import { ProofService } from '../prover/proof.service'
+import { ExecuteSmartWalletArg } from '../transaction/smart-wallets/smart-wallet.types'
+import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import {
   getFunctionCalls,
   getNativeCalls,
   getNativeFulfill,
   getTransactionTargetData,
   getWaitForTransactionTimeout,
-} from '@eco-solver/intent/utils'
-import { IFulfillService } from '@eco-solver/intent/interfaces/fulfill-service.interface'
-import { IntentDataModel } from '@eco-solver/intent/schemas/intent-data.schema'
-import { RewardDataModel } from '@eco-solver/intent/schemas/reward-data.schema'
-import { IntentSourceModel } from '@eco-solver/intent/schemas/intent-source.schema'
-import { getChainConfig } from '@eco-solver/eco-configs/utils'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
+} from './utils'
+import { IFulfillService } from './interfaces/fulfill-service.interface'
+import { IntentDataModel } from './schemas/intent-data.schema'
+import { RewardDataModel } from './schemas/reward-data.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { getChainConfig } from '../eco-configs/utils'
+import { EcoAnalyticsService } from '../analytics'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.

@@ -1,9 +1,9 @@
 import { LocalAccount } from 'viem'
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { SignatureGenerator } from '@eco-solver/request-signing/signature-generator'
-import { SignatureHeaders } from '@eco-solver/request-signing/interfaces/signature-headers.interface'
-import { SignedMessage } from '@eco-solver/request-signing/interfaces/signed-message.interface'
-import { WalletClientDefaultSignerService } from '@eco-solver/transaction/smart-wallets/wallet-client.service'
+import { SignatureGenerator } from './signature-generator'
+import { SignatureHeaders } from './interfaces/signature-headers.interface'
+import { SignedMessage } from './interfaces/signed-message.interface'
+import { WalletClientDefaultSignerService } from '../transaction/smart-wallets/wallet-client.service'
 import { ModuleRef } from '@nestjs/core'
 
 @Injectable()

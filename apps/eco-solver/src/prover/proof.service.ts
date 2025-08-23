@@ -4,11 +4,11 @@ import { getAddress } from 'viem'
 import { Hex } from 'viem'
 import { IProverAbi } from '@eco-foundation/routes-ts'
 import { addSeconds, compareAsc } from 'date-fns'
-import { ProofCall, ProofType } from '@eco-solver/contracts'
-import { EcoError } from '@eco-solver/common/errors/eco-error'
-import { EcoLogMessage } from '@eco-solver/common/logging/eco-log-message'
+import { ProofCall, ProofType } from '../contracts'
+import { EcoError } from '../common/errors/eco-error'
+import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { EcoConfigService } from '@libs/solver-config'
-import { MultichainPublicClientService } from '@eco-solver/transaction/multichain-public-client.service'
+import { MultichainPublicClientService } from '../transaction/multichain-public-client.service'
 
 interface ProverMetadata {
   address: Hex

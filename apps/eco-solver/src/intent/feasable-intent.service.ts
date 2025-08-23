@@ -3,11 +3,11 @@ import { UtilsIntentService } from './utils-intent.service'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
-import { QuoteIntentModel } from '@eco-solver/quote/schemas/quote-intent.schema'
-import { FeeService } from '@eco-solver/fee/fee.service'
-import { EcoAnalyticsService } from '@eco-solver/analytics'
-import { ERROR_EVENTS } from '@eco-solver/analytics/events.constants'
-import { IntentFulfillmentQueue } from '@eco-solver/intent-fulfillment/queues/intent-fulfillment.queue'
+import { QuoteIntentModel } from '../quote/schemas/quote-intent.schema'
+import { FeeService } from '../fee/fee.service'
+import { EcoAnalyticsService } from '../analytics'
+import { ERROR_EVENTS } from '../analytics/events.constants'
+import { IntentFulfillmentQueue } from '../intent-fulfillment/queues/intent-fulfillment.queue'
 
 /**
  * Service class for getting configs for the app

@@ -19,7 +19,7 @@ import {
   WalletClient,
 } from 'viem'
 import { entryPoint07Address, SmartAccount } from 'viem/account-abstraction'
-import { entryPointV_0_7 } from '@eco-solver/transaction/smart-wallets/kernel/create.kernel.account'
+import { entryPointV_0_7 } from './create.kernel.account'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
 import {
   createKernelAccount,
@@ -30,9 +30,9 @@ import {
 } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
-import { KernelAccountClientConfig } from '@eco-solver/transaction/smart-wallets/kernel/kernel-account.config'
-import { ExecuteSmartWalletArgs } from '@eco-solver/transaction/smart-wallets/smart-wallet.types'
-import { encodeKernelExecuteCallData } from '@eco-solver/transaction/smart-wallets/kernel/actions/encodeData.kernel'
+import { KernelAccountClientConfig } from './kernel-account.config'
+import { ExecuteSmartWalletArgs } from '../smart-wallet.types'
+import { encodeKernelExecuteCallData } from './actions/encodeData.kernel'
 
 export type KernelAccountClientV2Config<
   entryPointVersion extends '0.6' | '0.7',
