@@ -59,7 +59,7 @@ export class ViemMultichainClientService<T extends any, V extends ClientConfig>
 
   protected async buildChainConfig(chain: Chain): Promise<V> {
     //only pass api key if chain is supported by alchemy, otherwise it'll be incorrectly added to other rpcs
-    const { rpcUrls, config } = this.ecoConfigService.getRpcUrls(chain.id)
+    const { rpcUrls, config } = this.ecoConfigService.getRpcUrls(chain)
 
     const rpcTransport = getTransport(rpcUrls, config)
     return {

@@ -40,7 +40,7 @@ export abstract class WalletClientService<
     })
 
     // Create a pure public client config without any account information
-    const { rpcUrls, config } = this.ecoConfigService.getRpcUrls(chain.id)
+    const { rpcUrls, config } = this.ecoConfigService.getRpcUrls(chain)
     const rpcTransport = getTransport(rpcUrls, config)
     
     return createPublicClient({

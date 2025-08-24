@@ -5,12 +5,7 @@ import { AwsSecretsConfigProvider } from '../providers/aws-secrets.provider'
 import { EnvOverrideProvider } from '../providers/env-override.provider'
 import { getStaticSolverConfig } from '../solver-config'
 import { ConfigSource } from '../interfaces/config-source.interface'
-import { AwsCredential, AwsSecretsProvider as RealAwsSecretsProvider } from '@libs/config-providers'
-
-// Interface for AWS provider functionality (matches real provider signature)
-interface AwsSecretsProvider {
-  loadSecret(secretId: string): Promise<Record<string, unknown>>
-}
+import { AwsCredential, AwsSecretsProvider } from '@libs/config-providers'
 
 export interface EcoSolverConfigOptions {
   enableAws?: boolean
@@ -58,7 +53,7 @@ export class EcoSolverConfigModule {
       })
 
       // Add real AWS secrets provider using the imported provider
-      const awsProviderConfig = RealAwsSecretsProvider.forRootAsync(awsCredentials)
+      const awsProviderConfig = AwsSecretsProvider.forRootAsync(awsCredentials)
 
       // Add all providers from the real AWS provider
       providers.push(...awsProviderConfig.providers)
@@ -66,7 +61,7 @@ export class EcoSolverConfigModule {
       // Map the real provider to our expected token
       providers.push({
         provide: 'AWS_SECRETS_PROVIDER',
-        useExisting: RealAwsSecretsProvider,
+        useExisting: AwsSecretsProvider,
       })
     }
 

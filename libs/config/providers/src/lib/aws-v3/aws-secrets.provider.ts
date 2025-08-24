@@ -7,6 +7,11 @@ export interface AwsCredential {
   region: string
 }
 
+// Interface for AWS provider functionality (matches real provider signature)
+export interface IAwsSecretsProvider {
+  loadSecret(secretId: string): Promise<Record<string, unknown>>
+}
+
 export class ConfigurationLoadError extends Error {
   constructor(message: string, public cause?: any) {
     super(message)
@@ -30,6 +35,12 @@ export class AwsSecretsProvider {
     if (!awsCredentials?.length) {
       throw new Error('AWS credentials are required and must be injected - no defaults allowed')
     }
+
+    // Initialize clients for each unique region
+    const uniqueRegions = [...new Set(awsCredentials.map((cred) => cred.region))]
+    uniqueRegions.forEach((region) => {
+      this.clients.set(region, new SecretsManagerClient({ region }))
+    })
   }
 
   async loadSecret(secretId: string): Promise<Record<string, unknown>> {

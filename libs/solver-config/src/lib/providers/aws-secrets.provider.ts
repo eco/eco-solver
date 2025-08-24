@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { BaseConfigSource } from '../interfaces/config-source.interface'
-import { AwsCredential } from '@libs/config-providers'
-
-// Interface for AWS provider functionality (matches real provider signature)
-interface AwsSecretsProvider {
-  loadSecret(secretId: string): Promise<Record<string, unknown>>
-}
+import { AwsCredential, IAwsSecretsProvider } from '@libs/config-providers'
 
 @Injectable()
 export class AwsSecretsConfigProvider extends BaseConfigSource {
@@ -13,7 +8,7 @@ export class AwsSecretsConfigProvider extends BaseConfigSource {
   name = 'AwsSecrets'
 
   constructor(
-    private readonly awsProvider: AwsSecretsProvider,
+    private readonly awsProvider: IAwsSecretsProvider,
     private readonly awsCredentials: AwsCredential[],
   ) {
     super()

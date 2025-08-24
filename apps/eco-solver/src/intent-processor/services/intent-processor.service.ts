@@ -28,7 +28,7 @@ import {
 import { ExecuteSendBatchJobData } from '../jobs/execute-send-batch.job'
 import { Multicall3Abi } from '../../contracts/Multicall3'
 import { getMulticall } from '../utils/multicall'
-import { getChainConfig } from '../../eco-configs/utils'
+import { getChainConfig } from '@libs/solver-config'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {

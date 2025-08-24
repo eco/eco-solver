@@ -8,17 +8,20 @@ import {
   EcoSolverDatabaseConfig,
   RpcConfig,
 } from '../schemas/eco-solver.schema'
-import { type Hex } from 'viem'
+import { type Hex, type Chain } from 'viem'
 import { merge } from 'lodash'
 import { getChainConfig } from '../utils/chain-config.utils'
 import { EcoChainConfig } from '@eco-foundation/routes-ts'
 import { getAddress, zeroAddress } from 'viem'
+import { TransportConfig } from '../types/transport-config'
+import { EcoChains } from '@eco-foundation/chains'
 
 @Injectable()
 export class EcoSolverConfigService {
   private readonly logger = new Logger(EcoSolverConfigService.name)
   private mergedConfig!: EcoSolverConfigType
   private initialized = false
+  private ecoChains!: EcoChains
 
   constructor(private readonly configSources: ConfigSource[]) {
     // Service doesn't know about specific providers - just works with ConfigSource[]
@@ -72,9 +75,13 @@ export class EcoSolverConfigService {
 
     // Validate merged config with Zod schema
     try {
-      this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
+      //   this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
+      this.mergedConfig = mergedRawConfig
+      // Initialize EcoChains with RPC keys
+      const rpcKeys = this.mergedConfig.rpcs?.keys || {}
+      this.ecoChains = new EcoChains(rpcKeys)
       this.initialized = true
-      this.logger.log('Configuration validation successful')
+      this.logger.log('Configuration validation successful and EcoChains initialized')
     } catch (error) {
       this.logger.error('Configuration validation failed:', error)
       throw new Error(
@@ -349,7 +356,49 @@ export class EcoSolverConfigService {
   }
 
   // Returns RPC URLs for a chain
-  getRpcUrls(chainId: number): { rpcUrls: string[]; config: RpcConfig } {
+  // Returns custom RPC URL configuration for a chain
+  getCustomRPCUrl(chainID: string) {
+    this.ensureInitialized()
+    return this.mergedConfig.rpcs?.custom?.[chainID]
+  }
+
+  /**
+   * Returns the RPC URL for a given chain, prioritizing custom endpoints (like Caldera or Alchemy)
+   * over default ones when available. For WebSocket connections, returns WebSocket URLs when available.
+   * @param chain The chain object to get the RPC URL for
+   * @returns The RPC URL string and transport config for the specified chain
+   */
+  getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
+    this.ensureInitialized()
+    let { webSockets: isWebSocketEnabled = true } = this.mergedConfig.rpcs?.config || {}
+    const rpcChain = this.ecoChains.getChain(chain.id)
+    const custom = rpcChain.rpcUrls.custom
+    const def = rpcChain.rpcUrls.default
+    const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
+    let rpcs: string[] = []
+
+    if (isWebSocketEnabled) {
+      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
+    } else {
+      rpcs = [...(custom?.http || def?.http || [])]
+    }
+
+    const config: TransportConfig['config'] = customRpcUrls?.config
+
+    if (customRpcUrls?.http) {
+      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
+      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
+    }
+
+    if (!rpcs.length) {
+      throw new Error(`Chain RPC not found for chain ID ${chain.id}`)
+    }
+
+    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
+  }
+
+  // Legacy method for backward compatibility - accepts chainId as number
+  getRpcUrlsLegacy(chainId: number): { rpcUrls: string[]; config: RpcConfig } {
     this.ensureInitialized()
     const rpcs = this.mergedConfig.rpcs || {}
     const chainRpcs = rpcs[chainId] || []

@@ -30,7 +30,7 @@ import { IFulfillService } from './interfaces/fulfill-service.interface'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { RewardDataModel } from './schemas/reward-data.schema'
 import { IntentSourceModel } from './schemas/intent-source.schema'
-import { getChainConfig } from '../eco-configs/utils'
+import { getChainConfig } from '@libs/solver-config'
 import { EcoAnalyticsService } from '../analytics'
 
 /**

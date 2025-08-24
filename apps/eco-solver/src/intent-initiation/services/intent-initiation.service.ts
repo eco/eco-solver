@@ -10,7 +10,7 @@ import { EstimatedGasDataForIntentInitiation } from '../interfaces/estimated-gas
 import { ExecuteSmartWalletArg } from '../../transaction/smart-wallets/smart-wallet.types'
 import { GaslessIntentRequestDTO } from '../../quote/dto/gasless-intent-request.dto'
 import { GaslessIntentResponseDTO } from '../dtos/gasless-intent-response.dto'
-import { getChainConfig } from '../../eco-configs/utils'
+import { getChainConfig } from '@libs/solver-config'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentExecutionType } from '../../quote/enums/intent-execution-type.enum'
 import { InternalQuoteError } from '../../quote/errors'

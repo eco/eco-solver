@@ -58,6 +58,7 @@ export * from './lib/providers/static-config.provider'
 export * from './lib/providers/aws-secrets.provider'
 export * from './lib/providers/env-override.provider'
 export * from './lib/utils/chain-config.utils'
+export * from './lib/types/transport-config'
 
 // Backward compatibility exports for @libs/config-core imports
 // This allows existing imports to work without changes during migration
