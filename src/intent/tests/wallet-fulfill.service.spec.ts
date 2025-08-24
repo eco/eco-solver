@@ -662,7 +662,7 @@ describe('WalletFulfillService', () => {
         [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
         [pad(model.intent.reward.prover), '0x', zeroAddress],
       )
-      expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
+      expect(mockProverFee).toHaveBeenCalledWith(model.intent, address2, address1, encodedData)
     })
   })
 
@@ -703,7 +703,7 @@ describe('WalletFulfillService', () => {
         [{ type: 'bytes32' }],
         [pad(model.intent.reward.prover)],
       )
-      expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
+      expect(mockProverFee).toHaveBeenCalledWith(model.intent, address2, address1, encodedData)
     })
   })
 })

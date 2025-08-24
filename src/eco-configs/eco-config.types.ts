@@ -125,6 +125,8 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    crowdLiquidityJobConfig: JobsOptions
+    walletFulfillJobConfig: JobsOptions
     watchJobConfig: JobsOptions
   }
 }
@@ -371,6 +373,8 @@ export class IntentSource {
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
+  // The address that the StablePool contract
+  stablePoolAddress?: Hex
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
   inbox: Hex
   // The addresses of the tokens that we support as rewards
@@ -439,23 +443,20 @@ export interface HyperlaneConfig {
 }
 
 export interface CrowdLiquidityConfig {
+  enabled?: boolean
   litNetwork: LIT_NETWORKS_KEYS
-  capacityTokenId: string
   capacityTokenOwnerPk: string
   defaultTargetBalance: number
-  feePercentage: number
   actions: {
     fulfill: string
     rebalance: string
-  }
-  kernel: {
-    address: string
   }
   pkp: {
     ethAddress: string
     publicKey: string
   }
   supportedTokens: { chainId: number; tokenAddress: Hex }[]
+  minExcessFees: Record<number, string>
 }
 
 export interface CCTPConfig {
