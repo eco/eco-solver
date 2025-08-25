@@ -1,5 +1,5 @@
 import { ClassConstructor } from 'class-transformer'
-import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
+import { GaslessIntentRequestData } from '@/intent-initiation/test-utils/intent-test-utils'
 import { Hex } from 'viem'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { PublicClient } from 'viem'
@@ -126,13 +126,13 @@ export class QuoteTestUtils {
     intentExecutionType: string,
     quoteIntentDataDTO: QuoteIntentDataDTO,
   ): QuoteIntentModel {
-    const { dAppID, route: quoteRoute, reward } = quoteIntentDataDTO
+    const { dAppID, quoteID, route: quoteRoute, reward } = quoteIntentDataDTO
 
     const quoteIntentModel: QuoteIntentModel = {
       _id: 'mock-id' as any,
       dAppID,
+      quoteID,
       intentExecutionType,
-      // routeHash: this.getRouteHash(quoteRoute),
       route: quoteRoute,
       reward,
       receipt: null,
@@ -151,19 +151,16 @@ export class QuoteTestUtils {
     return hashRoute(saltedRoute)
   }
 
-  asQuoteIntentModel(dto: GaslessIntentRequestDTO): QuoteIntentModel {
+  asQuoteIntentModel(gaslessIntentRequestData: GaslessIntentRequestData): QuoteIntentModel {
+    // Use the first intent from the array
+    const { gaslessIntentRequest, route, reward } = gaslessIntentRequestData
+    const intent = gaslessIntentRequest.intents[0]
+
     return this.createQuoteIntentModel({
-      route: dto.route,
-      reward: {
-        creator: dto.reward.creator as `0x${string}`,
-        prover: dto.reward.prover as `0x${string}`,
-        deadline: BigInt(dto.reward.deadline),
-        nativeValue: BigInt(dto.reward.nativeValue),
-        tokens: dto.reward.tokens.map((t) => ({
-          token: t.token as `0x${string}`,
-          amount: BigInt(t.amount),
-        })),
-      },
+      dAppID: gaslessIntentRequest.dAppID,
+      quoteID: intent.quoteID,
+      route,
+      reward,
     })
   }
 

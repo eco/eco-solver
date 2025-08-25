@@ -25,7 +25,8 @@ export default {
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: process.env.REGISTRATION_URL || 'https://quotes-preprod.eco.com',
+      // baseUrl: process.env.REGISTRATION_URL || 'https://quotes-preprod.eco.com',
+      baseUrl: 'https://quotes-bg.staging.eco.com',
     },
   },
 }

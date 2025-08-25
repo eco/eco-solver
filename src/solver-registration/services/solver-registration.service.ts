@@ -54,9 +54,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${SolverRegistrationService.name}.onModuleInit()`,
-        properties: {
-          solverRegistrationDTO: this.getSolverRegistrationDTO(),
-        },
       }),
     )
   }
@@ -146,7 +143,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
-      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}`,
+      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/initiateGaslessIntent`,
+      gaslessIntentTransactionDataUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/getGaslessIntentTransactionData`,
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
       crossChainRoutes: {

@@ -6,10 +6,10 @@ import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 export interface PermitValidationArgs {
   chainId: number
   permits?: PermitDTO[]
-  permit2?: Permit2DTO
+  permit2s?: Permit2DTO[]
   reward: QuoteRewardDataDTO
-  spender: Address
-  owner: Address
+  // spender: Address
+  // owner: Address
   intentHash?: Hex
   expectedVault?: Address
 }
