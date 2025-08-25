@@ -7,6 +7,7 @@ import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { TvmUtilsService } from '../services/tvm-utils.service';
+
 import { TronListener } from './tron.listener';
 
 @Injectable()
@@ -35,7 +36,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
   private async initializeListeners() {
     const networks = this.tvmConfigService.networks;
-    
+
     for (const network of networks) {
       if (!network.intentSourceAddress) {
         this.logger.warn(
@@ -55,7 +56,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
       this.listeners.push(listener);
       await listener.start();
-      
+
       this.logger.log(`Started TVM listener for chain ${network.chainId}`);
     }
 
