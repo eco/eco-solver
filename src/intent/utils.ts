@@ -1,16 +1,17 @@
 import { EcoError } from '@/common/errors/eco-error'
 import { getFunctionBytes } from '@/common/viem/contracts'
 import { CallDataInterface, getERCAbi } from '@/contracts'
-import { Solver, TargetContract } from '@/eco-configs/eco-config.types'
+import { Solver, TargetContract, VmType, getVmType } from '@/eco-configs/eco-config.types'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
-import { decodeFunctionData, extractChain, toFunctionSelector } from 'viem'
+import { decodeFunctionData, DecodeFunctionDataReturnType, extractChain, toFunctionSelector } from 'viem'
 import { mainnet } from 'viem/chains'
 import { ValidationIntentInterface } from './validation.sevice'
 import { Logger } from '@nestjs/common'
 import { ChainsSupported } from '../common/chains/supported'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { isEmptyData } from '../common/viem/utils'
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 
 // The default number of decimals for native tokens that we enfores for now
 const DEFAULT_NATIVE_DECIMALS = 18
@@ -28,20 +29,43 @@ export function getTransactionTargetData(
   call: CallDataInterface,
 ): TransactionTargetData | null {
   const targetConfig = solver.targets[call.target as string] as TargetContract
+  console.log("MADDEN: targetConfig", call.target, solver.targets)
   if (!targetConfig) {
     //shouldn't happen since we do this.targetsSupported(model, solver) before this call
     throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)
   }
-
-  const tx = decodeFunctionData({
-    abi: getERCAbi(targetConfig.contractType),
-    data: call.data,
-  })
   const selector = getFunctionBytes(call.data)
-  const supportedSelectors = targetConfig.selectors.map((s) => toFunctionSelector(s))
-  const supported = tx && includes(supportedSelectors, selector)
-  if (!supported) {
-    return null
+  // Check if this is a Solana chain
+  const vmType = getVmType(Number(solver.chainID))
+  let tx: DecodeFunctionDataReturnType
+  
+  // Handle Solana SPL token transfers
+  if (vmType === VmType.SVM) {
+    // Check if the target is the SPL Token program
+    const targetAddress = call.target as string
+
+    const dataHex = call.data as string
+    const dataBytes = Buffer.from(dataHex.slice(2), 'hex')
+
+    tx = {
+      functionName: 'transfer',
+      args: [
+        '', // recipient will be determined from accounts
+        dataBytes.readBigUInt64LE(1)
+      ]
+    }
+  } else {
+    // Original EVM logic
+    tx = decodeFunctionData({
+      abi: getERCAbi(targetConfig.contractType),
+      data: call.data,
+    })
+    
+    const supportedSelectors = targetConfig.selectors.map((s) => toFunctionSelector(s))
+    const supported = tx && includes(supportedSelectors, selector)
+    if (!supported) {
+      return null
+    }
   }
   return { decodedFunctionData: tx, selector, targetConfig }
 }

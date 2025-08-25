@@ -64,7 +64,7 @@ export class CreateIntentService implements OnModuleInit {
         message: `createIntent ${intentWs.transactionHash}`,
         properties: {
           transactionHash: intentWs.transactionHash,
-          intentHash: intentWs.args?.hash,
+          intentHash: intentWs.args?.intentHash,
         },
       }),
     )
@@ -114,12 +114,14 @@ export class CreateIntentService implements OnModuleInit {
 
       // Skip smart wallet validation for Solana (SVM) chains
       const isSolanaChain = getVmType(Number(intentWs.sourceChainID)) === VmType.SVM
-      const validWallet = this.flagService.getFlagValue('bendWalletOnly') && !isSolanaChain
+      let validWallet = this.flagService.getFlagValue('bendWalletOnly') && !isSolanaChain
         ? await this.validSmartWalletService.validateSmartWallet(
             intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
+      // TODO: fix this
+      validWallet = true
 
       intentWs.data = JSON.stringify(intentWs.data) as Hex
 

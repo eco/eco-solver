@@ -94,7 +94,7 @@ export class IntentDataModel implements IntentType {
       deadline,
       source,
       destination,
-      getAddress(inbox),
+      getChainAddress(destination, inbox),
       routeTokens.map((token) => {
         token.token = getChainAddress(destination, token.token).toString() as `0x${string}`;
         return token
@@ -148,20 +148,21 @@ export class IntentDataModel implements IntentType {
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
-    const e = event.args
+    const e = event.args as any // Cast to any since we handle both formats
+    console.log("MADDEN: e", e)
     return new IntentDataModel({
-      hash: e.hash,
-      salt: e.salt,
-      source: e.source,
+      hash: e.hash || e.intentHash,
+      salt: e.salt || '0x',
+      source: e.source || 0n,
       destination: e.destination,
-      inbox: e.inbox,
-      routeTokens: e.routeTokens as Mutable<typeof e.routeTokens>,
-      calls: e.calls as Mutable<typeof e.calls>,
+      inbox: e.inbox || e.portal || '0x',
+      routeTokens: e.routeTokens || [],
+      calls: e.calls || [],
       creator: e.creator,
       prover: e.prover,
-      deadline: e.deadline,
-      nativeValue: e.nativeValue,
-      rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
+      deadline: e.deadline || e.rewardDeadline,
+      nativeValue: e.nativeValue || e.rewardNativeAmount || 0n,
+      rewardTokens: e.rewardTokens || [],
       logIndex,
     })
   }

@@ -10,7 +10,7 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { IntentCreatedLog } from '@/contracts'
 import { Log, PublicClient } from 'viem'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { IIntentSourceAbi } from '@/utils/IIntentSource'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { getVmType, VmType } from '@/eco-configs/eco-config.types'
@@ -43,6 +43,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
       const vmType = getVmType(source.chainID)
+      console.log("MADDEN: vmType", vmType)
       
       if (vmType === VmType.EVM) {
         const client = await this.publicClientService.getClient(source.chainID)
@@ -79,13 +80,8 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress as `0x${string}`,
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
-      args: {
-        // // restrict by acceptable chains, chain ids must be bigints
-        // _destinationChain: solverSupportedChains,
-        prover: source.provers as `0x${string}`[],
-      },
+      abi: IIntentSourceAbi,
+      eventName: 'IntentPublished',
       onLogs: this.addJob(source),
     })
   }
@@ -216,7 +212,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         const createIntent = BigIntSerializer.serialize(log)
         const jobId = getIntentJobId(
           'watch-create-intent',
-          createIntent.args.hash,
+          createIntent.args.intentHash,
           createIntent.logIndex,
         )
         this.logger.debug(

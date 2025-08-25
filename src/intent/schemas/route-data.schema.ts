@@ -35,7 +35,7 @@ export class RouteDataModel {
     deadline: bigint,
     source: bigint,
     destination: bigint,
-    inbox: Hex,
+    portal: Address,
     routeTokens: TokenAmountDataModel[],
     calls: TargetCallDataModel[],
   ) {
@@ -46,7 +46,7 @@ export class RouteDataModel {
     this.source = source
 
     this.tokens = routeTokens
-    this.portal = inbox
+    this.portal = portal
     this.calls = calls
   }
 }

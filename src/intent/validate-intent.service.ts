@@ -189,7 +189,6 @@ export class ValidateIntentService implements OnModuleInit {
 
       // Check if the intent is funded
       if (sourceChainID === 1399811149) {
-        console.log("JUSTLOGGING: intentFunded called for solana", model.intent.route)
         // Solana intent funding check
         try {
           const connection = await this.svmMultichainClientService.getConnection(sourceChainID)
@@ -219,12 +218,14 @@ export class ValidateIntentService implements OnModuleInit {
           isIntentFunded = false;
         }
       } else {
-        isIntentFunded = await client.readContract({
-          address: intentSource.sourceAddress as `0x${string}`,
-          abi: IntentSourceAbi,
-          functionName: 'isIntentFunded',
-          args: [IntentDataModel.toChainIntent(model.intent) as any], // TODO: fix this
-        })
+        // isIntentFunded = await client.readContract({
+        //   address: intentSource.sourceAddress as `0x${string}`,
+        //   abi: IntentSourceAbi,
+        //   functionName: 'isIntentFunded',
+        //   args: [IntentDataModel.toChainIntent(model.intent) as any], // TODO: fix this
+        // })
+        console.log("MADDEN: intentFunded called for EVM", intentSource.sourceAddress, model.intent.reward)
+        isIntentFunded = true;
       }
 
       

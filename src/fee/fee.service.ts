@@ -7,6 +7,8 @@ import {
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
+  VmType,
+  getVmType,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
@@ -501,7 +503,10 @@ export class FeeService implements OnModuleInit {
 
       calls = functionalCalls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
-        if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
+        
+        // Bypass ERC20 check for Solana chains
+        const vmType = getVmType(Number(solver.chainID))
+        if (vmType !== VmType.SVM && !isERC20Target(ttd, getERC20Selector('transfer'))) {
           const err = QuoteError.NonERC20TargetInCalls()
           this.logger.error(
             EcoLogMessage.fromDefault({

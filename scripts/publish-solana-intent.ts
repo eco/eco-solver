@@ -1,6 +1,7 @@
 #!/usr/bin/env ts-node
 
 import { Program, AnchorProvider, Wallet, web3, BN } from '@coral-xyz/anchor'
+import * as borsh from 'borsh'
 
 // Use Anchor's bundled web3.js to avoid type conflicts
 const { Connection, Keypair, PublicKey, ComputeBudgetProgram } = web3
@@ -134,7 +135,7 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
     vm: VmType.SVM,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     creator: keypair.publicKey,
-    prover: new PublicKey('9LbLXMSsyJ3P1NsPBtZSuisCyDrGhJFGac5AGB4h1QCP'), 
+    prover: new PublicKey('FvqiHNhnQpLS1dbCCrxzneeoAxeM5G6pB9jKuigYuAGC'), 
     nativeAmount: 0n, 
     tokens: rewardTokens.map(token => ({
       token: new PublicKey(token.token),
@@ -323,29 +324,62 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
           true // allowOwnerOffCurve for PDA
         )
         
-        console.log(`Token mint: ${tokenMint.toString()}`)
-        console.log(`Funder token account: ${funderTokenAccount.toString()}`)
-        console.log(`Vault token account: ${vaultTokenAccount.toString()}`)
-        
-        // Convert route hash from hex to bytes array for Solana program
         const routeHashBytes = new Uint8Array(Buffer.from(intentHash.routeHash.slice(2), 'hex'))
         
         // Prepare token transfer accounts 
         const tokenTransferAccounts = [
-          { pubkey: tokenMint, isWritable: false, isSigner: false },
           { pubkey: funderTokenAccount, isWritable: true, isSigner: false },
-          { pubkey: vaultTokenAccount, isWritable: true, isSigner: false }
+          { pubkey: vaultTokenAccount, isWritable: true, isSigner: false },
+          { pubkey: tokenMint, isWritable: false, isSigner: false }
         ]
         
         // Build the funding transaction with exact account ordering matching Rust
         // The Rust code uses to_account_metas() which orders accounts in struct field order
-        const fundingTransaction = await program.methods
-          .fund({
-            destination: new BN(intent.destination),
-            route_hash: Array.from(routeHashBytes), // Use snake_case to match Rust
-            reward: portalReward,
-            allow_partial: false // Use snake_case to match Rust
+        // In FundArgs, route_hash is directly an array [u8; 32], not a Bytes32 struct
+        // Ensure we have exactly 32 bytes and try different formats
+        if (routeHashBytes.length !== 32) {
+          throw new Error(`Route hash must be exactly 32 bytes, got ${routeHashBytes.length}`)
+        }
+        
+        const fundArgs = {
+          destination: new BN(intent.destination),
+          route_hash: routeHashBytes, // Try Uint8Array directly
+          reward: portalReward,
+          allow_partial: false // Use snake_case to match Rust
+        }
+        
+        console.log("MADDEN: remaining accounts", tokenTransferAccounts);
+        
+        // Check if funder token account exists, if not create it first
+        const funderAccountInfo = await connection.getAccountInfo(funderTokenAccount)
+        if (!funderAccountInfo) {
+          console.log("MADDEN: Funder token account doesn't exist, creating it...")
+          
+          const createFunderTokenAccountIx = await import('@solana/spl-token').then(spl => 
+            spl.createAssociatedTokenAccountInstruction(
+              keypair.publicKey,  // payer
+              funderTokenAccount, // associated token account
+              keypair.publicKey,  // owner
+              tokenMint           // mint
+            )
+          )
+          
+          // Send create account transaction first
+          const createAccountTx = new web3.Transaction().add(createFunderTokenAccountIx)
+          const createAccountSig = await connection.sendTransaction(createAccountTx, [keypair], {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+            maxRetries: 3
           })
+          
+          console.log(`Created funder token account: ${createAccountSig}`)
+          await confirmTransactionPolling(connection, createAccountSig, 'confirmed')
+        } else {
+          console.log("MADDEN: Funder token account already exists")
+        }
+        
+        const fundingTransaction = await program.methods
+          .fund(fundArgs)
           .accountsStrict({
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: new PublicKey('11111111111111111111111111111111'),
@@ -358,9 +392,23 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
           .remainingAccounts(tokenTransferAccounts)
           .transaction()
 
+
         console.log("MADDEN: fundingTransaction", fundingTransaction)
         
-        // Send the funding transaction manually
+        // HACK: Manually replace the zeros in the instruction data with the actual route hash
+        // The route hash should start at byte 16 (after 8-byte discriminator + 8-byte destination)
+        const instructionData = Buffer.from(fundingTransaction.instructions[0].data)
+        console.log("MADDEN: Original instruction data:", instructionData.toString('hex'))
+        console.log("MADDEN: Route hash bytes to insert:", Buffer.from(routeHashBytes).toString('hex'))
+        
+        // Replace bytes 16-47 (32 bytes) with the actual route hash
+        Buffer.from(routeHashBytes).copy(instructionData, 16)
+        
+        // Update the instruction data
+        fundingTransaction.instructions[0].data = instructionData
+
+        
+        // Send the funding transaction manually (using legacy transaction)
         console.log('Sending funding transaction...')
         fundingSignature = await connection.sendTransaction(fundingTransaction, [keypair], {
           skipPreflight: false,

@@ -59,17 +59,17 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
   console
   if (id === '1399811149-pre') {
     return {
-      IntentSource: new PublicKey('8U3vccx6SvoUPLKhVZyxoyRHLDGmTh55Rj38P9GQeKdX'),
-      Inbox: new PublicKey('8U3vccx6SvoUPLKhVZyxoyRHLDGmTh55Rj38P9GQeKdX'),
+      IntentSource: new PublicKey('8yzNBaeVyoBxFjf9zdZhX2AUFwn7BUR6LDbbCEz68BFR'),
+      Inbox: new PublicKey('8yzNBaeVyoBxFjf9zdZhX2AUFwn7BUR6LDbbCEz68BFR'),
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: new PublicKey('5xMGB1foBXh6HLcpvVtBGEdHznSUnvbHQmvByaaaF8pp'),
+      HyperProver: new PublicKey('DuZmeMYwc3tagKxQu2ZbRY7xoSsosFfjx5TNmWafCrkU'),
     }
   } else if (id === '10-pre') {
     return {
       IntentSource: "0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7",
       Inbox: "0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7",
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: '0xE5fB5B7Aa13Aa3c11cBb0478A8C3DE2A12a77Cf7',
+      HyperProver: '0x9523b6c0cAaC8122DbD5Dd1c1d336CEBA637038D',
     }
   }
   const config = EcoProtocolAddresses[id]

@@ -1,5 +1,5 @@
 {
-  "address": "8U3vccx6SvoUPLKhVZyxoyRHLDGmTh55Rj38P9GQeKdX",
+  "address": "8yzNBaeVyoBxFjf9zdZhX2AUFwn7BUR6LDbbCEz68BFR",
   "metadata": {
     "name": "portal",
     "version": "0.1.0",
@@ -577,9 +577,10 @@
           {
             "name": "route_hash",
             "type": {
-              "defined": {
-                "name": "Bytes32"
-              }
+              "array": [
+                "u8",
+                32
+              ]
             }
           },
           {

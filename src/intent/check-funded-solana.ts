@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
-import { keccak256, encodePacked, encodeAbiParameters, Hex } from 'viem';
+import { keccak256, encodePacked, encodeAbiParameters, Hex, decodeAbiParameters } from 'viem';
 import { IntentType, RewardType, RouteType } from '@eco-foundation/routes-ts';
 import { VmType } from '@/eco-configs/eco-config.types';
 import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
@@ -39,7 +39,6 @@ export function getVaultPda(intentHashBytes: Uint8Array): [PublicKey, number] {
 }
 
 export function hashReward(reward: RewardType): Hex {
-  console.log("MADDEN: encoded reward", encodeReward(reward))
   return keccak256(encodeReward(reward))
 }
 
@@ -55,17 +54,20 @@ export function encodeRoute(route: RouteType): Hex {
       // Use Anchor's BorshCoder for proper Solana serialization
       const { salt, deadline, portal, tokens, calls } = route;
       
+      const saltBytes = Buffer.from(salt.slice(2), 'hex');
+      const portalBytes = new PublicKey(portal).toBytes();
+      
       const encoded = svmCoder.types.encode('Route', {
-        salt: Array.from(Buffer.from(salt.slice(2), 'hex')), // Convert hex string to 32-byte array
+        salt: { 0: Array.from(saltBytes) }, // Bytes32 struct format
         deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
-        portal: Array.from(Buffer.from(new PublicKey(portal).toBytes())), // Convert PublicKey to 32-byte array
+        portal: { 0: Array.from(portalBytes) }, // Bytes32 struct format
         tokens: tokens.map(({ token, amount }) => ({
-          token: new PublicKey(token),
+          token: token instanceof PublicKey ? token : new PublicKey(token),
           amount: new BN(amount.toString()) // Convert BigInt to BN for u64
         })),
         calls: calls.map(({ target, data, value }) => ({
-          target: Array.from(Buffer.from(new PublicKey(target).toBytes())), // Convert PublicKey to 32-byte array for Bytes32
-          data: Array.from(Buffer.from(data.slice(2), 'hex')), // Convert hex string to byte array
+          target: { 0: Array.from(new PublicKey(target).toBytes()) }, // Bytes32 struct format
+          data: Buffer.from(data.slice(2), 'hex'), // Keep as Buffer for bytes type
           value: new BN(value.toString()) // Convert BigInt to BN for u64
         }))
       });
@@ -73,6 +75,46 @@ export function encodeRoute(route: RouteType): Hex {
       return `0x${encoded.toString('hex')}` as Hex;
     default:
       throw new Error(`Unsupported VM type: ${route.vm}`)
+  }
+}
+
+export function decodeRoute(vm: VmType, route: Hex): RouteType {
+  switch (vm) {
+    case VmType.EVM:
+      console.log("SAQUON decodeRoute EVM", route);
+      return {
+        vm: VmType.EVM,
+        ...decodeAbiParameters(
+          [{ type: 'tuple', components: RouteStruct }],
+          route, 
+        )[0]
+      } as RouteType
+    case VmType.SVM:
+      
+      // Remove '0x' prefix if present
+      const hexString = route.startsWith('0x') ? route.slice(2) : route;
+      const routeBuffer = Buffer.from(hexString, 'hex');
+      const decoded = svmCoder.types.decode('Route', routeBuffer);
+      console.log("SAQUON decodeRoute SVM", decoded);
+      
+      // Convert Bytes32 struct format { 0: [...] } back to hex string
+      const saltHex = `0x${Buffer.from(decoded.salt[0]).toString('hex')}` as Hex;
+      
+      return {
+        vm: VmType.SVM,
+        salt: saltHex,
+        deadline: BigInt(decoded.deadline.toString()),
+        portal: new PublicKey(decoded.portal[0]),
+        tokens: decoded.tokens.map(({ token, amount }: any) => ({
+          token: token.toString() as Hex,
+          amount: BigInt(amount.toString())
+        })),
+        calls: decoded.calls.map(({ target, data, value }: any) => ({
+          target: new PublicKey(target[0]),
+          data: `0x${Buffer.from(data).toString('hex')}` as Hex,
+          value: BigInt(value.toString())
+        }))
+      }
   }
 }
 
@@ -85,7 +127,6 @@ export function hashRoute(route: RouteType): Hex {
 export function encodeReward(reward: RewardType): Hex {
   switch (reward.vm) {
     case VmType.EVM:
-      console.log("JUSTLOGGING: EVM reward", reward)
       return encodeAbiParameters(
         [{ type: 'tuple', components: RewardStruct }],
         [{ ...reward, nativeValue: reward.nativeAmount } as any], // need to cast to any because of nativeAmount -> nativeValue
@@ -136,13 +177,8 @@ export function hashIntentSvm(destination: bigint, route: RouteType, reward: Rew
   rewardHash: Hex
   intentHash: Hex
 } {
-  console.log("MADDEN: destination", destination)
   const routeHash = hashRoute(route)
-  console.log("MADDEN: routeHash", routeHash)
   const rewardHash = hashReward(reward)
-  console.log("MADDEN: reward", reward)
-
-  console.log("MADDEN: rewardHash", rewardHash)
 
 
   // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
@@ -160,8 +196,6 @@ export function hashIntentSvm(destination: bigint, route: RouteType, reward: Rew
   combined.set(rewardHashBytes, 40);
 
   const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
-
-  console.log("MADDEN: intentHash", intentHash)
 
   return {
     routeHash,
