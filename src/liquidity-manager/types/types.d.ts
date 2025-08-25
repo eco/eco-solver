@@ -43,8 +43,8 @@ type EverclearStrategyContext = undefined
 type GatewayStrategyContext = {
   sourceDomain: number
   destinationDomain: number
-  amountBase6: bigint
-  sources?: { domain: number; amountBase6: bigint }[]
+  amountInNormalized: bigint
+  sources?: { domain: number; amount: bigint }[]
   transferId?: Hex | string
   attestation?: Hex
   signature?: Hex

@@ -84,7 +84,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     // Gateway bootstrap deposit (simple one-time) if enabled
     try {
       // Access provider through manager; it may not be enabled in strategies, but method is safe
-      const anyProvider = (this.liquidityProviderManager as any).gatewayProviderService
+      const anyProvider = (this.liquidityProviderService as any).gatewayProviderService
       if (anyProvider?.ensureBootstrapOnce) {
         await anyProvider.ensureBootstrapOnce('bootstrap')
       }
