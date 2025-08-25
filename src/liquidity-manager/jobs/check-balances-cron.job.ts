@@ -133,12 +133,10 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       }
 
       this.updateGroupBalances(processor, surplus.items, rebalancingQuotes)
-
       const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
 
       // Store rebalance request on DB
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
-
       rebalances.push(rebalanceRequest)
     }
 

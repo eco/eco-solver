@@ -26,6 +26,7 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -102,12 +103,16 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const messageBody = this.getMessageBytes(txReceipt)
     const messageHash = this.getMessageHash(messageBody)
 
-    await this.liquidityManagerQueue.startCCTPAttestationCheck({
+    const checkCCTPAttestationJobData: CheckCCTPAttestationJobData = {
+      groupID: quote.groupID!,
+      rebalanceJobID: quote.rebalanceJobID!,
       destinationChainId: quote.tokenOut.chainId,
       messageHash,
       messageBody,
       id: quote.id,
-    })
+    }
+
+    await this.liquidityManagerQueue.startCCTPAttestationCheck(checkCCTPAttestationJobData)
   }
 
   /**

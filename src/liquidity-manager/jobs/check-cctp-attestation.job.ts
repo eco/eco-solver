@@ -7,7 +7,10 @@ import {
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+import {
+  ExecuteCCTPMintJobData,
+  ExecuteCCTPMintJobManager,
+} from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 
 // Enhanced job data to support CCTPLiFi operations
@@ -25,6 +28,8 @@ export interface CheckCCTPAttestationJobData {
       decimals: number
     }
   }
+  groupID: string // GroupID for tracking related jobs
+  rebalanceJobID: string // JobID for tracking the rebalance job
   id?: string
   [key: string]: unknown // Index signature for BullMQ compatibility
 }
@@ -98,17 +103,21 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         }),
       )
 
-      await ExecuteCCTPMintJobManager.start(processor.queue, {
+      const executeCCTPMintJobData: ExecuteCCTPMintJobData = {
         ...job.data,
         attestation: job.returnvalue.attestation,
         id: job.data.id,
-      })
+      }
+
+      await ExecuteCCTPMintJobManager.start(processor.queue, executeCCTPMintJobData)
     } else {
       processor.logger.debug(
         EcoLogMessage.withId({
           message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
           id: job.data.id,
           properties: {
+            groupID: job.data.groupID,
+            rebalanceJobID: job.data.rebalanceJobID,
             ...job.returnvalue,
             messageHash: job.data.messageHash,
             destinationChainId: job.data.destinationChainId,

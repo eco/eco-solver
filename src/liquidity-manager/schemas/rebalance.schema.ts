@@ -6,6 +6,9 @@ import { Strategy, StrategyContext } from '@/liquidity-manager/types/types'
 
 @Schema({ timestamps: true })
 export class RebalanceModel {
+  @Prop({ required: true })
+  rebalanceJobID: string
+
   @Prop({ required: false })
   wallet?: string
 
@@ -58,6 +61,7 @@ export class RebalanceModel {
 export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)
 
 // Define indexes
+RebalanceSchema.index({ rebalanceJobID: 1 }, { unique: false })
 RebalanceSchema.index({ status: 1 }, { unique: false })
 RebalanceSchema.index({ createdAt: 1 }, { unique: false })
 RebalanceSchema.index({ updatedAt: 1 }, { unique: false })

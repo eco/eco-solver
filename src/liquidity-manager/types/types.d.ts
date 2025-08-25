@@ -104,6 +104,8 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
 // Quote
 
 interface RebalanceQuote<S extends Strategy = Strategy> {
+  groupID?: string
+  rebalanceJobID?: string
   amountIn: bigint
   amountOut: bigint
   slippage: number

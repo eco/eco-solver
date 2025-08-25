@@ -4,7 +4,6 @@ import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
-import { v4 as uuid } from 'uuid'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -38,6 +37,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
+import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -148,11 +148,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
-    if (!rebalances.length) return
+    if (rebalances.length === 0) {
+      return
+    }
 
     const jobs = rebalances.map((rebalance) =>
       RebalanceJobManager.createJob(walletAddress, rebalance, this.liquidityManagerQueue.name),
     )
+
     return this.liquidityManagerFlowProducer.add({
       name: 'rebalance-batch',
       queueName: this.liquidityManagerQueue.name,
@@ -168,10 +171,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
-    const groupId = uuid()
+    const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
+
     for (const quote of request.quotes) {
+      quote.groupID = groupID
+      quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
+
       await this.rebalanceModel.create({
-        groupId,
+        rebalanceJobID: quote.rebalanceJobID,
+        groupId: quote.groupID,
         wallet: walletAddress,
         amountIn: quote.amountIn,
         amountOut: quote.amountOut,
