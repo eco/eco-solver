@@ -19,10 +19,6 @@ export class EcoError extends Error {
     return new EcoError(`Could not create alchemy provider ${network}`)
   }
 
-  static BalanceServiceInvalidDecimals(address: string) {
-    return new EcoError(`Token has to be decimals 6, verify conversions before allowing ${address}`)
-  }
-
   static IntentSourceDataNotFound(intentHash: string) {
     return new EcoError(`Could not find data for intent hash ${intentHash}`)
   }
@@ -164,6 +160,13 @@ export class EcoError extends Error {
 
   static DefaultGasOverheadUndefined() {
     return new EcoError(`Default gas overhead is undefined`)
+  }
+
+  // Token Decimals Interceptor
+  static UnknownTokenError(tokenAddress: string, chainId: number) {
+    return new EcoError(
+      `Unknown token ${tokenAddress} not found in @eco-foundation/chains for chain ${chainId}`,
+    )
   }
 
   // EcoConfig Service

@@ -4,13 +4,16 @@ import { Hex } from 'viem'
 export type TokenConfig = {
   address: Hex
   chainId: number
-  minBalance: number
-  targetBalance: number
+  minBalance: bigint
+  targetBalance: bigint
   type: TargetContractType
 }
 
 export type TokenBalance = {
   address: Hex
-  decimals: number
+  decimals: {
+    original: number
+    current: number
+  }
   balance: bigint
 }

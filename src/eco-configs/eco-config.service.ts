@@ -15,7 +15,7 @@ import {
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
-import { getChainConfig } from './utils'
+import { getChainConfig, recursiveConfigNormalizer } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
@@ -79,6 +79,9 @@ export class EcoConfigService {
     // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
 
+    // Apply recursive config normalization to avoid default import config values
+    this.ecoConfig = recursiveConfigNormalizer(this.ecoConfig)
+
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
   }
@@ -120,6 +123,7 @@ export class EcoConfigService {
       intent.sourceAddress = config.IntentSource
       intent.inbox = config.Inbox
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
+
       const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
         (prover) => getAddress(prover) !== zeroAddress,
       )
@@ -331,31 +335,24 @@ export class EcoConfigService {
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    const rpcChain = this.ecoChains.getChain(chain.id)
-    const custom = rpcChain.rpcUrls.custom
-    const def = rpcChain.rpcUrls.default
-
-    const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
-
-    let rpcs: string[] = []
-    if (isWebSocketEnabled) {
-      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
-    } else {
-      rpcs = [...(custom?.http || def?.http || [])]
+    let rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled })
+    if (rpcUrls.length === 0) {
+      rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled: false })
     }
 
+    const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
     const config: TransportConfig['config'] = customRpcUrls?.config
 
     if (customRpcUrls?.http) {
       isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
-      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
+      rpcUrls = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
     }
 
-    if (!rpcs.length) {
+    if (!rpcUrls.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
+    return { rpcUrls: rpcUrls, config: { isWebsocket: isWebSocketEnabled, config } }
   }
 
   /**

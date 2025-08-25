@@ -133,12 +133,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 1,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockRoute = {
         fromAmount: '1000000000000000000',
@@ -148,7 +148,7 @@ describe('LiFiProviderService', () => {
       }
       jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [mockRoute] } as any)
 
-      const result = await lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1n)
 
       expect(result.amountIn).toEqual(BigInt(mockRoute.fromAmount))
       expect(result.amountOut).toEqual(BigInt(mockRoute.toAmount))
@@ -177,19 +177,19 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 999, // Unsupported chain
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 1,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock unsupported source chain
       mockAssetCacheManager.isChainSupported.mockImplementation((chainId) => chainId !== 999)
 
       await expect(
-        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1n),
       ).rejects.toThrow()
 
       // Verify LiFi API was not called
@@ -203,12 +203,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xUnsupportedToken' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 1,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock unsupported source token
@@ -217,7 +217,7 @@ describe('LiFiProviderService', () => {
       )
 
       await expect(
-        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1n),
       ).rejects.toThrow()
 
       // Verify LiFi API was not called
@@ -231,19 +231,19 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock tokens not connected
       mockAssetCacheManager.areTokensConnected.mockReturnValue(false)
 
       await expect(
-        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1n),
       ).rejects.toThrow()
 
       // Verify LiFi API was not called
@@ -254,19 +254,19 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut' },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
 
       // Mock getRoutes to return no routes
       jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [] } as any)
 
       await expect(
-        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1n),
       ).rejects.toThrow()
     })
   })
@@ -277,12 +277,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockCoreToken = {
         token: '0xCoreToken',
@@ -314,7 +314,7 @@ describe('LiFiProviderService', () => {
             address: mockCoreToken.token,
             chainId: mockCoreToken.chainID,
           },
-          balance: { decimals: 18 },
+          balance: { decimals: { original: 18, current: 18 } },
         },
       ] as any)
 
@@ -341,7 +341,7 @@ describe('LiFiProviderService', () => {
         } as any)
 
       // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1n)
 
       // Verify the result is an array with two quotes
       expect(result).toHaveLength(2)
@@ -370,7 +370,7 @@ describe('LiFiProviderService', () => {
             chainId: mockCoreToken.chainID,
           }),
         }),
-        1,
+        1n,
       )
       expect(getQuoteSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -381,7 +381,7 @@ describe('LiFiProviderService', () => {
           }),
         }),
         mockTokenOut,
-        2.9, // toAmountMin converted from the first quote
+        2900000000000000000n, // toAmountMin from the first quote (normalized)
       )
     })
 
@@ -389,12 +389,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const unsupportedCoreToken = {
         token: '0xUnsupportedCoreToken',
@@ -438,12 +438,12 @@ describe('LiFiProviderService', () => {
           tokens.map((token) => ({
             ...token,
             config: { address: '0xTokenOut' },
-            balance: { decimals: 1 },
+            balance: { decimals: { original: 1, current: 18 } },
           })) as any,
       )
 
       // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1n)
 
       // Verify the result uses the supported core token
       expect(result[0].tokenOut).toEqual(supportedCoreToken)
@@ -458,7 +458,7 @@ describe('LiFiProviderService', () => {
             address: expect.any(String),
           }),
         }),
-        1,
+        1n,
       )
     })
 
@@ -466,12 +466,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockCoreTokens = [
         { token: '0xCoreToken1', chainID: 3 },
@@ -498,7 +498,7 @@ describe('LiFiProviderService', () => {
                     address: coreToken.token,
                     chainId: coreToken.chainID,
                   },
-                  balance: { decimals: 18 },
+                  balance: { decimals: { original: 18, current: 18 } },
                 },
               ] as any)
             }
@@ -512,7 +512,7 @@ describe('LiFiProviderService', () => {
 
       // Call should throw an error after trying all core tokens
       await expect(
-        lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1),
+        lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1n),
       ).rejects.toThrow()
 
       // Verify getQuote was called for each core token
@@ -523,12 +523,12 @@ describe('LiFiProviderService', () => {
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockTokenOut = {
         chainId: 2,
         config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
+        balance: { decimals: { original: 18, current: 18 } },
       }
       const mockCoreTokens = [
         { token: '0xCoreToken1', chainID: 3 },
@@ -567,7 +567,7 @@ describe('LiFiProviderService', () => {
                     address: coreToken.token,
                     chainId: coreToken.chainID,
                   },
-                  balance: { decimals: 18 },
+                  balance: { decimals: { original: 18, current: 18 } },
                 },
               ] as any)
             }
@@ -609,7 +609,7 @@ describe('LiFiProviderService', () => {
       })
 
       // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
+      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1n)
 
       // Verify the result is an array with two quotes
       expect(result).toHaveLength(2)
@@ -627,7 +627,7 @@ describe('LiFiProviderService', () => {
             address: mockCoreTokens[0].token,
           }),
         }),
-        1,
+        1n,
       )
     })
   })

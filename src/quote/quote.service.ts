@@ -1,8 +1,11 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
-import { validationsSucceeded, ValidationService, TxValidationFn } from '@/intent/validation.sevice'
+import {
+  validationsSucceeded,
+  ValidationService,
+  TxValidationFn,
+} from '@/intent/validation.service'
 import { QuoteIntentDataDTO, QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import {
   InfeasibleQuote,
@@ -38,6 +41,7 @@ import { serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { EcoError } from '@/common/errors/eco-error'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -568,76 +572,58 @@ export class QuoteService implements OnModuleInit {
     }
     let filled = 0n
     const totalTokenAsk = totalAsk.token
-    const quoteRecord: Record<Hex, RewardTokensInterface> = {}
-    for (const deficit of fundable) {
+    const quoteRecord: Record<Hex, QuoteRewardTokensDTO> = {}
+    for (const fund of fundable) {
       if (filled >= totalTokenAsk) {
         break
       }
       const left = totalTokenAsk - filled
-      //Only fill defits first pass
-      if (deficit.delta.balance < 0n) {
-        const reward = rewards.find((r) => r.address === deficit.delta.address)
-        if (reward) {
-          const amount = Mathb.min(
-            Mathb.min(Mathb.abs(deficit.delta.balance), reward.balance),
-            left,
-          )
-          if (amount > 0n) {
-            deficit.delta.balance += amount
-            reward.balance -= amount
-            filled += amount
-            //add to quote record
-            const tokenToFund = quoteRecord[deficit.delta.address] || {
-              token: deficit.delta.address,
+
+      const reward = rewards.find((r) => r.address === fund.delta.address)
+      if (reward) {
+        const amount = Mathb.min(Mathb.min(Mathb.abs(fund.delta.balance), reward.balance), left)
+        if (amount > 0n) {
+          fund.delta.balance += amount
+          reward.balance -= amount
+          filled += amount
+          //add to quote record
+          const originalRewardToken = (
+            quoteIntentModel.reward.tokens as QuoteRewardTokensDTO[]
+          )?.find((t) => t.token === fund.delta.address)
+          const tokenToFund =
+            quoteRecord[fund.delta.address] ||
+            ({
+              token: fund.delta.address,
               amount: 0n,
-            }
-            tokenToFund.amount += this.feeService.deconvertNormalize(amount, deficit.delta).balance
-            quoteRecord[deficit.delta.address] = tokenToFund
-          }
+              decimals: originalRewardToken?.decimals
+                ? {
+                    original: originalRewardToken.decimals.original,
+                    current: BASE_DECIMALS,
+                  }
+                : undefined,
+            } as QuoteRewardTokensDTO)
+          tokenToFund.amount += amount
+          quoteRecord[fund.delta.address] = tokenToFund
         }
       }
     }
     //resort fundable to reflect first round of fills
     fundable.sort((a, b) => Mathb.compare(a.delta.balance, b.delta.balance))
 
-    //if remaining funds, for those with smallest deltas
-    if (filled < totalTokenAsk) {
-      for (const deficit of fundable) {
-        if (filled >= totalTokenAsk) {
-          break
-        }
-        const left = totalTokenAsk - filled
-        const reward = rewards.find((r) => r.address === deficit.delta.address)
-        if (reward) {
-          const amount = Mathb.min(left, reward.balance)
-          if (amount > 0n) {
-            deficit.delta.balance += amount
-            reward.balance -= amount
-            filled += amount
-            //add to quote record
-            const tokenToFund = quoteRecord[deficit.delta.address] || {
-              token: deficit.delta.address,
-              amount: 0n,
-            }
-            tokenToFund.amount += Mathb.abs(
-              this.feeService.deconvertNormalize(amount, deficit.delta).balance,
-            )
-            quoteRecord[deficit.delta.address] = tokenToFund
-          }
-        }
-      }
-    }
-
     const estimatedFulfillTimeSec =
       this.fulfillmentEstimateService.getEstimatedFulfillTime(quoteIntentModel)
 
     const gasOverhead = this.getGasOverhead(quoteIntentModel)
 
+    // Keep reward token amounts in normalized format (18 decimals) with decimals metadata
+    // The TokenDecimalsInterceptor will handle conversion back to original decimals in the response
+    const rewardTokens = Object.values(quoteRecord)
+
     return {
       response: {
         routeTokens: quoteIntentModel.route.tokens,
         routeCalls: quoteIntentModel.route.calls,
-        rewardTokens: Object.values(quoteRecord) as QuoteRewardTokensDTO[],
+        rewardTokens: rewardTokens as QuoteRewardTokensDTO[],
         rewardNative: totalAsk.native,
         expiryTime: this.getQuoteExpiryTime(),
         estimatedFulfillTimeSec,
@@ -686,48 +672,43 @@ export class QuoteService implements OnModuleInit {
     fundable.sort((a, b) => Mathb.compare(b.delta.balance, a.delta.balance))
 
     // Fill tokens that the solver needs the least first, up to their original amount
-    for (const deficit of fundable) {
+    for (const fund of fundable) {
       if (remainingToFill <= 0n) {
         break
       }
 
       // Find the corresponding token in route.tokens and calls
-      const originalToken = tokens.find((token) => token.address === deficit.delta.address)
-      const originalCall = calls.find((call) => call.address === deficit.delta.address)
+      const originalToken = tokens.find((token) => token.address === fund.delta.address)
+      const originalCall = calls.find((call) => call.address === fund.delta.address)
 
       if (originalToken && originalCall) {
-        // Get the original amount from the token in its normalized form
-        const originalNormalizedAmount = this.feeService.convertNormalize(
-          BigInt(originalToken.balance),
-          {
-            chainID: intent.route.destination,
-            address: deficit.delta.address,
-            decimals: deficit.token.decimals,
-          },
-        ).balance
+        // Get the original amount from the token (already normalized by interceptor)
+        const originalNormalizedAmount = BigInt(originalToken.balance)
 
         // Calculate how much we can fill for this token
         // We cannot fill more than the original amount or the remaining amount to fill
         const amountToFill = Mathb.min(originalNormalizedAmount, remainingToFill)
 
         if (amountToFill > 0n) {
-          // Convert back to original decimals
-          const finalAmount = this.feeService.deconvertNormalize(amountToFill, {
-            chainID: intent.route.destination,
-            address: deficit.delta.address,
-            decimals: deficit.token.decimals,
-          }).balance
-
-          // Add to route tokens and calls
+          // Add to route tokens and calls (amount will be converted back by interceptor)
+          const originalRouteToken = (intent.route.tokens as QuoteRewardTokensDTO[])?.find(
+            (t) => t.token === originalToken.address,
+          )
           routeTokens.push({
             token: originalToken.address,
-            amount: finalAmount,
-          })
+            amount: amountToFill,
+            decimals: originalRouteToken?.decimals
+              ? {
+                  original: originalRouteToken.decimals.original,
+                  current: BASE_DECIMALS,
+                }
+              : undefined,
+          } as QuoteRewardTokensDTO)
 
           const newData = encodeFunctionData({
             abi: erc20Abi,
             functionName: 'transfer',
-            args: [originalCall.recipient, finalAmount],
+            args: [originalCall.recipient, amountToFill],
           })
 
           routeCalls.push({
@@ -749,6 +730,8 @@ export class QuoteService implements OnModuleInit {
         rewardTokens: intent.reward.tokens,
         rewardNative: totalAvailableAfterFeeNative,
         expiryTime: this.getQuoteExpiryTime(),
+        estimatedFulfillTimeSec: this.fulfillmentEstimateService.getEstimatedFulfillTime(intent),
+        gasOverhead: this.getGasOverhead(intent),
       } as QuoteDataEntryDTO,
     }
   }

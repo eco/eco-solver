@@ -8,7 +8,7 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
+import { getAddress, Hex } from 'viem'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import {
   CallDataInterface,
@@ -24,6 +24,8 @@ import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoAnalyticsService } from '@/analytics'
+import { normalizeTokenAmounts } from '@/quote/utils/token-normalization.utils'
+import { normalizeRouteCalls } from '@/intent/utils/normalize-calls.utils'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -70,6 +72,43 @@ export class CreateIntentService implements OnModuleInit {
 
     const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
+
+    // Normalize reward tokens (use source chain since rewards are on the source chain)
+    if (intent.reward && intent.reward.tokens && intent.reward.tokens.length > 0) {
+      intent.reward.tokens = normalizeTokenAmounts(
+        intent.reward.tokens as any[],
+        Number(intent.route.source),
+      ).map((token) => ({
+        token: getAddress(token.token),
+        amount: BigInt(token.amount),
+      }))
+    }
+
+    // Normalize route tokens (use destination chain since route tokens are on the destination chain)
+    if (intent.route && intent.route.tokens && intent.route.tokens.length > 0) {
+      intent.route.tokens = normalizeTokenAmounts(
+        intent.route.tokens as any[],
+        Number(intent.route.destination),
+      ).map((token) => ({
+        token: getAddress(token.token),
+        amount: BigInt(token.amount),
+      }))
+    }
+
+    // Normalize calls before saving to database
+    if (intent.route && intent.route.calls && intent.route.calls.length > 0) {
+      const parsedCalls = normalizeRouteCalls(
+        {
+          calls: intent.route.calls,
+          chainId: Number(intent.route.destination),
+          tokens: intent.route.tokens || [],
+        },
+        this.ecoConfigService,
+      )
+
+      // Store parsed calls data in the intent for database storage
+      intent.route.parsedCalls = parsedCalls
+    }
 
     try {
       //check db if the intent is already filled
@@ -180,6 +219,16 @@ export class CreateIntentService implements OnModuleInit {
         reward,
       )
 
+      // Generate parsedCalls for gasless intent creation
+      const parsedCalls = normalizeRouteCalls(
+        {
+          calls: calls as CallDataInterface[],
+          chainId: Number(destination),
+          tokens: routeTokens as any[],
+        },
+        this.ecoConfigService,
+      )
+
       const intent = new IntentDataModel({
         quoteID,
         hash: intentHash,
@@ -196,6 +245,7 @@ export class CreateIntentService implements OnModuleInit {
         rewardTokens,
         logIndex: 0,
         funder,
+        parsedCalls,
       })
 
       await this.intentModel.create({

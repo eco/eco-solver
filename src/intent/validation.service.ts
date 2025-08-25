@@ -17,7 +17,7 @@ import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
-import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
+import { isGreaterEqual } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceService } from '@/balance/balance.service'
@@ -275,7 +275,9 @@ export class ValidationService implements OnModuleInit {
       return false
     }
 
-    const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
+    const { tokenLimit: token, nativeLimit: native } = this.feeService.getFeeConfig({
+      intent,
+    }).limit
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -283,18 +285,17 @@ export class ValidationService implements OnModuleInit {
         properties: {
           tokenTotalFillNormalized: totalFillNormalized.token.toString(),
           nativeTotalFillNormalized: totalFillNormalized.native.toString(),
-          tokenBase6: tokenBase6.toString(),
-          nativeBase18: nativeBase18.toString(),
+          tokenLimit: token.toString(),
+          nativeLimit: native.toString(),
         },
       }),
     )
-
-    // convert to a normalized total to use utils compare function
-    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+    return isGreaterEqual({ token, native }, totalFillNormalized)
   }
 
   /**
-   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction
+   * Checks if the solver has sufficient balance in its wallets to fulfill the transaction.
+   * Token amounts are expected to be already normalized to 18 decimals by the API layer interceptor.
    * @param intent the source intent model
    * @returns true if the solver has sufficient balance
    */
@@ -474,14 +475,10 @@ export class ValidationService implements OnModuleInit {
       }
 
       // Calculate minimum required balance
-      const minReqDollar = solverTargets[routeToken.token]?.minBalance || 0
-      const balanceMinReq = normalizeBalance(
-        { balance: BigInt(minReqDollar), decimal: 0 },
-        balance.decimals,
-      )
+      const balanceMinReq = BigInt(solverTargets[routeToken.token]?.minBalance || 0)
 
       // Check if the available balance (after the minimum) is enough
-      const availableBalance = balance.balance - balanceMinReq.balance
+      const availableBalance = balance.balance - balanceMinReq
 
       if (availableBalance < routeToken.amount) {
         return false // Insufficient balance

@@ -1,13 +1,13 @@
-import { formatUnits, parseUnits } from 'viem'
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
-import { getSlippageRange } from '@/liquidity-manager/utils/math'
+import { getRangeFromPercentage } from '@/liquidity-manager/utils/math'
 import { Mathb } from '@/utils/bigint'
 import {
   TokenAnalysis,
   TokenBalanceAnalysis,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { BASE_DECIMALS } from '@/intent/utils'
 
 /**
  * Analyzes a token's balance against its configuration and returns the analysis.
@@ -22,28 +22,24 @@ export function analyzeToken(
   percentage: { down: number; up: number; targetSlippage: number },
 ): TokenAnalysis {
   const { decimals } = tokenBalance
-
+  // Use current decimals since everything is normalized to BASE_DECIMALS
+  const config = toTokenBalance(tokenConfig, decimals.current)
   // Calculate the maximum and minimum acceptable balances
-  const maximum = tokenConfig.targetBalance * (1 + percentage.up)
-  const minimum = tokenConfig.targetBalance * (1 - percentage.down)
+  const { min: minimum, max: maximum } = getRangeFromPercentage(config, percentage)
 
   // Create a balance analysis object
   const balance: TokenBalanceAnalysis = {
     current: tokenBalance.balance,
-    maximum: parseUnits(maximum.toString(), decimals),
-    minimum: parseUnits(minimum.toString(), decimals),
-    target: parseUnits(tokenConfig.targetBalance.toString(), decimals),
+    maximum,
+    minimum,
+    target: config.balance,
   }
 
   // Determine the state of the token based on its balance
   const state = getTokenState(balance)
   // Calculate the difference between the current balance and the target balance
-  const diffWei = getTokenBalanceDiff(balance)
-  const diff = parseFloat(formatUnits(diffWei, decimals))
-  const targetSlippage = getSlippageRange(
-    parseUnits(tokenConfig.targetBalance.toString(), decimals),
-    percentage.targetSlippage,
-  )
+  const diff = getTokenBalanceDiff(balance)
+  const targetSlippage = getRangeFromPercentage(config, percentage)
 
   return { balance, diff, state, targetSlippage }
 }
@@ -76,22 +72,60 @@ function getTokenBalanceDiff(balance: TokenBalanceAnalysis): bigint {
  */
 export function analyzeTokenGroup(group: TokenDataAnalyzed[]) {
   // Sort the group by diff in descending order
-  const items = group.sort((a, b) => Number(b.analysis.diff - a.analysis.diff))
+  const items = group.sort((a, b) =>
+    Mathb.compare(
+      // Balances are already normalized to BASE_DECIMALS by balance service
+      b.analysis.diff,
+      a.analysis.diff,
+    ),
+  )
   // Calculate the total difference for the group
   const total = getGroupTotal(items)
   return { total, items }
 }
 
+/**
+ * Calculates the total normalized difference of a group of analyzed token data.
+ * @param group - The group of analyzed token data.
+ * @returns The total normalized difference of the group.
+ */
 export function getGroupTotal(group: TokenDataAnalyzed[]) {
   if (!group || !Array.isArray(group) || group.length === 0) {
-    return 0
+    return 0n
   }
-  return group.reduce((acc, item) => acc + (item?.analysis?.diff || 0), 0)
+  return group.reduce((acc, item) => acc + (item?.analysis?.diff ?? 0n), 0n)
 }
 
-export function getSortGroupByDiff(group: TokenDataAnalyzed[]) {
+/**
+ * Gets the sorted group of analyzed token data by their normalized difference in descending order.
+ * @param group - The group of analyzed token data.
+ * @returns
+ */
+export function getSortDescGroupByDiff(group: TokenDataAnalyzed[]) {
   if (!group || !Array.isArray(group)) {
     return []
   }
-  return [...group].sort((a, b) => b.analysis.diff - a.analysis.diff)
+  // Sort the group by diff in descending order
+  return [...group].sort((a, b) =>
+    Mathb.compare(
+      // Balances are already normalized to BASE_DECIMALS by balance service
+      b.analysis.diff,
+      a.analysis.diff,
+    ),
+  )
+}
+
+/**
+ * Converts a token configuration object to a token balance object with the specified number of decimals.
+ * Since configs are already normalized in eco-config service, targetBalance is already in BASE_DECIMALS.
+ * @param config The token configuration object with normalized values.
+ * @param decimals The current number of decimals (should be BASE_DECIMALS).
+ * @returns
+ */
+export function toTokenBalance(config: TokenConfig, decimals: number): TokenBalance {
+  return {
+    address: config.address,
+    decimals: { original: decimals, current: BASE_DECIMALS },
+    balance: config.targetBalance, // Already normalized by eco-config service
+  }
 }

@@ -14,7 +14,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
-import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
 
@@ -202,6 +202,7 @@ export class ValidateIntentService implements OnModuleInit {
           intentHash: model.intent.hash,
           reason: 'intent_source_not_found',
           sourceChainID,
+          model,
         },
       )
       return false
@@ -216,6 +217,7 @@ export class ValidateIntentService implements OnModuleInit {
       sourceChainID,
       maxRetries: this.MAX_RETRIES,
       retryDelayMs: this.RETRY_DELAY_MS,
+      model,
     })
 
     do {
@@ -238,6 +240,7 @@ export class ValidateIntentService implements OnModuleInit {
           retryCount,
           maxRetries: this.MAX_RETRIES,
           sourceChainID,
+          model,
         })
       }
 
@@ -259,6 +262,7 @@ export class ValidateIntentService implements OnModuleInit {
         sourceChainID,
         retryCount: retryCount - 1,
         funded: true,
+        model,
       })
     } else {
       this.ecoAnalytics.trackError(
@@ -271,6 +275,7 @@ export class ValidateIntentService implements OnModuleInit {
           maxRetries: this.MAX_RETRIES,
           reason: 'intent_not_funded_after_retries',
           funded: false,
+          model,
         },
       )
     }

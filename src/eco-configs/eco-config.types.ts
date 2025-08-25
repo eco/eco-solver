@@ -34,7 +34,7 @@ export type EcoConfigType = {
     simpleAccount: {
       walletAddr: Hex
       signerPrivateKey: Hex
-      minEthBalanceWei: number
+      minEthBalanceWei: bigint
       contracts: {
         entryPoint: {
           contractAddress: Hex
@@ -89,6 +89,21 @@ export type EcoConfigType = {
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
+
+/**
+ * The base keys for the eco configs that need to be normalized from base 6 to base 18
+ */
+export const EcoConfigBase6Keys = [
+  'minBalance',
+  'targetBalance',
+  'maxBalance',
+  'tokenLimit',
+  'nativeLimit',
+  'baseFee',
+  'unitFee',
+  'unitSize',
+  'quadraticFactor',
+] as const
 
 /**
  * The config type for the launch darkly feature flagging service
@@ -223,10 +238,10 @@ export type KmsConfig = {
  */
 export type V2Limits = {
   // The maximum amount of tokens that can be filled in a single transaction,
-  // defaults to 1000 USDC decimal 6 equivalent {@link ValidationService.DEFAULT_MAX_FILL_BASE_6}
-  tokenBase6: bigint
+  // defaults to 1000 USDC decimal 6 equivalent
+  tokenLimit: bigint
   // The max native gas that can be filled in a single transaction
-  nativeBase18: bigint
+  nativeLimit: bigint
 }
 
 export type FeeConfigType<T extends FeeAlgorithm = 'linear'> = {
@@ -348,8 +363,8 @@ export type FeeAlgoQuadratic = { baseFee: bigint; quadraticFactor: bigint }
 export interface TargetContract {
   contractType: TargetContractType
   selectors: string[]
-  minBalance: number
-  targetBalance: number
+  minBalance: bigint
+  targetBalance: bigint // this should be defined in base 0 decimals in the config file, ie 100USDC should be 100
 }
 
 /**
@@ -442,7 +457,7 @@ export interface CrowdLiquidityConfig {
   litNetwork: LIT_NETWORKS_KEYS
   capacityTokenId: string
   capacityTokenOwnerPk: string
-  defaultTargetBalance: number
+  defaultTargetBalance: bigint
   feePercentage: number
   actions: {
     fulfill: string

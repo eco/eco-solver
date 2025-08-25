@@ -9,7 +9,7 @@ import { EcoError } from '../common/errors/eco-error'
 import { DecodeFunctionDataReturnType, Hex } from 'viem'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Network } from '@/common/alchemy/network'
-import { ValidationChecks } from '@/intent/validation.sevice'
+import { ValidationChecks } from '@/intent/validation.service'
 import { EcoAnalyticsService } from '@/analytics'
 
 /**

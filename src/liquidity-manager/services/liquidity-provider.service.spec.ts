@@ -13,6 +13,7 @@ import * as uuid from 'uuid' // import as a namespace so we can spyOn later
 import { EcoAnalyticsService } from '@/analytics'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { BASE_DECIMALS } from '@/intent/utils'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 import { GatewayProviderService } from './liquidity-providers/Gateway/gateway-provider.service'
 
@@ -99,7 +100,7 @@ describe('LiquidityProviderService', () => {
     it('should call liFiProvider.getQuote', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
       const mockQuote = [
         {
           amountIn: '100',
@@ -122,7 +123,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(squidProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
       jest.spyOn(everclearProviderService, 'getQuote').mockResolvedValue(mockQuote as any)
 
-      const result = await liquidityProviderService.getQuote(
+      const result = await liquidityProviderService.getLiquidityQuotes(
         walletAddr,
         mockTokenIn as any,
         mockTokenOut as any,
@@ -141,7 +142,7 @@ describe('LiquidityProviderService', () => {
     it('should select the quote batch with the highest final output amount', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
 
       const liFiQuotes = [
         {
@@ -170,7 +171,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue(liFiQuotes as any)
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(warpRouteQuotes as any)
 
-      const result = await liquidityProviderService.getQuote(
+      const result = await liquidityProviderService.getLiquidityQuotes(
         walletAddr,
         mockTokenIn as any,
         mockTokenOut as any,
@@ -183,13 +184,13 @@ describe('LiquidityProviderService', () => {
     it('should throw error if no valid quotes are returned from any strategy', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
 
       jest.spyOn(liFiProviderService, 'getQuote').mockRejectedValue(new Error('No route'))
       jest.spyOn(warpRouteProviderService, 'getQuote').mockRejectedValue(new Error('No route'))
 
       await expect(
-        liquidityProviderService.getQuote(
+        liquidityProviderService.getLiquidityQuotes(
           walletAddr,
           mockTokenIn as any,
           mockTokenOut as any,
@@ -201,7 +202,7 @@ describe('LiquidityProviderService', () => {
     it('should correctly handle multi-step quotes with compound slippage', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
 
       // Multi-step quote with compound slippage just under the limit
       const multiStepQuotes = [
@@ -229,7 +230,7 @@ describe('LiquidityProviderService', () => {
       jest.spyOn(liFiProviderService, 'getQuote').mockResolvedValue([] as any)
       jest.spyOn(warpRouteProviderService, 'getQuote').mockResolvedValue(multiStepQuotes as any)
 
-      const result = await liquidityProviderService.getQuote(
+      const result = await liquidityProviderService.getLiquidityQuotes(
         walletAddr,
         mockTokenIn as any,
         mockTokenOut as any,
@@ -244,7 +245,7 @@ describe('LiquidityProviderService', () => {
     it('should call liFiProvider.fallback', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
       const mockQuotes = [
         {
           amountIn: 100n,
@@ -274,7 +275,7 @@ describe('LiquidityProviderService', () => {
     it('should throw error if fallback quote exceeds maximum slippage', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
       const mockQuotes = [
         {
           amountIn: 100n,
@@ -295,7 +296,7 @@ describe('LiquidityProviderService', () => {
     it('should throw error if compound slippage from multiple quotes exceeds maximum', async () => {
       const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
       const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
-      const mockSwapAmount = 100
+      const mockSwapAmount = 100n
       const mockQuotes = [
         {
           amountIn: 100n,

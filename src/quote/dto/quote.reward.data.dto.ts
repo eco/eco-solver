@@ -1,10 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { getAddress, Hex } from 'viem'
-import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
+import { IsArray, IsNotEmpty, IsOptional, ValidateNested, IsObject } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
 import { RewardTokensInterface } from '@/contracts'
 import { RewardType } from '@eco-foundation/routes-ts'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
+
+export interface TokenDecimals {
+  original: number
+  current: number
+}
 
 /**
  * The DTO for the intent reward data. Similar to {@link RewardType} except
@@ -57,6 +62,7 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
  * @param token denotes the token address
  * @param amount denotes the amount of tokens the caller wants to send
  * @param balance denotes the amount of tokens the caller can send
+ * @param decimals denotes the token decimals with original and current values (populated server-side)
  */
 export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @ViemAddressTransform()
@@ -69,6 +75,18 @@ export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @Transform(({ value }) => BigInt(value))
   @ApiProperty()
   amount: bigint
+
+  @IsOptional()
+  @IsObject()
+  @ApiProperty({
+    required: false,
+    description:
+      'Token decimals with original and current values (populated server-side, read-only)',
+    type: Object,
+    readOnly: true,
+  })
+  @Transform(({ value }) => value, { toClassOnly: true })
+  readonly decimals?: TokenDecimals
 }
 type QuoteRewardType = RewardType
 export type QuoteRewardDataType = QuoteRewardType

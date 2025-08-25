@@ -25,7 +25,6 @@ export default {
       secretID: process.env.AWS_SECRET_ID_WHITELIST || 'eco-solver-whitelist-pre-prod',
     },
   ],
-  //don't add anything else here
 
   solverRegistrationConfig: {
     apiOptions: {

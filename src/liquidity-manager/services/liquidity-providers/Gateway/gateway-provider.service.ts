@@ -3,6 +3,7 @@ import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { convertNormScalar, deconvertNormScalar } from '@/fee/utils'
 import { GatewayHttpClient } from './utils/gateway-client'
 import { GatewayQuoteValidationError } from './gateway.errors'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -67,20 +68,23 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     return { percent, base6ByDomain, fallbackBase6 }
   }
 
-  private computePercentFeeBase6(valueBase6: bigint): bigint {
-    if (valueBase6 <= 0n) return 0n
+  private computePercentFee(value: bigint): bigint {
+    if (value <= 0n) return 0n
     const { numerator, denominator } = this.getGatewayFeesConfig().percent
-    return (valueBase6 * numerator + (denominator - 1n)) / denominator
+    return (value * numerator + (denominator - 1n)) / denominator
   }
 
-  private getBaseFeeForDomainBase6(domain: number): bigint {
+  private getBaseFeeForDomain(domain: number, tokenDecimals: number): bigint {
     const fees = this.getGatewayFeesConfig()
-    return fees.base6ByDomain[domain] ?? fees.fallbackBase6
+    const baseFeeBase6 = fees.base6ByDomain[domain] ?? fees.fallbackBase6
+    // Convert from base-6 to token's native decimals
+    const baseFeeNormalized = convertNormScalar(baseFeeBase6, 6)
+    return deconvertNormScalar(baseFeeNormalized, tokenDecimals)
   }
 
-  private computeMaxFeeBase6(domain: number, valueBase6: bigint): bigint {
-    const base = this.getBaseFeeForDomainBase6(domain)
-    const percent = this.computePercentFeeBase6(valueBase6)
+  private computeMaxFee(domain: number, value: bigint, tokenDecimals: number): bigint {
+    const base = this.getBaseFeeForDomain(domain, tokenDecimals)
+    const percent = this.computePercentFee(value)
     return base + percent
   }
 
@@ -88,16 +92,17 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   // Uses binary search for monotonic function value + fee(value)
   private computeMaxTransferableOnDomain(
     domain: number,
-    availableBase6: bigint,
-    capBase6?: bigint,
+    available: bigint,
+    tokenDecimals: number,
+    cap?: bigint,
   ): bigint {
-    const baseFee = this.getBaseFeeForDomainBase6(domain)
-    if (availableBase6 <= baseFee) return 0n
+    const baseFee = this.getBaseFeeForDomain(domain, tokenDecimals)
+    if (available <= baseFee) return 0n
     let lo = 0n
-    let hi = availableBase6 - baseFee
-    if (capBase6 !== undefined && capBase6 >= 0n) hi = hi < capBase6 ? hi : capBase6
+    let hi = available - baseFee
+    if (cap !== undefined && cap >= 0n) hi = hi < cap ? hi : cap
 
-    const fits = (val: bigint) => val + this.computeMaxFeeBase6(domain, val) <= availableBase6
+    const fits = (val: bigint) => val + this.computeMaxFee(domain, val, tokenDecimals) <= available
 
     while (lo < hi) {
       const mid = lo + (hi - lo + 1n) / 2n
@@ -156,7 +161,12 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       (gatewayInfo.find((d) => d.domain === chain.domain)?.wallet as Hex | undefined)
     if (!walletAddr) return
 
-    const amount = BigInt(bootstrap.amountBase6)
+    // Convert bootstrap amount from base-6 to chain's USDC decimals
+    const amountBase6 = BigInt(bootstrap.amountBase6)
+    const amountNormalized = convertNormScalar(amountBase6, 6)
+    // Assume USDC has 6 decimals on most chains, but allow for flexibility
+    const usdcDecimals = 6 // Default USDC decimals - could be made configurable
+    const amount = deconvertNormScalar(amountNormalized, usdcDecimals)
     await this.liquidityManagerQueue.startGatewayTopUp({
       chainId: chain.chainId,
       usdc: chain.usdc,
@@ -170,7 +180,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
-    swapAmount: number,
+    swapAmountBased: bigint,
     id?: string,
   ): Promise<RebalanceQuote<'Gateway'>> {
     const cfg = this.configService.getGatewayConfig()
@@ -199,34 +209,25 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       throw new GatewayQuoteValidationError('Only USDC→USDC routes are supported')
     }
 
-    // Build amounts in token-native decimals and base-6 for Gateway context
-    const amountBase6 = parseUnits(String(swapAmount), 6)
-    const amountIn = parseUnits(String(swapAmount), tokenIn.balance.decimals)
-    const amountOut = parseUnits(String(swapAmount), tokenOut.balance.decimals)
+    // swapAmountBased is already in BASE_DECIMALS, convert to token decimals for Gateway
+    const tokenInDecimals = tokenIn.balance.decimals.original
+    const tokenOutDecimals = tokenOut.balance.decimals.original
 
-    if (tokenIn.balance.decimals !== 6 || tokenOut.balance.decimals !== 6) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'Gateway: USDC token decimals are not 6 — check token configuration',
-          id,
-          properties: {
-            inDecimals: tokenIn.balance.decimals,
-            outDecimals: tokenOut.balance.decimals,
-            tokenIn: tokenIn.config.address,
-            tokenOut: tokenOut.config.address,
-          },
-        }),
-      )
-    }
+    // Convert from BASE_DECIMALS to token's native decimals
+    const amountIn = deconvertNormScalar(swapAmountBased, tokenInDecimals)
+    const amountOut = deconvertNormScalar(swapAmountBased, tokenOutDecimals)
+
+    // For Gateway API calls, use the native decimals amount
+    const amountForGateway = amountIn
 
     // Validate chain support using Gateway info
     await this.ensureDomainsSupported(inChain.domain, outChain.domain, id)
 
     // Ensure sufficient unified balance at Gateway for the depositor (EOA)
-    await this.ensureSufficientUnifiedBalance(amountBase6, id)
+    await this.ensureSufficientUnifiedBalance(amountForGateway, tokenInDecimals, id)
 
     // Determine source domains to use based on actual per-domain balances
-    const sources = await this.selectSourcesForAmount(amountBase6, id)
+    const sources = await this.selectSourcesForAmount(amountForGateway, tokenInDecimals, id)
     const chosenSourceDomain = sources[0].domain
 
     this.logger.debug(
@@ -236,10 +237,11 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         properties: {
           chosenSourceDomain,
           destinationDomain: outChain.domain,
-          amountBase6: amountBase6.toString(),
+          amountForGateway: amountForGateway.toString(),
+          tokenDecimals: tokenInDecimals,
           sources: sources.map((s) => {
-            const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
-            return `${s.domain}:${s.amountBase6.toString()}(+fee:${fee.toString()})`
+            const fee = this.computeMaxFee(s.domain, s.amount, tokenInDecimals)
+            return `${s.domain}:${s.amount.toString()}(+fee:${fee.toString()})`
           }),
         },
       }),
@@ -258,7 +260,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       context: {
         sourceDomain: chosenSourceDomain,
         destinationDomain: outChain.domain,
-        amountBase6,
+        amountInNormalized: swapAmountBased,
         sources,
         id,
       },
@@ -270,28 +272,30 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
 
   // Select per-domain sources that cover the requested amount, fee-aware
   private async selectSourcesForAmount(
-    amountBase6: bigint,
+    amount: bigint,
+    tokenDecimals: number,
     id?: string,
-  ): Promise<{ domain: number; amountBase6: bigint }[]> {
+  ): Promise<{ domain: number; amount: bigint }[]> {
     const depositor = (await this.walletClientService.getAccount()).address as Hex
     const balanceResp = await this.client.getBalancesForDepositor('USDC', depositor)
 
     const perDomain = (balanceResp?.balances || [])
-      .map((b) => ({ domain: b.domain, available: parseUnits(b.balance || '0', 6) }))
+      .map((b) => ({ domain: b.domain, available: parseUnits(b.balance || '0', tokenDecimals) }))
       .sort((a, b) => (a.available < b.available ? 1 : a.available > b.available ? -1 : 0))
 
-    const sources: { domain: number; amountBase6: bigint }[] = []
-    let remaining = amountBase6
+    const sources: { domain: number; amount: bigint }[] = []
+    let remaining = amount
     for (const entry of perDomain) {
       if (remaining <= 0n) break
       if (entry.available <= 0n) continue
       const maxOnDomain = this.computeMaxTransferableOnDomain(
         entry.domain,
         entry.available,
+        tokenDecimals,
         remaining,
       )
       if (maxOnDomain > 0n) {
-        sources.push({ domain: entry.domain, amountBase6: maxOnDomain })
+        sources.push({ domain: entry.domain, amount: maxOnDomain })
         remaining -= maxOnDomain
       }
     }
@@ -301,7 +305,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         'Insufficient Gateway unified balance after selection',
         {
           remaining: remaining.toString(),
-          requestedBase6: amountBase6.toString(),
+          requested: amount.toString(),
+          tokenDecimals,
         },
       )
     }
@@ -311,10 +316,11 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         message: 'Gateway: selected sources',
         id,
         properties: {
-          requestedBase6: amountBase6.toString(),
+          requested: amount.toString(),
+          tokenDecimals,
           sources: sources.map((s) => {
-            const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
-            return `${s.domain}:${s.amountBase6.toString()}(+fee:${fee.toString()})`
+            const fee = this.computeMaxFee(s.domain, s.amount, tokenDecimals)
+            return `${s.domain}:${s.amount.toString()}(+fee:${fee.toString()})`
           }),
         },
       }),
@@ -324,7 +330,11 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Gateway'>): Promise<string> {
-    const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
+    const { destinationDomain, amountInNormalized, sources: contextSources, id } = quote.context
+
+    // Convert normalized amount back to token's native decimals for Gateway operations
+    const tokenDecimals = quote.tokenIn.balance.decimals.original
+    const amountForGateway = deconvertNormScalar(amountInNormalized, tokenDecimals)
 
     // Resolve addresses
     const eoa = await this.walletClientService.getAccount()
@@ -341,14 +351,14 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
 
     // 0) Re-validate sufficient unified balance (protect against race conditions)
-    await this.ensureSufficientUnifiedBalance(amountBase6)
+    await this.ensureSufficientUnifiedBalance(amountForGateway, tokenDecimals)
 
     // 1) Build one or more EIP-712 burn-intent typed data items based on sources
     const destinationMinter = await this.getMinterAddress(destinationDomain)
     const sources =
       contextSources && contextSources.length
         ? contextSources
-        : [{ domain: quote.context.sourceDomain, amountBase6 }]
+        : [{ domain: quote.context.sourceDomain, amount: amountForGateway }]
 
     const signerClient = await this.walletClientService.getClient(quote.tokenIn.chainId)
     const transferItems: Array<{ burnIntent: any; signature: Hex }> = []
@@ -358,8 +368,9 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         message: 'Gateway: preparing transfer items',
         id,
         properties: {
-          sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
-          totalAmountBase6: amountBase6.toString(),
+          sources: sources.map((s) => `${s.domain}:${s.amount.toString()}`),
+          totalAmount: amountForGateway.toString(),
+          tokenDecimals,
           items: sources.length,
         },
       }),
@@ -372,7 +383,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       if (!srcChainCfg) {
         throw new Error(`Gateway: Missing chain config for source domain ${src.domain}`)
       }
-      const maxFeeForIntent = this.computeMaxFeeBase6(src.domain, src.amountBase6)
+      const maxFeeForIntent = this.computeMaxFee(src.domain, src.amount, tokenDecimals)
       const typedData = this.buildBurnIntentTypedData({
         sourceDomain: src.domain,
         destinationDomain,
@@ -384,11 +395,9 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         destinationRecipient: kernelAddress,
         sourceSigner: eoaAddress,
         destinationCaller: '0x0000000000000000000000000000000000000000' as Hex,
-        value: src.amountBase6,
+        value: src.amount,
         salt: keccak256(
-          toHex(
-            `${Date.now()}-${id ?? ''}-${eoaAddress}-${src.domain}-${src.amountBase6.toString()}`,
-          ),
+          toHex(`${Date.now()}-${id ?? ''}-${eoaAddress}-${src.domain}-${src.amount.toString()}`),
         ) as Hex,
         hookData: '0x',
         maxBlockHeight: BigInt(10_000_000_000),
@@ -403,7 +412,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
           id,
           properties: {
             sourceDomain: src.domain,
-            value: src.amountBase6.toString(),
+            value: src.amount.toString(),
             maxFee: maxFeeForIntent.toString(),
           },
         }),
@@ -476,7 +485,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
           id,
           properties: {
             chainId: quote.tokenIn.chainId,
-            amountBase6: quote.amountIn.toString(),
+            amount: quote.amountIn.toString(),
             gatewayWallet: walletAddr,
           },
         }),
@@ -560,23 +569,28 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     return match.minter as Hex
   }
 
-  private async ensureSufficientUnifiedBalance(requiredBase6: bigint, id?: string) {
+  private async ensureSufficientUnifiedBalance(
+    required: bigint,
+    tokenDecimals: number,
+    id?: string,
+  ) {
     const depositor = (await this.walletClientService.getAccount()).address as Hex
     const balanceResp = await (this.client as any).getBalancesForDepositor('USDC', depositor)
 
     const domainToBalance = new Map<number, bigint>()
     for (const b of balanceResp?.balances || []) {
-      domainToBalance.set(b.domain, parseUnits(b.balance || '0', 6))
+      domainToBalance.set(b.domain, parseUnits(b.balance || '0', tokenDecimals))
     }
-    const availableBase6 = Array.from(domainToBalance.values()).reduce((acc, v) => acc + v, 0n)
+    const available = Array.from(domainToBalance.values()).reduce((acc, v) => acc + v, 0n)
 
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Gateway: checking unified balance across domains',
         id,
         properties: {
-          requiredBase6: requiredBase6.toString(),
-          availableBase6: availableBase6.toString(),
+          required: required.toString(),
+          available: available.toString(),
+          tokenDecimals,
           depositor,
           perDomain: Object.fromEntries(
             Array.from(domainToBalance.entries()).map(([d, v]) => [d, v.toString()]),
@@ -585,21 +599,23 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       }),
     )
 
-    if (availableBase6 < requiredBase6) {
+    if (available < required) {
       this.logger.warn(
         EcoLogMessage.withId({
           message: 'Gateway: Insufficient unified balance (across all domains)',
           id,
           properties: {
-            requiredBase6: requiredBase6.toString(),
-            availableBase6: availableBase6.toString(),
+            required: required.toString(),
+            available: available.toString(),
+            tokenDecimals,
             depositor,
           },
         }),
       )
       throw new GatewayQuoteValidationError('Insufficient Gateway unified balance', {
-        requestedBase6: requiredBase6.toString(),
-        availableBase6: availableBase6.toString(),
+        requested: required.toString(),
+        available: available.toString(),
+        tokenDecimals,
         depositor,
         perDomain: Object.fromEntries(
           Array.from(domainToBalance.entries()).map(([d, v]) => [d, v.toString()]),

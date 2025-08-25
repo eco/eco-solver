@@ -5,6 +5,8 @@ import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from 
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { denormalizeTokenAmounts } from '@/intent/utils/intent-denormalization.utils'
+import { ParsedCallsModel } from '@/intent/schemas/parsed-calls.schema'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -22,6 +24,7 @@ export interface CreateIntentDataModelParams {
   rewardTokens: RewardTokensInterface[]
   logIndex: number
   funder?: Hex
+  parsedCalls?: ParsedCallsModel
 }
 
 @Schema({ timestamps: true })
@@ -62,6 +65,7 @@ export class IntentDataModel implements IntentType {
       rewardTokens,
       logIndex,
       funder,
+      parsedCalls,
     } = params
 
     if (calls.length == 0) {
@@ -78,6 +82,9 @@ export class IntentDataModel implements IntentType {
     this.quoteID = quoteID
     this.hash = hash
 
+    // Create empty parsedCalls if not provided - will be set later by the calling service
+    const defaultParsedCalls = parsedCalls || { erc20Calls: [], nativeCalls: [] }
+
     this.route = new RouteDataModel(
       salt,
       source,
@@ -91,6 +98,7 @@ export class IntentDataModel implements IntentType {
         call.target = getAddress(call.target)
         return call
       }),
+      defaultParsedCalls,
     )
 
     this.reward = new RewardDataModel(
@@ -117,11 +125,11 @@ export class IntentDataModel implements IntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    return hashIntent(intentDataModel)
+    return hashIntent(intentDataModel.toDenormalizedIntent())
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    return encodeIntent(intentDataModel)
+    return encodeIntent(intentDataModel.toDenormalizedIntent())
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
@@ -144,10 +152,33 @@ export class IntentDataModel implements IntentType {
   }
 
   static toChainIntent(intent: IntentDataModel): IntentType {
+    // Convert Mongoose document to plain object if needed
+    const plainIntent = (intent as any).toObject ? (intent as any).toObject() : intent
+
     return {
-      route: intent.route,
-      reward: intent.reward,
+      route: {
+        ...plainIntent.route,
+        tokens: denormalizeTokenAmounts(
+          plainIntent.route?.tokens || [],
+          Number(plainIntent.route.destination),
+        ),
+      },
+      reward: {
+        ...plainIntent.reward,
+        tokens: denormalizeTokenAmounts(
+          plainIntent.reward?.tokens || [],
+          Number(plainIntent.route.source),
+        ),
+      },
     }
+  }
+
+  /**
+   * Returns a denormalized copy of this intent for hashing and encoding operations.
+   * This ensures that token amounts are in their original decimals for consistent hashing.
+   */
+  toDenormalizedIntent(): IntentType {
+    return IntentDataModel.toChainIntent(this)
   }
 }
 
@@ -163,9 +194,13 @@ IntentSourceDataSchema.methods.getHash = function (): {
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  return hashIntent(this.toDenormalizedIntent())
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  return encodeIntent(this.toDenormalizedIntent())
+}
+
+IntentSourceDataSchema.methods.toDenormalizedIntent = function (): IntentType {
+  return IntentDataModel.toChainIntent(this)
 }

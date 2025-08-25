@@ -10,7 +10,7 @@ import { EcoAnalyticsService } from '@/analytics'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from '@/quote/quote.service'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { ValidationChecks, ValidationService } from '@/intent/validation.sevice'
+import { ValidationChecks, ValidationService } from '@/intent/validation.service'
 
 const logger = new Logger('QuoteServiceSpec')
 
