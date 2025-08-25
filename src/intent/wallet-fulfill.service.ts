@@ -16,12 +16,13 @@ import { TransactionTargetData, UtilsIntentService } from './utils-intent.servic
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { Solver, VmType, getVmType } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
 import { ProofService } from '@/prover/proof.service'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { SolanaWalletFulfillService } from '@/intent/solana-wallet-fulfill.service'
 import {
   getFunctionCalls,
   getNativeCalls,
@@ -48,6 +49,7 @@ export class WalletFulfillService implements IFulfillService {
     private readonly feeService: FeeService,
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly solanaFulfillService: SolanaWalletFulfillService,
   ) {}
 
   /**
@@ -59,6 +61,12 @@ export class WalletFulfillService implements IFulfillService {
    * @return {Promise<void>} Resolves with no value. Throws an error if the intent fulfillment fails.
    */
   async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+    // Check if this is a Solana chain and delegate to Solana service
+    const vmType = getVmType(Number(solver.chainID))
+    if (vmType === VmType.SVM) {
+      return this.solanaFulfillService.fulfill(model, solver)
+    }
+
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
 
     // Create transactions for intent targets

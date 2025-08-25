@@ -16,6 +16,7 @@ import { FlagsModule } from '../flags/flags.module'
 import { ValidationService } from '@/intent/validation.sevice'
 import { FeeModule } from '@/fee/fee.module'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { SolanaWalletFulfillService } from '@/intent/solana-wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 
 @Module({
@@ -38,6 +39,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
     UtilsIntentService,
     ValidationService,
     WalletFulfillService,
+    SolanaWalletFulfillService,
   ],
   // controllers: [IntentSourceController],
   exports: [

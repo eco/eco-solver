@@ -111,7 +111,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   }
 
   private async trackAccountChanges(connection: Connection, source: IntentSource, abortSignal: AbortSignal) {
-    const portalIdl = require('src/solana/program/portal.json')
+    const portalIdl = require('@/solana/program/portal.json')
     const coder       = new anchor.BorshCoder(portalIdl);              // understands the IDL
     const parser      = new anchor.EventParser(new PublicKey(source.sourceAddress), coder); 
     try {

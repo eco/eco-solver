@@ -127,9 +127,22 @@ export function hashRoute(route: RouteType): Hex {
 export function encodeReward(reward: RewardType): Hex {
   switch (reward.vm) {
     case VmType.EVM:
+      // Clean the reward object - remove MongoDB fields
+      const cleanReward = {
+        vm: reward.vm,
+        creator: reward.creator,
+        prover: reward.prover,
+        deadline: reward.deadline,
+        nativeValue: reward.nativeAmount || 0n,
+        tokens: (reward.tokens || []).map(t => ({
+          token: t.token,
+          amount: t.amount
+        }))
+      };
+      console.log("ENCREWARD: reward for EVM", cleanReward);
       return encodeAbiParameters(
         [{ type: 'tuple', components: RewardStruct }],
-        [{ ...reward, nativeValue: reward.nativeAmount } as any], // need to cast to any because of nativeAmount -> nativeValue
+        [cleanReward as any],
       )
     case VmType.SVM:
       const { deadline, creator, prover, nativeAmount, tokens } = reward;
