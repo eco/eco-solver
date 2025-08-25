@@ -7,6 +7,7 @@ import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
 
 export interface CreateIntentDataModelParams {
+  intentGroupID?: string
   quoteID?: string
   hash: Hex
   salt: Hex
@@ -26,6 +27,9 @@ export interface CreateIntentDataModelParams {
 
 @Schema({ timestamps: true })
 export class IntentDataModel implements IntentType {
+  @Prop({ required: false, type: String })
+  intentGroupID?: string
+
   @Prop({ required: false, type: String })
   quoteID?: string
 
@@ -47,6 +51,7 @@ export class IntentDataModel implements IntentType {
 
   constructor(params: CreateIntentDataModelParams) {
     const {
+      intentGroupID,
       quoteID,
       hash,
       salt,
@@ -75,6 +80,7 @@ export class IntentDataModel implements IntentType {
       throw EcoError.IntentSourceDataInvalidParams
     }
 
+    this.intentGroupID = intentGroupID
     this.quoteID = quoteID
     this.hash = hash
 
@@ -152,6 +158,8 @@ export class IntentDataModel implements IntentType {
 }
 
 export const IntentSourceDataSchema = SchemaFactory.createForClass(IntentDataModel)
+IntentSourceDataSchema.index({ intentGroupID: 1 }, { unique: false })
+IntentSourceDataSchema.index({ quoteID: 1 }, { unique: false })
 IntentSourceDataSchema.index({ hash: 1 }, { unique: true })
 IntentSourceDataSchema.index(
   { source: 1, destination: 'ascending', deadline: 'ascending' },

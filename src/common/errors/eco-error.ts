@@ -87,6 +87,8 @@ export class EcoError extends Error {
   static AllPermitsMustBeOnSameChain = new Error(
     `All Permits must be on the same chain for batching`,
   )
+  static NoTransfersFoundForChain = new Error()
+  static LeafNotFoundInSignedPermit = new EcoError()
 
   // Permit Validations
   static InvalidVaultAddress = new EcoError('Permit spender does not match expected vault address')
