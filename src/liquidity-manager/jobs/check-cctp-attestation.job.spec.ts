@@ -20,7 +20,10 @@ import {
   type CheckCCTPAttestationJobData,
 } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 
-import { LiquidityManagerJobName, LiquidityManagerQueueType } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 
@@ -31,11 +34,11 @@ function makeQueueMock() {
 }
 
 type MockLogger = {
-  debug: jest.Mock;
-  log: jest.Mock;
-  warn: jest.Mock;
-  error: jest.Mock;
-};
+  debug: jest.Mock
+  log: jest.Mock
+  warn: jest.Mock
+  error: jest.Mock
+}
 
 function makeLoggerMock(): MockLogger {
   return {
@@ -43,16 +46,12 @@ function makeLoggerMock(): MockLogger {
     log: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  };
+  }
 }
 
-type AttestationResult =
-  | { status: 'pending' }
-  | { status: 'complete'; attestation: Hex }
+type AttestationResult = { status: 'pending' } | { status: 'complete'; attestation: Hex }
 
-function makeProcessorMock(
-  overrides?: Partial<LiquidityManagerProcessor>
-) {
+function makeProcessorMock(overrides?: Partial<LiquidityManagerProcessor>) {
   const logger = makeLoggerMock()
   const baseQueue = makeQueueMock()
 
@@ -60,21 +59,24 @@ function makeProcessorMock(
 
   const processor = {
     logger,
-    queue: overrides?.queue ?? baseQueue,  // ← respect injected queue
+    queue: overrides?.queue ?? baseQueue, // ← respect injected queue
     cctpProviderService: { fetchAttestation },
     ...overrides,
   } as unknown as LiquidityManagerProcessor & {
-    logger: MockLogger,
+    logger: MockLogger
 
     cctpProviderService: {
-      fetchAttestation,
+      fetchAttestation
     }
   }
 
   return processor
 }
 
-function makeJob(data: Partial<CheckCCTPAttestationJobData>, returnvalue?: any): CheckCCTPAttestationJob {
+function makeJob(
+  data: Partial<CheckCCTPAttestationJobData>,
+  returnvalue?: any,
+): CheckCCTPAttestationJob {
   const base: CheckCCTPAttestationJobData = {
     destinationChainId: 8453,
     messageHash: '0xabc' as Hex,
@@ -222,7 +224,7 @@ describe('CheckCCTPAttestationJobManager', () => {
           delay: 30_000,
           removeOnComplete: true,
           attempts: 3,
-        })
+        }),
       )
 
       // Logged

@@ -45,9 +45,7 @@ function makeLoggerMock(): MockLogger {
   }
 }
 
-function makeProcessorMock(
-  overrides?: Partial<LiquidityManagerProcessor>
-) {
+function makeProcessorMock(overrides?: Partial<LiquidityManagerProcessor>) {
   const logger = makeLoggerMock()
   const baseQueue = makeQueueMock()
 
@@ -55,7 +53,7 @@ function makeProcessorMock(
 
   const processor = {
     logger,
-    queue: overrides?.queue ?? baseQueue,  // ← respect injected queue
+    queue: overrides?.queue ?? baseQueue, // ← respect injected queue
     liquidityManagerService: {
       liquidityProviderManager: {
         execute,
@@ -63,13 +61,13 @@ function makeProcessorMock(
     },
     ...(overrides as any),
   } as LiquidityManagerProcessor & {
-    logger: MockLogger,
+    logger: MockLogger
 
     liquidityManagerService: {
       liquidityProviderManager: {
-        execute,
-      },
-    },
+        execute
+      }
+    }
   }
 
   return processor
@@ -77,7 +75,7 @@ function makeProcessorMock(
 
 function makeJob(
   data: Partial<CCTPLiFiDestinationSwapJobData>,
-  returnvalue?: { txHash: Hex; finalAmount: string }
+  returnvalue?: { txHash: Hex; finalAmount: string },
 ): CCTPLiFiDestinationSwapJob {
   const base: CCTPLiFiDestinationSwapJobData = {
     messageHash: '0xmsg' as Hex,
@@ -194,8 +192,11 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
       expect(ret).toEqual({ txHash: '0x0', finalAmount: '1990000' })
 
       // Assert execute() was invoked with wallet and a well-formed tempQuote
-      expect(processor.liquidityManagerService.liquidityProviderManager.execute).toHaveBeenCalledTimes(1)
-      const [wallet, tempQuote] = processor.liquidityManagerService.liquidityProviderManager.execute.mock.calls[0]
+      expect(
+        processor.liquidityManagerService.liquidityProviderManager.execute,
+      ).toHaveBeenCalledTimes(1)
+      const [wallet, tempQuote] =
+        processor.liquidityManagerService.liquidityProviderManager.execute.mock.calls[0]
 
       expect(wallet).toBe('0xabc123')
       expect(tempQuote).toEqual(
@@ -219,15 +220,13 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
         new Error('execution failed'),
       )
 
-      await expect(
-        mgr.process(job as any, processor),
-      ).rejects.toThrow('execution failed')
+      await expect(mgr.process(job as any, processor)).rejects.toThrow('execution failed')
 
       // Two error logs: STRANDED USDC ALERT and detailed error
       expect(processor.logger.error).toHaveBeenCalled()
-      const logs = (processor.logger.error as jest.Mock).mock.calls.map(c => JSON.stringify(c[0]))
-      expect(logs.some(s => s.includes('STRANDED USDC ALERT'))).toBe(true)
-      expect(logs.some(s => s.includes('Destination swap execution failed'))).toBe(true)
+      const logs = (processor.logger.error as jest.Mock).mock.calls.map((c) => JSON.stringify(c[0]))
+      expect(logs.some((s) => s.includes('STRANDED USDC ALERT'))).toBe(true)
+      expect(logs.some((s) => s.includes('Destination swap execution failed'))).toBe(true)
     })
   })
 

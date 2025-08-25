@@ -45,9 +45,7 @@ function makeLoggerMock(): MockLogger {
   }
 }
 
-function makeProcessorMock(
-  overrides?: Partial<LiquidityManagerProcessor>
-) {
+function makeProcessorMock(overrides?: Partial<LiquidityManagerProcessor>) {
   const logger = makeLoggerMock()
   const baseQueue = makeQueueMock()
 
@@ -55,24 +53,21 @@ function makeProcessorMock(
 
   return {
     logger,
-    queue: overrides?.queue ?? baseQueue,  // ← respect injected queue
+    queue: overrides?.queue ?? baseQueue, // ← respect injected queue
     cctpProviderService: {
       receiveMessage,
     },
     ...(overrides as any),
   } as unknown as LiquidityManagerProcessor & {
-    logger: MockLogger,
+    logger: MockLogger
 
     cctpProviderService: {
-      receiveMessage,
+      receiveMessage
     }
   }
 }
 
-function makeJob(
-  data: Partial<ExecuteCCTPMintJobData>,
-  returnvalue?: Hex
-): ExecuteCCTPMintJob {
+function makeJob(data: Partial<ExecuteCCTPMintJobData>, returnvalue?: Hex): ExecuteCCTPMintJob {
   const base: ExecuteCCTPMintJobData = {
     destinationChainId: 8453,
     messageHash: '0xabc' as Hex,
@@ -103,7 +98,7 @@ jest.mock('@/liquidity-manager/jobs/cctp-lifi-destination-swap.job', () => {
 })
 // handy handle
 const { CCTPLiFiDestinationSwapJobManager } = jest.requireMock(
-  '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+  '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job',
 ) as {
   CCTPLiFiDestinationSwapJobManager: { start: jest.Mock }
 }
@@ -136,7 +131,7 @@ describe('ExecuteCCTPMintJobManager', () => {
           removeOnFail: true,
           attempts: 3,
           backoff: { type: 'exponential', delay: 10_000 },
-        })
+        }),
       )
     })
   })
