@@ -1,0 +1,165 @@
+### Gateway liquidity strategy (USDC → USDC)
+
+#### Overview
+
+Circle Gateway is used as a zero-slippage USDC cross-chain primitive. This strategy mints USDC on the destination chain using a Circle attestation derived from an EIP-712 burn intent signed by the solver EOA. After a successful mint, a top-up job replenishes the solver’s unified balance by depositing from the Kernel smart account on behalf of the EOA.
+
+#### Key files
+
+- Provider: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway-provider.service.ts`
+- HTTP client: `src/liquidity-manager/services/liquidity-providers/Gateway/utils/gateway-client.ts`
+- ABIs: `src/liquidity-manager/services/liquidity-providers/Gateway/constants/abis.ts`
+- Errors: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway.errors.ts`
+- Top-up job: `src/liquidity-manager/jobs/gateway-topup.job.ts`
+  - One-time bootstrap: `ensureBootstrapOnce()` in the provider (see below)
+
+#### Prerequisites
+
+- USDC balances in the Kernel account on the source chain(s)
+- Gateway unified balance tracked for the solver EOA (depositor)
+- Accurate chain/domain and USDC mappings in config
+
+#### Configuration
+
+Add a `gateway` section and enable the strategy for the solver wallet via `liquidityManager.walletStrategies`.
+
+```ts
+// src/eco-configs/eco-config.types.ts (shape)
+export interface GatewayConfig {
+  apiUrl: string
+  enabled?: boolean
+  bootstrap?: {
+    enabled: boolean
+    chainId: number // source chain to deposit from
+    amountBase6: string // fixed deposit (USDC base-6)
+  }
+  // Fees configuration (optional)
+  fees?: {
+    // Percentage fee (fraction). slippage = numerator / denominator
+    percent?: { numerator: number; denominator: number }
+    // Per-domain base fee in USDC base-6
+    base6ByDomain?: Record<number, number | string>
+    // Fallback base fee when domain not present
+    fallbackBase6?: number | string
+  }
+  chains: { chainId: number; domain: number; usdc: Hex; wallet?: Hex; minter?: Hex }[]
+}
+```
+
+Example (default values shown):
+
+```ts
+gateway: {
+  apiUrl: 'https://gateway-api-testnet.circle.com',
+  enabled: true,
+  fees: {
+    percent: { numerator: 5, denominator: 100_000 }, // 0.5 bps
+    base6ByDomain: { 0: 2_000_000, 1: 20_000, 2: 1_500, 3: 10_000, 6: 10_000, 7: 1_500, 10: 1_000 },
+    fallbackBase6: 2_000_000,
+  },
+  chains: [
+    { chainId: 1, domain: 0, usdc: '0x...' },
+    { chainId: 8453, domain: 6, usdc: '0x...' },
+  ],
+}
+```
+
+Notes:
+
+- `wallet` (GatewayWallet) and `minter` (GatewayMinter) are optional overrides. The provider resolves these from the Gateway Info API by default and only uses config values if present.
+- No API key is required; requests are unauthenticated.
+
+Bootstrap config:
+
+- If `bootstrap.enabled` is true, on application startup the provider checks the depositor’s unified USDC balance on the configured domain. If it is zero, it enqueues a single `GATEWAY_TOP_UP` for `amountBase6` from Kernel via `depositFor`, then stops.
+- Depositor is the default signer (EOA); funds are spent by Kernel.
+
+#### How it works
+
+1. Quote (`getQuote`)
+
+- Validates cross-chain, USDC→USDC using configured addresses
+- Loads supported domains from Gateway Info (cached with `@Cacheable`)
+- Fetches per-domain unified balances for the EOA and selects source domains that cover the requested amount
+- Returns a quote with:
+  - `slippage` set to the configured percentage fee (`gateway.fees.percent` → numerator/denominator)
+  - `amountIn == amountOut` (mint is 1:1)
+  - `context.sources` set to the selected domain/value breakdown
+- Source selection is fee-aware: for each domain we allocate the value `V` such that `V + maxFee(domain, V) ≤ available`, where `maxFee = base6ByDomain[domain] (or fallback) + ceil(V * percent)`.
+
+2. Execute (`execute`)
+
+- Builds one EIP‑712 burn intent per selected source domain (splitting by `context.sources`)
+- Signs each burn intent with the solver EOA
+- Submits an array payload to `/v1/transfer`:
+
+```json
+[
+  {
+    "burnIntent": {
+      "maxBlockHeight": "...",
+      "maxFee": "...", // base(domain) + percentage(value), config-driven
+      "spec": {
+        /* TransferSpec */
+      }
+    },
+    "signature": "0x..."
+  }
+]
+```
+
+- Receives `{ attestation, signature, transferId }`, then calls destination `GatewayMinter.gatewayMint(attestation, signature)`
+- Enqueues a single `GATEWAY_TOP_UP` to replenish the solver EOA unified balance on the `tokenIn` chain for the full amount
+
+3. Top‑up job (`GATEWAY_TOP_UP`)
+
+- Kernel executes a batch: `ERC20.approve(GatewayWallet, amount)` + `GatewayWallet.depositFor(USDC, depositor=EOA, amount)`
+- Waits for receipt to mark the job complete
+
+4. Bootstrap deposit (optional)
+
+- Implemented in `ensureBootstrapOnce()` on the provider.
+- On boot: if `gateway.bootstrap.enabled` and `/v1/balances` shows zero for `{ domain, depositor }`, enqueue a single `GATEWAY_TOP_UP` with `id: 'bootstrap'`.
+- Uses configured `bootstrap.chainId` and `bootstrap.amountBase6`.
+
+#### Error handling & caching
+
+- Fees are configured under `gateway.fees` with per-domain base fees and a percentage fraction; fallback base uses the largest (Ethereum) for conservatism.
+- Slippage equals the configured percentage fee fraction: `fees.percent.numerator / fees.percent.denominator`.
+- Non-200 API responses throw `GatewayApiError` with `status` and response body
+- Signed burn intent debug logs include `sourceDomain`, `value` (base-6), and `maxFee` (base-6) for per-intent tracing.
+
+### Ops runbook: adjusting Gateway fees
+
+- Config keys live under `gateway.fees` in your environment config (e.g., `config/default.ts`, `config/preproduction.ts`).
+- Keys:
+  - `percent { numerator, denominator }`: percentage fee fraction. Default is 0.5 bps (5/100000). Also used as quote `slippage`.
+  - `base6ByDomain { [domain]: base6 }`: per-source-domain base fee in USDC base-6. Seeded from Circle docs.
+  - `fallbackBase6`: conservative fallback base fee used when a domain has no explicit entry. Default is Ethereum base fee (2_000_000).
+- When to change:
+  - Circle updates the [Gateway Fees](https://developers.circle.com/gateway/references/fees) table.
+  - Temporary overrides in preprod to investigate insufficient balance errors.
+- Rollout guidance:
+  - Update the appropriate env file(s) and deploy.
+  - Watch logs for `Gateway attestation error` and per-intent `maxFee` in `Gateway: signed burn intent` logs.
+  - If errors persist for a specific domain, raise its `base6ByDomain[domain]` cautiously.
+- Supported domains (`/v1/info`) are cached for 1 hour via `@Cacheable`
+- Structured logs include correlation `id` and key properties
+
+#### Enabling the strategy
+
+Add `'Gateway'` to the solver wallet strategies (e.g., `eco-wallet`) in `liquidityManager.walletStrategies`. Ensure `gateway.enabled !== false`.
+
+#### Tests
+
+- Unit tests: `src/liquidity-manager/services/liquidity-providers/Gateway/gateway-provider.service.spec.ts`
+  - Quote validations and slippage = configured percentage
+  - Multi-source selection in quote (`context.sources`)
+  - Execute: multi-intent signing → attestation array → mint → top‑up enqueue
+  - Bootstrap: ensures enqueue is gated by zero balance
+
+#### References
+
+- Gateway overview: https://developers.circle.com/gateway
+- Quickstart (multi-intent & balances): https://developers.circle.com/gateway/quickstarts/unified-balance
+- API: `/v1/info`, `/v1/balances`, `/v1/transfer`

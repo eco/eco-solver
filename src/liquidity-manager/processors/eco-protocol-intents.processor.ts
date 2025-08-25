@@ -10,6 +10,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
+import { GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
@@ -52,6 +53,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new CheckCCTPV2AttestationJobManager(),
       new ExecuteCCTPV2MintJobManager(),
       new CheckEverclearIntentJobManager(),
+      new GatewayTopUpJobManager(),
     ])
   }
 

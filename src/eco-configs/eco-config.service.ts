@@ -302,6 +302,14 @@ export class EcoConfigService {
     return this.get('everclear')
   }
 
+  getGatewayConfig(): EcoConfigType['gateway'] {
+    return this.get('gateway')
+  }
+
+  getWatch(): EcoConfigType['watch'] {
+    return this.get('watch')
+  }
+
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string[]> {
     const entries = ChainsSupported.map(

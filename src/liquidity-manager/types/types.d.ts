@@ -40,6 +40,16 @@ type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
 type SquidStrategyContext = SquidRoute
 type EverclearStrategyContext = undefined
+type GatewayStrategyContext = {
+  sourceDomain: number
+  destinationDomain: number
+  amountBase6: bigint
+  sources?: { domain: number; amountBase6: bigint }[]
+  transferId?: Hex | string
+  attestation?: Hex
+  signature?: Hex
+  id?: string
+}
 
 interface CCTPV2StrategyContext {
   transferType: 'standard' | 'fast'
@@ -81,6 +91,7 @@ type Strategy =
   | 'Squid'
   | 'CCTPV2'
   | 'Everclear'
+  | 'Gateway'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -99,7 +110,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
                 ? CCTPV2StrategyContext
                 : S extends 'Everclear'
                   ? EverclearStrategyContext
-                  : never
+                  : S extends 'Gateway'
+                    ? GatewayStrategyContext
+                    : never
 
 // Quote
 
