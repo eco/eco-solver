@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { FlowChildJob, Job } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
@@ -6,7 +7,7 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { serialize, Serialize } from '@/common/utils/serialize'
+import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
 export type RebalanceJobData = {
@@ -48,6 +49,30 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     if (this.is(job)) {
       return processor.liquidityManagerService.executeRebalancing(job.data)
     }
+  }
+
+  /**
+   * Hook triggered when a job is completed.
+   * @param job - The job to process.
+   * @param processor - The processor handling the job.
+   */
+  onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): void {
+    const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
+
+    const { network, walletAddress, rebalance } = rebalanceData
+    for (const quote of rebalance.quotes) {
+      const deserializedQuote = deserialize(quote)
+    }
+
+    processor.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
+        properties: {
+          network,
+          walletAddress,
+        },
+      }),
+    )
   }
 
   /**

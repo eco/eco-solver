@@ -4,30 +4,36 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
+import { CCTPLiFiDestinationSwapJobData } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { LiFiStrategyContext } from '../types/types'
 
+export interface ExecuteCCTPMintJobData {
+  destinationChainId: number
+  messageHash: Hex
+  messageBody: Hex
+  attestation: Hex
+  // Optional CCTPLiFi context for destination swap operations
+  cctpLiFiContext?: {
+    destinationSwapQuote: LiFiStrategyContext
+    walletAddress: string
+    originalTokenOut: {
+      address: Hex
+      chainId: number
+      decimals: number
+    }
+  }
+  groupID: string // GroupID for tracking related jobs
+  rebalanceJobID: string // JobID for tracking the rebalance job
+  id?: string
+  [key: string]: unknown // Index signature for BullMQ compatibility
+}
+
 export type ExecuteCCTPMintJob = LiquidityManagerJob<
   LiquidityManagerJobName.EXECUTE_CCTP_MINT,
-  {
-    destinationChainId: number
-    messageHash: Hex
-    messageBody: Hex
-    attestation: Hex
-    // Optional CCTPLiFi context for destination swap operations
-    cctpLiFiContext?: {
-      destinationSwapQuote: LiFiStrategyContext
-      walletAddress: string
-      originalTokenOut: {
-        address: Hex
-        chainId: number
-        decimals: number
-      }
-    }
-    id?: string
-  },
+  ExecuteCCTPMintJobData,
   Hex
 >
 
@@ -79,6 +85,8 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
         message: `CCTP: ExecuteCCTPMintJob: Completed!`,
         id: job.data.id,
         properties: {
+          groupID: job.data.groupID,
+          rebalanceJobID: job.data.rebalanceJobID,
           chainId: job.data.destinationChainId,
           txHash: job.returnvalue,
           messageHash: job.data.messageHash,
@@ -102,7 +110,9 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
       // Import dynamically to avoid circular dependency
       const { CCTPLiFiDestinationSwapJobManager } = await import('./cctp-lifi-destination-swap.job')
 
-      await CCTPLiFiDestinationSwapJobManager.start(processor.queue, {
+      const cctpLiFiDestinationSwapJobData: CCTPLiFiDestinationSwapJobData = {
+        groupID: job.data.groupID,
+        rebalanceJobID: job.data.rebalanceJobID,
         messageHash: job.data.messageHash,
         messageBody: job.data.messageBody,
         attestation: job.data.attestation,
@@ -111,7 +121,9 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
         walletAddress: cctpLiFiContext.walletAddress,
         originalTokenOut: cctpLiFiContext.originalTokenOut,
         id: job.data.id,
-      })
+      }
+
+      await CCTPLiFiDestinationSwapJobManager.start(processor.queue, cctpLiFiDestinationSwapJobData)
     }
   }
 

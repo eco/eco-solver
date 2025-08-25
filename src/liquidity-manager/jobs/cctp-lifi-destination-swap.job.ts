@@ -23,6 +23,8 @@ export interface CCTPLiFiDestinationSwapJobData {
   }
   cctpTransactionHash?: Hex
   retryCount?: number
+  groupID: string // GroupID for tracking related jobs
+  rebalanceJobID: string // JobID for tracking the rebalance job
   id?: string
   [key: string]: unknown // Index signature for BullMQ compatibility
 }
@@ -245,6 +247,8 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
         id: job.data.id,
         properties: {
+          groupID: job.data.groupID,
+          rebalanceJobID: job.data.rebalanceJobID,
           jobId: job.data.id,
           txHash: job.returnvalue?.txHash,
           finalAmount: job.returnvalue?.finalAmount,
