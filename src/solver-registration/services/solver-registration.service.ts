@@ -1,7 +1,13 @@
-import { API_ROOT, INTENT_INITIATION_ROUTE, QUOTE_ROUTE } from '@/common/routes/constants'
+import {
+  API_ROOT,
+  API_V2_ROOT,
+  INTENT_INITIATION_ROUTE,
+  QUOTE_ROUTE,
+} from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
@@ -14,11 +20,10 @@ import {
   Solver,
   SolverRegistrationConfig,
 } from '@/eco-configs/eco-config.types'
-import { EcoError } from '@/common/errors/eco-error'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
-import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 import { SigningService } from '../../request-signing/signing.service'
+import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
@@ -143,6 +148,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
+      quotesV2Url: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
       receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/initiateGaslessIntent`,
       gaslessIntentTransactionDataUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/getGaslessIntentTransactionData`,
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,

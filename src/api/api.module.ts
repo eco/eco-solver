@@ -8,6 +8,7 @@ import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.mo
 import { Module } from '@nestjs/common'
 import { QuoteController } from '@/api/quote.controller'
 import { QuoteModule } from '@/quote/quote.module'
+import { QuoteV2Controller } from '@/api/quote-v2.controller'
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { QuoteModule } from '@/quote/quote.module'
     IntentInitiationModule,
   ],
 
-  controllers: [BalanceController, QuoteController, IntentInitiationController],
+  controllers: [BalanceController, QuoteController, QuoteV2Controller, IntentInitiationController],
 
   providers: [
     {
