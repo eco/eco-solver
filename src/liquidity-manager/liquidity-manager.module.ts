@@ -45,6 +45,7 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     SquidProviderService,
     CCTPV2ProviderService,
     EverclearProviderService,
+    GatewayProviderService,
     RebalanceRepository,
   ],
   exports: [LiquidityManagerService, RebalanceRepository],
