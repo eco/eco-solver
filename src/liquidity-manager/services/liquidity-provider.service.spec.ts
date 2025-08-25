@@ -15,6 +15,7 @@ import { SquidProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { BASE_DECIMALS } from '@/intent/utils'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
+import { GatewayProviderService } from './liquidity-providers/Gateway/gateway-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -59,6 +60,7 @@ describe('LiquidityProviderService', () => {
           useValue: createMock<EcoAnalyticsService>(),
         },
         { provide: EverclearProviderService, useValue: createMock<EverclearProviderService>() },
+        { provide: GatewayProviderService, useValue: createMock<GatewayProviderService>() },
       ],
     }).compile()
 
