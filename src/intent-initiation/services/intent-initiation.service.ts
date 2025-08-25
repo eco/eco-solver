@@ -32,6 +32,8 @@ import { QuoteRepository } from '@/quote/quote.repository'
 import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
+const GAS_ESTIMATION_BUFFER_BASE = 1_000_000n
+
 export type PermitResult = {
   funder: Hex
   permitContract: Hex
@@ -486,7 +488,7 @@ export class IntentInitiationService implements OnModuleInit {
       const { gasEstimate: estimatedGasInWei, gasPrice } = estimatedGasData
 
       // Apply a buffer (e.g., 10%)
-      const base = 1_000_000n
+      const base = GAS_ESTIMATION_BUFFER_BASE
       const totalWithBuffer =
         (estimatedGasInWei * BigInt((1 + bufferPercent / 100) * Number(base))) / base
       const gasCost = totalWithBuffer * gasPrice
