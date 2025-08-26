@@ -1,14 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { QuoteV2RequestDTO } from '@/quote/dto/quote-v2-request.dto'
-import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
-import { QuoteRewardDataDTO, QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
-import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { encodeFunctionData, erc20Abi, Hex, zeroAddress } from 'viem'
-import { randomUUID } from 'crypto'
+import { Injectable, Logger } from '@nestjs/common'
+import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { ProofService } from '@/prover/proof.service'
+import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
+import { QuoteRewardDataDTO, QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
+import { randomUUID } from 'crypto'
 
 @Injectable()
 export class QuoteV2RequestTransformService {

@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { Type } from 'class-transformer'
-import { IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
+import { IsNotEmpty, IsNumber, IsString, IsOptional } from 'class-validator'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 
 export class QuoteV2QuoteRequestDTO {
@@ -44,40 +43,4 @@ export class QuoteV2QuoteRequestDTO {
   @ViemAddressTransform()
   @IsNotEmpty()
   recipient: Hex
-}
-
-export class QuoteV2ContractsRequestDTO {
-  @ApiPropertyOptional()
-  @ViemAddressTransform()
-  @IsOptional()
-  intentSource?: Hex
-
-  @ApiPropertyOptional()
-  @ViemAddressTransform()
-  @IsOptional()
-  prover?: Hex
-
-  @ApiPropertyOptional()
-  @ViemAddressTransform()
-  @IsOptional()
-  inbox?: Hex
-}
-
-export class QuoteV2RequestDTO {
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  dAppID: string
-
-  @ApiProperty()
-  @IsNotEmpty()
-  @ValidateNested()
-  @Type(() => QuoteV2QuoteRequestDTO)
-  quoteRequest: QuoteV2QuoteRequestDTO
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => QuoteV2ContractsRequestDTO)
-  contracts?: QuoteV2ContractsRequestDTO
 }
