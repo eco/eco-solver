@@ -8,7 +8,7 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { SolanaConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
@@ -18,6 +18,7 @@ export class SvmReaderService extends BaseChainReader {
   constructor(
     private solanaConfigService: SolanaConfigService,
     protected readonly logger: SystemLoggerService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     super();
     this.logger.setContext(SvmReaderService.name);
@@ -77,7 +78,10 @@ export class SvmReaderService extends BaseChainReader {
   async isIntentFunded(intent: Intent, _chainId?: number | string): Promise<boolean> {
     try {
       // Get source chain info for vault derivation
-      const sourceChainId = intent.sourceChainId || 'solana-mainnet';
+      if (!intent.sourceChainId) {
+        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+      }
+      const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
       const destChainType = ChainTypeDetector.detect(intent.destination);
 
@@ -97,8 +101,15 @@ export class SvmReaderService extends BaseChainReader {
         destChainType,
       );
 
+      // Get portal program ID from config
+      const portalProgramAddress = this.blockchainConfigService.getPortalAddress(sourceChainId);
+      const portalProgramId = new PublicKey(portalProgramAddress);
+
       // Derive vault PDA
-      const vaultPDA = PortalHashUtils.deriveVaultPDA(Buffer.from(intentHash.slice(2), 'hex'));
+      const vaultPDA = PortalHashUtils.deriveVaultPDA(
+        Buffer.from(intentHash.slice(2), 'hex'),
+        portalProgramId,
+      );
 
       this.logger.debug(
         `Checking vault funding for intent ${intent.intentId} at ${vaultPDA.toString()}`,

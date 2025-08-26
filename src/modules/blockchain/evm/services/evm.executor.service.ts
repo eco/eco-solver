@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi } from 'viem';
 
-import { PORTAL_ADDRESSES, PortalAbi } from '@/common/abis/portal.abi';
+import { PortalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
@@ -58,8 +58,8 @@ export class EvmExecutorService extends BaseChainExecutor {
       const claimant = await wallet.getAddress();
       span.setAttribute('evm.claimant_address', claimant);
 
-      // Get Portal address for destination chain
-      const portalAddress = PORTAL_ADDRESSES[destinationChainId];
+      // Get Portal address for destination chain from config
+      const portalAddress = this.evmConfigService.getPortalAddress(destinationChainId) as Address;
       if (!portalAddress) {
         throw new Error(`No Portal address configured for chain ${destinationChainId}`);
       }

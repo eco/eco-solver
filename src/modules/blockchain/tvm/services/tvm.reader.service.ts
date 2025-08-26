@@ -8,7 +8,7 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { TvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -23,6 +23,7 @@ export class TvmReaderService extends BaseChainReader {
     private tvmConfigService: TvmConfigService,
     protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     super();
     this.logger.setContext(TvmReaderService.name);
@@ -152,7 +153,10 @@ export class TvmReaderService extends BaseChainReader {
 
     try {
       // Get source chain info for vault derivation
-      const sourceChainId = intent.sourceChainId || chainId;
+      if (!intent.sourceChainId) {
+        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+      }
+      const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
       const destChainType = ChainTypeDetector.detect(intent.destination);
 
@@ -172,11 +176,15 @@ export class TvmReaderService extends BaseChainReader {
         destChainType,
       );
 
+      // Get portal address from config
+      const portalAddress = this.blockchainConfigService.getPortalAddress(sourceChainId);
+
       // Derive vault address
       const vaultAddress = PortalHashUtils.getVaultAddress(
         sourceChainType,
         sourceChainId,
         intentHash,
+        portalAddress,
       );
 
       span.setAttribute('tvm.vault_address', vaultAddress);

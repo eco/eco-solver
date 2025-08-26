@@ -4,11 +4,9 @@ import { IMessageBridgeProverAbi } from '@eco-foundation/routes-ts';
 import * as api from '@opentelemetry/api';
 import { Address, erc20Abi, Hex, isAddress } from 'viem';
 
-import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
+import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -103,63 +101,49 @@ export class EvmReaderService extends BaseChainReader {
     });
 
     try {
-      // Get Portal address for the chain
-      const portalAddress = PORTAL_ADDRESSES[chainId];
-      if (!portalAddress) {
-        this.logger.warn(`No Portal address configured for chain ${chainId}`);
-        span.setAttribute('portal.configured', false);
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        span.end();
-        return false;
-      }
-
-      // Derive vault address for this intent
-      const vaultAddress =
-        intent.vaultAddress ||
-        PortalHashUtils.getVaultAddress(
-          ChainTypeDetector.detect(chainId),
-          chainId,
-          intent.intentId,
-        );
-
+      // Get Portal address from config
+      const portalAddress = this.evmConfigService.getPortalAddress(chainId);
+      
       span.setAttributes({
         'portal.address': portalAddress,
-        'vault.address': vaultAddress,
+        'portal.method': 'isIntentFunded_contract',
       });
 
       const client = this.transportService.getPublicClient(chainId);
 
-      // Check native balance in vault
-      const nativeBalance = await client.getBalance({ address: vaultAddress as Address });
+      // Use Portal contract's isIntentFunded function
+      // Construct the intent struct for the contract call
+      const portalIntent = {
+        destination: intent.destination,
+        route: {
+          salt: intent.route.salt,
+          deadline: intent.route.deadline,
+          portal: intent.route.portal,
+          tokens: intent.route.tokens,
+          calls: intent.route.calls,
+        },
+        reward: {
+          deadline: intent.reward.deadline,
+          creator: intent.reward.creator,
+          prover: intent.reward.prover,
+          nativeValue: intent.reward.nativeAmount, // Portal ABI uses nativeValue
+          tokens: intent.reward.tokens,
+        },
+      };
 
-      if (nativeBalance < intent.reward.nativeAmount) {
-        span.setAttribute('vault.native_sufficient', false);
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        return false;
-      }
-
-      // Check token balances in vault
-      for (const token of intent.reward.tokens) {
-        const tokenBalance = await client.readContract({
-          address: token.token,
-          abi: erc20Abi,
-          functionName: 'balanceOf',
-          args: [vaultAddress as Address],
-        });
-
-        if ((tokenBalance as bigint) < token.amount) {
-          span.setAttribute('vault.token_sufficient', false);
-          span.setStatus({ code: api.SpanStatusCode.OK });
-          return false;
-        }
-      }
+      const isFunded = await client.readContract({
+        address: portalAddress,
+        abi: PortalAbi,
+        functionName: 'isIntentFunded',
+        args: [portalIntent],
+      });
 
       span.setAttributes({
-        'vault.native_balance': nativeBalance.toString(),
-        'vault.fully_funded': true,
+        'portal.intent_funded': isFunded,
       });
       span.setStatus({ code: api.SpanStatusCode.OK });
-      return true;
+      
+      return Boolean(isFunded);
     } catch (error) {
       this.logger.error(`Failed to check if intent ${intent.intentId} is funded:`, error);
       span.recordException(error as Error);
@@ -209,6 +193,11 @@ export class EvmReaderService extends BaseChainReader {
     });
 
     try {
+      // Validate that sourceChainId is provided
+      if (!intent.sourceChainId) {
+        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+      }
+
       const client = this.transportService.getPublicClient(chainId);
 
       // Call fetchFee on the prover contract
@@ -217,7 +206,7 @@ export class EvmReaderService extends BaseChainReader {
         abi: IMessageBridgeProverAbi,
         functionName: 'fetchFee',
         args: [
-          intent.sourceChainId || 0n, // Source chain ID where the intent originates
+          intent.sourceChainId, // Source chain ID where the intent originates - no fallback
           [intent.intentId], // Intent ID for fee query
           [claimant], // Claimant array for fee query
           messageData, // Message data parameter

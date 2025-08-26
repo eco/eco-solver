@@ -136,6 +136,7 @@ const WalletsSchema = z.object({
 const EvmNetworkSchema = z.object({
   chainId: z.number().int().positive(),
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
+  portalAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   intentSourceAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   inboxAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   tokens: z.array(EvmTokenSchema).default([]),

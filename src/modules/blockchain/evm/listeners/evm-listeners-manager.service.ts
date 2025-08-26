@@ -3,7 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
-import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -19,6 +19,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     this.logger.setContext(EvmListenersManagerService.name);
   }
@@ -39,6 +40,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         this.eventEmitter,
         this.logger,
         this.otelService,
+        this.blockchainConfigService,
       );
 
       await listener.start();

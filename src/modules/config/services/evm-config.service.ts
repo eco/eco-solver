@@ -103,8 +103,7 @@ export class EvmConfigService {
 
   getPortalAddress(chainId: number): Address {
     const network = this.getChain(chainId);
-    // Portal address maps to the same as inbox address in the transition
-    return network.inboxAddress as Address;
+    return network.portalAddress as Address;
   }
 
   getProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {

@@ -3,12 +3,13 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as api from '@opentelemetry/api';
 import { PublicClient } from 'viem';
 
-import { PORTAL_ADDRESSES, PortalAbi } from '@/common/abis/portal.abi';
+import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -21,6 +22,7 @@ export class ChainListener extends BaseChainListener {
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     super();
     this.logger.setContext(`${ChainListener.name}:${config.chainId}`);
@@ -31,7 +33,7 @@ export class ChainListener extends BaseChainListener {
 
     const publicClient = this.transportService.getPublicClient(evmConfig.chainId);
 
-    const portalAddress = PORTAL_ADDRESSES[evmConfig.chainId];
+    const portalAddress = this.blockchainConfigService.getPortalAddress(evmConfig.chainId);
     if (!portalAddress) {
       throw new Error(`No Portal address configured for chain ${evmConfig.chainId}`);
     }
@@ -41,7 +43,7 @@ export class ChainListener extends BaseChainListener {
     this.unsubscribe = publicClient.watchContractEvent({
       abi: PortalAbi,
       eventName: 'IntentPublished',
-      address: portalAddress,
+      address: portalAddress as `0x${string}`,
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {

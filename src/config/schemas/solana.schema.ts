@@ -9,6 +9,7 @@ import { DeepPartial } from '@/common/types';
  */
 export const SolanaSchema = z
   .object({
+    chainId: z.string().default('solana-mainnet'),
     rpcUrl: z.string().url().default('https://api.mainnet-beta.solana.com'),
     wsUrl: z
       .string()

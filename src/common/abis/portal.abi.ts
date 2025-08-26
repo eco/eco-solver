@@ -3488,22 +3488,6 @@ export const PortalAbi = [
  * Maps chain IDs to their respective Portal contract addresses.
  * Supports EVM, TVM, and SVM chains with appropriate address formats.
  */
-export const PORTAL_ADDRESSES = {
-  // EVM chains
-  1: '0x0000000000000000000000000000000000000000' as Address, // Ethereum Mainnet - PLACEHOLDER
-  10: '0x0000000000000000000000000000000000000000' as Address, // Optimism - PLACEHOLDER
-  137: '0x0000000000000000000000000000000000000000' as Address, // Polygon - PLACEHOLDER
-  42161: '0x0000000000000000000000000000000000000000' as Address, // Arbitrum - PLACEHOLDER
-  11155111: '0x0000000000000000000000000000000000000000' as Address, // Sepolia - PLACEHOLDER
-
-  // TVM chains (Tron addresses in Base58 format)
-  728126428: 'TT5zbHDfimHgmMSG1SgzEuWRKKAoMwtHzA' as string, // Tron Shasta
-
-  // SVM chains (Solana program IDs)
-  'solana-mainnet': '52gVFYqekRiSUxWwCKPNKw9LhBsVxbZiLSnGVsTBGh5F' as string,
-  'solana-devnet': '52gVFYqekRiSUxWwCKPNKw9LhBsVxbZiLSnGVsTBGh5F' as string,
-} as const;
-
 /**
  * Vault implementation bytecode hash for CREATE2 address computation.
  * This is used to derive vault addresses deterministically.

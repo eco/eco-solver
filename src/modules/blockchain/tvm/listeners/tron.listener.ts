@@ -3,13 +3,13 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
 
-import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -25,6 +25,7 @@ export class TronListener extends BaseChainListener {
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     super();
     this.logger.setContext(`${TronListener.name}:${config.chainId}`);
@@ -34,7 +35,7 @@ export class TronListener extends BaseChainListener {
    * Starts the blockchain listener for monitoring new intents
    */
   async start(): Promise<void> {
-    const portalAddress = PORTAL_ADDRESSES[this.config.chainId];
+    const portalAddress = this.blockchainConfigService.getPortalAddress(this.config.chainId);
     if (!portalAddress) {
       throw new Error(`No Portal address configured for chain ${this.config.chainId}`);
     }
@@ -86,7 +87,7 @@ export class TronListener extends BaseChainListener {
     const span = this.otelService.startSpan('tvm.listener.pollForEvents', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
-        'portal.address': PORTAL_ADDRESSES[this.config.chainId],
+        'portal.address': this.blockchainConfigService.getPortalAddress(this.config.chainId),
         'tvm.last_block_number': this.lastBlockNumber,
       },
     });
@@ -107,7 +108,7 @@ export class TronListener extends BaseChainListener {
         return;
       }
 
-      const portalAddress = PORTAL_ADDRESSES[this.config.chainId];
+      const portalAddress = this.blockchainConfigService.getPortalAddress(this.config.chainId);
       // Convert address to hex for event filtering
       const hexPortalAddress = portalAddress.startsWith('T')
         ? this.utilsService.toHex(portalAddress)

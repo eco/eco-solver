@@ -3,12 +3,15 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
-import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
-import { FulfillmentConfigService, SolanaConfigService } from '@/modules/config/services';
+import {
+  BlockchainConfigService,
+  FulfillmentConfigService,
+  SolanaConfigService,
+} from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
@@ -23,6 +26,7 @@ export class SolanaListener extends BaseChainListener {
     private eventEmitter: EventEmitter2,
     private fulfillmentConfigService: FulfillmentConfigService,
     private readonly logger: SystemLoggerService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     super();
     this.logger.setContext(SolanaListener.name);
@@ -34,8 +38,9 @@ export class SolanaListener extends BaseChainListener {
       commitment: 'confirmed',
     });
 
-    // Use Portal program ID instead of old program ID
-    const portalProgramId = PORTAL_ADDRESSES['solana-devnet']; // Or solana-mainnet based on config
+    // Get Portal program ID from config service
+    const chainId = this.solanaConfigService.chainId || 'solana-mainnet';
+    const portalProgramId = this.blockchainConfigService.getPortalAddress(chainId);
     this.programId = new PublicKey(portalProgramId);
     this.keypair = Keypair.fromSecretKey(
       Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),

@@ -5,6 +5,7 @@ import { configurationFactory } from '@/config/configuration-factory';
 import {
   AppConfigService,
   AwsConfigService,
+  BlockchainConfigService,
   DatabaseConfigService,
   DataDogConfigService,
   EvmConfigService,
@@ -30,6 +31,7 @@ const configProviders = [
   FulfillmentConfigService,
   DataDogConfigService,
   OpenTelemetryConfigService,
+  BlockchainConfigService,
 ];
 
 @Global()

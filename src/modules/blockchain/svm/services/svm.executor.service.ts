@@ -49,7 +49,10 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
     try {
       // Get source chain info for hash calculation
-      const sourceChainId = intent.sourceChainId || intent.destination;
+      if (!intent.sourceChainId) {
+        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+      }
+      const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
       const destChainType = ChainTypeDetector.detect(intent.destination);
 

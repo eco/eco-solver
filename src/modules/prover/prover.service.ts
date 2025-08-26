@@ -2,10 +2,11 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { Address, isAddressEqual } from 'viem';
 
-import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
@@ -18,6 +19,7 @@ export class ProverService implements OnModuleInit {
     private hyperProver: HyperProver,
     private metalayerProver: MetalayerProver,
     private readonly logger: SystemLoggerService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     this.logger.setContext(ProverService.name);
   }
@@ -30,7 +32,7 @@ export class ProverService implements OnModuleInit {
     // Validate Portal address in route
     const portalAddress = intent.route.portal;
     const destinationChainId = Number(intent.destination);
-    const expectedPortal = PORTAL_ADDRESSES[destinationChainId];
+    const expectedPortal = this.blockchainConfigService.getPortalAddress(destinationChainId);
 
     if (!expectedPortal) {
       return {
@@ -39,7 +41,8 @@ export class ProverService implements OnModuleInit {
       };
     }
 
-    if (!PortalHashUtils.validatePortalAddress(portalAddress, destinationChainId)) {
+    const chainType = ChainTypeDetector.detect(destinationChainId);
+    if (!PortalHashUtils.validatePortalAddress(portalAddress, expectedPortal, chainType)) {
       return {
         isValid: false,
         reason: `Portal address mismatch: expected ${expectedPortal}, got ${portalAddress}`,

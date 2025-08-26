@@ -9,7 +9,6 @@ import { PublicKey } from '@solana/web3.js';
 import { Address, encodeAbiParameters, Hex, keccak256, parseAbiParameters } from 'viem';
 
 import {
-  PORTAL_ADDRESSES,
   Reward,
   Route,
   VAULT_IMPLEMENTATION_BYTECODE_HASH,
@@ -107,15 +106,17 @@ export class PortalHashUtils {
    * vault = PDA([b"vault", intentHash], PortalProgramID)
    *
    * @param intentHash - Intent hash as Buffer
-   * @param portalProgramId - Portal program public key (optional, uses default)
+   * @param portalProgramId - Portal program public key (required)
    * @returns Vault PDA
    */
   static deriveVaultPDA(intentHash: Buffer, portalProgramId?: PublicKey): PublicKey {
-    const programId = portalProgramId || new PublicKey(PORTAL_ADDRESSES['solana-mainnet']);
+    if (!portalProgramId) {
+      throw new Error('Portal program ID is required for deriving vault PDA');
+    }
 
     const [vaultPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('vault'), intentHash],
-      programId,
+      portalProgramId,
     );
 
     return vaultPDA;
@@ -146,32 +147,34 @@ export class PortalHashUtils {
    * @param chainType - Chain type
    * @param chainId - Chain identifier
    * @param intentHash - Intent hash
+   * @param portalAddress - Portal contract address for the chain
    * @returns Vault address as string
    */
   static getVaultAddress(
     chainType: ChainType,
     chainId: string | number | bigint,
     intentHash: Hex,
+    portalAddress: string,
   ): string {
     switch (chainType) {
       case ChainType.EVM: {
-        const portalAddress = PORTAL_ADDRESSES[Number(chainId)] as Address;
         if (!portalAddress) {
-          throw new Error(`No Portal address configured for EVM chain ${chainId}`);
+          throw new Error(`No Portal address provided for EVM chain ${chainId}`);
         }
-        return this.deriveVaultAddress(portalAddress, intentHash);
+        return this.deriveVaultAddress(portalAddress as Address, intentHash);
       }
 
       case ChainType.SVM: {
         const intentHashBuffer = Buffer.from(intentHash.slice(2), 'hex');
-        const vaultPDA = this.deriveVaultPDA(intentHashBuffer);
+        // For SVM, use the provided portal address if it's a valid PublicKey
+        const programId = portalAddress ? new PublicKey(portalAddress) : undefined;
+        const vaultPDA = this.deriveVaultPDA(intentHashBuffer, programId);
         return vaultPDA.toString();
       }
 
       case ChainType.TVM: {
-        const portalAddress = PORTAL_ADDRESSES[Number(chainId)] as string;
         if (!portalAddress) {
-          throw new Error(`No Portal address configured for TVM chain ${chainId}`);
+          throw new Error(`No Portal address provided for TVM chain ${chainId}`);
         }
         return this.deriveVaultAddressTvm(portalAddress, intentHash);
       }
@@ -185,16 +188,15 @@ export class PortalHashUtils {
    * Validates that a portal address matches the expected address for a chain
    *
    * @param portalAddress - Portal address to validate
-   * @param chainId - Chain identifier
-   * @returns true if address matches configured Portal address
+   * @param expectedAddress - Expected portal address for the chain
+   * @param chainType - Chain type for comparison logic
+   * @returns true if address matches expected Portal address
    */
-  static validatePortalAddress(portalAddress: string, chainId: string | number | bigint): boolean {
-    const chainType = ChainTypeDetector.detect(chainId);
-    const expectedAddress =
-      chainType === ChainType.SVM
-        ? PORTAL_ADDRESSES[chainId as string]
-        : PORTAL_ADDRESSES[Number(chainId)];
-
+  static validatePortalAddress(
+    portalAddress: string,
+    expectedAddress: string,
+    chainType: ChainType,
+  ): boolean {
     if (!expectedAddress) {
       return false;
     }
@@ -215,6 +217,7 @@ export class PortalHashUtils {
    * @param chainType - Chain type
    * @param chainId - Chain identifier
    * @param intentHash - Intent hash
+   * @param portalAddress - Portal contract address for the chain
    * @returns true if address is the correct vault for the intent
    */
   static isValidVaultAddress(
@@ -222,9 +225,10 @@ export class PortalHashUtils {
     chainType: ChainType,
     chainId: string | number | bigint,
     intentHash: Hex,
+    portalAddress: string,
   ): boolean {
     try {
-      const expectedVault = this.getVaultAddress(chainType, chainId, intentHash);
+      const expectedVault = this.getVaultAddress(chainType, chainId, intentHash, portalAddress);
 
       // Case-insensitive comparison for EVM
       if (chainType === ChainType.EVM) {

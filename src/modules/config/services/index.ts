@@ -1,5 +1,6 @@
 export * from './app-config.service';
 export * from './aws-config.service';
+export * from './blockchain-config.service';
 export * from './database-config.service';
 export * from './datadog-config.service';
 export * from './evm-config.service';

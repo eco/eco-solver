@@ -60,8 +60,11 @@ export class QuotesService {
       throw new BadRequestException(failedResponse);
     }
 
-    // Build successful response
-    const sourceChainId = Number(intent.sourceChainId || intent.destination);
+    // Build successful response - sourceChainId should be present after validation
+    if (!intent.sourceChainId) {
+      throw new BadRequestException('Intent sourceChainId is required');
+    }
+    const sourceChainId = Number(intent.sourceChainId);
     const destinationChainId = Number(intent.destination);
 
     // Get contract addresses

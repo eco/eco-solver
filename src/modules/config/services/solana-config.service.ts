@@ -11,6 +11,10 @@ type SolanaConfig = z.infer<typeof SolanaSchema>;
 export class SolanaConfigService {
   constructor(private configService: ConfigService) {}
 
+  get chainId(): SolanaConfig['chainId'] {
+    return this.configService.get<string>('solana.chainId');
+  }
+
   get rpcUrl(): SolanaConfig['rpcUrl'] {
     return this.configService.get<string>('solana.rpcUrl');
   }

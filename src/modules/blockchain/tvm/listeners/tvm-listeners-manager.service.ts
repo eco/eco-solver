@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { TvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
@@ -21,6 +21,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     this.logger.setContext(TvmListenersManagerService.name);
   }
@@ -52,6 +53,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         this.eventEmitter,
         this.logger,
         this.otelService,
+        this.blockchainConfigService,
       );
 
       this.listeners.push(listener);
