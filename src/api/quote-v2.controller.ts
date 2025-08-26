@@ -1,15 +1,15 @@
+import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { API_V2_ROOT } from '@/common/routes/constants'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteErrorsInterface } from '@/quote/errors'
-import { QuoteV2RequestDTO } from '@/quote/dto/quote-v2-request.dto'
 import { QuoteService } from '@/quote/quote.service'
-import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.service'
+import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { QuoteV2RequestTransformService } from '@/quote/services/quote-v2-request-transform.service'
-import { QuoteV2ResponseDTO } from '@/quote/dto/quote-v2-response.dto'
-import { EcoAnalyticsService } from '@/analytics'
-import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
+import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.service'
 
 @Controller(API_V2_ROOT + '/quote')
 export class QuoteV2Controller {

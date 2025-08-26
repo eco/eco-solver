@@ -1,16 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Hex } from 'viem'
+import { Injectable, Logger } from '@nestjs/common'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import {
-  QuoteV2ResponseDTO,
-  QuoteV2QuoteResponseDTO,
-  QuoteV2FeeDTO,
-  QuoteV2ContractsDTO,
-} from '@/quote/dto/quote-v2-response.dto'
-import { Hex } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
+import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
+import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
+import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
 
 @Injectable()
 export class QuoteV2TransformService {
