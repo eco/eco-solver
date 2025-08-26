@@ -228,49 +228,53 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
       }
 
-      for (const log of logs) {
-        log.sourceChainID = BigInt(source.chainID)
-        log.sourceNetwork = source.network
+      await this.processLogsResiliently(
+        logs,
+        async (log) => {
+          log.sourceChainID = BigInt(source.chainID)
+          log.sourceNetwork = source.network
 
-        // bigint as it can't serialize to JSON
-        const createIntent = BigIntSerializer.serialize(log)
-        const jobId = getIntentJobId(
-          'watch-create-intent',
-          createIntent.args.intentHash,
-          createIntent.logIndex,
-        )
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `watch intent`,
-            properties: { createIntent, jobId },
-          }),
-        )
-
-        try {
-          // add to processing queue
-          await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.create_intent, createIntent, {
-            jobId,
-            ...this.watchJobConfig,
-          })
-
-          // Track successful job addition
-          this.ecoAnalytics.trackWatchCreateIntentJobQueued(createIntent, jobId, source)
-        } catch (error) {
-          // Track job queue failure with complete context
-          this.ecoAnalytics.trackWatchJobQueueError(
-            error,
-            ERROR_EVENTS.CREATE_INTENT_JOB_QUEUE_FAILED,
-            {
-              createIntent,
-              jobId,
-              source,
-              transactionHash: createIntent.transactionHash,
-              logIndex: createIntent.logIndex,
-            },
+          // bigint as it can't serialize to JSON
+          const createIntent = BigIntSerializer.serialize(log)
+          const jobId = getIntentJobId(
+            'watch-create-intent',
+            createIntent.args.intentHash,
+            createIntent.logIndex,
           )
-          throw error
-        }
-      }
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `watch intent`,
+              properties: { createIntent, jobId },
+            }),
+          )
+
+          try {
+            // add to processing queue
+            await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.create_intent, createIntent, {
+              jobId,
+              ...this.watchJobConfig,
+            })
+
+            // Track successful job addition
+            this.ecoAnalytics.trackWatchCreateIntentJobQueued(createIntent, jobId, source)
+          } catch (error) {
+            // Track job queue failure with complete context
+            this.ecoAnalytics.trackWatchJobQueueError(
+              error,
+              ERROR_EVENTS.CREATE_INTENT_JOB_QUEUE_FAILED,
+              {
+                createIntent,
+                jobId,
+                source,
+                transactionHash: createIntent.transactionHash,
+                logIndex: createIntent.logIndex,
+              },
+            )
+            throw error
+          }
+        },
+        'watch create-intent',
+      )
     }
   }
 }
