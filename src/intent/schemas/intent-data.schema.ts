@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
-import { getAddress, Hex, Mutable } from 'viem'
-import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
+import { Address, getAddress, Hex, Mutable } from 'viem'
+import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface, V2RouteType } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
@@ -124,20 +124,25 @@ export class IntentDataModel implements IntentType {
     return encodeIntent(intentDataModel)
   }
 
-  static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
+  static fromEvent(
+    sourceChainID: bigint, 
+    logIndex: number, 
+    event: IntentCreatedEventLog, 
+    route: V2RouteType
+  ): IntentDataModel {
     const e = event.args
     return new IntentDataModel({
-      hash: e.hash,
-      salt: e.salt,
-      source: e.source,
+      hash: e.intentHash,
+      salt: route.salt,
+      source: sourceChainID,
       destination: e.destination,
-      inbox: e.inbox,
-      routeTokens: e.routeTokens as Mutable<typeof e.routeTokens>,
-      calls: e.calls as Mutable<typeof e.calls>,
+      inbox: route.portal,
+      routeTokens: route.tokens as Mutable<typeof route.tokens>,
+      calls: route.calls as Mutable<typeof route.calls>,
       creator: e.creator,
       prover: e.prover,
-      deadline: e.deadline,
-      nativeValue: e.nativeValue,
+      deadline: e.rewardDeadline,
+      nativeValue: e.rewardNativeAmount,
       rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
       logIndex,
     })

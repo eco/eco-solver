@@ -1,14 +1,14 @@
-import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify } from 'viem'
+import { ContractFunctionArgs, decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify } from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
+import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentCreatedEventViemType = Prettify<
   GetEventArgs<
-    typeof IntentSourceAbi,
-    'IntentCreated',
+    typeof IIntentSourceAbi,
+    'IntentPublished',
     {
       EnableUnion: true
       IndexedOnly: false
@@ -33,13 +33,13 @@ export interface RewardTokensInterface extends RewardTokensType {}
  * Define the type for the IntentSource event log
  */
 export type IntentCreatedEventLog = DecodeEventLogReturnType<
-  typeof IntentSourceAbi,
-  'IntentCreated'
+  typeof IIntentSourceAbi,
+  'IntentPublished'
 >
 
 // Define the type for the IntentCreated event log
 export type IntentCreatedLog = Prettify<
-  Log<bigint, number, false, ExtractAbiEvent<typeof IntentSourceAbi, 'IntentCreated'>, true> & {
+  Log<bigint, number, false, ExtractAbiEvent<typeof IIntentSourceAbi, 'IntentPublished'>, true> & {
     sourceNetwork: Network
     sourceChainID: bigint
   }
@@ -47,8 +47,8 @@ export type IntentCreatedLog = Prettify<
 
 export function decodeCreateIntentLog(data: Hex, topics: [signature: Hex, ...args: Hex[]] | []) {
   return decodeEventLog({
-    abi: IntentSourceAbi,
-    eventName: 'IntentCreated',
+    abi: IIntentSourceAbi,
+    eventName: 'IntentPublished',
     topics,
     data,
   })
@@ -57,7 +57,7 @@ export function decodeCreateIntentLog(data: Hex, topics: [signature: Hex, ...arg
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields
 export type IntentFundedEventViemType = Prettify<
   GetEventArgs<
-    typeof IntentSourceAbi,
+    typeof IIntentSourceAbi,
     'IntentFunded',
     {
       EnableUnion: true
@@ -73,11 +73,38 @@ export type IntentFundedEventViemType = Prettify<
 /**
  * Define the type for the IntentSource event log
  */
-export type IntentFundedEventLog = DecodeEventLogReturnType<typeof IntentSourceAbi, 'IntentFunded'>
+export type IntentFundedEventLog = DecodeEventLogReturnType<typeof IIntentSourceAbi, 'IntentFunded'>
+
+export type V2IntentType = ContractFunctionArgs<typeof IIntentSourceAbi, 'pure', 'getIntentHash'>[number];
+export type V2RouteType = Extract<V2IntentType, { route: any }>['route'];
+
+export const routeStructAbi = [
+  { name: 'salt', type: 'bytes32' },
+  { name: 'deadline', type: 'uint64' },
+  { name: 'portal', type: 'address' },
+  { name: 'nativeAmount', type: 'uint256' },
+  { 
+    name: 'tokens', 
+    type: 'tuple[]',
+    components: [
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ]
+  },
+  {
+    name: 'calls',
+    type: 'tuple[]', 
+    components: [
+      { name: 'target', type: 'address' },
+      { name: 'data', type: 'bytes' },
+      { name: 'value', type: 'uint256' }
+    ]
+  }
+] as const
 
 // Define the type for the IntentCreated event log
 export type IntentFundedLog = Prettify<
-  Log<bigint, number, false, ExtractAbiEvent<typeof IntentSourceAbi, 'IntentFunded'>, true> & {
+  Log<bigint, number, false, ExtractAbiEvent<typeof IIntentSourceAbi, 'IntentFunded'>, true> & {
     sourceNetwork: Network
     sourceChainID: bigint
   }
@@ -85,7 +112,7 @@ export type IntentFundedLog = Prettify<
 
 export function decodeIntentFundedLog(data: Hex, topics: [signature: Hex, ...args: Hex[]] | []) {
   return decodeEventLog({
-    abi: IntentSourceAbi,
+    abi: IIntentSourceAbi,
     eventName: 'IntentFunded',
     topics,
     data,

@@ -1,6 +1,21 @@
 export default {
   server: {
-    url: 'http://localhost:3000',
+    url: 'http://localhost:3001',
+  },
+
+  rpcs: {
+    config: {
+      webSockets: false,
+    },
+    keys: {},
+    custom: {
+      '10': {
+        http: ['https://opt-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
+      },
+      '8453': {
+        http: ['https://base-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
+      },
+    },
   },
 
   logger: {
@@ -34,66 +49,48 @@ export default {
   },
   intentSources: [
     {
-      network: 'opt-sepolia',
-      chainID: 11155420,
+      network: 'optimism',
+      chainID: 10,
       tokens: [
-        '0x5fd84259d66Cd46123540766Be93DFE6D43130D7', //usdc
-        '0x8327Db9040811545C13331A453aBe9C7AA1aCDf8',
-        '0x368d7C52B0F62228907C133204605a5B11A1dB6d',
-        '0x00D2d1162c689179e8bA7a3b936f80A010A0b5CF',
-        '0x3328C29843F7c7dfF7381aF54A03C7423431Eaa4',
-        '0xd3F4Bef596a04e2be4fbeB17Dd70f02F717c5a6c',
-        '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a',
+        '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' //usdc
       ],
     },
     {
-      network: 'base-sepolia',
-      chainID: 84532,
+      network: 'base',
+      chainID: 8453,
       tokens: [
-        '0xAb1D243b07e99C91dE9E4B80DFc2B07a8332A2f7', //usdc
-        '0x8bDa9F5C33FBCB04Ea176ea5Bc1f5102e934257f',
-        '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a',
+        '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', //usdc
       ],
     },
   ],
   solvers: {
     //base sepolia
-    84532: {
+    8453: {
       targets: {
-        //base sepolia USDC
-        '0xAb1D243b07e99C91dE9E4B80DFc2B07a8332A2f7': {
-          contractType: 'erc20',
-          selectors: ['transfer(address,uint256)'],
-          minBalance: 1000,
-        },
-        '0x8bDa9F5C33FBCB04Ea176ea5Bc1f5102e934257f': {
-          contractType: 'erc20',
-          selectors: ['transfer(address,uint256)'],
-          minBalance: 1000,
-        },
-        '0x93551e3F61F8E3EE73DDc096BddbC1ADc52f5A3a': {
+        //base mainnet USDC
+        '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913': {
           contractType: 'erc20',
           selectors: ['transfer(address,uint256)'],
           minBalance: 1000,
         },
       },
-      network: 'base-sepolia',
-      chainID: 84532,
+      network: 'base',
+      chainID: 8453,
       averageBlockTime: 2,
       gasOverhead: 145_000,
     },
     //op sepolia
-    11155420: {
+    10: {
       targets: {
-        //op sepolia USDC
-        '0x5fd84259d66Cd46123540766Be93DFE6D43130D7': {
+        //op mainnet USDC
+        '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85': {
           contractType: 'erc20',
           selectors: ['transfer(address,uint256)'],
           minBalance: 1000,
         },
       },
-      network: 'opt-sepolia',
-      chainID: 11155420,
+      network: 'optimism',
+      chainID: 10,
       averageBlockTime: 2,
       gasOverhead: 145_000,
     },
@@ -103,5 +100,49 @@ export default {
     apiOptions: {
       baseUrl: 'http://localhost:4000',
     },
+  },
+
+  crowdLiquidity: {
+    litNetwork: 'datil-dev',
+    capacityTokenId: 'placeholder-token-id',
+    capacityTokenOwnerPk: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    defaultTargetBalance: 1000,
+    feePercentage: 0.1,
+    actions: {
+      fulfill: 'placeholder-fulfill-action',
+      rebalance: 'placeholder-rebalance-action',
+    },
+    kernel: {
+      address: '0x0000000000000000000000000000000000000000',
+    },
+    pkp: {
+      ethAddress: '0x0000000000000000000000000000000000000000',
+      publicKey: 'placeholder-public-key',
+    },
+    supportedTokens: [],
+  },
+
+  liFi: {
+    integrator: 'eco-solver-dev',
+    apiKey: '',
+  },
+
+  squid: {
+    integratorId: 'test-integrator',
+    baseUrl: 'https://test.api.squidrouter.com',
+  },
+
+  fulfillment: {
+    run: 'single',
+    type: 'smart-wallet-account',
+  },
+
+  liquidityManager: {
+    providers: [
+      {
+        name: 'LiFi',
+        enabled: false,
+      },
+    ],
   },
 }

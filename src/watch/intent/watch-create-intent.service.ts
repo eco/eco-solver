@@ -9,11 +9,11 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentCreatedLog } from '@/contracts'
 import { Log, PublicClient } from 'viem'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -86,8 +86,8 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
+      abi: IIntentSourceAbi,
+      eventName: 'IntentPublished',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
@@ -114,7 +114,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
           const createIntent = BigIntSerializer.serialize(log)
           const jobId = getIntentJobId(
             'watch-create-intent',
-            createIntent.args.hash,
+            createIntent.args.intentHash,
             createIntent.logIndex,
           )
           this.logger.debug(

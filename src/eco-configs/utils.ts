@@ -45,6 +45,21 @@ export function isPreEnv(): boolean {
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
   const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
+  if (id === 'base-pre') {
+    return {
+      IntentSource: "0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7",
+      Inbox: "0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7",
+      MetaProver: '0x0000000000000000000000000000000000000000',
+      HyperProver: '0xd1fD3527E3Dc99e34D5ecE8063D9B4AcC82669d0',
+    }
+  } else if (id === '10-pre') {
+    return {
+      IntentSource: "0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7",
+      Inbox: "0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7",
+      MetaProver: '0x0000000000000000000000000000000000000000',
+      HyperProver: '0xC09483299100ab9960eA1F641b0f94B9E6e0923C',
+    }
+  }
   const config = EcoProtocolAddresses[id]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)

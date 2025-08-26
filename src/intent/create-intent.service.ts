@@ -8,18 +8,19 @@ import { IntentSourceModel } from './schemas/intent-source.schema'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
+import { decodeAbiParameters, Hex } from 'viem'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import {
   CallDataInterface,
   decodeCreateIntentLog,
   IntentCreatedLog,
   RewardTokensInterface,
+  routeStructAbi,
 } from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { hashIntent, IIntentSourceAbi, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
@@ -63,13 +64,24 @@ export class CreateIntentService implements OnModuleInit {
         message: `createIntent ${intentWs.transactionHash}`,
         properties: {
           transactionHash: intentWs.transactionHash,
-          intentHash: intentWs.args?.hash,
+          intentHash: intentWs.args?.intentHash,
         },
       }),
     )
 
     const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    const [salt, deadline, portal, nativeAmount, tokens, calls] = decodeAbiParameters(routeStructAbi, ei.args.route);
+    
+    const decodedRoute = {
+      salt,
+      deadline,
+      portal,
+      nativeAmount,
+      tokens,
+      calls
+    };
+
+    const intent = IntentDataModel.fromEvent(intentWs.sourceChainID, intentWs.logIndex || 0, ei, decodedRoute)
 
     try {
       //check db if the intent is already filled
