@@ -1,4 +1,5 @@
 import { Queue } from 'bullmq'
+import { GatewayTopUpJobData, GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
@@ -10,6 +11,15 @@ import {
   CCTPLiFiDestinationSwapJobManager,
 } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { ExecuteCCTPMintJob, ExecuteCCTPMintJobManager } from '../jobs/execute-cctp-mint.job'
+import {
+  CheckCCTPV2AttestationJobData,
+  CheckCCTPV2AttestationJobManager,
+} from '../jobs/check-cctpv2-attestation.job'
+import { ExecuteCCTPV2MintJob, ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
+import {
+  CheckEverclearIntentJobData,
+  CheckEverclearIntentJobManager,
+} from '../jobs/check-everclear-intent.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -17,6 +27,10 @@ export enum LiquidityManagerJobName {
   CHECK_CCTP_ATTESTATION = 'CHECK_CCTP_ATTESTATION',
   EXECUTE_CCTP_MINT = 'EXECUTE_CCTP_MINT',
   CCTP_LIFI_DESTINATION_SWAP = 'CCTP_LIFI_DESTINATION_SWAP',
+  CHECK_CCTPV2_ATTESTATION = 'CHECK_CCTPV2_ATTESTATION',
+  EXECUTE_CCTPV2_MINT = 'EXECUTE_CCTPV2_MINT',
+  CHECK_EVERCLEAR_INTENT = 'CHECK_EVERCLEAR_INTENT',
+  GATEWAY_TOP_UP = 'GATEWAY_TOP_UP',
 }
 
 export type LiquidityManagerQueueDataType = {
@@ -76,5 +90,21 @@ export class LiquidityManagerQueue {
 
   startExecuteCCTPMint(data: ExecuteCCTPMintJob['data']): Promise<void> {
     return ExecuteCCTPMintJobManager.start(this.queue, data)
+  }
+
+  startCCTPV2AttestationCheck(data: CheckCCTPV2AttestationJobData): Promise<void> {
+    return CheckCCTPV2AttestationJobManager.start(this.queue, data)
+  }
+
+  startExecuteCCTPV2Mint(data: ExecuteCCTPV2MintJob['data']): Promise<void> {
+    return ExecuteCCTPV2MintJobManager.start(this.queue, data)
+  }
+
+  startCheckEverclearIntent(data: CheckEverclearIntentJobData): Promise<void> {
+    return CheckEverclearIntentJobManager.start(this.queue, data)
+  }
+
+  startGatewayTopUp(data: GatewayTopUpJobData): Promise<void> {
+    return GatewayTopUpJobManager.start(this.queue, data)
   }
 }

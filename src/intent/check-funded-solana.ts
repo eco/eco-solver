@@ -1,9 +1,8 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
 import { keccak256, encodePacked, encodeAbiParameters, Hex, decodeAbiParameters } from 'viem';
-import { IntentType, RewardType, RouteType } from '@eco-foundation/routes-ts';
-import { VmType } from '@/eco-configs/eco-config.types';
-import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
+import { VmType, IntentType, RewardType, RouteType } from '@/eco-configs/eco-config.types';
+import { BorshCoder, type Idl, BN, web3 } from '@coral-xyz/anchor';
 import { RewardStruct, RouteStruct } from './abi';
 import { getChainConfig } from '@/eco-configs/utils';
 
@@ -164,6 +163,10 @@ export function encodeReward(reward: RewardType): Hex {
   }
 }
 
+export function encodeIntent(intent: IntentType): Hex {
+  return encodePacked(['uint64', 'bytes32', 'bytes32'], [intent.destination, hashRoute(intent.route), hashReward(intent.reward)])
+}
+
 export function hashIntent(destination: bigint, route: RouteType, reward: RewardType): {
   routeHash: Hex
   rewardHash: Hex
@@ -258,7 +261,7 @@ export async function checkIntentFunding(
         }
         
         // Check balance of the token account
-        const tokenAccount = await getAccount(connection, tokenAccounts.value[0].pubkey);
+        const tokenAccount = await getAccount(new web3.Connection(connection.rpcEndpoint), tokenAccounts.value[0].pubkey);
         if (Number(tokenAccount.amount) < tokenReward.amount) {
           return false; // Insufficient token balance
         }

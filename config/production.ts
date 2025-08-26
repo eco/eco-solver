@@ -1,35 +1,35 @@
 export default {
   server: {
-    url: 'https://solver.bend.eco',
+    url: process.env.SERVICE_URL || 'https://solver.bend.eco',
   },
 
   indexer: {
-    url: 'https://protocol-indexer-production.up.railway.app',
+    url: process.env.INDEXER_URL || 'https://protocol-indexer-production.up.railway.app',
   },
 
   aws: [
     {
       region: 'us-east-2',
-      secretID: 'eco-solver-secrets-prod',
+      secretID: process.env.AWS_SECRET_ID_MISC || 'eco-solver-secrets-prod',
     },
     {
       region: 'us-east-2',
-      secretID: 'eco-solver-configs-prod',
+      secretID: process.env.AWS_SECRET_ID_CONFIGS || 'eco-solver-configs-prod',
     },
     {
       region: 'us-east-2',
-      secretID: 'eco-solver-configs-chains-prod',
+      secretID: process.env.AWS_SECRET_ID_CHAINS || 'eco-solver-configs-chains-prod',
     },
     {
       region: 'us-east-2',
-      secretID: 'eco-solver-whitelist-prod',
+      secretID: process.env.AWS_SECRET_ID_WHITELIST || 'eco-solver-whitelist-prod',
     },
   ],
   //don't add anything else here
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: 'https://quotes.eco.com',
+      baseUrl: process.env.REGISTRATION_URL || 'https://quotes.eco.com',
     },
   },
 }

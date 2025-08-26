@@ -5,7 +5,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenBalance } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceProvider } from '../interfaces/balance-provider.interface'
-import { Address, SerializableAddress, VmType } from '@eco-foundation/routes-ts'
+import { Address, SerializableAddress, VmType } from '@/eco-configs/eco-config.types'
 
 @Injectable()
 export class EvmBalanceService implements BalanceProvider {
@@ -98,9 +98,8 @@ export class EvmBalanceService implements BalanceProvider {
    * @param chainID - The chain ID to check the native balance on
    * @returns The native token balance in wei (base units), or 0n if no EOA address is found
    */
-  async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
+  async getNativeBalance(chainID: number, address: Address<VmType.EVM>): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(chainID)
-    const address = account == 'eoc' ? client.account?.address : client.kernelAccount.address
     if (!address) {
       return 0n
     }

@@ -13,7 +13,9 @@ import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-mana
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { Address } from '@eco-foundation/routes-ts'
+// import { Address } from '@eco-foundation/routes-ts'
+import { EcoAnalyticsService } from '@/analytics'
+import { Address } from '@/eco-configs/eco-config.types'
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
@@ -39,6 +41,10 @@ describe('LiFiProviderService', () => {
         {
           provide: KernelAccountClientV2Service,
           useValue: createMock<KernelAccountClientV2Service>(),
+        },
+        {
+          provide: EcoAnalyticsService,
+          useValue: createMock<EcoAnalyticsService>(),
         },
       ],
       imports: [
@@ -90,7 +96,7 @@ describe('LiFiProviderService', () => {
 
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
 
-      const rpcUrls = { '10': 'http://op.rpc.com' }
+      const rpcUrls = { '10': ['http://op.rpc.com'] }
       jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue(rpcUrls)
 
       await lifiProviderService.onModuleInit()
@@ -111,7 +117,7 @@ describe('LiFiProviderService', () => {
       mockGetClient.mockReturnValue({ account: { address: '0x123' } } as any)
 
       jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
-      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue({ '10': 'http://op.rpc.com' })
+      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue({ '10': ['http://op.rpc.com'] })
 
       // Mock cache initialization failure
       mockAssetCacheManager.initialize.mockRejectedValue(new Error('Cache init failed'))

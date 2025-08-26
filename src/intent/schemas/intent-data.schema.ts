@@ -4,7 +4,8 @@ import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType, RewardType } from '@eco-foundation/routes-ts'
+import { IntentType } from '@/eco-configs/eco-config.types'
+import { encodeIntent, hashIntent } from '@/intent/check-funded-solana'
 import { getChainAddress } from '@/eco-configs/utils'
 import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 
@@ -149,7 +150,6 @@ export class IntentDataModel implements IntentType {
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
     const e = event.args as any // Cast to any since we handle both formats
-    console.log("MADDEN: e", e)
     return new IntentDataModel({
       hash: e.hash || e.intentHash,
       salt: e.salt || '0x',
@@ -170,10 +170,8 @@ export class IntentDataModel implements IntentType {
   static toChainIntent(intent: IntentDataModel): IntentType {
     return {
       destination: intent.route.destination,
-      source: intent.route.source,
       route: intent.route,
       reward: intent.reward,
-
     }
   }
 }

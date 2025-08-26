@@ -3,9 +3,10 @@ import { Address as EvmAddress, Hex } from 'viem'
 import { PublicKey, Connection } from '@solana/web3.js'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceAbi, RewardType } from '@eco-foundation/routes-ts'
+import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { Rewa
 import { checkIntentFunding } from './check-funded-solana'
-import { Solver, VmType } from '@/eco-configs/eco-config.types'
+import { RewardType, Solver, VmType } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
 import { delay } from '@/common/utils/time'
@@ -18,6 +19,9 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
+import { checkIntentFunding } from './check-funded-solana'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -58,6 +62,7 @@ export class ValidateIntentService implements OnModuleInit {
     private readonly utilsIntentService: UtilsIntentService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly svmMultichainClientService: SvmMultichainClientService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
   onModuleInit() {
@@ -80,8 +85,17 @@ export class ValidateIntentService implements OnModuleInit {
       }),
     )
 
+    // Track validation start
+    this.ecoAnalytics.trackIntentValidationStarted(intentHash)
+
     const { model, solver } = await this.destructureIntent(intentHash)
     if (!model || !solver) {
+      // Track validation failed due to missing data
+      this.ecoAnalytics.trackIntentValidationFailed(
+        intentHash,
+        'missing_model_or_solver',
+        'destructure',
+      )
       return false
     }
 
@@ -104,6 +118,9 @@ export class ValidateIntentService implements OnModuleInit {
       jobId,
       ...this.intentJobConfig,
     })
+
+    // Track successful validation and queue addition
+    this.ecoAnalytics.trackIntentValidatedAndQueued(intentHash, jobId, model)
 
     return true
   }
@@ -134,8 +151,31 @@ export class ValidateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      // Track validation failure with detailed reasons
+      this.ecoAnalytics.trackIntentValidationFailed(
+        model.intent.hash,
+        'validation_checks_failed',
+        'assertValidations',
+        {
+          model,
+          solver,
+          validationResults: validations,
+          failedChecks: Object.entries(validations)
+            .filter(([, passed]) => !passed)
+            .map(([check]) => check),
+        },
+      )
       return false
     }
+
+    // Track successful validation
+    this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.VALIDATION_CHECKS_PASSED, {
+      intentHash: model.intent.hash,
+      model,
+      solver,
+      validationResults: validations,
+    })
 
     return true
   }
@@ -166,11 +206,30 @@ export class ValidateIntentService implements OnModuleInit {
           },
         }),
       )
+
+      // Track intent source not found error
+      this.ecoAnalytics.trackError(
+        ERROR_EVENTS.INTENT_FUNDING_CHECK_FAILED,
+        EcoError.IntentSourceNotFound(sourceChainID),
+        {
+          intentHash: model.intent.hash,
+          reason: 'intent_source_not_found',
+          sourceChainID,
+        },
+      )
       return false
     }
 
     let retryCount = 0
     let isIntentFunded = false
+
+    // Track funding check start
+    this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_STARTED, {
+      intentHash: model.intent.hash,
+      sourceChainID,
+      maxRetries: this.MAX_RETRIES,
+      retryDelayMs: this.RETRY_DELAY_MS,
+    })
 
     do {
       // Add delay for retries (skip delay on first attempt)
@@ -185,6 +244,14 @@ export class ValidateIntentService implements OnModuleInit {
             },
           }),
         )
+
+        // Track retry attempt
+        this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_RETRY, {
+          intentHash: model.intent.hash,
+          retryCount,
+          maxRetries: this.MAX_RETRIES,
+          sourceChainID,
+        })
       }
 
       // Check if the intent is funded
@@ -232,6 +299,29 @@ export class ValidateIntentService implements OnModuleInit {
 
       retryCount++
     } while (!isIntentFunded && retryCount <= this.MAX_RETRIES)
+
+    // Track funding check result
+    if (isIntentFunded) {
+      this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.INTENT.FUNDING_VERIFIED, {
+        intentHash: model.intent.hash,
+        sourceChainID,
+        retryCount: retryCount - 1,
+        funded: true,
+      })
+    } else {
+      this.ecoAnalytics.trackError(
+        ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_FAILED,
+        new Error('intent_not_funded_after_retries'),
+        {
+          intentHash: model.intent.hash,
+          sourceChainID,
+          retryCount: retryCount - 1,
+          maxRetries: this.MAX_RETRIES,
+          reason: 'intent_not_funded_after_retries',
+          funded: false,
+        },
+      )
+    }
 
     return isIntentFunded
   }

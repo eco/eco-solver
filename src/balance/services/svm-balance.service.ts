@@ -142,7 +142,7 @@ export class SvmBalanceService implements BalanceProvider {
    * @param account - The account type to check (for Solana, both map to the same wallet)
    * @returns The native SOL balance in lamports
    */
-  async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
+  async getNativeBalance(chainID: number, address: Address<VmType.SVM>): Promise<bigint> {
     const connection = await this.svmMultichainClientService.getConnection(chainID)
     const walletAddress = this.getSolverWalletAddress(chainID)
     

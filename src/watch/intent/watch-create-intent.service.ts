@@ -16,6 +16,8 @@ import * as BigIntSerializer from '@/common/utils/serialize'
 import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { Connection, PublicKey, Commitment } from '@solana/web3.js'
 import * as anchor from "@coral-xyz/anchor";
+import { EcoAnalyticsService } from '@/analytics'
+import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -31,8 +33,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     protected readonly publicClientService: MultichainPublicClientService,
     private readonly svmClientService: SvmMultichainClientService,
     protected readonly ecoConfigService: EcoConfigService,
+    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService)
+    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -41,21 +44,37 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
    * call {@link onModuleDestroy} to close the clients.
    */
   async subscribe(): Promise<void> {
-    const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
-      const vmType = getVmType(source.chainID)
-      console.log("MADDEN: vmType", vmType)
-      
-      if (vmType === VmType.EVM) {
-        const client = await this.publicClientService.getClient(source.chainID)
-        await this.subscribeTo(client, source)
-      } else if (vmType === VmType.SVM) {
-        await this.subscribeToSvm(source)
-      } else {
-        throw new Error(`Unsupported VM type for chain ${source.chainID}`)
-      }
-    })
+    const sources = this.ecoConfigService.getIntentSources()
 
-    await Promise.all(subscribeTasks)
+    // Track subscription start
+    this.ecoAnalytics.trackWatchCreateIntentSubscriptionStarted(sources)
+
+    try {
+      const subscribeTasks = sources.map(async (source) => {
+        const vmType = getVmType(source.chainID)
+      
+        if (vmType === VmType.EVM) {
+          const client = await this.publicClientService.getClient(source.chainID)
+          await this.subscribeTo(client, source)
+        } else if (vmType === VmType.SVM) {
+          await this.subscribeToSvm(source)
+        } else {
+          throw new Error(`Unsupported VM type for chain ${source.chainID}`)
+        }
+      })
+
+      await Promise.all(subscribeTasks)
+
+      // Track successful subscription
+      this.ecoAnalytics.trackWatchCreateIntentSubscriptionSuccess(sources)
+    } catch (error) {
+      // Track subscription failure
+      this.ecoAnalytics.trackError(ERROR_EVENTS.WATCH_CREATE_INTENT_SUBSCRIPTION_FAILED, error, {
+        sourceCount: sources.length,
+        sources,
+      })
+      throw error
+    }
   }
 
   /**
@@ -204,6 +223,11 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
 
   addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
     return async (logs: IntentCreatedLog[]) => {
+      // Track batch of events detected
+      if (logs.length > 0) {
+        this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
+      }
+
       for (const log of logs) {
         log.sourceChainID = BigInt(source.chainID)
         log.sourceNetwork = source.network
@@ -221,11 +245,31 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             properties: { createIntent, jobId },
           }),
         )
-        // add to processing queue
-        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.create_intent, createIntent, {
-          jobId,
-          ...this.intentJobConfig,
-        })
+
+        try {
+          // add to processing queue
+          await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.create_intent, createIntent, {
+            jobId,
+            ...this.watchJobConfig,
+          })
+
+          // Track successful job addition
+          this.ecoAnalytics.trackWatchCreateIntentJobQueued(createIntent, jobId, source)
+        } catch (error) {
+          // Track job queue failure with complete context
+          this.ecoAnalytics.trackWatchJobQueueError(
+            error,
+            ERROR_EVENTS.CREATE_INTENT_JOB_QUEUE_FAILED,
+            {
+              createIntent,
+              jobId,
+              source,
+              transactionHash: createIntent.transactionHash,
+              logIndex: createIntent.logIndex,
+            },
+          )
+          throw error
+        }
       }
     }
   }

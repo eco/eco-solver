@@ -1,4 +1,4 @@
-import { Address, SerializableAddress } from '@eco-foundation/routes-ts'
+import { Address, SerializableAddress } from '@/eco-configs/eco-config.types'
 import { TokenBalance } from '../types'
 
 export interface BalanceProvider {
@@ -29,5 +29,5 @@ export interface BalanceProvider {
    * @param account - The account type to check ('kernel' or 'eoc')
    * @returns The native token balance in base units
    */
-  getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint>
+  getNativeBalance(chainID: number, address: Address): Promise<bigint>
 }

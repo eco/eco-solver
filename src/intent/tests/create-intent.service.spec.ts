@@ -12,6 +12,7 @@ import { CreateIntentService } from '../create-intent.service'
 import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
 import { IntentDataModel } from '../schemas/intent-data.schema'
 import { FlagService } from '../../flags/flags.service'
+import { EcoAnalyticsService } from '@/analytics'
 
 jest.mock('../../contracts', () => {
   return {
@@ -37,6 +38,7 @@ describe('CreateIntentService', () => {
         { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
         { provide: FlagService, useValue: createMock<FlagService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),

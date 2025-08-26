@@ -18,6 +18,8 @@ import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 
 import { Connection, PublicKey } from '@solana/web3.js'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { ERROR_EVENTS } from '@/analytics/events.constants'
 
 /**
  * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
@@ -35,8 +37,9 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     private readonly svmClientService: SvmMultichainClientService,
     private createIntentService: CreateIntentService,
     protected readonly ecoConfigService: EcoConfigService,
+    protected readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    super(intentQueue, publicClientService, ecoConfigService)
+    super(intentQueue, publicClientService, ecoConfigService, ecoAnalytics)
   }
 
   /**
@@ -90,6 +93,10 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         prover: source.provers as `0x${string}`[],
       },
       onLogs: async (logs: Log[]): Promise<void> => {
+        // Track intent funded events detected
+        if (logs.length > 0) {
+          this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
+        }
         await this.addJob(source, { doValidation: true })(logs)
       },
     })
@@ -243,11 +250,31 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         // Add to db
         await this.addIntentFundedEvent(intentFunded)
 
-        // Add to processing queue
-        await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
-          jobId,
-          ...this.intentJobConfig,
-        })
+        try {
+          // Add to processing queue
+          await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.validate_intent, intentHash, {
+            jobId,
+            ...this.watchJobConfig,
+          })
+
+          // Track successful job addition
+          this.ecoAnalytics.trackWatchIntentFundedJobQueued(intentFunded, jobId, source)
+        } catch (error) {
+          // Track job queue failure with complete context
+          this.ecoAnalytics.trackWatchJobQueueError(
+            error,
+            ERROR_EVENTS.INTENT_FUNDED_JOB_QUEUE_FAILED,
+            {
+              intent: intentFunded,
+              intentHash,
+              jobId,
+              source,
+              transactionHash: intentFunded.transactionHash,
+              logIndex: intentFunded.logIndex,
+            },
+          )
+          throw error
+        }
       }
     }
   }
@@ -266,6 +293,13 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           },
         }),
       )
+
+      // Track database error
+      this.ecoAnalytics.trackError(ERROR_EVENTS.WATCH_INTENT_FUNDED_DB_ERROR, ex, {
+        addIntentFundedEvent,
+        operation: 'addIntentFundedEvent',
+        transactionHash: addIntentFundedEvent.transactionHash,
+      })
     }
   }
 

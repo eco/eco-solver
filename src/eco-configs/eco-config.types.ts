@@ -12,13 +12,80 @@ import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
 import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
-import { SerializableAddress } from '@eco-foundation/routes-ts'
+import { AnalyticsConfig } from '@/analytics'
 
 // VM Types for different blockchain architectures
 export enum VmType {
   EVM = 'EVM',
   SVM = 'SVM'
 }
+
+/**
+ * Generic Route type that works with both EVM and SVM addresses
+ */
+export type RouteType<TVM extends VmType = VmType> = {
+  vm: TVM
+  salt: Hex
+  deadline: bigint
+  portal: Address<TVM>
+  tokens: readonly {
+    token: Address<TVM>
+    amount: bigint
+  }[]
+  calls: readonly {
+    target: Address<TVM>
+    data: Hex
+    value: bigint
+  }[]
+}
+
+/**
+ * EVM-specific route type
+ */
+export type EvmRouteType = RouteType<VmType.EVM>
+
+/**
+ * SVM-specific route type
+ */
+export type SvmRouteType = RouteType<VmType.SVM>
+
+/**
+ * Generic Reward type that works with both EVM and SVM addresses
+ */
+export type RewardType<TVM extends VmType = VmType> = {
+  vm: TVM
+  creator: Address<TVM>
+  prover: Address<TVM>
+  deadline: bigint
+  nativeAmount: bigint
+  tokens: readonly {
+    token: Address<TVM>
+    amount: bigint
+  }[]
+}
+
+/**
+ * EVM-specific reward type
+ */
+export type EvmRewardType = RewardType<VmType.EVM>
+
+/**
+ * SVM-specific reward type  
+ */
+export type SvmRewardType = RewardType<VmType.SVM>
+
+/**
+ * Generic Intent type that works with both EVM and SVM addresses
+ *  
+ */
+export type IntentType<SourceVM extends VmType = VmType, DestinationVM extends VmType = VmType> = {
+  destination: bigint
+  route: RouteType<DestinationVM>
+  reward: RewardType<SourceVM>
+}
+
+
+
 
 // Mapping of chainId to VM type
 export const CHAIN_VM_TYPE_MAP: Record<number, VmType> = {
@@ -33,7 +100,13 @@ export function getVmType(chainId: number): VmType {
 }
 
 // Address type that supports both EVM (Hex) and SVM (base58) addresses
-export type Address = EvmAddress | SvmAddress
+export type Address<TVM extends VmType = VmType> = TVM extends VmType.EVM ? EvmAddress : SvmAddress
+
+// Serializable version of Address that can be used as a Record key
+// For EVM: hex string, for SVM: base58 string representation
+export type SerializableAddress<TVM extends VmType = VmType> = TVM extends VmType.EVM 
+  ? EvmAddress // Already a hex string
+  : string      // Base58 string representation of PublicKey
 
 // Chain configuration for both EVM and SVM chains
 export type EcoChainConfig = {
@@ -43,8 +116,10 @@ export type EcoChainConfig = {
   MetaProver: Address
 }
 
+
 // The config type that we store in json
 export type EcoConfigType = {
+  analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
   safe: SafeType
@@ -110,6 +185,11 @@ export type EcoConfigType = {
   CCTP: CCTPConfig
   warpRoutes: WarpRoutesConfig
   cctpLiFi: CCTPLiFiConfig
+  squid: SquidConfig
+  CCTPV2: CCTPV2Config
+  everclear: EverclearConfig
+  gateway: GatewayConfig
+  watch: WatchConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -149,6 +229,7 @@ export type RedisConfig = {
   redlockSettings?: Partial<Settings>
   jobs: {
     intentJobConfig: JobsOptions
+    watchJobConfig: JobsOptions
   }
 }
 
@@ -185,6 +266,9 @@ export type IntentConfig = {
   isNativeETHSupported: boolean
   intentFundedRetries: number
   intentFundedRetryDelayMs: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  // This is the default gas overhead
+  defaultGasOverhead: number
 }
 
 /**
@@ -335,6 +419,8 @@ export type Solver = {
 
   // The average block time for the chain in seconds
   averageBlockTime: number
+  // Gas overhead is the intent creation gas cost for the source chain
+  gasOverhead?: number
 }
 
 /**
@@ -408,7 +494,7 @@ export interface LiquidityManagerConfig {
   targetSlippage: number
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
-  swapSlippage?: number
+  swapSlippage: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
@@ -487,6 +573,18 @@ export interface CCTPConfig {
   }[]
 }
 
+export interface CCTPV2Config {
+  apiUrl: string
+  fastTransferEnabled?: boolean
+  chains: {
+    chainId: number
+    domain: number
+    token: Hex
+    tokenMessenger: Hex
+    messageTransmitter: Hex
+  }[]
+}
+
 export interface WarpRoutesConfig {
   routes: {
     chains: {
@@ -522,4 +620,43 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface SquidConfig {
+  integratorId: string
+  baseUrl: string
+}
+
+export interface EverclearConfig {
+  baseUrl: string
+}
+
+export interface GatewayConfig {
+  apiUrl: string
+  enabled?: boolean
+  bootstrap?: {
+    enabled: boolean
+    chainId: number
+    amountBase6: string
+  }
+  chains: {
+    chainId: number
+    domain: number
+    usdc: Hex
+    wallet?: Hex
+    minter?: Hex
+  }[]
+  fees?: {
+    // percentage = numerator / denominator; e.g., 5 / 100000 = 0.5 bps
+    percent?: { numerator: number | string; denominator: number | string }
+    // per-domain base fees in base-6 USDC
+    base6ByDomain?: Record<number, number | string>
+    // fallback base fee in base-6 USDC (default: Ethereum base fee)
+    fallbackBase6?: number | string
+  }
+}
+export interface WatchConfig {
+  recoveryBackoffBaseMs: number
+  recoveryBackoffMaxMs: number
+  recoveryStabilityWindowMs: number
 }
