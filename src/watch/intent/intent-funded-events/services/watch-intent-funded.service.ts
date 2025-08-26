@@ -14,6 +14,10 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
+
+import { Connection, PublicKey } from '@solana/web3.js'
+import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
 
@@ -30,6 +34,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) protected readonly intentQueue: Queue,
     private readonly intentFundedEventRepository: IntentFundedEventRepository,
     protected readonly publicClientService: MultichainPublicClientService,
+    private readonly svmClientService: SvmMultichainClientService,
     private createIntentService: CreateIntentService,
     protected readonly ecoConfigService: EcoConfigService,
     protected readonly ecoAnalytics: EcoAnalyticsService,
@@ -44,8 +49,16 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    */
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
-      const client = await this.publicClientService.getClient(source.chainID)
-      await this.subscribeTo(client, source)
+      const vmType = getVmType(source.chainID)
+      
+      if (vmType === VmType.EVM) {
+        const client = await this.publicClientService.getClient(source.chainID)
+        await this.subscribeTo(client, source)
+      } else if (vmType === VmType.SVM) {
+        await this.subscribeToSvm(source)
+      } else {
+        throw new Error(`Unsupported VM type for chain ${source.chainID}`)
+      }
     })
 
     await Promise.all(subscribeTasks)
@@ -61,7 +74,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   async subscribeTo(client: PublicClient, source: IntentSource) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `watch intent funded: subscribeToSource`,
+        message: `watch intent funded: subscribeToSource (EVM)`,
         properties: {
           source,
         },
@@ -71,13 +84,13 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
       onError: async (error) => {
         await this.onError(error, client, source)
       },
-      address: source.sourceAddress,
+      address: source.sourceAddress as `0x${string}`,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
-        prover: source.provers,
+        prover: source.provers as `0x${string}`[],
       },
       onLogs: async (logs: Log[]): Promise<void> => {
         try {
@@ -96,6 +109,97 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         }
       },
     })
+  }
+
+  async subscribeToSvm(source: IntentSource) {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `watch intent funded: subscribeToSource (SVM)`,
+        properties: {
+          source,
+        },
+      }),
+    )
+
+    const connection = await this.svmClientService.getConnection(source.chainID);
+    
+    // Track account changes using connection
+    const subscriptionId = this.trackAccountChanges(connection, source)
+
+    // Store unsubscribe function
+    this.unwatch[source.chainID] = () => {
+      if (subscriptionId !== null) {
+        connection.removeAccountChangeListener(subscriptionId)
+      }
+    }
+  }
+
+  private trackAccountChanges(connection: Connection, source: IntentSource): number | null {
+    try {
+      const publicKey = new PublicKey(source.sourceAddress)
+      
+      const subscriptionId = connection.onAccountChange(
+        publicKey,
+        (accountInfo, context) => {
+          try {
+            const { slot } = context
+            
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `SVM account change detected`,
+                properties: {
+                  slot,
+                  chainID: source.chainID,
+                  address: source.sourceAddress,
+                },
+              }),
+            )
+
+            console.log("SVM accountInfo", accountInfo);
+            console.log("SVM context", context);
+
+            // Create synthetic log for SVM events
+            const svmLog: Log = {
+              address: source.sourceAddress as `0x${string}`,
+              blockHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
+              blockNumber: BigInt(slot),
+              data: accountInfo ? '0x' + Buffer.from(accountInfo.data).toString('hex') as `0x${string}` : '0x',
+              logIndex: 0,
+              removed: false,
+              topics: ['0x' + Buffer.from('IntentFunded').toString('hex').padStart(64, '0') as `0x${string}`],
+              transactionHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
+              transactionIndex: 0,
+            }
+
+            this.addJob(source, { doValidation: false })([svmLog])
+          } catch (error) {
+            this.logger.error(
+              EcoLogMessage.fromDefault({
+                message: `SVM notification processing error`,
+                properties: {
+                  error: error.message,
+                  chainID: source.chainID,
+                },
+              }),
+            )
+          }
+        },
+        'confirmed'
+      )
+      
+      return subscriptionId
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `SVM subscription error`,
+          properties: {
+            error: error.message,
+            chainID: source.chainID,
+          },
+        }),
+      )
+      return null
+    }
   }
 
   private async isOurIntent(log: IntentFundedLog): Promise<boolean> {

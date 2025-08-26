@@ -4,7 +4,8 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { PublicKey as SvmAddress } from '@solana/web3.js';
+import { Address as EvmAddress, Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
 import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
@@ -12,6 +13,109 @@ import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enu
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
 import { AnalyticsConfig } from '@/analytics'
+
+// VM Types for different blockchain architectures
+export enum VmType {
+  EVM = 'EVM',
+  SVM = 'SVM'
+}
+
+/**
+ * Generic Route type that works with both EVM and SVM addresses
+ */
+export type RouteType<TVM extends VmType = VmType> = {
+  vm: TVM
+  salt: Hex
+  deadline: bigint
+  portal: Address<TVM>
+  tokens: readonly {
+    token: Address<TVM>
+    amount: bigint
+  }[]
+  calls: readonly {
+    target: Address<TVM>
+    data: Hex
+    value: bigint
+  }[]
+}
+
+/**
+ * EVM-specific route type
+ */
+export type EvmRouteType = RouteType<VmType.EVM>
+
+/**
+ * SVM-specific route type
+ */
+export type SvmRouteType = RouteType<VmType.SVM>
+
+/**
+ * Generic Reward type that works with both EVM and SVM addresses
+ */
+export type RewardType<TVM extends VmType = VmType> = {
+  vm: TVM
+  creator: Address<TVM>
+  prover: Address<TVM>
+  deadline: bigint
+  nativeAmount: bigint
+  tokens: readonly {
+    token: Address<TVM>
+    amount: bigint
+  }[]
+}
+
+/**
+ * EVM-specific reward type
+ */
+export type EvmRewardType = RewardType<VmType.EVM>
+
+/**
+ * SVM-specific reward type  
+ */
+export type SvmRewardType = RewardType<VmType.SVM>
+
+/**
+ * Generic Intent type that works with both EVM and SVM addresses
+ *  
+ */
+export type IntentType<SourceVM extends VmType = VmType, DestinationVM extends VmType = VmType> = {
+  destination: bigint
+  route: RouteType<DestinationVM>
+  reward: RewardType<SourceVM>
+}
+
+
+
+
+// Mapping of chainId to VM type
+export const CHAIN_VM_TYPE_MAP: Record<number, VmType> = {
+  // Optimism
+  10: VmType.EVM,
+  // Solana Mainnet
+  1399811149: VmType.SVM,
+} as const
+
+export function getVmType(chainId: number): VmType {
+  return CHAIN_VM_TYPE_MAP[chainId]
+}
+
+// Address type that supports both EVM (Hex) and SVM (base58) addresses
+export type Address<TVM extends VmType = VmType> = TVM extends VmType.EVM ? EvmAddress : SvmAddress
+
+// Serializable version of Address that can be used as a Record key
+// For EVM: hex string, for SVM: base58 string representation
+export type SerializableAddress<TVM extends VmType = VmType> = TVM extends VmType.EVM 
+  ? EvmAddress // Already a hex string
+  : string      // Base58 string representation of PublicKey
+
+// Chain configuration for both EVM and SVM chains
+export type EcoChainConfig = {
+  IntentSource: Address
+  Inbox: Address
+  HyperProver: Address
+  MetaProver: Address
+}
+
 
 // The config type that we store in json
 export type EcoConfigType = {
@@ -306,9 +410,9 @@ export type RpcConfigType = {
  * The config type for a single solver configuration
  */
 export type Solver = {
-  inboxAddress: Hex
+  inboxAddress: Address
   //target address to contract type mapping
-  targets: Record<Hex, TargetContract>
+  targets: Record<SerializableAddress, TargetContract>
   network: Network
   fee: FeeConfigType
   chainID: number
@@ -370,13 +474,13 @@ export class IntentSource {
   // The chain ID of the network
   chainID: number
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
-  sourceAddress: Hex
+  sourceAddress: Address
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
-  inbox: Hex
+  inbox: Address
   // The addresses of the tokens that we support as rewards
-  tokens: Hex[]
+  tokens: Address[]
   // The addresses of the provers that we support
-  provers: Hex[]
+  provers: Address[]
   // custom configs for the intent source
   config?: {
     // Defaults to append, @eco-foundation/routes-ts provers will append to the provers in configs

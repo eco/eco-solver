@@ -101,10 +101,10 @@ export class BalanceHealthIndicator extends HealthIndicator {
       const client = await this.kernelAccountClientService.getClient(IntentSource.chainID)
       const accountAddress = client.kernelAccountAddress
 
-      const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens)
+      const balances = await this.getBalanceCalls(IntentSource.chainID, IntentSource.tokens as Hex[])
       const sourceBalances = this.joinBalance(balances)
 
-      sources.push({ ...IntentSource, accountAddress, tokens: sourceBalances })
+      sources.push({ ...IntentSource, sourceAddress: IntentSource.sourceAddress as Hex, provers: IntentSource.provers as Hex[], accountAddress, tokens: sourceBalances })
     }
     sources.reverse()
     return sources
@@ -139,6 +139,7 @@ export class BalanceHealthIndicator extends HealthIndicator {
 
         solverBalances.push({
           ...solver,
+          inboxAddress: solver.inboxAddress as Hex,
           accountAddress,
           tokens: sourceBalancesString,
         })

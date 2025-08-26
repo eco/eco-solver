@@ -2,43 +2,64 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeReward, hashReward, RewardType } from '@eco-foundation/routes-ts'
+import { encodeReward, VmType, Address, EvmRewardType, SvmRewardType } from '@eco-foundation/routes-ts'
+import { hashReward } from "@/intent/check-funded-solana"
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
-
 @Schema({ timestamps: true })
-export class RewardDataModel implements RewardType {
+export class RewardDataModel {
   @Prop({ required: true, type: String })
-  creator: Hex
+  vm: VmType
+  
   @Prop({ required: true, type: String })
-  prover: Hex
+  creator: Address  // Can be EVM hex or Solana base58
+  
+  @Prop({ required: true, type: String })
+  prover: Address
+  
   @Prop({ required: true, type: BigInt })
   deadline: bigint
+  
   @Prop({ required: true, type: BigInt })
-  nativeValue: bigint
+  nativeAmount: bigint
+  
   @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
 
   constructor(
-    creator: Hex,
-    prover: Hex,
+    vm: VmType,
+    creator: Address,
+    prover: Address,
     deadline: bigint,
-    nativeValue: bigint,
+    nativeAmount: bigint,
     tokens: TokenAmountDataModel[],
   ) {
+    this.vm = vm
     this.creator = creator
     this.prover = prover
     this.deadline = deadline
-    this.nativeValue = nativeValue
+    this.nativeAmount = nativeAmount
     this.tokens = tokens
   }
 
-  static getHash(intentDataModel: RewardDataModel) {
-    return hashReward(intentDataModel)
+  // Type-safe helpers
+  asEvmReward(): EvmRewardType {
+    if (this.vm !== VmType.EVM) throw new Error('Not an EVM reward')
+    return { ...this } as EvmRewardType
   }
 
-  static encode(intentDataModel: RewardDataModel) {
-    return encodeReward(intentDataModel)
+  asSvmReward(): SvmRewardType {
+    if (this.vm !== VmType.SVM) throw new Error('Not an SVM reward')
+    return { ...this } as SvmRewardType
+  }
+
+  static getHash(rewardDataModel: RewardDataModel): Hex {
+    // The library hashReward function handles VM switching internally
+    return hashReward(rewardDataModel)
+  }
+
+  static encode(rewardDataModel: RewardDataModel): Hex {
+    return encodeReward(rewardDataModel)
   }
 }
 

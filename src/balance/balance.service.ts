@@ -3,16 +3,20 @@ import { groupBy, zipWith } from 'lodash'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
+import { Chain, Hex } from 'viem'
 import { ViemEventLog } from '@/common/events/viem'
 import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenBalance, TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
+import { Address, SerializableAddress } from '@/eco-configs/eco-config.types'
+import { EvmBalanceService } from './services/evm-balance.service'
+import { SvmBalanceService } from './services/svm-balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 /**
  * Composite data from fetching the token balances for a chain
@@ -35,6 +39,8 @@ export class BalanceService implements OnApplicationBootstrap {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly configService: EcoConfigService,
+    private readonly evmBalanceService: EvmBalanceService,
+    private readonly svmBalanceService: SvmBalanceService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
@@ -67,6 +73,50 @@ export class BalanceService implements OnApplicationBootstrap {
   }
 
   /**
+   * Updates the Solana balance based on account notifications
+   * @param solanaEvent - Event containing account info and chain details
+   */
+  updateSolanaBalance(solanaEvent: any) {
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `updateSolanaBalance`,
+        properties: {
+          chainID: solanaEvent.sourceChainID,
+          timestamp: solanaEvent.timestamp,
+        },
+      }),
+    )
+
+    // For Solana, we track the SOL balance (lamports) from account notifications
+    // The account info contains the current lamports balance
+    if (solanaEvent.accountInfo?.value?.lamports) {
+      const lamports = BigInt(solanaEvent.accountInfo.value.lamports)
+      
+      // Use a special key for SOL balance tracking
+      const key = getDestinationNetworkAddressKey(
+        parseInt(solanaEvent.sourceChainID), 
+        'SOL' // Special identifier for native SOL
+      )
+      
+      const balanceObj = this.tokenBalances.get(key)
+      if (balanceObj) {
+        // Update to the current balance (not additive like ERC20 transfers)
+        balanceObj.balance = lamports
+        
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `Solana balance updated`,
+            properties: {
+              key,
+              newBalance: lamports.toString(),
+            },
+          }),
+        )
+      }
+    }
+  }
+
+  /**
    * Gets the tokens that are in the solver wallets
    * @returns List of tokens that are supported by the solver
    */
@@ -85,7 +135,7 @@ export class BalanceService implements OnApplicationBootstrap {
   }
 
   /**
-   * Fetches the balances of the kernel account client of the solver for the given tokens
+   * Fetches the balances of the solver's wallet for the given tokens
    * @param chainID the chain id
    * @param tokenAddresses the tokens to fetch balances for
    * @returns
@@ -93,9 +143,33 @@ export class BalanceService implements OnApplicationBootstrap {
   @Cacheable()
   async fetchTokenBalances(
     chainID: number,
-    tokenAddresses: Hex[],
-  ): Promise<Record<Hex, TokenBalance>> {
+     tokenAddresses: Address[],
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     const startTime = Date.now()
+    const vmType = getVmType(chainID)
+
+    try {
+      switch (vmType) {
+        case VmType.EVM: {
+          const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
+          return await this.evmBalanceService.fetchTokenBalances(chainID, evmAddresses)
+        }
+        case VmType.SVM: {
+          const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
+          return await this.svmBalanceService.fetchTokenBalances(chainID, svmAddresses)
+        }
+        default:
+          throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
+      }
+    } catch (error) {
+      // Track balance fetch error
+      this.ecoAnalytics.trackError(ANALYTICS_EVENTS.BALANCE.FETCH_FAILED, error, {
+        chainID,
+        tokenCount: tokenAddresses.length,
+        processingTimeMs: Date.now() - startTime,
+      })
+      throw error
+    }
 
     try {
       const client = await this.kernelAccountClientService.getClient(chainID)
@@ -133,62 +207,31 @@ export class BalanceService implements OnApplicationBootstrap {
   @Cacheable({ bypassArgIndex: 3 })
   async fetchWalletTokenBalances(
     chainID: number,
-    walletAddress: string,
-    tokenAddresses: Hex[],
-    cache = false, // eslint-disable-line @typescript-eslint/no-unused-vars
-  ): Promise<Record<Hex, TokenBalance>> {
-    const client = await this.kernelAccountClientService.getClient(chainID)
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `fetchWalletTokenBalances`,
-        properties: {
-          chainID,
-          tokenAddresses,
-          walletAddress,
-        },
-      }),
-    )
-
-    const results = (await client.multicall({
-      contracts: tokenAddresses.flatMap((tokenAddress): MulticallParameters['contracts'] => [
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'balanceOf',
-          args: [walletAddress],
-        },
-        {
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'decimals',
-        },
-      ]),
-      allowFailure: false,
-    })) as MulticallReturnType
-
-    const tokenBalances: Record<Hex, TokenBalance> = {}
-
-    tokenAddresses.forEach((tokenAddress, index) => {
-      const [balance = 0n, decimals = 0] = [results[index * 2], results[index * 2 + 1]]
-      //throw if we suddenly start supporting tokens with not 6 decimals
-      //audit conversion of validity to see its support
-      if ((decimals as number) != 6) {
-        throw EcoError.BalanceServiceInvalidDecimals(tokenAddress)
+    walletAddress: Address,
+    tokenAddresses: Address[],
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
+    const vmType = getVmType(chainID)
+    
+    switch (vmType) {
+      case VmType.EVM: {
+        const evmWallet = walletAddress as Address<VmType.EVM>
+        const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
+        return await this.evmBalanceService.fetchWalletTokenBalances(chainID, evmWallet, evmAddresses)
       }
-      tokenBalances[tokenAddress] = {
-        address: tokenAddress,
-        balance: balance as bigint,
-        decimals: decimals as number,
+      case VmType.SVM: {
+        const svmWallet = walletAddress as Address<VmType.SVM>
+        const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
+        return await this.svmBalanceService.fetchWalletTokenBalances(chainID, svmWallet, svmAddresses)
       }
-    })
-    return tokenBalances
+      default:
+        throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
+    }
   }
 
   @Cacheable()
-  async fetchTokenBalance(chainID: number, tokenAddress: Hex): Promise<TokenBalance> {
+  async fetchTokenBalance(chainID: number, tokenAddress: Address): Promise<TokenBalance> {
     const result = await this.fetchTokenBalances(chainID, [tokenAddress])
-    return result[tokenAddress]
+    return result[tokenAddress.toString()]
   }
 
   @Cacheable()
@@ -235,7 +278,7 @@ export class BalanceService implements OnApplicationBootstrap {
   }
 
   /**
-   * Gets the native token balance (ETH, MATIC, etc.) for the solver's EOA wallet on the specified chain.
+   * Gets the native token balance (ETH, MATIC, SOL, etc.) for the solver's wallet on the specified chain.
    * This is used to check if the solver has sufficient native funds to cover gas costs and native value transfers.
    *
    * @param chainID - The chain ID to check the native balance on
@@ -244,11 +287,22 @@ export class BalanceService implements OnApplicationBootstrap {
    */
   @Cacheable()
   async getNativeBalance(chainID: number, address: Hex): Promise<bigint> {
-    const client = await this.kernelAccountClientService.getClient(chainID)
-    return client.getBalance({ address })
+    const vmType = getVmType(chainID)
+    
+    switch (vmType) {
+      case VmType.EVM:
+        const client = await this.kernelAccountClientService.getClient(chainID)
+        return this.evmBalanceService.getNativeBalance(chainID, address)
+      case VmType.SVM:
+        return this.svmBalanceService.getNativeBalance(chainID, address)
+      default:
+        throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
+    }
+
+    
   }
 
-  async getAllTokenDataForAddress(walletAddress: string, tokens: TokenConfig[]) {
+  async getAllTokenDataForAddress(walletAddress: Address, tokens: TokenConfig[]) {
     const tokensByChainId = groupBy(tokens, 'chainId')
     const chainIds = Object.keys(tokensByChainId)
 
@@ -285,9 +339,9 @@ export class BalanceService implements OnApplicationBootstrap {
 
   private async loadERC20TokenBalance(
     chainID: number,
-    tokenAddress: Hex,
+    tokenAddress: Address,
   ): Promise<TokenBalance | undefined> {
-    const key = getDestinationNetworkAddressKey(chainID, tokenAddress)
+    const key = getDestinationNetworkAddressKey(chainID, tokenAddress.toString())
     if (!this.tokenBalances.has(key)) {
       const tokenBalance = await this.fetchTokenBalance(chainID, tokenAddress)
       this.tokenBalances.set(key, tokenBalance)

@@ -8,22 +8,34 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
+import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
   private logger = new Logger(StargateProviderService.name)
   private walletAddress: string
   private chainKeyMap: Record<number, string> = {}
+  private svmMultichainClientService: SvmMultichainClientService
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
     private readonly multiChainPublicClientService: MultichainPublicClientService,
-  ) {}
+  ) {
+    this.svmMultichainClientService = new SvmMultichainClientService(this.ecoConfigService)
+  }
 
   async onModuleInit() {
     // Use first intent source's network as the default network
     const [intentSource] = this.ecoConfigService.getIntentSources()
+
+    // Check if this is an SVM chain and use SVM client
+    const vmType = getVmType(intentSource.chainID)
+    if (vmType === VmType.SVM) {
+      this.walletAddress = await this.svmMultichainClientService.getAddress().toString()
+      return
+    }
 
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address
@@ -54,8 +66,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     try {
       // Build URL with query parameters
       const params = new URLSearchParams({
-        srcToken: tokenIn.config.address,
-        dstToken: tokenOut.config.address,
+        srcToken: tokenIn.config.address.toString(),
+        dstToken: tokenOut.config.address.toString(),
         srcChainKey: srcChainKey,
         dstChainKey: dstChainKey,
         srcAddress: this.walletAddress,

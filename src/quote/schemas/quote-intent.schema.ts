@@ -18,8 +18,12 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
   @Prop({ required: true, enum: IntentExecutionType.enumKeys })
   intentExecutionType: string
 
-  // @Prop({ required: true, type: String })
-  // routeHash: string
+  @Prop({ required: true, type: BigInt })
+  source: bigint
+
+  @Prop({ required: true, type: BigInt })
+  destination: bigint
+
 
   @Prop({ required: true, type: QuoteRouteDataSchema })
   route: QuoteRouteDataModel

@@ -5,6 +5,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
+  Address,
   EcoConfigType,
   IntentSource,
   KmsConfig,
@@ -15,7 +16,7 @@ import {
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
-import { getChainConfig } from './utils'
+import { getChainAddress, getChainConfig } from './utils'
 import { EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
@@ -81,6 +82,23 @@ export class EcoConfigService {
 
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
+
+    // Log configuration details
+    console.log({
+      message: `Configuration loaded`,
+      nodeEnv: process.env.NODE_ENV,
+      supportedChains: this.getSupportedChains(),
+      intentSources: this.getIntentSources().map(source => ({
+        network: source.network,
+        chainID: source.chainID,
+        tokenCount: source.tokens.length
+      })),
+      solvers: Object.keys(this.getSolvers()).map(chainId => ({
+        chainId,
+        network: this.getSolvers()[chainId].network,
+        targetCount: Object.keys(this.getSolvers()[chainId].targets).length
+      }))
+    });
   }
 
   // Generic getter for key/val of config object
@@ -115,13 +133,14 @@ export class EcoConfigService {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
+    console.log('intentSources', this.get<IntentSource[]>('intentSources'));
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource
       intent.inbox = config.Inbox
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
       const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
-        (prover) => getAddress(prover) !== zeroAddress,
+        (prover) => getChainAddress(intent.chainID, prover) !== zeroAddress,
       )
       switch (ecoNpm) {
         case 'replace':
@@ -135,7 +154,6 @@ export class EcoConfigService {
       //remove duplicates
       intent.provers = _.uniq(intent.provers)
 
-      intent.tokens = intent.tokens.map((token: string) => getAddress(token))
       return intent
     })
   }
@@ -166,7 +184,14 @@ export class EcoConfigService {
     _.entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
       solver.inboxAddress = config.Inbox
-      solver.targets = addressKeys(solver.targets) ?? {}
+      // Use chain-aware address normalization instead of generic addressKeys
+      if (solver.targets) {
+        solver.targets = Object.entries(solver.targets).reduce((carry, [address, value]) => {
+          const normalizedAddress = getChainAddress(solver.chainID, address as Address)
+          carry[normalizedAddress.toString()] = value
+          return carry
+        }, {} as Record<string, any>)
+      }
     })
     return solvers
   }
@@ -374,7 +399,7 @@ export class EcoConfigService {
   }
 
   getCCTPLiFiConfig(): EcoConfigType['cctpLiFi'] {
-    const liquidityManager = this.getLiquidityManager()
+  const liquidityManager = this.getLiquidityManager()
     const cctp = this.getCCTP()
     return {
       maxSlippage: liquidityManager.maxQuoteSlippage,

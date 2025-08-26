@@ -1,6 +1,6 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { Solver } from '@/eco-configs/eco-config.types'
+import { Address, Solver } from '@/eco-configs/eco-config.types'
 import { FeeService } from '@/fee/fee.service'
 import {
   equivalentNativeGas,
@@ -113,8 +113,8 @@ export class ValidationService implements OnModuleInit {
   ): Promise<ValidationChecks> {
     const supportedProver = this.supportedProver({
       prover: intent.reward.prover,
-      source: Number(intent.route.source),
-      destination: Number(intent.route.destination),
+      source: Number(intent.source),
+      destination: Number(intent.destination),
     })
     const supportedNative = this.supportedNative(intent)
     const supportedTargets = this.supportedTargets(intent, solver)
@@ -146,7 +146,7 @@ export class ValidationService implements OnModuleInit {
    * @param {Hex} opts.prover - The prover to validate against the intent sources.
    * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
-  supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
+  supportedProver(opts: { source: number; destination: number; prover: Address }): boolean {
     const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
     if (!isWhitelisted) return false
@@ -162,11 +162,11 @@ export class ValidationService implements OnModuleInit {
       case type.isMetalayer():
         return this.checkProverWhitelisted(opts.source, opts.prover)
       default:
-        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover)
+        throw EcoError.ProverNotAllowed(opts.source, opts.destination, opts.prover.toString())
     }
   }
 
-  checkProverWhitelisted(chainID: number, prover: Hex): boolean {
+  checkProverWhitelisted(chainID: number, prover: Address): boolean {
     return this.ecoConfigService
       .getIntentSources()
       .some(
@@ -208,7 +208,7 @@ export class ValidationService implements OnModuleInit {
     const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
-    const targetsSupported = difference(intentFunctionTargets, solverTargets).length == 0
+    const targetsSupported = difference(intentFunctionTargets, solverTargets as `0x${string}`[]).length == 0
 
     if (!targetsSupported) {
       this.logger.debug(
@@ -217,7 +217,7 @@ export class ValidationService implements OnModuleInit {
           properties: {
             ...(intent.hash && {
               intentHash: intent.hash,
-              source: intent.route.source,
+              source: intent.source,
             }),
           },
         }),
@@ -268,7 +268,7 @@ export class ValidationService implements OnModuleInit {
           properties: {
             error: error.message,
             intentHash: intent.hash,
-            source: intent.route.source,
+            source: intent.source,
           },
         }),
       )
@@ -299,9 +299,10 @@ export class ValidationService implements OnModuleInit {
    * @returns true if the solver has sufficient balance
    */
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
-    const destinationChain = Number(intent.route.destination)
-
     try {
+      const tokens = intent.route.tokens.map((t) => t.token)
+      const destinationChain = Number(intent.destination)
+
       // Early return if no solver configured for destination chain
       const solver = this.ecoConfigService.getSolver(destinationChain)
       if (!solver) {
@@ -317,7 +318,34 @@ export class ValidationService implements OnModuleInit {
         return false
       }
 
-      // Early return if no tokens to check and no native value
+      // Check if solver has enough token balances
+      for (const routeToken of intent.route.tokens) {
+        const balance = tokens[routeToken.token.toString()]
+        const minReqDollar = solver.targets[routeToken.token.toString()]?.minBalance || 0
+        // Normalize the balance to the token's decimals, configs have the minReq in dollar value
+        const balanceMinReq = normalizeBalance(
+          { balance: BigInt(minReqDollar), decimal: 0 },
+          balance.decimals,
+        )
+
+        if (!balance || balance.balance - balanceMinReq.balance < routeToken.amount) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `hasSufficientBalance: Insufficient token balance`,
+              properties: {
+                token: routeToken.token,
+                required: routeToken.amount.toString(),
+                available: balance?.balance.toString() || '0',
+                intentHash: intent.hash,
+                destination: destinationChain,
+              },
+            }),
+          )
+          return false
+        }
+      }
+
+      // Check native balance if there are native value calls
       const totalFulfillNativeValue = getNativeFulfill(intent.route.calls)
       if (intent.route.tokens.length === 0 && totalFulfillNativeValue === 0n) {
         return true
@@ -406,13 +434,14 @@ export class ValidationService implements OnModuleInit {
             error: error?.message || String(error),
             errorStack: error?.stack,
             intentHash: intent.hash,
-            destination: destinationChain,
+            destination: intent.destination,
           },
         }),
       )
       return false
     }
   }
+  
 
   /**
    *
@@ -424,7 +453,7 @@ export class ValidationService implements OnModuleInit {
     const time = Number(intent.reward.deadline) * 1000
     const expires = new Date(time)
     return this.proofService.isIntentExpirationWithinProofMinimumDate(
-      Number(intent.route.source),
+      Number(intent.source),
       intent.reward.prover,
       expires,
     )
@@ -436,7 +465,7 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   validDestination(intent: ValidationIntentInterface): boolean {
-    return this.ecoConfigService.getSupportedChains().includes(intent.route.destination)
+    return this.ecoConfigService.getSupportedChains().includes(intent.destination)
   }
 
   /**
@@ -446,7 +475,7 @@ export class ValidationService implements OnModuleInit {
    * @returns
    */
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
-    return intent.route.destination !== intent.route.source
+    return intent.destination !== intent.source
   }
 
   /**

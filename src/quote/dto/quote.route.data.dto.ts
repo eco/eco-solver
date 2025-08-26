@@ -1,7 +1,7 @@
 import { CallDataInterface } from '@/contracts'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
-import { RouteType } from '@eco-foundation/routes-ts'
+import { RouteType, VmType } from '@/eco-configs/eco-config.types'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
@@ -17,6 +17,15 @@ import { Hex } from 'viem'
  */
 export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
+  @ApiProperty({ enum: ['EVM', 'SVM'] })
+  vm: VmType
+
+  @IsNotEmpty()
+  @Transform(({ value }) => BigInt(value))
+  @ApiProperty()
+  deadline: bigint
+
+  @IsNotEmpty()
   @ApiProperty()
   @Transform(({ value }) => BigInt(value))
   source: bigint
@@ -29,7 +38,7 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @ViemAddressTransform()
   @IsNotEmpty()
   @ApiProperty()
-  inbox: Hex
+  portal: Hex
 
   @IsArray()
   @ValidateNested()

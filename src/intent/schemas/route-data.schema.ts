@@ -3,12 +3,16 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeRoute, hashRoute, RouteType } from '@eco-foundation/routes-ts'
+import { encodeRoute, hashRoute, RouteType, VmType } from '@eco-foundation/routes-ts'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
+import { Address } from '@eco-foundation/routes-ts'
 
 @Schema({ timestamps: true })
-export class RouteDataModel implements RouteType {
+export class RouteDataModel {
+  @Prop({ required: true, type: String })
+  vm: VmType
+
   @Prop({ required: true, type: String })
   salt: Hex
   @Prop({ required: true, type: BigInt })
@@ -16,25 +20,33 @@ export class RouteDataModel implements RouteType {
   @Prop({ required: true, type: BigInt })
   destination: bigint
   @Prop({ required: true, type: String })
-  inbox: Hex
+  portal: Address
   @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
   @Prop({ required: true, type: [TargetCallDataSchema] })
   calls: TargetCallDataModel[]
 
+  @Prop({ required: true, type: BigInt })
+  deadline: bigint
+
   constructor(
+    vm: VmType,
     salt: Hex,
+    deadline: bigint,
     source: bigint,
     destination: bigint,
-    inbox: Hex,
+    portal: Address,
     routeTokens: TokenAmountDataModel[],
     calls: TargetCallDataModel[],
   ) {
+    this.vm = vm
     this.salt = salt
-    this.source = source
+    this.deadline = deadline
     this.destination = destination
+    this.source = source
+
     this.tokens = routeTokens
-    this.inbox = inbox
+    this.portal = portal
     this.calls = calls
   }
 }

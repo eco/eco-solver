@@ -6,6 +6,7 @@ import { PermitTestUtils } from '@/intent-initiation/test-utils/permit-test-util
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { zeroAddress } from 'viem'
+import { VmType } from '@eco-foundation/routes-ts'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {
   usePermit?: boolean
@@ -25,10 +26,12 @@ export class IntentTestUtils {
     const { token, tokens = token ? [{ token, amount: 1000n }] : [], ...rest } = overrides
 
     return {
+      vm: VmType.EVM,
       creator: '0x0000000000000000000000000000000000000006',
       prover: '0x0000000000000000000000000000000000000007',
       deadline: 9999999999n,
-      nativeValue: 0n,
+      nativeAmount: 0n,
+      nativeValue: 0n, // TODO: remove this
       tokens,
       ...rest,
     }

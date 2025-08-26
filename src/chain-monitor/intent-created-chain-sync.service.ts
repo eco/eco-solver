@@ -4,11 +4,12 @@ import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentCreatedLog } from '../contracts'
-import { IntentSource } from '../eco-configs/eco-config.types'
+import { IntentSource, getVmType, VmType } from '../eco-configs/eco-config.types'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
+import { Address as EvmAddress } from 'viem'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 
 /**
@@ -55,6 +56,13 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    * @returns
    */
   async getMissingTxs(source: IntentSource): Promise<IntentCreatedLog[]> {
+    const vmType = getVmType(source.chainID)
+    
+    if (vmType === VmType.SVM) {
+      // Do nothing for Solana chains
+      return []
+    }
+
     const client = await this.kernelAccountClientService.getClient(source.chainID)
 
     const supportedChains = this.ecoConfigService.getSupportedChains()
@@ -71,12 +79,12 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
     }
 
     const allCreateIntentLogs = await client.getContractEvents({
-      address: source.sourceAddress,
+      address: source.sourceAddress as EvmAddress,
       abi: IntentSourceAbi,
       eventName: 'IntentCreated',
       strict: true,
       args: {
-        prover: source.provers,
+        prover: source.provers as EvmAddress[],
       },
       fromBlock,
       toBlock,

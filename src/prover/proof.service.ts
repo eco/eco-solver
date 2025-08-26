@@ -8,9 +8,12 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { Address, getVmType, VmType } from '@/eco-configs/eco-config.types'
+import { PublicKey } from '@solana/web3.js'
+import { getChainAddress } from '@/eco-configs/utils'
 
 interface ProverMetadata {
-  address: Hex
+  address: Address
   type: ProofType
   chainID: number
 }
@@ -43,7 +46,7 @@ export class ProofService implements OnModuleInit {
    * @param proverAddress the prover address
    * @returns
    */
-  isHyperlaneProver(chainID: number, proverAddress: Hex): boolean {
+  isHyperlaneProver(chainID: number, proverAddress: Address): boolean {
     return Boolean(this.getProverType(chainID, proverAddress)?.isHyperlane())
   }
 
@@ -53,7 +56,7 @@ export class ProofService implements OnModuleInit {
    * @param proverAddress the prover address
    * @returns
    */
-  isMetalayerProver(chainID: number, proverAddress: Hex): boolean {
+  isMetalayerProver(chainID: number, proverAddress: Address): boolean {
     return Boolean(this.getProverType(chainID, proverAddress)?.isMetalayer())
   }
 
@@ -62,10 +65,10 @@ export class ProofService implements OnModuleInit {
    * @param proofType the proof type
    * @returns
    */
-  getProvers(proofType: ProofType): Hex[] {
+  getProvers(proofType: ProofType): Address[] {
     const proverAddresses = this.provers
-      .filter((prover) => prover.type === proofType)
-      .map((prover) => getAddress(prover.address))
+      .filter((prover) => prover.type === proofType && getVmType(prover.chainID) !== VmType.SVM)
+      .map((prover) => getChainAddress(prover.chainID, prover.address))
 
     return _.uniq(proverAddresses)
   }
@@ -76,9 +79,12 @@ export class ProofService implements OnModuleInit {
    * @param proverAddr the prover address
    * @returns
    */
-  getProverType(chainID: number, proverAddr: Hex): ProofType | undefined {
+  getProverType(chainID: number, proverAddr: Address): ProofType | undefined {
     return this.provers.find(
-      (prover) => prover.chainID === chainID && prover.address === proverAddr,
+      (prover) => prover.chainID === chainID && 
+        (getVmType(chainID) === VmType.SVM 
+          ? (prover.address as PublicKey).equals(new PublicKey(proverAddr)) 
+          : prover.address === proverAddr)
     )?.type
   }
 
@@ -92,10 +98,11 @@ export class ProofService implements OnModuleInit {
    */
   isIntentExpirationWithinProofMinimumDate(
     chainID: number,
-    prover: Hex,
+    prover: Address,
     expirationDate: Date,
   ): boolean {
     const proofType = this.getProverType(chainID, prover)
+    console.log("SAQUON isIntentExpirationWithinProofMinimumDate", chainID, prover, expirationDate, proofType);
     if (!proofType) {
       return false
     }
@@ -119,7 +126,7 @@ export class ProofService implements OnModuleInit {
   private async loadProofTypes() {
     const proofPromises = this.ecoConfigService
       .getIntentSources()
-      .map((source) => this.getProofTypes(source.chainID, source.provers))
+      .map((source) => this.getProofTypes(source.chainID, source.provers as `0x${string}`[]))
 
     // get the proof types for each prover address from on chain
     const proofs = await Promise.all(proofPromises)
@@ -144,6 +151,17 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   private async getProofTypes(chainID: number, provers: Hex[]): Promise<ProverMetadata[]> {
+    // TODO (for kunal): come back and fix this - need proper SVM support
+    const vmType = getVmType(chainID)
+    if (vmType === VmType.SVM) {
+      // For SVM chains, return hyperprover type as default
+      return provers.map((proverAddress) => ({
+        address: proverAddress,
+        type: ProofType.HYPERLANE,
+        chainID: chainID,
+      }))
+    }
+    
     const client = await this.publicClient.getClient(Number(chainID))
     const proofCalls: ProofCall[] = provers.map((proverAddress) => ({
       address: proverAddress,

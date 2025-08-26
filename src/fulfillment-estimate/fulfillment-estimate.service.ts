@@ -52,7 +52,7 @@ export class FulfillmentEstimateService implements OnModuleInit {
    * @returns the estimated fulfillment time in seconds
    */
   getEstimatedFulfillTime(quoteIntentModel: QuoteIntentDataInterface): number {
-    const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.destination)
+    const solver = this.ecoConfigService.getSolver(quoteIntentModel.destination)
 
     const averageBlockTime = this.getAverageBlockTime(solver)
     const blockTimePercentile = this.fulfillmentConfig.blockTimePercentile

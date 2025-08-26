@@ -45,11 +45,21 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @ApiPropertyOptional()
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData?: GaslessIntentDataDTO
+
+  @IsNotEmpty()
+  @ApiProperty()
+  source: bigint
+
+  @IsNotEmpty()
+  @ApiProperty()
+  destination: bigint
 }
 
 export interface QuoteIntentDataInterface {
   // The dApp ID of the intent, optional so schema can be shared for onchain intents and offchain quotes
   dAppID?: string
+  source: bigint
+  destination: bigint
   route: QuoteRouteDataInterface
   reward: QuoteRewardDataType
 }

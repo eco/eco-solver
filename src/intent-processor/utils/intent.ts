@@ -1,25 +1,26 @@
 import { Hex } from 'viem'
-import { IntentType } from '@eco-foundation/routes-ts'
+import { IntentType, RewardType, RouteType, VmType } from '@eco-foundation/routes-ts'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 
 export function getWithdrawData(intent: IndexerIntent): IntentType {
-  const reward = {
+  const reward: RewardType = {
+    vm: VmType.EVM,
     creator: intent.creator as Hex,
     prover: intent.prover as Hex,
     deadline: BigInt(intent.deadline),
-    nativeValue: BigInt(intent.nativeValue),
+    nativeAmount: BigInt(intent.nativeValue),
     tokens: intent.rewardTokens.map(({ token, amount }) => ({
       token: token as Hex,
       amount: BigInt(amount),
     })),
   }
 
-  const route = {
+  const route: RouteType = {
+    vm: VmType.EVM,
     salt: intent.salt as Hex,
-    source: BigInt(intent.source),
-    destination: BigInt(intent.destination),
-    inbox: intent.inbox as Hex,
+    deadline: BigInt(intent.deadline),
+    portal: intent.inbox as Hex,
     tokens: intent.routeTokens.map(({ token, amount }) => ({
       token: token as Hex,
       amount: BigInt(amount),
@@ -31,5 +32,5 @@ export function getWithdrawData(intent: IndexerIntent): IntentType {
     })),
   }
 
-  return { reward, route }
+  return { source: BigInt(intent.source), destination: BigInt(intent.destination), reward, route }
 }

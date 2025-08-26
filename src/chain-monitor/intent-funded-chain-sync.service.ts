@@ -6,13 +6,14 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentFundedLog } from '@/contracts'
-import { IntentSource } from '@/eco-configs/eco-config.types'
+import { IntentSource, getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
+import { Address as EvmAddress } from 'viem'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -54,6 +55,13 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @returns
    */
   async getMissingTxs(source: IntentSource): Promise<IntentFundedLog[]> {
+    const vmType = getVmType(source.chainID)
+    
+    if (vmType === VmType.SVM) {
+      // Do nothing for Solana chains
+      return []
+    }
+
     const client = await this.kernelAccountClientService.getClient(source.chainID)
     const lastRecordedTx = await this.getLastRecordedTx(source)
 
@@ -68,7 +76,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
     }
 
     const allIntentFundedLogs = await client.getContractEvents({
-      address: source.sourceAddress,
+      address: source.sourceAddress as EvmAddress,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
       strict: true,

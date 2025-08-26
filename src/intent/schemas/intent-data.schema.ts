@@ -4,7 +4,10 @@ import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { IntentType } from '@/eco-configs/eco-config.types'
+import { encodeIntent, hashIntent } from '@/intent/check-funded-solana'
+import { getChainAddress } from '@/eco-configs/utils'
+import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -45,6 +48,11 @@ export class IntentDataModel implements IntentType {
   @Prop({ required: false })
   funder?: Hex
 
+  @Prop({ required: true, type: BigInt })
+  source: bigint
+  @Prop({ required: true, type: BigInt })
+  destination: bigint
+
   constructor(params: CreateIntentDataModelParams) {
     const {
       quoteID,
@@ -64,6 +72,9 @@ export class IntentDataModel implements IntentType {
       funder,
     } = params
 
+    const sourceVmType = getVmType(Number(source))
+    const destinationVmType = getVmType(Number(destination))
+
     if (calls.length == 0) {
       throw EcoError.IntentSourceDataInvalidParams
     }
@@ -79,33 +90,40 @@ export class IntentDataModel implements IntentType {
     this.hash = hash
 
     this.route = new RouteDataModel(
+      destinationVmType,
       salt,
+      deadline,
       source,
       destination,
-      getAddress(inbox),
+      getChainAddress(destination, inbox),
       routeTokens.map((token) => {
-        token.token = getAddress(token.token)
+        token.token = getChainAddress(destination, token.token).toString() as `0x${string}`;
         return token
       }),
       calls.map((call) => {
-        call.target = getAddress(call.target)
+        call.target = getChainAddress(destination, call.target).toString() as `0x${string}`;
         return call
-      }),
+      }) as any,
     )
 
+    
     this.reward = new RewardDataModel(
-      getAddress(creator),
-      getAddress(prover),
+      sourceVmType,
+      getChainAddress(source, creator).toString() as `0x${string}`,
+      getChainAddress(source, prover).toString() as `0x${string}`,
       deadline,
       nativeValue,
       rewardTokens.map((token) => {
-        token.token = getAddress(token.token)
+        token.token = getChainAddress(source, token.token).toString() as `0x${string}`;
         return token
       }),
     )
 
     this.logIndex = logIndex
     this.funder = funder
+
+    this.destination = destination
+    this.source = source
   }
 
   static isNativeIntent(params: CreateIntentDataModelParams): boolean {
@@ -117,34 +135,41 @@ export class IntentDataModel implements IntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    return hashIntent(intentDataModel)
+    if (intentDataModel.route.source === 1399811149n || intentDataModel.route.destination === 1399811149n) {
+      console.log("JUSTLOGGING: intent.getHash()", intentDataModel)
+    }
+    return hashIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    return encodeIntent(intentDataModel)
+    if (intentDataModel.route.source === 1399811149n || intentDataModel.route.destination === 1399811149n) {
+      console.log("JUSTLOGGING: intent.encode()", intentDataModel)
+    }
+    return encodeIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
-    const e = event.args
+    const e = event.args as any // Cast to any since we handle both formats
     return new IntentDataModel({
-      hash: e.hash,
-      salt: e.salt,
-      source: e.source,
+      hash: e.hash || e.intentHash,
+      salt: e.salt || '0x',
+      source: e.source || 0n,
       destination: e.destination,
-      inbox: e.inbox,
-      routeTokens: e.routeTokens as Mutable<typeof e.routeTokens>,
-      calls: e.calls as Mutable<typeof e.calls>,
+      inbox: e.inbox || e.portal || '0x',
+      routeTokens: e.routeTokens || [],
+      calls: e.calls || [],
       creator: e.creator,
       prover: e.prover,
-      deadline: e.deadline,
-      nativeValue: e.nativeValue,
-      rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
+      deadline: e.deadline || e.rewardDeadline,
+      nativeValue: e.nativeValue || e.rewardNativeAmount || 0n,
+      rewardTokens: e.rewardTokens || [],
       logIndex,
     })
   }
 
   static toChainIntent(intent: IntentDataModel): IntentType {
     return {
+      destination: intent.route.destination,
       route: intent.route,
       reward: intent.reward,
     }
@@ -163,9 +188,9 @@ IntentSourceDataSchema.methods.getHash = function (): {
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  return hashIntent(this.route.destination, this.route, this.reward)
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  return encodeIntent(this.route.destination, this.route, this.reward)
 }

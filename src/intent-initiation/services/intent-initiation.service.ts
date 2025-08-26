@@ -288,6 +288,8 @@ export class IntentInitiationService implements OnModuleInit {
     await this.createIntentService.createIntentFromIntentInitiation(
       quoteID,
       funder,
+      quote!.source,
+      quote!.destination,
       routeWithSalt,
       reward,
     )
@@ -302,7 +304,10 @@ export class IntentInitiationService implements OnModuleInit {
 
     const args = [
       realRouteHash,
-      reward,
+      {
+        ...reward,
+        nativeValue: reward.nativeAmount || 0n,
+      },
       funder,
       gaslessIntentRequestDTO.getPermitContractAddress!(),
       false,
@@ -330,7 +335,7 @@ export class IntentInitiationService implements OnModuleInit {
 
     // Final transaction object
     const fundTx = {
-      to: intentSourceContract,
+      to: intentSourceContract as `0x${string}`,
       data,
       value: 0n,
     }

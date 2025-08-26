@@ -82,6 +82,7 @@ export class FulfillIntentService {
     const { type } = isNative // disable crowd liquidity for native intents
       ? { type: 'smart-wallet-account' }
       : this.ecoConfigService.getFulfill()
+    console.log("SAQUON type", type);
 
     // Track fulfillment method selection
     this.ecoAnalytics.trackIntentFulfillmentMethodSelected(

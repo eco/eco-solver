@@ -124,7 +124,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
     const { route, reward } = intentModel.intent
     const isSupportedReward = reward.tokens.every((item) => {
-      return this.isSupportedToken(Number(route.source), item.token)
+      return this.isSupportedToken(Number(route.source), item.token.toString() as `0x${string}`)
     })
     const isSupportedRoute = route.calls.every((call) => {
       const areSupportedTargetTokens = this.isSupportedToken(Number(route.destination), call.target)
@@ -175,10 +175,10 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
   getSupportedTokens(): TokenConfig[] {
     return this.balanceService
       .getInboxTokens()
-      .filter((token) => this.isSupportedToken(token.chainId, token.address))
+      .filter((token) => this.isSupportedToken(token.chainId, token.address as `0x${string}`))
       .map((token) => ({
         ...token,
-        targetBalance: this.getTokenTargetBalance(token.chainId, token.address),
+        targetBalance: this.getTokenTargetBalance(token.chainId, token.address as `0x${string}`),
       }))
   }
 
@@ -195,7 +195,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         return intentModel.intent.route.tokens.some(
           (rewardToken) =>
             BigInt(token.chainId) === intentModel.intent.route.destination &&
-            isAddressEqual(token.address, rewardToken.token),
+            isAddressEqual(token.address as `0x${string}`, rewardToken.token.toString() as `0x${string}`),
         )
       })
 
@@ -206,7 +206,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
 
       const isSolvent = intentModel.intent.route.tokens.every((routeToken) => {
         const token = routeTokensData.find((token) =>
-          isAddressEqual(token.config.address, routeToken.token),
+          isAddressEqual(token.config.address as `0x${string}`, routeToken.token.toString() as `0x${string}`),
         )
         return token && token.balance.balance >= routeToken.amount
       })
@@ -276,7 +276,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         salt: intentModel.route.salt,
         source: Number(intentModel.route.source),
         destination: Number(intentModel.route.destination),
-        inbox: intentModel.route.inbox,
+        portal: intentModel.route.portal,
         calls: intentModel.route.calls.map((call) => ({
           target: call.target,
           data: call.data,
@@ -291,7 +291,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
         creator: intentModel.reward.creator,
         prover: intentModel.reward.prover,
         deadline: intentModel.reward.deadline.toString(),
-        nativeValue: intentModel.reward.nativeValue.toString(),
+        nativeAmount: intentModel.reward.nativeAmount.toString(),
         tokens: intentModel.reward.tokens.map((t) => ({
           token: t.token,
           amount: t.amount.toString(),

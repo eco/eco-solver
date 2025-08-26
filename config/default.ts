@@ -134,6 +134,11 @@ export default {
     defaultGasOverhead: 145_000,
   },
   whitelist: {},
+  
+  fulfillment: {
+    run: 'single',
+    type: 'smart-wallet-account'
+  },
 
   fulfillmentEstimate: {
     // Padding to add to the execution-time estimation
