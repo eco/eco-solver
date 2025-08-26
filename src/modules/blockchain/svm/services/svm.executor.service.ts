@@ -11,6 +11,7 @@ import {
 } from '@solana/web3.js';
 import { Address, Hex } from 'viem';
 
+import { Reward, Route } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
@@ -68,15 +69,8 @@ export class SvmExecutorService extends BaseChainExecutor {
       // Calculate Portal hashes
       const intentHash = PortalHashUtils.computeIntentHash(
         intent.destination,
-        {
-          ...intent.route,
-          tokens: [...intent.route.tokens] as TokenAmount[],
-          calls: [...intent.route.calls] as Call[],
-        },
-        {
-          ...intent.reward,
-          tokens: [...intent.reward.tokens] as TokenAmount[],
-        },
+        intent.route as Route,
+        intent.reward as Reward,
         sourceChainType,
         destChainType,
       );

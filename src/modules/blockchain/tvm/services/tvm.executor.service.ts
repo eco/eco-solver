@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { TronWeb } from 'tronweb';
 import { erc20Abi } from 'viem';
 
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { PortalAbi, Reward, Route } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
@@ -98,24 +98,14 @@ export class TvmExecutorService extends BaseChainExecutor {
 
           const intentHash = PortalHashUtils.computeIntentHash(
             intent.destination,
-            {
-              ...intent.route,
-              tokens: [...intent.route.tokens] as TokenAmount[],
-              calls: [...intent.route.calls] as Call[],
-            },
-            {
-              ...intent.reward,
-              tokens: [...intent.reward.tokens] as TokenAmount[],
-            },
+            intent.route as Route,
+            intent.reward as Reward,
             sourceChainType,
             destChainType,
           );
 
           const rewardHash = PortalHashUtils.computeRewardHash(
-            {
-              ...intent.reward,
-              tokens: [...intent.reward.tokens] as TokenAmount[],
-            },
+            intent.reward as Reward,
             sourceChainType,
           );
 

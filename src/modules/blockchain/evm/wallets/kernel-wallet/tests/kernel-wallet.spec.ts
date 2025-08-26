@@ -88,8 +88,7 @@ describe('KernelWallet', () => {
       mockNetworkConfig = {
         chainId: mockChainId,
         rpc: { urls: ['http://localhost:8545'] },
-        intentSourceAddress: '0x0000000000000000000000000000000000000001',
-        inboxAddress: '0x0000000000000000000000000000000000000002',
+        contracts: { portal: '0x0000000000000000000000000000000000000001' },
         tokens: [],
         fee: {
           tokens: { flatFee: '0', scalarBps: 0 },

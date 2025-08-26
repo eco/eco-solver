@@ -3,12 +3,12 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi } from 'viem';
 
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { PortalAbi, Reward } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
-import { Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { EvmConfigService } from '@/modules/config/services';
@@ -83,10 +83,7 @@ export class EvmExecutorService extends BaseChainExecutor {
       // Calculate Portal hashes
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
       const rewardHash = PortalHashUtils.computeRewardHash(
-        {
-          ...intent.reward,
-          tokens: [...intent.reward.tokens] as TokenAmount[],
-        },
+        intent.reward as Reward,
         sourceChainType,
       );
 

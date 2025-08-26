@@ -13,8 +13,6 @@ describe('EvmConfigService', () => {
       rpc: {
         urls: ['https://mainnet.infura.io'],
       },
-      intentSourceAddress: '0x1111111111111111111111111111111111111111',
-      inboxAddress: '0x2222222222222222222222222222222222222222',
       tokens: [],
       fee: {
         tokens: {
@@ -26,14 +24,15 @@ describe('EvmConfigService', () => {
         hyper: '0x3333333333333333333333333333333333333333',
         metalayer: '0x4444444444444444444444444444444444444444',
       },
+      contracts: {
+        portal: '0x1111111111111111111111111111111111111111',
+      },
     },
     {
       chainId: 10,
       rpc: {
         urls: ['https://optimism.infura.io'],
       },
-      intentSourceAddress: '0x5555555555555555555555555555555555555555',
-      inboxAddress: '0x6666666666666666666666666666666666666666',
       tokens: [],
       fee: {
         tokens: {
@@ -43,6 +42,9 @@ describe('EvmConfigService', () => {
       },
       provers: {
         hyper: '0x7777777777777777777777777777777777777777',
+      },
+      contracts: {
+        portal: '0x5555555555555555555555555555555555555555',
       },
     },
   ];
@@ -74,37 +76,19 @@ describe('EvmConfigService', () => {
     service = module.get<EvmConfigService>(EvmConfigService);
   });
 
-  describe('getIntentSourceAddress', () => {
-    it('should return the intent source address for a valid chain', () => {
-      const address = service.getIntentSourceAddress(1);
+  describe('getPortalAddress', () => {
+    it('should return the portal address for a valid chain', () => {
+      const address = service.getPortalAddress(1);
       expect(address).toBe('0x1111111111111111111111111111111111111111');
     });
 
-    it('should return the intent source address for another chain', () => {
-      const address = service.getIntentSourceAddress(10);
+    it('should return the portal address for another chain', () => {
+      const address = service.getPortalAddress(10);
       expect(address).toBe('0x5555555555555555555555555555555555555555');
     });
 
     it('should throw an error for an invalid chain', () => {
-      expect(() => service.getIntentSourceAddress(999)).toThrow(
-        'Network configuration not found for chainId: 999',
-      );
-    });
-  });
-
-  describe('getInboxAddress', () => {
-    it('should return the inbox address for a valid chain', () => {
-      const address = service.getInboxAddress(1);
-      expect(address).toBe('0x2222222222222222222222222222222222222222');
-    });
-
-    it('should return the inbox address for another chain', () => {
-      const address = service.getInboxAddress(10);
-      expect(address).toBe('0x6666666666666666666666666666666666666666');
-    });
-
-    it('should throw an error for an invalid chain', () => {
-      expect(() => service.getInboxAddress(999)).toThrow(
+      expect(() => service.getPortalAddress(999)).toThrow(
         'Network configuration not found for chainId: 999',
       );
     });
@@ -142,7 +126,7 @@ describe('EvmConfigService', () => {
     it('should get network configuration', () => {
       const network = service.getChain(1);
       expect(network.chainId).toBe(1);
-      expect(network.intentSourceAddress).toBe('0x1111111111111111111111111111111111111111');
+      expect(network.contracts.portal).toBe('0x1111111111111111111111111111111111111111');
     });
 
     it('should get supported chain IDs', () => {

@@ -87,9 +87,8 @@ const QuoteDataSchema = extendApi(
 // Contracts schema with OpenAPI metadata
 const ContractsSchema = extendApi(
   z.object({
-    intentSource: zodHex('IntentSource contract address on source chain'),
     prover: zodHex('Prover contract address'),
-    inbox: zodHex('Inbox contract address on destination chain'),
+    portal: zodHex('Portal contract address on destination chain'),
   }),
   {
     description: 'Contract addresses involved in the intent',

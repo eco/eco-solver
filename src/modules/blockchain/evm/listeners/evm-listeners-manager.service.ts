@@ -30,8 +30,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const config: EvmChainConfig = {
         chainType: 'EVM',
         chainId: network.chainId,
-        inboxAddress: this.evmConfigService.getInboxAddress(network.chainId),
-        intentSourceAddress: this.evmConfigService.getIntentSourceAddress(network.chainId),
+        portalAddress: this.evmConfigService.getPortalAddress(network.chainId),
       };
 
       const listener = new ChainListener(

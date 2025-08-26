@@ -8,13 +8,9 @@
 import { PublicKey } from '@solana/web3.js';
 import { Address, encodeAbiParameters, Hex, keccak256, parseAbiParameters } from 'viem';
 
-import {
-  Reward,
-  Route,
-  VAULT_IMPLEMENTATION_BYTECODE_HASH,
-} from '../abis/portal.abi';
+import { Reward, Route, VAULT_IMPLEMENTATION_BYTECODE_HASH } from '../abis/portal.abi';
 
-import { ChainType, ChainTypeDetector } from './chain-type-detector';
+import { ChainType } from './chain-type-detector';
 import { PortalEncoder } from './portal-encoder';
 
 export class PortalHashUtils {

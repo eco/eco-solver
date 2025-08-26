@@ -86,17 +86,7 @@ export class TvmConfigService {
 
   getPortalAddress(chainId: number | string): string {
     const network = this.getChain(chainId);
-    return network.portalAddress;
-  }
-
-  getIntentSourceAddress(chainId: number | string): string {
-    const network = this.getChain(chainId);
-    return network.intentSourceAddress;
-  }
-
-  getInboxAddress(chainId: number | string): string {
-    const network = this.getChain(chainId);
-    return network.inboxAddress;
+    return network.contracts.portal;
   }
 
   getProverAddress(

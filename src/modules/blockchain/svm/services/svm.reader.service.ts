@@ -4,8 +4,9 @@ import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Address, Hex } from 'viem';
 
+import { Reward, Route } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
@@ -88,15 +89,8 @@ export class SvmReaderService extends BaseChainReader {
       // Calculate intent hash for vault derivation
       const intentHash = PortalHashUtils.computeIntentHash(
         intent.destination,
-        {
-          ...intent.route,
-          tokens: [...intent.route.tokens] as TokenAmount[],
-          calls: [...intent.route.calls] as Call[],
-        },
-        {
-          ...intent.reward,
-          tokens: [...intent.reward.tokens] as TokenAmount[],
-        },
+        intent.route as Route,
+        intent.reward as Reward,
         sourceChainType,
         destChainType,
       );

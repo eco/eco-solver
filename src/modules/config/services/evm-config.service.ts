@@ -91,19 +91,9 @@ export class EvmConfigService {
     return !!(evmConfig && this._networks.size > 0);
   }
 
-  getIntentSourceAddress(chainId: number): Address {
-    const network = this.getChain(chainId);
-    return network.intentSourceAddress as Address;
-  }
-
-  getInboxAddress(chainId: number): Address {
-    const network = this.getChain(chainId);
-    return network.inboxAddress as Address;
-  }
-
   getPortalAddress(chainId: number): Address {
     const network = this.getChain(chainId);
-    return network.portalAddress as Address;
+    return network.contracts.portal as Address;
   }
 
   getProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {

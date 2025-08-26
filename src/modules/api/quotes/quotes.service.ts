@@ -68,7 +68,6 @@ export class QuotesService {
     const destinationChainId = Number(intent.destination);
 
     // Get contract addresses
-    const intentSourceAddress = this.evmConfigService.getIntentSourceAddress(sourceChainId);
     const portalAddress = this.evmConfigService.getPortalAddress(destinationChainId);
 
     // Get prover address - first try to get from the chain config, fallback to generic prover if needed
@@ -124,9 +123,8 @@ export class QuotesService {
         estimatedFulfillTimeSec: 30, // Default estimate, can be made configurable
       },
       contracts: {
-        intentSource: intentSourceAddress as Hex,
         prover: proverAddress as Hex,
-        inbox: portalAddress as Hex,
+        portal: portalAddress as Hex,
       },
     };
   }

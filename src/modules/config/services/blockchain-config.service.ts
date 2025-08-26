@@ -81,44 +81,6 @@ export class BlockchainConfigService {
   }
 
   /**
-   * Gets the Intent Source address for any chain
-   */
-  getIntentSourceAddress(chainId: bigint | number | string): string {
-    const chainType = ChainTypeDetector.detect(chainId);
-
-    switch (chainType) {
-      case ChainType.EVM:
-        return this.evmConfig.getIntentSourceAddress(Number(chainId));
-      case ChainType.TVM:
-        return this.tvmConfig.getIntentSourceAddress(chainId as string | number);
-      case ChainType.SVM:
-        // For Solana, intent source is part of the Portal program
-        return this.solanaConfig.portalProgramId;
-      default:
-        throw new Error(`Unsupported chain type for chain ID: ${chainId}`);
-    }
-  }
-
-  /**
-   * Gets the Inbox address for any chain
-   */
-  getInboxAddress(chainId: bigint | number | string): string {
-    const chainType = ChainTypeDetector.detect(chainId);
-
-    switch (chainType) {
-      case ChainType.EVM:
-        return this.evmConfig.getInboxAddress(Number(chainId));
-      case ChainType.TVM:
-        return this.tvmConfig.getInboxAddress(chainId as string | number);
-      case ChainType.SVM:
-        // For Solana, inbox is part of the Portal program
-        return this.solanaConfig.portalProgramId;
-      default:
-        throw new Error(`Unsupported chain type for chain ID: ${chainId}`);
-    }
-  }
-
-  /**
    * Gets the chain type for any chain ID
    */
   getChainType(chainId: bigint | number | string): ChainType {

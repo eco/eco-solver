@@ -39,9 +39,9 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     const networks = this.tvmConfigService.networks;
 
     for (const network of networks) {
-      if (!network.intentSourceAddress) {
+      if (!network.contracts.portal) {
         this.logger.warn(
-          `Skipping TVM listener for chain ${network.chainId}: No intent source address configured`,
+          `Skipping TVM listener for chain ${network.chainId}: No portal address configured`,
         );
         continue;
       }

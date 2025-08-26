@@ -3,7 +3,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
-import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging';
+import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { EvmTransportService } from '../../services/evm-transport.service';
 import { ChainListener } from '../chain.listener';
@@ -16,22 +18,28 @@ describe('EvmListenersManagerService', () => {
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let logger: jest.Mocked<SystemLoggerService>;
+  let otelService: jest.Mocked<OpenTelemetryService>;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
   const mockNetworks = [
     {
       chainId: 1,
-      inboxAddress: '0xInbox1' as Address,
-      intentSourceAddress: '0xIntentSource1' as Address,
+      contracts: {
+        portal: '0xPortal1' as Address,
+      },
     },
     {
       chainId: 10,
-      inboxAddress: '0xInbox10' as Address,
-      intentSourceAddress: '0xIntentSource10' as Address,
+      contracts: {
+        portal: '0xPortal10' as Address,
+      },
     },
     {
       chainId: 137,
-      inboxAddress: '0xInbox137' as Address,
-      intentSourceAddress: '0xIntentSource137' as Address,
+      contracts: {
+        portal: '0xPortal137' as Address,
+      },
     },
   ];
 
@@ -53,18 +61,22 @@ describe('EvmListenersManagerService', () => {
 
     evmConfigService = {
       networks: mockNetworks,
-      getInboxAddress: jest.fn().mockImplementation((chainId: number) => {
+      getPortalAddress: jest.fn().mockImplementation((chainId: number) => {
         const network = mockNetworks.find((n) => n.chainId === chainId);
-        return network?.inboxAddress;
-      }),
-      getIntentSourceAddress: jest.fn().mockImplementation((chainId: number) => {
-        const network = mockNetworks.find((n) => n.chainId === chainId);
-        return network?.intentSourceAddress;
+        return network?.contracts.portal;
       }),
     } as any;
 
     transportService = {} as any;
     eventEmitter = {} as any;
+    logger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as any;
+    otelService = {} as any;
+    blockchainConfigService = {} as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -72,6 +84,9 @@ describe('EvmListenersManagerService', () => {
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: SystemLoggerService, useValue: logger },
+        { provide: OpenTelemetryService, useValue: otelService },
+        { provide: BlockchainConfigService, useValue: blockchainConfigService },
       ],
     }).compile();
 
@@ -98,33 +113,39 @@ describe('EvmListenersManagerService', () => {
         {
           chainType: 'EVM',
           chainId: 1,
-          inboxAddress: '0xInbox1',
-          intentSourceAddress: '0xIntentSource1',
+          portalAddress: '0xPortal1',
         },
         transportService,
         eventEmitter,
+        logger,
+        otelService,
+        blockchainConfigService,
       );
 
       expect(ChainListener).toHaveBeenCalledWith(
         {
           chainType: 'EVM',
           chainId: 10,
-          inboxAddress: '0xInbox10',
-          intentSourceAddress: '0xIntentSource10',
+          portalAddress: '0xPortal10',
         },
         transportService,
         eventEmitter,
+        logger,
+        otelService,
+        blockchainConfigService,
       );
 
       expect(ChainListener).toHaveBeenCalledWith(
         {
           chainType: 'EVM',
           chainId: 137,
-          inboxAddress: '0xInbox137',
-          intentSourceAddress: '0xIntentSource137',
+          portalAddress: '0xPortal137',
         },
         transportService,
         eventEmitter,
+        logger,
+        otelService,
+        blockchainConfigService,
       );
 
       // Verify all listeners were started
@@ -138,8 +159,7 @@ describe('EvmListenersManagerService', () => {
       // Create a new service instance with empty networks
       const emptyEvmConfigService = {
         networks: [],
-        getInboxAddress: jest.fn(),
-        getIntentSourceAddress: jest.fn(),
+        getPortalAddress: jest.fn(),
       } as any;
 
       const module: TestingModule = await Test.createTestingModule({
@@ -148,6 +168,9 @@ describe('EvmListenersManagerService', () => {
           { provide: EvmConfigService, useValue: emptyEvmConfigService },
           { provide: EvmTransportService, useValue: transportService },
           { provide: EventEmitter2, useValue: eventEmitter },
+          { provide: SystemLoggerService, useValue: logger },
+          { provide: OpenTelemetryService, useValue: otelService },
+          { provide: BlockchainConfigService, useValue: blockchainConfigService },
         ],
       }).compile();
 
@@ -223,6 +246,9 @@ describe('EvmListenersManagerService', () => {
         evmConfigService,
         transportService,
         eventEmitter,
+        logger,
+        otelService,
+        blockchainConfigService,
       );
 
       await expect(newService.onModuleDestroy()).resolves.not.toThrow();
@@ -248,8 +274,9 @@ describe('EvmListenersManagerService', () => {
       const testNetworks = [
         {
           chainId: 42,
-          inboxAddress: '0xTestInbox' as Address,
-          intentSourceAddress: '0xTestIntentSource' as Address,
+          contracts: {
+            portal: '0xTestPortal' as Address,
+          },
         },
       ];
 
@@ -259,13 +286,9 @@ describe('EvmListenersManagerService', () => {
       });
 
       // Update the mock functions to return the test values
-      evmConfigService.getInboxAddress.mockImplementation((chainId: number) => {
+      evmConfigService.getPortalAddress.mockImplementation((chainId: number) => {
         const network = testNetworks.find((n) => n.chainId === chainId);
-        return network?.inboxAddress;
-      });
-      evmConfigService.getIntentSourceAddress.mockImplementation((chainId: number) => {
-        const network = testNetworks.find((n) => n.chainId === chainId);
-        return network?.intentSourceAddress;
+        return network?.contracts.portal;
       });
 
       await service.onModuleInit();
@@ -274,11 +297,13 @@ describe('EvmListenersManagerService', () => {
         {
           chainType: 'EVM',
           chainId: 42,
-          inboxAddress: '0xTestInbox',
-          intentSourceAddress: '0xTestIntentSource',
+          portalAddress: '0xTestPortal',
         },
         transportService,
         eventEmitter,
+        logger,
+        otelService,
+        blockchainConfigService,
       );
     });
   });

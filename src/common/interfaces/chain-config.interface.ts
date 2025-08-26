@@ -8,8 +8,7 @@ export interface ChainConfig {
 export interface EvmChainConfig extends ChainConfig {
   chainType: 'EVM';
   chainId: number;
-  inboxAddress: Address;
-  intentSourceAddress: Address;
+  portalAddress: Address;
 }
 
 export interface SolanaChainConfig extends ChainConfig {

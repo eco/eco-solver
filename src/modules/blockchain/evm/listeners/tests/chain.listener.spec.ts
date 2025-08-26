@@ -1,10 +1,13 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { IntentSourceAbi } from '@eco-foundation/routes-ts';
 import { Address, Hex } from 'viem';
 
+import { PortalAbi } from '@/common/abis/portal.abi';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
+import { BlockchainConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging';
+import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { ChainListener } from '../chain.listener';
 
@@ -12,40 +15,34 @@ describe('ChainListener', () => {
   let listener: ChainListener;
   let transportService: jest.Mocked<EvmTransportService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let logger: jest.Mocked<SystemLoggerService>;
+  let otelService: jest.Mocked<OpenTelemetryService>;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let mockPublicClient: any;
   let mockUnsubscribe: jest.Mock;
 
   const mockConfig: EvmChainConfig = {
     chainType: 'EVM',
     chainId: 1,
-    intentSourceAddress: '0xIntentSourceAddress' as Address,
-    inboxAddress: '0xInboxAddress' as Address,
+    portalAddress: '0xPortalAddress' as Address,
   };
 
   const mockLog = {
     args: {
       hash: '0xIntentHash' as Hex,
-      prover: '0xProverAddress' as Address,
       creator: '0xCreatorAddress' as Address,
-      deadline: 1234567890n,
+      prover: '0xProverAddress' as Address,
+      destination: 10n,
       nativeValue: 1000000000000000000n,
+      rewardDeadline: 1234567890n,
       rewardTokens: [
         { token: '0xToken1' as Address, amount: 100n },
         { token: '0xToken2' as Address, amount: 200n },
       ],
-      source: 1n,
-      destination: 10n,
-      salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-      inbox: '0xInboxAddress' as Address,
-      calls: [
-        {
-          target: '0xTarget1' as Address,
-          data: '0xData1' as Hex,
-          value: 0n,
-        },
-      ],
-      routeTokens: [{ token: '0xRouteToken1' as Address, amount: 300n }],
+      route: '0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003',
     },
+    blockNumber: 1234n,
+    transactionHash: '0xTxHash' as Hex,
   };
 
   beforeEach(() => {
@@ -62,7 +59,54 @@ describe('ChainListener', () => {
       emit: jest.fn(),
     } as any;
 
-    listener = new ChainListener(mockConfig, transportService, eventEmitter);
+    logger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as any;
+
+    otelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+    } as any;
+
+    blockchainConfigService = {
+      getPortalAddress: jest.fn().mockReturnValue('0xPortalAddress'),
+    } as any;
+
+    // Mock PortalEncoder
+    jest.mock('@/common/utils/portal-encoder', () => ({
+      PortalEncoder: {
+        decodeFromChain: jest.fn().mockReturnValue({
+          salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+          deadline: 1234567890n,
+          portal: '0xPortalAddress',
+          tokens: [{ token: '0xRouteToken1', amount: 300n }],
+          calls: [
+            {
+              target: '0xTarget1',
+              data: '0xData1',
+              value: 0n,
+            },
+          ],
+        }),
+      },
+    }));
+
+    listener = new ChainListener(
+      mockConfig,
+      transportService,
+      eventEmitter,
+      logger,
+      otelService,
+      blockchainConfigService,
+    );
   });
 
   afterEach(() => {
@@ -70,14 +114,14 @@ describe('ChainListener', () => {
   });
 
   describe('start', () => {
-    it('should start watching for IntentCreated events', async () => {
+    it('should start watching for IntentPublished events', async () => {
       await listener.start();
 
       expect(transportService.getPublicClient).toHaveBeenCalledWith(1);
       expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith({
-        abi: IntentSourceAbi,
-        eventName: 'IntentCreated',
-        address: '0xIntentSourceAddress',
+        abi: PortalAbi,
+        eventName: 'IntentPublished',
+        address: '0xPortalAddress',
         strict: true,
         onLogs: expect.any(Function),
       });
@@ -94,22 +138,13 @@ describe('ChainListener', () => {
 
       expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: {
-          intentHash: '0xIntentHash',
-          reward: {
-            prover: '0xProverAddress',
-            creator: '0xCreatorAddress',
-            deadline: 1234567890n,
-            nativeValue: 1000000000000000000n,
-            tokens: [
-              { token: '0xToken1', amount: 100n },
-              { token: '0xToken2', amount: 200n },
-            ],
-          },
+          intentId: '0xIntentHash',
+          destination: 10n,
           route: {
-            source: 1n,
-            destination: 10n,
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            inbox: '0xInboxAddress',
+            deadline: 1234567890n,
+            portal: '0xPortalAddress',
+            tokens: [{ token: '0xRouteToken1', amount: 300n }],
             calls: [
               {
                 target: '0xTarget1',
@@ -117,8 +152,18 @@ describe('ChainListener', () => {
                 value: 0n,
               },
             ],
-            tokens: [{ token: '0xRouteToken1', amount: 300n }],
           },
+          reward: {
+            deadline: 1234567890n,
+            creator: '0xCreatorAddress',
+            prover: '0xProverAddress',
+            nativeAmount: 1000000000000000000n,
+            tokens: [
+              { token: '0xToken1', amount: 100n },
+              { token: '0xToken2', amount: 200n },
+            ],
+          },
+          sourceChainId: 1n,
         },
         strategy: 'standard',
       });
@@ -152,7 +197,6 @@ describe('ChainListener', () => {
         args: {
           ...mockLog.args,
           rewardTokens: [],
-          routeTokens: [],
         },
       };
 
@@ -161,9 +205,6 @@ describe('ChainListener', () => {
       expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: expect.objectContaining({
           reward: expect.objectContaining({
-            tokens: [],
-          }),
-          route: expect.objectContaining({
             tokens: [],
           }),
         }),
@@ -176,15 +217,17 @@ describe('ChainListener', () => {
 
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
-      const logWithoutCalls = {
-        ...mockLog,
-        args: {
-          ...mockLog.args,
-          calls: [],
-        },
-      };
+      // Mock PortalEncoder to return empty calls
+      const mockPortalEncoder = require('@/common/utils/portal-encoder');
+      mockPortalEncoder.PortalEncoder.decodeFromChain.mockReturnValueOnce({
+        salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+        deadline: 1234567890n,
+        portal: '0xPortalAddress',
+        tokens: [{ token: '0xRouteToken1', amount: 300n }],
+        calls: [],
+      });
 
-      onLogsCallback([logWithoutCalls]);
+      onLogsCallback([mockLog]);
 
       expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: expect.objectContaining({
@@ -246,18 +289,16 @@ describe('ChainListener', () => {
   });
 
   describe('configuration', () => {
-    it('should use correct intent source address from config', async () => {
-      const customConfig: EvmChainConfig = {
-        ...mockConfig,
-        intentSourceAddress: '0xCustomIntentSource' as Address,
-      };
+    it('should use correct portal address from blockchain config service', async () => {
+      const customPortalAddress = '0xCustomPortal';
+      blockchainConfigService.getPortalAddress.mockReturnValue(customPortalAddress);
 
-      const customListener = new ChainListener(customConfig, transportService, eventEmitter);
-      await customListener.start();
+      await listener.start();
 
+      expect(blockchainConfigService.getPortalAddress).toHaveBeenCalledWith(1);
       expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          address: '0xCustomIntentSource',
+          address: customPortalAddress,
         }),
       );
     });

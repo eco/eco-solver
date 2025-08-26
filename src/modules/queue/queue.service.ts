@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -17,7 +17,7 @@ import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Injectable()
-export class QueueService implements IQueueService, OnModuleInit, OnModuleDestroy {
+export class QueueService implements IQueueService, OnApplicationBootstrap, OnModuleDestroy {
   constructor(
     @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
@@ -27,7 +27,7 @@ export class QueueService implements IQueueService, OnModuleInit, OnModuleDestro
     this.logger.setContext(QueueService.name);
   }
 
-  async onModuleInit() {
+  async onApplicationBootstrap() {
     this.logger.log('Checking queue states on startup...');
 
     // Check and resume fulfillment queue if paused

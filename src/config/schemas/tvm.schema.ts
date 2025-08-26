@@ -75,25 +75,18 @@ const WalletsSchema = z.object({
  * TVM network configuration schema
  */
 const TvmNetworkSchema = z.object({
-  chainId: z.union([
-    z.number().int().positive(),
-    z.string(), // Support string chain IDs like 'tron-mainnet'
-  ]),
+  chainId: z.number().int().positive(),
   rpc: TvmRpcSchema,
-  portalAddress: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Portal contract address
-  intentSourceAddress: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Tron contract address
-  inboxAddress: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Tron contract address
   tokens: z.array(TvmTokenSchema).default([]),
   fee: TvmFeeSchema,
   provers: z.record(
     z.enum(['hyper', 'metalayer'] as const),
     z.string().regex(/^T[a-zA-Z0-9]{33}$/),
   ),
-  contracts: z
-    .object({
-      // Add TVM-specific contracts here if needed
-    })
-    .optional(),
+  contracts: z.object({
+    portal: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Portal contract address
+    // Add TVM-specific contracts here if needed
+  }),
 });
 
 /**
