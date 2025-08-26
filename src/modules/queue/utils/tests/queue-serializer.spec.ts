@@ -231,18 +231,18 @@ describe('QueueSerializer', () => {
 
       // Verify all BigInt values are correctly deserialized
       expect(deserialized.reward.deadline).toBe(intentLikeData.reward.deadline);
-      expect(deserialized.reward.nativeValue).toBe(intentLikeData.reward.nativeValue);
+      expect(deserialized.reward.nativeAmount).toBe(intentLikeData.reward.nativeAmount);
       expect(deserialized.reward.tokens[0].amount).toBe(intentLikeData.reward.tokens[0].amount);
       expect(deserialized.route.source).toBe(intentLikeData.route.source);
-      expect(deserialized.route.destination).toBe(intentLikeData.route.destination);
+      expect(deserialized.destination).toBe(intentLikeData.destination);
       expect(deserialized.route.calls[0].value).toBe(intentLikeData.route.calls[0].value);
       expect(deserialized.route.tokens[0].amount).toBe(intentLikeData.route.tokens[0].amount);
 
       // Verify types
       expect(typeof deserialized.reward.deadline).toBe('bigint');
-      expect(typeof deserialized.reward.nativeValue).toBe('bigint');
+      expect(typeof deserialized.reward.nativeAmount).toBe('bigint');
       expect(typeof deserialized.route.source).toBe('bigint');
-      expect(typeof deserialized.route.destination).toBe('bigint');
+      expect(typeof deserialized.destination).toBe('bigint');
     });
   });
 });

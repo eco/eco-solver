@@ -1,11 +1,13 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { IntentSourceAbi } from '@eco-foundation/routes-ts';
 import * as api from '@opentelemetry/api';
 import { PublicClient } from 'viem';
 
+import { PORTAL_ADDRESSES, PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -29,50 +31,62 @@ export class ChainListener extends BaseChainListener {
 
     const publicClient = this.transportService.getPublicClient(evmConfig.chainId);
 
-    this.logger.log(
-      `Listening for IntentCreated events, intent source: ${evmConfig.intentSourceAddress}`,
-    );
+    const portalAddress = PORTAL_ADDRESSES[evmConfig.chainId];
+    if (!portalAddress) {
+      throw new Error(`No Portal address configured for chain ${evmConfig.chainId}`);
+    }
+
+    this.logger.log(`Listening for IntentPublished events, portal address: ${portalAddress}`);
 
     this.unsubscribe = publicClient.watchContractEvent({
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
-      address: evmConfig.intentSourceAddress,
+      abi: PortalAbi,
+      eventName: 'IntentPublished',
+      address: portalAddress,
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
           const span = this.otelService.startSpan('evm.listener.processIntentEvent', {
             attributes: {
               'evm.chain_id': this.config.chainId,
-              'evm.event_name': 'IntentCreated',
-              'evm.intent_source_address': evmConfig.intentSourceAddress,
+              'evm.event_name': 'IntentPublished',
+              'portal.address': portalAddress,
               'evm.block_number': log.blockNumber?.toString(),
               'evm.transaction_hash': log.transactionHash,
             },
           });
 
           try {
+            // Decode route based on destination chain type
+            const destChainType = ChainTypeDetector.detect(log.args.destination);
+            const route = PortalEncoder.decodeFromChain(
+              Buffer.from(log.args.route.slice(2), 'hex'),
+              destChainType,
+              'route',
+            ) as any;
+
             const intent = {
-              intentHash: log.args.hash,
+              intentId: log.args.hash,
+              destination: log.args.destination,
+              route: {
+                salt: route.salt,
+                deadline: route.deadline,
+                portal: route.portal,
+                tokens: route.tokens,
+                calls: route.calls,
+              },
               reward: {
-                prover: log.args.prover,
+                deadline: log.args.rewardDeadline,
                 creator: log.args.creator,
-                deadline: log.args.deadline,
-                nativeValue: log.args.nativeValue,
+                prover: log.args.prover,
+                nativeAmount: log.args.nativeValue,
                 tokens: log.args.rewardTokens,
               },
-              route: {
-                source: log.args.source,
-                destination: log.args.destination,
-                salt: log.args.salt,
-                inbox: log.args.inbox,
-                calls: log.args.calls,
-                tokens: log.args.routeTokens,
-              },
+              sourceChainId: BigInt(evmConfig.chainId),
             };
 
             span.setAttributes({
-              'evm.intent_id': intent.intentHash,
-              'evm.source_chain': log.args.source.toString(),
+              'evm.intent_id': intent.intentId,
+              'evm.source_chain': evmConfig.chainId.toString(),
               'evm.destination_chain': log.args.destination.toString(),
               'evm.creator': log.args.creator,
               'evm.prover': log.args.prover,

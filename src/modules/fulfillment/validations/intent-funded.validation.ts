@@ -27,28 +27,40 @@ export class IntentFundedValidation implements Validation {
       this.otelService.startSpan('validation.IntentFundedValidation', {
         attributes: {
           'validation.name': 'IntentFundedValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
+          'intent.id': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
+          'intent.destination_chain': intent.destination.toString(),
         },
       });
 
-    const sourceChainId = intent.route.source;
+    const sourceChainId = intent.sourceChainId;
 
     try {
+      if (!sourceChainId) {
+        throw new Error(`Intent ${intent.intentId} is missing source chain ID`);
+      }
+
       span.setAttribute('funding.checking_chain', sourceChainId.toString());
 
+      // Always perform on-chain verification for intent funding status
       const isFunded = await this.blockchainReader.isIntentFunded(sourceChainId, intent);
+
+      // If we have vault address, add it to span for debugging
+      if (intent.vaultAddress) {
+        span.setAttribute('funding.vault_address', intent.vaultAddress);
+      }
 
       span.setAttributes({
         'funding.is_funded': isFunded,
         'funding.source_chain': sourceChainId.toString(),
+        'funding.method': 'on_chain_check',
       });
 
       if (!isFunded) {
-        throw new Error(`Intent ${intent.intentHash} is not funded on chain ${sourceChainId}`);
+        throw new Error(`Intent ${intent.intentId} is not funded on chain ${sourceChainId}`);
       }
 
-      this.logger.debug(`Intent ${intent.intentHash} is funded on chain ${sourceChainId}`);
+      this.logger.debug(`Intent ${intent.intentId} is funded on chain ${sourceChainId}`);
 
       if (!activeSpan) {
         span.setStatus({ code: api.SpanStatusCode.OK });
@@ -66,7 +78,7 @@ export class IntentFundedValidation implements Validation {
       }
 
       // Otherwise, wrap the error
-      this.logger.error(`Failed to check funding status for intent ${intent.intentHash}:`, error);
+      this.logger.error(`Failed to check funding status for intent ${intent.intentId}:`, error);
       throw new Error(`Failed to verify intent funding status: ${error.message}`);
     } finally {
       if (!activeSpan) {

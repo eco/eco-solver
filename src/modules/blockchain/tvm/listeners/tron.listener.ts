@@ -3,7 +3,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
 
+import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
@@ -31,8 +34,13 @@ export class TronListener extends BaseChainListener {
    * Starts the blockchain listener for monitoring new intents
    */
   async start(): Promise<void> {
+    const portalAddress = PORTAL_ADDRESSES[this.config.chainId];
+    if (!portalAddress) {
+      throw new Error(`No Portal address configured for chain ${this.config.chainId}`);
+    }
+
     this.logger.log(
-      `Starting TronListener for chain ${this.config.chainId}, intent source: ${this.config.intentSourceAddress}`,
+      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}`,
     );
 
     this.isRunning = true;
@@ -78,7 +86,7 @@ export class TronListener extends BaseChainListener {
     const span = this.otelService.startSpan('tvm.listener.pollForEvents', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
-        'tvm.intent_source_address': this.config.intentSourceAddress,
+        'portal.address': PORTAL_ADDRESSES[this.config.chainId],
         'tvm.last_block_number': this.lastBlockNumber,
       },
     });
@@ -99,13 +107,14 @@ export class TronListener extends BaseChainListener {
         return;
       }
 
+      const portalAddress = PORTAL_ADDRESSES[this.config.chainId];
       // Convert address to hex for event filtering
-      const hexIntentSourceAddress = this.config.intentSourceAddress.startsWith('T')
-        ? this.utilsService.toHex(this.config.intentSourceAddress)
-        : this.config.intentSourceAddress;
+      const hexPortalAddress = portalAddress.startsWith('T')
+        ? this.utilsService.toHex(portalAddress)
+        : portalAddress;
 
       // Get events from the last processed block to current
-      const events = await client.event.getEventsByContractAddress(hexIntentSourceAddress, {
+      const events = await client.event.getEventsByContractAddress(hexPortalAddress, {
         onlyConfirmed: true,
         minBlockTimestamp: this.lastBlockNumber,
         orderBy: 'block_timestamp,asc',
@@ -114,10 +123,10 @@ export class TronListener extends BaseChainListener {
 
       span.setAttribute('tvm.event_count', events && Array.isArray(events) ? events.length : 0);
 
-      // Process IntentCreated events
+      // Process IntentPublished events
       if (events && Array.isArray(events)) {
         for (const event of events) {
-          if (event.event_name === 'IntentCreated') {
+          if (event.event_name === 'IntentPublished') {
             await this.processIntentEvent(event);
           }
         }
@@ -157,29 +166,38 @@ export class TronListener extends BaseChainListener {
       // Parse event result
       const result = event.result;
 
-      // Construct intent from event data
+      // Decode route based on destination chain type
+      const destChainType = ChainTypeDetector.detect(BigInt(result.destination));
+      const route = PortalEncoder.decodeFromChain(
+        Buffer.from(result.route, 'hex'),
+        destChainType,
+        'route',
+      ) as any;
+
+      // Construct intent from Portal event data
       const intent = {
-        intentHash: result.hash,
-        reward: {
-          prover: this.utilsService.fromHex(result.prover),
-          creator: this.utilsService.fromHex(result.creator),
-          deadline: BigInt(result.deadline),
-          nativeValue: BigInt(result.nativeValue),
-          tokens: this.parseTokenArray(result.rewardTokens),
-        },
+        intentId: result.hash,
+        destination: BigInt(result.destination),
         route: {
-          source: BigInt(result.source),
-          destination: BigInt(result.destination),
-          salt: result.salt,
-          inbox: this.utilsService.fromHex(result.inbox),
-          calls: this.parseCallArray(result.calls),
-          tokens: this.parseTokenArray(result.routeTokens),
+          salt: route.salt,
+          deadline: route.deadline,
+          portal: route.portal,
+          tokens: route.tokens || [],
+          calls: route.calls || [],
         },
+        reward: {
+          creator: this.utilsService.fromHex(result.creator),
+          prover: this.utilsService.fromHex(result.prover),
+          deadline: BigInt(result.rewardDeadline),
+          nativeAmount: BigInt(result.nativeValue),
+          tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens) : [],
+        },
+        sourceChainId: BigInt(this.config.chainId),
       };
 
       span.setAttributes({
-        'tvm.intent_id': intent.intentHash,
-        'tvm.source_chain': result.source,
+        'tvm.intent_id': intent.intentId,
+        'tvm.source_chain': this.config.chainId.toString(),
         'tvm.destination_chain': result.destination,
         'tvm.creator': intent.reward.creator,
         'tvm.prover': intent.reward.prover,
@@ -191,7 +209,7 @@ export class TronListener extends BaseChainListener {
       span.addEvent('intent.emitted');
       span.setStatus({ code: api.SpanStatusCode.OK });
 
-      this.logger.log(`Intent discovered: ${intent.intentHash}`);
+      this.logger.log(`Intent discovered: ${intent.intentId}`);
     } catch (error) {
       this.logger.error(`Error processing intent event: ${error.message}`, error);
       span.recordException(error as Error);

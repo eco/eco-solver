@@ -28,7 +28,7 @@ export class FulfillmentProcessor extends WorkerHost {
       const processFn = async (j: Job<string>) => {
         const jobData = QueueSerializer.deserialize<FulfillmentJobData>(j.data);
         this.logger.log(
-          `Processing intent ${jobData.intent.intentHash} with strategy ${jobData.strategy}`,
+          `Processing intent ${jobData.intent.intentId} with strategy ${jobData.strategy}`,
         );
         await this.fulfillmentService.processIntent(jobData.intent, jobData.strategy);
       };

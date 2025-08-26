@@ -160,7 +160,7 @@ describe('BlockchainProcessor', () => {
       // Add delay to simulate async execution
       const executionOrder: string[] = [];
       blockchainService.executeIntent.mockImplementation(async (intent) => {
-        executionOrder.push(intent.intentHash);
+        executionOrder.push(intent.intentId);
         await new Promise((resolve) => setTimeout(resolve, 10));
       });
 
@@ -207,7 +207,7 @@ describe('BlockchainProcessor', () => {
 
       blockchainService.executeIntent.mockImplementation(async (intent) => {
         await new Promise((resolve) => setTimeout(resolve, 50));
-        executionTimes[intent.intentHash] = Date.now() - startTime;
+        executionTimes[intent.intentId] = Date.now() - startTime;
       });
 
       // Start all jobs concurrently

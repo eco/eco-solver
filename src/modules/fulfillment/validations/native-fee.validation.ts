@@ -23,8 +23,8 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       this.otelService.startSpan('validation.NativeFeeValidation', {
         attributes: {
           'validation.name': 'NativeFeeValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.destination_chain': intent.destination?.toString(),
         },
       });
 
@@ -67,10 +67,10 @@ export class NativeFeeValidation implements FeeCalculationValidation {
     const nativeValue = intent.route.calls.reduce((sum, call) => sum + call.value, 0n);
 
     // Get reward from the new structure
-    const reward = intent.reward.nativeValue;
+    const reward = intent.reward.nativeAmount;
 
     // Native intents have different fee requirements
-    const nativeFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.route.destination);
+    const nativeFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.destination);
     const baseFee = BigInt(nativeFeeConfig.native.flatFee ?? 0);
 
     const base = 1_000;

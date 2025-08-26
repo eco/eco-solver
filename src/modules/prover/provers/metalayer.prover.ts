@@ -19,16 +19,16 @@ export class MetalayerProver extends BaseProver {
     super(evmConfigService, moduleRef);
   }
 
-  async getMessageData(intent: Intent): Promise<Hex> {
+  async generateProof(intent: Intent): Promise<Hex> {
     return encodeAbiParameters([{ type: 'bytes32' }], [pad(intent.reward.prover)]);
   }
 
   async getFee(intent: Intent, claimant?: Address): Promise<bigint> {
     // Fetch fee from the source chain where the intent originates
     return this.blockchainReaderService.fetchProverFee(
-      intent.route.source,
+      intent.sourceChainId!,
       intent,
-      await this.getMessageData(intent),
+      await this.generateProof(intent),
       claimant,
     );
   }

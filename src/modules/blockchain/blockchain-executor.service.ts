@@ -92,8 +92,8 @@ export class BlockchainExecutorService {
   async executeIntent(intent: Intent, walletId?: WalletType): Promise<void> {
     const span = this.otelService.startSpan('intent.blockchain.execute', {
       attributes: {
-        'intent.hash': intent.intentHash,
-        'intent.destination_chain': intent.route.destination.toString(),
+        'intent.hash': intent.intentId,
+        'intent.destination_chain': intent.destination.toString(),
         'intent.wallet_type': walletId || 'default',
         'intent.route.tokens_count': intent.route.tokens.length,
         'intent.route.calls_count': intent.route.calls.length,
@@ -101,7 +101,7 @@ export class BlockchainExecutorService {
     });
 
     try {
-      const executor = this.getExecutorForChain(intent.route.destination);
+      const executor = this.getExecutorForChain(intent.destination);
       span.addEvent('intent.executor.selected', {
         executor: executor.constructor.name,
       });
@@ -109,8 +109,8 @@ export class BlockchainExecutorService {
       const result = await executor.fulfill(intent, walletId);
 
       if (result.success) {
-        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
-        this.logger.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FULFILLED);
+        this.logger.log(`Intent ${intent.intentId} fulfilled: ${result.txHash}`);
 
         span.setAttributes({
           'intent.tx_hash': result.txHash,
@@ -118,12 +118,12 @@ export class BlockchainExecutorService {
         });
         span.addEvent('intent.fulfilled', {
           txHash: result.txHash,
-          chainId: intent.route.destination.toString(),
+          chainId: intent.destination.toString(),
         });
         span.setStatus({ code: 0 }); // OK
       } else {
-        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
+        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        this.logger.error(`Intent ${intent.intentId} failed: ${result.error}`);
 
         span.setAttributes({
           'intent.error': result.error,
@@ -137,8 +137,8 @@ export class BlockchainExecutorService {
 
       span.end();
     } catch (error) {
-      this.logger.error(`Error executing intent ${intent.intentHash}:`, error.message);
-      await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+      this.logger.error(`Error executing intent ${intent.intentId}:`, error.message);
+      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
 
       span.recordException(error as Error);
       span.setStatus({ code: 2, message: (error as Error).message });

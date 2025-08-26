@@ -2,7 +2,10 @@
  * Base error class for all TVM-related errors
  */
 export class TvmError extends Error {
-  constructor(message: string, public readonly code?: string) {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
     super(message);
     this.name = 'TvmError';
   }
@@ -72,7 +75,10 @@ export class TvmAddressError extends TvmError {
  * Error thrown when a wallet operation fails
  */
 export class TvmWalletError extends TvmError {
-  constructor(message: string, public readonly walletType?: string) {
+  constructor(
+    message: string,
+    public readonly walletType?: string,
+  ) {
     super(message, 'WALLET_ERROR');
     this.name = 'TvmWalletError';
   }
@@ -82,7 +88,10 @@ export class TvmWalletError extends TvmError {
  * Error thrown when a configuration is invalid or missing
  */
 export class TvmConfigError extends TvmError {
-  constructor(message: string, public readonly configKey?: string) {
+  constructor(
+    message: string,
+    public readonly configKey?: string,
+  ) {
     super(message, 'CONFIG_ERROR');
     this.name = 'TvmConfigError';
   }

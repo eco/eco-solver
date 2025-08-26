@@ -26,8 +26,8 @@ export class MinimumRouteAmountValidation implements Validation {
       this.otelService.startSpan('validation.MinimumRouteAmountValidation', {
         attributes: {
           'validation.name': 'MinimumRouteAmountValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.destination_chain': intent.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
         },
       });
@@ -35,7 +35,7 @@ export class MinimumRouteAmountValidation implements Validation {
     try {
       // Calculate total value being transferred
       const normalizedTokens = this.fulfillmentConfigService.normalize(
-        intent.route.destination,
+        intent.destination,
         intent.route.tokens,
       );
       const totalValue = sum(normalizedTokens, 'amount');
@@ -44,7 +44,7 @@ export class MinimumRouteAmountValidation implements Validation {
       // Get minimum limits from all tokens
       const tokenMinimums = intent.route.tokens.map((token, index) => {
         const { limit, decimals } = this.fulfillmentConfigService.getToken(
-          intent.route.destination,
+          intent.destination,
           token.token,
         );
 
@@ -98,7 +98,7 @@ export class MinimumRouteAmountValidation implements Validation {
 
       if (totalValue < minimumAmount) {
         throw new Error(
-          `Total route value ${totalValue} is below minimum amount ${minimumAmount} for destination chain ${intent.route.destination}`,
+          `Total route value ${totalValue} is below minimum amount ${minimumAmount} for destination chain ${intent.destination}`,
         );
       }
 

@@ -67,9 +67,9 @@ export class TvmTracingUtils {
    */
   static createIntentAttributes(intent: Intent): TvmSpanAttributes {
     return {
-      intentId: intent.intentHash,
-      source_chain: intent.route.source.toString(),
-      destination_chain: intent.route.destination.toString(),
+      intentId: intent.intentId,
+      source_chain: intent.sourceChainId.toString(),
+      destination_chain: intent.destination.toString(),
       has_tokens: intent.route.tokens.length > 0,
       has_calls: intent.route.calls.length > 0,
       reward_deadline: intent.reward.deadline.toString(),
@@ -102,7 +102,7 @@ export class TvmTracingUtils {
     } catch (error) {
       if (!activeSpan) {
         span.recordException(error as Error);
-        span.setStatus({ 
+        span.setStatus({
           code: api.SpanStatusCode.ERROR,
           message: (error as Error).message,
         });

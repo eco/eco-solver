@@ -24,7 +24,7 @@ export abstract class BaseProver implements OnModuleInit {
     });
   }
 
-  abstract getMessageData(intent: Intent): Promise<Hex>;
+  abstract generateProof(intent: Intent): Promise<Hex>;
   abstract getFee(intent: Intent, claimant?: Address): Promise<bigint>;
   abstract getDeadlineBuffer(): bigint;
 

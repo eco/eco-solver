@@ -5,12 +5,15 @@ import { TronWeb } from 'tronweb';
 import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { TvmClientUtils, TvmErrorHandler } from '../utils';
+
 import { TvmUtilsService } from './tvm-utils.service';
 
 @Injectable()
@@ -23,16 +26,6 @@ export class TvmReaderService extends BaseChainReader {
   ) {
     super();
     this.logger.setContext(TvmReaderService.name);
-  }
-
-  /**
-   * Creates a TronWeb instance for the given chain
-   * @param chainId - The chain ID to create client for
-   * @returns TronWeb instance
-   */
-  private createTronWebClient(chainId: number | string): TronWeb {
-    const network = this.tvmConfigService.getChain(chainId);
-    return TvmClientUtils.createClient(network);
   }
 
   /**
@@ -54,12 +47,10 @@ export class TvmReaderService extends BaseChainReader {
       const balance = await TvmErrorHandler.wrapAsync(
         async () => {
           const client = this.createTronWebClient(chainId);
-          
+
           // Convert base58 address to hex if needed
-          const hexAddress = address.startsWith('T') 
-            ? this.utilsService.toHex(address)
-            : address;
-          
+          const hexAddress = address.startsWith('T') ? this.utilsService.toHex(address) : address;
+
           // Get balance in SUN (1 TRX = 1,000,000 SUN)
           const balance = await client.trx.getBalance(hexAddress);
           const balanceBigInt = BigInt(balance);
@@ -72,7 +63,7 @@ export class TvmReaderService extends BaseChainReader {
         span,
         this.logger,
       );
-      
+
       return balance;
     } finally {
       span.end();
@@ -95,12 +86,12 @@ export class TvmReaderService extends BaseChainReader {
 
     try {
       const client = this.createTronWebClient(chainId);
-      
+
       // Convert addresses to hex if needed
-      const hexTokenAddress = tokenAddress.startsWith('T') 
+      const hexTokenAddress = tokenAddress.startsWith('T')
         ? this.utilsService.toHex(tokenAddress)
         : tokenAddress;
-      const hexWalletAddress = walletAddress.startsWith('T') 
+      const hexWalletAddress = walletAddress.startsWith('T')
         ? this.utilsService.toHex(walletAddress)
         : walletAddress;
 
@@ -144,7 +135,7 @@ export class TvmReaderService extends BaseChainReader {
   }
 
   /**
-   * Checks if an intent is funded on the IntentSource contract
+   * Checks if an intent is funded by checking vault balances
    * @param intent - The intent to check
    * @param chainId - The chain ID to query
    * @returns True if the intent is funded, false otherwise
@@ -153,82 +144,82 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.isIntentFunded', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.intent_id': intent.intentHash,
+        'tvm.intent_id': intent.intentId,
         'tvm.operation': 'isIntentFunded',
-        'tvm.source_chain': intent.route.source.toString(),
-        'tvm.destination_chain': intent.route.destination.toString(),
+        'tvm.destination_chain': intent.destination.toString(),
       },
     });
 
     try {
-      const intentSourceAddress = this.tvmConfigService.getIntentSourceAddress(chainId);
-      if (!intentSourceAddress) {
-        this.logger.warn(`No IntentSource address configured for chain ${chainId}`);
-        span.setAttribute('tvm.intent_source_configured', false);
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        span.end();
-        return false;
-      }
+      // Get source chain info for vault derivation
+      const sourceChainId = intent.sourceChainId || chainId;
+      const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+      const destChainType = ChainTypeDetector.detect(intent.destination);
 
-      span.setAttribute('tvm.intent_source_address', intentSourceAddress);
-      const client = this.createTronWebClient(chainId);
-      
-      // Convert address to hex
-      const hexIntentSourceAddress = intentSourceAddress.startsWith('T') 
-        ? this.utilsService.toHex(intentSourceAddress)
-        : intentSourceAddress;
-
-      // Prepare intent struct parameter for the contract call
-      const intentParam = {
-        route: {
-          salt: intent.route.salt,
-          source: intent.route.source.toString(),
-          destination: intent.route.destination.toString(),
-          inbox: this.utilsService.toHex(intent.route.inbox),
-          tokens: intent.route.tokens.map(token => ({
-            token: this.utilsService.toHex(token.token),
-            amount: token.amount.toString(),
-          })),
-          calls: intent.route.calls.map(call => ({
-            target: this.utilsService.toHex(call.target),
-            value: call.value.toString(),
-            data: call.data,
-          })),
+      // Calculate intent hash for vault derivation
+      const intentHash = PortalHashUtils.computeIntentHash(
+        intent.destination,
+        {
+          ...intent.route,
+          tokens: [...intent.route.tokens] as TokenAmount[],
+          calls: [...intent.route.calls] as Call[],
         },
-        reward: {
-          creator: this.utilsService.toHex(intent.reward.creator),
-          prover: this.utilsService.toHex(intent.reward.prover),
-          deadline: intent.reward.deadline.toString(),
-          nativeValue: intent.reward.nativeValue.toString(),
-          tokens: intent.reward.tokens.map(token => ({
-            token: this.utilsService.toHex(token.token),
-            amount: token.amount.toString(),
-          })),
+        {
+          ...intent.reward,
+          tokens: [...intent.reward.tokens] as TokenAmount[],
         },
-      };
-
-      // Call isIntentFunded on the IntentSource contract
-      const parameter = [{ type: 'tuple', value: intentParam }];
-      const result = await client.transactionBuilder.triggerConstantContract(
-        hexIntentSourceAddress,
-        'isIntentFunded(tuple)',
-        {},
-        parameter,
-        hexIntentSourceAddress,
+        sourceChainType,
+        destChainType,
       );
 
-      if (!result.result.result) {
-        throw new Error('Failed to check intent funding status');
+      // Derive vault address
+      const vaultAddress = PortalHashUtils.getVaultAddress(
+        sourceChainType,
+        sourceChainId,
+        intentHash,
+      );
+
+      span.setAttribute('tvm.vault_address', vaultAddress);
+      span.setAttribute('tvm.intent_hash', intentHash);
+
+      // Check native balance first
+      const requiredNativeAmount = intent.reward.nativeAmount || 0n;
+      if (requiredNativeAmount > 0n) {
+        const nativeBalance = await this.getBalance(vaultAddress, Number(sourceChainId));
+        if (nativeBalance < requiredNativeAmount) {
+          span.setAttribute('tvm.native_sufficient', false);
+          span.setAttribute('tvm.native_required', requiredNativeAmount.toString());
+          span.setAttribute('tvm.native_actual', nativeBalance.toString());
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return false;
+        }
       }
 
-      // Extract boolean result
-      const isFunded = result.constant_result[0] === '0000000000000000000000000000000000000000000000000000000000000001';
+      // Check token balances
+      if (intent.reward.tokens && intent.reward.tokens.length > 0) {
+        for (const token of intent.reward.tokens) {
+          const tokenBalance = await this.getTokenBalance(
+            token.token,
+            vaultAddress,
+            Number(sourceChainId),
+          );
 
-      span.setAttribute('tvm.intent_funded', isFunded);
+          if (tokenBalance < token.amount) {
+            span.setAttribute('tvm.token_sufficient', false);
+            span.setAttribute('tvm.token_address', token.token);
+            span.setAttribute('tvm.token_required', token.amount.toString());
+            span.setAttribute('tvm.token_actual', tokenBalance.toString());
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return false;
+          }
+        }
+      }
+
+      span.setAttribute('tvm.intent_funded', true);
       span.setStatus({ code: api.SpanStatusCode.OK });
-      return isFunded;
+      return true;
     } catch (error) {
-      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, error);
+      this.logger.error(`Failed to check if intent ${intent.intentId} is funded:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to check intent funding status: ${error.message}`);
@@ -246,7 +237,7 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.fetchProverFee', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.intent_id': intent.intentHash,
+        'tvm.intent_id': intent.intentId,
         'tvm.prover_address': intent.reward.prover,
         'tvm.operation': 'fetchProverFee',
         'tvm.has_claimant': !!claimant,
@@ -255,7 +246,7 @@ export class TvmReaderService extends BaseChainReader {
 
     try {
       const client = this.createTronWebClient(chainId);
-      
+
       // Convert addresses to hex
       const hexProverAddress = this.utilsService.toHex(intent.reward.prover);
       const hexClaimantAddress = claimant ? this.utilsService.toHex(claimant) : hexProverAddress;
@@ -263,7 +254,7 @@ export class TvmReaderService extends BaseChainReader {
       // Prepare parameters for fetchFee call
       const parameters = [
         { type: 'bytes32', value: intent.route.salt },
-        { type: 'uint256', value: intent.route.source.toString() },
+        { type: 'uint256', value: intent.sourceChainId.toString() },
         { type: 'bytes', value: messageData },
         { type: 'address', value: hexClaimantAddress },
       ];
@@ -289,12 +280,22 @@ export class TvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return feeBigInt;
     } catch (error) {
-      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
+      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentId}:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${error.message}`);
     } finally {
       span.end();
     }
+  }
+
+  /**
+   * Creates a TronWeb instance for the given chain
+   * @param chainId - The chain ID to create client for
+   * @returns TronWeb instance
+   */
+  private createTronWebClient(chainId: number | string): TronWeb {
+    const network = this.tvmConfigService.getChain(chainId);
+    return TvmClientUtils.createClient(network);
   }
 }

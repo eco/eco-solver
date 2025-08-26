@@ -305,7 +305,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     // Execute the fulfill method
     console.log('Executing fulfill with intent:', {
       source: testIntent.route.source.toString(),
-      destination: testIntent.route.destination.toString(),
+      destination: testIntent.destination.toString(),
       prover: testIntent.reward.prover,
     });
 

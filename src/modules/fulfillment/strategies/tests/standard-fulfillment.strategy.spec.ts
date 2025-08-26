@@ -32,7 +32,6 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import {
   ChainSupportValidation,
   DuplicateRewardTokensValidation,
@@ -46,6 +45,7 @@ import {
   StandardFeeValidation,
 } from '@/modules/fulfillment/validations';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
@@ -99,7 +99,9 @@ describe('StandardFulfillmentStrategy', () => {
     });
 
     intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
-    duplicateRewardTokensValidation = createMockValidation('DuplicateRewardTokensValidation') as any;
+    duplicateRewardTokensValidation = createMockValidation(
+      'DuplicateRewardTokensValidation',
+    ) as any;
     routeTokenValidation = createMockValidation('RouteTokenValidation') as any;
     routeCallsValidation = createMockValidation('RouteCallsValidation') as any;
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
@@ -358,7 +360,7 @@ describe('StandardFulfillmentStrategy', () => {
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
         strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
         intent: mockIntent,
-        chainId: mockIntent.route.destination,
+        chainId: mockIntent.destination,
         walletId: 'kernel',
       });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
@@ -394,7 +396,7 @@ describe('StandardFulfillmentStrategy', () => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
           strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
           intent,
-          chainId: intent.route.destination,
+          chainId: intent.destination,
           walletId: 'kernel',
         });
       });

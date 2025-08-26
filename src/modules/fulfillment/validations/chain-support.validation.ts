@@ -23,36 +23,36 @@ export class ChainSupportValidation implements Validation {
       this.otelService.startSpan('validation.ChainSupportValidation', {
         attributes: {
           'validation.name': 'ChainSupportValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString(),
+          'intent.destination_chain': intent.destination?.toString(),
         },
       });
 
     try {
-      if (!intent.route.source) {
+      if (!intent.sourceChainId) {
         throw new Error('Intent must have source chain ID');
       }
 
-      if (!intent.route.destination) {
+      if (!intent.destination) {
         throw new Error('Intent must have destination chain ID');
       }
 
-      span.setAttribute('chain.source.id', intent.route.source.toString());
-      span.setAttribute('chain.destination.id', intent.route.destination.toString());
+      span.setAttribute('chain.source.id', intent.sourceChainId.toString());
+      span.setAttribute('chain.destination.id', intent.destination.toString());
 
-      const sourceSupported = this.blockchainService.isChainSupported(intent.route.source);
+      const sourceSupported = this.blockchainService.isChainSupported(intent.sourceChainId);
       span.setAttribute('chain.source.supported', sourceSupported);
 
       if (!sourceSupported) {
-        throw new Error(`Source chain ${intent.route.source} is not supported`);
+        throw new Error(`Source chain ${intent.sourceChainId} is not supported`);
       }
 
-      const destSupported = this.blockchainService.isChainSupported(intent.route.destination);
+      const destSupported = this.blockchainService.isChainSupported(intent.destination);
       span.setAttribute('chain.destination.supported', destSupported);
 
       if (!destSupported) {
-        throw new Error(`Target chain ${intent.route.destination} is not supported`);
+        throw new Error(`Target chain ${intent.destination} is not supported`);
       }
 
       if (!activeSpan) {

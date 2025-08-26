@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { Address } from 'viem';
 
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RouteCallsValidation } from '../route-calls.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
@@ -34,11 +35,11 @@ describe('RouteCallsValidation', () => {
           provide: EvmConfigService,
           useValue: mockEvmConfigService,
         },
-              {
+        {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
         },
-        ],
+      ],
     }).compile();
 
     validation = module.get<RouteCallsValidation>(RouteCallsValidation);

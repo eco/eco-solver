@@ -18,6 +18,7 @@ export const SolanaSchema = z
     secretKey: z.string(),
     walletAddress: z.string().optional(),
     programId: z.string(),
+    portalProgramId: z.string(),
   })
   .optional();
 

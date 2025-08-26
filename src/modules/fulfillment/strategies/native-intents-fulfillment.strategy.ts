@@ -69,7 +69,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     // Native intents strategy handles intents that only involve native tokens
     // Check if the intent has no token transfers, only native value
     const hasTokenTransfers = intent.route.tokens.length > 0 || intent.reward.tokens.length > 0;
-    const hasNativeValue = intent.reward.nativeValue > 0n;
+    const hasNativeValue = intent.reward.nativeAmount > 0n;
 
     return !hasTokenTransfers && hasNativeValue;
   }
@@ -77,10 +77,10 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     const span = this.otelService.startSpan('native-intents-strategy.execute', {
       attributes: {
-        'intent.hash': intent.intentHash,
-        'intent.source_chain': intent.route.source.toString(),
-        'intent.destination_chain': intent.route.destination.toString(),
-        'intent.native_value': intent.reward.nativeValue.toString(),
+        'intent.hash': intent.intentId,
+        'intent.source_chain': intent.sourceChainId.toString(),
+        'intent.destination_chain': intent.destination.toString(),
+        'intent.native_value': intent.reward.nativeAmount.toString(),
         'intent.has_tokens': false,
         'strategy.name': this.name,
       },
@@ -98,7 +98,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
       await this.queueService.addIntentToExecutionQueue({
         strategy: this.name,
         intent,
-        chainId: intent.route.destination,
+        chainId: intent.destination,
         walletId,
       });
 

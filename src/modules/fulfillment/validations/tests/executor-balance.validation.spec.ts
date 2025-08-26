@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { Address } from 'viem';
 
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { ExecutorBalanceValidation } from '../executor-balance.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';

@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { Address } from 'viem';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RouteAmountLimitValidation } from '../route-amount-limit.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
@@ -35,11 +36,11 @@ describe('RouteAmountLimitValidation', () => {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
         },
-              {
+        {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
         },
-        ],
+      ],
     }).compile();
 
     validation = module.get<RouteAmountLimitValidation>(RouteAmountLimitValidation);

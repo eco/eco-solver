@@ -76,10 +76,10 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   async execute(intent: Intent): Promise<void> {
     const span = this.otelService.startSpan('negative-intents-strategy.execute', {
       attributes: {
-        'intent.hash': intent.intentHash,
-        'intent.source_chain': intent.route.source.toString(),
-        'intent.destination_chain': intent.route.destination.toString(),
-        'intent.native_value': intent.reward.nativeValue.toString(),
+        'intent.hash': intent.intentId,
+        'intent.source_chain': intent.sourceChainId.toString(),
+        'intent.destination_chain': intent.destination.toString(),
+        'intent.native_value': intent.reward.nativeAmount.toString(),
         'intent.tokens_count': intent.route.tokens.length + intent.reward.tokens.length,
         'strategy.name': this.name,
       },
@@ -97,7 +97,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
       await this.queueService.addIntentToExecutionQueue({
         strategy: this.name,
         intent,
-        chainId: intent.route.destination,
+        chainId: intent.destination,
         walletId,
       });
 

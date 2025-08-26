@@ -80,6 +80,7 @@ const TvmNetworkSchema = z.object({
     z.string(), // Support string chain IDs like 'tron-mainnet'
   ]),
   rpc: TvmRpcSchema,
+  portalAddress: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Portal contract address
   intentSourceAddress: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Tron contract address
   inboxAddress: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Tron contract address
   tokens: z.array(TvmTokenSchema).default([]),

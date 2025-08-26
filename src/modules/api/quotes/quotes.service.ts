@@ -61,12 +61,12 @@ export class QuotesService {
     }
 
     // Build successful response
-    const sourceChainId = Number(intent.route.source);
-    const destinationChainId = Number(intent.route.destination);
+    const sourceChainId = Number(intent.sourceChainId || intent.destination);
+    const destinationChainId = Number(intent.destination);
 
     // Get contract addresses
     const intentSourceAddress = this.evmConfigService.getIntentSourceAddress(sourceChainId);
-    const inboxAddress = this.evmConfigService.getInboxAddress(destinationChainId);
+    const portalAddress = this.evmConfigService.getPortalAddress(destinationChainId);
 
     // Get prover address - first try to get from the chain config, fallback to generic prover if needed
     let proverAddress: Address | undefined;
@@ -102,7 +102,7 @@ export class QuotesService {
         recipient:
           intent.route.calls.length > 0
             ? (intent.route.calls[0].target as Hex)
-            : (intent.route.inbox as Hex),
+            : (intent.route.portal as Hex),
         fees: quoteResult.fees
           ? [
               {
@@ -123,32 +123,33 @@ export class QuotesService {
       contracts: {
         intentSource: intentSourceAddress as Hex,
         prover: proverAddress as Hex,
-        inbox: inboxAddress as Hex,
+        inbox: portalAddress as Hex,
       },
     };
   }
 
   private convertToIntent(input: QuoteRequest['intent']): Intent {
     // Generate intent hash if not provided
-    const intentHash = hashIntent(input as IntentType).intentHash as Hex;
+    const intentHashResult = hashIntent(input as IntentType);
+    const intentHash = intentHashResult.intentHash as Hex;
 
     return {
-      intentHash,
+      intentId: intentHash as Hex,
+      destination: input.route.destination,
       reward: {
         prover: input.reward.prover as Address,
         creator: input.reward.creator as Address,
         deadline: input.reward.deadline,
-        nativeValue: input.reward.nativeValue,
+        nativeAmount: input.reward.nativeValue || BigInt(0),
         tokens: input.reward.tokens.map((t) => ({
           amount: t.amount,
           token: t.token as Address,
         })),
       },
       route: {
-        source: input.route.source,
-        destination: input.route.destination,
         salt: input.route.salt as Hex,
-        inbox: input.route.inbox as Address,
+        deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
+        portal: input.route.inbox as Address,
         calls: input.route.calls.map((c) => ({
           data: c.data as Hex,
           target: c.target as Address,
@@ -159,6 +160,7 @@ export class QuotesService {
           token: t.token as Address,
         })),
       },
+      sourceChainId: input.route.source,
     };
   }
 }

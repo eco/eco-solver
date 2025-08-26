@@ -1,7 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { Address } from 'viem';
 
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { ProverSupportValidation } from '../prover-support.validation';
@@ -34,11 +35,11 @@ describe('ProverSupportValidation', () => {
           provide: ProverService,
           useValue: mockProverService,
         },
-              {
+        {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
         },
-        ],
+      ],
     }).compile();
 
     validation = module.get<ProverSupportValidation>(ProverSupportValidation);

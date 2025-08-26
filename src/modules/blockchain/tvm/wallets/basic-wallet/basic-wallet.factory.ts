@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-import { TronWeb } from 'tronweb';
-
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { TvmClientUtils } from '../../utils';
+
 import { BasicWallet } from './basic-wallet';
 
 @Injectable()

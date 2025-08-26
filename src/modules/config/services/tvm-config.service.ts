@@ -48,9 +48,7 @@ export class TvmConfigService {
   }
 
   getSupportedTokens(chainId: number | bigint | string): TvmTokenConfig[] {
-    const network = this.getChain(
-      typeof chainId === 'bigint' ? chainId.toString() : chainId,
-    );
+    const network = this.getChain(typeof chainId === 'bigint' ? chainId.toString() : chainId);
     return network.tokens;
   }
 
@@ -84,6 +82,11 @@ export class TvmConfigService {
     // Check if TVM configuration exists with at least one network
     const tvmConfig = this.configService.get('tvm');
     return !!(tvmConfig && this._networks.size > 0);
+  }
+
+  getPortalAddress(chainId: number | string): string {
+    const network = this.getChain(chainId);
+    return network.portalAddress;
   }
 
   getIntentSourceAddress(chainId: number | string): string {

@@ -25,9 +25,9 @@ export class ExpirationValidation implements Validation {
       this.otelService.startSpan('validation.ExpirationValidation', {
         attributes: {
           'validation.name': 'ExpirationValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString(),
+          'intent.destination_chain': intent.destination?.toString(),
         },
       });
 
@@ -55,8 +55,8 @@ export class ExpirationValidation implements Validation {
 
       // Get the maximum deadline buffer required by provers for this route
       const bufferSeconds = this.proverService.getMaxDeadlineBuffer(
-        Number(intent.route.source),
-        Number(intent.route.destination),
+        Number(intent.sourceChainId),
+        Number(intent.destination),
       );
 
       span.setAttributes({

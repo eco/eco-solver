@@ -19,9 +19,9 @@ export class DuplicateRewardTokensValidation implements Validation {
       this.otelService.startSpan('validation.DuplicateRewardTokensValidation', {
         attributes: {
           'validation.name': 'DuplicateRewardTokensValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString(),
+          'intent.destination_chain': intent.destination?.toString(),
         },
       });
 

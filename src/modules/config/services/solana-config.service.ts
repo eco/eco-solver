@@ -31,9 +31,13 @@ export class SolanaConfigService {
     return this.configService.get<string>('solana.programId');
   }
 
+  get portalProgramId(): SolanaConfig['portalProgramId'] {
+    return this.configService.get<string>('solana.portalProgramId');
+  }
+
   isConfigured(): boolean {
     // Check if essential Solana configuration is present
     const config = this.configService.get('solana');
-    return !!(config && config.rpcUrl && config.secretKey && config.programId);
+    return !!(config && config.rpcUrl && config.secretKey && config.portalProgramId);
   }
 }

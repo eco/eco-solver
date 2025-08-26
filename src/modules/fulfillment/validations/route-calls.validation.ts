@@ -24,9 +24,10 @@ export class RouteCallsValidation implements Validation {
       this.otelService.startSpan('validation.RouteCallsValidation', {
         attributes: {
           'validation.name': 'RouteCallsValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.id': intent.intentId,
+          'intent.destination_chain': intent.destination.toString(),
           'route.calls.count': intent.route.calls?.length || 0,
+          'route.portal': intent.route.portal,
         },
       });
 
@@ -41,7 +42,7 @@ export class RouteCallsValidation implements Validation {
         return true;
       }
 
-      const tokens = this.evmConfigService.getSupportedTokens(intent.route.destination);
+      const tokens = this.evmConfigService.getSupportedTokens(intent.destination);
       span.setAttribute('supported.tokens.count', tokens.length);
 
       for (let i = 0; i < intent.route.calls.length; i++) {

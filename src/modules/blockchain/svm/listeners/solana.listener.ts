@@ -3,8 +3,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
+import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { FulfillmentConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -31,7 +34,9 @@ export class SolanaListener extends BaseChainListener {
       commitment: 'confirmed',
     });
 
-    this.programId = new PublicKey(this.solanaConfigService.programId);
+    // Use Portal program ID instead of old program ID
+    const portalProgramId = PORTAL_ADDRESSES['solana-devnet']; // Or solana-mainnet based on config
+    this.programId = new PublicKey(portalProgramId);
     this.keypair = Keypair.fromSecretKey(
       Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),
     );
@@ -42,7 +47,7 @@ export class SolanaListener extends BaseChainListener {
       'confirmed',
     );
 
-    this.logger.log(`Solana listener started for program ${this.solanaConfigService.programId}`);
+    this.logger.log(`Solana listener started for Portal program ${this.programId.toString()}`);
   }
 
   async stop(): Promise<void> {
@@ -53,40 +58,42 @@ export class SolanaListener extends BaseChainListener {
   }
 
   protected parseIntentFromEvent(event: any): Intent {
-    // Parse Solana program logs to extract intent data
-    // This is a simplified example - actual implementation would depend on program structure
+    // Parse Solana Portal program logs to extract intent data
     const intentData = this.parseIntentFromLogs(event.logs);
 
+    // Decode route based on destination chain type
+    const destChainType = ChainTypeDetector.detect(BigInt(intentData.destination));
+    const route = PortalEncoder.decodeFromChain(
+      Buffer.from(intentData.route, 'hex'),
+      destChainType,
+      'route',
+    ) as any;
+
     return {
-      intentHash: intentData.intentId,
-      reward: {
-        prover: intentData.prover as `0x${string}`,
-        creator: intentData.creator as `0x${string}`,
-        deadline: BigInt(intentData.deadline || 0),
-        nativeValue: BigInt(intentData.reward || 0),
-        tokens: [],
-      },
+      intentId: intentData.intentHash,
+      destination: BigInt(intentData.destination),
       route: {
-        source: BigInt('999999999'), // Solana chain ID placeholder
-        destination: BigInt(intentData.targetChainId || '999999999'),
-        salt: '0x' as `0x${string}`,
-        inbox: intentData.target as `0x${string}`,
-        calls: [
-          {
-            data: (intentData.data || '0x') as `0x${string}`,
-            target: intentData.target as `0x${string}`,
-            value: BigInt(intentData.value || 0),
-          },
-        ],
-        tokens: [],
+        salt: route.salt,
+        deadline: route.deadline,
+        portal: route.portal,
+        tokens: route.tokens || [],
+        calls: route.calls || [],
       },
+      reward: {
+        deadline: BigInt(intentData.rewardDeadline),
+        creator: intentData.creator as `0x${string}`,
+        prover: intentData.prover as `0x${string}`,
+        nativeAmount: BigInt(intentData.rewardNativeAmount || 0),
+        tokens: intentData.rewardTokens || [],
+      },
+      sourceChainId: BigInt('999999999'), // Solana chain ID placeholder
       status: IntentStatus.PENDING,
     };
   }
 
   private async handleProgramLogs(logs: any) {
     try {
-      if (this.isIntentCreatedLog(logs)) {
+      if (this.isIntentPublishedLog(logs)) {
         const intent = this.parseIntentFromEvent(logs);
         const defaultStrategy = this.fulfillmentConfigService.defaultStrategy;
         this.eventEmitter.emit('intent.discovered', { intent, strategy: defaultStrategy });
@@ -96,9 +103,9 @@ export class SolanaListener extends BaseChainListener {
     }
   }
 
-  private isIntentCreatedLog(logs: any): boolean {
+  private isIntentPublishedLog(logs: any): boolean {
     return logs.logs.some(
-      (log: string) => log.includes('IntentCreated') || log.includes('intent_created'),
+      (log: string) => log.includes('IntentPublished') || log.includes('intent_published'),
     );
   }
 
@@ -115,16 +122,14 @@ export class SolanaListener extends BaseChainListener {
     });
 
     return {
-      intentId: intentData.intentId || '',
-      prover: intentData.prover || '',
+      intentHash: intentData.intentHash || '',
+      destination: intentData.destination || '',
+      route: intentData.route || '',
       creator: intentData.creator || '',
-      source: intentData.source || '',
-      target: intentData.target || '',
-      data: intentData.data || '0x',
-      value: intentData.value || '0',
-      reward: intentData.reward || '0',
-      deadline: intentData.deadline || 0,
-      targetChainId: intentData.targetChainId,
+      prover: intentData.prover || '',
+      rewardDeadline: intentData.rewardDeadline || 0,
+      rewardNativeAmount: intentData.rewardNativeAmount || '0',
+      rewardTokens: intentData.rewardTokens || [],
     };
   }
 }

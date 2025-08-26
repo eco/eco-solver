@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 // Mock the blockchain executor service module before any imports
 jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({

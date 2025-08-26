@@ -23,8 +23,8 @@ export class ExecutorBalanceValidation implements Validation {
       this.otelService.startSpan('validation.ExecutorBalanceValidation', {
         attributes: {
           'validation.name': 'ExecutorBalanceValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.destination_chain': intent.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
         },
       });
@@ -33,7 +33,7 @@ export class ExecutorBalanceValidation implements Validation {
       // This should verify that the executor has enough funds to execute the fulfillment
       // on the destination chain
 
-      const chainID = intent.route.destination;
+      const chainID = intent.destination;
 
       const checkRequests = intent.route.tokens.map(async ({ token, amount }, index) => {
         const balance = await context.getWalletBalance(chainID, token);

@@ -2,8 +2,10 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { Address, isAddressEqual } from 'viem';
 
+import { PORTAL_ADDRESSES } from '@/common/abis/portal.abi';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
@@ -25,11 +27,28 @@ export class ProverService implements OnModuleInit {
   }
 
   async validateIntentRoute(intent: Intent): Promise<ProverResult> {
+    // Validate Portal address in route
+    const portalAddress = intent.route.portal;
+    const destinationChainId = Number(intent.destination);
+    const expectedPortal = PORTAL_ADDRESSES[destinationChainId];
+
+    if (!expectedPortal) {
+      return {
+        isValid: false,
+        reason: `No Portal address configured for destination chain ${destinationChainId}`,
+      };
+    }
+
+    if (!PortalHashUtils.validatePortalAddress(portalAddress, destinationChainId)) {
+      return {
+        isValid: false,
+        reason: `Portal address mismatch: expected ${expectedPortal}, got ${portalAddress}`,
+      };
+    }
+
     // Find the appropriate prover based on the contract addresses
-    const prover = this.findProverForRoute(
-      Number(intent.route.source),
-      Number(intent.route.destination),
-    );
+    const sourceChainId = intent.sourceChainId ? Number(intent.sourceChainId) : destinationChainId;
+    const prover = this.findProverForRoute(sourceChainId, destinationChainId);
 
     if (!prover) {
       return {
@@ -59,13 +78,13 @@ export class ProverService implements OnModuleInit {
     this.logger.log(`Initialized ${this.provers.size} provers`);
   }
 
-  getMaxDeadlineBuffer(source: number, destination: number): bigint {
+  getMaxDeadlineBuffer(sourceChainId: number, destinationChainId: number): bigint {
     let maxBuffer = 0n;
 
     // Check each prover that supports this route and find the maximum deadline buffer
     for (const prover of this.provers.values()) {
-      const sourceSupported = prover.isSupported(source);
-      const destinationSupported = prover.isSupported(destination);
+      const sourceSupported = prover.isSupported(sourceChainId);
+      const destinationSupported = prover.isSupported(destinationChainId);
 
       if (sourceSupported && destinationSupported) {
         const buffer = prover.getDeadlineBuffer();
@@ -80,20 +99,56 @@ export class ProverService implements OnModuleInit {
   }
 
   private findProverForRoute(
-    source: number,
-    destination: number,
+    sourceChainId: number,
+    destinationChainId: number,
   ): HyperProver | MetalayerProver | null {
     // Check each prover to see if it supports both chains and has matching contracts
     for (const [type, prover] of this.provers) {
-      const sourceContract = prover.isSupported(source);
-      const destinationContract = prover.isSupported(destination);
+      const sourceContract = prover.isSupported(sourceChainId);
+      const destinationContract = prover.isSupported(destinationChainId);
 
       if (sourceContract && destinationContract) {
-        this.logger.debug(`Found prover ${type} for route ${source} -> ${destination}`);
+        this.logger.debug(
+          `Found prover ${type} for route ${sourceChainId} -> ${destinationChainId}`,
+        );
         return prover;
       }
     }
 
     return null;
+  }
+
+  /**
+   * Validates Portal proof submission capability
+   * @param intentHashes Array of intent hashes to validate
+   * @param sourceChainId Source chain ID
+   * @param destinationChainId Destination chain ID
+   * @returns ProverResult indicating if proof can be submitted
+   */
+  async validateProofSubmission(
+    intentHashes: string[],
+    sourceChainId: number,
+    destinationChainId: number,
+  ): Promise<ProverResult> {
+    const prover = this.findProverForRoute(sourceChainId, destinationChainId);
+
+    if (!prover) {
+      return {
+        isValid: false,
+        reason: `No prover available for route ${sourceChainId} -> ${destinationChainId}`,
+      };
+    }
+
+    // Validate that all intent hashes are properly formatted
+    for (const intentHash of intentHashes) {
+      if (!/^0x[a-fA-F0-9]{64}$/.test(intentHash)) {
+        return {
+          isValid: false,
+          reason: `Invalid intent hash format: ${intentHash}`,
+        };
+      }
+    }
+
+    return { isValid: true };
   }
 }

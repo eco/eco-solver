@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { Address } from 'viem';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { MinimumRouteAmountValidation } from '../minimum-route-amount.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';

@@ -25,9 +25,9 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       this.otelService.startSpan('validation.StandardFeeValidation', {
         attributes: {
           'validation.name': 'StandardFeeValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString(),
+          'intent.destination_chain': intent.destination?.toString(),
         },
       });
 
@@ -68,16 +68,16 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     // Get fee logic for the destination chain
-    const fee = this.evmConfigService.getFeeLogic(Number(intent.route.destination));
+    const fee = this.evmConfigService.getFeeLogic(Number(intent.destination));
     const baseFee = BigInt(fee.tokens.flatFee ?? 0);
 
     // Calculate total value being transferred
     const totalReward = sum(
-      this.fulfillmentConfigService.normalize(intent.route.source, intent.reward.tokens),
+      this.fulfillmentConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
       'amount',
     );
     const totalValue = sum(
-      this.fulfillmentConfigService.normalize(intent.route.destination, intent.route.tokens),
+      this.fulfillmentConfigService.normalize(intent.destination, intent.route.tokens),
       'amount',
     );
 

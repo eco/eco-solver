@@ -23,21 +23,21 @@ export class CrowdLiquidityFeeValidation implements Validation {
       this.otelService.startSpan('validation.CrowdLiquidityFeeValidation', {
         attributes: {
           'validation.name': 'CrowdLiquidityFeeValidation',
-          'intent.hash': _intent.intentHash,
-          'intent.destination_chain': _intent.route.destination?.toString(),
+          'intent.hash': _intent.intentId,
+          'intent.destination_chain': _intent.destination?.toString(),
         },
       });
 
     try {
       // Calculate total value from tokens and native value in calls
       // const totalValue = this.fulfillmentConfigService.sum(
-      //   intent.route.destination,
+      //   intent.destination,
       //   intent.route.tokens,
       // );
       //
       // // Crowd liquidity uses different fee structure
       // // Calculate required fee: clBaseFee + (totalValue * clBpsFee / 10000)
-      // const clFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.route.destination);
+      // const clFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.destination);
       // const clBaseFee = clFeeConfig?.baseFee ?? BigInt(500000);
       // const clBpsFee = clFeeConfig?.bpsFee ?? BigInt(50);
       //

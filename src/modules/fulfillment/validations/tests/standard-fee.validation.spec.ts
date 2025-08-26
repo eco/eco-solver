@@ -1,6 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { Address } from 'viem';
+
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 // Mock the config service module before any imports
 jest.mock('@/modules/config/services/evm-config.service', () => ({
@@ -56,11 +58,11 @@ describe('StandardFeeValidation', () => {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
         },
-              {
+        {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
         },
-        ],
+      ],
     }).compile();
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);

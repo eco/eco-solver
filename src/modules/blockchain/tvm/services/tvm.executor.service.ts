@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 
-import { hashIntent, InboxAbi } from '@eco-foundation/routes-ts';
 import { TronWeb } from 'tronweb';
 import { erc20Abi } from 'viem';
 
+import { PortalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -52,8 +54,10 @@ export class TvmExecutorService extends BaseChainExecutor {
       async (span) => {
         try {
           // Get the destination chain ID from the intent
-          const sourceChainId = this.getChainId(intent.route.source);
-          const destinationChainId = this.getChainId(intent.route.destination);
+          const destinationChainId = this.getChainId(intent.destination);
+          const sourceChainId = intent.sourceChainId
+            ? this.getChainId(intent.sourceChainId)
+            : destinationChainId;
 
           // Get wallet
           const walletType = walletId || 'basic';
@@ -80,16 +84,43 @@ export class TvmExecutorService extends BaseChainExecutor {
           // Ensure prover address has 0x prefix for consistency
           const proverAddr = proverAddrRaw.startsWith('0x') ? proverAddrRaw : '0x' + proverAddrRaw;
           const proverFee = await prover.getFee(intent, claimantHex as any);
+          const proofData = await prover.generateProof(intent);
 
           span.setAttributes({
             'tvm.prover_address': proverAddr,
             'tvm.prover_fee': proverFee.toString(),
+            'tvm.proof_data_length': proofData.length,
           });
 
-          const { intentHash, rewardHash } = hashIntent(intent);
+          // Calculate Portal hashes
+          const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+          const destChainType = ChainTypeDetector.detect(destinationChainId);
 
-          const inboxAddr = this.tvmConfigService.getInboxAddress(destinationChainId);
-          span.setAttribute('tvm.inbox_address', inboxAddr);
+          const intentHash = PortalHashUtils.computeIntentHash(
+            intent.destination,
+            {
+              ...intent.route,
+              tokens: [...intent.route.tokens] as TokenAmount[],
+              calls: [...intent.route.calls] as Call[],
+            },
+            {
+              ...intent.reward,
+              tokens: [...intent.reward.tokens] as TokenAmount[],
+            },
+            sourceChainType,
+            destChainType,
+          );
+
+          const rewardHash = PortalHashUtils.computeRewardHash(
+            {
+              ...intent.reward,
+              tokens: [...intent.reward.tokens] as TokenAmount[],
+            },
+            sourceChainType,
+          );
+
+          const portalAddr = this.tvmConfigService.getPortalAddress(destinationChainId);
+          span.setAttribute('tvm.portal_address', portalAddr);
 
           // First, approve all tokens
           const approvalTxIds: string[] = [];
@@ -104,7 +135,7 @@ export class TvmExecutorService extends BaseChainExecutor {
             });
 
             const txId = await wallet.triggerSmartContract(token, erc20Abi, 'approve', [
-              { type: 'address', value: this.utilsService.toHex(inboxAddr) },
+              { type: 'address', value: this.utilsService.toHex(portalAddr) },
               { type: 'uint256', value: amount.toString() },
             ]);
 
@@ -120,27 +151,27 @@ export class TvmExecutorService extends BaseChainExecutor {
           span.addEvent('tvm.fulfillment.submitting');
 
           // TODO: Approvals and fulfillment must be executed inside a single transaction
+          const contract = wallet.tronWeb.contract(PortalAbi, portalAddr);
 
-          const contract = wallet.tronWeb.contract(InboxAbi, inboxAddr);
-          // the first arg is the nested tuple as arrays in field order
+          // Structure route data for TronWeb contract call
+          const routeData = [
+            intent.route.salt,
+            intent.route.deadline,
+            this.utilsService.toHex(intent.route.portal),
+            intent.route.tokens.map((t) => [this.utilsService.toHex(t.token), t.amount]),
+            intent.route.calls.map((c) => [this.utilsService.toHex(c.target), c.data, c.value]),
+          ] as [any, bigint, string, readonly [string, bigint][], readonly [string, any, bigint][]];
+
+          // Call Portal fulfillAndProve function with proof data
           const fulfillTxId = await contract
-            .fulfill(
-              [
-                intent.route.salt,
-                intent.route.source,
-                intent.route.destination,
-                this.utilsService.fromEvmHex(intent.route.inbox),
-                intent.route.tokens.map((t) => [this.utilsService.fromEvmHex(t.token), t.amount]),
-                intent.route.calls.map((c) => [
-                  this.utilsService.fromEvmHex(c.target),
-                  c.data,
-                  c.value,
-                ]),
-              ],
+            .fulfillAndProve(
+              intentHash,
+              routeData,
               rewardHash,
               this.utilsService.toHex(claimant),
-              intentHash,
-              '410000000000000000000000000000000000000000', // TODO: Move to configuration
+              proverAddr,
+              sourceChainIdNum,
+              proofData,
             )
             .send();
 
@@ -173,19 +204,6 @@ export class TvmExecutorService extends BaseChainExecutor {
         }
       },
     );
-  }
-
-  /**
-   * Gets the native token balance for an address
-   * @param address - The address to check (base58 or hex format)
-   * @param chainId - The chain ID to query
-   * @returns The balance in SUN (smallest unit)
-   */
-  async getBalance(address: string, chainId: number | string): Promise<bigint> {
-    const client = this.createTronWebClient(chainId);
-    const hexAddress = address.startsWith('T') ? this.utilsService.toHex(address) : address;
-    const balance = await client.trx.getBalance(hexAddress);
-    return BigInt(balance);
   }
 
   /**
@@ -222,6 +240,31 @@ export class TvmExecutorService extends BaseChainExecutor {
 
         span.setAttribute('tvm.transaction_confirmed', isConfirmed);
         return isConfirmed;
+      },
+    );
+  }
+
+  /**
+   * Gets the native balance for an address on a specific chain
+   * @param address - The address to check balance for
+   * @param chainId - The chain ID to query
+   * @returns The balance in wei
+   */
+  async getBalance(address: string, chainId: number): Promise<bigint> {
+    return TvmTracingUtils.withSpan(
+      this.otelService,
+      'tvm.executor.getBalance',
+      {
+        chainId,
+        address,
+        operation: 'getBalance',
+      },
+      async (span) => {
+        const client = this.createTronWebClient(chainId);
+        const balance = await client.trx.getBalance(address);
+
+        span.setAttribute('tvm.balance', balance.toString());
+        return BigInt(balance);
       },
     );
   }

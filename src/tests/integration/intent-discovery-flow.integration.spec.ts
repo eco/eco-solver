@@ -246,7 +246,7 @@ describe('Intent Discovery Flow Integration', () => {
   //     for (let i = 0; i < jobs.length; i++) {
   //       const job = jobs.find((j) => {
   //         const data = QueueSerializer.deserialize(j.data);
-  //         return data.intent.intentHash === intents[i].intentHash;
+  //         return data.intent.intentId === intents[i].intentHash;
   //       });
   //       expect(job).toBeDefined();
   //       const jobData = QueueSerializer.deserialize(job.data);
@@ -255,9 +255,9 @@ describe('Intent Discovery Flow Integration', () => {
   //
   //     // Verify all intents were saved to database
   //     for (const intent of intents) {
-  //       const savedIntent = await intentsService.findById(intent.intentHash);
+  //       const savedIntent = await intentsService.findById(intent.intentId);
   //       expect(savedIntent).toBeDefined();
-  //       expect(savedIntent.intentId).toBe(intent.intentHash);
+  //       expect(savedIntent.intentId).toBe(intent.intentId);
   //     }
   //   });
   // });
@@ -293,15 +293,15 @@ describe('Intent Discovery Flow Integration', () => {
   //
   //     // Verify all intents were saved to database
   //     for (const intent of intents) {
-  //       const savedIntent = await intentsService.findById(intent.intentHash);
+  //       const savedIntent = await intentsService.findById(intent.intentId);
   //       expect(savedIntent).toBeDefined();
-  //       expect(savedIntent.intentId).toBe(intent.intentHash);
+  //       expect(savedIntent.intentId).toBe(intent.intentId);
   //     }
   //
   //     // Verify each job has unique intent
   //     const uniqueHashes = new Set(jobs.map((job) => {
   //       const data = QueueSerializer.deserialize(job.data);
-  //       return data.intent.intentHash;
+  //       return data.intent.intentId;
   //     }));
   //     expect(uniqueHashes.size).toBe(intentCount);
   //   });

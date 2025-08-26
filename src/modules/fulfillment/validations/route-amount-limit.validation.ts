@@ -26,9 +26,9 @@ export class RouteAmountLimitValidation implements Validation {
       this.otelService.startSpan('validation.RouteAmountLimitValidation', {
         attributes: {
           'validation.name': 'RouteAmountLimitValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString(),
+          'intent.destination_chain': intent.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
         },
       });
@@ -36,7 +36,7 @@ export class RouteAmountLimitValidation implements Validation {
     try {
       // Calculate total value being transferred
       const normalizedTokens = this.fulfillmentConfigService.normalize(
-        intent.route.destination,
+        intent.destination,
         intent.route.tokens,
       );
       const totalValue = sum(normalizedTokens, 'amount');
@@ -45,7 +45,7 @@ export class RouteAmountLimitValidation implements Validation {
       // Get the smallest token limit from configuration
       const tokenLimits = intent.route.tokens.map((token, index) => {
         const { limit, decimals } = this.fulfillmentConfigService.getToken(
-          intent.route.destination,
+          intent.destination,
           token.token,
         );
 
@@ -90,7 +90,7 @@ export class RouteAmountLimitValidation implements Validation {
 
       if (totalValue > limit) {
         throw new Error(
-          `Total value ${totalValue} exceeds route limit ${limit} for route ${intent.route.source}-${intent.route.destination}`,
+          `Total value ${totalValue} exceeds route limit ${limit} for route ${intent.sourceChainId}-${intent.destination}`,
         );
       }
 

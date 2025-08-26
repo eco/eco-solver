@@ -68,9 +68,9 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     this.eventEmitter.on('intent.discovered', async (event) => {
       const span = this.otelService.startSpan('tvm.listener.handleIntent', {
         attributes: {
-          'tvm.intent_id': event.intent.intentHash,
-          'tvm.source_chain': event.intent.route.source.toString(),
-          'tvm.destination_chain': event.intent.route.destination.toString(),
+          'tvm.intent_id': event.intent.intentId,
+          'tvm.source_chain': event.intent.sourceChainId.toString(),
+          'tvm.destination_chain': event.intent.destination.toString(),
         },
       });
 

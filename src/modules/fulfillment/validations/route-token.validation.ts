@@ -23,16 +23,16 @@ export class RouteTokenValidation implements Validation {
       this.otelService.startSpan('validation.RouteTokenValidation', {
         attributes: {
           'validation.name': 'RouteTokenValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.route.source?.toString(),
-          'intent.destination_chain': intent.route.destination?.toString(),
+          'intent.hash': intent.intentId,
+          'intent.source_chain': intent.sourceChainId?.toString(),
+          'intent.destination_chain': intent.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
           'reward.tokens.count': intent.reward.tokens?.length || 0,
         },
       });
 
     try {
-      const destinationChainId = Number(intent.route.destination);
+      const destinationChainId = Number(intent.destination);
 
       const nativeTokenAmount = intent.route.calls.reduce((acc, call) => acc + call.value, 0n);
       span.setAttribute('route.native_token_amount', nativeTokenAmount.toString());
@@ -64,7 +64,7 @@ export class RouteTokenValidation implements Validation {
       }
 
       // Validate reward tokens (on source chain)
-      const sourceChainId = Number(intent.route.source);
+      const sourceChainId = Number(intent.sourceChainId);
       for (let i = 0; i < intent.reward.tokens.length; i++) {
         const token = intent.reward.tokens[i];
         const isSupported = this.evmConfigService.isTokenSupported(sourceChainId, token.token);

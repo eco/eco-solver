@@ -101,6 +101,12 @@ export class EvmConfigService {
     return network.inboxAddress as Address;
   }
 
+  getPortalAddress(chainId: number): Address {
+    const network = this.getChain(chainId);
+    // Portal address maps to the same as inbox address in the transition
+    return network.inboxAddress as Address;
+  }
+
   getProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {
     const network = this.getChain(chainId);
     return network.provers?.[proverType] as Address | undefined;

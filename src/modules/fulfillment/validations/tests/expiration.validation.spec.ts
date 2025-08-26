@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { ExpirationValidation } from '../expiration.validation';
@@ -43,11 +44,11 @@ describe('ExpirationValidation', () => {
           provide: ProverService,
           useValue: mockProverService,
         },
-              {
+        {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
         },
-        ],
+      ],
     }).compile();
 
     validation = module.get<ExpirationValidation>(ExpirationValidation);
@@ -117,7 +118,7 @@ describe('ExpirationValidation', () => {
         expect(result).toBe(true);
         expect(proverService.getMaxDeadlineBuffer).toHaveBeenCalledWith(
           Number(intentWithFutureDeadline.route.source),
-          Number(intentWithFutureDeadline.route.destination),
+          Number(intentWithFutureDeadline.destination),
         );
       });
 

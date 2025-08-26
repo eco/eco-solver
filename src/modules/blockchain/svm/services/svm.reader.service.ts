@@ -5,7 +5,9 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { Address, Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -72,11 +74,72 @@ export class SvmReaderService extends BaseChainReader {
     }
   }
 
-  async isIntentFunded(_intent: Intent, _chainId?: number | string): Promise<boolean> {
-    // Solana doesn't have IntentSource contracts
-    // Always return true for now
-    this.logger.debug('Intent funding check not implemented for Solana');
-    return true;
+  async isIntentFunded(intent: Intent, _chainId?: number | string): Promise<boolean> {
+    try {
+      // Get source chain info for vault derivation
+      const sourceChainId = intent.sourceChainId || 'solana-mainnet';
+      const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+      const destChainType = ChainTypeDetector.detect(intent.destination);
+
+      // Calculate intent hash for vault derivation
+      const intentHash = PortalHashUtils.computeIntentHash(
+        intent.destination,
+        {
+          ...intent.route,
+          tokens: [...intent.route.tokens] as TokenAmount[],
+          calls: [...intent.route.calls] as Call[],
+        },
+        {
+          ...intent.reward,
+          tokens: [...intent.reward.tokens] as TokenAmount[],
+        },
+        sourceChainType,
+        destChainType,
+      );
+
+      // Derive vault PDA
+      const vaultPDA = PortalHashUtils.deriveVaultPDA(Buffer.from(intentHash.slice(2), 'hex'));
+
+      this.logger.debug(
+        `Checking vault funding for intent ${intent.intentId} at ${vaultPDA.toString()}`,
+      );
+
+      // Check native balance first
+      const requiredNativeAmount = intent.reward.nativeAmount || 0n;
+      if (requiredNativeAmount > 0n) {
+        const nativeBalance = await this.getBalance(vaultPDA.toString());
+        if (nativeBalance < requiredNativeAmount) {
+          this.logger.debug(
+            `Vault ${vaultPDA.toString()} has insufficient SOL: required ${requiredNativeAmount}, actual ${nativeBalance}`,
+          );
+          return false;
+        }
+      }
+
+      // Check token balances
+      if (intent.reward.tokens && intent.reward.tokens.length > 0) {
+        for (const token of intent.reward.tokens) {
+          const tokenBalance = await this.getTokenBalance(
+            token.token,
+            vaultPDA.toString(),
+            _chainId,
+          );
+
+          if (tokenBalance < token.amount) {
+            this.logger.debug(
+              `Vault has insufficient token balance for ${token.token}: required ${token.amount}, actual ${tokenBalance}`,
+            );
+            return false;
+          }
+        }
+      }
+
+      this.logger.debug(`Intent ${intent.intentId} is fully funded`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to check intent funding for ${intent.intentId}:`, error);
+      throw new Error(`Failed to check intent funding: ${error.message}`);
+    }
   }
 
   async getBlockHeight(): Promise<bigint> {

@@ -76,8 +76,8 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
     const span = this.otelService.startSpan(`strategy.${this.name}.execute`, {
       attributes: {
         'strategy.name': this.name,
-        'intent.hash': intent.intentHash,
-        'intent.destination_chain': intent.route.destination.toString(),
+        'intent.hash': intent.intentId,
+        'intent.destination_chain': intent.destination.toString(),
       },
     });
 
@@ -90,7 +90,7 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
       await this.queueService.addIntentToExecutionQueue({
         strategy: this.name,
         intent,
-        chainId: intent.route.destination,
+        chainId: intent.destination,
         walletId,
       });
 

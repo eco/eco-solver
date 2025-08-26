@@ -56,7 +56,7 @@ export class QueueService implements IQueueService, OnModuleInit, OnModuleDestro
     const jobData: FulfillmentJobData = {
       intent,
       strategy,
-      chainId: Number(intent.route.destination),
+      chainId: Number(intent.destination),
     };
 
     const serializedData = QueueSerializer.serialize(jobData);

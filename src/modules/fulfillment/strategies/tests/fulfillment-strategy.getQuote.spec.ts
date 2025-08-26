@@ -370,13 +370,16 @@ describe('FulfillmentStrategy - getQuote', () => {
   describe('parallel execution', () => {
     it('should execute validations in parallel', async () => {
       const executionOrder: string[] = [];
-      
+
       class SlowValidation implements Validation {
-        constructor(private name: string, private delay: number) {}
-        
+        constructor(
+          private name: string,
+          private delay: number,
+        ) {}
+
         async validate(_intent: Intent, _context: ValidationContext): Promise<boolean> {
           executionOrder.push(`${this.name}-start`);
-          await new Promise(resolve => setTimeout(resolve, this.delay));
+          await new Promise((resolve) => setTimeout(resolve, this.delay));
           executionOrder.push(`${this.name}-end`);
           return true;
         }
