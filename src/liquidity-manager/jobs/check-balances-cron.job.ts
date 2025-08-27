@@ -5,7 +5,10 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
@@ -16,9 +19,13 @@ import {
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
 
-type CheckBalancesCronJob = LiquidityManagerJob<
+export interface CheckBalancesCronJobData extends LiquidityManagerQueueDataType {
+  wallet: string
+}
+
+export type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
-  { wallet: string }
+  CheckBalancesCronJobData
 >
 
 /**

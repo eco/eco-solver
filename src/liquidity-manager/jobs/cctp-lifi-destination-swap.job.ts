@@ -5,11 +5,14 @@ import {
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 
-export interface CCTPLiFiDestinationSwapJobData {
+export interface CCTPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
   messageHash: Hex
   messageBody: Hex
   attestation: Hex
@@ -23,10 +26,6 @@ export interface CCTPLiFiDestinationSwapJobData {
   }
   cctpTransactionHash?: Hex
   retryCount?: number
-  groupID: string // GroupID for tracking related jobs
-  rebalanceJobID: string // JobID for tracking the rebalance job
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type CCTPLiFiDestinationSwapJob = LiquidityManagerJob<

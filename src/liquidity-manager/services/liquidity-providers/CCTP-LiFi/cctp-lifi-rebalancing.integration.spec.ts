@@ -520,6 +520,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       jest.spyOn(cctpLiFiProvider, 'execute').mockResolvedValue(undefined)
 
       await liquidityManagerService.executeRebalancing({
+        groupID: `DummyGroupID`,
+        rebalanceJobID: `DummyRebalanceJobID`,
         walletAddress,
         network: '1',
         rebalance: { quotes: serialize(quotes), token: {} as any },
@@ -1264,6 +1266,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       // Execute should throw the transaction failure error
       await expect(
         liquidityManagerService.executeRebalancing({
+          groupID: `DummyGroupID`,
+          rebalanceJobID: `DummyRebalanceJobID`,
           walletAddress,
           network: '1',
           rebalance: { quotes: serialize(quotes) } as any,

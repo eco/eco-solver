@@ -158,6 +158,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
 
     const amount = BigInt(bootstrap.amountBase6)
     await this.liquidityManagerQueue.startGatewayTopUp({
+      groupID: `DummyGroupID`,
+      rebalanceJobID: `DummyRebalanceJobID`,
       chainId: chain.chainId,
       usdc: chain.usdc,
       gatewayWallet: walletAddr,
@@ -463,6 +465,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
 
     if (inChainTopUp?.usdc && walletAddr) {
       await this.liquidityManagerQueue.startGatewayTopUp({
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
         chainId: quote.tokenIn.chainId,
         usdc: inChainTopUp.usdc,
         gatewayWallet: walletAddr,

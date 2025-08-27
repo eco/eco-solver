@@ -4,20 +4,21 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 
-export interface ExecuteCCTPV2MintJobData {
+export interface ExecuteCCTPV2MintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
   messageHash: Hex
   messageBody: Hex
   attestation: Hex
   context: Serialize<CCTPV2StrategyContext>
-  id?: string
-  [key: string]: unknown
 }
 
 export type ExecuteCCTPV2MintJob = LiquidityManagerJob<

@@ -6,11 +6,14 @@ import {
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { CCTPLiFiDestinationSwapJobData } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { LiFiStrategyContext } from '../types/types'
 
-export interface ExecuteCCTPMintJobData {
+export interface ExecuteCCTPMintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
   messageHash: Hex
   messageBody: Hex
@@ -25,10 +28,6 @@ export interface ExecuteCCTPMintJobData {
       decimals: number
     }
   }
-  groupID: string // GroupID for tracking related jobs
-  rebalanceJobID: string // JobID for tracking the rebalance job
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type ExecuteCCTPMintJob = LiquidityManagerJob<

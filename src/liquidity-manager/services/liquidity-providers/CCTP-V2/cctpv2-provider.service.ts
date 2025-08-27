@@ -178,6 +178,8 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
 
     await this.liquidityManagerQueue.startCCTPV2AttestationCheck({
+      groupID: quote.groupID!,
+      rebalanceJobID: quote.rebalanceJobID!,
       destinationChainId: quote.tokenOut.chainId,
       transactionHash: txHash,
       sourceDomain: sourceDomain,

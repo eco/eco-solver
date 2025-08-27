@@ -7,19 +7,22 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
-export type RebalanceJobData = {
+export interface RebalanceJobData extends LiquidityManagerQueueDataType {
   network: string
   walletAddress: string
   rebalance: Serialize<RebalanceRequest>
 }
 
-type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
+export type RebalanceJob = LiquidityManagerJob<LiquidityManagerJobName.REBALANCE, RebalanceJobData>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
   @AutoInject(RebalanceRepository)
@@ -31,6 +34,8 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     queueName: string,
   ): FlowChildJob {
     const data: RebalanceJobData = {
+      groupID: 'DummyGroupID',
+      rebalanceJobID: 'DummyRebalanceJobID',
       walletAddress,
       network: rebalance.token.config.chainId.toString(),
       rebalance: serialize(rebalance),
@@ -65,15 +70,15 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    */
   async onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
     const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
-    const { network, walletAddress, rebalance } = rebalanceData
+    const { network, walletAddress, rebalance: serializedRebalance } = rebalanceData
 
     // Rehydrate the serialized rebalance request
-    const deserialized = deserialize(rebalance)
+    const rebalance = deserialize(serializedRebalance)
 
     let updated = 0
     const failures: { rebalanceJobID?: string; error: string }[] = []
 
-    for (const quote of deserialized.quotes ?? []) {
+    for (const quote of rebalance.quotes ?? []) {
       try {
         if (!quote.rebalanceJobID) {
           failures.push({ rebalanceJobID: undefined, error: 'Missing rebalanceJobID on quote' })

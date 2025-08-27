@@ -284,6 +284,8 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     )
 
     await this.liquidityManagerQueue.startCheckEverclearIntent({
+      groupID: quote.groupID!,
+      rebalanceJobID: quote.rebalanceJobID!,
       txHash,
       id: quote.id,
     })

@@ -33,14 +33,16 @@ export enum LiquidityManagerJobName {
   GATEWAY_TOP_UP = 'GATEWAY_TOP_UP',
 }
 
-export type LiquidityManagerQueueDataType = {
+export interface LiquidityManagerQueueDataType {
   /**
    * Correlation / tracking identifier that will propagate through every job handled by the
    * Liquidity Manager queue. Having this always present allows us to group logs that belong
    * to the same high-level operation or request.
    */
+  groupID: string // GroupID for tracking related jobs
+  rebalanceJobID: string // JobID for tracking the rebalance job
   id?: string
-  [k: string]: unknown
+  [k: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type LiquidityManagerQueueType = Queue<

@@ -5,19 +5,20 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { gatewayWalletAbi } from '@/liquidity-manager/services/liquidity-providers/Gateway/constants/abis'
 
-export interface GatewayTopUpJobData {
+export interface GatewayTopUpJobData extends LiquidityManagerQueueDataType {
   chainId: number
   usdc: Hex
   gatewayWallet: Hex
   amount: Serialize<bigint>
   depositor: Hex
-  id?: string
-  [k: string]: unknown
 }
 
 export type GatewayTopUpJob = LiquidityManagerJob<

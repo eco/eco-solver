@@ -116,6 +116,8 @@ describe('E2E: Rebalance onComplete updates DB status', () => {
     }
 
     const data: RebalanceJobData = {
+      groupID: 'DummyGroupID',
+      rebalanceJobID: 'DummyRebalanceJobID',
       network: '10',
       walletAddress: '0xwallet',
       rebalance: serialize(rebalanceRequest as any) as any,

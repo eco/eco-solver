@@ -5,19 +5,20 @@ import {
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CCTPV2StrategyContext } from '../types/types'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
 import { ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 
-export interface CheckCCTPV2AttestationJobData {
+export interface CheckCCTPV2AttestationJobData extends LiquidityManagerQueueDataType {
   sourceDomain: number
   destinationChainId: number
   transactionHash: Hex
   context: Serialize<CCTPV2StrategyContext>
-  id?: string
-  [key: string]: unknown
 }
 
 export type CheckCCTPV2AttestationJob = LiquidityManagerJob<
@@ -78,6 +79,8 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
         }),
       )
       await ExecuteCCTPV2MintJobManager.start(processor.queue, {
+        groupID: job.data.groupID,
+        rebalanceJobID: job.data.rebalanceJobID,
         destinationChainId: job.data.destinationChainId,
         context: job.data.context,
         id: job.data.id,

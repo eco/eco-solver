@@ -5,13 +5,14 @@ import {
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 
-export interface CheckEverclearIntentJobData {
+export interface CheckEverclearIntentJobData extends LiquidityManagerQueueDataType {
   txHash: Hex
-  id?: string
-  [key: string]: unknown
 }
 
 export type CheckEverclearIntentJob = LiquidityManagerJob<
