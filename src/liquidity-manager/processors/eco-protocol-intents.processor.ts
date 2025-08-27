@@ -6,7 +6,6 @@ import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-bala
 import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
 import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
@@ -19,7 +18,6 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
-import { ModuleRef } from '@nestjs/core'
 import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 
 /**
@@ -42,7 +40,6 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
     public readonly cctpProviderService: CCTPProviderService,
     public readonly cctpv2ProviderService: CCTPV2ProviderService,
     public readonly everclearProviderService: EverclearProviderService,
-    private readonly moduleRef: ModuleRef,
   ) {
     super(LiquidityManagerProcessor.name, [
       new CheckBalancesCronJobManager(),
@@ -55,22 +52,5 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new CheckEverclearIntentJobManager(),
       new GatewayTopUpJobManager(),
     ])
-  }
-
-  protected execute(
-    job: LiquidityManagerJob,
-    method: 'process' | 'onFailed' | 'onComplete',
-    ...params: unknown[]
-  ) {
-    this.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${LiquidityManagerProcessor.name}.process()`,
-        properties: {
-          jobName: job.name,
-        },
-      }),
-    )
-
-    return super.execute(job, method, ...params, { moduleRef: this.moduleRef })
   }
 }

@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { FlowChildJob, Job } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { FlowChildJob, Job } from 'bullmq'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
 export type RebalanceJobData = {
@@ -19,6 +21,9 @@ export type RebalanceJobData = {
 type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   static createJob(
     walletAddress: string,
     rebalance: RebalanceRequest,
@@ -70,6 +75,9 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
         properties: {
           network,
           walletAddress,
+          jobName: job.name,
+          job,
+          rebalanceRepository: this.rebalanceRepository.constructor.name,
         },
       }),
     )

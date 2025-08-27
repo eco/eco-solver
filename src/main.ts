@@ -1,14 +1,17 @@
-import { NestFactory } from '@nestjs/core'
-import { AppModule } from './app.module'
-import { NestExpressApplication } from '@nestjs/platform-express'
+import { AppModule } from '@/app.module'
+import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { EcoConfigService } from './eco-configs/eco-config.service'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
+import { ModuleRef, NestFactory } from '@nestjs/core'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
+import { NestExpressApplication } from '@nestjs/platform-express'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
+  ModuleRefProvider.setModuleRef(app.get(ModuleRef))
+
   if (EcoConfigService.getStaticConfig().logger.usePino) {
     app.useLogger(app.get(Logger))
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
