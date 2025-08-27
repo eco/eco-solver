@@ -84,11 +84,11 @@ describe('NativeFeeValidation', () => {
     describe('fee calculation', () => {
       it('should pass when reward covers base fee plus percentage fee', async () => {
         // Note: NativeFeeValidation only looks at call values, not tokens
-        // Default mockIntent has no calls, so nativeValue = 0
+        // Default mockIntent has no calls, so nativeAmount = 0
         // Base fee: 0.02 ETH
         // Percentage fee: 1.5% of 0 = 0
         // Total fee: 0.02 ETH
-        // But mockIntent has nativeValue of 1 ETH, so it passes
+        // But mockIntent has nativeAmount of 1 ETH, so it passes
 
         const result = await validation.validate(mockIntent, mockContext);
 
@@ -99,7 +99,7 @@ describe('NativeFeeValidation', () => {
         const intentWithMultipleValues = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(40000000000000000), // 0.04 ETH reward
+            nativeAmount: BigInt(40000000000000000), // 0.04 ETH reward
           },
           route: {
             ...mockIntent.route,
@@ -153,7 +153,7 @@ describe('NativeFeeValidation', () => {
         const nativeIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(100000000000000000), // 0.1 ETH reward
+            nativeAmount: BigInt(100000000000000000), // 0.1 ETH reward
           },
           route: {
             ...mockIntent.route,
@@ -185,7 +185,7 @@ describe('NativeFeeValidation', () => {
         const lowRewardIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(10000000000000000), // 0.01 ETH
+            nativeAmount: BigInt(10000000000000000), // 0.01 ETH
           },
           route: {
             ...mockIntent.route,
@@ -214,7 +214,7 @@ describe('NativeFeeValidation', () => {
         const preciseIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt('20149999999999999'), // 1 wei less than required
+            nativeAmount: BigInt('20149999999999999'), // 1 wei less than required
           },
           route: {
             ...mockIntent.route,
@@ -254,7 +254,7 @@ describe('NativeFeeValidation', () => {
         const intentWithZeroBase = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(30000000000000000), // 0.03 ETH (exactly 3% of 1 ETH)
+            nativeAmount: BigInt(30000000000000000), // 0.03 ETH (exactly 3% of 1 ETH)
           },
         });
 
@@ -282,7 +282,7 @@ describe('NativeFeeValidation', () => {
         const intentWithZeroPercentage = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(100000000000000000), // 0.1 ETH (exactly base fee)
+            nativeAmount: BigInt(100000000000000000), // 0.1 ETH (exactly base fee)
           },
         });
 
@@ -310,7 +310,7 @@ describe('NativeFeeValidation', () => {
         const highFeeIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(150000000000000000), // 0.15 ETH
+            nativeAmount: BigInt(150000000000000000), // 0.15 ETH
           },
         });
 
@@ -329,7 +329,7 @@ describe('NativeFeeValidation', () => {
         const pureNativeIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(50000000000000000), // 0.05 ETH reward
+            nativeAmount: BigInt(50000000000000000), // 0.05 ETH reward
           },
           route: {
             ...mockIntent.route,
@@ -359,7 +359,7 @@ describe('NativeFeeValidation', () => {
         const multiNativeIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(100000000000000000), // 0.1 ETH reward
+            nativeAmount: BigInt(100000000000000000), // 0.1 ETH reward
           },
           route: {
             ...mockIntent.route,
@@ -416,7 +416,7 @@ describe('NativeFeeValidation', () => {
         const smallIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(2000000000001), // Slightly above required fee
+            nativeAmount: BigInt(2000000000001), // Slightly above required fee
           },
           route: {
             ...mockIntent.route,
@@ -461,7 +461,7 @@ describe('NativeFeeValidation', () => {
         const oddIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt('33300000000000001'), // Covers fee with odd percentage
+            nativeAmount: BigInt('33300000000000001'), // Covers fee with odd percentage
           },
           route: {
             ...mockIntent.route,
@@ -491,7 +491,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('5000000000000000000'), // 5 ETH reward
+          nativeAmount: BigInt('5000000000000000000'), // 5 ETH reward
         },
         route: {
           ...mockIntent.route,
@@ -527,7 +527,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('10000000000000000000'), // 10 ETH reward
+          nativeAmount: BigInt('10000000000000000000'), // 10 ETH reward
         },
         route: {
           ...mockIntent.route,
@@ -575,7 +575,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('1000000000000000000'),
+          nativeAmount: BigInt('1000000000000000000'),
         },
         route: {
           ...mockIntent.route,
@@ -605,7 +605,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('1000000000000000000'),
+          nativeAmount: BigInt('1000000000000000000'),
         },
         route: {
           ...mockIntent.route,
@@ -641,7 +641,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('1000000000000000000'),
+          nativeAmount: BigInt('1000000000000000000'),
         },
         route: {
           ...mockIntent.route,
@@ -677,7 +677,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('50000000000000000'), // 0.05 ETH reward
+          nativeAmount: BigInt('50000000000000000'), // 0.05 ETH reward
         },
         route: {
           ...mockIntent.route,
@@ -722,7 +722,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('2000000000000000000'), // 2 ETH reward
+          nativeAmount: BigInt('2000000000000000000'), // 2 ETH reward
         },
         route: {
           ...mockIntent.route,
@@ -753,7 +753,7 @@ describe('NativeFeeValidation', () => {
       const intent = createMockIntent({
         reward: {
           ...mockIntent.reward,
-          nativeValue: BigInt('5000000000000000'), // 0.005 ETH reward (too low)
+          nativeAmount: BigInt('5000000000000000'), // 0.005 ETH reward (too low)
         },
         route: {
           ...mockIntent.route,

@@ -99,7 +99,7 @@ describe('MetalayerProver', () => {
           prover: proverAddress,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(1000000000000000000),
+          nativeAmount: BigInt(1000000000000000000),
           tokens: [],
         },
       });
@@ -123,7 +123,7 @@ describe('MetalayerProver', () => {
             prover: proverAddress,
             creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
             deadline: BigInt(Date.now() + 86400000),
-            nativeValue: BigInt(1000000000000000000),
+            nativeAmount: BigInt(1000000000000000000),
             tokens: [],
           },
         });
@@ -141,7 +141,7 @@ describe('MetalayerProver', () => {
           prover: proverAddress,
           creator: '0x1234567890123456789012345678901234567890' as Address,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(1000000000000000000),
+          nativeAmount: BigInt(1000000000000000000),
           tokens: [],
         },
       });

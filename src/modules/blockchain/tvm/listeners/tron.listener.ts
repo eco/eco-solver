@@ -177,7 +177,7 @@ export class TronListener extends BaseChainListener {
 
       // Construct intent from Portal event data
       const intent = {
-        intentId: result.hash,
+        intentHash: result.hash,
         destination: BigInt(result.destination),
         route: {
           salt: route.salt,
@@ -190,14 +190,14 @@ export class TronListener extends BaseChainListener {
           creator: this.utilsService.fromHex(result.creator),
           prover: this.utilsService.fromHex(result.prover),
           deadline: BigInt(result.rewardDeadline),
-          nativeAmount: BigInt(result.nativeValue),
+          nativeAmount: BigInt(result.nativeAmount),
           tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens) : [],
         },
         sourceChainId: BigInt(this.config.chainId),
       };
 
       span.setAttributes({
-        'tvm.intent_id': intent.intentId,
+        'tvm.intent_id': intent.intentHash,
         'tvm.source_chain': this.config.chainId.toString(),
         'tvm.destination_chain': result.destination,
         'tvm.creator': intent.reward.creator,
@@ -210,7 +210,7 @@ export class TronListener extends BaseChainListener {
       span.addEvent('intent.emitted');
       span.setStatus({ code: api.SpanStatusCode.OK });
 
-      this.logger.log(`Intent discovered: ${intent.intentId}`);
+      this.logger.log(`Intent discovered: ${intent.intentHash}`);
     } catch (error) {
       this.logger.error(`Error processing intent event: ${error.message}`, error);
       span.recordException(error as Error);

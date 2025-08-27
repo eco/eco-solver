@@ -39,7 +39,7 @@ export class EvmExecutorService extends BaseChainExecutor {
       activeSpan ||
       this.otelService.startSpan('evm.executor.fulfill', {
         attributes: {
-          'evm.intent_id': intent.intentId,
+          'evm.intent_id': intent.intentHash,
           'evm.source_chain': intent.sourceChainId?.toString(),
           'evm.destination_chain': intent.destination.toString(),
           'evm.wallet_type': walletId,
@@ -105,7 +105,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           abi: PortalAbi,
           functionName: 'fulfillAndProve',
           args: [
-            intent.intentId,
+            intent.intentHash,
             intent.route,
             rewardHash,
             claimant,

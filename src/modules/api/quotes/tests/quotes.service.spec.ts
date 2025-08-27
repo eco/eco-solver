@@ -31,6 +31,7 @@ describe('QuotesService', () => {
     getIntentSourceAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
     getInboxAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
     getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
   };
 
   beforeEach(async () => {
@@ -65,7 +66,7 @@ describe('QuotesService', () => {
         prover: '0x1234567890123456789012345678901234567890',
         creator: '0x1234567890123456789012345678901234567890',
         deadline: BigInt('1735689600'),
-        nativeValue: BigInt('1000000000000000000'),
+        nativeAmount: BigInt('1000000000000000000'),
         tokens: [
           {
             amount: BigInt('5000000000000000000'),
@@ -77,7 +78,7 @@ describe('QuotesService', () => {
         source: BigInt('1'),
         destination: BigInt('10'),
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-        inbox: '0x1234567890123456789012345678901234567890',
+        portal: '0x1234567890123456789012345678901234567890',
         calls: [
           {
             target: '0x1234567890123456789012345678901234567890',
@@ -146,9 +147,8 @@ describe('QuotesService', () => {
           estimatedFulfillTimeSec: 30,
         },
         contracts: {
-          intentSource: '0x1234567890123456789012345678901234567890',
           prover: '0x1234567890123456789012345678901234567890',
-          inbox: '0x1234567890123456789012345678901234567890',
+          portal: '0x1234567890123456789012345678901234567890',
         },
       });
 
@@ -273,9 +273,8 @@ describe('QuotesService', () => {
           estimatedFulfillTimeSec: 30,
         },
         contracts: {
-          intentSource: '0x1234567890123456789012345678901234567890',
           prover: '0x1234567890123456789012345678901234567890',
-          inbox: '0x1234567890123456789012345678901234567890',
+          portal: '0x1234567890123456789012345678901234567890',
         },
       });
     });
@@ -324,17 +323,17 @@ describe('QuotesService', () => {
       expect(mockStrategy.canHandle).toHaveBeenCalledWith(
         expect.objectContaining({
           intentHash: expect.any(String),
+          destination: BigInt('10'),
+          sourceChainId: BigInt('1'),
           reward: expect.objectContaining({
             prover: '0x1234567890123456789012345678901234567890',
             creator: '0x1234567890123456789012345678901234567890',
             deadline: BigInt('1735689600'),
-            nativeValue: BigInt('1000000000000000000'),
+            nativeAmount: BigInt('1000000000000000000'),
           }),
           route: expect.objectContaining({
-            source: BigInt('1'),
-            destination: BigInt('10'),
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            inbox: '0x1234567890123456789012345678901234567890',
+            portal: '0x1234567890123456789012345678901234567890',
           }),
         }),
       );

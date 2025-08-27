@@ -273,7 +273,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
         prover: proverAddress as Address,
         creator: creatorAddress as Address,
         deadline: BigInt(Date.now() + 86400000), // 24 hours from now
-        nativeValue: BigInt(0), // 1 TRX in SUN
+        nativeAmount: BigInt(0), // 1 TRX in SUN
         tokens: [],
       },
       route: {

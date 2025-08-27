@@ -230,7 +230,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         createMockIntent({ route: { source: BigInt(137), destination: BigInt(42161) } as any }),
         createMockIntent({
           reward: {
-            nativeValue: BigInt(10000000000000000000), // Large amount
+            nativeAmount: BigInt(10000000000000000000), // Large amount
             tokens: [{ amount: BigInt(1000000), token: '0x123' as any }],
           } as any,
         }),
@@ -409,7 +409,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         }),
         createMockIntent({
           reward: {
-            nativeValue: BigInt(0),
+            nativeAmount: BigInt(0),
             tokens: [
               {
                 amount: BigInt(5000000),

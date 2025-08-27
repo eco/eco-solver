@@ -28,7 +28,7 @@ describe('BlockchainProcessor', () => {
       prover: '0x1234567890123456789012345678901234567890' as Address,
       creator: '0x0987654321098765432109876543210987654321' as Address,
       deadline: 1234567890n,
-      nativeValue: 1000000000000000000n,
+      nativeAmount: 1000000000000000000n,
       tokens: [],
     },
     route: {
@@ -160,7 +160,7 @@ describe('BlockchainProcessor', () => {
       // Add delay to simulate async execution
       const executionOrder: string[] = [];
       blockchainService.executeIntent.mockImplementation(async (intent) => {
-        executionOrder.push(intent.intentId);
+        executionOrder.push(intent.intentHash);
         await new Promise((resolve) => setTimeout(resolve, 10));
       });
 
@@ -207,7 +207,7 @@ describe('BlockchainProcessor', () => {
 
       blockchainService.executeIntent.mockImplementation(async (intent) => {
         await new Promise((resolve) => setTimeout(resolve, 50));
-        executionTimes[intent.intentId] = Date.now() - startTime;
+        executionTimes[intent.intentHash] = Date.now() - startTime;
       });
 
       // Start all jobs concurrently

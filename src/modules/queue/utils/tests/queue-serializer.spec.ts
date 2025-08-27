@@ -191,12 +191,12 @@ describe('QueueSerializer', () => {
 
     it('should handle Intent-like structures with BigInt values', () => {
       const intentLikeData = {
-        intentId: 'test-intent-123',
+        intentHash: 'test-intent-123',
         reward: {
           prover: '0x1234567890123456789012345678901234567890' as const,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const,
           deadline: BigInt(1234567890),
-          nativeValue: BigInt(1000000000000000000), // 1 ETH
+          nativeAmount: BigInt(1000000000000000000), // 1 ETH
           tokens: [
             {
               amount: BigInt(2000000000000000000), // 2 tokens

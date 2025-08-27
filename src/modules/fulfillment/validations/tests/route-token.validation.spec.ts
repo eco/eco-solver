@@ -50,7 +50,7 @@ describe('RouteTokenValidation', () => {
     const mockIntent = createMockIntent({
       reward: {
         ...createMockIntent().reward,
-        nativeValue: BigInt(0),
+        nativeAmount: BigInt(0),
       },
     });
     const mockContext = createMockValidationContext();

@@ -83,7 +83,7 @@ describe('HyperProver', () => {
           prover: proverAddress,
           creator: '0x4444444444444444444444444444444444444444' as Address,
           deadline: 1234567890n,
-          nativeValue: 200n,
+          nativeAmount: 200n,
           tokens: [],
         },
       });
@@ -106,7 +106,7 @@ describe('HyperProver', () => {
           prover: proverAddress,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(1000000000000000000),
+          nativeAmount: BigInt(1000000000000000000),
           tokens: [],
         },
       });

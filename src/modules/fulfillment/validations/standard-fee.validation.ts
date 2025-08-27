@@ -25,7 +25,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       this.otelService.startSpan('validation.StandardFeeValidation', {
         attributes: {
           'validation.name': 'StandardFeeValidation',
-          'intent.hash': intent.intentId,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.sourceChainId?.toString(),
           'intent.destination_chain': intent.destination?.toString(),
         },

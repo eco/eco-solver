@@ -33,13 +33,14 @@ describe('ChainListener', () => {
       creator: '0xCreatorAddress' as Address,
       prover: '0xProverAddress' as Address,
       destination: 10n,
-      nativeValue: 1000000000000000000n,
+      nativeAmount: 1000000000000000000n,
       rewardDeadline: 1234567890n,
       rewardTokens: [
         { token: '0xToken1' as Address, amount: 100n },
         { token: '0xToken2' as Address, amount: 200n },
       ],
-      route: '0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003',
+      route:
+        '0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003',
     },
     blockNumber: 1234n,
     transactionHash: '0xTxHash' as Hex,
@@ -138,7 +139,7 @@ describe('ChainListener', () => {
 
       expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: {
-          intentId: '0xIntentHash',
+          intentHash: '0xIntentHash',
           destination: 10n,
           route: {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001',

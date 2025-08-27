@@ -65,7 +65,7 @@ describe('QuotesController', () => {
             prover: '0x1234567890123456789012345678901234567890',
             creator: '0x1234567890123456789012345678901234567890',
             deadline: BigInt('1735689600'),
-            nativeValue: BigInt('1000000000000000000'),
+            nativeAmount: BigInt('1000000000000000000'),
             tokens: [
               {
                 amount: BigInt('5000000000000000000'),
@@ -144,7 +144,7 @@ describe('QuotesController', () => {
             prover: '0x1234567890123456789012345678901234567890',
             creator: '0x1234567890123456789012345678901234567890',
             deadline: BigInt('1735689600'),
-            nativeValue: BigInt('1000000000000000000'),
+            nativeAmount: BigInt('1000000000000000000'),
             tokens: [],
           },
           route: {
@@ -195,7 +195,7 @@ describe('QuotesController', () => {
             prover: '0x1234567890123456789012345678901234567890',
             creator: '0x1234567890123456789012345678901234567890',
             deadline: BigInt('1735689600'),
-            nativeValue: BigInt('0'),
+            nativeAmount: BigInt('0'),
             tokens: [],
           },
           route: {

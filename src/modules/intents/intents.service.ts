@@ -17,8 +17,8 @@ export class IntentsService {
     return intent.save();
   }
 
-  async findById(intentId: string): Promise<Intent | null> {
-    return this.intentModel.findOne({ intentId }).exec();
+  async findById(intentHash: string): Promise<Intent | null> {
+    return this.intentModel.findOne({ intentHash }).exec();
   }
 
   async findByStatus(status: IntentStatus): Promise<Intent[]> {
@@ -26,12 +26,12 @@ export class IntentsService {
   }
 
   async updateStatus(
-    intentId: string,
+    intentHash: string,
     status: IntentStatus,
     additionalData?: Partial<Intent>,
   ): Promise<Intent | null> {
     return this.intentModel
-      .findOneAndUpdate({ intentId }, { status, ...additionalData }, { new: true })
+      .findOneAndUpdate({ intentHash }, { status, ...additionalData }, { new: true })
       .exec();
   }
 

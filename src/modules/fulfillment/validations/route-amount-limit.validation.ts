@@ -26,7 +26,7 @@ export class RouteAmountLimitValidation implements Validation {
       this.otelService.startSpan('validation.RouteAmountLimitValidation', {
         attributes: {
           'validation.name': 'RouteAmountLimitValidation',
-          'intent.hash': intent.intentId,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.sourceChainId?.toString(),
           'intent.destination_chain': intent.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,

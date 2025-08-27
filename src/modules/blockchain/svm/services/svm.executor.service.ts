@@ -16,7 +16,7 @@ import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
-import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -51,7 +51,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     try {
       // Get source chain info for hash calculation
       if (!intent.sourceChainId) {
-        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+        throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
       }
       const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
@@ -76,10 +76,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
 
       const rewardHash = PortalHashUtils.computeRewardHash(
-        {
-          ...intent.reward,
-          tokens: [...intent.reward.tokens] as TokenAmount[],
-        },
+        intent.reward as Reward,
         sourceChainType,
       );
 
@@ -102,14 +99,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
 
       // Encode route for Solana using SVM encoding
-      const routeEncoded = PortalEncoder.encodeForChain(
-        {
-          ...intent.route,
-          tokens: [...intent.route.tokens] as TokenAmount[],
-          calls: [...intent.route.calls] as Call[],
-        },
-        ChainType.SVM,
-      );
+      const routeEncoded = PortalEncoder.encodeForChain(intent.route as Route, ChainType.SVM);
 
       // Build Portal fulfillAndProve instruction
       const instruction = new TransactionInstruction({

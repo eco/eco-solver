@@ -24,7 +24,7 @@ export class RouteCallsValidation implements Validation {
       this.otelService.startSpan('validation.RouteCallsValidation', {
         attributes: {
           'validation.name': 'RouteCallsValidation',
-          'intent.id': intent.intentId,
+          'intent.id': intent.intentHash,
           'intent.destination_chain': intent.destination.toString(),
           'route.calls.count': intent.route.calls?.length || 0,
           'route.portal': intent.route.portal,

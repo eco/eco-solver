@@ -27,7 +27,7 @@ export class IntentFundedValidation implements Validation {
       this.otelService.startSpan('validation.IntentFundedValidation', {
         attributes: {
           'validation.name': 'IntentFundedValidation',
-          'intent.id': intent.intentId,
+          'intent.id': intent.intentHash,
           'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
           'intent.destination_chain': intent.destination.toString(),
         },
@@ -37,7 +37,7 @@ export class IntentFundedValidation implements Validation {
 
     try {
       if (!sourceChainId) {
-        throw new Error(`Intent ${intent.intentId} is missing source chain ID`);
+        throw new Error(`Intent ${intent.intentHash} is missing source chain ID`);
       }
 
       span.setAttribute('funding.checking_chain', sourceChainId.toString());
@@ -57,10 +57,10 @@ export class IntentFundedValidation implements Validation {
       });
 
       if (!isFunded) {
-        throw new Error(`Intent ${intent.intentId} is not funded on chain ${sourceChainId}`);
+        throw new Error(`Intent ${intent.intentHash} is not funded on chain ${sourceChainId}`);
       }
 
-      this.logger.debug(`Intent ${intent.intentId} is funded on chain ${sourceChainId}`);
+      this.logger.debug(`Intent ${intent.intentHash} is funded on chain ${sourceChainId}`);
 
       if (!activeSpan) {
         span.setStatus({ code: api.SpanStatusCode.OK });
@@ -78,7 +78,7 @@ export class IntentFundedValidation implements Validation {
       }
 
       // Otherwise, wrap the error
-      this.logger.error(`Failed to check funding status for intent ${intent.intentId}:`, error);
+      this.logger.error(`Failed to check funding status for intent ${intent.intentHash}:`, error);
       throw new Error(`Failed to verify intent funding status: ${error.message}`);
     } finally {
       if (!activeSpan) {

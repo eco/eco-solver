@@ -158,7 +158,7 @@ describe('Intent Discovery Flow Integration', () => {
       // Verify intent was saved to database
       const savedIntent = await intentsService.findById(mockIntent.intentHash);
       expect(savedIntent).toBeDefined();
-      expect(savedIntent.intentId).toBe(mockIntent.intentHash);
+      expect(savedIntent.intentHash).toBe(mockIntent.intentHash);
       expect(savedIntent.status).toBe(IntentStatus.PENDING);
 
       // Verify intent was added to fulfillment queue
@@ -208,7 +208,7 @@ describe('Intent Discovery Flow Integration', () => {
   //     // Verify intent exists only once in database
   //     const savedIntent = await intentsService.findById(mockIntent.intentHash);
   //     expect(savedIntent).toBeDefined();
-  //     expect(savedIntent.intentId).toBe(mockIntent.intentHash);
+  //     expect(savedIntent.intentHash).toBe(mockIntent.intentHash);
   //   });
   // });
   //
@@ -246,7 +246,7 @@ describe('Intent Discovery Flow Integration', () => {
   //     for (let i = 0; i < jobs.length; i++) {
   //       const job = jobs.find((j) => {
   //         const data = QueueSerializer.deserialize(j.data);
-  //         return data.intent.intentId === intents[i].intentHash;
+  //         return data.intent.intentHash === intents[i].intentHash;
   //       });
   //       expect(job).toBeDefined();
   //       const jobData = QueueSerializer.deserialize(job.data);
@@ -255,9 +255,9 @@ describe('Intent Discovery Flow Integration', () => {
   //
   //     // Verify all intents were saved to database
   //     for (const intent of intents) {
-  //       const savedIntent = await intentsService.findById(intent.intentId);
+  //       const savedIntent = await intentsService.findById(intent.intentHash);
   //       expect(savedIntent).toBeDefined();
-  //       expect(savedIntent.intentId).toBe(intent.intentId);
+  //       expect(savedIntent.intentHash).toBe(intent.intentHash);
   //     }
   //   });
   // });
@@ -293,15 +293,15 @@ describe('Intent Discovery Flow Integration', () => {
   //
   //     // Verify all intents were saved to database
   //     for (const intent of intents) {
-  //       const savedIntent = await intentsService.findById(intent.intentId);
+  //       const savedIntent = await intentsService.findById(intent.intentHash);
   //       expect(savedIntent).toBeDefined();
-  //       expect(savedIntent.intentId).toBe(intent.intentId);
+  //       expect(savedIntent.intentHash).toBe(intent.intentHash);
   //     }
   //
   //     // Verify each job has unique intent
   //     const uniqueHashes = new Set(jobs.map((job) => {
   //       const data = QueueSerializer.deserialize(job.data);
-  //       return data.intent.intentId;
+  //       return data.intent.intentHash;
   //     }));
   //     expect(uniqueHashes.size).toBe(intentCount);
   //   });

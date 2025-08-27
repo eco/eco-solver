@@ -51,7 +51,7 @@ Validates an intent and returns a quote with fee requirements.
       "prover": "0xProverContractAddress1234567890123456789012",
       "creator": "0xCreatorAddress123456789012345678901234567890",
       "deadline": "1735689600",
-      "nativeValue": "1000000000000000",
+      "nativeAmount": "1000000000000000",
       "tokens": [
         {
           "amount": "1000000000000000000",
@@ -90,7 +90,7 @@ Validates an intent and returns a quote with fee requirements.
   - **prover**: Address of the prover contract (40-character hex)
   - **creator**: Address of the intent creator (40-character hex)
   - **deadline**: Unix timestamp as string (for BigInt compatibility)
-  - **nativeValue**: Native token reward amount as string
+  - **nativeAmount**: Native token reward amount as string
   - **tokens**: Array of ERC20 token rewards
     - **amount**: Token amount as string
     - **token**: Token contract address
@@ -344,7 +344,7 @@ curl -X POST http://localhost:3000/api/v1/quotes \
         "prover": "0xProverContractAddress1234567890123456789012",
         "creator": "0xCreatorAddress123456789012345678901234567890",
         "deadline": "1735689600",
-        "nativeValue": "1000000000000000",
+        "nativeAmount": "1000000000000000",
         "tokens": []
       },
       "route": {

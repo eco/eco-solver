@@ -1,7 +1,7 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
-import { PublicClient } from 'viem';
+import { Address, PublicClient } from 'viem';
 
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
@@ -43,7 +43,7 @@ export class ChainListener extends BaseChainListener {
     this.unsubscribe = publicClient.watchContractEvent({
       abi: PortalAbi,
       eventName: 'IntentPublished',
-      address: portalAddress as `0x${string}`,
+      address: portalAddress as Address,
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
@@ -60,14 +60,10 @@ export class ChainListener extends BaseChainListener {
           try {
             // Decode route based on destination chain type
             const destChainType = ChainTypeDetector.detect(log.args.destination);
-            const route = PortalEncoder.decodeFromChain(
-              Buffer.from(log.args.route.slice(2), 'hex'),
-              destChainType,
-              'route',
-            ) as any;
+            const route = PortalEncoder.decodeFromChain(log.args.route, destChainType, 'route');
 
             const intent = {
-              intentId: log.args.hash,
+              intentHash: log.args.intentHash,
               destination: log.args.destination,
               route: {
                 salt: route.salt,
@@ -80,14 +76,14 @@ export class ChainListener extends BaseChainListener {
                 deadline: log.args.rewardDeadline,
                 creator: log.args.creator,
                 prover: log.args.prover,
-                nativeAmount: log.args.nativeValue,
+                nativeAmount: log.args.rewardNativeAmount,
                 tokens: log.args.rewardTokens,
               },
               sourceChainId: BigInt(evmConfig.chainId),
             };
 
             span.setAttributes({
-              'evm.intent_id': intent.intentId,
+              'evm.intent_id': intent.intentHash,
               'evm.source_chain': evmConfig.chainId.toString(),
               'evm.destination_chain': log.args.destination.toString(),
               'evm.creator': log.args.creator,

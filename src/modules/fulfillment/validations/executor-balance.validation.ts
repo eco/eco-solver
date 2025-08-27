@@ -23,7 +23,7 @@ export class ExecutorBalanceValidation implements Validation {
       this.otelService.startSpan('validation.ExecutorBalanceValidation', {
         attributes: {
           'validation.name': 'ExecutorBalanceValidation',
-          'intent.hash': intent.intentId,
+          'intent.hash': intent.intentHash,
           'intent.destination_chain': intent.destination?.toString(),
           'route.tokens.count': intent.route.tokens?.length || 0,
         },

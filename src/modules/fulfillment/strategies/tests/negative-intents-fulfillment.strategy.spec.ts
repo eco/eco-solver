@@ -250,7 +250,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
         // Intent with negative value patterns
         createMockIntent({
           reward: {
-            nativeValue: BigInt(0),
+            nativeAmount: BigInt(0),
             tokens: [
               {
                 amount: BigInt(1000000),

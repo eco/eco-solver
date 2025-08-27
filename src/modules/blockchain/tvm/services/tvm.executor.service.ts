@@ -8,7 +8,7 @@ import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
-import { Call, Intent, TokenAmount } from '@/common/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { TvmConfigService } from '@/modules/config/services';
@@ -144,13 +144,14 @@ export class TvmExecutorService extends BaseChainExecutor {
           const contract = wallet.tronWeb.contract(PortalAbi, portalAddr);
 
           // Structure route data for TronWeb contract call
-          const routeData = [
+          const routeData: Parameters<typeof contract.fulfillAndProve>[1] = [
             intent.route.salt,
             intent.route.deadline,
             this.utilsService.toHex(intent.route.portal),
+            intent.route.nativeAmount,
             intent.route.tokens.map((t) => [this.utilsService.toHex(t.token), t.amount]),
             intent.route.calls.map((c) => [this.utilsService.toHex(c.target), c.data, c.value]),
-          ] as [any, bigint, string, readonly [string, bigint][], readonly [string, any, bigint][]];
+          ];
 
           // Call Portal fulfillAndProve function with proof data
           const fulfillTxId = await contract

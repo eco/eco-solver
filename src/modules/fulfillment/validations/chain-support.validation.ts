@@ -23,7 +23,7 @@ export class ChainSupportValidation implements Validation {
       this.otelService.startSpan('validation.ChainSupportValidation', {
         attributes: {
           'validation.name': 'ChainSupportValidation',
-          'intent.hash': intent.intentId,
+          'intent.hash': intent.intentHash,
           'intent.source_chain': intent.sourceChainId?.toString(),
           'intent.destination_chain': intent.destination?.toString(),
         },

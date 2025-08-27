@@ -1,23 +1,13 @@
 import { Address, Hex } from 'viem';
 
-/**
- * Portal Intent Structure
- *
- * Updated interface for the Portal contract system.
- * Key changes from legacy IntentSource/Inbox:
- * - intentHash -> intentId (for consistency)
- * - route.inbox -> route.portal
- * - route: removed source field (derived from context)
- * - reward.nativeAmount -> reward.nativeAmount (Portal naming)
- * - Added destination at top level
- */
 export interface Intent {
-  intentId: Hex; // Changed from intentHash for consistency
+  intentHash: Hex; // Changed from intentHash for consistency
   destination: bigint; // Target chain ID (moved from route)
   route: Readonly<{
     salt: Hex;
     deadline: bigint; // Added deadline to route (Portal structure)
     portal: Address; // Changed from inbox
+    nativeAmount: bigint; // Changed from nativeAmount
     tokens: Readonly<
       {
         amount: bigint;
@@ -36,7 +26,7 @@ export interface Intent {
     deadline: bigint;
     creator: Address;
     prover: Address;
-    nativeAmount: bigint; // Changed from nativeValue
+    nativeAmount: bigint; // Changed from nativeAmount
     tokens: Readonly<
       {
         amount: bigint;

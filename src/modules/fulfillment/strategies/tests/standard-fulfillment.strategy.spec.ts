@@ -226,7 +226,7 @@ describe('StandardFulfillmentStrategy', () => {
         createMockIntent({ route: { source: BigInt(137), destination: BigInt(42161) } as any }),
         createMockIntent({
           reward: {
-            nativeValue: BigInt(0),
+            nativeAmount: BigInt(0),
             tokens: [{ amount: BigInt(1000), token: '0x123' as any }],
           } as any,
         }),
@@ -380,7 +380,7 @@ describe('StandardFulfillmentStrategy', () => {
         createMockIntent({ route: { source: BigInt(1), destination: BigInt(10) } as any }),
         createMockIntent({
           reward: {
-            nativeValue: BigInt(0),
+            nativeAmount: BigInt(0),
             tokens: [{ amount: BigInt(1000), token: '0x123' as any }],
           } as any,
         }),

@@ -382,7 +382,7 @@ describe('StandardFeeValidation', () => {
         const zeroRewardIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(0),
+            nativeAmount: BigInt(0),
           },
         });
 
@@ -483,7 +483,7 @@ describe('StandardFeeValidation', () => {
         const zeroIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeValue: BigInt(0),
+            nativeAmount: BigInt(0),
           },
           route: {
             ...mockIntent.route,

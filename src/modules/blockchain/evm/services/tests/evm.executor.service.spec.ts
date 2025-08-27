@@ -1,20 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { hashIntent } from '@eco-foundation/routes-ts';
 import { Address, encodeFunctionData, Hex } from 'viem';
 
 import { ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { EvmExecutorService } from '../evm.executor.service';
 import { EvmTransportService } from '../evm-transport.service';
 import { EvmWalletManager, WalletType } from '../evm-wallet-manager.service';
 
-jest.mock('@eco-foundation/routes-ts', () => ({
-  ...jest.requireActual('@eco-foundation/routes-ts'),
-  hashIntent: jest.fn(),
+jest.mock('@/common/utils/portal-hash.utils', () => ({
+  PortalHashUtils: {
+    getIntentHash: jest.fn(),
+  },
 }));
 
 jest.mock('viem', () => ({
@@ -31,18 +34,20 @@ describe('EvmExecutorService', () => {
 
   const mockIntent: Intent = {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+    destination: 10n,
+    sourceChainId: 1n,
     reward: {
       prover: '0x1234567890123456789012345678901234567890' as Address,
       creator: '0x0987654321098765432109876543210987654321' as Address,
       deadline: 1234567890n,
-      nativeValue: 1000000000000000000n,
+      nativeAmount: 1000000000000000000n,
       tokens: [],
     },
     route: {
-      source: 1n,
-      destination: 10n,
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-      inbox: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      deadline: 1234567890n,
+      portal: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      nativeAmount: 0n,
       calls: [],
       tokens: [
         {
@@ -63,6 +68,10 @@ describe('EvmExecutorService', () => {
     getContractAddress: jest.fn().mockReturnValue('0xProverAddress'),
     getFee: jest.fn().mockResolvedValue(100000000000000000n),
     getMessageData: jest.fn().mockResolvedValue('0xMessageData'),
+    generateProof: jest.fn().mockResolvedValue({
+      storageKeys: [],
+      storageValues: [],
+    }),
   };
 
   const mockPublicClient = {
@@ -78,6 +87,7 @@ describe('EvmExecutorService', () => {
         inboxAddress: '0xInboxAddress',
       }),
       getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address),
+      getPortalAddress: jest.fn().mockReturnValue('0xPortalAddress' as Address),
     } as any;
 
     transportService = {
@@ -93,6 +103,24 @@ describe('EvmExecutorService', () => {
       getProver: jest.fn().mockReturnValue(mockProver),
     } as any;
 
+    const mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EvmExecutorService,
@@ -100,6 +128,8 @@ describe('EvmExecutorService', () => {
         { provide: EvmTransportService, useValue: transportService },
         { provide: EvmWalletManager, useValue: walletManager },
         { provide: ProverService, useValue: proverService },
+        { provide: SystemLoggerService, useValue: mockLogger },
+        { provide: OpenTelemetryService, useValue: mockOtelService },
       ],
     }).compile();
 
@@ -107,7 +137,7 @@ describe('EvmExecutorService', () => {
 
     // Reset mocks
     jest.clearAllMocks();
-    (hashIntent as jest.Mock).mockReturnValue({
+    (PortalHashUtils.getIntentHash as jest.Mock).mockReturnValue({
       intentHash: '0xIntentHash',
       rewardHash: '0xRewardHash',
     });

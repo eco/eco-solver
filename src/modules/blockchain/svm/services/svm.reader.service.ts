@@ -80,7 +80,7 @@ export class SvmReaderService extends BaseChainReader {
     try {
       // Get source chain info for vault derivation
       if (!intent.sourceChainId) {
-        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+        throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
       }
       const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
@@ -106,7 +106,7 @@ export class SvmReaderService extends BaseChainReader {
       );
 
       this.logger.debug(
-        `Checking vault funding for intent ${intent.intentId} at ${vaultPDA.toString()}`,
+        `Checking vault funding for intent ${intent.intentHash} at ${vaultPDA.toString()}`,
       );
 
       // Check native balance first
@@ -139,10 +139,10 @@ export class SvmReaderService extends BaseChainReader {
         }
       }
 
-      this.logger.debug(`Intent ${intent.intentId} is fully funded`);
+      this.logger.debug(`Intent ${intent.intentHash} is fully funded`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to check intent funding for ${intent.intentId}:`, error);
+      this.logger.error(`Failed to check intent funding for ${intent.intentHash}:`, error);
       throw new Error(`Failed to check intent funding: ${error.message}`);
     }
   }

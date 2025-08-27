@@ -146,7 +146,7 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.isIntentFunded', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.intent_id': intent.intentId,
+        'tvm.intent_id': intent.intentHash,
         'tvm.operation': 'isIntentFunded',
         'tvm.destination_chain': intent.destination.toString(),
       },
@@ -155,7 +155,7 @@ export class TvmReaderService extends BaseChainReader {
     try {
       // Get source chain info for vault derivation
       if (!intent.sourceChainId) {
-        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+        throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
       }
       const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
@@ -221,7 +221,7 @@ export class TvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      this.logger.error(`Failed to check if intent ${intent.intentId} is funded:`, error);
+      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to check intent funding status: ${error.message}`);
@@ -239,7 +239,7 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.fetchProverFee', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.intent_id': intent.intentId,
+        'tvm.intent_id': intent.intentHash,
         'tvm.prover_address': intent.reward.prover,
         'tvm.operation': 'fetchProverFee',
         'tvm.has_claimant': !!claimant,
@@ -282,7 +282,7 @@ export class TvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return feeBigInt;
     } catch (error) {
-      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentId}:`, error);
+      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${error.message}`);

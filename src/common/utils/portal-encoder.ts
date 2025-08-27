@@ -8,9 +8,9 @@
  * - SVM: Borsh serialization
  */
 
-import { Address, encodeAbiParameters, Hex, parseAbiParameters } from 'viem';
+import { Address, decodeAbiParameters, encodeAbiParameters, Hex, parseAbiParameters } from 'viem';
 
-import { Reward, Route } from '../abis/portal.abi';
+import { EVMRewardAbiItem, EVMRouteAbiItem, Reward, Route } from '../abis/portal.abi';
 
 import { ChainType } from './chain-type-detector';
 
@@ -43,11 +43,11 @@ export class PortalEncoder {
    * @param dataType - Type of data ('route' or 'reward')
    * @returns Decoded Route or Reward object
    */
-  static decodeFromChain(
+  static decodeFromChain<Type extends 'route' | 'reward'>(
     data: Buffer | string,
     chainType: ChainType,
-    dataType: 'route' | 'reward',
-  ): Route | Reward {
+    dataType: Type,
+  ): Type extends 'route' ? Route : Reward {
     switch (chainType) {
       case ChainType.EVM:
         return this.decodeEvm(data, dataType);
@@ -171,16 +171,29 @@ export class PortalEncoder {
   /**
    * EVM decoding (placeholder - would use viem's decodeAbiParameters)
    */
-  private static decodeEvm(_data: Buffer | string, _dataType: 'route' | 'reward'): Route | Reward {
-    // This is a simplified implementation
-    // In production, use viem's decodeAbiParameters
-    throw new Error('EVM decoding not implemented - use viem decodeAbiParameters');
+  private static decodeEvm<Type extends 'route' | 'reward'>(
+    data: Buffer | string,
+    dataType: Type,
+  ): Type extends 'route' ? Route : Reward {
+    const dataString = typeof data === 'string' ? data : ('0x' + data.toString('hex'));
+
+    if (dataType === 'reward') {
+      return decodeAbiParameters([EVMRewardAbiItem], dataString as Hex)[0] as Type extends 'route'
+        ? Route
+        : Reward;
+    }
+    return decodeAbiParameters([EVMRouteAbiItem], dataString as Hex)[0] as Type extends 'route'
+      ? Route
+      : Reward;
   }
 
   /**
    * TVM decoding from JSON with Base58 addresses
    */
-  private static decodeTvm(data: Buffer | string, dataType: 'route' | 'reward'): Route | Reward {
+  private static decodeTvm<Type extends 'route' | 'reward'>(
+    data: Buffer | string,
+    dataType: Type,
+  ): Type extends 'route' ? Route : Reward {
     const jsonStr = typeof data === 'string' ? data : data.toString('utf8');
     const parsed = JSON.parse(jsonStr);
 
@@ -189,6 +202,7 @@ export class PortalEncoder {
         salt: this.base58ToHex(parsed.salt),
         deadline: BigInt(parsed.deadline),
         portal: this.base58ToAddress(parsed.portal),
+        nativeAmount: BigInt(parsed.nativeAmount),
         tokens: parsed.tokens.map((t: any) => ({
           token: this.base58ToAddress(t.token),
           amount: BigInt(t.amount),
@@ -198,7 +212,7 @@ export class PortalEncoder {
           data: this.base58ToHex(c.data),
           value: BigInt(c.value),
         })),
-      };
+      } as Type extends 'route' ? Route : Reward;
     } else {
       return {
         deadline: BigInt(parsed.deadline),
@@ -209,14 +223,17 @@ export class PortalEncoder {
           token: this.base58ToAddress(t.token),
           amount: BigInt(t.amount),
         })),
-      };
+      } as Type extends 'route' ? Route : Reward;
     }
   }
 
   /**
    * SVM decoding from JSON
    */
-  private static decodeSvm(data: Buffer | string, dataType: 'route' | 'reward'): Route | Reward {
+  private static decodeSvm<Type extends 'route' | 'reward'>(
+    data: Buffer | string,
+    dataType: Type,
+  ): Type extends 'route' ? Route : Reward {
     const jsonStr = typeof data === 'string' ? data : data.toString('utf8');
     const parsed = JSON.parse(jsonStr);
 
@@ -225,6 +242,7 @@ export class PortalEncoder {
         salt: ('0x' + Buffer.from(parsed.salt).toString('hex')) as Hex,
         deadline: BigInt(parsed.deadline),
         portal: parsed.portal as Address,
+        nativeAmount: BigInt(parsed.nativeAmount),
         tokens: parsed.tokens.map((t: any) => ({
           token: t.token as Address,
           amount: BigInt(t.amount),
@@ -234,19 +252,19 @@ export class PortalEncoder {
           data: ('0x' + Buffer.from(c.data).toString('hex')) as Hex,
           value: BigInt(c.value),
         })),
-      };
-    } else {
-      return {
-        deadline: BigInt(parsed.deadline),
-        creator: parsed.creator as Address,
-        prover: parsed.prover as Address,
-        nativeAmount: BigInt(parsed.nativeAmount),
-        tokens: parsed.tokens.map((t: any) => ({
-          token: t.token as Address,
-          amount: BigInt(t.amount),
-        })),
-      };
+      } as Type extends 'route' ? Route : Reward;
     }
+
+    return {
+      deadline: BigInt(parsed.deadline),
+      creator: parsed.creator as Address,
+      prover: parsed.prover as Address,
+      nativeAmount: BigInt(parsed.nativeAmount),
+      tokens: parsed.tokens.map((t: any) => ({
+        token: t.token as Address,
+        amount: BigInt(t.amount),
+      })),
+    } as Type extends 'route' ? Route : Reward;
   }
 
   // Helper methods for address format conversion

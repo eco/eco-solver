@@ -7,6 +7,7 @@ import { Address, erc20Abi, Hex, isAddress } from 'viem';
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { EVMIntentType } from '@/modules/blockchain/evm/types/portal';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -93,7 +94,7 @@ export class EvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('evm.reader.isIntentFunded', {
       attributes: {
         'evm.chain_id': chainId,
-        'evm.intent_id': intent.intentId,
+        'evm.intent_id': intent.intentHash,
         'evm.operation': 'isIntentFunded',
         'evm.source_chain': intent.sourceChainId?.toString(),
         'evm.destination_chain': intent.destination.toString(),
@@ -103,7 +104,7 @@ export class EvmReaderService extends BaseChainReader {
     try {
       // Get Portal address from config
       const portalAddress = this.evmConfigService.getPortalAddress(chainId);
-      
+
       span.setAttributes({
         'portal.address': portalAddress,
         'portal.method': 'isIntentFunded_contract',
@@ -113,7 +114,7 @@ export class EvmReaderService extends BaseChainReader {
 
       // Use Portal contract's isIntentFunded function
       // Construct the intent struct for the contract call
-      const portalIntent = {
+      const portalIntent: EVMIntentType = {
         destination: intent.destination,
         route: {
           salt: intent.route.salt,
@@ -121,12 +122,13 @@ export class EvmReaderService extends BaseChainReader {
           portal: intent.route.portal,
           tokens: intent.route.tokens,
           calls: intent.route.calls,
+          nativeAmount: intent.route.nativeAmount, // Portal ABI uses nativeAmount
         },
         reward: {
           deadline: intent.reward.deadline,
           creator: intent.reward.creator,
           prover: intent.reward.prover,
-          nativeValue: intent.reward.nativeAmount, // Portal ABI uses nativeValue
+          nativeAmount: intent.reward.nativeAmount, // Portal ABI uses nativeAmount
           tokens: intent.reward.tokens,
         },
       };
@@ -142,10 +144,10 @@ export class EvmReaderService extends BaseChainReader {
         'portal.intent_funded': isFunded,
       });
       span.setStatus({ code: api.SpanStatusCode.OK });
-      
+
       return Boolean(isFunded);
     } catch (error) {
-      this.logger.error(`Failed to check if intent ${intent.intentId} is funded:`, error);
+      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to check intent funding status: ${error.message}`);
@@ -185,7 +187,7 @@ export class EvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('evm.reader.fetchProverFee', {
       attributes: {
         'evm.chain_id': chainId,
-        'evm.intent_id': intent.intentId,
+        'evm.intent_id': intent.intentHash,
         'evm.prover_address': intent.reward.prover,
         'evm.operation': 'fetchProverFee',
         'evm.has_claimant': !!claimant,
@@ -195,7 +197,7 @@ export class EvmReaderService extends BaseChainReader {
     try {
       // Validate that sourceChainId is provided
       if (!intent.sourceChainId) {
-        throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+        throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
       }
 
       const client = this.transportService.getPublicClient(chainId);
@@ -207,7 +209,7 @@ export class EvmReaderService extends BaseChainReader {
         functionName: 'fetchFee',
         args: [
           intent.sourceChainId, // Source chain ID where the intent originates - no fallback
-          [intent.intentId], // Intent ID for fee query
+          [intent.intentHash], // Intent ID for fee query
           [claimant], // Claimant array for fee query
           messageData, // Message data parameter
         ],
@@ -217,7 +219,7 @@ export class EvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return fee as bigint;
     } catch (error) {
-      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentId}:`, error);
+      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${error.message}`);

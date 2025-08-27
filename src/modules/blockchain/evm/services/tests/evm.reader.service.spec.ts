@@ -56,7 +56,7 @@ describe('EvmReaderService', () => {
         prover: '0x1234567890123456789012345678901234567890' as Address,
         creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
         deadline: BigInt(Date.now() + 86400000), // 24 hours from now
-        nativeValue: BigInt(1000000000000000000), // 1 ETH
+        nativeAmount: BigInt(1000000000000000000), // 1 ETH
         tokens: [],
       },
       route: {

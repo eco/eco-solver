@@ -50,7 +50,7 @@ export class FulfillmentService {
   async submitIntent(intent: Intent, strategy: FulfillmentStrategyName): Promise<Intent> {
     const span = this.otelService.startSpan('intent.submit', {
       attributes: {
-        'intent.hash': intent.intentId,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.sourceChainId.toString(),
         'intent.destination_chain': intent.destination.toString(),
         'intent.strategy': strategy,
@@ -62,9 +62,9 @@ export class FulfillmentService {
 
     try {
       // Check if intent already exists
-      const existingIntent = await this.intentsService.findById(intent.intentId);
+      const existingIntent = await this.intentsService.findById(intent.intentHash);
       if (existingIntent) {
-        this.logger.log(`Intent ${intent.intentId} already exists`);
+        this.logger.log(`Intent ${intent.intentHash} already exists`);
         span.setAttribute('intent.already_exists', true);
         span.end();
         return IntentConverter.toInterface(existingIntent);
@@ -78,7 +78,7 @@ export class FulfillmentService {
       await this.queueService.addIntentToFulfillmentQueue(interfaceIntent, strategy);
 
       this.logger.log(
-        `New intent ${intent.intentId} added to fulfillment queue with strategy: ${strategy}`,
+        `New intent ${intent.intentHash} added to fulfillment queue with strategy: ${strategy}`,
       );
 
       // Record metrics
@@ -95,7 +95,7 @@ export class FulfillmentService {
 
       return interfaceIntent;
     } catch (error) {
-      this.logger.error(`Error submitting intent ${intent.intentId}:`, error);
+      this.logger.error(`Error submitting intent ${intent.intentHash}:`, error);
       span.recordException(error as Error);
       span.setStatus({ code: 2, message: (error as Error).message }); // ERROR status
       span.end();
@@ -108,7 +108,7 @@ export class FulfillmentService {
 
     const processSpan = this.otelService.startSpan('intent.process', {
       attributes: {
-        'intent.hash': intent.intentId,
+        'intent.hash': intent.intentHash,
         'intent.source_chain': intent.sourceChainId.toString(),
         'intent.destination_chain': intent.destination.toString(),
         'intent.strategy': strategyName,
@@ -116,7 +116,7 @@ export class FulfillmentService {
     });
 
     try {
-      await this.intentsService.updateStatus(intent.intentId, IntentStatus.VALIDATING);
+      await this.intentsService.updateStatus(intent.intentHash, IntentStatus.VALIDATING);
       processSpan.addEvent('intent.status.updated', {
         status: IntentStatus.VALIDATING,
       });
@@ -124,7 +124,7 @@ export class FulfillmentService {
       // Get the strategy by name
       const strategy = this.strategies.get(strategyName);
       if (!strategy) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(`Unknown fulfillment strategy: ${strategyName}`);
         this.dataDogService.recordIntent(
           'failed',
@@ -143,7 +143,7 @@ export class FulfillmentService {
 
       // Verify the strategy can handle this intent
       if (!strategy.canHandle(intent)) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(`Strategy ${strategyName} cannot handle this intent`);
         this.dataDogService.recordIntent(
           'failed',
@@ -174,9 +174,9 @@ export class FulfillmentService {
           strategyName,
         );
       } catch (validationError) {
-        await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
         this.logger.error(
-          `Validation failed for intent ${intent.intentId}:`,
+          `Validation failed for intent ${intent.intentHash}:`,
           validationError.message,
         );
         this.dataDogService.recordIntent(
@@ -202,7 +202,7 @@ export class FulfillmentService {
       });
       processSpan.addEvent('intent.execution.completed');
 
-      await this.intentsService.updateStatus(intent.intentId, IntentStatus.EXECUTING);
+      await this.intentsService.updateStatus(intent.intentHash, IntentStatus.EXECUTING);
       processSpan.addEvent('intent.status.updated', {
         status: IntentStatus.EXECUTING,
       });
@@ -220,8 +220,8 @@ export class FulfillmentService {
       processSpan.setStatus({ code: 0 }); // OK
       processSpan.end();
     } catch (error) {
-      this.logger.error(`Error processing intent ${intent.intentId}:`, error);
-      await this.intentsService.updateStatus(intent.intentId, IntentStatus.FAILED);
+      this.logger.error(`Error processing intent ${intent.intentHash}:`, error);
+      await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
       this.dataDogService.recordIntent(
         'failed',
         intent.sourceChainId.toString(),

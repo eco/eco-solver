@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
+import { Route } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
@@ -72,15 +73,16 @@ export class SolanaListener extends BaseChainListener {
       Buffer.from(intentData.route, 'hex'),
       destChainType,
       'route',
-    ) as any;
+    ) as Route;
 
     return {
-      intentId: intentData.intentHash,
+      intentHash: intentData.intentHash,
       destination: BigInt(intentData.destination),
       route: {
         salt: route.salt,
         deadline: route.deadline,
         portal: route.portal,
+        nativeAmount: BigInt(route.nativeAmount || 0),
         tokens: route.tokens || [],
         calls: route.calls || [],
       },
@@ -120,8 +122,8 @@ export class SolanaListener extends BaseChainListener {
     const intentData: any = {};
 
     logs.forEach((log) => {
-      if (log.includes('intentId:')) {
-        intentData.intentId = log.split('intentId:')[1].trim();
+      if (log.includes('intentHash:')) {
+        intentData.intentHash = log.split('intentHash:')[1].trim();
       }
       // Parse other fields similarly
     });

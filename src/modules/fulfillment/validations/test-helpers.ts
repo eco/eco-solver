@@ -22,7 +22,7 @@ export function createMockValidationContext(
 
 export function createMockIntent(overrides?: Partial<Intent>): Intent {
   const defaultIntent: Intent = {
-    intentId: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hex,
+    intentHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hex,
     destination: BigInt(10), // Target chain ID
     reward: {
       prover: '0x1234567890123456789012345678901234567890' as Address,
@@ -35,6 +35,7 @@ export function createMockIntent(overrides?: Partial<Intent>): Intent {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: BigInt(Date.now() + 86400000), // 24 hours from now
       portal: '0x9876543210987654321098765432109876543210' as Address,
+      nativeAmount: 0n,
       calls: [],
       tokens: [],
     },

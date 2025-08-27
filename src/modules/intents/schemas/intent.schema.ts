@@ -9,14 +9,14 @@ export type IntentDocument = Intent & Document;
 @Schema({ timestamps: true })
 export class Intent {
   @Prop({ required: true, unique: true, index: true })
-  intentId: string;
+  intentHash: string;
 
   @Prop({
     type: {
       prover: { type: String, required: true },
       creator: { type: String, required: true },
       deadline: { type: String, required: true }, // Store bigint as string
-      nativeValue: { type: String, required: true }, // Store bigint as string
+      nativeAmount: { type: String, required: true }, // Store bigint as string
       tokens: [
         {
           amount: { type: String, required: true }, // Store bigint as string
@@ -30,7 +30,7 @@ export class Intent {
     prover: string;
     creator: string;
     deadline: string;
-    nativeValue: string;
+    nativeAmount: string;
     tokens: {
       amount: string;
       token: string;

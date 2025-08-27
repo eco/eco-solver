@@ -226,7 +226,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           prover: '0x1234567890123456789012345678901234567890' as any,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(1000000000000000000), // 1 ETH
+          nativeAmount: BigInt(1000000000000000000), // 1 ETH
           tokens: [], // No tokens
         },
         route: {
@@ -263,7 +263,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           prover: '0x1234567890123456789012345678901234567890' as any,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(1000000000000000000),
+          nativeAmount: BigInt(1000000000000000000),
           tokens: [{ amount: BigInt(500), token: '0xabc' as any }], // Has token rewards
         },
       });
@@ -277,7 +277,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           prover: '0x1234567890123456789012345678901234567890' as any,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(0), // No native value
+          nativeAmount: BigInt(0), // No native value
           tokens: [],
         },
       });
@@ -291,7 +291,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           prover: '0x1234567890123456789012345678901234567890' as any,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
           deadline: BigInt(Date.now() + 86400000),
-          nativeValue: BigInt(1000000000000000000),
+          nativeAmount: BigInt(1000000000000000000),
           tokens: [{ amount: BigInt(1000), token: '0x123' as any }],
         },
         route: {
@@ -309,9 +309,9 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
     it('should handle different native value amounts correctly', () => {
       const nativeOnlyIntents = [
-        createMockIntent({ reward: { nativeValue: BigInt(1) } as any }), // 1 wei
-        createMockIntent({ reward: { nativeValue: BigInt(1000000000) } as any }), // 1 gwei
-        createMockIntent({ reward: { nativeValue: BigInt('1000000000000000000000') } as any }), // 1000 ETH
+        createMockIntent({ reward: { nativeAmount: BigInt(1) } as any }), // 1 wei
+        createMockIntent({ reward: { nativeAmount: BigInt(1000000000) } as any }), // 1 gwei
+        createMockIntent({ reward: { nativeAmount: BigInt('1000000000000000000000') } as any }), // 1000 ETH
       ];
 
       nativeOnlyIntents.forEach((intent) => {
@@ -459,18 +459,18 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     it('should handle native-only intent configurations', async () => {
       const intents = [
         createMockIntent({
-          reward: { nativeValue: BigInt(1000000000000000000) } as any,
+          reward: { nativeAmount: BigInt(1000000000000000000) } as any,
           route: { tokens: [] } as any,
         }),
         createMockIntent({
           reward: {
-            nativeValue: BigInt(500000000000000000), // 0.5 ETH
+            nativeAmount: BigInt(500000000000000000), // 0.5 ETH
             tokens: [],
           } as any,
         }),
         createMockIntent({
           status: 'VALIDATED' as any,
-          reward: { nativeValue: BigInt(2000000000000000000) } as any,
+          reward: { nativeAmount: BigInt(2000000000000000000) } as any,
         }),
       ];
 

@@ -32,7 +32,7 @@ const RewardSchema = extendApi(
     prover: zodAddress('Address of the prover contract'),
     creator: zodAddress('Address of the intent creator'),
     deadline: zodBigIntString('Deadline timestamp for the intent'),
-    nativeValue: zodBigIntString('Native token reward value'),
+    nativeAmount: zodBigIntString('Native amount reward value'),
     tokens: extendApi(z.array(TokenSchema), {
       description: 'Array of ERC20 token rewards',
     }),
@@ -48,7 +48,8 @@ const RouteSchema = extendApi(
     source: zodBigIntString('Source chain ID'),
     destination: zodBigIntString('Destination chain ID'),
     salt: zodHex('Salt value for intent uniqueness'),
-    inbox: zodAddress('Inbox contract address on destination chain'),
+    portal: zodAddress('Portal contract address on destination chain'),
+    nativeAmount: zodBigIntString('Native amount route value'),
     calls: extendApi(z.array(CallSchema), {
       description: 'Array of calls to execute on destination chain',
     }),

@@ -40,7 +40,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
       const chainKey = chainId.toString();
 
       this.logger.log(
-        `Processing intent ${intent.intentId} for chain ${chainKey} with strategy ${strategy}`,
+        `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
       );
 
       // Ensure sequential processing per chain
@@ -49,12 +49,12 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
       // Create a new lock for this chain
       const newLock = currentLock.then(async () => {
         try {
-          this.logger.log(`Executing intent ${intent.intentId} on chain ${chainKey}`);
+          this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
           await this.blockchainService.executeIntent(intent, walletId);
-          this.logger.log(`Completed intent ${intent.intentId} on chain ${chainKey}`);
+          this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
         } catch (error) {
           this.logger.error(
-            `Failed to execute intent ${intent.intentId} on chain ${chainKey}:`,
+            `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
             error,
           );
           throw error;

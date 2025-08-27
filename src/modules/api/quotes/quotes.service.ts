@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
-import { hashIntent, IntentType } from '@eco-foundation/routes-ts';
 import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
@@ -130,18 +130,44 @@ export class QuotesService {
   }
 
   private convertToIntent(input: QuoteRequest['intent']): Intent {
-    // Generate intent hash if not provided
-    const intentHashResult = hashIntent(input as IntentType);
-    const intentHash = intentHashResult.intentHash as Hex;
+    // Generate intent hash using the new Viem-based function
+    const { intentHash } = PortalHashUtils.getIntentHash({
+      destination: input.route.destination,
+      route: {
+        salt: input.route.salt as Hex,
+        deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
+        portal: input.route.portal as Address,
+        nativeAmount: input.route.nativeAmount || BigInt(0),
+        tokens: input.route.tokens.map((t) => ({
+          amount: t.amount,
+          token: t.token as Address,
+        })),
+        calls: input.route.calls.map((c) => ({
+          data: c.data as Hex,
+          target: c.target as Address,
+          value: c.value,
+        })),
+      },
+      reward: {
+        deadline: input.reward.deadline,
+        creator: input.reward.creator as Address,
+        prover: input.reward.prover as Address,
+        nativeAmount: input.reward.nativeAmount || BigInt(0),
+        tokens: input.reward.tokens.map((t) => ({
+          amount: t.amount,
+          token: t.token as Address,
+        })),
+      },
+    });
 
     return {
-      intentId: intentHash as Hex,
+      intentHash: intentHash,
       destination: input.route.destination,
       reward: {
         prover: input.reward.prover as Address,
         creator: input.reward.creator as Address,
         deadline: input.reward.deadline,
-        nativeAmount: input.reward.nativeValue || BigInt(0),
+        nativeAmount: input.reward.nativeAmount || BigInt(0),
         tokens: input.reward.tokens.map((t) => ({
           amount: t.amount,
           token: t.token as Address,
@@ -150,7 +176,8 @@ export class QuotesService {
       route: {
         salt: input.route.salt as Hex,
         deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
-        portal: input.route.inbox as Address,
+        portal: input.route.portal as Address,
+        nativeAmount: input.route.nativeAmount || BigInt(0),
         calls: input.route.calls.map((c) => ({
           data: c.data as Hex,
           target: c.target as Address,

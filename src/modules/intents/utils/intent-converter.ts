@@ -6,12 +6,12 @@ import { Intent as IntentSchema } from '@/modules/intents/schemas/intent.schema'
 export class IntentConverter {
   static toSchema(intent: IntentInterface): Partial<IntentSchema> {
     return {
-      intentId: intent.intentId,
+      intentHash: intent.intentHash,
       reward: {
         prover: intent.reward.prover,
         creator: intent.reward.creator,
         deadline: intent.reward.deadline.toString(),
-        nativeValue: intent.reward.nativeAmount.toString(),
+        nativeAmount: intent.reward.nativeAmount.toString(),
         tokens: intent.reward.tokens.map((token) => ({
           amount: token.amount.toString(),
           token: token.token,
@@ -38,12 +38,12 @@ export class IntentConverter {
 
   static toInterface(schema: IntentSchema): IntentInterface {
     return {
-      intentId: schema.intentId as Hex,
+      intentHash: schema.intentHash as Hex,
       reward: {
         prover: schema.reward.prover as `0x${string}`,
         creator: schema.reward.creator as `0x${string}`,
         deadline: BigInt(schema.reward.deadline),
-        nativeAmount: BigInt(schema.reward.nativeValue),
+        nativeAmount: BigInt(schema.reward.nativeAmount),
         tokens: schema.reward.tokens.map((token) => ({
           amount: BigInt(token.amount),
           token: token.token as `0x${string}`,
@@ -53,6 +53,7 @@ export class IntentConverter {
         salt: schema.route.salt as `0x${string}`,
         deadline: BigInt(0), // TODO: Add deadline to schema
         portal: schema.route.inbox as `0x${string}`,
+        nativeAmount: BigInt(0), // TODO: Add nativeAmount to schema
         calls: schema.route.calls.map((call) => ({
           data: call.data as `0x${string}`,
           target: call.target as `0x${string}`,

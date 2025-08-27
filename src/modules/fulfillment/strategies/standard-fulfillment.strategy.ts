@@ -74,7 +74,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     const span = this.otelService.startSpan(`strategy.${this.name}.execute`, {
       attributes: {
         'strategy.name': this.name,
-        'intent.hash': intent.intentId,
+        'intent.hash': intent.intentHash,
         'intent.destination_chain': intent.destination.toString(),
       },
     });

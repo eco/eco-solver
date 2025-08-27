@@ -290,7 +290,7 @@ async isIntentFunded(intent: Intent, chainId: number): Promise<boolean> {
 **Changes:**
 ```typescript
 if (!sourceChainId) {
-  throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+  throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
 }
 ```
 
@@ -307,7 +307,7 @@ if (!sourceChainId) {
 ```typescript
 async fetchProverFee(...) {
   if (!intent.sourceChainId) {
-    throw new Error(`Intent ${intent.intentId} is missing required sourceChainId`);
+    throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
   }
   
   const fee = await client.readContract({
@@ -450,7 +450,7 @@ All three critical Portal contract integration issues have been successfully res
   - `SvmReaderService.isIntentFunded()` - validates sourceChainId presence  
   - `SvmExecutorService.fulfill()` - validates sourceChainId presence
   - `QuotesService.getQuote()` - validates sourceChainId presence
-- Added proper error messages: "Intent {intentId} is missing required sourceChainId"
+- Added proper error messages: "Intent {intentHash} is missing required sourceChainId"
 
 #### 3. Configuration-Based Portal Addresses ✅
 **Problem**: Hardcoded Portal addresses in source code

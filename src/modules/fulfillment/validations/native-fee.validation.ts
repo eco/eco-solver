@@ -23,7 +23,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       this.otelService.startSpan('validation.NativeFeeValidation', {
         attributes: {
           'validation.name': 'NativeFeeValidation',
-          'intent.hash': intent.intentId,
+          'intent.hash': intent.intentHash,
           'intent.destination_chain': intent.destination?.toString(),
         },
       });
@@ -64,7 +64,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     // Calculate total value from native values in calls
-    const nativeValue = intent.route.calls.reduce((sum, call) => sum + call.value, 0n);
+    const nativeAmount = intent.route.calls.reduce((sum, call) => sum + call.value, 0n);
 
     // Get reward from the new structure
     const reward = intent.reward.nativeAmount;
@@ -78,7 +78,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       Math.floor((nativeFeeConfig.native.scalarBps ?? 0) * base),
     );
 
-    const percentageFee = (nativeValue * nativePercentageFeeScalar) / BigInt(base * 10000);
+    const percentageFee = (nativeAmount * nativePercentageFeeScalar) / BigInt(base * 10000);
     const totalRequiredFee = baseFee + percentageFee;
 
     return {

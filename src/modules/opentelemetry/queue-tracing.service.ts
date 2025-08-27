@@ -43,8 +43,8 @@ export class QueueTracingService {
           if (jobData.data?.chainId) {
             span.setAttribute('queue.job.chainId', jobData.data.chainId);
           }
-          if (jobData.data?.intent?.intentId) {
-            span.setAttribute('intent.hash', jobData.data.intent.intentId);
+          if (jobData.data?.intent?.intentHash) {
+            span.setAttribute('intent.hash', jobData.data.intent.intentHash);
           }
 
           try {
@@ -98,7 +98,7 @@ export class QueueTracingService {
           span.setAttribute('queue.job.chainId', jobData.chainId);
         }
         if (jobData.intent?.intentHash) {
-          span.setAttribute('intent.hash', jobData.intent.intentId);
+          span.setAttribute('intent.hash', jobData.intent.intentHash);
         }
 
         try {

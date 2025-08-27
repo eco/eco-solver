@@ -23,7 +23,7 @@ export class CrowdLiquidityFeeValidation implements Validation {
       this.otelService.startSpan('validation.CrowdLiquidityFeeValidation', {
         attributes: {
           'validation.name': 'CrowdLiquidityFeeValidation',
-          'intent.hash': _intent.intentId,
+          'intent.hash': _intent.intentHash,
           'intent.destination_chain': _intent.destination?.toString(),
         },
       });

@@ -9,7 +9,7 @@ import { OpenTelemetryService } from '@/modules/opentelemetry';
 export interface TvmSpanAttributes {
   chainId?: string | number;
   address?: string;
-  intentId?: string;
+  intentHash?: string;
   transactionHash?: string;
   operation?: string;
   [key: string]: any;
@@ -40,8 +40,8 @@ export class TvmTracingUtils {
     if (attributes.address) {
       spanAttributes['tvm.address'] = attributes.address;
     }
-    if (attributes.intentId) {
-      spanAttributes['tvm.intent_id'] = attributes.intentId;
+    if (attributes.intentHash) {
+      spanAttributes['tvm.intent_id'] = attributes.intentHash;
     }
     if (attributes.transactionHash) {
       spanAttributes['tvm.transaction_hash'] = attributes.transactionHash;
@@ -52,7 +52,7 @@ export class TvmTracingUtils {
 
     // Add any additional attributes
     Object.entries(attributes).forEach(([key, value]) => {
-      if (!['chainId', 'address', 'intentId', 'transactionHash', 'operation'].includes(key)) {
+      if (!['chainId', 'address', 'intentHash', 'transactionHash', 'operation'].includes(key)) {
         spanAttributes[`tvm.${key}`] = value?.toString();
       }
     });
@@ -67,7 +67,7 @@ export class TvmTracingUtils {
    */
   static createIntentAttributes(intent: Intent): TvmSpanAttributes {
     return {
-      intentId: intent.intentId,
+      intentHash: intent.intentHash,
       source_chain: intent.sourceChainId.toString(),
       destination_chain: intent.destination.toString(),
       has_tokens: intent.route.tokens.length > 0,

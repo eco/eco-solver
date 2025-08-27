@@ -187,7 +187,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
 
         const intent = firstEvent.intent;
         console.log('\nParsed intent structure:');
-        console.log('- intentHash:', intent.intentId);
+        console.log('- intentHash:', intent.intentHash);
         console.log('- source chain:', intent.sourceChainId.toString());
         console.log('- destination chain:', intent.destination.toString());
         console.log('- creator:', intent.reward.creator);
@@ -206,7 +206,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
             reward: {
               ...e.intent.reward,
               deadline: e.intent.reward.deadline.toString(),
-              nativeValue: e.intent.reward.nativeAmount.toString(),
+              nativeAmount: e.intent.reward.nativeAmount.toString(),
               tokens: e.intent.reward.tokens.map((t: any) => ({
                 ...t,
                 amount: t.amount.toString(),

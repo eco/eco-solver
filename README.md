@@ -171,7 +171,7 @@ interface Intent {
     prover: Address;
     creator: Address;
     deadline: bigint;
-    nativeValue: bigint;
+    nativeAmount: bigint;
     tokens: {
       amount: bigint;
       token: Address;
@@ -367,7 +367,7 @@ The quotes API allows external systems to validate intents and get fee requireme
       "prover": "0x1234567890123456789012345678901234567890",
       "creator": "0x1234567890123456789012345678901234567890",
       "deadline": "1735689600",
-      "nativeValue": "1000000000000000000",
+      "nativeAmount": "1000000000000000000",
       "tokens": [
         {
           "amount": "5000000000000000000",
@@ -680,7 +680,7 @@ tail -f logs/application-*.log | jq 'select(.level == "error")'
   "context": "StandardFulfillmentStrategy",
   "requestId": "abc-123",
   "data": {
-    "intentId": "0x123...",
+    "intentHash": "0x123...",
     "sourceChain": "1",
     "destinationChain": "10"
   }

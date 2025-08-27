@@ -23,7 +23,7 @@ export class ProverSupportValidation implements Validation {
       this.otelService.startSpan('validation.ProverSupportValidation', {
         attributes: {
           'validation.name': 'ProverSupportValidation',
-          'intent.id': intent.intentId,
+          'intent.id': intent.intentHash,
           'intent.source_chain': intent.sourceChainId?.toString(),
           'intent.destination_chain': intent.destination.toString(),
         },
