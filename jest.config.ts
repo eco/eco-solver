@@ -27,6 +27,7 @@ module.exports = {
   watchman: false, // ✅ disables Watchman and uses node-based file crawling
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>//$1',
+    '^v2-abi/(.*)$': '<rootDir>/../v2-abi/$1',
   },
   globals: {
     mongodbMemoryServerOptions, // 👈 Inject manually here!
