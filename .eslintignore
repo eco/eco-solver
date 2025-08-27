@@ -6,3 +6,4 @@ typechain-types
 dist
 templates
 *.spec.ts
+scripts

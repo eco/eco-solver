@@ -333,8 +333,6 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
-
     const fulfillIntentData = encodeFunctionData({
       abi: IInboxAbi,
       functionName: 'fulfill',
@@ -342,7 +340,7 @@ export class WalletFulfillService implements IFulfillService {
         IntentDataModel.getHash(model.intent).intentHash,
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
-        claimant
+        claimant,
       ],
     })
 

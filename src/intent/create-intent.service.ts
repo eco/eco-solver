@@ -20,7 +20,7 @@ import {
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, IIntentSourceAbi, RouteType } from '@eco-foundation/routes-ts'
+import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
@@ -70,18 +70,26 @@ export class CreateIntentService implements OnModuleInit {
     )
 
     const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const [salt, deadline, portal, nativeAmount, tokens, calls] = decodeAbiParameters(routeStructAbi, ei.args.route);
-    
+    const [salt, deadline, portal, nativeAmount, tokens, calls] = decodeAbiParameters(
+      routeStructAbi,
+      ei.args.route,
+    )
+
     const decodedRoute = {
       salt,
       deadline,
       portal,
       nativeAmount,
       tokens,
-      calls
-    };
+      calls,
+    }
 
-    const intent = IntentDataModel.fromEvent(intentWs.sourceChainID, intentWs.logIndex || 0, ei, decodedRoute)
+    const intent = IntentDataModel.fromEvent(
+      intentWs.sourceChainID,
+      intentWs.logIndex || 0,
+      ei,
+      decodedRoute,
+    )
 
     try {
       //check db if the intent is already filled
