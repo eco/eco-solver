@@ -1,5 +1,8 @@
 import { GenericContainer, StartedTestContainer } from 'testcontainers'
-import { LiquidityManagerJobName, LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueue,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { Queue, Worker, Job } from 'bullmq'
 import { RebalanceJobManager, RebalanceJobData } from '@/liquidity-manager/jobs/rebalance.job'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
