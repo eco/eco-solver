@@ -70,9 +70,13 @@ export class CreateIntentService implements OnModuleInit {
     )
 
     const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
+    
+    // route in the event is bytes encoded with a length prefix
+    // skipping the first 32 bytes (length prefix) and decode the actual Route struct
+    const routeDataWithoutPrefix = ('0x' + ei.args.route.slice(66)) as Hex
     const [salt, deadline, portal, nativeAmount, tokens, calls] = decodeAbiParameters(
       routeStructAbi,
-      ei.args.route,
+      routeDataWithoutPrefix,
     )
 
     const decodedRoute = {
