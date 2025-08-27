@@ -56,7 +56,6 @@ export class EcoConfigService {
 
     this.ecoConfig = config
     this.initConfigs()
-    
   }
 
   /**
@@ -339,9 +338,43 @@ export class EcoConfigService {
 
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
+    // Debug logging for RPC selection
+    if (chain.id === 8453) {
+      console.log(`[DEBUG] Base chain ${chain.id} RPC selection:`)
+      console.log(`  Default RPCs:`, rpcUrls)
+      console.log(`  Custom RPC config:`, customRpcUrls)
+    }
+
     if (customRpcUrls?.http) {
       isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
       rpcUrls = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
+      
+      if (chain.id === 8453) {
+        console.log(`  -> Using custom RPCs:`, rpcUrls)
+      }
+    } else {
+      // Filter out public endpoints when private ones are available
+      const privateKeywords = ['infura.io', 'alchemy.com', 'quicknode.pro']
+      const publicKeywords = ['mainnet.base.org', 'rpc.ankr.com', 'base.blockpi.network']
+      
+      const privateUrls = rpcUrls.filter(url => 
+        privateKeywords.some(keyword => url.includes(keyword))
+      )
+      
+      const publicUrls = rpcUrls.filter(url => 
+        publicKeywords.some(keyword => url.includes(keyword))
+      )
+      
+      // If we have private URLs, use only those to prevent fallback to public
+      if (privateUrls.length > 0) {
+        rpcUrls = privateUrls
+        if (chain.id === 8453) {
+          console.log(`  -> Using private RPCs only:`, rpcUrls)
+          console.log(`  -> Filtered out public RPCs:`, publicUrls)
+        }
+      } else if (chain.id === 8453) {
+        console.log(`  -> No private RPCs found, using all defaults:`, rpcUrls)
+      }
     }
 
     if (!rpcUrls.length) {
