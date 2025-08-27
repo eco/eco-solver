@@ -9,6 +9,7 @@ import { QuoteRewardDataDTO, QuoteRewardTokensDTO } from '@/quote/dto/quote.rewa
 import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { randomUUID } from 'crypto'
+import { QuoteError } from '@/quote/errors'
 
 @Injectable()
 export class QuoteV2RequestTransformService {
@@ -198,6 +199,8 @@ export class QuoteV2RequestTransformService {
           },
         }),
       )
+
+      throw QuoteError.UnsupportedContract('IntentSource', contracts.intentSource)
     }
 
     if (
@@ -215,6 +218,8 @@ export class QuoteV2RequestTransformService {
           },
         }),
       )
+
+      throw QuoteError.UnsupportedContract('Prover', contracts.prover)
     }
 
     if (contracts.inbox && destinationConfig?.inboxAddress !== contracts.inbox) {
@@ -228,6 +233,8 @@ export class QuoteV2RequestTransformService {
           },
         }),
       )
+
+      throw QuoteError.UnsupportedContract('Inbox', contracts.inbox)
     }
   }
 }
