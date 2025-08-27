@@ -331,17 +331,25 @@ export class EcoConfigService {
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    let rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled })
+    let rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { 
+      isWebSocketEnabled,
+      preferredProviders: ['alchemy', 'infura'],
+      useCustomOnly: false
+    })
     if (rpcUrls.length === 0) {
-      rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled: false })
+      rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { 
+        isWebSocketEnabled: false,
+        preferredProviders: ['alchemy', 'infura'],
+        useCustomOnly: false
+      })
     }
 
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
     // Debug logging for RPC selection
     if (chain.id === 8453) {
-      console.log(`[DEBUG] Base chain ${chain.id} RPC selection:`)
-      console.log(`  Default RPCs:`, rpcUrls)
+      console.log(`[DEBUG] Base chain ${chain.id} RPC selection with preferred providers ['alchemy', 'infura']:`)
+      console.log(`  Selected RPCs:`, rpcUrls)
       console.log(`  Custom RPC config:`, customRpcUrls)
     }
 
@@ -352,29 +360,8 @@ export class EcoConfigService {
       if (chain.id === 8453) {
         console.log(`  -> Using custom RPCs:`, rpcUrls)
       }
-    } else {
-      // Filter out public endpoints when private ones are available
-      const privateKeywords = ['infura.io', 'alchemy.com', 'quicknode.pro']
-      const publicKeywords = ['mainnet.base.org', 'rpc.ankr.com', 'base.blockpi.network']
-      
-      const privateUrls = rpcUrls.filter(url => 
-        privateKeywords.some(keyword => url.includes(keyword))
-      )
-      
-      const publicUrls = rpcUrls.filter(url => 
-        publicKeywords.some(keyword => url.includes(keyword))
-      )
-      
-      // If we have private URLs, use only those to prevent fallback to public
-      if (privateUrls.length > 0) {
-        rpcUrls = privateUrls
-        if (chain.id === 8453) {
-          console.log(`  -> Using private RPCs only:`, rpcUrls)
-          console.log(`  -> Filtered out public RPCs:`, publicUrls)
-        }
-      } else if (chain.id === 8453) {
-        console.log(`  -> No private RPCs found, using all defaults:`, rpcUrls)
-      }
+    } else if (chain.id === 8453) {
+      console.log(`  -> No custom RPCs found, using defaults:`, rpcUrls)
     }
 
     if (!rpcUrls.length) {
