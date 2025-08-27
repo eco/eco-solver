@@ -29,7 +29,7 @@ import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
-import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { RouteType, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 export type PermitResult = {
@@ -657,6 +657,7 @@ export class IntentInitiationService implements OnModuleInit {
     quote: QuoteIntentModel,
     salt: Hex,
     funder: Hex,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     permitContract: Hex,
   ): Promise<EcoResponse<ExecuteSmartWalletArg>> {
     quote = QuoteIntentModel.fromJSON(quote)
@@ -670,7 +671,6 @@ export class IntentInitiationService implements OnModuleInit {
     }
 
     const { quoteID } = quote
-    const realRouteHash = hashRoute(routeWithSalt)
     const chainConfig = getChainConfig(Number(quoteRoute.source))
     const intentSourceContract = chainConfig.IntentSource
 
