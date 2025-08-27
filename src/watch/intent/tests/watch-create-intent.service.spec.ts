@@ -197,16 +197,16 @@ describe('WatchIntentService', () => {
       const err = new Error('queue down')
       mockQueueAdd.mockRejectedValueOnce(err)
       const analyticsSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
-      
+
       // Spy on Promise.allSettled to verify resilient processing is used
       const allSettledSpy = jest.spyOn(Promise, 'allSettled')
 
       // The method completes successfully despite the queue error being thrown internally
       await expect(watchIntentService.addJob(s)([log])).resolves.not.toThrow()
-      
+
       // Verify that Promise.allSettled was used (proves resilient error handling)
       expect(allSettledSpy).toHaveBeenCalled()
-      
+
       // Verify analytics tracking occurred (proves the error was thrown and caught internally)
       expect(analyticsSpy).toHaveBeenCalledWith(
         err,
@@ -222,8 +222,8 @@ describe('WatchIntentService', () => {
       expect(mockLogError).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'watch create-intent: 1/1 jobs failed to be added to queue',
-          failures: ['queue down']
-        })
+          failures: ['queue down'],
+        }),
       )
 
       // Clean up
