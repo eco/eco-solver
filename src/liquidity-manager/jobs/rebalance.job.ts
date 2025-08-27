@@ -11,6 +11,7 @@ import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-ma
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 export type RebalanceJobData = {
   network: string
@@ -58,15 +59,34 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
 
   /**
    * Hook triggered when a job is completed.
+   * Updates the corresponding rebalance records in DB to COMPLETED.
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): void {
+  async onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
     const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
-
     const { network, walletAddress, rebalance } = rebalanceData
-    for (const quote of rebalance.quotes) {
-      const deserializedQuote = deserialize(quote)
+
+    // Rehydrate the serialized rebalance request
+    const deserialized = deserialize(rebalance)
+
+    let updated = 0
+    const failures: { rebalanceJobID?: string; error: string }[] = []
+
+    for (const quote of deserialized.quotes ?? []) {
+      try {
+        if (!quote.rebalanceJobID) {
+          failures.push({ rebalanceJobID: undefined, error: 'Missing rebalanceJobID on quote' })
+          continue
+        }
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+        updated++
+      } catch (e: any) {
+        failures.push({
+          rebalanceJobID: quote.rebalanceJobID,
+          error: e?.message ?? String(e),
+        })
+      }
     }
 
     processor.logger.log(
@@ -76,7 +96,8 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
           network,
           walletAddress,
           jobName: job.name,
-          job,
+          updated,
+          failures,
           rebalanceRepository: this.rebalanceRepository.constructor.name,
         },
       }),

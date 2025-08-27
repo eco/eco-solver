@@ -21,6 +21,19 @@ export function AutoInject<T>(token: new (...args: any[]) => T) {
 
         return this.__autoInjected[propertyKey]
       },
+
+      set: function (this: any, value: T) {
+        if (!this.__autoInjected) {
+          Object.defineProperty(this, '__autoInjected', {
+            value: {},
+            writable: true,
+            enumerable: false,
+            configurable: true,
+          })
+        }
+        this.__autoInjected[propertyKey] = value
+      },
+
       enumerable: true,
       configurable: true,
     })
