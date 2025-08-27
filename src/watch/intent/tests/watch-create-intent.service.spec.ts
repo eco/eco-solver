@@ -89,7 +89,7 @@ describe('WatchIntentService', () => {
           const partial = { address, eventName, args }
           expect(partial).toEqual({
             address: s.sourceAddress,
-            eventName: 'IntentCreated',
+            eventName: 'IntentPublished',
             args: { prover: s.provers },
           })
         }
