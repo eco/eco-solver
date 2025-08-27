@@ -691,7 +691,12 @@ export class IntentInitiationService implements OnModuleInit {
     //   bool allowPartial
     // )
 
-    const args = [realRouteHash, quoteReward, funder, permitContract, false] as const
+    const intent = {
+      reward: quoteReward,
+      route: routeWithSalt,
+    }
+
+    const args = [intent, false] as const
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -705,7 +710,7 @@ export class IntentInitiationService implements OnModuleInit {
     // Encode transaction
     const data = encodeFunctionData({
       abi: IntentSourceAbi,
-      functionName: 'fundFor',
+      functionName: 'publishAndFund',
       args,
     })
 
