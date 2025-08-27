@@ -122,6 +122,7 @@ describe('WatchIntentFundedService', () => {
       args: {
         intentHash: '0xintent',
         funder: '0x1',
+        complete: true,
       },
     }
 
@@ -178,6 +179,7 @@ describe('WatchIntentFundedService', () => {
         args: {
           intentHash: '0xintent123',
           funder: '0x1',
+          complete: true,
         },
       },
     ]
@@ -236,6 +238,7 @@ describe('WatchIntentFundedService', () => {
       args: {
         intentHash: '0xnotours',
         funder: '0x1',
+        complete: true,
       },
     }
 
@@ -274,6 +277,7 @@ describe('WatchIntentFundedService', () => {
       args: {
         intentHash: '0xours',
         funder: '0x1',
+        complete: true,
       },
     }
 
@@ -321,6 +325,7 @@ describe('WatchIntentFundedService', () => {
         args: {
           intentHash: '0xvalidIntent1',
           funder: '0x1',
+          complete: true,
         },
       },
       {
@@ -339,6 +344,7 @@ describe('WatchIntentFundedService', () => {
         args: {
           intentHash: '0xinvalidIntent',
           funder: '0x1',
+          complete: false,
         },
       },
       {
@@ -357,6 +363,7 @@ describe('WatchIntentFundedService', () => {
         args: {
           intentHash: '0xvalidIntent2',
           funder: '0x1',
+          complete: true,
         },
       },
     ]
