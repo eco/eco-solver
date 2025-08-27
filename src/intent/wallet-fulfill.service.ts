@@ -8,7 +8,6 @@ import {
   pad,
   zeroAddress,
 } from 'viem'
-import { InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -34,6 +33,7 @@ import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
 import { IMessageBridgeProverAbi } from 'v2-abi/IMessageBridgeProver'
 import { prepareEncodedProofs } from '@/utils/prove'
+import { IInboxAbi } from 'v2-abi/IInbox'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -336,14 +336,13 @@ export class WalletFulfillService implements IFulfillService {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(model.intent.route.destination))
 
     const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: IInboxAbi,
       functionName: 'fulfill',
       args: [
+        IntentDataModel.getHash(model.intent).intentHash,
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
-        claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
-        hyperProverAddr,
+        claimant
       ],
     })
 
@@ -369,14 +368,15 @@ export class WalletFulfillService implements IFulfillService {
     const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: IInboxAbi,
       functionName: 'fulfillAndProve',
       args: [
+        IntentDataModel.getHash(model.intent).intentHash,
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
         claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
         hyperProverAddr,
+        model.intent.route.source,
         messageData,
       ],
     })
@@ -418,14 +418,15 @@ export class WalletFulfillService implements IFulfillService {
     const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
 
     const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: IInboxAbi,
       functionName: 'fulfillAndProve',
       args: [
+        IntentDataModel.getHash(model.intent).intentHash,
         model.intent.route,
         RewardDataModel.getHash(model.intent.reward),
         claimant,
-        IntentDataModel.getHash(model.intent).intentHash,
         metalayerProverAddr,
+        model.intent.route.source,
         messageData,
       ],
     })

@@ -91,6 +91,9 @@ export class IntentDataModel implements IntentType {
         call.target = getAddress(call.target)
         return call
       }),
+      deadline,
+      inbox,
+      nativeValue,
     )
 
     this.reward = new RewardDataModel(
@@ -136,7 +139,7 @@ export class IntentDataModel implements IntentType {
       salt: route.salt,
       source: sourceChainID,
       destination: e.destination,
-      inbox: route.portal,
+    inbox: route.portal,
       routeTokens: route.tokens as Mutable<typeof route.tokens>,
       calls: route.calls as Mutable<typeof route.calls>,
       creator: e.creator,

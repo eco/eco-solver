@@ -1,3 +1,4 @@
+import { V2RouteType } from '@/contracts'
 import { TargetCallDataModel, TargetCallDataSchema } from '@/intent/schemas/intent-call-data.schema'
 import {
   TokenAmountDataModel,
@@ -8,7 +9,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class RouteDataModel implements RouteType {
+export class RouteDataModel implements V2RouteType {
   @Prop({ required: true, type: String })
   salt: Hex
   @Prop({ required: true, type: BigInt })
@@ -21,6 +22,12 @@ export class RouteDataModel implements RouteType {
   tokens: TokenAmountDataModel[]
   @Prop({ required: true, type: [TargetCallDataSchema] })
   calls: TargetCallDataModel[]
+  @Prop({ required: true, type: BigInt })
+  deadline: bigint
+  @Prop({ required: true, type: String })
+  portal: Hex
+  @Prop({ required: true, type: BigInt })
+  nativeAmount: bigint
 
   constructor(
     salt: Hex,
@@ -29,6 +36,9 @@ export class RouteDataModel implements RouteType {
     inbox: Hex,
     routeTokens: TokenAmountDataModel[],
     calls: TargetCallDataModel[],
+    deadline: bigint,
+    portal: Hex,
+    nativeAmount: bigint,
   ) {
     this.salt = salt
     this.source = source
@@ -36,6 +46,9 @@ export class RouteDataModel implements RouteType {
     this.tokens = routeTokens
     this.inbox = inbox
     this.calls = calls
+    this.deadline = deadline
+    this.portal = portal
+    this.nativeAmount = nativeAmount
   }
 }
 
