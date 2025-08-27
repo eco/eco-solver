@@ -56,6 +56,7 @@ export class EcoConfigService {
 
     this.ecoConfig = config
     this.initConfigs()
+    
   }
 
   /**
@@ -329,30 +330,26 @@ export class EcoConfigService {
    * @returns The RPC URL string for the specified chain
    */
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
-    const { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
+    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    const rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled })
+    let rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled })
+    if (rpcUrls.length === 0) {
+      rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled: false })
+    }
+
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    const rpcs: string[] = []
-    if (customRpcUrls) {
-      // Prioritize custom RPC URLs if they exist
-      if (isWebSocketEnabled && customRpcUrls.webSocket?.length) {
-        rpcs.push(...customRpcUrls.webSocket)
-      }
-      if (customRpcUrls.http?.length) {
-        rpcs.push(...customRpcUrls.http)
-      }
+    if (customRpcUrls?.http) {
+      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
+      rpcUrls = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
     }
-    // Fallback to default RPC URLs
-    rpcs.push(...rpcUrls)
 
-    if (!rpcs.length) {
+    if (!rpcUrls.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
     return {
-      rpcUrls: [...new Set(rpcs)], // Ensure unique URLs
+      rpcUrls: rpcUrls,
       config: customRpcUrls?.config,
     }
   }

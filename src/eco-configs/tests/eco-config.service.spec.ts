@@ -258,9 +258,6 @@ describe('Eco Config Helper Tests', () => {
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual([
         'ws://custom-ws.com',
-        'http://custom-rpc.com',
-        'ws://default-ws.com',
-        'http://default-rpc.com',
       ])
     })
 
@@ -273,8 +270,6 @@ describe('Eco Config Helper Tests', () => {
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual([
         'http://custom-rpc.com',
-        'ws://default-ws.com',
-        'http://default-rpc.com',
       ])
     })
 
