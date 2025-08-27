@@ -4,6 +4,8 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { FulfillmentConfigService } from '@/modules/config/services';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
@@ -40,7 +42,11 @@ export class ExpirationValidation implements Validation {
       });
 
       if (!intent.reward.deadline) {
-        throw new Error('Intent must have a deadline');
+        throw new ValidationError(
+          'Intent must have a deadline',
+          ValidationErrorType.PERMANENT,
+          'ExpirationValidation',
+        );
       }
 
       const timeUntilDeadline = intent.reward.deadline - currentTimestamp;
@@ -48,8 +54,10 @@ export class ExpirationValidation implements Validation {
 
       if (intent.reward.deadline <= currentTimestamp) {
         span.setAttribute('expiration.expired', true);
-        throw new Error(
+        throw new ValidationError(
           `Intent deadline ${intent.reward.deadline} has expired. Current time: ${currentTimestamp}`,
+          ValidationErrorType.PERMANENT,
+          'ExpirationValidation',
         );
       }
 
@@ -65,8 +73,10 @@ export class ExpirationValidation implements Validation {
       });
 
       if (intent.reward.deadline <= currentTimestamp + bufferSeconds) {
-        throw new Error(
+        throw new ValidationError(
           `Intent deadline ${intent.reward.deadline} is too close. Need at least ${bufferSeconds} seconds buffer for this route`,
+          ValidationErrorType.PERMANENT,
+          'ExpirationValidation',
         );
       }
 

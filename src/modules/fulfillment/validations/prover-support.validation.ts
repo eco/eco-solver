@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
@@ -39,7 +41,11 @@ export class ProverSupportValidation implements Validation {
       });
 
       if (!proverResult.isValid) {
-        throw new Error(`Prover validation failed: ${proverResult.reason || 'Unknown reason'}`);
+        throw new ValidationError(
+          `Prover validation failed: ${proverResult.reason || 'Unknown reason'}`,
+          ValidationErrorType.PERMANENT,
+          'ProverSupportValidation',
+        );
       }
 
       if (!activeSpan) {

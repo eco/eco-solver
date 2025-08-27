@@ -7,6 +7,8 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { min, sum } from '@/common/utils/math';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -89,8 +91,10 @@ export class RouteAmountLimitValidation implements Validation {
       });
 
       if (totalValue > limit) {
-        throw new Error(
+        throw new ValidationError(
           `Total value ${totalValue} exceeds route limit ${limit} for route ${intent.sourceChainId}-${intent.destination}`,
+          ValidationErrorType.PERMANENT,
+          'RouteAmountLimitValidation',
         );
       }
 

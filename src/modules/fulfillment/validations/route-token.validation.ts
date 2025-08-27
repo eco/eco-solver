@@ -4,6 +4,8 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -38,7 +40,11 @@ export class RouteTokenValidation implements Validation {
       span.setAttribute('route.native_token_amount', nativeTokenAmount.toString());
 
       if (nativeTokenAmount !== 0n) {
-        throw new Error(`Native token transfers are not supported`);
+        throw new ValidationError(
+          `Native token transfers are not supported`,
+          ValidationErrorType.PERMANENT,
+          'RouteTokenValidation',
+        );
       }
 
       // Validate route tokens
@@ -57,8 +63,10 @@ export class RouteTokenValidation implements Validation {
 
         // Check if token is supported when there are restrictions
         if (!isSupported) {
-          throw new Error(
+          throw new ValidationError(
             `Token ${routeToken.token} is not supported on chain ${destinationChainId}`,
+            undefined,
+            'RouteTokenValidation',
           );
         }
       }
@@ -77,7 +85,11 @@ export class RouteTokenValidation implements Validation {
 
         // Check if reward token is supported when there are restrictions
         if (!isSupported) {
-          throw new Error(`Reward token ${token.token} is not supported on chain ${sourceChainId}`);
+          throw new ValidationError(
+            `Reward token ${token.token} is not supported on chain ${sourceChainId}`,
+            ValidationErrorType.PERMANENT,
+            'RouteTokenValidation',
+          );
         }
       }
 

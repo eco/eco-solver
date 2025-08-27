@@ -175,7 +175,7 @@ export class PortalEncoder {
     data: Buffer | string,
     dataType: Type,
   ): Type extends 'route' ? Route : Reward {
-    const dataString = typeof data === 'string' ? data : ('0x' + data.toString('hex'));
+    const dataString = typeof data === 'string' ? data : '0x' + data.toString('hex');
 
     if (dataType === 'reward') {
       return decodeAbiParameters([EVMRewardAbiItem], dataString as Hex)[0] as Type extends 'route'

@@ -4,6 +4,8 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -37,7 +39,11 @@ export class IntentFundedValidation implements Validation {
 
     try {
       if (!sourceChainId) {
-        throw new Error(`Intent ${intent.intentHash} is missing source chain ID`);
+        throw new ValidationError(
+          `Intent ${intent.intentHash} is missing source chain ID`,
+          ValidationErrorType.PERMANENT,
+          'IntentFundedValidation',
+        );
       }
 
       span.setAttribute('funding.checking_chain', sourceChainId.toString());
@@ -57,7 +63,11 @@ export class IntentFundedValidation implements Validation {
       });
 
       if (!isFunded) {
-        throw new Error(`Intent ${intent.intentHash} is not funded on chain ${sourceChainId}`);
+        throw new ValidationError(
+          `Intent ${intent.intentHash} is not funded on chain ${sourceChainId}`,
+          ValidationErrorType.TEMPORARY,
+          'IntentFundedValidation',
+        );
       }
 
       this.logger.debug(`Intent ${intent.intentHash} is funded on chain ${sourceChainId}`);
@@ -77,9 +87,13 @@ export class IntentFundedValidation implements Validation {
         throw error;
       }
 
-      // Otherwise, wrap the error
+      // Otherwise, wrap the error as TEMPORARY (network issues, etc.)
       this.logger.error(`Failed to check funding status for intent ${intent.intentHash}:`, error);
-      throw new Error(`Failed to verify intent funding status: ${error.message}`);
+      throw new ValidationError(
+        `Failed to verify intent funding status: ${error.message}`,
+        ValidationErrorType.TEMPORARY,
+        'IntentFundedValidation',
+      );
     } finally {
       if (!activeSpan) {
         span.end();

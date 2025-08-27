@@ -21,23 +21,31 @@ export class HyperProver extends BaseProver {
 
   async generateProof(intent: Intent): Promise<Hex> {
     return encodeAbiParameters(
-      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-      [pad(intent.reward.prover), '0x', zeroAddress],
+      [
+        {
+          type: 'tuple',
+          components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+        },
+      ],
+      [[pad(intent.reward.prover), '0x', zeroAddress]],
     );
   }
 
   async getFee(intent: Intent, claimant?: Address): Promise<bigint> {
+    const localProver = this.getContractAddress(Number(intent.destination));
+
     // Fetch fee from the source chain where the intent originates
     return this.blockchainReaderService.fetchProverFee(
       intent.destination,
       intent,
+      localProver,
       await this.generateProof(intent),
       claimant,
     );
   }
 
   getDeadlineBuffer(): bigint {
-    // HyperProver requires 5 minutes (300 seconds) for processing
-    return 300n;
+    // HyperProver requires 1 hour (3600 seconds) for processing
+    return 3600n;
   }
 }

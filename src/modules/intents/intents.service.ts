@@ -17,6 +17,41 @@ export class IntentsService {
     return intent.save();
   }
 
+  /**
+   * Atomically creates an intent if it doesn't exist, or updates lastSeen if it does
+   * @param intentData The intent data to create
+   * @returns Object containing the intent and whether it was newly created
+   */
+  async createIfNotExists(intentData: IntentInterface): Promise<{
+    intent: Intent;
+    isNew: boolean;
+  }> {
+    const schemaData = IntentConverter.toSchema(intentData);
+
+    const result = await this.intentModel.findOneAndUpdate(
+      { intentHash: intentData.intentHash },
+      {
+        $setOnInsert: {
+          ...schemaData,
+          firstSeenAt: new Date(),
+        },
+        $set: {
+          lastSeen: new Date(),
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        includeResultMetadata: true,
+      },
+    );
+
+    return {
+      intent: result.value!,
+      isNew: !result.lastErrorObject?.updatedExisting,
+    };
+  }
+
   async findById(intentHash: string): Promise<Intent | null> {
     return this.intentModel.findOne({ intentHash }).exec();
   }

@@ -6,9 +6,21 @@
  */
 
 import { PublicKey } from '@solana/web3.js';
-import { Address, encodeAbiParameters, encodePacked, Hex, keccak256, parseAbiParameters } from 'viem';
+import {
+  Address,
+  encodeAbiParameters,
+  encodePacked,
+  Hex,
+  keccak256,
+  parseAbiParameters,
+} from 'viem';
 
-import { PortalIntent, Reward, Route, VAULT_IMPLEMENTATION_BYTECODE_HASH } from '../abis/portal.abi';
+import {
+  PortalIntent,
+  Reward,
+  Route,
+  VAULT_IMPLEMENTATION_BYTECODE_HASH,
+} from '../abis/portal.abi';
 
 import { ChainType } from './chain-type-detector';
 import { PortalEncoder } from './portal-encoder';
@@ -17,12 +29,12 @@ export class PortalHashUtils {
   /**
    * Recreates the getIntentHash function from IntentSource contract using Viem
    * This replaces the hashIntent function from @eco-foundation/routes-ts
-   * 
+   *
    * Matches the contract's three overloaded versions:
    * 1. With Intent struct
    * 2. With destination, route (bytes), reward
    * 3. With destination, routeHash (bytes32), reward (core logic)
-   * 
+   *
    * @param intentOrDestination - Either a full PortalIntent or destination chain ID
    * @param routeOrRouteHash - Either route data (Route object or bytes) or route hash
    * @param reward - Reward structure (optional if first param is PortalIntent)
@@ -41,13 +53,13 @@ export class PortalHashUtils {
 
     // Handle second and third overloads
     const destination = intentOrDestination as bigint;
-    
+
     if (!routeOrRouteHash || !reward) {
       throw new Error('Route and reward are required when destination is provided');
     }
 
     let routeHash: Hex;
-    
+
     // Check if routeOrRouteHash is already a hash (Hex string starting with 0x)
     if (typeof routeOrRouteHash === 'string' && routeOrRouteHash.startsWith('0x')) {
       // Third overload: destination, routeHash (bytes32), reward
@@ -57,39 +69,40 @@ export class PortalHashUtils {
       // Encode the route and hash it
       const route = routeOrRouteHash as Route;
       const encodedRoute = encodeAbiParameters(
-        parseAbiParameters('bytes32 salt, uint64 deadline, address portal, uint256 nativeAmount, (address token, uint256 amount)[] tokens, (address target, bytes data, uint256 value)[] calls'),
+        parseAbiParameters(
+          'bytes32 salt, uint64 deadline, address portal, uint256 nativeAmount, (address token, uint256 amount)[] tokens, (address target, bytes data, uint256 value)[] calls',
+        ),
         [
           route.salt,
           route.deadline,
           route.portal,
           route.nativeAmount,
-          route.tokens.map(t => ({ token: t.token, amount: t.amount })),
-          route.calls.map(c => ({ target: c.target, data: c.data, value: c.value })),
-        ]
+          route.tokens.map((t) => ({ token: t.token, amount: t.amount })),
+          route.calls.map((c) => ({ target: c.target, data: c.data, value: c.value })),
+        ],
       );
       routeHash = keccak256(encodedRoute);
     }
 
     // Encode and hash the reward
     const encodedReward = encodeAbiParameters(
-      parseAbiParameters('uint64 deadline, address creator, address prover, uint256 nativeAmount, (address token, uint256 amount)[] tokens'),
+      parseAbiParameters(
+        'uint64 deadline, address creator, address prover, uint256 nativeAmount, (address token, uint256 amount)[] tokens',
+      ),
       [
         reward.deadline,
         reward.creator,
         reward.prover,
         reward.nativeAmount,
-        reward.tokens.map(t => ({ token: t.token, amount: t.amount })),
-      ]
+        reward.tokens.map((t) => ({ token: t.token, amount: t.amount })),
+      ],
     );
     const rewardHash = keccak256(encodedReward);
 
     // Compute final intent hash using encodePacked
     // intentHash = keccak256(abi.encodePacked(destination, routeHash, rewardHash))
     const intentHash = keccak256(
-      encodePacked(
-        ['uint64', 'bytes32', 'bytes32'],
-        [destination, routeHash, rewardHash]
-      )
+      encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, routeHash, rewardHash]),
     );
 
     return {

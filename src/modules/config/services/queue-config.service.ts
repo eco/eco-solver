@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 
 import { QueueSchema } from '@/config/config.schema';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 
 type QueueConfig = z.infer<typeof QueueSchema>;
 
@@ -35,5 +36,37 @@ export class QueueConfigService {
 
   get retryDelayMs(): QueueConfig['retryDelayMs'] {
     return this.configService.get<number>('queue.retryDelayMs');
+  }
+
+  /**
+   * Get retry configuration for a specific error type
+   */
+  getRetryOptions(errorType: ValidationErrorType) {
+    switch (errorType) {
+      case ValidationErrorType.PERMANENT:
+        return { attempts: 1 }; // No retry for permanent errors
+
+      case ValidationErrorType.TEMPORARY:
+        return {
+          attempts: this.configService.get<number>('queue.retry.temporary.attempts', 5),
+          backoff: {
+            type: 'exponential' as const,
+            delay: this.configService.get<number>('queue.retry.temporary.backoffMs', 5000),
+          },
+        };
+
+      default:
+        return { attempts: 1 }; // Default to no retry
+    }
+  }
+
+  /**
+   * Get retry configuration for temporary errors specifically
+   */
+  get temporaryRetryConfig() {
+    return {
+      attempts: this.configService.get<number>('queue.retry.temporary.attempts', 5),
+      backoffMs: this.configService.get<number>('queue.retry.temporary.backoffMs', 5000),
+    };
   }
 }

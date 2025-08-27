@@ -6,6 +6,7 @@ import { Address, PublicClient } from 'viem';
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
@@ -62,13 +63,14 @@ export class ChainListener extends BaseChainListener {
             const destChainType = ChainTypeDetector.detect(log.args.destination);
             const route = PortalEncoder.decodeFromChain(log.args.route, destChainType, 'route');
 
-            const intent = {
+            const intent: Intent = {
               intentHash: log.args.intentHash,
               destination: log.args.destination,
               route: {
                 salt: route.salt,
                 deadline: route.deadline,
                 portal: route.portal,
+                nativeAmount: route.nativeAmount,
                 tokens: route.tokens,
                 calls: route.calls,
               },

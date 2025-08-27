@@ -20,6 +20,7 @@ export abstract class BaseChainReader {
 
   abstract fetchProverFee(
     intent: Intent,
+    prover: Address,
     messageData: Hex,
     chainId?: number | string,
     claimant?: Address,

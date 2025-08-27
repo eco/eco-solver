@@ -179,6 +179,7 @@ export class SvmReaderService extends BaseChainReader {
 
   async fetchProverFee(
     _intent: Intent,
+    _prover: Address,
     _messageData: Hex,
     _chainId?: number | string,
     _claimant?: Address,

@@ -26,7 +26,7 @@ export interface Intent {
     deadline: bigint;
     creator: Address;
     prover: Address;
-    nativeAmount: bigint; // Changed from nativeAmount
+    nativeAmount: bigint;
     tokens: Readonly<
       {
         amount: bigint;

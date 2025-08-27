@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
+
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
@@ -40,8 +43,10 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       });
 
       if (feeDetails.currentReward < feeDetails.totalRequiredFee) {
-        throw new Error(
+        throw new ValidationError(
           `Reward ${feeDetails.currentReward} is less than required native fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, percentage: ${feeDetails.percentageFee})`,
+          ValidationErrorType.PERMANENT,
+          'NativeFeeValidation',
         );
       }
 

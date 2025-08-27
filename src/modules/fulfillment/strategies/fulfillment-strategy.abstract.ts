@@ -6,6 +6,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
+import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregated-validation.error';
 import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
 import {
   QuoteResult,
@@ -72,11 +73,8 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
         });
 
         try {
-          const result = await api.context.with(
-            api.trace.setSpan(api.context.active(), span),
-            async () => {
-              return await validation.validate(intent, context);
-            },
+          const result = await api.context.with(api.trace.setSpan(api.context.active(), span), () =>
+            validation.validate(intent, context),
           );
 
           if (!result) {
@@ -113,10 +111,18 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
         .filter((result) => result.status === 'fulfilled' && result.value.status === 'rejected')
         .map((result) => (result as PromiseFulfilledResult<any>).value.reason);
 
-      // If any validation failed, throw an aggregated error
+      // If any validation failed, throw an aggregated error that preserves error types
       if (failures.length > 0) {
-        const errorMessages = failures.map((error) => error.message).join('; ');
-        const aggregatedError = new Error(`Validation failures: ${errorMessages}`);
+        // If there's only one failure and it's already a ValidationError, throw it directly
+        if (failures.length === 1) {
+          const singleError = failures[0];
+          span.recordException(singleError);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw singleError;
+        }
+
+        // Multiple failures - create an aggregated error that preserves types
+        const aggregatedError = new AggregatedValidationError(failures);
         span.recordException(aggregatedError);
         span.setStatus({ code: api.SpanStatusCode.ERROR });
         throw aggregatedError;

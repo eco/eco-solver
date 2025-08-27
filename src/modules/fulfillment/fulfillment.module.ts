@@ -37,7 +37,6 @@ import { QueueModule } from '@/modules/queue/queue.module';
     ConfigModule,
     LoggingModule,
     IntentsModule,
-    QueueModule,
     ProverModule,
     BlockchainModule.forRootAsync(),
   ],

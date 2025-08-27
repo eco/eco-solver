@@ -18,10 +18,12 @@ export class IntentConverter {
         })),
       },
       route: {
-        source: intent.sourceChainId?.toString() || '0',
+        source: intent.sourceChainId?.toString(),
         destination: intent.destination.toString(),
         salt: intent.route.salt,
         inbox: intent.route.portal,
+        deadline: intent.route.deadline,
+        nativeAmount: intent.route.nativeAmount,
         calls: intent.route.calls.map((call) => ({
           data: call.data,
           target: call.target,
@@ -51,9 +53,9 @@ export class IntentConverter {
       },
       route: {
         salt: schema.route.salt as `0x${string}`,
-        deadline: BigInt(0), // TODO: Add deadline to schema
+        deadline: schema.route.deadline,
         portal: schema.route.inbox as `0x${string}`,
-        nativeAmount: BigInt(0), // TODO: Add nativeAmount to schema
+        nativeAmount: schema.route.nativeAmount,
         calls: schema.route.calls.map((call) => ({
           data: call.data as `0x${string}`,
           target: call.target as `0x${string}`,

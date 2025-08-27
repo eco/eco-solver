@@ -232,6 +232,7 @@ export class TvmReaderService extends BaseChainReader {
 
   async fetchProverFee(
     intent: Intent,
+    prover: string,
     messageData: Hex,
     chainId: number | string,
     claimant?: string,
@@ -250,7 +251,7 @@ export class TvmReaderService extends BaseChainReader {
       const client = this.createTronWebClient(chainId);
 
       // Convert addresses to hex
-      const hexProverAddress = this.utilsService.toHex(intent.reward.prover);
+      const hexProverAddress = this.utilsService.toHex(prover);
       const hexClaimantAddress = claimant ? this.utilsService.toHex(claimant) : hexProverAddress;
 
       // Prepare parameters for fetchFee call

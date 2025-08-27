@@ -126,6 +126,7 @@ export class BlockchainReaderService {
    * Fetch prover fee for an intent on a specific chain
    * @param chainId The chain ID
    * @param intent The intent to check
+   * @param prover The prover address in the chain
    * @param messageData The message data
    * @param claimant The recipient of the rewards
    * @returns The prover fee amount in the chain's native token
@@ -133,6 +134,7 @@ export class BlockchainReaderService {
   async fetchProverFee(
     chainId: string | number | bigint,
     intent: Intent,
+    prover: Address,
     messageData: Hex,
     claimant?: Address,
   ): Promise<bigint> {
@@ -141,7 +143,7 @@ export class BlockchainReaderService {
       throw new Error(`No reader available for chain ${chainId}`);
     }
     const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    return reader.fetchProverFee(intent, messageData, normalizedChainId, claimant);
+    return reader.fetchProverFee(intent, prover, messageData, normalizedChainId, claimant);
   }
 
   private initializeReaders() {

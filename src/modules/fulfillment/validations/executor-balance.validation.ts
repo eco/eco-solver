@@ -4,6 +4,8 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -55,7 +57,11 @@ export class ExecutorBalanceValidation implements Validation {
       if (notEnough.length) {
         const tokens = notEnough.map(({ token }) => token);
         span.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
-        throw new Error(`Not enough token balance found for: ${tokens.join(', ')}`);
+        throw new ValidationError(
+          `Not enough token balance found for: ${tokens.join(', ')}`,
+          ValidationErrorType.PERMANENT,
+          'ExecutorBalanceValidation',
+        );
       }
 
       if (!activeSpan) {

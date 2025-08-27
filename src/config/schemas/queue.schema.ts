@@ -15,6 +15,16 @@ export const QueueSchema = z.object({
   backoffDelay: z.number().int().min(0).default(5000),
   maxRetriesPerRequest: z.number().int().min(0).optional(),
   retryDelayMs: z.number().int().min(0).optional(),
+  retry: z
+    .object({
+      temporary: z
+        .object({
+          attempts: z.number().int().min(1).default(5),
+          backoffMs: z.number().int().min(1000).default(2000),
+        })
+        .default({}),
+    })
+    .default({}),
 });
 
 export type QueueConfig = z.infer<typeof QueueSchema>;

@@ -5,6 +5,7 @@ import * as api from '@opentelemetry/api';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { DataDogService } from '@/modules/datadog';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import {
   CrowdLiquidityFulfillmentStrategy,
   FulfillmentStrategy,
@@ -61,20 +62,19 @@ export class FulfillmentService {
     });
 
     try {
-      // Check if intent already exists
-      const existingIntent = await this.intentsService.findById(intent.intentHash);
-      if (existingIntent) {
-        this.logger.log(`Intent ${intent.intentHash} already exists`);
-        span.setAttribute('intent.already_exists', true);
-        span.end();
-        return IntentConverter.toInterface(existingIntent);
-      }
-
-      // Save the intent
-      const savedIntent = await this.intentsService.create(intent);
+      // Atomically create intent if it doesn't exist or update lastSeen
+      const { intent: savedIntent, isNew } = await this.intentsService.createIfNotExists(intent);
       const interfaceIntent = IntentConverter.toInterface(savedIntent);
 
-      // Add to the fulfillment queue
+      if (!isNew) {
+        this.logger.log(`Intent ${intent.intentHash} already exists`);
+        span.setAttribute('intent.already_exists', true);
+        // span.setStatus({ code: 0 }); // OK status
+        // span.end();
+        // return interfaceIntent;
+      }
+
+      // Add to the fulfillment queue only for new intents
       await this.queueService.addIntentToFulfillmentQueue(interfaceIntent, strategy);
 
       this.logger.log(
@@ -174,11 +174,26 @@ export class FulfillmentService {
           strategyName,
         );
       } catch (validationError) {
-        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        this.logger.error(
-          `Validation failed for intent ${intent.intentHash}:`,
-          validationError.message,
-        );
+        // Handle ValidationError specifically - don't mark as FAILED permanently for TEMPORARY errors
+        if (validationError instanceof ValidationError) {
+          // For temporary errors, just log and re-throw - the processor will handle retries
+          // For permanent errors, mark as FAILED
+          if (validationError.type === 'permanent') {
+            await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+          }
+
+          this.logger.error(
+            `Validation failed for intent ${intent.intentHash}: ${validationError.message} (type: ${validationError.type})`,
+          );
+        } else {
+          // For non-ValidationError, mark as failed and log
+          await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+          this.logger.error(
+            `Validation failed for intent ${intent.intentHash}:`,
+            validationError.message,
+          );
+        }
+
         this.dataDogService.recordIntent(
           'failed',
           intent.sourceChainId?.toString() || 'unknown',
@@ -188,11 +203,14 @@ export class FulfillmentService {
         );
         processSpan.addEvent('intent.validation.failed', {
           error: validationError.message,
+          errorType: validationError instanceof ValidationError ? validationError.type : 'unknown',
         });
         processSpan.recordException(validationError as Error);
         processSpan.setStatus({ code: 2, message: 'Validation failed' });
         processSpan.end();
-        return;
+
+        // Re-throw to let the processor handle retry logic
+        throw validationError;
       }
 
       // Execute the strategy

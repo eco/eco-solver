@@ -4,6 +4,8 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -31,11 +33,19 @@ export class ChainSupportValidation implements Validation {
 
     try {
       if (!intent.sourceChainId) {
-        throw new Error('Intent must have source chain ID');
+        throw new ValidationError(
+          'Intent must have source chain ID',
+          ValidationErrorType.PERMANENT,
+          'ChainSupportValidation',
+        );
       }
 
       if (!intent.destination) {
-        throw new Error('Intent must have destination chain ID');
+        throw new ValidationError(
+          'Intent must have destination chain ID',
+          ValidationErrorType.PERMANENT,
+          'ChainSupportValidation',
+        );
       }
 
       span.setAttribute('chain.source.id', intent.sourceChainId.toString());
@@ -45,14 +55,22 @@ export class ChainSupportValidation implements Validation {
       span.setAttribute('chain.source.supported', sourceSupported);
 
       if (!sourceSupported) {
-        throw new Error(`Source chain ${intent.sourceChainId} is not supported`);
+        throw new ValidationError(
+          `Source chain ${intent.sourceChainId} is not supported`,
+          ValidationErrorType.PERMANENT,
+          'ChainSupportValidation',
+        );
       }
 
       const destSupported = this.blockchainService.isChainSupported(intent.destination);
       span.setAttribute('chain.destination.supported', destSupported);
 
       if (!destSupported) {
-        throw new Error(`Target chain ${intent.destination} is not supported`);
+        throw new ValidationError(
+          `Target chain ${intent.destination} is not supported`,
+          ValidationErrorType.PERMANENT,
+          'ChainSupportValidation',
+        );
       }
 
       if (!activeSpan) {

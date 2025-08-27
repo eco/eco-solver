@@ -4,6 +4,7 @@ import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@
 import { Queue } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import {
   FULFILLMENT_STRATEGY_NAMES,
@@ -22,6 +23,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
     private readonly logger: SystemLoggerService,
+    private readonly queueConfig: QueueConfigService,
     @Optional() private readonly queueTracing?: QueueTracingService,
   ) {
     this.logger.setContext(QueueService.name);
@@ -62,11 +64,14 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     const serializedData = QueueSerializer.serialize(jobData);
 
     const addJob = async () => {
+      // Use maximum retry attempts from config to allow for TEMPORARY error retries
+      // The processor will control actual retry behavior based on error type
+      const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
       await this.fulfillmentQueue.add('process-intent', serializedData, {
-        attempts: 3,
+        attempts, // Default 5 attempts for TEMPORARY errors
         backoff: {
           type: 'exponential',
-          delay: 5000,
+          delay: backoffMs || 5000,
         },
       });
     };

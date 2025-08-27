@@ -43,6 +43,8 @@ export class Intent {
       destination: { type: String, required: true }, // Store bigint as string
       salt: { type: String, required: true },
       inbox: { type: String, required: true },
+      deadline: { type: String, required: true }, // Store bigint as string
+      nativeAmount: { type: String, required: true }, // Store bigint as string
       calls: [
         {
           data: { type: String, required: true },
@@ -64,6 +66,8 @@ export class Intent {
     destination: string;
     salt: string;
     inbox: string;
+    deadline: bigint;
+    nativeAmount: bigint;
     calls: {
       data: string;
       target: string;
@@ -82,6 +86,31 @@ export class Intent {
     index: true,
   })
   status: IntentStatus;
+
+  @Prop({ type: Date, default: Date.now })
+  lastSeen: Date;
+
+  @Prop({ type: Number, default: 0 })
+  retryCount: number;
+
+  @Prop({
+    type: {
+      message: { type: String },
+      type: { type: String },
+      timestamp: { type: Date },
+    },
+  })
+  lastError?: {
+    message: string;
+    type: string;
+    timestamp: Date;
+  };
+
+  @Prop({ type: Date, default: Date.now })
+  firstSeenAt: Date;
+
+  @Prop({ type: Date })
+  lastProcessedAt?: Date;
 }
 
 export const IntentSchema = SchemaFactory.createForClass(Intent);
