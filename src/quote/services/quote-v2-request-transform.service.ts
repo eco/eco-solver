@@ -1,6 +1,6 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { encodeFunctionData, erc20Abi, Hex, zeroAddress } from 'viem'
+import { encodeFunctionData, erc20Abi, Hex, parseUnits, zeroAddress } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { ProofService } from '@/prover/proof.service'
@@ -138,14 +138,20 @@ export class QuoteV2RequestTransformService {
       : [
           {
             token: quoteRequest.destinationToken,
-            amount: 0n, // Amount will be calculated by reverse quote
+            amount: parseUnits(quoteRequest.sourceAmount, 6),
           },
         ]
 
     // Create a transfer call to the recipient
     // This will be updated by the reverse quote service based on what can be fulfilled
     const calls = isNativeDestination
-      ? []
+      ? [
+          {
+            target: quoteRequest.recipient,
+            data: '0x' as Hex,
+            value: parseUnits(quoteRequest.sourceAmount, 18),
+          },
+        ]
       : [
           {
             target: quoteRequest.destinationToken,
