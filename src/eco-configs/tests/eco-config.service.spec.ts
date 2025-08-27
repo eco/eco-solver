@@ -256,9 +256,7 @@ describe('Eco Config Helper Tests', () => {
       jest.spyOn(ecoConfigService, 'getCustomRPCUrl').mockReturnValue(customRpc as any)
 
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
-      expect(rpcUrls).toEqual([
-        'ws://custom-ws.com',
-      ])
+      expect(rpcUrls).toEqual(['ws://custom-ws.com'])
     })
 
     it('should prioritize custom http urls if websocket urls are not available in custom config', () => {
@@ -268,9 +266,7 @@ describe('Eco Config Helper Tests', () => {
       jest.spyOn(ecoConfigService, 'getCustomRPCUrl').mockReturnValue(customRpc as any)
 
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
-      expect(rpcUrls).toEqual([
-        'http://custom-rpc.com',
-      ])
+      expect(rpcUrls).toEqual(['http://custom-rpc.com'])
     })
 
     it('should pass through transport config from custom rpc config', () => {

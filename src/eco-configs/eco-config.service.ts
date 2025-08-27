@@ -331,37 +331,24 @@ export class EcoConfigService {
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
     let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    let rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { 
+    let rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, {
       isWebSocketEnabled,
       preferredProviders: ['alchemy', 'infura'],
-      useCustomOnly: false
+      useCustomOnly: false,
     })
     if (rpcUrls.length === 0) {
-      rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { 
+      rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, {
         isWebSocketEnabled: false,
         preferredProviders: ['alchemy', 'infura'],
-        useCustomOnly: false
+        useCustomOnly: false,
       })
     }
 
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    // Debug logging for RPC selection
-    if (chain.id === 8453) {
-      console.log(`[DEBUG] Base chain ${chain.id} RPC selection with preferred providers ['alchemy', 'infura']:`)
-      console.log(`  Selected RPCs:`, rpcUrls)
-      console.log(`  Custom RPC config:`, customRpcUrls)
-    }
-
     if (customRpcUrls?.http) {
       isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
       rpcUrls = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
-      
-      if (chain.id === 8453) {
-        console.log(`  -> Using custom RPCs:`, rpcUrls)
-      }
-    } else if (chain.id === 8453) {
-      console.log(`  -> No custom RPCs found, using defaults:`, rpcUrls)
     }
 
     if (!rpcUrls.length) {
