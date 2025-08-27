@@ -8,7 +8,7 @@ import {
   pad,
   zeroAddress,
 } from 'viem'
-import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import { InboxAbi } from '@eco-foundation/routes-ts'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -32,6 +32,8 @@ import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
+import { IMessageBridgeProverAbi } from 'v2-abi/IMessageBridgeProver'
+import { prepareEncodedProofs } from '@/utils/prove'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -454,13 +456,14 @@ export class WalletFulfillService implements IFulfillService {
       Number(model.intent.route.destination),
     )
 
+    const encodedProofs = prepareEncodedProofs([model.intent.hash], [claimant])
+
     const callData = encodeFunctionData({
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
         IntentSourceModel.getSource(model), //_sourceChainID
-        [model.intent.hash],
-        [claimant],
+        encodedProofs,
         messageData,
       ],
     })
