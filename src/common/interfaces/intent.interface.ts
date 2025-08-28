@@ -46,10 +46,6 @@ export enum IntentStatus {
   EXECUTING = 'EXECUTING',
   FULFILLED = 'FULFILLED',
   FAILED = 'FAILED',
-  // Additional Portal-specific statuses
-  PUBLISHED = 'PUBLISHED', // Intent published to Portal
-  FUNDED = 'FUNDED', // Vault funded
-  PROVEN = 'PROVEN', // Cross-chain proof submitted
 }
 
 /**

@@ -32,6 +32,18 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       });
 
     try {
+      if (intent.route.nativeAmount > 0n) {
+        throw new Error(`Route native amount must be zero`);
+      }
+
+      if (!intent.route.tokens.length) {
+        throw new Error('No route tokens found');
+      }
+
+      if (!intent.reward.tokens.length) {
+        throw new Error('No reward tokens found');
+      }
+
       const feeDetails = await this.calculateFee(intent, context);
 
       span.setAttributes({
@@ -45,7 +57,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       // Check if the reward covers the fee
       if (feeDetails.currentReward < feeDetails.totalRequiredFee) {
         throw new Error(
-          `Reward native value ${feeDetails.currentReward} is less than required fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, scalar: ${feeDetails.percentageFee})`,
+          `Reward value ${feeDetails.currentReward} is less than required fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, scalar: ${feeDetails.percentageFee})`,
         );
       }
 
@@ -85,7 +97,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
     const base = 10000;
     const scalarBpsInt = BigInt(Math.floor(fee.tokens.scalarBps * base));
     const percentageFee = (totalValue * scalarBpsInt) / BigInt(base * 10000);
-    const totalRequiredFee = baseFee + percentageFee;
+    const totalRequiredFee = totalValue + baseFee + percentageFee;
 
     return {
       baseFee,

@@ -2,18 +2,18 @@ import { Test } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
-import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { TokenConfigService } from '@/modules/token/services/token-config.service';
 
 import { RouteTokenValidation } from '../route-token.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('RouteTokenValidation', () => {
   let validation: RouteTokenValidation;
-  let evmConfigService: jest.Mocked<EvmConfigService>;
+  let tokenConfigService: jest.Mocked<TokenConfigService>;
 
   beforeEach(async () => {
-    const mockEvmConfigService = {
+    const mockTokenConfigService = {
       isTokenSupported: jest.fn(),
     };
 
@@ -32,8 +32,8 @@ describe('RouteTokenValidation', () => {
       providers: [
         RouteTokenValidation,
         {
-          provide: EvmConfigService,
-          useValue: mockEvmConfigService,
+          provide: TokenConfigService,
+          useValue: mockTokenConfigService,
         },
         {
           provide: OpenTelemetryService,
@@ -43,7 +43,7 @@ describe('RouteTokenValidation', () => {
     }).compile();
 
     validation = module.get<RouteTokenValidation>(RouteTokenValidation);
-    evmConfigService = module.get(EvmConfigService);
+    tokenConfigService = module.get(TokenConfigService);
   });
 
   describe('validate', () => {
@@ -101,18 +101,18 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that both tokens are supported on destination chain
-        evmConfigService.isTokenSupported
+        tokenConfigService.isTokenSupported
           .mockReturnValueOnce(true) // First token
           .mockReturnValueOnce(true); // Second token
 
         const result = await validation.validate(intentWithTokens, mockContext);
 
         expect(result).toBe(true);
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           10,
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           10,
           '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
         );
@@ -136,7 +136,7 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that first token is supported, second is not
-        evmConfigService.isTokenSupported
+        tokenConfigService.isTokenSupported
           .mockReturnValueOnce(true) // First token
           .mockReturnValueOnce(false); // Second token
 
@@ -159,12 +159,12 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that token is supported
-        evmConfigService.isTokenSupported.mockReturnValue(true);
+        tokenConfigService.isTokenSupported.mockReturnValue(true);
 
         const result = await validation.validate(intentWithMixedCase, mockContext);
 
         expect(result).toBe(true);
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           10,
           '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
         );
@@ -190,18 +190,18 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that both reward tokens are supported on source chain
-        evmConfigService.isTokenSupported
+        tokenConfigService.isTokenSupported
           .mockReturnValueOnce(true) // First reward token
           .mockReturnValueOnce(true); // Second reward token
 
         const result = await validation.validate(intentWithRewardTokens, mockContext);
 
         expect(result).toBe(true);
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           1,
           '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         );
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           1,
           '0xdAC17F958D2ee523a2206206994597C13D831ec7',
         );
@@ -225,7 +225,7 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that first reward token is supported, second is not
-        evmConfigService.isTokenSupported
+        tokenConfigService.isTokenSupported
           .mockReturnValueOnce(true) // First reward token
           .mockReturnValueOnce(false); // Second reward token
 
@@ -250,12 +250,12 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that isTokenSupported returns true (token is supported)
-        evmConfigService.isTokenSupported.mockReturnValue(true);
+        tokenConfigService.isTokenSupported.mockReturnValue(true);
 
         const result = await validation.validate(intentWithTokens, mockContext);
 
         expect(result).toBe(true);
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           10,
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
@@ -275,7 +275,7 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that isTokenSupported returns false (token is not supported)
-        evmConfigService.isTokenSupported.mockReturnValue(false);
+        tokenConfigService.isTokenSupported.mockReturnValue(false);
 
         await expect(validation.validate(intentWithTokens, mockContext)).rejects.toThrow(
           'Token 0x7F5c764cBc14f9669B88837ca1490cCa17c31607 is not supported on chain 10',
@@ -319,19 +319,19 @@ describe('RouteTokenValidation', () => {
         });
 
         // Mock that all tokens are supported
-        evmConfigService.isTokenSupported
+        tokenConfigService.isTokenSupported
           .mockReturnValueOnce(true) // Route token on destination
           .mockReturnValueOnce(true); // Reward token on source
 
         const result = await validation.validate(complexIntent, mockContext);
 
         expect(result).toBe(true);
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledTimes(2);
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledTimes(2);
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           10,
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         ); // Route token
-        expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(
+        expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           1,
           '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         ); // Reward token

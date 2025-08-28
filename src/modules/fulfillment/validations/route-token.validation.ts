@@ -3,18 +3,18 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { EvmConfigService } from '@/modules/config/services';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { TokenConfigService } from '@/modules/token/services/token-config.service';
 
 import { Validation } from './validation.interface';
 
 @Injectable()
 export class RouteTokenValidation implements Validation {
   constructor(
-    private evmConfigService: EvmConfigService,
+    private tokenConfigService: TokenConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
@@ -50,7 +50,7 @@ export class RouteTokenValidation implements Validation {
       // Validate route tokens
       for (let i = 0; i < intent.route.tokens.length; i++) {
         const routeToken = intent.route.tokens[i];
-        const isSupported = this.evmConfigService.isTokenSupported(
+        const isSupported = this.tokenConfigService.isTokenSupported(
           destinationChainId,
           routeToken.token,
         );
@@ -75,7 +75,7 @@ export class RouteTokenValidation implements Validation {
       const sourceChainId = Number(intent.sourceChainId);
       for (let i = 0; i < intent.reward.tokens.length; i++) {
         const token = intent.reward.tokens[i];
-        const isSupported = this.evmConfigService.isTokenSupported(sourceChainId, token.token);
+        const isSupported = this.tokenConfigService.isTokenSupported(sourceChainId, token.token);
 
         span.setAttributes({
           [`reward.token.${i}.address`]: token.token,
