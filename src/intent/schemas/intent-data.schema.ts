@@ -176,14 +176,13 @@ export class IntentDataModel implements IntentType {
     })
   }
 
-  static toChainIntent(intent: IntentDataModel): V2IntentType {
+  static toChainIntent(intent: IntentDataModel): IntentType {
     return {
-      destination: intent.route.destination,
       route: {
         salt: intent.route.salt,
-        deadline: intent.route.deadline,
-        portal: intent.route.portal,
-        nativeAmount: intent.route.nativeAmount,
+        source: intent.route.source,
+        destination: intent.route.destination,
+        inbox: intent.route.portal,
         tokens: intent.route.tokens.map((token) => ({
           token: token.token,
           amount: token.amount,
@@ -198,7 +197,7 @@ export class IntentDataModel implements IntentType {
         deadline: intent.reward.deadline,
         creator: intent.reward.creator,
         prover: intent.reward.prover,
-        nativeAmount: intent.reward.nativeValue,
+        nativeValue: intent.reward.nativeValue,
         tokens: intent.reward.tokens.map((token) => ({
           token: token.token,
           amount: token.amount,

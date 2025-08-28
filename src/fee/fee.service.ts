@@ -73,7 +73,7 @@ export class FeeService implements OnModuleInit {
       const specialFee = this.whitelist[intent.reward.creator]
 
       if (specialFee) {
-        const chainFee = specialFee[Number(intent.route.source)]
+        const chainFee = specialFee[Number(intent.source)]
         // return a fee that is a merge of the default fee, the special fee and the chain fee
         // merges left to right with the rightmost object taking precedence. In this
         // case that is the user and chain specific fee
@@ -127,7 +127,7 @@ export class FeeService implements OnModuleInit {
 
         break
       default:
-        throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
+        throw QuoteError.InvalidSolverAlgorithm(intent.destination, solverFee.algorithm)
     }
     return fee
   }
@@ -254,8 +254,8 @@ export class FeeService implements OnModuleInit {
     error?: Error
   }> {
     const route = quote.route
-    const srcChainID = route.source
-    const destChainID = route.destination
+    const srcChainID = quote.source
+    const destChainID = quote.destination
 
     const source = this.ecoConfigService
       .getIntentSources()
@@ -291,7 +291,7 @@ export class FeeService implements OnModuleInit {
     //Get the tokens the solver accepts on the source chain
     const srcBalance = await this.balanceService.fetchTokenData(Number(srcChainID))
     if (!srcBalance) {
-      throw QuoteError.FetchingCallTokensFailed(quote.route.source)
+      throw QuoteError.FetchingCallTokensFailed(quote.source)
     }
     const srcDeficitDescending = srcBalance
       .filter((tokenAnalysis) => source.tokens.includes(tokenAnalysis.token.address))
@@ -308,7 +308,7 @@ export class FeeService implements OnModuleInit {
     //Get the tokens the solver accepts on the destination chain
     const destBalance = await this.balanceService.fetchTokenData(Number(destChainID))
     if (!destBalance) {
-      throw QuoteError.FetchingCallTokensFailed(quote.route.destination)
+      throw QuoteError.FetchingCallTokensFailed(quote.destination)
     }
     const destDeficitDescending = destBalance
       .filter((tokenAnalysis) => destination.tokens.includes(tokenAnalysis.token.address))
@@ -349,7 +349,7 @@ export class FeeService implements OnModuleInit {
   async getRewardsNormalized(
     quote: QuoteIntentDataInterface,
   ): Promise<{ rewards: NormalizedToken[]; error?: Error }> {
-    const srcChainID = quote.route.source
+    const srcChainID = quote.source
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == srcChainID)
@@ -394,7 +394,7 @@ export class FeeService implements OnModuleInit {
   async getTokensNormalized(
     quote: QuoteIntentDataInterface,
   ): Promise<{ tokens: NormalizedToken[]; error?: Error }> {
-    const destChainID = quote.route.destination
+    const destChainID = quote.destination
     const source = this.ecoConfigService
       .getIntentSources()
       .find((intent) => BigInt(intent.chainID) == destChainID)
@@ -449,9 +449,9 @@ export class FeeService implements OnModuleInit {
     calls: NormalizedCall[]
     error: Error | undefined
   }> {
-    const solver = this.ecoConfigService.getSolver(quote.route.destination)
+    const solver = this.ecoConfigService.getSolver(quote.destination)
     if (!solver) {
-      return { calls: [], error: QuoteError.NoSolverForDestination(quote.route.destination) }
+      return { calls: [], error: QuoteError.NoSolverForDestination(quote.destination) }
     }
 
     const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])
@@ -665,7 +665,7 @@ export class FeeService implements OnModuleInit {
    * @param route The route of the quote intent
    * @returns
    */
-  getAskRouteDestinationSolver(route: QuoteRouteDataInterface) {
+  getAskRouteDestinationSolver(quote: QuoteIntentDataInterface) {
     // Constants for Ethereum mainnet and sepolia chain IDs
     const ETH_MAINNET = 1n
     const ETH_SEPOLIA = 11155111n

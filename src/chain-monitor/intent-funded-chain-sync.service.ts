@@ -13,7 +13,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
-import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -70,7 +70,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
 
     const allIntentFundedLogs = await client.getContractEvents({
       address: source.sourceAddress,
-      abi: IIntentSourceAbi,
+      abi: portalAbi,
       eventName: 'IntentFunded',
       strict: true,
       fromBlock,
