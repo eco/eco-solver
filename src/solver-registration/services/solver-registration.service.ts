@@ -82,6 +82,13 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
 
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `${SolverRegistrationService.name}.registerSolver()`,
+          properties: { solverRegistrationDTO },
+        }),
+      )
+
       const { response, error } = await this.apiRequestExecutor.executeRequest<void>({
         method: 'post',
         endPoint: '/api/v1/solverRegistry/registerSolver',
