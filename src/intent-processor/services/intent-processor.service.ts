@@ -442,8 +442,13 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(publicClient.chain.id))
 
     const messageData = encodeAbiParameters(
-      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-      [pad(prover), metadata, aggregationHook],
+      [
+        {
+          type: 'tuple',
+          components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+        },
+      ],
+      [[pad(prover), metadata, aggregationHook]],
     )
 
     const data = encodeFunctionData({
