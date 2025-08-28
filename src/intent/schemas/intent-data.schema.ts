@@ -10,6 +10,7 @@ import {
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { IntentV2 } from '@/contracts/v2-abi/Portal'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -160,6 +161,28 @@ export class IntentDataModel implements IntentType {
     return {
       route: intent.route,
       reward: intent.reward,
+    }
+  }
+
+  static toIntentV2(intent: IntentDataModel): IntentV2 {
+    return {
+      source: intent.route.source,
+      destination: intent.route.destination,
+      route: {
+        salt: intent.route.salt,
+        deadline: intent.route.deadline,
+        portal: intent.route.portal,
+        nativeAmount: intent.route.nativeAmount,
+        tokens: intent.route.tokens,
+        calls: intent.route.calls,
+      },
+      reward: {
+        creator: intent.reward.creator,
+        prover: intent.reward.prover,
+        deadline: intent.reward.deadline,
+        nativeAmount: intent.reward.nativeValue,
+        tokens: intent.reward.tokens,
+      },
     }
   }
 }

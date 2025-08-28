@@ -102,18 +102,18 @@ export class UtilsIntentService {
   async updateOnFulfillment(fulfillment: FulfillmentLog) {
     try {
       const model = await this.intentModel.findOne({
-        'intent.hash': fulfillment.args._hash,
+        'intent.hash': fulfillment.args.intentHash,
       })
 
       if (model) {
         model.status = 'SOLVED'
-        await this.intentModel.updateOne({ 'intent.hash': fulfillment.args._hash }, model)
+        await this.intentModel.updateOne({ 'intent.hash': fulfillment.args.intentHash }, model)
         this.ecoAnalytics.trackFulfillmentProcessingSuccess(fulfillment, model)
       } else {
         this.ecoAnalytics.trackFulfillmentProcessingIntentNotFound(fulfillment)
         this.logger.warn(
           EcoLogMessage.fromDefault({
-            message: `Intent not found for fulfillment ${fulfillment.args._hash}`,
+            message: `Intent not found for fulfillment ${fulfillment.args.intentHash}`,
             properties: {
               fulfillment,
             },

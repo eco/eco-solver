@@ -286,18 +286,3 @@ export const IMessageBridgeProverAbi = [
     type: 'function',
   },
 ] as const
-
-/**
- * Type-safe ABI for the IMessageBridgeProver contract
- */
-export type IMessageBridgeProverAbiType = typeof IMessageBridgeProverAbi
-
-/**
- * Bytecode for the IMessageBridgeProver contract
- */
-export declare const IMessageBridgeProverBytecode = '0x'
-
-/**
- * Deployed bytecode for the IMessageBridgeProver contract
- */
-export declare const IMessageBridgeProverDeployedBytecode = '0x'

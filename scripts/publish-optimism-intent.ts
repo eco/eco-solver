@@ -1,25 +1,22 @@
 #!/usr/bin/env ts-node
 
 import {
+  Address,
   createPublicClient,
   createWalletClient,
-  http,
-  parseEther,
-  encodeAbiParameters,
   encodeFunctionData,
-  pad,
-  toHex,
   erc20Abi,
   Hex,
-  Address,
+  http,
+  pad,
+  toHex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { optimism, base } from 'viem/chains'
-import { IIntentSourceAbi } from '../v2-abi/IIntentSource'
-import { routeStructAbi, V2RouteType } from '@/contracts'
+import { base, optimism } from 'viem/chains'
+import { V2RouteType } from '@/contracts'
 import development from 'config/development'
-import { encodeRoute } from '@eco-foundation/routes-ts'
 import { getChainConfig } from '@/eco-configs/utils'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 interface IntentConfig {
   sourceChain: typeof optimism
@@ -160,7 +157,7 @@ async function publishAndFundIntent(config: IntentConfig) {
     // Simulate the transaction first
     const { request } = await publicClient.simulateContract({
       address: config.portal,
-      abi: IIntentSourceAbi,
+      abi: portalAbi,
       functionName: 'publishAndFund',
       args: [destination, '0x', reward, false], // allowPartial = false
       value: 0n,

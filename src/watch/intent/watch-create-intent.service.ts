@@ -13,7 +13,7 @@ import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
-import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -86,7 +86,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
-      abi: IIntentSourceAbi,
+      abi: portalAbi,
       eventName: 'IntentPublished',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
