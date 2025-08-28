@@ -9,6 +9,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckCCTPV2AttestationJobData } from '@/liquidity-manager/jobs/check-cctpv2-attestation.job'
 import { CCTPV2Config } from '@/eco-configs/eco-config.types'
 import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitter'
@@ -177,7 +178,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
 
     const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
 
-    await this.liquidityManagerQueue.startCCTPV2AttestationCheck({
+    const checkCCTPV2AttestationJobData: CheckCCTPV2AttestationJobData = {
       groupID: quote.groupID!,
       rebalanceJobID: quote.rebalanceJobID!,
       destinationChainId: quote.tokenOut.chainId,
@@ -185,7 +186,9 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       sourceDomain: sourceDomain,
       context: serialize(quote.context),
       id: quote.id,
-    })
+    }
+
+    await this.liquidityManagerQueue.startCCTPV2AttestationCheck(checkCCTPV2AttestationJobData)
 
     return txHash
   }

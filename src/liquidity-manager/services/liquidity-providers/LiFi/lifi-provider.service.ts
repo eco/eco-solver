@@ -405,6 +405,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         message: 'LiFiProviderService: executing quote',
         id: quote.id,
         properties: {
+          groupID: quote.groupID,
+          rebalanceJobID: quote.rebalanceJobID,
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
           tokenOut: quote.tokenOut.config.address,

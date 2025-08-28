@@ -18,6 +18,7 @@ import {
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { serialize } from '@/common/utils/serialize'
 import { gatewayMinterAbi } from './constants/abis'
+import { GatewayTopUpJobData } from '@/liquidity-manager/jobs/gateway-topup.job'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -464,7 +465,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       (gatewayInfo.find((d) => d.domain === inChainTopUp?.domain)?.wallet as Hex | undefined)
 
     if (inChainTopUp?.usdc && walletAddr) {
-      await this.liquidityManagerQueue.startGatewayTopUp({
+      const gatewayTopUpJobData: GatewayTopUpJobData = {
         groupID: quote.groupID!,
         rebalanceJobID: quote.rebalanceJobID!,
         chainId: quote.tokenIn.chainId,
@@ -473,7 +474,10 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         amount: serialize(quote.amountIn),
         depositor: eoaAddress,
         id,
-      })
+      }
+
+      await this.liquidityManagerQueue.startGatewayTopUp(gatewayTopUpJobData)
+
       this.logger.debug(
         EcoLogMessage.withId({
           message: 'Gateway: top-up job enqueued',

@@ -31,7 +31,7 @@ export type CheckBalancesCronJob = LiquidityManagerJob<
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
-export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
+export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<CheckBalancesCronJob> {
   static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
   // static ecoCronJobManager: EcoCronJobManager
   private static ecoCronJobManagers: Record<string, EcoCronJobManager> = {}

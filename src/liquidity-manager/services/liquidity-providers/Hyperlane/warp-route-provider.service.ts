@@ -141,6 +141,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         message: 'WarpRouteProviderService: executing quote',
         id: quote.id,
         properties: {
+          groupID: quote.groupID,
+          rebalanceJobID: quote.rebalanceJobID,
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
           tokenOut: quote.tokenOut.config.address,

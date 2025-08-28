@@ -126,6 +126,22 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     return txHash
   }
 
+  onComplete(job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
+    processor.logger.log(
+      EcoLogMessage.withId({
+        message: `GatewayTopUpJob: Completed!`,
+        id: job.data.id,
+        properties: {
+          groupID: job.data.groupID,
+          rebalanceJobID: job.data.rebalanceJobID,
+          chainId: job.data.destinationChainId,
+          txHash: job.returnvalue,
+          messageHash: job.data.messageHash,
+        },
+      }),
+    )
+  }
+
   onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
     processor.logger.error(
       EcoLogMessage.withId({
