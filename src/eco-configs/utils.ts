@@ -50,14 +50,14 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
       IntentSource: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
       Inbox: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: '0xd1fD3527E3Dc99e34D5ecE8063D9B4AcC82669d0',
+      HyperProver: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C',
     }
   } else if (id === '10-pre') {
     return {
       IntentSource: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
       Inbox: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: '0xC09483299100ab9960eA1F641b0f94B9E6e0923C',
+      HyperProver: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C',
     }
   }
   const config = EcoProtocolAddresses[id]

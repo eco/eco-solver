@@ -10,6 +10,7 @@ import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { QuoteV2RequestTransformService } from '@/quote/services/quote-v2-request-transform.service'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
 import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.service'
+import { jsonBigInt } from '@/commander/utils'
 
 @Controller(API_V2_ROOT + '/quote')
 export class QuoteV2Controller {
@@ -146,7 +147,7 @@ export class QuoteV2Controller {
     // Throw generic error if no status code
     throw getEcoServiceException({
       httpExceptionClass: InternalServerErrorException,
-      error: { message: error.message || JSON.stringify(error) },
+      error: { message: error.message || jsonBigInt(error) },
     })
   }
 }
