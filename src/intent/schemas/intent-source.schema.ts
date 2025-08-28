@@ -46,7 +46,7 @@ IntentSourceSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      'event.transactionHash': { $exists: true }
-    }
-  }
+      'event.transactionHash': { $exists: true },
+    },
+  },
 )
