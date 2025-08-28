@@ -1,21 +1,6 @@
 export default {
   server: {
-    url: 'http://localhost:3001',
-  },
-
-  rpcs: {
-    config: {
-      webSockets: false,
-    },
-    keys: {},
-    custom: {
-      '10': {
-        http: ['https://opt-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
-      },
-      '8453': {
-        http: ['https://base-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
-      },
-    },
+    url: 'http://localhost:3000',
   },
 
   logger: {
