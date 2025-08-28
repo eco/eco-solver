@@ -15,6 +15,7 @@ import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { IInboxAbi } from 'v2-abi/IInbox'
 
 /**
  * This service subscribes to Inbox contracts for Fulfillment events. It subscribes on all
@@ -73,16 +74,12 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       }),
     )
 
-    const sourceChains = this.getSupportedChains()
     this.unwatch[solver.chainID] = client.watchContractEvent({
       address: solver.inboxAddress,
-      abi: InboxAbi,
-      eventName: 'Fulfillment',
+      abi: IInboxAbi,
+      eventName: 'IntentFulfilled',
       strict: true,
-      args: {
-        // restrict by acceptable chains, chain ids must be bigints
-        _sourceChainID: sourceChains,
-      },
+      args: {},
       onLogs: this.addJob(solver),
       onError: (error) => this.onError(error, client, solver),
     })

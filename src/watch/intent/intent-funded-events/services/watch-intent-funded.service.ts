@@ -8,7 +8,6 @@ import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/sche
 import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { Log, PublicClient } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { Queue } from 'bullmq'
@@ -16,6 +15,7 @@ import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 
 /**
  * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
@@ -72,7 +72,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
-      abi: IntentSourceAbi,
+      abi: IIntentSourceAbi,
       eventName: 'IntentFunded',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints

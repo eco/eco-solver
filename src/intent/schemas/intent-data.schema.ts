@@ -10,7 +10,7 @@ import {
 } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { encodeIntent, hashIntent } from '@/utils/encodeAndHash'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -32,7 +32,7 @@ export interface CreateIntentDataModelParams {
 }
 
 @Schema({ timestamps: true })
-export class IntentDataModel implements IntentType {
+export class IntentDataModel implements V2IntentType {
   @Prop({ required: false, type: String })
   quoteID?: string
 
@@ -43,7 +43,7 @@ export class IntentDataModel implements IntentType {
   route: RouteDataModel
 
   @Prop({ required: true, type: RewardDataModelSchema })
-  reward: RewardDataModel
+  reward: RewardDataModel & { nativeAmount: bigint }
 
   //log
   @Prop({ required: true })
@@ -51,6 +51,20 @@ export class IntentDataModel implements IntentType {
 
   @Prop({ required: false })
   funder?: Hex
+
+  @Prop({ required: true, type: BigInt })
+  destination: bigint
+
+  @Prop({ required: true, type: BigInt })
+  source: bigint
+
+  // Getter to provide nativeAmount for V2IntentType compatibility
+  get rewardWithNativeAmount() {
+    return {
+      ...this.reward,
+      nativeAmount: this.reward.nativeValue,
+    }
+  }
 
   constructor(params: CreateIntentDataModelParams) {
     const {
@@ -104,7 +118,7 @@ export class IntentDataModel implements IntentType {
       nativeValue,
     )
 
-    this.reward = new RewardDataModel(
+    const reward = new RewardDataModel(
       getAddress(creator),
       getAddress(prover),
       claimDeadline,
@@ -114,6 +128,11 @@ export class IntentDataModel implements IntentType {
         return token
       }),
     )
+
+    this.reward = {
+      ...reward,
+      nativeAmount: nativeValue,
+    }
 
     this.logIndex = logIndex
     this.funder = funder
@@ -128,11 +147,11 @@ export class IntentDataModel implements IntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    return hashIntent(intentDataModel)
+    return hashIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward)
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    return encodeIntent(intentDataModel)
+    return encodeIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward)
   }
 
   static fromEvent(
@@ -204,9 +223,9 @@ IntentSourceDataSchema.methods.getHash = function (): {
   rewardHash: Hex
   intentHash: Hex
 } {
-  return hashIntent(this)
+  return hashIntent(this.route.destination, this.route, this.reward)
 }
 
 IntentSourceDataSchema.methods.getEncoding = function (): Hex {
-  return encodeIntent(this)
+  return encodeIntent(this.route.destination, this.route, this.reward)
 }

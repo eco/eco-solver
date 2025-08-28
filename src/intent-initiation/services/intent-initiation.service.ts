@@ -23,10 +23,10 @@ import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { RouteType, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import * as _ from 'lodash'
 import { V2RouteType } from '@/contracts'
 import { hashRoute } from '@/utils/encodeAndHash'
+import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
@@ -304,11 +304,12 @@ export class IntentInitiationService implements OnModuleInit {
     // )
 
     const args = [
+      quoteRoute.destination,
       realRouteHash,
-      reward,
-      funder,
-      gaslessIntentRequestDTO.getPermitContractAddress!(),
+      { ...reward, nativeAmount: reward.nativeValue },
       false,
+      funder,
+      gaslessIntentRequestDTO.getPermitContractAddress!()
     ] as const
 
     this.logger.debug(
@@ -326,7 +327,7 @@ export class IntentInitiationService implements OnModuleInit {
 
     // Encode transaction
     const data = encodeFunctionData({
-      abi: IntentSourceAbi,
+      abi: IIntentSourceAbi,
       functionName: 'fundFor',
       args,
     })

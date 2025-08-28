@@ -2,8 +2,8 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { ValidateVaultFundingArgs } from '@/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
+import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 
 /*
 IVaultStorage.RewardStatus
@@ -102,11 +102,11 @@ export class VaultFundingValidator {
 
     const vault = await client.readContract({
       address: intentSourceAddress,
-      abi: IntentSourceAbi,
-      functionName: 'getVaultState',
+      abi: IIntentSourceAbi,
+      functionName: 'getRewardStatus',
       args: [intentHash],
     })
 
-    return vault.status as VaultStatus
+    return vault as VaultStatus
   }
 }

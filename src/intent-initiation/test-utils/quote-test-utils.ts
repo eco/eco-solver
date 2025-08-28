@@ -9,8 +9,9 @@ import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { QuoteRouteDataDTO, QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
-import { RouteType, hashRoute } from '@eco-foundation/routes-ts'
 import * as crypto from 'crypto'
+import { V2RouteType } from '@/contracts'
+import { hashRoute } from '@/utils/encodeAndHash'
 
 const AddressLen = 40
 const ZERO_SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -143,9 +144,10 @@ export class QuoteTestUtils {
 
   private getRouteHash(quoteRoute: QuoteRouteDataInterface): string {
     // Hash the route using a bogus zero hash
-    const saltedRoute: RouteType = {
+    const saltedRoute: V2RouteType = {
       ...quoteRoute,
       salt: ZERO_SALT,
+      portal: quoteRoute.inbox,
     }
 
     return hashRoute(saltedRoute)
