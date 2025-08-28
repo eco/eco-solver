@@ -14,6 +14,11 @@ import {
 import { Queue, Worker, Job, JobsOptions } from 'bullmq'
 import IORedis from 'ioredis'
 import type { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { ModuleRef } from '@nestjs/core'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
+
+// import the token(s) you need to resolve:
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
@@ -51,6 +56,18 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
   const destSwapDone = new Promise<void>((resolve) => (destSwapCompleted = resolve))
 
   beforeAll(async () => {
+    const repoMock = { updateStatus: jest.fn() };
+
+    const fakeModuleRef = {
+      get: jest.fn((token: any) => {
+        if (token === RebalanceRepository) return repoMock;
+        // return other service/repo doubles as needed
+        return {};
+      }),
+    } as unknown as ModuleRef;
+
+    jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue(fakeModuleRef);
+
     // 1) start Redis
     container = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start()
 

@@ -107,7 +107,12 @@ describe('CheckCCTPAttestationJobManager', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    mgr = new CheckCCTPAttestationJobManager()
+    mgr = new CheckCCTPAttestationJobManager();
+
+    // provide a mock so the getter never calls ModuleRef
+    (mgr as any).rebalanceRepository = {
+      updateStatus: jest.fn(),
+    }
   })
 
   describe('start()', () => {

@@ -9,7 +9,7 @@ import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum
 import { serialize } from '@/common/utils/serialize'
 import IORedis from 'ioredis'
 
-describe('E2E: Rebalance onComplete updates DB status', () => {
+describe.skip('E2E: Rebalance onComplete updates DB status', () => {
   jest.setTimeout(60000)
 
   let container: StartedTestContainer

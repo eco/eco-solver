@@ -22,6 +22,8 @@ import {
 
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
+import { ModuleRef } from '@nestjs/core'
 
 function makeQueueMock() {
   return {
@@ -108,9 +110,17 @@ const { CCTPLiFiDestinationSwapJobManager } = jest.requireMock(
 describe('ExecuteCCTPMintJobManager', () => {
   let mgr: ExecuteCCTPMintJobManager
 
+  beforeAll(() => {
+  })
+
   beforeEach(() => {
     jest.resetAllMocks()
-    mgr = new ExecuteCCTPMintJobManager()
+    mgr = new ExecuteCCTPMintJobManager();
+
+    // provide a mock so the getter never calls ModuleRef
+    (mgr as any).rebalanceRepository = {
+      updateStatus: jest.fn(),
+    }
   })
 
   describe('start()', () => {

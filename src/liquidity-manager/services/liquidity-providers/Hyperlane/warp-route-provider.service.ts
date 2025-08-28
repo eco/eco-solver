@@ -40,6 +40,8 @@ import {
   InvalidInputError,
 } from './warp-route.errors'
 import { withRetry, withTimeout } from './warp-route.utils'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
@@ -50,6 +52,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     private readonly balanceService: BalanceService,
     private readonly liFiProviderService: LiFiProviderService,
     private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
   getStrategy() {
@@ -199,6 +202,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       }),
     )
 
+    await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
     return txHash
   }
 

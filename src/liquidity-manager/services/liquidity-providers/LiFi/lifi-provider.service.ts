@@ -25,6 +25,8 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -36,6 +38,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly rebalanceRepository: RebalanceRepository,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     // Initialize the asset cache manager
@@ -172,13 +175,19 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
           error,
           id: quote.id,
           message: error.message,
-          properties: { walletAddress, kernelWalletAddress },
+          properties: {
+            groupID: quote.groupID,
+            rebalanceJobID: quote.rebalanceJobID,
+            walletAddress,
+            kernelWalletAddress,
+          },
         }),
       )
       throw error
     }
 
-    return this._execute(quote)
+    await this._execute(quote)
+    await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
   }
 
   /**

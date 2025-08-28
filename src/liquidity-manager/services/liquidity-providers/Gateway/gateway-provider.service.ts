@@ -1,24 +1,26 @@
-import { Inject, Injectable, Logger } from '@nestjs/common'
-import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { GatewayHttpClient } from './utils/gateway-client'
-import { GatewayQuoteValidationError } from './gateway.errors'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Cache } from '@nestjs/cache-manager'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GatewayHttpClient } from './utils/gateway-client'
+import { gatewayMinterAbi } from './constants/abis'
+import { GatewayQuoteValidationError } from './gateway.errors'
+import { GatewayTopUpJobData } from '@/liquidity-manager/jobs/gateway-topup.job'
+import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { serialize } from '@/common/utils/serialize'
-import { gatewayMinterAbi } from './constants/abis'
-import { GatewayTopUpJobData } from '@/liquidity-manager/jobs/gateway-topup.job'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -116,6 +118,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     private readonly configService: EcoConfigService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -497,6 +500,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
           properties: { chainId: quote.tokenIn.chainId },
         }),
       )
+
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
     }
 
     return txHash
