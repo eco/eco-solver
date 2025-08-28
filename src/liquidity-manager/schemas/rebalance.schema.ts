@@ -62,6 +62,7 @@ export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)
 
 // Define indexes
 RebalanceSchema.index({ rebalanceJobID: 1 }, { unique: false })
+RebalanceSchema.index({ wallet: 1 }, { unique: false })
 RebalanceSchema.index({ status: 1 }, { unique: false })
 RebalanceSchema.index({ createdAt: 1 }, { unique: false })
 RebalanceSchema.index({ updatedAt: 1 }, { unique: false })

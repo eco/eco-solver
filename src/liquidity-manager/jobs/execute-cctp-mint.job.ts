@@ -1,17 +1,20 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { CCTPLiFiDestinationSwapJobData } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
+import { LiFiStrategyContext } from '../types/types'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { CCTPLiFiDestinationSwapJobData } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
   LiquidityManagerJobName,
   LiquidityManagerQueueDataType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '../types/types'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 export interface ExecuteCCTPMintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
@@ -37,6 +40,9 @@ export type ExecuteCCTPMintJob = LiquidityManagerJob<
 >
 
 export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<ExecuteCCTPMintJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   static async start(queue: Queue, data: ExecuteCCTPMintJob['data']): Promise<void> {
     await queue.add(LiquidityManagerJobName.EXECUTE_CCTP_MINT, data, {
       jobId: `${ExecuteCCTPMintJobManager.name}-${data.messageHash}`,
@@ -77,15 +83,15 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
   }
 
   async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
-    const { cctpLiFiContext } = job.data
+    const { groupID, rebalanceJobID, cctpLiFiContext } = job.data
 
     processor.logger.log(
       EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Completed!`,
         id: job.data.id,
         properties: {
-          groupID: job.data.groupID,
-          rebalanceJobID: job.data.rebalanceJobID,
+          groupID,
+          rebalanceJobID,
           chainId: job.data.destinationChainId,
           txHash: job.returnvalue,
           messageHash: job.data.messageHash,
@@ -93,37 +99,40 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
       }),
     )
 
-    if (cctpLiFiContext && cctpLiFiContext.destinationSwapQuote) {
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
-          id: job.data.id,
-          properties: {
-            messageHash: job.data.messageHash,
-            destinationChainId: job.data.destinationChainId,
-            walletAddress: cctpLiFiContext.walletAddress,
-          },
-        }),
-      )
-
-      // Import dynamically to avoid circular dependency
-      const { CCTPLiFiDestinationSwapJobManager } = await import('./cctp-lifi-destination-swap.job')
-
-      const cctpLiFiDestinationSwapJobData: CCTPLiFiDestinationSwapJobData = {
-        groupID: job.data.groupID,
-        rebalanceJobID: job.data.rebalanceJobID,
-        messageHash: job.data.messageHash,
-        messageBody: job.data.messageBody,
-        attestation: job.data.attestation,
-        destinationChainId: job.data.destinationChainId,
-        destinationSwapQuote: cctpLiFiContext.destinationSwapQuote,
-        walletAddress: cctpLiFiContext.walletAddress,
-        originalTokenOut: cctpLiFiContext.originalTokenOut,
-        id: job.data.id,
-      }
-
-      await CCTPLiFiDestinationSwapJobManager.start(processor.queue, cctpLiFiDestinationSwapJobData)
+    if (!(cctpLiFiContext && cctpLiFiContext.destinationSwapQuote)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
+      return
     }
+
+    processor.logger.debug(
+      EcoLogMessage.withId({
+        message: 'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
+        id: job.data.id,
+        properties: {
+          messageHash: job.data.messageHash,
+          destinationChainId: job.data.destinationChainId,
+          walletAddress: cctpLiFiContext.walletAddress,
+        },
+      }),
+    )
+
+    // Import dynamically to avoid circular dependency
+    const { CCTPLiFiDestinationSwapJobManager } = await import('./cctp-lifi-destination-swap.job')
+
+    const cctpLiFiDestinationSwapJobData: CCTPLiFiDestinationSwapJobData = {
+      groupID: job.data.groupID,
+      rebalanceJobID: job.data.rebalanceJobID,
+      messageHash: job.data.messageHash,
+      messageBody: job.data.messageBody,
+      attestation: job.data.attestation,
+      destinationChainId: job.data.destinationChainId,
+      destinationSwapQuote: cctpLiFiContext.destinationSwapQuote,
+      walletAddress: cctpLiFiContext.walletAddress,
+      originalTokenOut: cctpLiFiContext.originalTokenOut,
+      id: job.data.id,
+    }
+
+    await CCTPLiFiDestinationSwapJobManager.start(processor.queue, cctpLiFiDestinationSwapJobData)
   }
 
   /**
@@ -132,13 +141,23 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
     processor.logger.error(
       EcoLogMessage.withId({
         message: `CCTP: ExecuteCCTPMintJob: Failed`,
         id: job.data.id,
-        properties: { error: (error as any)?.message ?? error, data: job.data },
+        properties: {
+          groupID,
+          rebalanceJobID,
+          error: (error as any)?.message ?? error,
+          data: job.data,
+        },
       }),
     )
+
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
   }
 }

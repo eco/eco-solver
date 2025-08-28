@@ -1,18 +1,21 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { CCTPV2StrategyContext } from '../types/types'
+import { deserialize, Serialize } from '@/common/utils/serialize'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { ExecuteCCTPV2MintJobData, ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
   LiquidityManagerJobName,
   LiquidityManagerQueueDataType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPV2StrategyContext } from '../types/types'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
-import { ExecuteCCTPV2MintJobData, ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
-import { deserialize, Serialize } from '@/common/utils/serialize'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 export interface CheckCCTPV2AttestationJobData extends LiquidityManagerQueueDataType {
   sourceDomain: number
@@ -29,6 +32,9 @@ export type CheckCCTPV2AttestationJob = LiquidityManagerJob<
 >
 
 export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager<CheckCCTPV2AttestationJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   static async start(
     queue: Queue,
     data: CheckCCTPV2AttestationJobData,
@@ -110,13 +116,27 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     }
   }
 
-  onFailed(job: CheckCCTPV2AttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(
+    job: CheckCCTPV2AttestationJob,
+    processor: LiquidityManagerProcessor,
+    error: unknown,
+  ) {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
     processor.logger.error(
       EcoLogMessage.withId({
         message: `CCTPV2: CheckCCTPV2AttestationJob Failed`,
         id: job.data.id,
-        properties: { error: (error as any)?.message ?? error, data: job.data },
+        properties: {
+          groupID,
+          rebalanceJobID,
+          error: (error as any)?.message ?? error,
+          data: job.data,
+        },
       }),
     )
+
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
   }
 }
