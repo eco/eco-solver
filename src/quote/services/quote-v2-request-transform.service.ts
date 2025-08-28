@@ -139,7 +139,7 @@ export class QuoteV2RequestTransformService {
       : [
           {
             token: quoteRequest.destinationToken,
-            amount: parseUnits(quoteRequest.sourceAmount, 6),
+            amount: BigInt(quoteRequest.sourceAmount),
           },
         ]
 
@@ -150,7 +150,7 @@ export class QuoteV2RequestTransformService {
           {
             target: quoteRequest.recipient,
             data: '0x' as Hex,
-            value: parseUnits(quoteRequest.sourceAmount, 18),
+            value: BigInt(quoteRequest.sourceAmount),
           },
         ]
       : [
