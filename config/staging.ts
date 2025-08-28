@@ -1,6 +1,7 @@
 export default {
   server: {
-    url: process.env.SERVICE_URL || 'https://solver.staging.bend.eco',
+    // url: process.env.SERVICE_URL || 'https://solver.staging.bend.eco',
+    url: 'https://solver-blue.staging.eco.com',
   },
 
   aws: [
