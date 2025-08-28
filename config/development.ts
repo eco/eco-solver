@@ -8,14 +8,7 @@ export default {
       webSockets: false,
     },
     keys: {},
-    custom: {
-      '10': {
-        http: ['https://opt-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
-      },
-      '8453': {
-        http: ['https://base-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
-      },
-    },
+    custom: {},
   },
 
   logger: {

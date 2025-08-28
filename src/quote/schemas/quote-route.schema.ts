@@ -22,6 +22,10 @@ export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   tokens: TokenAmountDataModel[]
   @Prop({ required: true, type: [QuoteRouteCallDataSchema] })
   calls: QuoteRouteCallDataModel[]
+  @Prop({ required: true, type: BigInt })
+  deadline: bigint
+  @Prop({ required: true, type: BigInt })
+  nativeAmount: bigint
 }
 
 export const QuoteRouteDataSchema = SchemaFactory.createForClass(QuoteRouteDataModel)

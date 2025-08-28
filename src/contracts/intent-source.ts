@@ -87,7 +87,11 @@ export type V2IntentType = Extract<
   ContractFunctionArgs<typeof IIntentSourceAbi, 'view', 'isIntentFunded'>[0],
   { destination: any }
 >
-export type V2RouteType = Extract<V2IntentType, { route: any }>['route']
+export type V2RouteType = Extract<V2IntentType, { route: any }>['route'] & {
+  destination: bigint
+  source: bigint
+}
+export type V2RewardType = Extract<V2IntentType, { reward: any }>['reward']
 
 export const routeStructAbi = [
   { name: 'salt', type: 'bytes32' },

@@ -174,6 +174,8 @@ export class QuoteTestUtils {
       inbox: '0x0000000000000000000000000000000000000005',
       tokens: [],
       calls: [],
+      deadline: 9999999999n,
+      nativeAmount: 0n,
       ...overrides,
     }
 

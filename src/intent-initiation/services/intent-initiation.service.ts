@@ -23,8 +23,10 @@ import { PermitProcessor } from '@/permit-processing/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { RouteType, IntentSourceAbi } from '@eco-foundation/routes-ts'
 import * as _ from 'lodash'
+import { V2RouteType } from '@/contracts'
+import { hashRoute } from '@/utils/encodeAndHash'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
@@ -273,8 +275,9 @@ export class IntentInitiationService implements OnModuleInit {
     const { route: quoteRoute } = quote!
 
     // Now we need to get the route hash with the real salt
-    const routeWithSalt: RouteType = {
+    const routeWithSalt: V2RouteType = {
       ...quoteRoute,
+      portal: quoteRoute.inbox,
       salt,
     }
 

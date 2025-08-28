@@ -139,7 +139,7 @@ export class IntentDataModel implements IntentType {
     sourceChainID: bigint,
     logIndex: number,
     event: IntentCreatedEventLog,
-    route: V2RouteType,
+    route: Omit<V2RouteType, 'destination' | 'source'>,
   ): IntentDataModel {
     const e = event.args
     return new IntentDataModel({

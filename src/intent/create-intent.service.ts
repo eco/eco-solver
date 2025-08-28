@@ -16,11 +16,12 @@ import {
   IntentCreatedLog,
   RewardTokensInterface,
   routeStructAbi,
+  V2RouteType,
 } from '../contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { hashIntent } from '@/utils/encodeAndHash'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
@@ -180,13 +181,13 @@ export class CreateIntentService implements OnModuleInit {
   async createIntentFromIntentInitiation(
     quoteID: string,
     funder: Hex,
-    route: RouteType,
+    route: V2RouteType,
     reward: QuoteRewardDataModel,
   ) {
     try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
-      const intentHash = hashIntent({ route, reward }).intentHash
+      const { salt, source, destination, deadline: executionDeadline, portal, tokens: routeTokens, calls } = route
+      const { creator, prover, deadline: claimDeadline, nativeValue, tokens: rewardTokens } = reward
+      const intentHash = hashIntent(destination, route, reward).intentHash
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
@@ -212,13 +213,13 @@ export class CreateIntentService implements OnModuleInit {
         salt,
         source,
         destination,
-        inbox,
+        inbox: portal,
         routeTokens: routeTokens as RewardTokensInterface[],
         calls: calls as CallDataInterface[],
         creator,
         prover,
-        executionDeadline: deadline,
-        claimDeadline: deadline,
+        executionDeadline,
+        claimDeadline,
         nativeValue,
         rewardTokens,
         logIndex: 0,
