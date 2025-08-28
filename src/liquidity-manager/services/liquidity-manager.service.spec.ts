@@ -16,6 +16,8 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EverclearProviderService } from './liquidity-providers/Everclear/everclear-provider.service'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
+import { TokenState } from '@/liquidity-manager/types/token-state.enum'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -25,6 +27,8 @@ describe('LiquidityManagerService', () => {
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
+  let rebalanceModel: DeepMocked<Model<RebalanceModel>>
+  let rebalanceRepository: jest.Mocked<RebalanceRepository>
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -41,6 +45,7 @@ describe('LiquidityManagerService', () => {
         },
         { provide: EverclearProviderService, useValue: createMock<EverclearProviderService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        { provide: RebalanceRepository, useValue: { getPendingReservedByTokenForWallet: jest.fn() } },
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
@@ -60,6 +65,8 @@ describe('LiquidityManagerService', () => {
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
+    rebalanceModel = chainMod.get(getModelToken(RebalanceModel.name)) as any
+    rebalanceRepository = chainMod.get(RebalanceRepository) as any
 
     crowdLiquidityService['getPoolAddress'] = jest.fn().mockReturnValue(zeroAddress)
     kernelAccountClientService['getClient'] = jest
@@ -113,6 +120,53 @@ describe('LiquidityManagerService', () => {
       expect(result.items).toHaveLength(3)
       expect(result.surplus.items).toHaveLength(1)
       expect(result.deficit.items).toHaveLength(1)
+    })
+
+    it('should subtract reserved (pending) amountIn before classification (reservation-aware)', async () => {
+      const wallet = zeroAddress
+
+      // Configure thresholds for easy math: targetBalance=100, up=10%, down=20% → min=80, max=110
+      liquidityManagerService['config'] = mockConfig
+
+      const usdcOP = {
+        chainId: 10,
+        config: { chainId: 10, address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', targetBalance: 100 },
+        balance: { address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', decimals: 6, balance: 200_000_000n },
+      }
+      const tokenB = {
+        chainId: 8453,
+        config: { chainId: 8453, address: '0x4200000000000000000000000000000000000006', targetBalance: 50 },
+        balance: { address: '0x4200000000000000000000000000000000000006', decimals: 6, balance: 50_000_000n },
+      }
+
+      jest
+        .spyOn(balanceService, 'getAllTokenDataForAddress')
+        .mockResolvedValue([usdcOP, tokenB] as any)
+
+      // Mock repository to reserve 120 USDC (6 decimals) on OP for the wallet
+      const key = `10:${'0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'.toLowerCase()}`
+      const reserved = new Map<string, bigint>([[key, 120_000_000n]])
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(reserved)
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+
+      // usdcOP adjusted current = 200 - 120 = 80 → exactly at min → IN_RANGE
+      const adjustedA = result.items.find(
+        (t: any) => t.config.address === usdcOP.config.address && t.chainId === 10,
+      ) as any
+      expect(adjustedA).toBeDefined()
+      if (!adjustedA) throw new Error('Adjusted token A not found')
+      expect(adjustedA.analysis.balance.current).toEqual(80_000_000n)
+      expect(adjustedA.analysis.state).toBe(TokenState.IN_RANGE)
+
+      // tokenB unchanged (no reservation) → target=50, current=50 → IN_RANGE
+      const adjustedB = result.items.find(
+        (t: any) => t.config.address === tokenB.config.address && t.chainId === 8453,
+      ) as any
+      expect(adjustedB).toBeDefined()
+      if (!adjustedB) throw new Error('Adjusted token B not found')
+      expect(adjustedB.analysis.balance.current).toEqual(50_000_000n)
+      expect(adjustedB.analysis.state).toBe(TokenState.IN_RANGE)
     })
   })
 

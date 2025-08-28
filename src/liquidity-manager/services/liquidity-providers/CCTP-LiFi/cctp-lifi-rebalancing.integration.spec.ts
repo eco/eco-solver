@@ -34,6 +34,7 @@ import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-pr
 import { EcoAnalyticsService } from '@/analytics'
 import { serialize } from '@/common/utils/serialize'
 import { GatewayProviderService } from '../Gateway/gateway-provider.service'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -151,6 +152,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         LiquidityManagerService,
         LiquidityProviderService,
         CCTPLiFiProviderService,
+        { provide: RebalanceRepository, useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) } },
         {
           provide: LiFiProviderService,
           useValue: createMock<LiFiProviderService>(),

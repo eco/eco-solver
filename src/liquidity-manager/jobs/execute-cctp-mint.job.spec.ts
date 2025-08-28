@@ -109,6 +109,7 @@ const { CCTPLiFiDestinationSwapJobManager } = jest.requireMock(
 
 describe('ExecuteCCTPMintJobManager', () => {
   let mgr: ExecuteCCTPMintJobManager
+  let repoMock: { updateStatus: jest.Mock }
 
   beforeAll(() => {
   })

@@ -16,6 +16,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -39,6 +40,7 @@ describe('LiquidityManagerService', () => {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
         },
+        { provide: RebalanceRepository, useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) } },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),

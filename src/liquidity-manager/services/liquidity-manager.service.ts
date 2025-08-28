@@ -23,6 +23,7 @@ import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -61,6 +62,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
@@ -120,11 +122,26 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async analyzeTokens(walletAddress: string) {
+    // 1) Build reservation map of amounts already committed to pending rebalances
+    const reservedByToken = await this.getReservedByTokenMap(walletAddress)
+
+    // 2) Fetch on-chain balances and subtract reserved amounts per token before analysis
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
       walletAddress,
       this.tokensPerWallet[walletAddress],
     )
-    const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({
+    const adjusted: TokenData[] = tokens.map((item) => {
+      try {
+        const key = `${item.chainId}:${String(item.config.address).toLowerCase()}`
+        const reserved = reservedByToken.get(key) ?? 0n
+        if (reserved > 0n) {
+          item.balance.balance = item.balance.balance - reserved
+        }
+      } catch {}
+      return item
+    })
+
+    const analysis: TokenDataAnalyzed[] = adjusted.map((item) => ({
       ...item,
       analysis: this.analyzeToken(item),
     }))
@@ -135,6 +152,33 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       surplus: analyzeTokenGroup(groups[TokenState.SURPLUS] ?? []),
       inrange: analyzeTokenGroup(groups[TokenState.IN_RANGE] ?? []),
       deficit: analyzeTokenGroup(groups[TokenState.DEFICIT] ?? []),
+    }
+  }
+
+  /**
+   * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
+   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
+   */
+  private async getReservedByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingReservedByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied reserved amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (e) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Reservation-aware analysis: no reservations applied',
+          properties: { walletAddress, error: (e as any)?.message ?? e },
+        }),
+      )
+      return new Map<string, bigint>()
     }
   }
 

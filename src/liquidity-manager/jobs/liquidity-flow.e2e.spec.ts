@@ -164,6 +164,22 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
         }
       })
 
+    // 7.1) patch CCTPLiFiDestinationSwap.onComplete to avoid AutoInject ModuleRef access in tests
+    jest
+      .spyOn(CCTPLiFiDestinationSwapJobManager.prototype, 'onComplete')
+      .mockImplementation(async function (this: CCTPLiFiDestinationSwapJobManager, job: any, processor: any) {
+        processor.logger.log({
+          message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully (patched)',
+          properties: {
+            jobId: job.data.id,
+            destinationChainId: job.data.destinationChainId,
+            walletAddress: job.data.walletAddress,
+            txHash: job.returnvalue?.txHash,
+          },
+        })
+        // Skip repository status update in this E2E to avoid ModuleRef
+      })
+
     // 8) worker router
     worker = new Worker(
       queue.name,

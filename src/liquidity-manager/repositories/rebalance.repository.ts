@@ -52,4 +52,39 @@ export class RebalanceRepository {
   async deleteMany(query: object): Promise<any> {
     return this.model.deleteMany(query)
   }
+
+  /**
+   * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
+   * pending rebalances for the provided wallet.
+   * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountIn
+   */
+  async getPendingReservedByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
+    const map = new Map<string, bigint>()
+
+    // Use simple find + in-memory sum for testability and bigint safety
+    const projection = { amountIn: 1, tokenIn: 1, wallet: 1, status: 1 }
+    const docs = await this.model
+      .find({ status: RebalanceStatus.PENDING.toString(), wallet: walletAddress }, projection)
+      .lean()
+
+    for (const doc of docs ?? []) {
+      const chainId: number | undefined = (doc as any)?.tokenIn?.chainId
+      const addressRaw: string | undefined = (doc as any)?.tokenIn?.tokenAddress
+      const rawAmountIn: any = (doc as any)?.amountIn
+      if (typeof chainId !== 'number' || !addressRaw || rawAmountIn === undefined) continue
+
+      let amountIn: bigint
+      try {
+        amountIn = BigInt(rawAmountIn)
+      } catch {
+        continue
+      }
+
+      const key = `${chainId}:${String(addressRaw).toLowerCase()}`
+      const prev = map.get(key) ?? 0n
+      map.set(key, prev + amountIn)
+    }
+
+    return map
+  }
 }
