@@ -1,6 +1,6 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Hex } from 'viem'
+import { decodeAbiParameters, decodeFunctionData, erc20Abi, Hex } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
@@ -9,6 +9,7 @@ import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
 import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
 import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
+import { retryCount } from '@lifi/sdk/src/_types/core/EVM/utils'
 
 @Injectable()
 export class QuoteV2TransformService {
@@ -121,12 +122,9 @@ export class QuoteV2TransformService {
     if (!firstCall) return null
 
     try {
-      // ERC20 transfer function selector is 0xa9059cbb
-      if (firstCall.data.startsWith('0xa9059cbb')) {
-        // Extract recipient address from data (first 32 bytes after function selector)
-        const recipientHex = ('0x' + firstCall.data.slice(34, 74)) as Hex
-        return recipientHex
-      }
+      const decoded = decodeFunctionData({ abi: erc20Abi, data: firstCall.data })
+      if (decoded.functionName === 'transfer') return decoded.args[0]
+      if (decoded.functionName === 'transferFrom') return decoded.args[1]
     } catch (error) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
