@@ -168,6 +168,197 @@ describe('LiquidityManagerService', () => {
       expect(adjustedB.analysis.balance.current).toEqual(50_000_000n)
       expect(adjustedB.analysis.state).toBe(TokenState.IN_RANGE)
     })
+
+    it('boundary at maximum: reserved moves current to max → IN_RANGE', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      // target=100, up=10% → max=110
+      const token = {
+        chainId: 10,
+        config: { chainId: 10, address: '0xToken', targetBalance: 100 },
+        balance: { address: '0xToken', decimals: 6, balance: 120_000_000n },
+      }
+
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
+
+      const key = `10:${'0xToken'.toLowerCase()}`
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([[key, 10_000_000n]]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item = result.items[0]
+      expect(item.analysis.balance.current).toEqual(110_000_000n)
+      expect(item.analysis.state).toBe(TokenState.IN_RANGE)
+    })
+
+    it('boundary at target: reserved moves current to target → IN_RANGE', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const token = {
+        chainId: 10,
+        config: { chainId: 10, address: '0xTokenT', targetBalance: 100 },
+        balance: { address: '0xTokenT', decimals: 6, balance: 105_000_000n },
+      }
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
+
+      const key = `10:${'0xTokenT'.toLowerCase()}`
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([[key, 5_000_000n]]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item = result.items[0]
+      expect(item.analysis.balance.current).toEqual(100_000_000n)
+      expect(item.analysis.state).toBe(TokenState.IN_RANGE)
+    })
+
+    it('negative current when reserved > balance → DEFICIT', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const token = {
+        chainId: 10,
+        config: { chainId: 10, address: '0xNeg', targetBalance: 100 },
+        balance: { address: '0xNeg', decimals: 6, balance: 50_000_000n },
+      }
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
+
+      const key = `10:${'0xNeg'.toLowerCase()}`
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([[key, 60_000_000n]]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item = result.items[0]
+      expect(item.analysis.balance.current).toEqual(-10_000_000n)
+      expect(item.analysis.state).toBe(TokenState.DEFICIT)
+    })
+
+    it('decimals variance: 18-decimal token subtracts correctly', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const token18 = {
+        chainId: 1,
+        config: { chainId: 1, address: '0x18dec', targetBalance: 1 },
+        balance: { address: '0x18dec', decimals: 18, balance: 2_000_000_000_000_000_000n }, // 2.0
+      }
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token18] as any)
+
+      const key = `1:${'0x18dec'.toLowerCase()}`
+      // reserve 1.2
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([[key, 1_200_000_000_000_000_000n]]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item = result.items[0]
+      expect(item.analysis.balance.current).toEqual(800_000_000_000_000_000n) // 0.8
+      expect([TokenState.IN_RANGE, TokenState.DEFICIT]).toContain(item.analysis.state)
+    })
+
+    it('idempotency across calls: no cumulative subtraction when balances re-fetched fresh', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const baseTokenFactory = () => ({
+        chainId: 10,
+        config: { chainId: 10, address: '0xIdem', targetBalance: 100 },
+        balance: { address: '0xIdem', decimals: 6, balance: 200_000_000n },
+      })
+
+      // Return fresh objects each time
+      jest
+        .spyOn(balanceService, 'getAllTokenDataForAddress')
+        .mockResolvedValueOnce([baseTokenFactory()] as any)
+        .mockResolvedValueOnce([baseTokenFactory()] as any)
+
+      const key = `10:${'0xIdem'.toLowerCase()}`
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([[key, 120_000_000n]]),
+      )
+
+      const r1 = await liquidityManagerService.analyzeTokens(wallet)
+      const c1 = r1.items[0].analysis.balance.current
+      const r2 = await liquidityManagerService.analyzeTokens(wallet)
+      const c2 = r2.items[0].analysis.balance.current
+      expect(c1).toEqual(80_000_000n)
+      expect(c2).toEqual(80_000_000n)
+    })
+
+    it('unused reservation keys: map includes tokens not present in wallet → ignored', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const token = {
+        chainId: 10,
+        config: { chainId: 10, address: '0xPresent', targetBalance: 100 },
+        balance: { address: '0xPresent', decimals: 6, balance: 100_000_000n },
+      }
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
+
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([
+          [`10:${'0xAbsent'.toLowerCase()}`, 50_000_000n],
+          [`8453:${'0xElse'.toLowerCase()}`, 1_000_000n],
+        ]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item = result.items[0]
+      expect(item.analysis.balance.current).toEqual(100_000_000n)
+    })
+
+    it('cross-chain separation: same address across chains does not cross-subtract', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const addr = '0xSame'
+      const tokenChain10 = {
+        chainId: 10,
+        config: { chainId: 10, address: addr, targetBalance: 100 },
+        balance: { address: addr, decimals: 6, balance: 200_000_000n },
+      }
+      const tokenChain8453 = {
+        chainId: 8453,
+        config: { chainId: 8453, address: addr, targetBalance: 100 },
+        balance: { address: addr, decimals: 6, balance: 200_000_000n },
+      }
+
+      jest
+        .spyOn(balanceService, 'getAllTokenDataForAddress')
+        .mockResolvedValue([tokenChain10, tokenChain8453] as any)
+
+      const key10 = `10:${addr.toLowerCase()}`
+      const key8453 = `8453:${addr.toLowerCase()}`
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
+        new Map([
+          [key10, 120_000_000n],
+          [key8453, 50_000_000n],
+        ]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item10 = result.items.find((t: any) => t.chainId === 10)!
+      const item8453 = result.items.find((t: any) => t.chainId === 8453)!
+      expect(item10.analysis.balance.current).toEqual(80_000_000n) // 200-120
+      expect(item8453.analysis.balance.current).toEqual(150_000_000n) // 200-50
+    })
+
+    it('empty wallet tokens: when no tokens returned, result is empty and no crash', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([] as any)
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(new Map())
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      expect(result.items).toHaveLength(0)
+      expect(result.surplus.items).toHaveLength(0)
+      expect(result.deficit.items).toHaveLength(0)
+    })
   })
 
   describe('getOptimizedRebalancing', () => {

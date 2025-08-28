@@ -80,6 +80,9 @@ export class RebalanceRepository {
         continue
       }
 
+      // Ignore non-positive reservations
+      if (amountIn <= 0n) continue
+
       const key = `${chainId}:${String(addressRaw).toLowerCase()}`
       const prev = map.get(key) ?? 0n
       map.set(key, prev + amountIn)
