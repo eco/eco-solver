@@ -83,11 +83,10 @@ export type IntentFundedEventViemType = Prettify<
  */
 export type IntentFundedEventLog = DecodeEventLogReturnType<typeof IIntentSourceAbi, 'IntentFunded'>
 
-export type V2IntentType = ContractFunctionArgs<
-  typeof IIntentSourceAbi,
-  'pure',
-  'getIntentHash'
->[number]
+export type V2IntentType = Extract<
+  ContractFunctionArgs<typeof IIntentSourceAbi, 'view', 'isIntentFunded'>[0],
+  { destination: any }
+>
 export type V2RouteType = Extract<V2IntentType, { route: any }>['route']
 
 export const routeStructAbi = [
@@ -95,23 +94,8 @@ export const routeStructAbi = [
   { name: 'deadline', type: 'uint64' },
   { name: 'portal', type: 'address' },
   { name: 'nativeAmount', type: 'uint256' },
-  {
-    name: 'tokens',
-    type: 'tuple[]',
-    components: [
-      { name: 'token', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-  },
-  {
-    name: 'calls',
-    type: 'tuple[]',
-    components: [
-      { name: 'target', type: 'address' },
-      { name: 'data', type: 'bytes' },
-      { name: 'value', type: 'uint256' },
-    ],
-  },
+  { name: 'tokens', type: 'tuple[]', components: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }] },
+  { name: 'calls', type: 'tuple[]', components: [{ name: 'target', type: 'address' }, { name: 'data', type: 'bytes' }, { name: 'value', type: 'uint256' }] },
 ] as const
 
 // Define the type for the IntentCreated event log

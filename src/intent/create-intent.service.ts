@@ -78,6 +78,7 @@ export class CreateIntentService implements OnModuleInit {
       routeStructAbi,
       routeDataWithoutPrefix,
     )
+    console.log('WUTANG deadline', deadline)
 
     const decodedRoute = {
       salt,
@@ -118,12 +119,13 @@ export class CreateIntentService implements OnModuleInit {
         return
       }
 
-      const validWallet = this.flagService.getFlagValue('bendWalletOnly')
+      let validWallet = this.flagService.getFlagValue('bendWalletOnly')
         ? await this.validSmartWalletService.validateSmartWallet(
             intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
+        validWallet = true; // TODO: remove this
 
       //create db record
       const record = await this.intentModel.create({
@@ -146,7 +148,7 @@ export class CreateIntentService implements OnModuleInit {
       } else {
         // Track intent created but not queued due to invalid wallet
         this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
-      }
+      } 
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -215,7 +217,8 @@ export class CreateIntentService implements OnModuleInit {
         calls: calls as CallDataInterface[],
         creator,
         prover,
-        deadline,
+        executionDeadline: deadline,
+        claimDeadline: deadline,
         nativeValue,
         rewardTokens,
         logIndex: 0,

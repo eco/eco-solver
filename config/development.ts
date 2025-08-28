@@ -145,4 +145,8 @@ export default {
       },
     ],
   },
+
+  intentConfigs: {
+    skipBalanceCheck: true,
+  }
 }

@@ -6,6 +6,7 @@ import {
   CallDataInterface,
   RewardTokensInterface,
   V2RouteType,
+  V2IntentType,
 } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
@@ -22,7 +23,8 @@ export interface CreateIntentDataModelParams {
   calls: CallDataInterface[]
   creator: Hex
   prover: Hex
-  deadline: bigint
+  executionDeadline: bigint
+  claimDeadline: bigint
   nativeValue: bigint
   rewardTokens: RewardTokensInterface[]
   logIndex: number
@@ -62,7 +64,8 @@ export class IntentDataModel implements IntentType {
       calls,
       creator,
       prover,
-      deadline,
+      executionDeadline,
+      claimDeadline,
       nativeValue,
       rewardTokens,
       logIndex,
@@ -96,7 +99,7 @@ export class IntentDataModel implements IntentType {
         call.target = getAddress(call.target)
         return call
       }),
-      deadline,
+      executionDeadline,
       inbox,
       nativeValue,
     )
@@ -104,7 +107,7 @@ export class IntentDataModel implements IntentType {
     this.reward = new RewardDataModel(
       getAddress(creator),
       getAddress(prover),
-      deadline,
+      claimDeadline,
       nativeValue,
       rewardTokens.map((token) => {
         token.token = getAddress(token.token)
@@ -149,17 +152,42 @@ export class IntentDataModel implements IntentType {
       calls: route.calls as Mutable<typeof route.calls>,
       creator: e.creator,
       prover: e.prover,
-      deadline: e.rewardDeadline,
+      executionDeadline: route.deadline,
+      claimDeadline: e.rewardDeadline,
       nativeValue: e.rewardNativeAmount,
       rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
       logIndex,
     })
   }
 
-  static toChainIntent(intent: IntentDataModel): IntentType {
+  static toChainIntent(intent: IntentDataModel): V2IntentType {
     return {
-      route: intent.route,
-      reward: intent.reward,
+      destination: intent.route.destination,
+      route: {
+        salt: intent.route.salt,
+        deadline: intent.route.deadline,
+        portal: intent.route.portal,
+        nativeAmount: intent.route.nativeAmount,
+        tokens: intent.route.tokens.map((token) => ({
+          token: token.token,
+          amount: token.amount,
+        })),
+        calls: intent.route.calls.map((call) => ({
+          target: call.target,
+          data: call.data,
+          value: call.value,
+        })),
+      },
+      reward: {
+        deadline: intent.reward.deadline,
+        creator: intent.reward.creator,
+        prover: intent.reward.prover,
+        nativeAmount: intent.reward.nativeValue,
+        tokens: intent.reward.tokens.map((token) => ({
+          token: token.token,
+          amount: token.amount,
+        })),
+      },
     }
   }
 }

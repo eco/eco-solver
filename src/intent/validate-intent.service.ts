@@ -1,8 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex } from 'viem'
+import { Hex, encodeAbiParameters } from 'viem'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
@@ -17,6 +16,7 @@ import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
+import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -242,12 +242,27 @@ export class ValidateIntentService implements OnModuleInit {
       }
 
       // Check if the intent is funded
+      const chainIntent = IntentDataModel.toChainIntent(model.intent)
+      const encodedRoute = encodeAbiParameters([{
+        type: 'tuple',
+        components: [
+          { name: 'salt', type: 'bytes32' },
+          { name: 'deadline', type: 'uint64' },
+          { name: 'portal', type: 'address' },
+          { name: 'nativeAmount', type: 'uint256' },
+          { name: 'tokens', type: 'tuple[]', components: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }] },
+          { name: 'calls', type: 'tuple[]', components: [{ name: 'target', type: 'address' }, { name: 'data', type: 'bytes' }, { name: 'value', type: 'uint256' }] }
+        ]
+      }], [chainIntent.route])
       isIntentFunded = await client.readContract({
         address: intentSource.sourceAddress,
-        abi: IntentSourceAbi,
+        abi: IIntentSourceAbi,
         functionName: 'isIntentFunded',
-        args: [IntentDataModel.toChainIntent(model.intent)],
+        args: [chainIntent.destination, encodedRoute, chainIntent.reward],
       })
+      console.log('WUTANG encodedRoute', encodedRoute)
+      console.log('WUTANG chainIntent.reward', chainIntent.reward)
+      console.log('WUTANG isIntentFunded', isIntentFunded)
 
       retryCount++
     } while (!isIntentFunded && retryCount <= this.MAX_RETRIES)
