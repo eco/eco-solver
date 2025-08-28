@@ -2,13 +2,13 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { getModelToken } from '@nestjs/mongoose'
 import { IntentCreatedChainSyncService } from '@/chain-monitor/intent-created-chain-sync.service'
-import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
 import { IntentSourceModel } from '../../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { Solver, IntentSource } from '../../eco-configs/eco-config.types'
 import { Test, TestingModule } from '@nestjs/testing'
 import { WatchCreateIntentService } from '../../watch/intent/watch-create-intent.service'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 describe('IntentCreatedChainSyncService', () => {
   let chainSyncService: IntentCreatedChainSyncService
@@ -120,7 +120,7 @@ describe('IntentCreatedChainSyncService', () => {
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
         address: intentSource.sourceAddress,
-        abi: IIntentSourceAbi,
+        abi: portalAbi,
         eventName: 'IntentPublished',
         args: {
           prover: intentSource.provers,
@@ -138,7 +138,7 @@ describe('IntentCreatedChainSyncService', () => {
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
         address: intentSource.sourceAddress,
-        abi: IIntentSourceAbi,
+        abi: portalAbi,
         eventName: 'IntentPublished',
         args: {
           prover: intentSource.provers,

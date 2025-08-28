@@ -10,7 +10,9 @@ import {
 } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
+import { IntentV2 } from '@/contracts/v2-abi/Portal'
 import { encodeIntent, hashIntent } from '@/utils/encodeAndHash'
+import { IntentType } from '@eco-foundation/routes-ts'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -32,7 +34,7 @@ export interface CreateIntentDataModelParams {
 }
 
 @Schema({ timestamps: true })
-export class IntentDataModel implements V2IntentType {
+export class IntentDataModel implements IntentType {
   @Prop({ required: false, type: String })
   quoteID?: string
 
@@ -43,7 +45,7 @@ export class IntentDataModel implements V2IntentType {
   route: RouteDataModel
 
   @Prop({ required: true, type: RewardDataModelSchema })
-  reward: RewardDataModel & { nativeAmount: bigint }
+  reward: RewardDataModel
 
   //log
   @Prop({ required: true })
@@ -118,7 +120,7 @@ export class IntentDataModel implements V2IntentType {
       nativeValue,
     )
 
-    const reward = new RewardDataModel(
+    this.reward = new RewardDataModel(
       getAddress(creator),
       getAddress(prover),
       claimDeadline,
@@ -128,11 +130,6 @@ export class IntentDataModel implements V2IntentType {
         return token
       }),
     )
-
-    this.reward = {
-      ...reward,
-      nativeAmount: nativeValue,
-    }
 
     this.logIndex = logIndex
     this.funder = funder
@@ -206,6 +203,28 @@ export class IntentDataModel implements V2IntentType {
           token: token.token,
           amount: token.amount,
         })),
+      },
+    }
+  }
+
+  static toIntentV2(intent: IntentDataModel): IntentV2 {
+    return {
+      source: intent.route.source,
+      destination: intent.route.destination,
+      route: {
+        salt: intent.route.salt,
+        deadline: intent.route.deadline,
+        portal: intent.route.portal,
+        nativeAmount: intent.route.nativeAmount,
+        tokens: intent.route.tokens,
+        calls: intent.route.calls,
+      },
+      reward: {
+        creator: intent.reward.creator,
+        prover: intent.reward.prover,
+        deadline: intent.reward.deadline,
+        nativeAmount: intent.reward.nativeValue,
+        tokens: intent.reward.tokens,
       },
     }
   }

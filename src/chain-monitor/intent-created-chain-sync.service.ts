@@ -9,7 +9,7 @@ import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
-import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -72,7 +72,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
 
     const allCreateIntentLogs = await client.getContractEvents({
       address: source.sourceAddress,
-      abi: IIntentSourceAbi,
+      abi: portalAbi,
       eventName: 'IntentPublished',
       strict: true,
       args: {

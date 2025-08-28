@@ -1,14 +1,6 @@
 export default {
   server: {
-    url: 'http://localhost:3001',
-  },
-
-  rpcs: {
-    config: {
-      webSockets: false,
-    },
-    keys: {},
-    custom: {},
+    url: 'http://localhost:3000',
   },
 
   logger: {

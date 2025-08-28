@@ -1,8 +1,8 @@
-import { IInboxAbi } from 'v2-abi/IInbox'
 import { ExtractAbiEvent } from 'abitype'
-import { Prettify, Log } from 'viem'
+import { Log, Prettify } from 'viem'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 // Define the type for the Fulfillment event log
 export type FulfillmentLog = Prettify<
-  Log<bigint, number, false, ExtractAbiEvent<typeof IInboxAbi, 'IntentFulfilled'>, true>
+  Log<bigint, number, false, ExtractAbiEvent<typeof portalAbi, 'IntentFulfilled'>, true>
 >

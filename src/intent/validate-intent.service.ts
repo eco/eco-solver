@@ -16,7 +16,8 @@ import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
-import { IIntentSourceAbi } from 'v2-abi/IIntentSource'
+import { IntentV2Pure, portalAbi } from '@/contracts/v2-abi/Portal'
+import { jsonBigInt } from '@/commander/utils'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -228,6 +229,8 @@ export class ValidateIntentService implements OnModuleInit {
             message: `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
             properties: {
               intentHash: model.intent.hash,
+              portal: intentSource.sourceAddress,
+              chainId: sourceChainID,
             },
           }),
         )
@@ -242,7 +245,7 @@ export class ValidateIntentService implements OnModuleInit {
       }
 
       // Check if the intent is funded
-      const chainIntent = IntentDataModel.toChainIntent(model.intent)
+      const chainIntent = IntentDataModel.toIntentV2(model.intent)
       const encodedRoute = encodeAbiParameters([{
         type: 'tuple',
         components: [
@@ -256,9 +259,9 @@ export class ValidateIntentService implements OnModuleInit {
       }], [chainIntent.route])
       isIntentFunded = await client.readContract({
         address: intentSource.sourceAddress,
-        abi: IIntentSourceAbi,
+        abi: portalAbi,
         functionName: 'isIntentFunded',
-        args: [chainIntent.destination, encodedRoute, chainIntent.reward],
+        args: [IntentDataModel.toIntentV2(model.intent) as IntentV2Pure],
       })
       console.log('WUTANG encodedRoute', encodedRoute)
       console.log('WUTANG chainIntent.reward', chainIntent.reward)
