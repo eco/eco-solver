@@ -16,6 +16,8 @@ import {
 } from 'viem';
 
 import {
+  EVMRewardAbiItem,
+  EVMRouteAbiItem,
   PortalIntent,
   Reward,
   Route,
@@ -28,7 +30,6 @@ import { PortalEncoder } from './portal-encoder';
 export class PortalHashUtils {
   /**
    * Recreates the getIntentHash function from IntentSource contract using Viem
-   * This replaces the hashIntent function from @eco-foundation/routes-ts
    *
    * Matches the contract's three overloaded versions:
    * 1. With Intent struct
@@ -68,35 +69,12 @@ export class PortalHashUtils {
       // Second overload: destination, route (Route object or bytes), reward
       // Encode the route and hash it
       const route = routeOrRouteHash as Route;
-      const encodedRoute = encodeAbiParameters(
-        parseAbiParameters(
-          'bytes32 salt, uint64 deadline, address portal, uint256 nativeAmount, (address token, uint256 amount)[] tokens, (address target, bytes data, uint256 value)[] calls',
-        ),
-        [
-          route.salt,
-          route.deadline,
-          route.portal,
-          route.nativeAmount,
-          route.tokens.map((t) => ({ token: t.token, amount: t.amount })),
-          route.calls.map((c) => ({ target: c.target, data: c.data, value: c.value })),
-        ],
-      );
+      const encodedRoute = encodeAbiParameters([EVMRouteAbiItem], [route]);
       routeHash = keccak256(encodedRoute);
     }
 
     // Encode and hash the reward
-    const encodedReward = encodeAbiParameters(
-      parseAbiParameters(
-        'uint64 deadline, address creator, address prover, uint256 nativeAmount, (address token, uint256 amount)[] tokens',
-      ),
-      [
-        reward.deadline,
-        reward.creator,
-        reward.prover,
-        reward.nativeAmount,
-        reward.tokens.map((t) => ({ token: t.token, amount: t.amount })),
-      ],
-    );
+    const encodedReward = encodeAbiParameters([EVMRewardAbiItem], [reward]);
     const rewardHash = keccak256(encodedReward);
 
     // Compute final intent hash using encodePacked

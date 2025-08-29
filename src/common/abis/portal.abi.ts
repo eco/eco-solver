@@ -2462,12 +2462,7 @@ export interface PortalIntent {
   reward: Reward;
 }
 
-export const EVMRouteAbiItem = getAbiItem({
+export const [, EVMRouteAbiItem, EVMRewardAbiItem] = getAbiItem({
   abi: PortalAbi,
-  name: 'fulfill',
-}).inputs[1];
-
-export const EVMRewardAbiItem = getAbiItem({
-  abi: PortalAbi,
-  name: 'publish',
-}).inputs[2];
+  name: 'isIntentFunded',
+}).inputs[0].components;
