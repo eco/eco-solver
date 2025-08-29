@@ -125,6 +125,20 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     // 1) Build reservation map of amounts already committed to pending rebalances
     const reservedByToken = await this.getReservedByTokenMap(walletAddress)
 
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'Reservation-aware analysis: reservedByToken snapshot',
+        properties: {
+          walletAddress,
+          tokensAffected: reservedByToken.size,
+          reservedByToken: Array.from(reservedByToken.entries()).map(([key, value]) => [
+            key,
+            value.toString(),
+          ]),
+        },
+      }),
+    )
+
     // 2) Fetch on-chain balances and subtract reserved amounts per token before analysis
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
       walletAddress,
