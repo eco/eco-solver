@@ -151,10 +151,23 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       return item
     })
 
-    const analysis: TokenDataAnalyzed[] = adjusted.map((item) => ({
-      ...item,
-      analysis: this.analyzeToken(item),
-    }))
+    const analysis: TokenDataAnalyzed[] = []
+    for (const item of adjusted) {
+      try {
+        analysis.push({ ...item, analysis: this.analyzeToken(item) })
+      } catch (e) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: token skipped due to invalid config/input',
+            properties: {
+              walletAddress,
+              token: item?.config,
+              error: (e as any)?.message ?? e,
+            },
+          }),
+        )
+      }
+    }
 
     const groups = groupBy(analysis, (item) => item.analysis.state)
     return {
