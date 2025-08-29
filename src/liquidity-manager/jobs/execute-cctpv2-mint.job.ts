@@ -111,6 +111,8 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
       }),
     )
 
-    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    if (this.isFinalAttempt(job, error)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }

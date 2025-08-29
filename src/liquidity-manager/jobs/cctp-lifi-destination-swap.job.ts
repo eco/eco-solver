@@ -301,7 +301,8 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       }),
     )
 
-    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    // This error log can be monitored for alerting systems to detect stranded USDC
+    if (this.isFinalAttempt(job, error)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }

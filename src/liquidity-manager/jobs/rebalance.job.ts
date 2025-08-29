@@ -72,28 +72,6 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
     const { network, walletAddress, rebalance: serializedRebalance } = rebalanceData
 
-    // // Rehydrate the serialized rebalance request
-    // const rebalance = deserialize(serializedRebalance)
-
-    // let updated = 0
-    // const failures: { rebalanceJobID?: string; error: string }[] = []
-
-    // for (const quote of rebalance.quotes ?? []) {
-    //   try {
-    //     if (!quote.rebalanceJobID) {
-    //       failures.push({ rebalanceJobID: undefined, error: 'Missing rebalanceJobID on quote' })
-    //       continue
-    //     }
-    //     await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
-    //     updated++
-    //   } catch (e: any) {
-    //     failures.push({
-    //       rebalanceJobID: quote.rebalanceJobID,
-    //       error: e?.message ?? String(e),
-    //     })
-    //   }
-    // }
-
     processor.logger.log(
       EcoLogMessage.fromDefault({
         message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
@@ -101,9 +79,6 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
           network,
           walletAddress,
           jobName: job.name,
-          // updated,
-          // failures,
-          rebalanceRepository: this.rebalanceRepository.constructor.name,
         },
       }),
     )

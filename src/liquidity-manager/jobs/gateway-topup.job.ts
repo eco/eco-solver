@@ -168,6 +168,8 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
       }),
     )
 
-    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    if (this.isFinalAttempt(job, error)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }

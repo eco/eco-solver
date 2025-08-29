@@ -121,6 +121,8 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       }),
     )
 
-    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    if (this.isFinalAttempt(job, error)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }

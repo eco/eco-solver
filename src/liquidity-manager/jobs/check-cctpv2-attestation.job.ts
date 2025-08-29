@@ -137,6 +137,8 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       }),
     )
 
-    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    if (this.isFinalAttempt(job, error)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }
