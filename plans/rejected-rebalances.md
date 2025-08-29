@@ -7,8 +7,9 @@ This plan implements a systematic solution for persisting rejected rebalance quo
 ## Problem Statement
 
 Currently, rejected rebalance quotes are only logged transiently, making it impossible to:
+
 - Track provider reliability patterns
-- Analyze slippage tolerance effectiveness  
+- Analyze slippage tolerance effectiveness
 - Identify problematic token pairs or routes
 - Perform systematic analysis of quote failures
 - Fine-tune strategies based on historical rejection data
@@ -16,9 +17,10 @@ Currently, rejected rebalance quotes are only logged transiently, making it impo
 ## Architecture Analysis
 
 Based on the architectural agent's analysis:
+
 - **Architecture Score**: 85/100
 - **Style**: Modular Monolith with Domain-Driven Design
-- **Integration Points**: 
+- **Integration Points**:
   - `LiquidityProviderService.getQuote()` lines 80-100 (HIGH_SLIPPAGE) - move logging to repository
   - `LiquidityProviderService.getQuote()` lines 103-126 (PROVIDER_ERROR) - move logging to repository
 
@@ -31,6 +33,7 @@ Based on the architectural agent's analysis:
 **Schema Location**: `src/liquidity-manager/schemas/rebalance-quote-rejection.schema.ts`
 
 #### Fields:
+
 - `rebalanceId`: string (UUID from quoteId)
 - `strategy`: Strategy enum (LiFi, Stargate, CCTP, etc.)
 - `reason`: RejectionReason enum (HIGH_SLIPPAGE, PROVIDER_ERROR, etc.)
@@ -42,6 +45,7 @@ Based on the architectural agent's analysis:
 - `createdAt/updatedAt`: timestamps (auto-generated)
 
 #### Indexes:
+
 - `{ rebalanceId: 1 }`
 - `{ strategy: 1, reason: 1 }`
 - `{ 'tokenIn.chainId': 1, 'tokenOut.chainId': 1 }`
@@ -50,38 +54,46 @@ Based on the architectural agent's analysis:
 ### 2. Repository Pattern
 
 #### Rebalance Quote Rejection Repository
+
 **Location**: `src/liquidity-manager/repositories/rebalance-quote-rejection.repository.ts`
 
 **Core Methods**:
+
 - `create(rejectionData)`: Persist rejection with error handling and logging
 - `hasRejectionsInLastHour()`: Check if any rejections occurred in last hour (for health monitoring)
 - `getRecentRejectionCount(timeRange)`: Get count of rejections in time range (for health monitoring)
 
 #### Rebalance Repository (New)
+
 **Location**: `src/liquidity-manager/repositories/rebalance.repository.ts`
 
 **Core Methods**:
+
 - `create(rebalanceData)`: Persist successful rebalance with logging
 - `createBatch(walletAddress, quotes, groupId)`: Persist multiple rebalances (moved from LiquidityManagerService)
 - `hasSuccessfulRebalancesInLastHour()`: Check for successful rebalances in last hour (for health monitoring)
 - `getRecentSuccessCount(timeRange)`: Get count of successful rebalances in time range (for health monitoring)
 
 #### Rebalancing Health Repository (New)
+
 **Location**: `src/liquidity-manager/repositories/rebalancing-health.repository.ts`
 
 **Core Methods**:
+
 - `checkRebalancingHealth()`: Main health check logic combining success/failure data
 - `getHealthStatus()`: Returns health status with detailed metrics
 - `isSystemHealthy()`: Boolean health check for health indicator
 - `getHealthMetrics(timeRange)`: Detailed health metrics for monitoring
 
 **Health Logic**:
+
 - Aggregates data from both rebalance and rejection repositories
 - Implements rolling counter logic for success vs failure rates
 - Marks system as DOWN if rejections in last hour AND no successful rebalances
 - Contains all health-related business logic and tests
 
 #### Logging Strategy:
+
 - Repositories handle all persistence logging (moved from service layer)
 - Service layer focuses on business logic only
 - Centralized logging in repositories ensures consistency
@@ -89,11 +101,13 @@ Based on the architectural agent's analysis:
 ### 3. Service Integration
 
 **Modified Files**:
+
 - `src/liquidity-manager/services/liquidity-provider.service.ts`
-- `src/liquidity-manager/services/liquidity-manager.service.ts` 
+- `src/liquidity-manager/services/liquidity-manager.service.ts`
 - `src/liquidity-manager/liquidity-manager.module.ts`
 
 #### Integration Strategy:
+
 - **Non-blocking**: Persistence failures don't break quote operations
 - **Async**: Database operations run in parallel with main flow
 - **Graceful degradation**: Warnings logged but processing continues
@@ -101,9 +115,11 @@ Based on the architectural agent's analysis:
 ## Implementation Plan
 
 ### Phase 1: Foundation (Schema + Repositories)
+
 **Estimated Time**: 3-4 hours
 
 #### Tasks:
+
 1. **Create Rejection Reason Enum**
    - Location: `src/liquidity-manager/schemas/rebalance-quote-rejection.schema.ts`
    - Values: `HIGH_SLIPPAGE`, `PROVIDER_ERROR`, `INSUFFICIENT_LIQUIDITY`, `TIMEOUT`
@@ -118,7 +134,7 @@ Based on the architectural agent's analysis:
    - Include error handling and logging
    - Add health monitoring methods
 
-4. **Create Rebalance Repository** 
+4. **Create Rebalance Repository**
    - Move `RebalanceModel` operations from `LiquidityManagerService`
    - Implement `create()` and `createBatch()` methods
    - Add health monitoring methods for successful rebalances
@@ -138,9 +154,11 @@ Based on the architectural agent's analysis:
    - Health calculation edge cases and scenarios
 
 ### Phase 2: Service Integration (Core Logic)
+
 **Estimated Time**: 3-4 hours
 
 #### Tasks:
+
 1. **Modify LiquidityProviderService Constructor**
    - Inject `RebalanceQuoteRejectionRepository`
    - Maintain existing dependency structure
@@ -150,6 +168,7 @@ Based on the architectural agent's analysis:
    - Update `storeRebalancing` method to use repository
 
 3. **Create Private Persistence Method in LiquidityProviderService**
+
    ```typescript
    private async persistQuoteRejection(
      rebalanceId: string,
@@ -184,14 +203,16 @@ Based on the architectural agent's analysis:
 
 8. **Write Integration Tests**
    - Test HIGH_SLIPPAGE persistence
-   - Test PROVIDER_ERROR persistence  
+   - Test PROVIDER_ERROR persistence
    - Test successful rebalance persistence
    - Test non-blocking behavior on DB failures
 
 ### Phase 3: Module Registration (Activation)
+
 **Estimated Time**: 1 hour
 
 #### Tasks:
+
 1. **Update LiquidityManagerModule**
    - Add rejection schema to MongooseModule.forFeature()
    - Register all three repositories in providers array
@@ -207,9 +228,11 @@ Based on the architectural agent's analysis:
    - Test dependency injection for all three repositories
 
 ### Phase 4: Health Monitoring Integration
+
 **Estimated Time**: 2-3 hours
 
 #### Tasks:
+
 1. **Create Simple Rebalance Health Indicator**
    - Location: `src/health/indicators/rebalance-health.indicator.ts`
    - Implement `HealthIndicator` interface
@@ -276,7 +299,7 @@ sequenceDiagram
         LP->>LP: Log warning & continue
     else Provider error
         LP->>Analytics: Track error event
-        LP->>Repo: persistQuoteRejection(PROVIDER_ERROR)  
+        LP->>Repo: persistQuoteRejection(PROVIDER_ERROR)
         Repo->>DB: Create rejection document
         LP->>LP: Log error & continue
     end
@@ -285,30 +308,36 @@ sequenceDiagram
 ## Risk Mitigation
 
 ### Database Performance
+
 - **Risk**: High-volume rejections impact DB performance
 - **Mitigation**: Strategic indexing, async operations, optional batching
 
-### Service Reliability  
+### Service Reliability
+
 - **Risk**: DB failures break quote operations
 - **Mitigation**: Non-blocking persistence, graceful error handling
 
 ### Data Consistency
-- **Risk**: Missing rejections due to service failures  
+
+- **Risk**: Missing rejections due to service failures
 - **Mitigation**: Analytics tracking of persistence failures, retry mechanisms
 
 ### Schema Evolution
+
 - **Risk**: Future changes break existing queries
 - **Mitigation**: Versioned schemas, backward compatibility
 
 ## Success Metrics
 
 ### Technical Metrics
+
 - [ ] Zero impact on quote operation performance
 - [ ] <1% persistence failure rate
 - [ ] Query response time <100ms for analytics
 - [ ] 100% test coverage for new components
 
-### Business Metrics  
+### Business Metrics
+
 - [ ] Ability to identify top 3 failing providers
 - [ ] Track slippage tolerance effectiveness
 - [ ] Measure route success rates by token pair
@@ -317,23 +346,27 @@ sequenceDiagram
 ## Acceptance Criteria
 
 ### Phase 1 Completion
+
 - [ ] RebalanceQuoteRejectionModel schema created and tested
 - [ ] Repository implements full CRUD operations
 - [ ] Unit tests achieve 100% coverage
 - [ ] Schema follows existing codebase patterns
 
-### Phase 2 Completion  
+### Phase 2 Completion
+
 - [ ] HIGH_SLIPPAGE rejections persisted with slippage details
 - [ ] PROVIDER_ERROR rejections persisted with error context
 - [ ] Existing logging and analytics behavior unchanged
 - [ ] Integration tests verify non-blocking behavior
 
 ### Phase 3 Completion
+
 - [ ] Module properly registers new schema and repository
 - [ ] Dependency injection works correctly
 - [ ] Application starts without errors
 
 ### Phase 4 Completion
+
 - [ ] RebalancingHealthRepository created with all health logic and tests
 - [ ] Simple RebalanceHealthIndicator delegates to repository
 - [ ] Health check marks DOWN based on repository logic
@@ -343,11 +376,13 @@ sequenceDiagram
 ## Rollback Strategy
 
 ### Immediate Rollback
+
 - Remove repository injection from service constructor
 - Comment out persistence method calls
 - Revert module registration changes
 
 ### Data Cleanup
+
 - MongoDB collection can be dropped safely
 - No migration scripts required for rollback
 - Existing log-based analysis remains functional
@@ -355,16 +390,19 @@ sequenceDiagram
 ## Future Enhancements
 
 ### Enhanced Health Monitoring
+
 - Configurable rejection thresholds (not just 1 hour)
 - Strategy-specific health indicators
 - Integration with alerting systems (PagerDuty, Slack)
 
 ### External Analytics Integration
+
 - Export data to external analytics platform
 - Real-time dashboards in external tools
 - Automated reporting and insights
 
 ### Advanced Health Logic
+
 - Rolling success/failure ratios
 - Weighted health scores by provider reliability
 - Predictive health degradation alerts
@@ -372,17 +410,20 @@ sequenceDiagram
 ## Dependencies
 
 ### Required Libraries
+
 - `@nestjs/mongoose` (existing)
-- `mongoose` (existing)  
+- `mongoose` (existing)
 - `uuid` (existing)
 - `viem` (existing)
 
 ### Required Services
+
 - `EcoConfigService` (existing)
 - `EcoAnalyticsService` (existing)
 - `RebalanceTokenModel` (existing)
 
 ### Database Requirements
+
 - MongoDB with mongoose connection
 - Proper indexing strategy
 - Backup/recovery procedures
@@ -390,18 +431,21 @@ sequenceDiagram
 ## Implementation Notes
 
 ### Code Quality Standards
+
 - Follow existing ESLint/Prettier configurations
 - Maintain TypeScript strict mode compliance
 - Use existing logging patterns (EcoLogMessage)
 - Follow DRY principles for repeated logic
 
 ### Security Considerations
+
 - No sensitive data in rejection records
 - Proper input validation for schema fields
 - Rate limiting for analytics queries
 - Audit trail for data access
 
 ### Performance Optimizations
+
 - Lazy loading for analytics queries
 - Connection pooling for DB operations
 - Caching for frequently accessed rejection stats
