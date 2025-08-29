@@ -7,6 +7,7 @@ import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceQuote } from '@/liquidity-manager/types/types'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { v4 as uuid } from 'uuid'
+import { getOneHourAgo, getTimeAgo } from '@/common/utils/time'
 
 /**
  * Interface for creating a new successful rebalance record.
@@ -203,7 +204,7 @@ export class RebalanceRepository {
    */
   async hasSuccessfulRebalancesInLastHour(): Promise<boolean> {
     try {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      const oneHourAgo = getOneHourAgo()
       const count = await this.model.countDocuments({
         createdAt: { $gte: oneHourAgo },
       })
@@ -230,7 +231,7 @@ export class RebalanceRepository {
    */
   async getRecentSuccessCount(timeRangeMinutes: number = 60): Promise<number> {
     try {
-      const timeAgo = new Date(Date.now() - timeRangeMinutes * 60 * 1000)
+      const timeAgo = getTimeAgo(timeRangeMinutes)
       return await this.model.countDocuments({
         createdAt: { $gte: timeAgo },
       })
