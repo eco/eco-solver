@@ -35,11 +35,11 @@ export class LiquidityProviderService {
     protected readonly relayProviderService: RelayProviderService,
     protected readonly stargateProviderService: StargateProviderService,
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
-    private readonly ecoAnalytics: EcoAnalyticsService,
     protected readonly squidProviderService: SquidProviderService,
     protected readonly cctpv2ProviderService: CCTPV2ProviderService,
     protected readonly everclearProviderService: EverclearProviderService,
     protected readonly gatewayProviderService: GatewayProviderService,
+    private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
