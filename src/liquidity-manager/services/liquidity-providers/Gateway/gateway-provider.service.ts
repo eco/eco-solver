@@ -136,12 +136,34 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
    * enqueue a single GATEWAY_TOP_UP with a fixed amount from Kernel via depositFor.
    */
   async ensureBootstrapOnce(id: string = 'bootstrap'): Promise<void> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: ensuring bootstrap',
+        id,
+      }),
+    )
     const cfg = this.configService.getGatewayConfig()
     const bootstrap = cfg.bootstrap
-    if (!bootstrap?.enabled) return
+    if (!bootstrap?.enabled) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: bootstrap is disabled',
+          id,
+        }),
+      )
+      return
+    }
 
     const chain = cfg.chains.find((c) => c.chainId === bootstrap.chainId)
-    if (!chain) return
+    if (!chain) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: bootstrap chain not found',
+          id,
+        }),
+      )
+      return
+    }
 
     const depositor = (await this.walletClientService.getAccount()).address as Hex
     // Check balance on the unified account for this domain
@@ -150,17 +172,47 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       sources: [{ domain: chain.domain, depositor }],
     })
     const entry = bal.balances.find((b) => b.domain === chain.domain)
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: bootstrap balance',
+        id,
+        properties: { entry },
+      }),
+    )
     const isZero = !entry || entry.balance === '0'
-    if (!isZero) return
+    if (!isZero) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: bootstrap balance is not zero',
+          id,
+        }),
+      )
+      return
+    }
 
     // Resolve GatewayWallet address
     const gatewayInfo = await this.getSupportedDomains(false)
     const walletAddr =
       (chain.wallet as Hex | undefined) ||
       (gatewayInfo.find((d) => d.domain === chain.domain)?.wallet as Hex | undefined)
-    if (!walletAddr) return
+    if (!walletAddr) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: bootstrap wallet address not found',
+          id,
+        }),
+      )
+      return
+    }
 
     const amount = BigInt(bootstrap.amountBase6)
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: starting bootstrap',
+        id,
+        properties: { amount },
+      }),
+    )
     await this.liquidityManagerQueue.startGatewayTopUp({
       groupID: `DummyGroupID`,
       rebalanceJobID: `DummyRebalanceJobID`,
@@ -179,18 +231,45 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'Gateway'>> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: getting quote',
+        id,
+        properties: { tokenIn, tokenOut, swapAmount },
+      }),
+    )
     const cfg = this.configService.getGatewayConfig()
     if (cfg.enabled === false) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: quote is disabled',
+          id,
+        }),
+      )
       throw new GatewayQuoteValidationError('Gateway provider is disabled')
     }
 
     if (tokenIn.chainId === tokenOut.chainId) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: same-chain route not supported',
+          id,
+          properties: { tokenIn, tokenOut, swapAmount },
+        }),
+      )
       throw new GatewayQuoteValidationError('Same-chain route not supported for Gateway')
     }
 
     const inChain = cfg.chains.find((c) => c.chainId === tokenIn.chainId)
     const outChain = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
     if (!inChain || !outChain) {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: unsupported chain pair',
+          id,
+          properties: { tokenIn, tokenOut, swapAmount },
+        }),
+      )
       throw new GatewayQuoteValidationError('Unsupported chain pair for Gateway', {
         in: tokenIn.chainId,
         out: tokenOut.chainId,
@@ -202,7 +281,14 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       !isAddressEqual(tokenIn.config.address, inChain.usdc) ||
       !isAddressEqual(tokenOut.config.address, outChain.usdc)
     ) {
-      throw new GatewayQuoteValidationError('Only USDC→USDC routes are supported')
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: only USDC -> USDC routes are supported',
+          id,
+          properties: { tokenIn, tokenOut, swapAmount },
+        }),
+      )
+      throw new GatewayQuoteValidationError('Only USDC -> USDC routes are supported')
     }
 
     // Build amounts in token-native decimals and base-6 for Gateway context
@@ -271,6 +357,14 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       id,
     }
 
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: quote built',
+        id,
+        properties: { quote },
+      }),
+    )
+
     return quote
   }
 
@@ -330,6 +424,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Gateway'>): Promise<string> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'Gateway: executing quote',
+        id: quote.id,
+        properties: { quote },
+      }),
+    )
     try {
       const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
 
@@ -558,6 +659,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     const src = domains.find((d) => d.domain === sourceDomain)
     const dst = domains.find((d) => d.domain === destinationDomain)
     if (!src || !src.wallet) {
+      this.logger.error(
+        EcoLogMessage.withId({
+          message: 'Gateway: source domain not supported by Gateway (wallet missing)',
+          id,
+          properties: { sourceDomain },
+        }),
+      )
       throw new GatewayQuoteValidationError(
         'Source domain not supported by Gateway (wallet missing)',
         {
@@ -566,6 +674,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       )
     }
     if (!dst || !dst.minter) {
+      this.logger.error(
+        EcoLogMessage.withId({
+          message: 'Gateway: destination domain not supported by Gateway (minter missing)',
+          id,
+          properties: { destinationDomain },
+        }),
+      )
       throw new GatewayQuoteValidationError(
         'Destination domain not supported by Gateway (minter missing)',
         {
