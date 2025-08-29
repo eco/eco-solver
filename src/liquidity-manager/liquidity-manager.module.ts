@@ -14,7 +14,13 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/rebalance.schema'
+import {
+  RebalanceQuoteRejectionModel,
+  RebalanceQuoteRejectionSchema,
+} from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
+import { RebalancingHealthRepository } from '@/liquidity-manager/repositories/rebalancing-health.repository'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
@@ -30,7 +36,10 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     LiquidityManagerQueue.init(),
     LiquidityManagerQueue.initFlow(),
 
-    MongooseModule.forFeature([{ name: RebalanceModel.name, schema: RebalanceSchema }]),
+    MongooseModule.forFeature([
+      { name: RebalanceModel.name, schema: RebalanceSchema },
+      { name: RebalanceQuoteRejectionModel.name, schema: RebalanceQuoteRejectionSchema },
+    ]),
   ],
   providers: [
     LiquidityManagerService,
@@ -47,7 +56,14 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     EverclearProviderService,
     GatewayProviderService,
     RebalanceRepository,
+    RebalanceQuoteRejectionRepository,
+    RebalancingHealthRepository,
   ],
-  exports: [LiquidityManagerService, RebalanceRepository],
+  exports: [
+    LiquidityManagerService,
+    RebalanceRepository,
+    RebalanceQuoteRejectionRepository,
+    RebalancingHealthRepository,
+  ],
 })
 export class LiquidityManagerModule {}
