@@ -62,28 +62,26 @@ export class RebalanceRepository {
     const map = new Map<string, bigint>()
 
     // Use simple find + in-memory sum for testability and bigint safety
-    const projection = { amountIn: 1, tokenIn: 1, wallet: 1, status: 1 }
     const docs = await this.model
-      .find({ status: RebalanceStatus.PENDING.toString(), wallet: walletAddress }, projection)
+      .find(
+        {
+          status: RebalanceStatus.PENDING.toString(),
+          wallet: walletAddress,
+        },
+        { amountIn: 1, tokenIn: 1, wallet: 1, status: 1 },
+      )
       .lean()
 
-    for (const doc of docs ?? []) {
-      const chainId: number | undefined = (doc as any)?.tokenIn?.chainId
-      const addressRaw: string | undefined = (doc as any)?.tokenIn?.tokenAddress
-      const rawAmountIn: any = (doc as any)?.amountIn
-      if (typeof chainId !== 'number' || !addressRaw || rawAmountIn === undefined) continue
+    for (const doc of docs) {
+      const { chainId, tokenAddress } = doc.tokenIn
+      const amountIn = BigInt(doc.amountIn)
 
-      let amountIn: bigint
-      try {
-        amountIn = BigInt(rawAmountIn)
-      } catch {
+      // Ignore non-positive reservations
+      if (amountIn <= 0n) {
         continue
       }
 
-      // Ignore non-positive reservations
-      if (amountIn <= 0n) continue
-
-      const key = `${chainId}:${String(addressRaw).toLowerCase()}`
+      const key = `${chainId}:${String(tokenAddress).toLowerCase()}`
       const prev = map.get(key) ?? 0n
       map.set(key, prev + amountIn)
     }
