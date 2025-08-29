@@ -40,7 +40,10 @@ describe('LiquidityManagerService', () => {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
         },
-        { provide: RebalanceRepository, useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) } },
+        {
+          provide: RebalanceRepository,
+          useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
+        },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),

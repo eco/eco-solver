@@ -56,17 +56,17 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
   const destSwapDone = new Promise<void>((resolve) => (destSwapCompleted = resolve))
 
   beforeAll(async () => {
-    const repoMock = { updateStatus: jest.fn() };
+    const repoMock = { updateStatus: jest.fn() }
 
     const fakeModuleRef = {
       get: jest.fn((token: any) => {
-        if (token === RebalanceRepository) return repoMock;
+        if (token === RebalanceRepository) return repoMock
         // return other service/repo doubles as needed
-        return {};
+        return {}
       }),
-    } as unknown as ModuleRef;
+    } as unknown as ModuleRef
 
-    jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue(fakeModuleRef);
+    jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue(fakeModuleRef)
 
     // 1) start Redis
     container = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start()
@@ -167,9 +167,14 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
     // 7.1) patch CCTPLiFiDestinationSwap.onComplete to avoid AutoInject ModuleRef access in tests
     jest
       .spyOn(CCTPLiFiDestinationSwapJobManager.prototype, 'onComplete')
-      .mockImplementation(async function (this: CCTPLiFiDestinationSwapJobManager, job: any, processor: any) {
+      .mockImplementation(async function (
+        this: CCTPLiFiDestinationSwapJobManager,
+        job: any,
+        processor: any,
+      ) {
         processor.logger.log({
-          message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully (patched)',
+          message:
+            'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully (patched)',
           properties: {
             jobId: job.data.id,
             destinationChainId: job.data.destinationChainId,

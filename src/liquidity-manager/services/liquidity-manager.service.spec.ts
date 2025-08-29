@@ -45,7 +45,10 @@ describe('LiquidityManagerService', () => {
         },
         { provide: EverclearProviderService, useValue: createMock<EverclearProviderService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
-        { provide: RebalanceRepository, useValue: { getPendingReservedByTokenForWallet: jest.fn() } },
+        {
+          provide: RebalanceRepository,
+          useValue: { getPendingReservedByTokenForWallet: jest.fn() },
+        },
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
@@ -130,13 +133,29 @@ describe('LiquidityManagerService', () => {
 
       const usdcOP = {
         chainId: 10,
-        config: { chainId: 10, address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', targetBalance: 100 },
-        balance: { address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', decimals: 6, balance: 200_000_000n },
+        config: {
+          chainId: 10,
+          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+          targetBalance: 100,
+        },
+        balance: {
+          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+          decimals: 6,
+          balance: 200_000_000n,
+        },
       }
       const tokenB = {
         chainId: 8453,
-        config: { chainId: 8453, address: '0x4200000000000000000000000000000000000006', targetBalance: 50 },
-        balance: { address: '0x4200000000000000000000000000000000000006', decimals: 6, balance: 50_000_000n },
+        config: {
+          chainId: 8453,
+          address: '0x4200000000000000000000000000000000000006',
+          targetBalance: 50,
+        },
+        balance: {
+          address: '0x4200000000000000000000000000000000000006',
+          decimals: 6,
+          balance: 50_000_000n,
+        },
       }
 
       jest

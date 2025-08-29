@@ -111,15 +111,14 @@ describe('ExecuteCCTPMintJobManager', () => {
   let mgr: ExecuteCCTPMintJobManager
   let repoMock: { updateStatus: jest.Mock }
 
-  beforeAll(() => {
-  })
+  beforeAll(() => {})
 
   beforeEach(() => {
     jest.resetAllMocks()
-    mgr = new ExecuteCCTPMintJobManager();
+    mgr = new ExecuteCCTPMintJobManager()
 
     // provide a mock so the getter never calls ModuleRef
-    (mgr as any).rebalanceRepository = {
+    ;(mgr as any).rebalanceRepository = {
       updateStatus: jest.fn(),
     }
   })

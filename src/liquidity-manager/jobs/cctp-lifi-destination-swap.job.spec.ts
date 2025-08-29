@@ -114,10 +114,10 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    mgr = new CCTPLiFiDestinationSwapJobManager();
+    mgr = new CCTPLiFiDestinationSwapJobManager()
 
     // provide a mock so the getter never calls ModuleRef
-    (mgr as any).rebalanceRepository = {
+    ;(mgr as any).rebalanceRepository = {
       updateStatus: jest.fn(),
     }
   })

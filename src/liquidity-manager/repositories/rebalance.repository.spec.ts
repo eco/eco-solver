@@ -20,7 +20,10 @@ describe('RebalanceRepository.getPendingReservedByTokenForWallet', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RebalanceRepository,
-        { provide: getModelToken(RebalanceModel.name), useValue: createMock<Model<RebalanceModel>>() },
+        {
+          provide: getModelToken(RebalanceModel.name),
+          useValue: createMock<Model<RebalanceModel>>(),
+        },
       ],
     }).compile()
 
@@ -38,8 +41,18 @@ describe('RebalanceRepository.getPendingReservedByTokenForWallet', () => {
     const addrLower = addrMixed.toLowerCase()
 
     mockFindReturn([
-      { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: addrMixed }, amountIn: 120_000_000n },
-      { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: addrLower }, amountIn: 30_000_000n },
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 10, tokenAddress: addrMixed },
+        amountIn: 120_000_000n,
+      },
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 10, tokenAddress: addrLower },
+        amountIn: 30_000_000n,
+      },
     ])
 
     const map = await repo.getPendingReservedByTokenForWallet(wallet)
@@ -51,8 +64,18 @@ describe('RebalanceRepository.getPendingReservedByTokenForWallet', () => {
     const wallet = '0xabc'
     mockFindReturn([
       { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xdead' }, amountIn: 0n },
-      { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xdead' }, amountIn: -5n },
-      { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xdead' }, amountIn: 10n },
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 10, tokenAddress: '0xdead' },
+        amountIn: -5n,
+      },
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 10, tokenAddress: '0xdead' },
+        amountIn: 10n,
+      },
     ])
 
     const map = await repo.getPendingReservedByTokenForWallet(wallet)
@@ -93,8 +116,18 @@ describe('RebalanceRepository.getPendingReservedByTokenForWallet', () => {
     mockFindReturn([
       { status: 'PENDING', wallet, tokenIn: { chainId: 10 }, amountIn: 10n }, // missing tokenAddress → skip
       { status: 'PENDING', wallet, tokenIn: { tokenAddress: '0xdead' }, amountIn: 10n }, // missing chainId → skip
-      { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xdead' }, amountIn: 25n },
-      { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xdead' }, amountIn: undefined }, // missing amountIn → skip
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 10, tokenAddress: '0xdead' },
+        amountIn: 25n,
+      },
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 10, tokenAddress: '0xdead' },
+        amountIn: undefined,
+      }, // missing amountIn → skip
     ])
 
     const map = await repo.getPendingReservedByTokenForWallet(wallet)
@@ -126,7 +159,12 @@ describe('RebalanceRepository.getPendingReservedByTokenForWallet', () => {
     mockFindReturn([
       { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xaaa' }, amountIn: 10n },
       { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xbbb' }, amountIn: 20n },
-      { status: 'PENDING', wallet, tokenIn: { chainId: 8453, tokenAddress: '0xaaa' }, amountIn: 30n },
+      {
+        status: 'PENDING',
+        wallet,
+        tokenIn: { chainId: 8453, tokenAddress: '0xaaa' },
+        amountIn: 30n,
+      },
       { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xbbb' }, amountIn: 5n },
     ])
 
@@ -137,5 +175,3 @@ describe('RebalanceRepository.getPendingReservedByTokenForWallet', () => {
     expect(map.size).toBe(3)
   })
 })
-
-
