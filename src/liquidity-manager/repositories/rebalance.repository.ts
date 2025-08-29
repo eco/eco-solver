@@ -6,6 +6,7 @@ import { Model } from 'mongoose'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceQuote } from '@/liquidity-manager/types/types'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { v4 as uuid } from 'uuid'
 import { getOneHourAgo, getTimeAgo } from '@/common/utils/time'
 
@@ -35,9 +36,9 @@ export interface CreateRebalanceData {
 }
 
 /**
- * Repository for managing successful rebalance operations in MongoDB.
+ * Repository for managing rebalance operations in MongoDB.
  *
- * This repository handles the persistence of completed rebalance operations
+ * This repository handles the persistence of both completed and pending rebalance operations
  * and provides health monitoring capabilities. It replaces direct model
  * usage in LiquidityManagerService with proper repository abstraction.
  *
@@ -46,6 +47,8 @@ export interface CreateRebalanceData {
  * - Health monitoring for successful operations
  * - Comprehensive error handling and logging
  * - Support for grouped rebalancing operations
+ * - Status tracking and updates for pending rebalances
+ * - Token reservation tracking for pending rebalances
  */
 @Injectable()
 export class RebalanceRepository {
@@ -57,6 +60,13 @@ export class RebalanceRepository {
   ) {}
 
   /**
+   * Generic query method for rebalances with optional projection
+   */
+  async queryRebalances(query: object, projection: object = {}): Promise<RebalanceModel[]> {
+    return this.model.find(query, projection)
+  }
+
+  /**
    * Persists a successful rebalance operation to the database.
    *
    * This method logs the operation and handles any persistence errors
@@ -65,30 +75,43 @@ export class RebalanceRepository {
    * @param rebalanceData - Complete rebalance information
    * @returns EcoResponse with created model or error details
    */
-  async create(rebalanceData: CreateRebalanceData): Promise<EcoResponse<RebalanceModel>> {
+  async create(rebalanceData: CreateRebalanceData): Promise<EcoResponse<RebalanceModel>>
+  /**
+   * Creates a rebalance model directly (for existing workflow compatibility)
+   */
+  async create(rebalanceModel: RebalanceModel): Promise<RebalanceModel>
+  async create(
+    data: CreateRebalanceData | RebalanceModel,
+  ): Promise<EcoResponse<RebalanceModel> | RebalanceModel> {
+    // Handle direct model creation (existing workflow)
+    if (this.isRebalanceModel(data)) {
+      return this.model.create(data)
+    }
+
+    // Handle structured rebalance data creation (new workflow)
     try {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Persisting successful rebalance',
           properties: {
-            strategy: rebalanceData.strategy,
-            wallet: rebalanceData.wallet,
-            tokenInChain: rebalanceData.tokenIn.chainId,
-            tokenOutChain: rebalanceData.tokenOut.chainId,
-            groupId: rebalanceData.groupId,
+            strategy: data.strategy,
+            wallet: data.wallet,
+            tokenInChain: data.tokenIn.chainId,
+            tokenOutChain: data.tokenOut.chainId,
+            groupId: data.groupId,
           },
         }),
       )
 
-      const rebalanceModel = await this.model.create(rebalanceData)
+      const rebalanceModel = await this.model.create(data)
 
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Successful rebalance persisted',
           properties: {
             rebalanceId: rebalanceModel._id,
-            strategy: rebalanceData.strategy,
-            groupId: rebalanceData.groupId,
+            strategy: data.strategy,
+            groupId: data.groupId,
           },
         }),
       )
@@ -99,7 +122,7 @@ export class RebalanceRepository {
         EcoLogMessage.fromDefault({
           message: 'Failed to persist successful rebalance',
           properties: {
-            rebalanceData,
+            rebalanceData: data,
             error: error.message,
           },
         }),
@@ -107,6 +130,13 @@ export class RebalanceRepository {
 
       return { error }
     }
+  }
+
+  /**
+   * Type guard to determine if the input is a RebalanceModel
+   */
+  private isRebalanceModel(data: CreateRebalanceData | RebalanceModel): data is RebalanceModel {
+    return 'toObject' in data || !('tokenIn' in data && 'tokenOut' in data)
   }
 
   /**
@@ -155,9 +185,9 @@ export class RebalanceRepository {
       }
 
       const result = await this.create(rebalanceData)
-      if (result.response) {
+      if ('response' in result && result.response) {
         results.push(result.response)
-      } else if (result.error) {
+      } else if ('error' in result && result.error) {
         errors.push(result.error)
       }
     }
@@ -192,6 +222,91 @@ export class RebalanceRepository {
     )
 
     return { response: results }
+  }
+
+  /**
+   * Updates the status of a rebalance by job ID
+   */
+  async updateStatus(
+    rebalanceJobID: string,
+    status: RebalanceStatus,
+  ): Promise<RebalanceModel | null> {
+    return this.update({ rebalanceJobID }, { status: status.toString() })
+  }
+
+  /**
+   * Generic update method for rebalance documents
+   */
+  async update(query: object, updates: object, options?: object): Promise<RebalanceModel | null> {
+    const updateOptions = options || { upsert: false, new: true }
+    const updatesData = this.updatesHasOp(updates) ? updates : { $set: updates }
+
+    const updateResponse = await this.model.findOneAndUpdate(query, updatesData, updateOptions)
+
+    if (updateResponse) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _id, ...rest } = updateResponse.toObject({ versionKey: false })
+      return rest as RebalanceModel
+    }
+
+    return null
+  }
+
+  /**
+   * Helper method to check if updates object contains MongoDB operators
+   */
+  private updatesHasOp(updates: object): boolean {
+    return Object.keys(updates).some((key) => key.startsWith('$'))
+  }
+
+  /**
+   * Insert multiple rebalance models in a single operation
+   */
+  async insertMany(models: RebalanceModel[]): Promise<any> {
+    return this.model.insertMany(models)
+  }
+
+  /**
+   * Delete multiple rebalance documents matching the query
+   */
+  async deleteMany(query: object): Promise<any> {
+    return this.model.deleteMany(query)
+  }
+
+  /**
+   * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
+   * pending rebalances for the provided wallet.
+   * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountIn
+   */
+  async getPendingReservedByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
+    const map = new Map<string, bigint>()
+
+    // Use simple find + in-memory sum for testability and bigint safety
+    const docs = await this.model
+      .find(
+        {
+          status: RebalanceStatus.PENDING.toString(),
+          wallet: walletAddress,
+        },
+        { amountIn: 1, tokenIn: 1, wallet: 1, status: 1 },
+      )
+      .lean()
+
+    for (const doc of docs) {
+      const { chainId, tokenAddress } = doc.tokenIn
+      const amountIn = BigInt(doc.amountIn)
+
+      // Ignore non-positive reservations
+      if (amountIn <= 0n) {
+        continue
+      }
+
+      const key = `${chainId}:${String(tokenAddress).toLowerCase()}`
+      const prev = map.get(key) ?? 0n
+      map.set(key, prev + amountIn)
+    }
+
+    return map
   }
 
   /**

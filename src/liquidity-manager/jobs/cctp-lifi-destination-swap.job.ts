@@ -1,15 +1,21 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
+import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
-export interface CCTPLiFiDestinationSwapJobData {
+export interface CCTPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
   messageHash: Hex
   messageBody: Hex
   attestation: Hex
@@ -23,8 +29,6 @@ export interface CCTPLiFiDestinationSwapJobData {
   }
   cctpTransactionHash?: Hex
   retryCount?: number
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type CCTPLiFiDestinationSwapJob = LiquidityManagerJob<
@@ -34,6 +38,9 @@ export type CCTPLiFiDestinationSwapJob = LiquidityManagerJob<
 >
 
 export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManager<CCTPLiFiDestinationSwapJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   /**
    * Starts a job for executing the destination swap after CCTP attestation
    */
@@ -240,11 +247,16 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
     processor.logger.log(
       EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
         id: job.data.id,
         properties: {
+          groupID,
+          rebalanceJobID,
           jobId: job.data.id,
           txHash: job.returnvalue?.txHash,
           finalAmount: job.returnvalue?.finalAmount,
@@ -253,18 +265,29 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         },
       }),
     )
+
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
   /**
    * Handles job failures with detailed error logging for recovery purposes
    */
-  onFailed(job: CCTPLiFiDestinationSwapJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(
+    job: CCTPLiFiDestinationSwapJob,
+    processor: LiquidityManagerProcessor,
+    error: unknown,
+  ) {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
     processor.logger.error(
       EcoLogMessage.withId({
         message:
           'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE - Manual intervention required for stranded USDC',
         id: job.data.id,
         properties: {
+          groupID,
+          rebalanceJobID,
           jobId: job.data.id,
           error: (error as any)?.message ?? error,
           walletAddress: job.data.walletAddress,
@@ -277,6 +300,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         },
       }),
     )
-    // This error log can be monitored for alerting systems to detect stranded USDC
+
+    if (this.isFinalAttempt(job, error)) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }

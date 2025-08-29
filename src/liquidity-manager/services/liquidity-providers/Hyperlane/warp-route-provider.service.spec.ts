@@ -8,6 +8,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 
@@ -68,6 +69,7 @@ describe('WarpRouteProviderService', () => {
           provide: EcoConfigService,
           useValue: ecoConfigServiceMock,
         },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: LiFiProviderService, useValue: createMock<LiFiProviderService>() },
         {

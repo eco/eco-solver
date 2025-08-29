@@ -6,6 +6,8 @@ import { WalletClient } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { createClient, Execute as RelayQuote, getClient } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { createMock } from '@golevelup/ts-jest'
 
 // Mock the relay-sdk
 jest.mock('@reservoir0x/relay-sdk', () => {
@@ -85,6 +87,7 @@ describe('RelayProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RelayProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: EcoConfigService,
           useValue: {

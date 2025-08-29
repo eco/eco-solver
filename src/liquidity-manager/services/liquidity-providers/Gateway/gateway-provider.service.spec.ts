@@ -8,6 +8,8 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { Hex } from 'viem'
 import { serialize } from '@/common/utils/serialize'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { createMock } from '@golevelup/ts-jest'
 
 describe('GatewayProviderService', () => {
   let service: GatewayProviderService
@@ -39,6 +41,7 @@ describe('GatewayProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GatewayProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: EcoConfigService,
           useValue: {

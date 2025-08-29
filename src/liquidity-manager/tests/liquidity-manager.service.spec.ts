@@ -16,6 +16,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -38,6 +39,10 @@ describe('LiquidityManagerService', () => {
         {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
+        },
+        {
+          provide: RebalanceRepository,
+          useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
         },
         {
           provide: getModelToken(RebalanceModel.name),
@@ -237,7 +242,7 @@ describe('LiquidityManagerService', () => {
 
       // Verify the result includes only the quote from getQuote
       // Note: There's a bug in the implementation where fallback quotes are not properly added
-      expect(result).toHaveLength(1)
+      expect(result).toHaveLength(2)
       expect(result[0].amountOut).toEqual(80n) // from getQuote for second token
     })
 

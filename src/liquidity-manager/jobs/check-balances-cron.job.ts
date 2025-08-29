@@ -5,7 +5,10 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
@@ -16,15 +19,19 @@ import {
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
 
-type CheckBalancesCronJob = LiquidityManagerJob<
+export interface CheckBalancesCronJobData extends LiquidityManagerQueueDataType {
+  wallet: string
+}
+
+export type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
-  { wallet: string }
+  CheckBalancesCronJobData
 >
 
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
-export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
+export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<CheckBalancesCronJob> {
   static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
   // static ecoCronJobManager: EcoCronJobManager
   private static ecoCronJobManagers: Record<string, EcoCronJobManager> = {}
@@ -120,7 +127,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
         surplus.items,
       )
 
-      if (!rebalancingQuotes.length) {
+      if (rebalancingQuotes.length === 0) {
         processor.logger.debug(
           EcoLogMessage.fromDefault({
             message: 'CheckBalancesCronJob: No rebalancing quotes found',
@@ -133,12 +140,10 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       }
 
       this.updateGroupBalances(processor, surplus.items, rebalancingQuotes)
-
       const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
 
       // Store rebalance request on DB
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
-
       rebalances.push(rebalanceRequest)
     }
 
