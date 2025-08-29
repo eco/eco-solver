@@ -269,6 +269,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         tokenIn: RebalanceTokenModel.fromTokenData(quote.tokenIn),
         tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
       })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Rebalance stored',
+          properties: { quote, walletAddress },
+        }),
+      )
     }
   }
 
