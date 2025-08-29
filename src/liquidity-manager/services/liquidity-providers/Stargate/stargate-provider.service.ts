@@ -127,26 +127,39 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Stargate'>) {
-    // Verify wallet matches
-    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
+    try {
+      // Verify wallet matches
+      const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
 
-    if (kernelWalletAddress !== walletAddress) {
-      const error = new Error('Stargate is not configured with the provided wallet')
-      this.logger.error(
-        EcoLogMessage.withError({
-          error,
-          message: error.message,
-          properties: { walletAddress, kernelWalletAddress },
-        }),
-      )
-      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.FAILED)
+      if (kernelWalletAddress !== walletAddress) {
+        const error = new Error('Stargate is not configured with the provided wallet')
+        this.logger.error(
+          EcoLogMessage.withError({
+            error,
+            message: error.message,
+            properties: { walletAddress, kernelWalletAddress },
+          }),
+        )
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+        throw error
+      }
+
+      // Execute the quote
+      const res = await this._execute(quote)
+      if (quote.rebalanceJobID) {
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+      }
+      return res
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
-
-    // Execute the quote
-    const res = await this._execute(quote)
-    await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
-    return res
   }
 
   private selectRoute(routes: StargateQuote[]): StargateQuote {

@@ -27,6 +27,8 @@ import {
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -40,6 +42,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly rebalanceRepository: RebalanceRepository,
 
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
@@ -99,22 +102,31 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       }),
     )
 
-    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
-    const txHash = await this._execute(walletAddress, quote)
-    const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
-    const messageBody = this.getMessageBytes(txReceipt)
-    const messageHash = this.getMessageHash(messageBody)
+    try {
+      const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
+      const txHash = await this._execute(walletAddress, quote)
+      const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
+      const messageBody = this.getMessageBytes(txReceipt)
+      const messageHash = this.getMessageHash(messageBody)
 
-    const checkCCTPAttestationJobData: CheckCCTPAttestationJobData = {
-      groupID: quote.groupID!,
-      rebalanceJobID: quote.rebalanceJobID!,
-      destinationChainId: quote.tokenOut.chainId,
-      messageHash,
-      messageBody,
-      id: quote.id,
+      const checkCCTPAttestationJobData: CheckCCTPAttestationJobData = {
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+        destinationChainId: quote.tokenOut.chainId,
+        messageHash,
+        messageBody,
+        id: quote.id,
+      }
+
+      await this.liquidityManagerQueue.startCCTPAttestationCheck(checkCCTPAttestationJobData)
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
     }
-
-    await this.liquidityManagerQueue.startCCTPAttestationCheck(checkCCTPAttestationJobData)
   }
 
   /**

@@ -143,9 +143,8 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
         properties: {
           groupID,
           rebalanceJobID,
-          chainId: job.data.destinationChainId,
+          chainId: job.data.chainId,
           txHash: job.returnvalue,
-          messageHash: job.data.messageHash,
         },
       }),
     )

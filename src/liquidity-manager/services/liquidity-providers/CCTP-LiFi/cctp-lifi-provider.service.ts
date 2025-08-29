@@ -24,6 +24,8 @@ import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -39,6 +41,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
     this.config = this.ecoConfigService.getCCTPLiFiConfig()
@@ -281,6 +284,11 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
           properties: { id: quote.id, quote, walletAddress },
         }),
       )
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
   }

@@ -166,28 +166,42 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'LiFi'>) {
-    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
+    try {
+      const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
 
-    if (kernelWalletAddress !== walletAddress) {
-      const error = new Error('LiFi is not configured with the provided wallet')
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          id: quote.id,
-          message: error.message,
-          properties: {
-            groupID: quote.groupID,
-            rebalanceJobID: quote.rebalanceJobID,
-            walletAddress,
-            kernelWalletAddress,
-          },
-        }),
-      )
+      if (kernelWalletAddress !== walletAddress) {
+        const error = new Error('LiFi is not configured with the provided wallet')
+        this.logger.error(
+          EcoLogMessage.withErrorAndId({
+            error,
+            id: quote.id,
+            message: error.message,
+            properties: {
+              groupID: quote.groupID,
+              rebalanceJobID: quote.rebalanceJobID,
+              walletAddress,
+              kernelWalletAddress,
+            },
+          }),
+        )
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+        throw error
+      }
+
+      await this._execute(quote)
+      if (quote.rebalanceJobID) {
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+      }
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
-
-    await this._execute(quote)
-    await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
   }
 
   /**

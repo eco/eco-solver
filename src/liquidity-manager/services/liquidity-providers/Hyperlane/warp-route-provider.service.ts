@@ -139,71 +139,82 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>) {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'WarpRouteProviderService: executing quote',
-        id: quote.id,
-        properties: {
-          groupID: quote.groupID,
-          rebalanceJobID: quote.rebalanceJobID,
-          tokenIn: quote.tokenIn.config.address,
-          chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenOut.config.address,
-          chainOut: quote.tokenOut.config.chainId,
-          amountIn: quote.amountIn,
-          amountOut: quote.amountOut,
-          slippage: quote.slippage,
-        },
-      }),
-    )
+    try {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'WarpRouteProviderService: executing quote',
+          id: quote.id,
+          properties: {
+            groupID: quote.groupID,
+            rebalanceJobID: quote.rebalanceJobID,
+            tokenIn: quote.tokenIn.config.address,
+            chainIn: quote.tokenIn.config.chainId,
+            tokenOut: quote.tokenOut.config.address,
+            chainOut: quote.tokenOut.config.chainId,
+            amountIn: quote.amountIn,
+            amountOut: quote.amountOut,
+            slippage: quote.slippage,
+          },
+        }),
+      )
 
-    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
-    const txHash = await withRetry(
-      () => this._execute(walletAddress, quote),
-      { maxRetries: 2, retryDelay: 2000 },
-      this.logger,
-      { operation: 'execute', quote: quote.id },
-    )
-    const receipt = await withRetry(
-      () => client.waitForTransactionReceipt({ hash: txHash }),
-      { maxRetries: 3, retryDelay: 5000 },
-      this.logger,
-      { operation: 'waitForReceipt', txHash },
-    )
+      const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
+      const txHash = await withRetry(
+        () => this._execute(walletAddress, quote),
+        { maxRetries: 2, retryDelay: 2000 },
+        this.logger,
+        { operation: 'execute', quote: quote.id },
+      )
+      const receipt = await withRetry(
+        () => client.waitForTransactionReceipt({ hash: txHash }),
+        { maxRetries: 3, retryDelay: 5000 },
+        this.logger,
+        { operation: 'waitForReceipt', txHash },
+      )
 
-    const { messageId } = this.getMessageFromReceipt(receipt)
+      const { messageId } = this.getMessageFromReceipt(receipt)
 
-    this.logger.log(
-      EcoLogMessage.withId({
-        message:
-          'WarpRouteProviderService: remote transfer executed, waiting for message to get relayed',
-        id: quote.id,
-        properties: {
-          chainId: quote.tokenIn.config.chainId,
-          transactionHash: txHash,
-          destinationChainId: quote.tokenOut.config.chainId,
-          messageId,
-        },
-      }),
-    )
+      this.logger.log(
+        EcoLogMessage.withId({
+          message:
+            'WarpRouteProviderService: remote transfer executed, waiting for message to get relayed',
+          id: quote.id,
+          properties: {
+            chainId: quote.tokenIn.config.chainId,
+            transactionHash: txHash,
+            destinationChainId: quote.tokenOut.config.chainId,
+            messageId,
+          },
+        }),
+      )
 
-    // Used to complete the job only after the message is relayed
-    await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
+      // Used to complete the job only after the message is relayed
+      await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
 
-    this.logger.log(
-      EcoLogMessage.withId({
-        id: quote.id,
-        message: 'WarpRouteProviderService: message relayed',
-        properties: {
-          chainId: quote.tokenOut.config.chainId,
-          transactionHash: txHash,
-          messageId,
-        },
-      }),
-    )
+      this.logger.log(
+        EcoLogMessage.withId({
+          id: quote.id,
+          message: 'WarpRouteProviderService: message relayed',
+          properties: {
+            chainId: quote.tokenOut.config.chainId,
+            transactionHash: txHash,
+            messageId,
+          },
+        }),
+      )
 
-    await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
-    return txHash
+      if (quote.rebalanceJobID) {
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+      }
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
+    }
   }
 
   private getRemoteTransferQuote(

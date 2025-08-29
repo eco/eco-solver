@@ -16,6 +16,8 @@ import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitte
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
@@ -30,6 +32,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -174,23 +177,32 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         properties: { quote, walletAddress },
       }),
     )
-    const txHash = await this._execute(walletAddress, quote)
+    try {
+      const txHash = await this._execute(walletAddress, quote)
 
-    const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
+      const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
 
-    const checkCCTPV2AttestationJobData: CheckCCTPV2AttestationJobData = {
-      groupID: quote.groupID!,
-      rebalanceJobID: quote.rebalanceJobID!,
-      destinationChainId: quote.tokenOut.chainId,
-      transactionHash: txHash,
-      sourceDomain: sourceDomain,
-      context: serialize(quote.context),
-      id: quote.id,
+      const checkCCTPV2AttestationJobData: CheckCCTPV2AttestationJobData = {
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+        destinationChainId: quote.tokenOut.chainId,
+        transactionHash: txHash,
+        sourceDomain: sourceDomain,
+        context: serialize(quote.context),
+        id: quote.id,
+      }
+
+      await this.liquidityManagerQueue.startCCTPV2AttestationCheck(checkCCTPV2AttestationJobData)
+
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
     }
-
-    await this.liquidityManagerQueue.startCCTPV2AttestationCheck(checkCCTPV2AttestationJobData)
-
-    return txHash
   }
 
   private async _execute(walletAddress: string, quote: RebalanceQuote<'CCTPV2'>): Promise<Hex> {

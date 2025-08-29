@@ -8,6 +8,7 @@ import { getQueueToken } from '@nestjs/bullmq'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { Hex, parseUnits } from 'viem'
 import { EverclearApiError } from './everclear.errors'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
@@ -70,6 +71,7 @@ describe('EverclearProviderService', () => {
         EverclearProviderService,
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<any>() },
         {
           provide: CACHE_MANAGER,
