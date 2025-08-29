@@ -39,7 +39,7 @@ export class RebalanceModel {
   @Prop({
     required: true,
     enum: RebalanceStatus.enumKeys,
-    default: RebalanceStatus.COMPLETED.toString(),
+    default: RebalanceStatus.PENDING.toString(),
   })
   status: string
 

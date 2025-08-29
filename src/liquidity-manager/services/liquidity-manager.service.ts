@@ -1,5 +1,3 @@
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
@@ -21,9 +19,9 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -54,8 +52,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     private readonly queue: LiquidityManagerQueueType,
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
-    @InjectModel(RebalanceModel.name)
-    private readonly rebalanceModel: Model<RebalanceModel>,
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderService,
@@ -257,7 +253,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       quote.groupID = groupID
       quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
 
-      await this.rebalanceModel.create({
+      await this.rebalanceRepository.create({
         rebalanceJobID: quote.rebalanceJobID,
         groupId: quote.groupID,
         wallet: walletAddress,
@@ -268,6 +264,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         context: quote.context,
         tokenIn: RebalanceTokenModel.fromTokenData(quote.tokenIn),
         tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
+        status: RebalanceStatus.PENDING.toString(),
       })
 
       this.logger.debug(
