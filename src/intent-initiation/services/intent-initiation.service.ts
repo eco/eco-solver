@@ -246,7 +246,8 @@ export class IntentInitiationService implements OnModuleInit {
       },
     }
   }
-  async executeFinalPermitTransfer(
+
+  private async executeFinalPermitTransfer(
     chainID: number,
     permit3: Permit3DTO,
   ): Promise<EcoResponse<string>> {
@@ -297,6 +298,10 @@ export class IntentInitiationService implements OnModuleInit {
 
       return { error: InternalQuoteError(new Error(`executeFinalPermitTransfer`)) }
     }
+  }
+
+  private hasFinalPermitTransfer(permit3: Permit3DTO): boolean {
+    return permit3.allowanceOrTransfers.length > 1
   }
 
   async processFulfilled(fulfillmentLog: FulfillmentLog) {
@@ -393,6 +398,18 @@ export class IntentInitiationService implements OnModuleInit {
         },
       }),
     )
+
+    // Check to see if a final transfer was provided
+    const hasFinalTransfer = this.hasFinalPermitTransfer(permit3)
+
+    if (!hasFinalTransfer) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `processFulfilled: no final permit transfer found for intentGroupID ${intentGroupID}`,
+        }),
+      )
+      return
+    }
 
     const { response: txHash, error: finalTxError } = await this.executeFinalPermitTransfer(
       destinationChainID,
