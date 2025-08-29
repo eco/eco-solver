@@ -63,34 +63,52 @@ Based on the architectural agent's analysis:
 - `hasRejectionsInLastHour()`: Check if any rejections occurred in last hour (for health monitoring)
 - `getRecentRejectionCount(timeRange)`: Get count of rejections in time range (for health monitoring)
 
-#### Rebalance Repository (New)
+#### Rebalance Repository (Updated from Merged Branch)
 
 **Location**: `src/liquidity-manager/repositories/rebalance.repository.ts`
 
 **Core Methods**:
 
-- `create(rebalanceData)`: Persist successful rebalance with logging
+- `create(rebalanceData | rebalanceModel)`: Method overloading for both structured data and direct model creation (supports both new and existing workflows)
 - `createBatch(walletAddress, quotes, groupId)`: Persist multiple rebalances (moved from LiquidityManagerService)
+- `queryRebalances(query, projection)`: Generic query method for rebalances with optional projection
+- `updateStatus(rebalanceJobID, status)`: Updates the status of a rebalance by job ID
+- `update(query, updates, options)`: Generic update method for rebalance documents
+- `insertMany(models)`: Insert multiple rebalance models in a single operation
+- `deleteMany(query)`: Delete multiple rebalance documents matching the query
+- `getPendingReservedByTokenForWallet(walletAddress)`: Returns reserved amounts for pending rebalances by token
 - `hasSuccessfulRebalancesInLastHour()`: Check for successful rebalances in last hour (for health monitoring)
 - `getRecentSuccessCount(timeRange)`: Get count of successful rebalances in time range (for health monitoring)
 
-#### Rebalancing Health Repository (New)
+#### Rebalancing Health Repository (Already Implemented)
 
 **Location**: `src/liquidity-manager/repositories/rebalancing-health.repository.ts`
+
+**Status**: ✅ **Already implemented** - This repository exists and includes comprehensive health monitoring
 
 **Core Methods**:
 
 - `checkRebalancingHealth()`: Main health check logic combining success/failure data
-- `getHealthStatus()`: Returns health status with detailed metrics
+- `getHealthStatus()`: Alias for checkRebalancingHealth() for consistent API naming
 - `isSystemHealthy()`: Boolean health check for health indicator
-- `getHealthMetrics(timeRange)`: Detailed health metrics for monitoring
+- `getHealthMetrics(timeRange)`: Detailed health metrics for monitoring with configurable time ranges
 
-**Health Logic**:
+**Health Logic** (Already Implemented):
 
-- Aggregates data from both rebalance and rejection repositories
+- Aggregates data from both rebalance and rejection repositories via constructor injection
 - Implements rolling counter logic for success vs failure rates
 - Marks system as DOWN if rejections in last hour AND no successful rebalances
-- Contains all health-related business logic and tests
+- Provides both HealthStatus and HealthMetrics interfaces for different use cases
+- Contains comprehensive error handling and logging
+- Supports flexible time ranges for analytics and trend monitoring
+
+**Key Features** (Already Present):
+
+- **Health Status Interface**: Includes isHealthy boolean, counts, and human-readable reasons
+- **Health Metrics Interface**: Provides success rates, time ranges, and detailed analytics
+- **Comprehensive Error Handling**: Gracefully handles failures and returns appropriate status
+- **Flexible Time Ranges**: Supports any time window for metrics calculation
+- **Clear Health Logic**: Well-documented rules for UP/DOWN status determination
 
 #### Logging Strategy:
 
@@ -116,42 +134,45 @@ Based on the architectural agent's analysis:
 
 ### Phase 1: Foundation (Schema + Repositories)
 
-**Estimated Time**: 3-4 hours
+**Estimated Time**: ~~3-4 hours~~ **2-3 hours** (reduced due to existing implementations)
 
 #### Tasks:
 
-1. **Create Rejection Reason Enum**
+1. **✅ COMPLETED - Rebalance Repository**
+   - ✅ Already exists with comprehensive CRUD operations
+   - ✅ Includes method overloading for both new and existing workflows  
+   - ✅ Has health monitoring methods (`hasSuccessfulRebalancesInLastHour`, `getRecentSuccessCount`)
+   - ✅ Includes error handling and logging with EcoResponse pattern
+   - ✅ Supports status tracking with RebalanceStatus enum (PENDING, COMPLETED, FAILED)
+   - ✅ Has pending reservation tracking for wallet-based token management
+
+2. **✅ COMPLETED - Rebalancing Health Repository**
+   - ✅ Already exists with full health monitoring logic
+   - ✅ Implements comprehensive health status calculation
+   - ✅ Provides both boolean health checks and detailed metrics
+   - ✅ Supports flexible time ranges for monitoring
+   - ✅ Includes comprehensive error handling and logging
+
+3. **Create Rejection Reason Enum**
    - Location: `src/liquidity-manager/schemas/rebalance-quote-rejection.schema.ts`
    - Values: `HIGH_SLIPPAGE`, `PROVIDER_ERROR`, `INSUFFICIENT_LIQUIDITY`, `TIMEOUT`
 
-2. **Create Rebalance Quote Rejection Schema**
+4. **Create Rebalance Quote Rejection Schema**
    - Extend existing patterns from `RebalanceModel`
    - Reuse `RebalanceTokenModel` for token data consistency
    - Add strategic indexes for query performance
 
-3. **Implement Rebalance Quote Rejection Repository**
-   - Follow existing repository patterns
+5. **Implement Rebalance Quote Rejection Repository**
+   - Follow existing repository patterns (similar to the already-implemented rebalance repository)
    - Include error handling and logging
-   - Add health monitoring methods
-
-4. **Create Rebalance Repository**
-   - Move `RebalanceModel` operations from `LiquidityManagerService`
-   - Implement `create()` and `createBatch()` methods
-   - Add health monitoring methods for successful rebalances
-   - Include error handling and logging
-
-5. **Create Rebalancing Health Repository**
-   - Implement all health check business logic
-   - Inject both `RebalanceRepository` and `RebalanceQuoteRejectionRepository`
-   - Implement rolling counter and health status logic
-   - Include comprehensive health metrics and reporting
+   - Add health monitoring methods (hasRejectionsInLastHour, getRecentRejectionCount)
 
 6. **Write Unit Tests**
-   - Schema validation tests
-   - All repository CRUD operation tests
+   - Schema validation tests for rejection schema
+   - Rejection repository CRUD operation tests  
    - Error handling scenarios
-   - Comprehensive health logic tests (in rebalancing health repository)
-   - Health calculation edge cases and scenarios
+   - ~~Health repository tests already exist~~
+   - Integration tests for health logic with rejection data
 
 ### Phase 2: Service Integration (Core Logic)
 
@@ -193,9 +214,10 @@ Based on the architectural agent's analysis:
    - Add rejection persistence with error details
    - Include error message, code, and stack trace
 
-6. **Update LiquidityManagerService.storeRebalancing** (Lines 190-205)
-   - Replace direct model usage with repository
-   - Move logging to repository layer
+6. **✅ PARTIALLY COMPLETED - Update LiquidityManagerService.storeRebalancing** (Lines 190-205)
+   - ✅ RebalanceRepository already exists with `createBatch` method for this purpose
+   - ⏳ Need to update service to use repository instead of direct model usage
+   - ✅ Repository already handles logging centrally
 
 7. **Add Fallback Method Enhancement**
    - Extend existing fallback rejection logic
@@ -229,16 +251,16 @@ Based on the architectural agent's analysis:
 
 ### Phase 4: Health Monitoring Integration
 
-**Estimated Time**: 2-3 hours
+**Estimated Time**: ~~2-3 hours~~ **1-2 hours** (reduced due to existing health repository)
 
 #### Tasks:
 
 1. **Create Simple Rebalance Health Indicator**
    - Location: `src/health/indicators/rebalance-health.indicator.ts`
    - Implement `HealthIndicator` interface
-   - Inject only `RebalancingHealthRepository`
-   - Simple delegation to repository's `isSystemHealthy()` method
-   - Minimal logic - all business logic in repository
+   - Inject only `RebalancingHealthRepository` (already exists)
+   - Simple delegation to repository's `isSystemHealthy()` method (already implemented)
+   - Minimal logic - all business logic already in repository
 
 2. **Integrate with Health Module**
    - Add `RebalanceHealthIndicator` to `health.module.ts`
@@ -248,12 +270,17 @@ Based on the architectural agent's analysis:
 
 3. **Write Health Indicator Tests**
    - Simple delegation tests
-   - Mock repository responses
+   - Mock repository responses (repository already has comprehensive tests)
    - Verify health endpoint integration
 
 4. **Add Analytics Event for Health**
    - `ANALYTICS_EVENTS.LIQUIDITY_MANAGER.QUOTE_REJECTION_PERSISTENCE_ERROR`
    - Track DB persistence failures only
+
+**Note**: The RebalancingHealthRepository already provides comprehensive health monitoring with:
+- Status tracking for PENDING, COMPLETED, FAILED rebalances (via RebalanceStatus enum)
+- Detailed health metrics with success rates and time ranges
+- Comprehensive error handling and fallback status responses
 
 ## File Structure
 
@@ -265,15 +292,15 @@ src/liquidity-manager/
 │   └── rebalance-quote-rejection.schema.ts (new)
 ├── repositories/
 │   ├── rebalance-quote-rejection.repository.ts (new)
-│   ├── rebalance.repository.ts (new)
-│   └── rebalancing-health.repository.ts (new)
+│   ├── rebalance.repository.ts (✅ exists - merged from branch)
+│   └── rebalancing-health.repository.ts (✅ exists - implemented)
 ├── services/
 │   ├── liquidity-provider.service.ts (modify)
 │   └── liquidity-manager.service.ts (modify)
 ├── tests/
 │   ├── rebalance-quote-rejection.repository.spec.ts (new)
-│   ├── rebalance.repository.spec.ts (new)
-│   ├── rebalancing-health.repository.spec.ts (new)
+│   ├── rebalance.repository.spec.ts (✅ exists - check if needs updates)
+│   ├── rebalancing-health.repository.spec.ts (✅ exists - implemented)
 │   ├── liquidity-provider.service.spec.ts (modify)
 │   └── liquidity-manager.service.spec.ts (modify)
 └── liquidity-manager.module.ts (modify)
