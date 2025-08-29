@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex } from 'viem'
+import { Hex, encodeAbiParameters } from 'viem'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -245,12 +245,27 @@ export class ValidateIntentService implements OnModuleInit {
       }
 
       // Check if the intent is funded
+      const chainIntent = IntentDataModel.toIntentV2(model.intent)
+      const encodedRoute = encodeAbiParameters([{
+        type: 'tuple',
+        components: [
+          { name: 'salt', type: 'bytes32' },
+          { name: 'deadline', type: 'uint64' },
+          { name: 'portal', type: 'address' },
+          { name: 'nativeAmount', type: 'uint256' },
+          { name: 'tokens', type: 'tuple[]', components: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }] },
+          { name: 'calls', type: 'tuple[]', components: [{ name: 'target', type: 'address' }, { name: 'data', type: 'bytes' }, { name: 'value', type: 'uint256' }] }
+        ]
+      }], [chainIntent.route])
       isIntentFunded = await client.readContract({
         address: intentSource.sourceAddress,
         abi: portalAbi,
         functionName: 'isIntentFunded',
         args: [IntentDataModel.toIntentV2(model.intent) as IntentV2Pure],
       })
+      console.log('WUTANG encodedRoute', encodedRoute)
+      console.log('WUTANG chainIntent.reward', chainIntent.reward)
+      console.log('WUTANG isIntentFunded', isIntentFunded)
 
       retryCount++
     } while (!isIntentFunded && retryCount <= this.MAX_RETRIES)

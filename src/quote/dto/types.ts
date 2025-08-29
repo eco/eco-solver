@@ -1,4 +1,5 @@
-import { RewardType, RouteType } from '@eco-foundation/routes-ts'
+import { V2RouteType } from '@/contracts'
+import { RewardType } from '@eco-foundation/routes-ts'
 import { Prettify } from 'viem'
 
 /**
@@ -15,4 +16,4 @@ export type RewardTokensType = Prettify<RewardType['tokens'][number]>
  * @param data denotes the data of the call
  * @param value denotes the native token value of the call
  */
-export type CallDataType = RouteType['calls'][number]
+export type CallDataType = V2RouteType['calls'][number]

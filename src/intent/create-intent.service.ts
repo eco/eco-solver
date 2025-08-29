@@ -19,7 +19,7 @@ import {
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '@/flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { hashIntent } from '@/utils/encodeAndHash'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
@@ -77,8 +77,6 @@ export class CreateIntentService implements OnModuleInit {
       data: intentWs.data,
     })
 
-    // route in the event is bytes encoded with a length prefix
-    // skipping the first 32 bytes (length prefix) and decode the actual Route struct
     const { salt, deadline, portal, nativeAmount, tokens, calls } = decodeAbiParameters(
       [routeStructAbiItem],
       ei.args.route,
@@ -123,12 +121,13 @@ export class CreateIntentService implements OnModuleInit {
         return
       }
 
-      const validWallet = this.flagService.getFlagValue('bendWalletOnly')
+      let validWallet = this.flagService.getFlagValue('bendWalletOnly')
         ? await this.validSmartWalletService.validateSmartWallet(
             intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
+        validWallet = true; // TODO: remove this
 
       //create db record
       const record = await this.intentModel.create({
@@ -151,7 +150,7 @@ export class CreateIntentService implements OnModuleInit {
       } else {
         // Track intent created but not queued due to invalid wallet
         this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
-      }
+      } 
 
       this.logger.log(
         EcoLogMessage.fromDefault({
@@ -183,13 +182,13 @@ export class CreateIntentService implements OnModuleInit {
   async createIntentFromIntentInitiation(
     quoteID: string,
     funder: Hex,
-    route: RouteType,
+    route: V2RouteType,
     reward: QuoteRewardDataModel,
   ) {
     try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
-      const intentHash = hashIntent({ route, reward }).intentHash
+      const { salt, source, destination, deadline: executionDeadline, portal, tokens: routeTokens, calls } = route
+      const { creator, prover, deadline: claimDeadline, nativeValue, tokens: rewardTokens } = reward
+      const intentHash = hashIntent(destination, route, { ...reward, nativeAmount: nativeValue }).intentHash
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
@@ -215,12 +214,13 @@ export class CreateIntentService implements OnModuleInit {
         salt,
         source,
         destination,
-        inbox,
+        inbox: portal,
         routeTokens: routeTokens as RewardTokensInterface[],
         calls: calls as CallDataInterface[],
         creator,
         prover,
-        deadline,
+        executionDeadline,
+        claimDeadline,
         nativeValue,
         rewardTokens,
         logIndex: 0,

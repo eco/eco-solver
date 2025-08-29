@@ -1,7 +1,6 @@
-import { CallDataInterface } from '@/contracts'
+import { CallDataInterface, V2RouteType } from '@/contracts'
 import { QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
-import { RouteType } from '@eco-foundation/routes-ts'
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
 import { ArrayNotEmpty, IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
@@ -43,6 +42,16 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @ApiProperty()
   @Type(() => QuoteCallDataDTO)
   calls: QuoteCallDataDTO[]
+
+  @IsNotEmpty()
+  @Transform(({ value }) => BigInt(value))
+  @ApiProperty()
+  deadline: bigint
+
+  @IsNotEmpty()
+  @Transform(({ value }) => BigInt(value))
+  @ApiProperty()
+  nativeAmount: bigint
 }
 
 /**
@@ -67,4 +76,6 @@ export class QuoteCallDataDTO implements CallDataInterface {
   value: bigint
 }
 
-export interface QuoteRouteDataInterface extends Omit<RouteType, 'salt'> {}
+export interface QuoteRouteDataInterface extends Omit<V2RouteType, 'salt' | 'portal'> {
+  inbox: Hex
+}
