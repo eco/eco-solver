@@ -75,8 +75,7 @@ export class EcoSolverConfigService {
 
     // Validate merged config with Zod schema
     try {
-      //   this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
-      this.mergedConfig = mergedRawConfig
+      this.mergedConfig = EcoSolverConfigSchema.parse(mergedRawConfig)
       // Initialize EcoChains with RPC keys
       const rpcKeys = this.mergedConfig.rpcs?.keys || {}
       this.ecoChains = new EcoChains(rpcKeys)
@@ -144,7 +143,7 @@ export class EcoSolverConfigService {
       Object.entries(solvers).map(([chainId, solver]) => {
         const config = getChainConfig(parseInt(chainId))
         return [
-          chainId,
+          parseInt(chainId),
           {
             ...solver,
             inboxAddress: config.Inbox,

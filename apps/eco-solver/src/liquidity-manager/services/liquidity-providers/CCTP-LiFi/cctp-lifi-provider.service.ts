@@ -44,7 +44,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     this.config = this.ecoConfigService.getCCTPLiFiConfig()
 
     // Initialize CCTPLiFiRoutePlanner with config values
-    CCTPLiFiRoutePlanner.updateUSDCAddresses(this.config.usdcAddresses)
+    // CCTPLiFiRoutePlanner.updateUSDCAddresses(this.config.usdcAddresses)
   }
 
   getStrategy() {

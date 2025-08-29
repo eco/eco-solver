@@ -55,33 +55,14 @@ const DatabaseConfigSchema = z.object({
 
 // Eco-solver specific schemas
 export const SolverConfigSchema = z.object({
-  chainID: z.number(),
+  chainID: z.union([z.number(), z.string().transform(val => parseInt(val))]),
   inboxAddress: addressSchema.optional(),
   network: z.string().optional(),
-  targets: z
-    .record(
-      z.string(),
-      z.object({
-        contractType: z.enum(['erc20', 'erc721', 'erc1155']),
-        selectors: z.array(z.string()),
-        minBalance: z.number(),
-        targetBalance: z.number().optional(),
-      }),
-    )
-    .optional(),
-  fee: z
-    .object({
-      limit: z.object({
-        tokenBase6: z.bigint(),
-        nativeBase18: z.bigint(),
-      }),
-      algorithm: z.enum(['linear', 'quadratic']),
-      constants: z.any(),
-    })
-    .optional(),
+  targets: z.record(z.string(), z.any()).optional(),
+  fee: z.any().optional(),
   averageBlockTime: z.number().optional(),
   gasOverhead: z.number().optional(),
-})
+}).catchall(z.any())
 
 export const IntentSourceSchema = z.object({
   network: z.string().optional(),
@@ -99,12 +80,16 @@ export const IntentSourceSchema = z.object({
 
 // Redis specific schema
 export const RedisConfigSchema = z.object({
-  connection: z
-    .object({
+  connection: z.union([
+    z.object({
       host: z.string(),
       port: z.number(),
-    })
-    .optional(),
+    }),
+    z.array(z.object({
+      host: z.string(),
+      port: z.number().optional(),
+    }))
+  ]).optional(),
   options: z
     .object({
       single: z
@@ -297,15 +282,15 @@ export const EcoSolverDatabaseConfigSchema = z.object({
   uriPrefix: z.string(),
   uri: z.string(),
   dbName: z.string(),
-  enableJournaling: z.boolean(),
+  enableJournaling: z.boolean().default(false),
 })
 
 // ETH configuration schema
 export const EthConfigSchema = z.object({
   simpleAccount: z.object({
-    signerPrivateKey: hexSchema,
-    minEthBalanceWei: z.string(),
-    contracts: z.record(z.string(), z.any()),
+    signerPrivateKey: hexSchema.optional(),
+    minEthBalanceWei: z.union([z.string(), z.number().transform(val => val.toString())]),
+    contracts: z.record(z.string(), z.any()).optional(),
     walletAddr: addressSchema.optional(),
   }),
   pollingInterval: z.number(),
@@ -315,6 +300,7 @@ export const EthConfigSchema = z.object({
       update_interval_ms: z.number(),
     })
     .optional(),
+  privateKey: hexSchema.optional(),
 })
 
 // Complete eco-solver config schema using generic base schemas
@@ -326,7 +312,7 @@ export const EcoSolverConfigSchema = z.object({
   database: EcoSolverDatabaseConfigSchema.optional(),
 
   // Add eco-solver specific sections
-  solvers: z.record(z.number(), SolverConfigSchema).optional(),
+  solvers: z.record(z.string(), SolverConfigSchema).optional(),
   intentSources: z.array(IntentSourceSchema).optional(),
   rpcs: RpcConfigSchema.optional(),
   redis: RedisConfigSchema.optional(),
@@ -348,16 +334,10 @@ export const EcoSolverConfigSchema = z.object({
   CCTPLiFi: CCTPConfigSchema.optional(),
   hyperlane: z
     .object({
-      useHyperlaneDefaultHook: z.boolean(),
-      chains: z.record(
-        z.string(),
-        z.object({
-          mailbox: addressSchema,
-          aggregationHook: addressSchema,
-          hyperlaneAggregationHook: addressSchema,
-        }),
-      ),
+      useHyperlaneDefaultHook: z.boolean().optional(),
+      chains: z.record(z.string(), z.any()).optional(),
     })
+    .catchall(z.any())
     .optional(),
 
   // Additional eco-solver specific config sections
@@ -396,7 +376,7 @@ export const EcoSolverConfigSchema = z.object({
   fulfillmentEstimate: z
     .object({
       executionPaddingSeconds: z.number(),
-      blockTimePercentile: z.number(),
+      blockTimePercentile: z.union([z.number(), z.string()]),
       defaultBlockTime: z.number(),
     })
     .optional(),
@@ -480,4 +460,5 @@ export type TargetConfig = {
   selectors: string[]
   minBalance: number
   targetBalance?: number
+  maxBalance?: number
 }
