@@ -33,9 +33,10 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     rebalance: RebalanceRequest,
     queueName: string,
   ): FlowChildJob {
+    const firstQuote = rebalance.quotes?.[0]
     const data: RebalanceJobData = {
-      groupID: 'DummyGroupID',
-      rebalanceJobID: 'DummyRebalanceJobID',
+      groupID: firstQuote?.groupID ?? 'UnknownGroupID',
+      rebalanceJobID: firstQuote?.rebalanceJobID ?? 'UnknownRebalanceJobID',
       walletAddress,
       network: rebalance.token.config.chainId.toString(),
       rebalance: serialize(rebalance),
