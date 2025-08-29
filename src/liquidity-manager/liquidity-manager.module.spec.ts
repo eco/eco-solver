@@ -1,6 +1,6 @@
 /**
  * Unit tests for LiquidityManagerModule
- * 
+ *
  * Tests module registration, dependency injection, and schema configuration
  * to ensure all repositories and schemas are properly wired for Phase 3.
  */
@@ -124,10 +124,10 @@ describe('LiquidityManagerModule', () => {
       // Access private properties for testing dependency injection
       const injectedRebalanceRepo = (healthRepository as any).rebalanceRepository
       const injectedRejectionRepo = (healthRepository as any).rejectionRepository
-      
+
       expect(injectedRebalanceRepo).toBeDefined()
       expect(injectedRebalanceRepo).toBeInstanceOf(RebalanceRepository)
-      
+
       expect(injectedRejectionRepo).toBeDefined()
       expect(injectedRejectionRepo).toBeInstanceOf(RebalanceQuoteRejectionRepository)
     })
@@ -169,11 +169,11 @@ describe('LiquidityManagerModule', () => {
       expect(rebalanceRepository).toBeDefined()
       expect(rejectionRepository).toBeDefined()
       expect(healthRepository).toBeDefined()
-      
+
       // Verify health repository has access to both data repositories
       const healthRepoRebalanceRepo = (healthRepository as any).rebalanceRepository
       const healthRepoRejectionRepo = (healthRepository as any).rejectionRepository
-      
+
       expect(healthRepoRebalanceRepo).toBeInstanceOf(RebalanceRepository)
       expect(healthRepoRejectionRepo).toBeInstanceOf(RebalanceQuoteRejectionRepository)
     })
@@ -182,7 +182,7 @@ describe('LiquidityManagerModule', () => {
       // Verify each repository has its model injected
       const rebalanceModel = (rebalanceRepository as any).model
       const rejectionModel = (rejectionRepository as any).model
-      
+
       expect(rebalanceModel).toBeDefined()
       expect(rejectionModel).toBeDefined()
     })
