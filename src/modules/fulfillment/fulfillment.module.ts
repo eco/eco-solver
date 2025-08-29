@@ -30,7 +30,6 @@ import {
 import { IntentsModule } from '@/modules/intents/intents.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { ProverModule } from '@/modules/prover/prover.module';
-import { QueueModule } from '@/modules/queue/queue.module';
 import { TokenModule } from '@/modules/token/token.module';
 
 @Module({

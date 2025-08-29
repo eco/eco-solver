@@ -1,8 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { type Address, type Hex } from 'viem';
+
 import { AppModule } from '@/app.module';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { type Address, type Hex } from 'viem';
 
 // Increase Jest timeout for integration tests
 jest.setTimeout(30000);
@@ -16,7 +18,7 @@ describe('Standard Fulfillment Flow Integration', () => {
     console.log('Make sure MongoDB and Redis are running locally');
     console.log('MongoDB should be on: mongodb://localhost:27017/test');
     console.log('Redis should be on: localhost:6379');
-    
+
     try {
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
@@ -28,8 +30,13 @@ describe('Standard Fulfillment Flow Integration', () => {
       fulfillmentService = app.get<FulfillmentService>(FulfillmentService);
       console.log('Application initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize application. Make sure MongoDB and Redis are running:', error.message);
-      throw new Error('Prerequisites not met: MongoDB and Redis must be running. Start them with: docker-compose up -d mongodb redis');
+      console.error(
+        'Failed to initialize application. Make sure MongoDB and Redis are running:',
+        error.message,
+      );
+      throw new Error(
+        'Prerequisites not met: MongoDB and Redis must be running. Start them with: docker-compose up -d mongodb redis',
+      );
     }
   }, 30000);
 
@@ -78,12 +85,12 @@ describe('Standard Fulfillment Flow Integration', () => {
     };
 
     console.log('Submitting intent with hash:', intent.intentHash);
-    
+
     // Call submitIntent as it would be called in production
     await fulfillmentService.submitIntent(intent, 'standard');
-    
+
     console.log('Intent submitted successfully to fulfillment queue');
-    
+
     // If it doesn't throw, the test passes
     expect(true).toBe(true);
   }, 10000);

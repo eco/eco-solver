@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
-import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
-
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 

@@ -74,18 +74,16 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   async execute(intent: Intent): Promise<void> {
-    const span = this.otelService.startSpan('negative-intents-strategy.execute', {
-      attributes: {
+    return this.otelService.withSpan('negative-intents-strategy.execute', async (span) => {
+      span.setAttributes({
         'intent.hash': intent.intentHash,
         'intent.source_chain': intent.sourceChainId.toString(),
         'intent.destination_chain': intent.destination.toString(),
         'intent.native_value': intent.reward.nativeAmount.toString(),
         'intent.tokens_count': intent.route.tokens.length + intent.reward.tokens.length,
         'strategy.name': this.name,
-      },
-    });
+      });
 
-    try {
       // Get wallet ID for this intent
       const walletId = await this.getWalletIdForIntent(intent);
 
@@ -105,18 +103,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
         queue: 'execution',
         strategy: this.name,
       });
-
-      span.setStatus({ code: 1 }); // Success
-    } catch (error) {
-      span.setStatus({
-        code: 2, // Error
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-      span.recordException(error as Error);
-      throw error;
-    } finally {
-      span.end();
-    }
+    });
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

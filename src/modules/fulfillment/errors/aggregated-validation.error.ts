@@ -13,9 +13,9 @@ export class AggregatedValidationError extends ValidationError {
   constructor(errors: Error[]) {
     const errorMessages = errors.map((error) => error.message).join('; ');
     const aggregatedType = AggregatedValidationError.determineAggregatedType(errors);
-    
+
     super(`Validation failures: ${errorMessages}`, aggregatedType, 'Multiple');
-    
+
     this.name = 'AggregatedValidationError';
     this.individualErrors = errors;
   }
@@ -52,7 +52,9 @@ export class AggregatedValidationError extends ValidationError {
    * Get individual validation errors that failed
    */
   getValidationErrors(): ValidationError[] {
-    return this.individualErrors.filter((error) => error instanceof ValidationError) as ValidationError[];
+    return this.individualErrors.filter(
+      (error) => error instanceof ValidationError,
+    ) as ValidationError[];
   }
 
   /**

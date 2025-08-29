@@ -71,15 +71,13 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   async execute(intent: Intent): Promise<void> {
-    const span = this.otelService.startSpan(`strategy.${this.name}.execute`, {
-      attributes: {
+    return this.otelService.withSpan(`strategy.${this.name}.execute`, async (span) => {
+      span.setAttributes({
         'strategy.name': this.name,
         'intent.hash': intent.intentHash,
         'intent.destination_chain': intent.destination.toString(),
-      },
-    });
+      });
 
-    try {
       // Get wallet ID for this intent
       const walletId = await this.getWalletIdForIntent(intent);
       span.setAttribute('intent.wallet_type', walletId);
@@ -93,14 +91,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
       });
 
       span.addEvent('intent.queued_for_execution');
-      span.setStatus({ code: 1 }); // OK
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: 2 }); // ERROR
-      throw error;
-    } finally {
-      span.end();
-    }
+    });
   }
 
   protected getValidations(): ReadonlyArray<Validation> {

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { ChainType } from '@/common/utils/chain-type-detector';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { SolanaConfigService } from '@/modules/config/services/solana-config.service';
 import { TvmConfigService } from '@/modules/config/services/tvm-config.service';
@@ -11,7 +10,6 @@ describe('TokenConfigService', () => {
   let service: TokenConfigService;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let tvmConfigService: jest.Mocked<TvmConfigService>;
-  let solanaConfigService: jest.Mocked<SolanaConfigService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -43,7 +41,6 @@ describe('TokenConfigService', () => {
     service = module.get<TokenConfigService>(TokenConfigService);
     evmConfigService = module.get(EvmConfigService);
     tvmConfigService = module.get(TvmConfigService);
-    solanaConfigService = module.get(SolanaConfigService);
   });
 
   describe('isTokenSupported', () => {
