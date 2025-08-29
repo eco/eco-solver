@@ -42,12 +42,33 @@ export class IntervalProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   onJobFailed(job: Job<any, any, string>, error: Error) {
     this.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withError({
         message: `IntervalProcessor: Error processing job`,
+        error,
+        properties: { job },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev?: string) {
+    this.logger.warn(
+      EcoLogMessage.fromDefault({
+        message: `IntervalProcessor: Job stalled`,
         properties: {
-          job,
-          error,
+          jobId,
+          prev,
         },
+      }),
+    )
+  }
+
+  @OnWorkerEvent('error')
+  onWorkerError(error: Error) {
+    this.logger.error(
+      EcoLogMessage.withError({
+        message: `IntervalProcessor: Worker error`,
+        error,
       }),
     )
   }

@@ -1,4 +1,5 @@
 import { Queue } from 'bullmq'
+import { GatewayTopUpJobData, GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
@@ -29,6 +30,7 @@ export enum LiquidityManagerJobName {
   CHECK_CCTPV2_ATTESTATION = 'CHECK_CCTPV2_ATTESTATION',
   EXECUTE_CCTPV2_MINT = 'EXECUTE_CCTPV2_MINT',
   CHECK_EVERCLEAR_INTENT = 'CHECK_EVERCLEAR_INTENT',
+  GATEWAY_TOP_UP = 'GATEWAY_TOP_UP',
 }
 
 export type LiquidityManagerQueueDataType = {
@@ -100,5 +102,9 @@ export class LiquidityManagerQueue {
 
   startCheckEverclearIntent(data: CheckEverclearIntentJobData): Promise<void> {
     return CheckEverclearIntentJobManager.start(this.queue, data)
+  }
+
+  startGatewayTopUp(data: GatewayTopUpJobData): Promise<void> {
+    return GatewayTopUpJobManager.start(this.queue, data)
   }
 }

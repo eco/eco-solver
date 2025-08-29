@@ -15,8 +15,8 @@ import { IntentProcessorModule } from '@/intent-processor/intent-processor.modul
 import { IntervalModule } from '@/intervals/interval.module'
 import { KmsModule } from '@/kms/kms.module'
 import { LiquidityManagerModule } from '@/liquidity-manager/liquidity-manager.module'
+import { Logger, Module } from '@nestjs/common'
 import { LoggerModule } from 'nestjs-pino'
-import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { ProverModule } from '@/prover/prover.module'
@@ -65,6 +65,24 @@ import { WatchModule } from '@/watch/watch.module'
         const uri = configService.getMongooseUri()
         return {
           uri,
+          // Connection robustness settings
+          maxPoolSize: 20,
+          minPoolSize: 5,
+          serverSelectionTimeoutMS: 10000, // fail fast on bad DNS / no primary
+          socketTimeoutMS: 45000, // abort long-hanging operations
+          waitQueueTimeoutMS: 5000, // bound pool wait time
+          heartbeatFrequencyMS: 10000,
+          retryWrites: true,
+          appName: 'eco-solver',
+          // Log connection lifecycle events
+          connectionFactory: (connection) => {
+            const logger = new Logger('MongooseConnection')
+            connection.on('connected', () => logger.log('MongoDB connected'))
+            connection.on('reconnected', () => logger.log('MongoDB reconnected'))
+            connection.on('disconnected', () => logger.warn('MongoDB disconnected'))
+            connection.on('error', (err) => logger.error('MongoDB connection error', err as any))
+            return connection
+          },
         }
       },
     }),
