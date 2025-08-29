@@ -28,7 +28,7 @@ export class TronListener extends BaseChainListener {
     private readonly blockchainConfigService: BlockchainConfigService,
   ) {
     super();
-    this.logger.setContext(`${TronListener.name}:${config.chainId}`);
+    // Context is already set by the manager when creating the logger instance
   }
 
   /**

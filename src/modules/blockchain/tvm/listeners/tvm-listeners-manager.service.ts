@@ -1,9 +1,12 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { SystemLoggerService } from '@/modules/logging';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { TvmUtilsService } from '../services/tvm-utils.service';
@@ -22,6 +25,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
   ) {
     this.logger.setContext(TvmListenersManagerService.name);
   }
@@ -46,12 +50,16 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         continue;
       }
 
+      // Create a new logger instance for each listener to avoid context pollution
+      const listenerLogger = new SystemLoggerService(this.winstonLogger);
+      listenerLogger.setContext(`TronListener:${network.chainId}`);
+
       const listener = new TronListener(
         network,
         this.tvmConfigService.getTransactionSettings(),
         this.utilsService,
         this.eventEmitter,
-        this.logger,
+        listenerLogger,
         this.otelService,
         this.blockchainConfigService,
       );

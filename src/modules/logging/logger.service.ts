@@ -60,7 +60,7 @@ export class LoggerService {
   }
 }
 
-@Injectable()
+@Injectable({ scope: Scope.TRANSIENT })
 export class SystemLoggerService {
   private context: string;
 
