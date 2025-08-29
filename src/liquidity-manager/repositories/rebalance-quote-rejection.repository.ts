@@ -96,11 +96,14 @@ export class RebalanceQuoteRejectionRepository {
 
       return { response: rejectionModel }
     } catch (error) {
+      // Non-blocking: log error but don't throw to avoid breaking quote operations
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'Failed to persist quote rejection',
+          message: 'Failed to persist quote rejection - continuing with quote operation',
           properties: {
-            rejectionData,
+            rebalanceId: rejectionData.rebalanceId,
+            strategy: rejectionData.strategy,
+            reason: rejectionData.reason,
             error: error.message,
           },
         }),

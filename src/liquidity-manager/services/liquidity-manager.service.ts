@@ -22,7 +22,6 @@ import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
-import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import {
   RebalanceQuote,
@@ -252,23 +251,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
     const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
-
-    for (const quote of request.quotes) {
+    const quotesWithIds = request.quotes.map((quote) => {
       quote.groupID = groupID
       quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
+      return quote
+    })
 
-      await this.rebalanceModel.create({
-        rebalanceJobID: quote.rebalanceJobID,
-        groupId: quote.groupID,
-        wallet: walletAddress,
-        amountIn: quote.amountIn,
-        amountOut: quote.amountOut,
-        slippage: quote.slippage,
-        strategy: quote.strategy,
-        context: quote.context,
-        tokenIn: RebalanceTokenModel.fromTokenData(quote.tokenIn),
-        tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
-      })
+    const result = await this.rebalanceRepository.createBatch(walletAddress, quotesWithIds, groupID)
+
+    if ('error' in result && result.error) {
+      throw result.error
     }
   }
 

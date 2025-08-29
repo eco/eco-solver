@@ -195,12 +195,14 @@ export class RebalanceRepository {
     if (errors.length > 0) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'Some rebalances failed to persist in batch',
+          message: 'Failed to store rebalancing batch',
           properties: {
             wallet: walletAddress,
             groupId: batchGroupId,
+            quotesCount: quotes.length,
             successCount: results.length,
             errorCount: errors.length,
+            firstError: errors[0]?.message,
           },
         }),
       )
@@ -212,11 +214,11 @@ export class RebalanceRepository {
 
     this.logger.log(
       EcoLogMessage.fromDefault({
-        message: 'Batch rebalances created successfully',
+        message: 'Rebalancing batch stored successfully',
         properties: {
           wallet: walletAddress,
           groupId: batchGroupId,
-          count: results.length,
+          storedCount: results.length,
         },
       }),
     )
