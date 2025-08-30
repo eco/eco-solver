@@ -608,6 +608,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         mockBlockchainReader.isIntentFunded.mockResolvedValue(false);
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(AggregatedValidationError);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          /Intent .* is not funded on chain/,
+        );
       });
 
       it('should handle network errors as temporary failures', async () => {
@@ -615,6 +618,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         mockBlockchainReader.isIntentFunded.mockRejectedValue(new Error('Network timeout'));
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          /Failed to verify intent funding status.*Network timeout/,
+        );
       });
     });
 
@@ -664,6 +670,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         mockBlockchainReader.isAddressValid.mockReturnValue(false);
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          /Address.*0xinvalid.*is invalid/,
+        );
       });
     });
 
@@ -677,7 +686,8 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
       it('should fail when route amount exceeds limits', async () => {
         const intent = createIntentForValidation('route-amount-limit', false);
 
-        await expect(standardStrategy.validate(intent)).rejects.toThrow(ValidationError);
+        await expect(standardStrategy.validate(intent)).rejects.toThrow(AggregatedValidationError);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(/exceeds route limit/);
       });
     });
 
@@ -692,6 +702,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         const intent = createIntentForValidation('expiration', false);
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(ValidationError);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          /Intent deadline.*has expired/,
+        );
       });
     });
 
@@ -708,6 +721,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         mockBlockchainExecutor.isChainSupported.mockReturnValue(false);
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(ValidationError);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          /Source chain.*is not supported/,
+        );
       });
     });
 
@@ -732,6 +748,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         });
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(ValidationError);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          'Prover validation failed: Unsupported route',
+        );
       });
     });
 
@@ -774,6 +793,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         const intent = createIntentForValidation('standard-fee', false);
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
+        await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+          /Reward value.*is less than required fee/,
+        );
       });
     });
   });
@@ -820,6 +842,10 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
       mockBlockchainReader.isAddressValid.mockReturnValue(false);
 
       await expect(standardStrategy.validate(intent)).rejects.toThrow(AggregatedValidationError);
+      // Should contain multiple validation error messages
+      await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+        /Validation failures.*Duplicate reward tokens.*Token 0xinvalid.*expired/i,
+      );
     });
 
     it('should handle temporary validation errors with proper error classification', async () => {
@@ -857,6 +883,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
       const intent = createMockIntent({ sourceChainId: undefined });
 
       await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
+      await expect(standardStrategy.validate(intent)).rejects.toThrowError(
+        /Cannot read properties of undefined/,
+      );
     });
 
     it('should handle blockchain service unavailability', async () => {
