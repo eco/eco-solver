@@ -1,8 +1,5 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
 
-import { DeepPartial } from '@/common/types';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 
 /**
@@ -153,9 +150,3 @@ export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type BasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;
-
-/**
- * EVM configuration factory using registerAs
- * Returns empty object - env vars handled in configurationFactory
- */
-export const evmConfig = registerAs<DeepPartial<EvmConfig>>('evm', () => ({}));

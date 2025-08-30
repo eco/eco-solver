@@ -1,8 +1,5 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
 
-import { DeepPartial } from '@/common/types';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 
 /**
@@ -100,9 +97,3 @@ export type TvmNetworkConfig = z.infer<typeof TvmNetworkSchema>;
 export type TvmTokenConfig = z.infer<typeof TvmTokenSchema>;
 export type TvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type TvmTransactionSettings = z.infer<typeof TvmTransactionSettingsSchema>;
-
-/**
- * TVM configuration factory using registerAs
- * Returns empty object - env vars handled in configurationFactory
- */
-export const tvmConfig = registerAs<DeepPartial<TvmConfig>>('tvm', () => ({}));

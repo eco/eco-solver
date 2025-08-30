@@ -2,19 +2,6 @@ import { merge } from 'lodash';
 import { z } from 'zod';
 
 import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';
-import {
-  awsConfig,
-  baseConfig,
-  dataDogConfig,
-  evmConfig,
-  fulfillmentConfig,
-  mongodbConfig,
-  openTelemetryConfig,
-  queueConfig,
-  redisConfig,
-  solanaConfig,
-  tvmConfig,
-} from '@/config/schemas';
 import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
 import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
@@ -29,40 +16,26 @@ let cachedConfig: Config;
 export const configurationFactory = async () => {
   if (cachedConfig) return cachedConfig;
 
-  const baseConfiguration = {
-    ...(await baseConfig()),
-    mongodb: await mongodbConfig(),
-    redis: await redisConfig(),
-    evm: await evmConfig(),
-    solana: await solanaConfig(),
-    tvm: await tvmConfig(),
-    queue: await queueConfig(),
-    aws: await awsConfig(),
-    fulfillment: await fulfillmentConfig(),
-    datadog: await dataDogConfig(),
-    opentelemetry: await openTelemetryConfig(),
-  };
-
   // Transform all environment variables to nested configuration
   const envConfiguration = transformEnvVarsToConfig(process.env, ConfigSchema);
 
   // First merge to get the configFiles path from env vars if specified
-  let mergedConfig = merge({}, baseConfiguration, envConfiguration);
+  let mergedConfig = merge({}, envConfiguration);
 
   // Load YAML configuration if files are specified
   const { configFiles } = BaseSchema.parse(mergedConfig);
   const yamlConfiguration = loadYamlConfig(configFiles);
 
-  // Merge in order: base defaults, YAML config, then environment vars
-  mergedConfig = merge({}, baseConfiguration, yamlConfiguration, envConfiguration);
+  // Merge in order: base defaults, YAML config, then environment vars (env vars take precedence)
+  mergedConfig = merge({}, yamlConfiguration, envConfiguration);
 
   // Check if AWS secrets should be loaded
-  const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);
+  const useAwsSecrets = Boolean((mergedConfig as any).aws?.secretName);
 
   if (useAwsSecrets) {
     const awsSecretsService = new AwsSecretsService();
 
-    const awsConfig = AwsSchema.parse(mergedConfig.aws);
+    const awsConfig = AwsSchema.parse((mergedConfig as any).aws);
 
     // Fetch secrets from AWS using the merged config
     const secrets = await awsSecretsService.getSecrets(awsConfig);
@@ -74,7 +47,7 @@ export const configurationFactory = async () => {
     mergedConfig = merge({}, mergedConfig, nestedSecrets);
   }
 
-  if (!mergedConfig.skipEcoPackageConfig) {
+  if (!(mergedConfig as any).skipEcoPackageConfig) {
     const npmPackageConfig = getEcoNpmPackageConfig(mergedConfig);
 
     mergedConfig = merge({}, mergedConfig, npmPackageConfig);

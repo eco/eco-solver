@@ -1,12 +1,10 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
 
 /**
  * OpenTelemetry configuration schema
  */
 export const OpenTelemetrySchema = z.object({
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().default(true),
   serviceName: z.string().default('blockchain-intent-solver'),
 
   // OTLP exporter configuration
@@ -65,46 +63,3 @@ export const OpenTelemetrySchema = z.object({
 });
 
 export type OpenTelemetryConfig = z.infer<typeof OpenTelemetrySchema>;
-
-/**
- * OpenTelemetry configuration factory for NestJS
- */
-export const openTelemetryConfig = registerAs('opentelemetry', () => {
-  const envVars = {
-    enabled: true,
-    serviceName: 'blockchain-intent-solver',
-
-    otlp: {
-      endpoint: 'http://localhost:4318',
-      protocol: 'http',
-    },
-
-    resource: {
-      attributes: {
-        'deployment.environment': 'development',
-      },
-    },
-
-    instrumentation: {
-      http: {
-        enabled: true,
-        ignoreIncomingPaths: ['/health', '/health/live', '/health/ready'],
-      },
-      mongodb: {
-        enabled: true,
-      },
-      redis: {
-        enabled: true,
-      },
-      nestjs: {
-        enabled: true,
-      },
-    },
-
-    sampling: {
-      ratio: 1.0,
-    },
-  };
-
-  return OpenTelemetrySchema.parse(envVars);
-});

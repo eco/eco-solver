@@ -1,8 +1,4 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
-
-import { DeepPartial } from '@/common/types';
 
 /**
  * MongoDB configuration schema
@@ -16,9 +12,3 @@ export const MongoDBSchema = z.object({
 });
 
 export type MongoDBConfig = z.infer<typeof MongoDBSchema>;
-
-/**
- * MongoDB configuration factory using registerAs
- * Returns empty object - env vars handled in configurationFactory
- */
-export const mongodbConfig = registerAs<DeepPartial<MongoDBConfig>>('mongodb', () => ({}));

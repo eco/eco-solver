@@ -1,8 +1,5 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
 
-import { DeepPartial } from '@/common/types';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
@@ -42,6 +39,13 @@ export const FulfillmentSchema = z.object({
       FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
     ])
     .default(FULFILLMENT_STRATEGY_NAMES.STANDARD),
+  strategies: FulfillmentStrategiesSchema.default({
+    standard: { enabled: true },
+    crowdLiquidity: { enabled: true },
+    nativeIntents: { enabled: true },
+    negativeIntents: { enabled: true },
+    rhinestone: { enabled: true },
+  }),
   validations: ValidationsSchema.default({}),
 });
 
@@ -49,12 +53,3 @@ export type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
 export type FulfillmentStrategyConfig = z.infer<typeof FulfillmentStrategySchema>;
 export type FulfillmentStrategiesConfig = z.infer<typeof FulfillmentStrategiesSchema>;
 export type ValidationsConfig = z.infer<typeof ValidationsSchema>;
-
-/**
- * Fulfillment configuration factory using registerAs
- * Returns empty object - env vars handled in configurationFactory
- */
-export const fulfillmentConfig = registerAs<DeepPartial<FulfillmentConfig>>(
-  'fulfillment',
-  () => ({}),
-);

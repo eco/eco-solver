@@ -1,8 +1,4 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
-
-import { DeepPartial } from '@/common/types';
 
 /**
  * DataDog configuration schema
@@ -22,9 +18,3 @@ export const DataDogSchema = z.object({
 });
 
 export type DataDogConfig = z.infer<typeof DataDogSchema>;
-
-/**
- * DataDog configuration factory using registerAs
- * Returns empty object - env vars handled in configurationFactory
- */
-export const dataDogConfig = registerAs<DeepPartial<DataDogConfig>>('datadog', () => ({}));
