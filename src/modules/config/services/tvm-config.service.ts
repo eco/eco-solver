@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
-  TvmFeeLogicConfig,
   TvmNetworkConfig,
   TvmTokenConfig,
   TvmTransactionSettings,
   TvmWalletsConfig,
 } from '@/config/schemas';
+import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 
 @Injectable()
 export class TvmConfigService {
@@ -66,7 +66,7 @@ export class TvmConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: number | string): TvmFeeLogicConfig {
+  getFeeLogic(chainId: number | string): AssetsFeeSchemaType {
     const network = this.getChain(chainId);
     return network.fee;
   }

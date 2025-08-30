@@ -214,7 +214,7 @@ describe('QuotesService', () => {
           {
             validation: 'StandardFeeValidation',
             passed: false,
-            error: 'Reward native value 500000000000000 is less than required fee 1050000000000000',
+            error: 'Reward amount 500000000000000 is less than required fee 1050000000000000',
           },
         ],
       };
@@ -232,8 +232,7 @@ describe('QuotesService', () => {
             failed: [
               {
                 validation: 'StandardFeeValidation',
-                reason:
-                  'Reward native value 500000000000000 is less than required fee 1050000000000000',
+                reason: 'Reward amount 500000000000000 is less than required fee 1050000000000000',
               },
             ],
           },

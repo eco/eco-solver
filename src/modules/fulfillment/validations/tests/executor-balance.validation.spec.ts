@@ -46,9 +46,9 @@ describe('ExecutorBalanceValidation', () => {
 
   describe('validate', () => {
     const mockIntent = createMockIntent({
+      destination: BigInt(10),
       route: {
         ...createMockIntent().route,
-        destination: BigInt(10),
         tokens: [
           {
             token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC
@@ -75,11 +75,11 @@ describe('ExecutorBalanceValidation', () => {
 
         expect(result).toBe(true);
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
-          BigInt(10),
+          mockIntent.destination,
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
-          BigInt(10),
+          mockIntent.destination,
           '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
         );
       });
@@ -205,9 +205,9 @@ describe('ExecutorBalanceValidation', () => {
 
       it('should check balance on the correct destination chain', async () => {
         const intentWithSpecificChain = createMockIntent({
+          destination: BigInt(137), // Polygon
           route: {
             ...mockIntent.route,
-            destination: BigInt(137), // Polygon
             tokens: [
               {
                 token: '0x1111111111111111111111111111111111111111' as Address,
@@ -224,7 +224,7 @@ describe('ExecutorBalanceValidation', () => {
         await validation.validate(intentWithSpecificChain, mockContext);
 
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
-          BigInt(137),
+          intentWithSpecificChain.destination,
           '0x1111111111111111111111111111111111111111',
         );
       });
@@ -301,7 +301,7 @@ describe('ExecutorBalanceValidation', () => {
 
         expect(result).toBe(true);
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
-          BigInt(10),
+          mockIntent.destination,
           '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
         );
       });

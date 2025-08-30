@@ -70,7 +70,7 @@ describe('IntentFundedValidation', () => {
 
       expect(result).toBe(true);
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
-        mockIntent.route.source,
+        mockIntent.sourceChainId,
         mockIntent,
       );
     });
@@ -79,10 +79,10 @@ describe('IntentFundedValidation', () => {
       blockchainReaderService.isIntentFunded.mockResolvedValue(false);
 
       await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-        `Intent ${mockIntent.intentHash} is not funded on chain ${mockIntent.route.source}`,
+        `Intent ${mockIntent.intentHash} is not funded on chain ${mockIntent.sourceChainId}`,
       );
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
-        mockIntent.route.source,
+        mockIntent.sourceChainId,
         mockIntent,
       );
     });
@@ -95,7 +95,7 @@ describe('IntentFundedValidation', () => {
         'Failed to verify intent funding status: Blockchain connection failed',
       );
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
-        mockIntent.route.source,
+        mockIntent.sourceChainId,
         mockIntent,
       );
     });
@@ -136,7 +136,7 @@ describe('IntentFundedValidation', () => {
 
       expect(result).toBe(true);
       expect(blockchainReaderService.isIntentFunded).toHaveBeenCalledWith(
-        intentsWithTokens.route.source,
+        intentsWithTokens.sourceChainId,
         intentsWithTokens,
       );
     });

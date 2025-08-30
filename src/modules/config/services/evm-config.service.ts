@@ -3,12 +3,8 @@ import { ConfigService } from '@nestjs/config';
 
 import { Address } from 'viem';
 
-import {
-  EvmFeeLogicConfig,
-  EvmNetworkConfig,
-  EvmTokenConfig,
-  EvmWalletsConfig,
-} from '@/config/schemas';
+import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/schemas';
+import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 
 @Injectable()
 export class EvmConfigService {
@@ -47,11 +43,6 @@ export class EvmConfigService {
     return network;
   }
 
-  getRpc(chainId: number) {
-    const network = this.getChain(chainId);
-    return network.rpc;
-  }
-
   getSupportedTokens(chainId: number | bigint): EvmTokenConfig[] {
     const network = this.getChain(Number(chainId));
     return network.tokens;
@@ -73,16 +64,9 @@ export class EvmConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: number): EvmFeeLogicConfig {
+  getFeeLogic(chainId: number): AssetsFeeSchemaType {
     const network = this.getChain(chainId);
     return network.fee;
-  }
-
-  private initializeNetworks(): void {
-    const networks = this.configService.get<EvmNetworkConfig[]>('evm.networks', []);
-    for (const network of networks) {
-      this._networks.set(network.chainId, network);
-    }
   }
 
   isConfigured(): boolean {
@@ -99,5 +83,12 @@ export class EvmConfigService {
   getProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {
     const network = this.getChain(chainId);
     return network.provers?.[proverType] as Address | undefined;
+  }
+
+  private initializeNetworks(): void {
+    const networks = this.configService.get<EvmNetworkConfig[]>('evm.networks', []);
+    for (const network of networks) {
+      this._networks.set(network.chainId, network);
+    }
   }
 }

@@ -36,11 +36,11 @@ describe('NativeFeeValidation', () => {
       _nativeFee: { baseFee: BigInt(20000000000000000), bpsFee: 150 },
       getNetworkFee: jest.fn().mockReturnValue({
         native: {
-          flatFee: BigInt(20000000000000000), // 0.02 ETH
+          flatFee: 20000000000000000, // 0.02 ETH
           scalarBps: 1.5, // 150 bps = 1.5%
         },
         tokens: {
-          flatFee: BigInt(10000000000000000), // 0.01 ETH
+          flatFee: 10000000000000000, // 0.01 ETH
           scalarBps: 1, // 100 bps = 1%
         },
       }),
@@ -141,11 +141,11 @@ describe('NativeFeeValidation', () => {
         };
         (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
           native: {
-            flatFee: BigInt(50000000000000000), // 0.05 ETH
+            flatFee: 50000000000000000, // 0.05 ETH
             scalarBps: 2.5, // 250 bps = 2.5%
           },
           tokens: {
-            flatFee: BigInt(10000000000000000),
+            flatFee: 10000000000000000,
             scalarBps: 1,
           },
         });
@@ -242,11 +242,11 @@ describe('NativeFeeValidation', () => {
         };
         (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
           native: {
-            flatFee: BigInt(0),
+            flatFee: 0,
             scalarBps: 3, // 300 bps = 3%
           },
           tokens: {
-            flatFee: BigInt(10000000000000000),
+            flatFee: 10000000000000000,
             scalarBps: 1,
           },
         });
@@ -270,11 +270,11 @@ describe('NativeFeeValidation', () => {
         };
         (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
           native: {
-            flatFee: BigInt(100000000000000000), // 0.1 ETH
+            flatFee: 100000000000000000, // 0.1 ETH
             scalarBps: 0,
           },
           tokens: {
-            flatFee: BigInt(10000000000000000),
+            flatFee: 10000000000000000,
             scalarBps: 1,
           },
         });
@@ -298,11 +298,11 @@ describe('NativeFeeValidation', () => {
         };
         (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
           native: {
-            flatFee: BigInt(0),
+            flatFee: 0,
             scalarBps: 10, // 1000 bps = 10%
           },
           tokens: {
-            flatFee: BigInt(10000000000000000),
+            flatFee: 10000000000000000,
             scalarBps: 1,
           },
         });
@@ -404,11 +404,11 @@ describe('NativeFeeValidation', () => {
         };
         (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
           native: {
-            flatFee: BigInt(1000000000000), // 0.000001 ETH
+            flatFee: 1000000000000, // 0.000001 ETH
             scalarBps: 0.1, // 10 bps = 0.1%
           },
           tokens: {
-            flatFee: BigInt(10000000000000000),
+            flatFee: 10000000000000000,
             scalarBps: 1,
           },
         });
@@ -449,11 +449,11 @@ describe('NativeFeeValidation', () => {
         };
         (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
           native: {
-            flatFee: BigInt(0),
+            flatFee: 0,
             scalarBps: 3.33, // 333 bps = 3.33%
           },
           tokens: {
-            flatFee: BigInt(10000000000000000),
+            flatFee: 10000000000000000,
             scalarBps: 1,
           },
         });
@@ -507,7 +507,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '10000000000000000', // 0.01 ETH base fee
+          flatFee: 10000000000000000, // 0.01 ETH base fee (in wei as number)
           scalarBps: 50, // 50 bps = 0.5%
         },
       });
@@ -553,7 +553,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '20000000000000000', // 0.02 ETH
+          flatFee: 20000000000000000, // 0.02 ETH
           scalarBps: 200, // 200 bps = 2%
         },
       });
@@ -585,7 +585,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '5000000000000000',
+          flatFee: 5000000000000000,
           scalarBps: 100,
         },
       });
@@ -657,7 +657,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '0',
+          flatFee: 0,
           scalarBps: 25, // 25 bps = 0.25%
         },
       });
@@ -693,7 +693,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '30000000000000000', // 0.03 ETH
+          flatFee: 30000000000000000, // 0.03 ETH
           scalarBps: 20, // 20 bps = 0.2%
         },
       });
@@ -705,7 +705,7 @@ describe('NativeFeeValidation', () => {
       jest.clearAllMocks();
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '30000000000000000',
+          flatFee: 30000000000000000,
           scalarBps: 20,
         },
       });
@@ -738,7 +738,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '1000000000000000', // 0.001 ETH
+          flatFee: 1000000000000000, // 0.001 ETH
           scalarBps: 100, // 100 bps = 1%
         },
       });
@@ -769,7 +769,7 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: '10000000000000000', // 0.01 ETH base fee
+          flatFee: 10000000000000000, // 0.01 ETH base fee
           scalarBps: 100, // 100 bps = 1%
         },
       });

@@ -70,7 +70,14 @@ describe('RouteCallsValidation', () => {
 
     describe('no calls scenarios', () => {
       it('should return true when no calls exist', async () => {
-        const result = await validation.validate(mockIntent, mockContext);
+        const intentWithNoCalls = createMockIntent({
+          route: {
+            ...mockIntent.route,
+            calls: [],
+          },
+        });
+        
+        const result = await validation.validate(intentWithNoCalls, mockContext);
 
         expect(result).toBe(true);
         expect(evmConfigService.getSupportedTokens).not.toHaveBeenCalled();
@@ -102,7 +109,7 @@ describe('RouteCallsValidation', () => {
         const result = await validation.validate(intentWithValidTransferCalls, mockContext);
 
         expect(result).toBe(true);
-        expect(evmConfigService.getSupportedTokens).toHaveBeenCalledWith(10n);
+        expect(evmConfigService.getSupportedTokens).toHaveBeenCalledWith(mockIntent.destination);
       });
     });
 

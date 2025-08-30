@@ -3,6 +3,7 @@ import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
 import { DeepPartial } from '@/common/types';
+import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 
 /**
  * TVM network RPC configuration schema
@@ -42,22 +43,6 @@ const TvmTokenSchema = z.object({
 });
 
 /**
- * TVM fee logic configuration schema
- */
-const TvmFeeSchema = z.object({
-  tokens: z.object({
-    flatFee: z.string(), // Using string for bigint compatibility (in sun)
-    scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
-  }),
-  native: z
-    .object({
-      flatFee: z.string(), // Using string for bigint compatibility (in sun)
-      scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
-    })
-    .optional(),
-});
-
-/**
  * Basic wallet configuration schema for TVM
  */
 const BasicWalletConfigSchema = z.object({
@@ -78,7 +63,7 @@ const TvmNetworkSchema = z.object({
   chainId: z.number().int().positive(),
   rpc: TvmRpcSchema,
   tokens: z.array(TvmTokenSchema).default([]),
-  fee: TvmFeeSchema,
+  fee: AssetsFeeSchema,
   provers: z.record(
     z.enum(['hyper', 'metalayer'] as const),
     z.string().regex(/^T[a-zA-Z0-9]{33}$/),
@@ -113,9 +98,7 @@ export const TvmSchema = z.object({
 export type TvmConfig = z.infer<typeof TvmSchema>;
 export type TvmNetworkConfig = z.infer<typeof TvmNetworkSchema>;
 export type TvmTokenConfig = z.infer<typeof TvmTokenSchema>;
-export type TvmFeeLogicConfig = z.infer<typeof TvmFeeSchema>;
 export type TvmWalletsConfig = z.infer<typeof WalletsSchema>;
-export type TvmBasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
 export type TvmTransactionSettings = z.infer<typeof TvmTransactionSettingsSchema>;
 
 /**

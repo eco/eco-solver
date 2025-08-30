@@ -50,12 +50,10 @@ describe('MinimumRouteAmountValidation', () => {
   describe('validate', () => {
     it('should pass when total value meets minimum from object format', async () => {
       const intent = createMockIntent({
+        sourceChainId: BigInt(1),
+        destination: BigInt(42),
         route: {
-          source: BigInt(1),
-          destination: BigInt(42),
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
-          calls: [],
+          ...createMockIntent().route,
           tokens: [
             {
               token: '0x1234567890123456789012345678901234567890' as Address,
@@ -86,23 +84,21 @@ describe('MinimumRouteAmountValidation', () => {
 
       expect(result).toBe(true);
       expect(mockFulfillmentConfigService.normalize).toHaveBeenCalledWith(
-        BigInt(42),
+        intent.destination,
         intent.route.tokens,
       );
       expect(mockFulfillmentConfigService.getToken).toHaveBeenCalledWith(
-        BigInt(42),
+        intent.destination,
         '0x1234567890123456789012345678901234567890',
       );
     });
 
     it('should pass when no minimum is set (number format)', async () => {
       const intent = createMockIntent({
+        sourceChainId: BigInt(1),
+        destination: BigInt(10),
         route: {
-          source: BigInt(1),
-          destination: BigInt(10),
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
-          calls: [],
+          ...createMockIntent().route,
           tokens: [
             {
               token: '0x1234567890123456789012345678901234567890' as Address,
@@ -136,12 +132,10 @@ describe('MinimumRouteAmountValidation', () => {
 
     it('should fail when total value is below minimum in object format', async () => {
       const intent = createMockIntent({
+        sourceChainId: BigInt(1),
+        destination: BigInt(42),
         route: {
-          source: BigInt(1),
-          destination: BigInt(42),
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
-          calls: [],
+          ...createMockIntent().route,
           tokens: [
             {
               token: '0x1234567890123456789012345678901234567890' as Address,
@@ -176,12 +170,10 @@ describe('MinimumRouteAmountValidation', () => {
 
     it('should use smallest minimum when multiple tokens have different mins', async () => {
       const intent = createMockIntent({
+        sourceChainId: BigInt(1),
+        destination: BigInt(137),
         route: {
-          source: BigInt(1),
-          destination: BigInt(137),
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
-          calls: [],
+          ...createMockIntent().route,
           tokens: [
             {
               token: '0x1234567890123456789012345678901234567890' as Address,
@@ -231,12 +223,10 @@ describe('MinimumRouteAmountValidation', () => {
 
     it('should handle multiple tokens and sum their values', async () => {
       const intent = createMockIntent({
+        sourceChainId: BigInt(1),
+        destination: BigInt(10),
         route: {
-          source: BigInt(1),
-          destination: BigInt(10),
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
-          calls: [],
+          ...createMockIntent().route,
           tokens: [
             {
               token: '0x1234567890123456789012345678901234567890' as Address,
@@ -285,12 +275,10 @@ describe('MinimumRouteAmountValidation', () => {
 
     it('should pass when no tokens have minimum requirements', async () => {
       const intent = createMockIntent({
+        sourceChainId: BigInt(1),
+        destination: BigInt(10),
         route: {
-          source: BigInt(1),
-          destination: BigInt(10),
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
-          calls: [],
+          ...createMockIntent().route,
           tokens: [
             {
               token: '0x1234567890123456789012345678901234567890' as Address,

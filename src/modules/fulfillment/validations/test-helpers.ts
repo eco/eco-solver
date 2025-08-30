@@ -31,14 +31,14 @@ export function createMockIntent(overrides?: Partial<Intent>): Intent {
       creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
       deadline: BigInt(Date.now() + 86400000), // 24 hours from now
       nativeAmount: 0n,
-      tokens: [{ token: '0x00000002f050fe938943acc45f65568000000000', amount: 200n }],
+      tokens: [{ token: '0x00000002f050fe938943acc45f65568000000000', amount: 200_000n }],
     },
     route: {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: BigInt(Date.now() + 86400000), // 24 hours from now
       portal: '0x9876543210987654321098765432109876543210' as Address,
       nativeAmount: 0n,
-      tokens: [{ token: '0x00000002f050fe938943acc45f65568000000000', amount: 100n }],
+      tokens: [{ token: '0x00000002f050fe938943acc45f65568000000000', amount: 100_000n }],
       calls: [
         {
           target: '0x00000002f050fe938943acc45f65568000000000',
@@ -46,7 +46,7 @@ export function createMockIntent(overrides?: Partial<Intent>): Intent {
           data: encodeFunctionData({
             abi: erc20Abi,
             functionName: 'transfer',
-            args: ['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', 100n],
+            args: ['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', 100_000n],
           }),
         },
       ],

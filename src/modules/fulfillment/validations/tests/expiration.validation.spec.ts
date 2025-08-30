@@ -117,7 +117,7 @@ describe('ExpirationValidation', () => {
 
         expect(result).toBe(true);
         expect(proverService.getMaxDeadlineBuffer).toHaveBeenCalledWith(
-          Number(intentWithFutureDeadline.route.source),
+          Number(intentWithFutureDeadline.sourceChainId),
           Number(intentWithFutureDeadline.destination),
         );
       });
@@ -249,11 +249,8 @@ describe('ExpirationValidation', () => {
             ...mockIntent.reward,
             deadline: futureDeadline,
           },
-          route: {
-            ...mockIntent.route,
-            source: 1n,
-            destination: 10n,
-          },
+          sourceChainId: 1n,
+          destination: 10n,
         });
 
         // Prover returns 600 seconds for this specific route

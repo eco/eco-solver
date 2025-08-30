@@ -84,11 +84,11 @@ describe('RouteAmountLimitValidation', () => {
 
         expect(result).toBe(true);
         expect(fulfillmentConfigService.normalize).toHaveBeenCalledWith(
-          BigInt(10),
+          mockIntent.destination,
           mockIntent.route.tokens,
         );
         expect(fulfillmentConfigService.getToken).toHaveBeenCalledWith(
-          BigInt(10),
+          mockIntent.destination,
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
@@ -170,7 +170,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 2000000000000000000000 exceeds route limit 1000000000000000000000 for route 1-10',
+          'Total value 2000000000000000000000 exceeds route limit 1000000000000000000000 for route 8453-10',
         );
       });
 
@@ -202,7 +202,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 1000000000000000000001 exceeds route limit 1000000000000000000000 for route 1-10',
+          'Total value 1000000000000000000001 exceeds route limit 1000000000000000000000 for route 8453-10',
         );
       });
     });
@@ -251,7 +251,7 @@ describe('RouteAmountLimitValidation', () => {
           });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 700000000000000000000 exceeds route limit 500000000000000000000 for route 1-10',
+          'Total value 700000000000000000000 exceeds route limit 500000000000000000000 for route 8453-10',
         );
       });
 
@@ -298,7 +298,7 @@ describe('RouteAmountLimitValidation', () => {
           });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 600000000000000000000 exceeds route limit 500000000000000000000 for route 1-10',
+          'Total value 600000000000000000000 exceeds route limit 500000000000000000000 for route 8453-10',
         );
       });
     });
@@ -419,10 +419,10 @@ describe('RouteAmountLimitValidation', () => {
 
       it('should handle different source and destination chains in error message', async () => {
         const mockIntent = createMockIntent({
+          sourceChainId: BigInt(137), // Polygon
+          destination: BigInt(42161), // Arbitrum
           route: {
             ...createMockIntent().route,
-            source: BigInt(137), // Polygon
-            destination: BigInt(42161), // Arbitrum
             tokens: [
               {
                 token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
@@ -513,7 +513,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 1500000000000000000000 exceeds route limit 1000000000000000000000 for route 1-10',
+          'Total value 1500000000000000000000 exceeds route limit 1000000000000000000000 for route 8453-10',
         );
       });
 
@@ -560,7 +560,7 @@ describe('RouteAmountLimitValidation', () => {
           });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 500000000000000000000 exceeds route limit 400000000000000000000 for route 1-10',
+          'Total value 500000000000000000000 exceeds route limit 400000000000000000000 for route 8453-10',
         ); // Total 500 > min(1000, 400) = 400
       });
 

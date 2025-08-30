@@ -3,6 +3,7 @@ import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
 import { DeepPartial } from '@/common/types';
+import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 
 /**
  * EVM network RPC configuration schema
@@ -73,22 +74,6 @@ const EvmTokenSchema = z.object({
 });
 
 /**
- * EVM fee logic configuration schema
- */
-const EvmFeeSchema = z.object({
-  tokens: z.object({
-    flatFee: z.string(), // Using string for bigint compatibility (in wei)
-    scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
-  }),
-  native: z
-    .object({
-      flatFee: z.string(), // Using string for bigint compatibility (in wei)
-      scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
-    })
-    .optional(),
-});
-
-/**
  * Basic wallet configuration schema
  */
 const BasicWalletConfigSchema = z.object({
@@ -137,7 +122,7 @@ const EvmNetworkSchema = z.object({
   chainId: z.number().int().positive(),
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   tokens: z.array(EvmTokenSchema).default([]),
-  fee: EvmFeeSchema,
+  fee: AssetsFeeSchema,
   provers: z.record(
     z.enum(['hyper', 'metalayer'] as const),
     z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -164,7 +149,6 @@ export const EvmSchema = z.object({
 export type EvmConfig = z.infer<typeof EvmSchema>;
 export type EvmNetworkConfig = z.infer<typeof EvmNetworkSchema>;
 export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
-export type EvmFeeLogicConfig = z.infer<typeof EvmFeeSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type BasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;

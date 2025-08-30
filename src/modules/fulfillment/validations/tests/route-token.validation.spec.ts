@@ -57,6 +57,9 @@ describe('RouteTokenValidation', () => {
 
     describe('native token transfer validation', () => {
       it('should return true when no native token transfers in calls', async () => {
+        // Mock the default tokens as supported
+        tokenConfigService.isTokenSupported.mockReturnValue(true);
+        
         const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
@@ -84,6 +87,9 @@ describe('RouteTokenValidation', () => {
 
     describe('route token validation', () => {
       it('should return true when all route tokens are supported on destination', async () => {
+        // Mock all tokens as supported
+        tokenConfigService.isTokenSupported.mockReturnValue(true);
+        
         const intentWithTokens = createMockIntent({
           route: {
             ...mockIntent.route,
@@ -109,11 +115,11 @@ describe('RouteTokenValidation', () => {
 
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          10,
+          Number(mockIntent.destination),
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          10,
+          Number(mockIntent.destination),
           '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
         );
       });
@@ -165,7 +171,7 @@ describe('RouteTokenValidation', () => {
 
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          10,
+          Number(mockIntent.destination),
           '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
         );
       });
@@ -189,8 +195,9 @@ describe('RouteTokenValidation', () => {
           },
         });
 
-        // Mock that both reward tokens are supported on source chain
+        // Mock that all tokens are supported (1 route token + 2 reward tokens)
         tokenConfigService.isTokenSupported
+          .mockReturnValueOnce(true) // Route token
           .mockReturnValueOnce(true) // First reward token
           .mockReturnValueOnce(true); // Second reward token
 
@@ -198,11 +205,11 @@ describe('RouteTokenValidation', () => {
 
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          1,
+          Number(mockIntent.sourceChainId),
           '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         );
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          1,
+          Number(mockIntent.sourceChainId),
           '0xdAC17F958D2ee523a2206206994597C13D831ec7',
         );
       });
@@ -224,13 +231,14 @@ describe('RouteTokenValidation', () => {
           },
         });
 
-        // Mock that first reward token is supported, second is not
+        // Mock that route token and first reward token are supported, second reward token is not
         tokenConfigService.isTokenSupported
+          .mockReturnValueOnce(true) // Route token
           .mockReturnValueOnce(true) // First reward token
           .mockReturnValueOnce(false); // Second reward token
 
         await expect(validation.validate(intentWithUnsupportedReward, mockContext)).rejects.toThrow(
-          'Reward token 0xINVALIDTOKENADDRESS123456789012345678901 is not supported on chain 1',
+          'Reward token 0xINVALIDTOKENADDRESS123456789012345678901 is not supported on chain 8453',
         );
       });
     });
@@ -256,7 +264,7 @@ describe('RouteTokenValidation', () => {
 
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          10,
+          Number(mockIntent.destination),
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
@@ -328,11 +336,11 @@ describe('RouteTokenValidation', () => {
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledTimes(2);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          10,
+          Number(mockIntent.destination),
           '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
         ); // Route token
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
-          1,
+          Number(mockIntent.sourceChainId),
           '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         ); // Reward token
       });

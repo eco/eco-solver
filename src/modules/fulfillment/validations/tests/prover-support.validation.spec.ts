@@ -142,11 +142,8 @@ describe('ProverSupportValidation', () => {
     describe('different route configurations', () => {
       it('should validate cross-chain routes', async () => {
         const crossChainIntent = createMockIntent({
-          route: {
-            ...mockIntent.route,
-            source: BigInt(1),
-            destination: BigInt(137), // Ethereum to Polygon
-          },
+          sourceChainId: BigInt(1),
+          destination: BigInt(137), // Ethereum to Polygon
         });
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
@@ -159,11 +156,8 @@ describe('ProverSupportValidation', () => {
 
       it('should validate same-chain routes', async () => {
         const sameChainIntent = createMockIntent({
-          route: {
-            ...mockIntent.route,
-            source: BigInt(1),
-            destination: BigInt(1), // Same chain
-          },
+          sourceChainId: BigInt(1),
+          destination: BigInt(1), // Same chain
         });
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });
@@ -176,11 +170,8 @@ describe('ProverSupportValidation', () => {
 
       it('should validate routes with large chain IDs', async () => {
         const largeChainIntent = createMockIntent({
-          route: {
-            ...mockIntent.route,
-            source: BigInt(42161), // Arbitrum
-            destination: BigInt(43114), // Avalanche
-          },
+          sourceChainId: BigInt(42161), // Arbitrum
+          destination: BigInt(43114), // Avalanche
         });
 
         proverService.validateIntentRoute.mockResolvedValue({ isValid: true });

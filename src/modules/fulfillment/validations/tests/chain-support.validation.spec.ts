@@ -65,7 +65,7 @@ describe('ChainSupportValidation', () => {
 
         expect(result).toBe(true);
         expect(blockchainExecutorService.isChainSupported).toHaveBeenCalledTimes(2);
-        expect(blockchainExecutorService.isChainSupported).toHaveBeenNthCalledWith(1, BigInt(1));
+        expect(blockchainExecutorService.isChainSupported).toHaveBeenNthCalledWith(1, BigInt(8453)); // Default sourceChainId from test helper
         expect(blockchainExecutorService.isChainSupported).toHaveBeenNthCalledWith(2, BigInt(10));
       });
     });
@@ -75,11 +75,11 @@ describe('ChainSupportValidation', () => {
         blockchainExecutorService.isChainSupported.mockReturnValueOnce(false); // source chain isn't supported
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Source chain 1 is not supported',
+          'Source chain 8453 is not supported',
         );
 
         expect(blockchainExecutorService.isChainSupported).toHaveBeenCalledTimes(1);
-        expect(blockchainExecutorService.isChainSupported).toHaveBeenCalledWith(BigInt(1));
+        expect(blockchainExecutorService.isChainSupported).toHaveBeenCalledWith(BigInt(8453));
       });
     });
 
@@ -104,7 +104,7 @@ describe('ChainSupportValidation', () => {
           .mockReturnValueOnce(false); // destination chain not supported (won't be called)
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Source chain 1 is not supported',
+          'Source chain 8453 is not supported',
         );
 
         // Should only check source chain and fail fast
@@ -115,11 +115,8 @@ describe('ChainSupportValidation', () => {
     describe('different chain IDs', () => {
       it('should handle large chain IDs', async () => {
         const intentWithLargeChainIds = createMockIntent({
-          route: {
-            ...mockIntent.route,
-            source: BigInt(1000000),
-            destination: BigInt(9999999),
-          },
+          sourceChainId: BigInt(1000000),
+          destination: BigInt(9999999),
         });
 
         blockchainExecutorService.isChainSupported
@@ -141,11 +138,8 @@ describe('ChainSupportValidation', () => {
 
       it('should handle same source and destination chains', async () => {
         const sameChainIntent = createMockIntent({
-          route: {
-            ...mockIntent.route,
-            source: BigInt(1),
-            destination: BigInt(1),
-          },
+          sourceChainId: BigInt(1),
+          destination: BigInt(1),
         });
 
         blockchainExecutorService.isChainSupported
@@ -169,11 +163,8 @@ describe('ChainSupportValidation', () => {
 
         for (const { source, destination } of commonChainIds) {
           const intent = createMockIntent({
-            route: {
-              ...mockIntent.route,
-              source,
-              destination,
-            },
+            sourceChainId: source,
+            destination,
           });
 
           blockchainExecutorService.isChainSupported
@@ -209,7 +200,7 @@ describe('ChainSupportValidation', () => {
 
         await validation.validate(mockIntent, mockContext);
 
-        expect(callOrder).toEqual(['chain-1', 'chain-10']);
+        expect(callOrder).toEqual(['chain-8453', 'chain-10']);
       });
     });
   });
