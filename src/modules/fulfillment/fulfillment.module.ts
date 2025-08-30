@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { ConfigModule } from '@/modules/config/config.module';
 import { FulfillmentProcessor } from '@/modules/fulfillment/fulfillment.processor';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
@@ -33,14 +32,7 @@ import { ProverModule } from '@/modules/prover/prover.module';
 import { TokenModule } from '@/modules/token/token.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    LoggingModule,
-    IntentsModule,
-    ProverModule,
-    TokenModule,
-    BlockchainModule.forRootAsync(),
-  ],
+  imports: [ConfigModule, LoggingModule, IntentsModule, ProverModule, TokenModule],
   providers: [
     // Core services
     FulfillmentService,

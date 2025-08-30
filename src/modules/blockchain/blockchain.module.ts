@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Global, Module } from '@nestjs/common';
 
 import { configurationFactory } from '@/config/configuration-factory';
 import { ConfigModule } from '@/modules/config/config.module';
@@ -14,12 +14,13 @@ import { BlockchainProcessor } from './blockchain.processor';
 import { BlockchainExecutorService } from './blockchain-executor.service';
 import { BlockchainReaderService } from './blockchain-reader.service';
 
+@Global()
 @Module({})
 export class BlockchainModule {
   static async forRootAsync(): Promise<DynamicModule> {
     const configFactory = await configurationFactory();
 
-    const imports: any[] = [
+    const imports = [
       ConfigModule,
       IntentsModule,
       LoggingModule,
