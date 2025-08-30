@@ -31,6 +31,20 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       });
 
     try {
+      // Native fee validation should only apply to intents with pure native rewards
+      if (intent.reward.tokens && intent.reward.tokens.length > 0) {
+        span.setAttributes({
+          'validation.failed': true,
+          'validation.reason': 'reward_tokens_present',
+          'reward.tokens.count': intent.reward.tokens.length,
+        });
+        throw new ValidationError(
+          'Native fee validation only applies to intents with pure native rewards, but reward tokens are present',
+          ValidationErrorType.PERMANENT,
+          'NativeFeeValidation',
+        );
+      }
+
       const feeDetails = await this.calculateFee(intent, context);
 
       span.setAttributes({
