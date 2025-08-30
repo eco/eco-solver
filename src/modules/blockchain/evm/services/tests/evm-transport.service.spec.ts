@@ -23,6 +23,26 @@ jest.mock('viem', () => ({
   webSocket: jest.fn(),
 }));
 
+// Mock individual schema files to avoid circular dependency issues
+jest.mock('@/config/schemas/evm.schema', () => ({
+  EvmRpcSchema: {
+    safeParse: jest.fn().mockImplementation((data) => {
+      if (data?.urls && !data.urls[0].startsWith('wss')) {
+        return { success: true, data };
+      }
+      return { success: false };
+    }),
+  },
+  EvmWsSchema: {
+    safeParse: jest.fn().mockImplementation((data) => {
+      if (data?.urls && data.urls[0].startsWith('wss')) {
+        return { success: true, data };
+      }
+      return { success: false };
+    }),
+  },
+}));
+
 describe('EvmTransportService', () => {
   let service: EvmTransportService;
   let evmConfigService: jest.Mocked<EvmConfigService>;

@@ -141,7 +141,7 @@ describe('KernelWalletFactory', () => {
         rpc: { urls: ['http://localhost:8545'] },
         contracts: { portal: '0x0000000000000000000000000000000000000001' },
         tokens: [],
-        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
       };
       evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
@@ -180,7 +180,7 @@ describe('KernelWalletFactory', () => {
         rpc: { urls: ['http://localhost:8545'] },
         contracts: { portal: '0x0000000000000000000000000000000000000001' },
         tokens: [],
-        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
       };
       const mockNetworkConfig10 = { ...mockNetworkConfig1, chainId: 10 };
@@ -210,7 +210,7 @@ describe('KernelWalletFactory', () => {
           intentSourceAddress: '0x0000000000000000000000000000000000000001',
           inboxAddress: '0x0000000000000000000000000000000000000002',
           tokens: [],
-          fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+          fee: { tokens: { flatFee: 0, scalarBps: 0 } },
           provers: {},
         },
         10: {
@@ -219,7 +219,7 @@ describe('KernelWalletFactory', () => {
           intentSourceAddress: '0x0000000000000000000000000000000000000001',
           inboxAddress: '0x0000000000000000000000000000000000000002',
           tokens: [],
-          fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+          fee: { tokens: { flatFee: 0, scalarBps: 0 } },
           provers: {},
         },
         137: {
@@ -228,7 +228,7 @@ describe('KernelWalletFactory', () => {
           intentSourceAddress: '0x0000000000000000000000000000000000000001',
           inboxAddress: '0x0000000000000000000000000000000000000002',
           tokens: [],
-          fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+          fee: { tokens: { flatFee: 0, scalarBps: 0 } },
           provers: {},
         },
       };
@@ -275,7 +275,7 @@ describe('KernelWalletFactory', () => {
         rpc: { urls: ['http://localhost:8545'] },
         contracts: { portal: '0x0000000000000000000000000000000000000001' },
         tokens: [],
-        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
       };
       evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
@@ -328,7 +328,7 @@ describe('KernelWalletFactory', () => {
         rpc: { urls: ['http://localhost:8545'] },
         contracts: { portal: '0x0000000000000000000000000000000000000001' },
         tokens: [],
-        fee: { tokens: { flatFee: '0', scalarBps: 0 } },
+        fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
       };
       evmConfigService.getChain.mockReturnValue(mockNetworkConfig);

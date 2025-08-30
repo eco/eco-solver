@@ -11,7 +11,7 @@ import {
 } from 'viem';
 import * as chains from 'viem/chains';
 
-import { EvmRpcSchema, EvmWsSchema } from '@/config/schemas';
+import { EvmRpcSchema, EvmWsSchema } from '@/config/schemas/evm.schema';
 import { EvmConfigService } from '@/modules/config/services';
 import { BlockchainTracingService } from '@/modules/opentelemetry/blockchain-tracing.service';
 

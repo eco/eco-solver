@@ -21,6 +21,7 @@ describe('EvmListenersManagerService', () => {
   let logger: jest.Mocked<SystemLoggerService>;
   let otelService: jest.Mocked<OpenTelemetryService>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
+  let mockWinstonLogger: any;
 
   const mockNetworks = [
     {
@@ -77,6 +78,13 @@ describe('EvmListenersManagerService', () => {
     } as any;
     otelService = {} as any;
     blockchainConfigService = {} as any;
+    
+    mockWinstonLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -87,6 +95,7 @@ describe('EvmListenersManagerService', () => {
         { provide: SystemLoggerService, useValue: logger },
         { provide: OpenTelemetryService, useValue: otelService },
         { provide: BlockchainConfigService, useValue: blockchainConfigService },
+        { provide: 'winston', useValue: mockWinstonLogger },
       ],
     }).compile();
 
@@ -108,45 +117,44 @@ describe('EvmListenersManagerService', () => {
       // Should create 3 listeners
       expect(ChainListener).toHaveBeenCalledTimes(3);
 
-      // Verify each listener was created with correct config
-      expect(ChainListener).toHaveBeenCalledWith(
-        {
-          chainType: 'EVM',
-          chainId: 1,
-          portalAddress: '0xPortal1',
-        },
-        transportService,
-        eventEmitter,
-        logger,
-        otelService,
-        blockchainConfigService,
-      );
+      // Verify that listeners were created with correct config and services
+      const calls = (ChainListener as jest.MockedClass<typeof ChainListener>).mock.calls;
+      
+      // Check first listener call
+      expect(calls[0][0]).toEqual({
+        chainType: 'EVM',
+        chainId: 1,
+        portalAddress: '0xPortal1',
+      });
+      expect(calls[0][1]).toBe(transportService);
+      expect(calls[0][2]).toBe(eventEmitter);
+      expect(calls[0][3]).toBeInstanceOf(SystemLoggerService);
+      expect(calls[0][4]).toBe(otelService);
+      expect(calls[0][5]).toBe(blockchainConfigService);
 
-      expect(ChainListener).toHaveBeenCalledWith(
-        {
-          chainType: 'EVM',
-          chainId: 10,
-          portalAddress: '0xPortal10',
-        },
-        transportService,
-        eventEmitter,
-        logger,
-        otelService,
-        blockchainConfigService,
-      );
+      // Check second listener call
+      expect(calls[1][0]).toEqual({
+        chainType: 'EVM',
+        chainId: 10,
+        portalAddress: '0xPortal10',
+      });
+      expect(calls[1][1]).toBe(transportService);
+      expect(calls[1][2]).toBe(eventEmitter);
+      expect(calls[1][3]).toBeInstanceOf(SystemLoggerService);
+      expect(calls[1][4]).toBe(otelService);
+      expect(calls[1][5]).toBe(blockchainConfigService);
 
-      expect(ChainListener).toHaveBeenCalledWith(
-        {
-          chainType: 'EVM',
-          chainId: 137,
-          portalAddress: '0xPortal137',
-        },
-        transportService,
-        eventEmitter,
-        logger,
-        otelService,
-        blockchainConfigService,
-      );
+      // Check third listener call
+      expect(calls[2][0]).toEqual({
+        chainType: 'EVM',
+        chainId: 137,
+        portalAddress: '0xPortal137',
+      });
+      expect(calls[2][1]).toBe(transportService);
+      expect(calls[2][2]).toBe(eventEmitter);
+      expect(calls[2][3]).toBeInstanceOf(SystemLoggerService);
+      expect(calls[2][4]).toBe(otelService);
+      expect(calls[2][5]).toBe(blockchainConfigService);
 
       // Verify all listeners were started
       expect(mockListenerInstances).toHaveLength(3);
@@ -171,6 +179,7 @@ describe('EvmListenersManagerService', () => {
           { provide: SystemLoggerService, useValue: logger },
           { provide: OpenTelemetryService, useValue: otelService },
           { provide: BlockchainConfigService, useValue: blockchainConfigService },
+          { provide: 'winston', useValue: mockWinstonLogger },
         ],
       }).compile();
 
@@ -249,6 +258,7 @@ describe('EvmListenersManagerService', () => {
         logger,
         otelService,
         blockchainConfigService,
+        mockWinstonLogger,
       );
 
       await expect(newService.onModuleDestroy()).resolves.not.toThrow();
@@ -293,18 +303,20 @@ describe('EvmListenersManagerService', () => {
 
       await service.onModuleInit();
 
-      expect(ChainListener).toHaveBeenCalledWith(
-        {
-          chainType: 'EVM',
-          chainId: 42,
-          portalAddress: '0xTestPortal',
-        },
-        transportService,
-        eventEmitter,
-        logger,
-        otelService,
-        blockchainConfigService,
-      );
+      // Verify that listener was created with correct config and services
+      const calls = (ChainListener as jest.MockedClass<typeof ChainListener>).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      
+      expect(lastCall[0]).toEqual({
+        chainType: 'EVM',
+        chainId: 42,
+        portalAddress: '0xTestPortal',
+      });
+      expect(lastCall[1]).toBe(transportService);
+      expect(lastCall[2]).toBe(eventEmitter);
+      expect(lastCall[3]).toBeInstanceOf(SystemLoggerService);
+      expect(lastCall[4]).toBe(otelService);
+      expect(lastCall[5]).toBe(blockchainConfigService);
     });
   });
 });

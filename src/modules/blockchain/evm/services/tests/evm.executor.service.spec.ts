@@ -17,12 +17,19 @@ import { EvmWalletManager, WalletType } from '../evm-wallet-manager.service';
 jest.mock('@/common/utils/portal-hash.utils', () => ({
   PortalHashUtils: {
     getIntentHash: jest.fn(),
+    computeRewardHash: jest.fn().mockReturnValue('0xRewardHash'),
   },
 }));
 
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
   encodeFunctionData: jest.fn(),
+}));
+
+jest.mock('@/common/utils/chain-type-detector', () => ({
+  ChainTypeDetector: {
+    detect: jest.fn().mockReturnValue('evm'),
+  },
 }));
 
 describe('EvmExecutorService', () => {
@@ -67,11 +74,7 @@ describe('EvmExecutorService', () => {
   const mockProver = {
     getContractAddress: jest.fn().mockReturnValue('0xProverAddress'),
     getFee: jest.fn().mockResolvedValue(100000000000000000n),
-    getMessageData: jest.fn().mockResolvedValue('0xMessageData'),
-    generateProof: jest.fn().mockResolvedValue({
-      storageKeys: [],
-      storageValues: [],
-    }),
+    generateProof: jest.fn().mockResolvedValue('0xProofData'),
   };
 
   const mockPublicClient = {
@@ -117,6 +120,7 @@ describe('EvmExecutorService', () => {
         setAttributes: jest.fn(),
         setStatus: jest.fn(),
         recordException: jest.fn(),
+        addEvent: jest.fn(),
         end: jest.fn(),
       }),
     };
@@ -164,8 +168,8 @@ describe('EvmExecutorService', () => {
       // Verify prover was retrieved and called
       expect(proverService.getProver).toHaveBeenCalledWith(1, mockIntent.reward.prover);
       expect(mockProver.getContractAddress).toHaveBeenCalledWith(10);
-      expect(mockProver.getFee).toHaveBeenCalledWith(mockIntent, '0xWalletAddress');
-      expect(mockProver.getMessageData).toHaveBeenCalledWith(mockIntent);
+      expect(mockProver.getFee).toHaveBeenCalledWith(mockIntent, '0x000000000000000000000000000000000000000000000000000WalletAddress');
+      expect(mockProver.generateProof).toHaveBeenCalledWith(mockIntent);
 
       // Verify transaction was sent
       expect(mockWallet.writeContracts).toHaveBeenCalled();

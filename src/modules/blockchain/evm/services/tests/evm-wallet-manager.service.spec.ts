@@ -4,6 +4,7 @@ import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BasicWalletFactory } from '../../wallets/basic-wallet';
 import { KernelWalletFactory } from '../../wallets/kernel-wallet';
@@ -42,12 +43,21 @@ describe('EvmWalletManager', () => {
       createWallet: jest.fn().mockResolvedValue(mockKernelWallet),
     } as any;
 
+    const mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EvmWalletManager,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: BasicWalletFactory, useValue: basicWalletFactory },
         { provide: KernelWalletFactory, useValue: kernelWalletFactory },
+        { provide: SystemLoggerService, useValue: mockLogger },
       ],
     }).compile();
 
@@ -91,12 +101,21 @@ describe('EvmWalletManager', () => {
         supportedChainIds: [],
       } as any;
 
+      const mockLogger = {
+        setContext: jest.fn(),
+        log: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+      };
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           EvmWalletManager,
           { provide: EvmConfigService, useValue: emptyConfigService },
           { provide: BasicWalletFactory, useValue: basicWalletFactory },
           { provide: KernelWalletFactory, useValue: kernelWalletFactory },
+          { provide: SystemLoggerService, useValue: mockLogger },
         ],
       }).compile();
 

@@ -1,13 +1,21 @@
 import { Test } from '@nestjs/testing';
 
-import { IMessageBridgeProverAbi } from '@eco-foundation/routes-ts';
-import { Address, Hex } from 'viem';
+import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
+import { Address, Hex, encodePacked, pad } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmReaderService } from '../evm.reader.service';
 import { EvmTransportService } from '../evm-transport.service';
+
+jest.mock('viem', () => ({
+  ...jest.requireActual('viem'),
+  encodePacked: jest.fn(),
+  pad: jest.fn().mockImplementation((value) => value),
+}));
 
 describe('EvmReaderService', () => {
   let service: EvmReaderService;
@@ -31,6 +39,25 @@ describe('EvmReaderService', () => {
       getIntentSourceAddress: jest.fn(),
     };
 
+    const mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    const mockOtelService = {
+      startSpan: jest.fn().mockReturnValue({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        addEvent: jest.fn(),
+        end: jest.fn(),
+      }),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         EvmReaderService,
@@ -42,6 +69,14 @@ describe('EvmReaderService', () => {
           provide: EvmConfigService,
           useValue: mockEvmConfigService,
         },
+        {
+          provide: SystemLoggerService,
+          useValue: mockLogger,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
+        },
       ],
     }).compile();
 
@@ -52,6 +87,8 @@ describe('EvmReaderService', () => {
   describe('fetchProverFee', () => {
     const mockIntent: Intent = {
       intentHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      sourceChainId: BigInt(1),
+      destination: BigInt(10),
       reward: {
         prover: '0x1234567890123456789012345678901234567890' as Address,
         creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
@@ -60,10 +97,10 @@ describe('EvmReaderService', () => {
         tokens: [],
       },
       route: {
-        source: BigInt(1),
-        destination: BigInt(10),
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-        inbox: '0x9876543210987654321098765432109876543210' as Address,
+        portal: '0x9876543210987654321098765432109876543210' as Address,
+        deadline: BigInt(Date.now() + 86400000),
+        nativeAmount: BigInt(0),
         calls: [],
         tokens: [],
       },
@@ -71,22 +108,39 @@ describe('EvmReaderService', () => {
     };
 
     const mockClaimant = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Address;
+    const prover = mockIntent.reward.prover;
     const chainId = 1;
+
+    beforeEach(() => {
+      // Reset mocks before each test
+      jest.clearAllMocks();
+      (encodePacked as jest.Mock).mockReturnValue('0xencodedProof');
+    });
 
     it('should fetch prover fee successfully', async () => {
       const expectedFee = BigInt(500000000000000000); // 0.5 ETH
       const messageData = '0xdeadbeef' as Hex;
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
-      const result = await service.fetchProverFee(mockIntent, messageData, chainId, mockClaimant);
+      const result = await service.fetchProverFee(
+        mockIntent,
+        prover,
+        messageData,
+        chainId,
+        mockClaimant,
+      );
 
       expect(result).toBe(expectedFee);
       expect(transportService.getPublicClient).toHaveBeenCalledWith(chainId);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
         address: mockIntent.reward.prover,
-        abi: IMessageBridgeProverAbi,
+        abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [mockIntent.route.source, [mockIntent.intentHash], [mockClaimant], messageData],
+        args: expect.arrayContaining([
+          mockIntent.sourceChainId,
+          expect.anything(), // encodeProof result
+          messageData,
+        ]),
       });
     });
 
@@ -95,14 +149,18 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const messageData = '0xdeadbeef' as Hex;
-      const result = await service.fetchProverFee(mockIntent, messageData, chainId);
+      const result = await service.fetchProverFee(mockIntent, prover, messageData, chainId);
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
         address: mockIntent.reward.prover,
-        abi: IMessageBridgeProverAbi,
+        abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [mockIntent.route.source, [mockIntent.intentHash], [undefined], messageData],
+        args: expect.arrayContaining([
+          mockIntent.sourceChainId,
+          expect.anything(), // encodeProof result
+          messageData,
+        ]),
       });
     });
 
@@ -112,7 +170,7 @@ describe('EvmReaderService', () => {
       });
 
       await expect(
-        service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, chainId, mockClaimant),
+        service.fetchProverFee(mockIntent, prover, '0xdeadbeef' as Hex, chainId, mockClaimant),
       ).rejects.toThrow('No transport client available');
     });
 
@@ -121,7 +179,7 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockRejectedValue(contractError);
 
       await expect(
-        service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, chainId, mockClaimant),
+        service.fetchProverFee(mockIntent, prover, '0xdeadbeef' as Hex, chainId, mockClaimant),
       ).rejects.toThrow('Failed to fetch prover fee: Contract execution reverted');
     });
 
@@ -130,33 +188,43 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockRejectedValue(networkError);
 
       await expect(
-        service.fetchProverFee(mockIntent, '0xdeadbeef' as Hex, chainId, mockClaimant),
+        service.fetchProverFee(mockIntent, prover, '0xdeadbeef' as Hex, chainId, mockClaimant),
       ).rejects.toThrow('Failed to fetch prover fee: Network timeout');
     });
 
     it('should work with different intent configurations', async () => {
       const customIntent: Intent = {
         ...mockIntent,
+        sourceChainId: BigInt(137), // Polygon chain ID
         reward: {
           ...mockIntent.reward,
           prover: '0xffffffffffffffffffffffffffffffffffffffff' as Address,
         },
         route: {
           ...mockIntent.route,
-          source: BigInt(137), // Polygon chain ID
         },
       };
       const expectedFee = BigInt(100000000000000); // 0.0001 ETH
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
-      const result = await service.fetchProverFee(customIntent, '0x' as Hex, chainId, mockClaimant);
+      const result = await service.fetchProverFee(
+        customIntent,
+        customIntent.reward.prover,
+        '0x' as Hex,
+        chainId,
+        mockClaimant,
+      );
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
         address: customIntent.reward.prover,
-        abi: IMessageBridgeProverAbi,
+        abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
-        args: [customIntent.route.source, [customIntent.intentHash], [mockClaimant], '0x' as Hex],
+        args: expect.arrayContaining([
+          customIntent.sourceChainId,
+          expect.anything(), // encodeProof result
+          '0x' as Hex,
+        ]),
       });
     });
   });

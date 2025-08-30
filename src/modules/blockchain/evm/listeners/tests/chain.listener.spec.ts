@@ -11,6 +11,26 @@ import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { ChainListener } from '../chain.listener';
 
+// Mock PortalEncoder at module level
+jest.mock('@/common/utils/portal-encoder', () => ({
+  PortalEncoder: {
+    decodeFromChain: jest.fn().mockReturnValue({
+      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      deadline: 1234567890n,
+      portal: '0xPortalAddress',
+      nativeAmount: 0n,
+      tokens: [{ token: '0xRouteToken1', amount: 300n }],
+      calls: [
+        {
+          target: '0xTarget1',
+          data: '0xData1',
+          value: 0n,
+        },
+      ],
+    }),
+  },
+}));
+
 describe('ChainListener', () => {
   let listener: ChainListener;
   let transportService: jest.Mocked<EvmTransportService>;
@@ -29,11 +49,11 @@ describe('ChainListener', () => {
 
   const mockLog = {
     args: {
-      hash: '0xIntentHash' as Hex,
+      intentHash: '0xIntentHash' as Hex,
       creator: '0xCreatorAddress' as Address,
       prover: '0xProverAddress' as Address,
       destination: 10n,
-      nativeAmount: 1000000000000000000n,
+      rewardNativeAmount: 1000000000000000000n,
       rewardDeadline: 1234567890n,
       rewardTokens: [
         { token: '0xToken1' as Address, amount: 100n },
@@ -81,25 +101,6 @@ describe('ChainListener', () => {
       getPortalAddress: jest.fn().mockReturnValue('0xPortalAddress'),
     } as any;
 
-    // Mock PortalEncoder
-    jest.mock('@/common/utils/portal-encoder', () => ({
-      PortalEncoder: {
-        decodeFromChain: jest.fn().mockReturnValue({
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-          deadline: 1234567890n,
-          portal: '0xPortalAddress',
-          tokens: [{ token: '0xRouteToken1', amount: 300n }],
-          calls: [
-            {
-              target: '0xTarget1',
-              data: '0xData1',
-              value: 0n,
-            },
-          ],
-        }),
-      },
-    }));
-
     listener = new ChainListener(
       mockConfig,
       transportService,
@@ -145,6 +146,7 @@ describe('ChainListener', () => {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
             deadline: 1234567890n,
             portal: '0xPortalAddress',
+            nativeAmount: 0n,
             tokens: [{ token: '0xRouteToken1', amount: 300n }],
             calls: [
               {
@@ -179,7 +181,7 @@ describe('ChainListener', () => {
         ...mockLog,
         args: {
           ...mockLog.args,
-          hash: '0xIntentHash2' as Hex,
+          intentHash: '0xIntentHash2' as Hex,
         },
       };
 
@@ -224,6 +226,7 @@ describe('ChainListener', () => {
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
         deadline: 1234567890n,
         portal: '0xPortalAddress',
+        nativeAmount: 0n,
         tokens: [{ token: '0xRouteToken1', amount: 300n }],
         calls: [],
       });
@@ -310,7 +313,14 @@ describe('ChainListener', () => {
         chainId: 10,
       };
 
-      const customListener = new ChainListener(customConfig, transportService, eventEmitter);
+      const customListener = new ChainListener(
+        customConfig,
+        transportService,
+        eventEmitter,
+        logger,
+        otelService,
+        blockchainConfigService,
+      );
       await customListener.start();
 
       expect(transportService.getPublicClient).toHaveBeenCalledWith(10);

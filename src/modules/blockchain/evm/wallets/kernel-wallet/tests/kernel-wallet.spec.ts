@@ -7,6 +7,7 @@ import {
   createWalletClient,
   encodeAbiParameters,
   encodeFunctionData,
+  encodePacked,
   Hex,
   LocalAccount,
 } from 'viem';
@@ -25,6 +26,7 @@ jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
   encodeFunctionData: jest.fn(),
   encodeAbiParameters: jest.fn(),
+  encodePacked: jest.fn(),
   createWalletClient: jest.fn(),
 }));
 
@@ -125,7 +127,7 @@ describe('KernelWallet', () => {
 
       // Mock signer
       mockSigner = {
-        address: '0xSignerAddress' as Address,
+        address: '0x0000000000000000000000000000000000000002' as Address,
         signMessage: jest.fn(),
         signTransaction: jest.fn(),
         signTypedData: jest.fn(),
@@ -197,7 +199,7 @@ describe('KernelWallet', () => {
 
     // Mock signer
     mockSigner = {
-      address: '0xSignerAddress' as Address,
+      address: '0x0000000000000000000000000000000000000002' as Address,
       signMessage: jest.fn(),
       signTransaction: jest.fn(),
       signTypedData: jest.fn(),
@@ -250,6 +252,12 @@ describe('KernelWallet', () => {
 
     // Mock encodeFunctionData
     (encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedData');
+
+    // Mock encodeAbiParameters
+    (encodeAbiParameters as jest.Mock).mockReturnValue('0xEncodedAbiParameters');
+
+    // Mock encodePacked
+    (encodePacked as jest.Mock).mockReturnValue('0xPackedData');
 
     // Mock createWalletClient from viem
     (createWalletClient as jest.Mock).mockReturnValue(mockSignerWalletClient);
@@ -419,8 +427,13 @@ describe('KernelWallet', () => {
         // Mock module not installed
         mockPublicClient.readContract.mockResolvedValue(false);
 
-        // Mock encodeAbiParameters for init data
-        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
+        // Mock encodeAbiParameters for init data  
+        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xEncodedAbiParameters');
+
+        // Mock encodePacked - first call for signer address, second call for constructInitDataWithHook
+        (encodePacked as jest.Mock)
+          .mockReturnValueOnce('0xSignerData') // First call for signer address 
+          .mockReturnValueOnce('0xInitData'); // Second call for constructInitDataWithHook
 
         // Mock encodeFunctionData for installModule
         (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
@@ -435,10 +448,10 @@ describe('KernelWallet', () => {
           args: [BigInt(2), mockEcdsaExecutorAddress, '0x'],
         });
 
-        // Verify init data encoding
+        // Verify init data encoding (from constructInitDataWithHook)
         expect(encodeAbiParameters).toHaveBeenCalledWith(
-          [{ type: 'address' }],
-          [mockSigner.address],
+          [{ type: 'bytes' }, { type: 'bytes' }],
+          [expect.any(String), '0x'],
         );
 
         // Verify installModule encoding
@@ -535,8 +548,11 @@ describe('KernelWallet', () => {
         // Mock module check failure (assume not installed)
         mockPublicClient.readContract.mockRejectedValue(new Error('Contract read failed'));
 
-        // Mock encodeAbiParameters for init data
-        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
+        // Mock encodeAbiParameters for init data  
+        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xEncodedAbiParameters');
+
+        // Mock encodePacked for constructInitDataWithHook
+        (encodePacked as jest.Mock).mockReturnValueOnce('0xInitData');
 
         // Mock encodeFunctionData for installModule
         (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
@@ -600,7 +616,8 @@ describe('KernelWallet', () => {
         mockPublicClient.readContract.mockResolvedValueOnce(false);
 
         // Mock installation
-        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xInitData');
+        (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xEncodedAbiParameters');
+        (encodePacked as jest.Mock).mockReturnValueOnce('0xInitData');
         (encodeFunctionData as jest.Mock).mockReturnValueOnce('0xInstallModuleData');
 
         await walletWithExecutor.init();
