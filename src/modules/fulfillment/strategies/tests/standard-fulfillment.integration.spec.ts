@@ -114,6 +114,17 @@ const createMockOpenTelemetryService = () => ({
     end: jest.fn(),
   }),
   getActiveSpan: jest.fn(),
+  withSpan: jest.fn().mockImplementation(async (name, callback) => {
+    const mockSpan = {
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      addEvent: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    };
+    return callback(mockSpan);
+  }),
 });
 
 const createMockQueueService = () => ({
