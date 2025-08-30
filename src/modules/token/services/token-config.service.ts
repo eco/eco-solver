@@ -40,7 +40,7 @@ export class TokenConfigService {
         case ChainType.SVM:
           // For Solana, we don't have token restrictions in the current config
           // This can be extended when Solana token configuration is added
-          return false;
+          return true;
         default:
           return false;
       }

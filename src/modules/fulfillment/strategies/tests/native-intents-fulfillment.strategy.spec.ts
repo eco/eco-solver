@@ -46,15 +46,19 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
       end: jest.fn(),
     }),
     getActiveSpan: jest.fn(),
+    withSpan: jest.fn((name, fn) => {
+      const mockSpan = {
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+      };
+      return fn(mockSpan);
+    }),
   })),
 }));
 
 describe('NativeIntentsFulfillmentStrategy', () => {
   let strategy: NativeIntentsFulfillmentStrategy;
-  let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
-  let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
   let queueService: jest.Mocked<QueueService>;
-  let _otelService: jest.Mocked<OpenTelemetryService>;
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let duplicateRewardTokensValidation: jest.Mocked<any>;
@@ -87,6 +91,13 @@ describe('NativeIntentsFulfillmentStrategy', () => {
         end: jest.fn(),
       }),
       getActiveSpan: jest.fn(),
+      withSpan: jest.fn((name, fn) => {
+        const mockSpan = {
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+        };
+        return fn(mockSpan);
+      }),
     };
 
     // Create mock validations
@@ -171,8 +182,6 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     }).compile();
 
     strategy = module.get<NativeIntentsFulfillmentStrategy>(NativeIntentsFulfillmentStrategy);
-    _blockchainExecutorService = module.get(BlockchainExecutorService);
-    _blockchainReaderService = module.get(BlockchainReaderService);
     queueService = module.get(QUEUE_SERVICE);
   });
 
@@ -202,7 +211,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
     it('should use NativeFeeValidation instead of StandardFeeValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations[8]).toBe(nativeFeeValidation);
+      expect(validations[9]).toBe(nativeFeeValidation);
       expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
         false,
       );
@@ -222,6 +231,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
   describe('canHandle', () => {
     it('should return true for intents with only native value and no tokens', () => {
       const mockIntent = createMockIntent({
+        destination: BigInt(10),
         reward: {
           prover: '0x1234567890123456789012345678901234567890' as any,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
@@ -230,10 +240,10 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           tokens: [], // No tokens
         },
         route: {
-          source: BigInt(1),
-          destination: BigInt(10),
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as any,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as any,
+          nativeAmount: BigInt(0),
           calls: [],
           tokens: [], // No tokens
         },
@@ -244,11 +254,12 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
     it('should return false for intents with token transfers in route', () => {
       const mockIntent = createMockIntent({
+        destination: BigInt(10),
         route: {
-          source: BigInt(1),
-          destination: BigInt(10),
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as any,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as any,
+          nativeAmount: BigInt(0),
           calls: [],
           tokens: [{ amount: BigInt(1000), token: '0x123' as any }], // Has tokens
         },
@@ -294,11 +305,12 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           nativeAmount: BigInt(1000000000000000000),
           tokens: [{ amount: BigInt(1000), token: '0x123' as any }],
         },
+        destination: BigInt(10),
         route: {
-          source: BigInt(1),
-          destination: BigInt(10),
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as any,
-          inbox: '0x9876543210987654321098765432109876543210' as any,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as any,
+          nativeAmount: BigInt(0),
           calls: [],
           tokens: [{ amount: BigInt(2000), token: '0x456' as any }],
         },
@@ -309,9 +321,18 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
     it('should handle different native value amounts correctly', () => {
       const nativeOnlyIntents = [
-        createMockIntent({ reward: { nativeAmount: BigInt(1) } as any }), // 1 wei
-        createMockIntent({ reward: { nativeAmount: BigInt(1000000000) } as any }), // 1 gwei
-        createMockIntent({ reward: { nativeAmount: BigInt('1000000000000000000000') } as any }), // 1000 ETH
+        createMockIntent({
+          reward: { nativeAmount: BigInt(1), tokens: [] } as any,
+          route: { tokens: [] } as any,
+        }), // 1 wei
+        createMockIntent({
+          reward: { nativeAmount: BigInt(1000000000), tokens: [] } as any,
+          route: { tokens: [] } as any,
+        }), // 1 gwei
+        createMockIntent({
+          reward: { nativeAmount: BigInt('1000000000000000000000'), tokens: [] } as any,
+          route: { tokens: [] } as any,
+        }), // 1000 ETH
       ];
 
       nativeOnlyIntents.forEach((intent) => {
@@ -388,7 +409,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       nativeFeeValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Validation failed: NativeFeeValidation',
+        'Validation failed: NativeFeeValidation',
       );
 
       // Verify validations were called in order until failure
@@ -410,9 +431,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
       nativeFeeValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: ' + validationError.message,
-      );
+      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError.message);
     });
 
     it('should handle early validation failures', async () => {
@@ -422,7 +441,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       intentFundedValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Validation failed: IntentFundedValidation',
+        'Validation failed: IntentFundedValidation',
       );
 
       // Verify only first validation was called
@@ -459,7 +478,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     it('should handle native-only intent configurations', async () => {
       const intents = [
         createMockIntent({
-          reward: { nativeAmount: BigInt(1000000000000000000) } as any,
+          reward: { nativeAmount: BigInt(1000000000000000000), tokens: [] } as any,
           route: { tokens: [] } as any,
         }),
         createMockIntent({
@@ -470,7 +489,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
         }),
         createMockIntent({
           status: 'VALIDATED' as any,
-          reward: { nativeAmount: BigInt(2000000000000000000) } as any,
+          reward: { nativeAmount: BigInt(2000000000000000000), tokens: [] } as any,
         }),
       ];
 

@@ -168,7 +168,10 @@ describe('EvmExecutorService', () => {
       // Verify prover was retrieved and called
       expect(proverService.getProver).toHaveBeenCalledWith(1, mockIntent.reward.prover);
       expect(mockProver.getContractAddress).toHaveBeenCalledWith(10);
-      expect(mockProver.getFee).toHaveBeenCalledWith(mockIntent, '0x000000000000000000000000000000000000000000000000000WalletAddress');
+      expect(mockProver.getFee).toHaveBeenCalledWith(
+        mockIntent,
+        '0x000000000000000000000000000000000000000000000000000WalletAddress',
+      );
       expect(mockProver.generateProof).toHaveBeenCalledWith(mockIntent);
 
       // Verify transaction was sent

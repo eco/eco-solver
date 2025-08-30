@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Address, Hex } from 'viem';
-
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
-import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BlockchainExecutorService } from '../blockchain-executor.service';
 import { EvmExecutorService } from '../evm/services/evm.executor.service';
@@ -15,29 +16,16 @@ describe('BlockchainExecutorService', () => {
   let service: BlockchainExecutorService;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let solanaConfigService: jest.Mocked<SolanaConfigService>;
+  let tvmConfigService: jest.Mocked<TvmConfigService>;
   let intentsService: jest.Mocked<IntentsService>;
+  let systemLoggerService: jest.Mocked<SystemLoggerService>;
+  let otelService: jest.Mocked<OpenTelemetryService>;
   let evmExecutor: jest.Mocked<EvmExecutorService>;
   let svmExecutor: jest.Mocked<SvmExecutorService>;
 
-  const mockIntent: Intent = {
-    intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-    reward: {
-      prover: '0x1234567890123456789012345678901234567890' as Address,
-      creator: '0x0987654321098765432109876543210987654321' as Address,
-      deadline: 1234567890n,
-      nativeAmount: 1000000000000000000n,
-      tokens: [],
-    },
-    route: {
-      source: 1n,
-      destination: 10n,
-      salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-      inbox: '0xabcdefabcdefabcdefabcdefabcdefabcd' as Address,
-      calls: [],
-      tokens: [],
-    },
-    status: IntentStatus.PENDING,
-  };
+  const mockIntent: Intent = createMockIntent({
+    destination: 10n, // Target chain is Optimism
+  });
 
   beforeEach(async () => {
     evmConfigService = {
@@ -49,8 +37,29 @@ describe('BlockchainExecutorService', () => {
       isConfigured: jest.fn().mockReturnValue(true),
     } as any;
 
+    tvmConfigService = {
+      isConfigured: jest.fn().mockReturnValue(false),
+      supportedChainIds: [],
+    } as any;
+
     intentsService = {
       updateStatus: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
+    systemLoggerService = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+    } as any;
+
+    otelService = {
+      startSpan: jest.fn().mockReturnValue({
+        addEvent: jest.fn(),
+        setAttributes: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
     } as any;
 
     evmExecutor = {
@@ -66,7 +75,10 @@ describe('BlockchainExecutorService', () => {
         BlockchainExecutorService,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: SolanaConfigService, useValue: solanaConfigService },
+        { provide: TvmConfigService, useValue: tvmConfigService },
         { provide: IntentsService, useValue: intentsService },
+        { provide: SystemLoggerService, useValue: systemLoggerService },
+        { provide: OpenTelemetryService, useValue: otelService },
         { provide: EvmExecutorService, useValue: evmExecutor },
         { provide: SvmExecutorService, useValue: svmExecutor },
       ],
@@ -102,7 +114,10 @@ describe('BlockchainExecutorService', () => {
           BlockchainExecutorService,
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
+          { provide: TvmConfigService, useValue: tvmConfigService },
           { provide: IntentsService, useValue: intentsService },
+          { provide: SystemLoggerService, useValue: systemLoggerService },
+          { provide: OpenTelemetryService, useValue: otelService },
           { provide: EvmExecutorService, useValue: evmExecutor },
           { provide: SvmExecutorService, useValue: svmExecutor },
         ],
@@ -118,7 +133,10 @@ describe('BlockchainExecutorService', () => {
           BlockchainExecutorService,
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
+          { provide: TvmConfigService, useValue: tvmConfigService },
           { provide: IntentsService, useValue: intentsService },
+          { provide: SystemLoggerService, useValue: systemLoggerService },
+          { provide: OpenTelemetryService, useValue: otelService },
         ],
       }).compile();
 
@@ -199,19 +217,15 @@ describe('BlockchainExecutorService', () => {
     });
 
     it('should execute intent successfully on Solana chain', async () => {
-      const solanaIntent = {
-        ...mockIntent,
-        route: {
-          ...mockIntent.route,
-          destination: 'solana-mainnet' as any,
-        },
-      };
+      const solanaIntent = createMockIntent({
+        destination: 'solana-mainnet' as any,
+      });
 
       await service.executeIntent(solanaIntent);
 
       expect(svmExecutor.fulfill).toHaveBeenCalledWith(solanaIntent, undefined);
       expect(intentsService.updateStatus).toHaveBeenCalledWith(
-        mockIntent.intentHash,
+        solanaIntent.intentHash,
         IntentStatus.FULFILLED,
       );
     });
@@ -241,18 +255,14 @@ describe('BlockchainExecutorService', () => {
     });
 
     it('should handle unsupported chain errors', async () => {
-      const unsupportedIntent = {
-        ...mockIntent,
-        route: {
-          ...mockIntent.route,
-          destination: 999n,
-        },
-      };
+      const unsupportedIntent = createMockIntent({
+        destination: 999n,
+      });
 
       await service.executeIntent(unsupportedIntent);
 
       expect(intentsService.updateStatus).toHaveBeenCalledWith(
-        mockIntent.intentHash,
+        unsupportedIntent.intentHash,
         IntentStatus.FAILED,
       );
     });

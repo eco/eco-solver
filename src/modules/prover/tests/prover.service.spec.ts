@@ -3,7 +3,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address } from 'viem';
 
 import { ProverType } from '@/common/interfaces/prover.interface';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { ProverService } from '../prover.service';
 import { HyperProver } from '../provers/hyper.prover';
@@ -13,6 +15,8 @@ describe('ProverService', () => {
   let service: ProverService;
   let mockHyperProver: jest.Mocked<HyperProver>;
   let mockMetalayerProver: jest.Mocked<MetalayerProver>;
+  let mockLogger: jest.Mocked<SystemLoggerService>;
+  let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
   const mockHyperAddress = '0x1234567890123456789012345678901234567890' as Address;
   const mockMetalayerAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
@@ -32,6 +36,7 @@ describe('ProverService', () => {
       isSupported: jest.fn().mockImplementation((chainId: number) => {
         return hyperAddressMap.has(chainId);
       }),
+      getDeadlineBuffer: jest.fn().mockReturnValue(300n), // 5 minutes
     } as unknown as jest.Mocked<HyperProver>;
 
     const metalayerAddressMap = new Map([
@@ -48,7 +53,29 @@ describe('ProverService', () => {
       isSupported: jest.fn().mockImplementation((chainId: number) => {
         return metalayerAddressMap.has(chainId);
       }),
+      getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
     } as unknown as jest.Mocked<MetalayerProver>;
+
+    mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      debug: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+    } as unknown as jest.Mocked<SystemLoggerService>;
+
+    mockBlockchainConfigService = {
+      getPortalAddress: jest.fn().mockImplementation((chainId: number) => {
+        // Return mock portal addresses for supported chains
+        const portalAddresses: { [key: number]: Address } = {
+          1: '0x9876543210987654321098765432109876543210' as Address,
+          10: '0x9876543210987654321098765432109876543210' as Address,
+          137: '0x9876543210987654321098765432109876543210' as Address,
+          8453: '0x9876543210987654321098765432109876543210' as Address,
+        };
+        return portalAddresses[chainId];
+      }),
+    } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +87,14 @@ describe('ProverService', () => {
         {
           provide: MetalayerProver,
           useValue: mockMetalayerProver,
+        },
+        {
+          provide: SystemLoggerService,
+          useValue: mockLogger,
+        },
+        {
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
         },
       ],
     }).compile();
@@ -103,11 +138,13 @@ describe('ProverService', () => {
 
     it('should validate intent route with HyperProver', async () => {
       const intent = createMockIntent({
+        sourceChainId: 1n,
+        destination: 10n,
         route: {
-          source: 1n,
-          destination: 10n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
           calls: [],
           tokens: [],
         },
@@ -122,11 +159,13 @@ describe('ProverService', () => {
 
     it('should validate intent route with MetalayerProver', async () => {
       const intent = createMockIntent({
+        sourceChainId: 137n,
+        destination: 8453n,
         route: {
-          source: 137n,
-          destination: 8453n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
           calls: [],
           tokens: [],
         },
@@ -141,15 +180,47 @@ describe('ProverService', () => {
 
     it('should return invalid when no prover supports the route', async () => {
       const intent = createMockIntent({
+        sourceChainId: 999n,
+        destination: 888n,
         route: {
-          source: 999n,
-          destination: 888n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
           calls: [],
           tokens: [],
         },
       });
+
+      // Mock the blockchain config service to return null for unsupported chain
+      mockBlockchainConfigService.getPortalAddress.mockReturnValueOnce(undefined);
+
+      const result = await service.validateIntentRoute(intent);
+
+      expect(result).toEqual({
+        isValid: false,
+        reason: 'No Portal address configured for destination chain 888',
+      });
+    });
+
+    it('should return invalid when no prover supports the chain combination', async () => {
+      const intent = createMockIntent({
+        sourceChainId: 999n,
+        destination: 888n,
+        route: {
+          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
+          calls: [],
+          tokens: [],
+        },
+      });
+
+      // Mock the blockchain config service to return a portal address (so we pass portal validation)
+      mockBlockchainConfigService.getPortalAddress.mockReturnValueOnce(
+        '0x9876543210987654321098765432109876543210' as Address,
+      );
 
       const result = await service.validateIntentRoute(intent);
 
@@ -180,11 +251,13 @@ describe('ProverService', () => {
       service.onModuleInit();
 
       const intent = createMockIntent({
+        sourceChainId: 1n,
+        destination: 137n,
         route: {
-          source: 1n,
-          destination: 137n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
           calls: [],
           tokens: [],
         },
@@ -227,6 +300,99 @@ describe('ProverService', () => {
       const lowerCaseAddress = mockHyperAddress.toLowerCase() as Address;
       const prover = service.getProver(1, lowerCaseAddress);
       expect(prover).toBe(mockHyperProver);
+    });
+  });
+
+  describe('getMaxDeadlineBuffer', () => {
+    beforeEach(() => {
+      service.onModuleInit();
+    });
+
+    it('should return maximum deadline buffer from provers that support the route', () => {
+      const buffer = service.getMaxDeadlineBuffer(1, 10);
+
+      // HyperProver supports both chains and has 300n buffer
+      expect(buffer).toBe(300n);
+    });
+
+    it('should return maximum buffer when multiple provers support the route', () => {
+      // Setup both provers to support the same route
+      mockHyperProver.isSupported.mockImplementation((chainId) => chainId === 1 || chainId === 137);
+      mockMetalayerProver.isSupported.mockImplementation(
+        (chainId) => chainId === 1 || chainId === 137,
+      );
+
+      // Re-initialize to pick up changes
+      service.onModuleInit();
+
+      const buffer = service.getMaxDeadlineBuffer(1, 137);
+
+      // MetalayerProver has larger buffer (600n vs 300n)
+      expect(buffer).toBe(600n);
+    });
+
+    it('should return default buffer when no prover supports the route', () => {
+      const buffer = service.getMaxDeadlineBuffer(999, 888);
+
+      // Default buffer is 300n (5 minutes)
+      expect(buffer).toBe(300n);
+    });
+  });
+
+  describe('validateProofSubmission', () => {
+    beforeEach(() => {
+      service.onModuleInit();
+    });
+
+    it('should validate proof submission with valid intent hashes', async () => {
+      const intentHashes = [
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        '0x1111111111111111222222222222222233333333333333334444444444444444',
+      ];
+
+      const result = await service.validateProofSubmission(intentHashes, 1, 10);
+
+      expect(result).toEqual({
+        isValid: true,
+      });
+    });
+
+    it('should return invalid when no prover supports the route', async () => {
+      const intentHashes = ['0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'];
+
+      const result = await service.validateProofSubmission(intentHashes, 999, 888);
+
+      expect(result).toEqual({
+        isValid: false,
+        reason: 'No prover available for route 999 -> 888',
+      });
+    });
+
+    it('should return invalid for malformed intent hashes', async () => {
+      const intentHashes = [
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        'invalid-hash', // Invalid format
+      ];
+
+      const result = await service.validateProofSubmission(intentHashes, 1, 10);
+
+      expect(result).toEqual({
+        isValid: false,
+        reason: 'Invalid intent hash format: invalid-hash',
+      });
+    });
+
+    it('should return invalid for short intent hashes', async () => {
+      const intentHashes = [
+        '0x1234567890abcdef', // Too short
+      ];
+
+      const result = await service.validateProofSubmission(intentHashes, 1, 10);
+
+      expect(result).toEqual({
+        isValid: false,
+        reason: 'Invalid intent hash format: 0x1234567890abcdef',
+      });
     });
   });
 });

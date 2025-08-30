@@ -47,6 +47,17 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
       end: jest.fn(),
     }),
     getActiveSpan: jest.fn(),
+    withSpan: jest.fn().mockImplementation((name, callback) => {
+      const mockSpan = {
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      };
+      return callback(mockSpan);
+    }),
   })),
 }));
 
@@ -87,6 +98,17 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
         end: jest.fn(),
       }),
       getActiveSpan: jest.fn(),
+      withSpan: jest.fn().mockImplementation((name, callback) => {
+        const mockSpan = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return callback(mockSpan);
+      }),
     };
 
     // Create mock validations
@@ -201,7 +223,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
     it('should use CrowdLiquidityFeeValidation instead of StandardFeeValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations[8]).toBe(crowdLiquidityFeeValidation);
+      expect(validations[9]).toBe(crowdLiquidityFeeValidation);
       expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
         false,
       );
@@ -324,7 +346,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       crowdLiquidityFeeValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Validation failed: CrowdLiquidityFeeValidation',
+        'Validation failed: CrowdLiquidityFeeValidation',
       );
 
       // Verify validations were called in order until failure
@@ -346,9 +368,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
 
       crowdLiquidityFeeValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: ' + validationError.message,
-      );
+      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError.message);
     });
 
     it('should handle early validation failures', async () => {
@@ -358,7 +378,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       expirationValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Validation failed: ExpirationValidation',
+        'Validation failed: ExpirationValidation',
       );
 
       // Verify later validations were not called

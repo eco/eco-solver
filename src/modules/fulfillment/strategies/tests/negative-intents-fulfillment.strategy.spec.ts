@@ -26,6 +26,16 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
       end: jest.fn(),
     }),
     getActiveSpan: jest.fn(),
+    withSpan: jest.fn().mockImplementation((name, fn) =>
+      fn({
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      }),
+    ),
   })),
 }));
 
@@ -90,6 +100,16 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
         end: jest.fn(),
       }),
       getActiveSpan: jest.fn(),
+      withSpan: jest.fn().mockImplementation((name, fn) =>
+        fn({
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        }),
+      ),
     };
 
     // Create mock validations
@@ -372,7 +392,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       routeAmountLimitValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Validation failed: RouteAmountLimitValidation',
+        'Validation failed: RouteAmountLimitValidation',
       );
 
       // All validations should have been called (parallel execution)
@@ -395,7 +415,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       proverSupportValidation.validate.mockRejectedValue(validationError);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Negative intent validation error',
+        'Negative intent validation error',
       );
     });
 

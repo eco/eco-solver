@@ -59,7 +59,7 @@ describe('RouteTokenValidation', () => {
       it('should return true when no native token transfers in calls', async () => {
         // Mock the default tokens as supported
         tokenConfigService.isTokenSupported.mockReturnValue(true);
-        
+
         const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
@@ -89,7 +89,7 @@ describe('RouteTokenValidation', () => {
       it('should return true when all route tokens are supported on destination', async () => {
         // Mock all tokens as supported
         tokenConfigService.isTokenSupported.mockReturnValue(true);
-        
+
         const intentWithTokens = createMockIntent({
           route: {
             ...mockIntent.route,

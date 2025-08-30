@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -26,17 +27,16 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       eventServer: 'https://api.trongrid.io',
       options: {},
     },
-    // You'll need to provide the actual IntentSource contract address
-    // This is a placeholder - replace with actual contract address
-    intentSourceAddress: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG',
-    inboxAddress: 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN',
+    contracts: {
+      portal: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG', // Portal contract address
+    },
     fee: {
       tokens: {
-        flatFee: '100000',
+        flatFee: 100000,
         scalarBps: 10,
       },
       native: {
-        flatFee: '500000',
+        flatFee: 500000,
         scalarBps: 50,
       },
     },
@@ -84,6 +84,13 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     }),
   };
 
+  // Mock BlockchainConfigService
+  const mockBlockchainConfigService = {
+    getPortalAddress: jest.fn().mockImplementation(() => {
+      return realTvmConfig.contracts.portal;
+    }),
+  };
+
   beforeAll(async () => {
     // Increase timeout for real blockchain calls
     jest.setTimeout(30000);
@@ -106,12 +113,17 @@ describe('TronListener Integration - Real Blockchain Events', () => {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
         },
+        {
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
+        },
       ],
     }).compile();
 
     const utilsService = module.get<TvmUtilsService>(TvmUtilsService);
     const logger = module.get<SystemLoggerService>(SystemLoggerService);
     const otelService = module.get<OpenTelemetryService>(OpenTelemetryService);
+    const blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
 
     // Create TronListener instance
     tronListener = new TronListener(
@@ -121,6 +133,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       eventEmitter,
       logger,
       otelService,
+      blockchainConfigService,
     );
   });
 
@@ -133,7 +146,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
   it('should fetch real events from block 75148742', async () => {
     console.log('=== Starting real blockchain event fetch test ===');
     console.log(`Target block: 75148742`);
-    console.log(`IntentSource address: ${realTvmConfig.intentSourceAddress}`);
+    console.log(`Portal address: ${realTvmConfig.contracts.portal}`);
 
     // Set lastBlockNumber to just before our target block
     // We need to access the private property using bracket notation
@@ -174,10 +187,10 @@ describe('TronListener Integration - Real Blockchain Events', () => {
 
       // Check if any events were found
       if (capturedEvents.length === 0) {
-        console.log('\nNo IntentCreated events found in the specified block range.');
+        console.log('\nNo IntentPublished events found in the specified block range.');
         console.log('This could mean:');
-        console.log('1. No IntentCreated events were emitted in block 75148742');
-        console.log('2. The IntentSource contract address is incorrect');
+        console.log('1. No IntentPublished events were emitted in block 75148742');
+        console.log('2. The Portal contract address is incorrect');
         console.log('3. The block range needs adjustment');
       } else {
         // Verify event structure
@@ -188,7 +201,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
         const intent = firstEvent.intent;
         console.log('\nParsed intent structure:');
         console.log('- intentHash:', intent.intentHash);
-        console.log('- source chain:', intent.sourceChainId.toString());
+        console.log('- source chain:', intent.sourceChainId?.toString() || 'N/A');
         console.log('- destination chain:', intent.destination.toString());
         console.log('- creator:', intent.reward.creator);
         console.log('- prover:', intent.reward.prover);
@@ -214,8 +227,8 @@ describe('TronListener Integration - Real Blockchain Events', () => {
             },
             route: {
               ...e.intent.route,
-              source: e.intent.sourceChainId.toString(),
-              destination: e.intent.destination.toString(),
+              deadline: e.intent.route.deadline.toString(),
+              nativeAmount: e.intent.route.nativeAmount.toString(),
               calls: e.intent.route.calls.map((c: any) => ({
                 ...c,
                 value: c.value.toString(),
@@ -225,6 +238,8 @@ describe('TronListener Integration - Real Blockchain Events', () => {
                 amount: t.amount.toString(),
               })),
             },
+            sourceChainId: e.intent.sourceChainId?.toString(),
+            destination: e.intent.destination.toString(),
           },
         })),
         otelSpans: mockOtelService.startSpan.mock.calls.map((call) => ({
@@ -262,13 +277,13 @@ describe('TronListener Integration - Real Blockchain Events', () => {
 
     // Fetch events directly using TronWeb API
     try {
-      const hexIntentSourceAddress = realTvmConfig.intentSourceAddress.startsWith('T')
-        ? module.get<TvmUtilsService>(TvmUtilsService).toHex(realTvmConfig.intentSourceAddress)
-        : realTvmConfig.intentSourceAddress;
+      const hexPortalAddress = realTvmConfig.contracts.portal.startsWith('T')
+        ? module.get<TvmUtilsService>(TvmUtilsService).toHex(realTvmConfig.contracts.portal)
+        : realTvmConfig.contracts.portal;
 
-      console.log(`Fetching events for contract: ${hexIntentSourceAddress}`);
+      console.log(`Fetching events for contract: ${hexPortalAddress}`);
 
-      const events = await tronWebClient.event.getEventsByContractAddress(hexIntentSourceAddress, {
+      const events = await tronWebClient.event.getEventsByContractAddress(hexPortalAddress, {
         onlyConfirmed: true,
         minBlockTimestamp: startBlock,
         maxBlockTimestamp: endBlock,
@@ -281,11 +296,11 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       if (events && Array.isArray(events)) {
         console.log(`Found ${events.length} total events`);
 
-        const intentCreatedEvents = events.filter((e) => e.event_name === 'IntentCreated');
-        console.log(`Found ${intentCreatedEvents.length} IntentCreated events`);
+        const intentPublishedEvents = events.filter((e) => e.event_name === 'IntentPublished');
+        console.log(`Found ${intentPublishedEvents.length} IntentPublished events`);
 
-        intentCreatedEvents.forEach((event, index) => {
-          console.log(`\nIntentCreated Event ${index + 1}:`);
+        intentPublishedEvents.forEach((event, index) => {
+          console.log(`\nIntentPublished Event ${index + 1}:`);
           console.log('- Block:', event.block_number);
           console.log('- Transaction:', event.transaction_id);
           console.log('- Event data:', JSON.stringify(event.result, null, 2));

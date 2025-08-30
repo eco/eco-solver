@@ -91,7 +91,7 @@ describe('MetalayerProver', () => {
     });
   });
 
-  describe('getMessageData', () => {
+  describe('generateProof', () => {
     it('should encode prover address as bytes32', async () => {
       const proverAddress = '0x1234567890123456789012345678901234567890' as Address;
       const intent = createMockIntent({
@@ -104,7 +104,7 @@ describe('MetalayerProver', () => {
         },
       });
 
-      const messageData = await prover.getMessageData(intent);
+      const messageData = await prover.generateProof(intent);
       const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(proverAddress)]);
 
       expect(messageData).toBe(expectedData);
@@ -127,7 +127,7 @@ describe('MetalayerProver', () => {
             tokens: [],
           },
         });
-        const messageData = await prover.getMessageData(intent);
+        const messageData = await prover.generateProof(intent);
         const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(proverAddress)]);
 
         expect(messageData).toBe(expectedData);
@@ -146,8 +146,8 @@ describe('MetalayerProver', () => {
         },
       });
 
-      const messageData1 = await prover.getMessageData(intent);
-      const messageData2 = await prover.getMessageData(intent);
+      const messageData1 = await prover.generateProof(intent);
+      const messageData2 = await prover.generateProof(intent);
 
       expect(messageData1).toBe(messageData2);
     });
@@ -160,11 +160,13 @@ describe('MetalayerProver', () => {
 
     it('should get fee from source chain using fetchProverFee', async () => {
       const intent = createMockIntent({
+        sourceChainId: 137n,
+        destination: 8453n,
         route: {
-          source: 137n,
-          destination: 8453n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
           calls: [],
           tokens: [],
         },
@@ -216,12 +218,13 @@ describe('MetalayerProver', () => {
   describe('differences from HyperProver', () => {
     it('uses simpler encoding than HyperProver', async () => {
       const intent = createMockIntent({
+        sourceChainId: 137n,
+        destination: 8453n,
         route: {
-          // These fields are not used by MetalayerProver, but we add them to show they're ignored
-          source: 137n,
-          destination: 8453n,
           salt: '0xdeadbeef' as Hex,
-          inbox: '0x7777777777777777777777777777777777777777' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x7777777777777777777777777777777777777777' as Address,
+          nativeAmount: 0n,
           calls: [
             {
               target: '0x1111111111111111111111111111111111111111' as Address,
@@ -235,7 +238,7 @@ describe('MetalayerProver', () => {
         },
       });
 
-      const messageData = await prover.getMessageData(intent);
+      const messageData = await prover.generateProof(intent);
 
       // MetalayerProver only uses reward.prover, ignoring other fields
       const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(intent.reward.prover)]);
@@ -246,11 +249,13 @@ describe('MetalayerProver', () => {
       await prover.onModuleInit();
 
       const intent = createMockIntent({
+        sourceChainId: 137n,
+        destination: 8453n,
         route: {
-          source: 137n,
-          destination: 8453n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 0n,
           calls: [],
           tokens: [],
         },

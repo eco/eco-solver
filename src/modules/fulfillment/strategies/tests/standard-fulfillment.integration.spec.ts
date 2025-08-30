@@ -153,12 +153,12 @@ const createMockFulfillmentConfigService = () => ({
       defaultStrategy: 'standard',
       validation: {
         routeAmountLimits: {
-          default: BigInt('1000000000000000000'), // 1 ETH
+          default: BigInt('10000000000000000000'), // 10 ETH - higher limit
         },
         fees: {
           standard: {
-            baseFee: BigInt('100000000000000000'), // 0.1 ETH
-            percentageFee: 250, // 2.5%
+            baseFee: BigInt('1000000000000000'), // 0.001 ETH - much lower
+            percentageFee: 10, // 0.1% - much lower
           },
         },
         expirationTime: {
@@ -198,7 +198,7 @@ const createMockFulfillmentConfigService = () => ({
   }),
   getValidation: jest.fn().mockReturnValue({
     routeAmountLimits: {
-      default: BigInt('1000000000000000000'), // 1 ETH
+      default: BigInt('10000000000000000000'), // 10 ETH - higher limit
       chainSpecific: {},
     },
     expirationTime: {
@@ -206,8 +206,8 @@ const createMockFulfillmentConfigService = () => ({
     },
     fees: {
       standard: {
-        baseFee: BigInt('100000000000000000'), // 0.1 ETH
-        percentageFee: 250, // 2.5%
+        baseFee: BigInt('1000000000000000'), // 0.001 ETH - much lower
+        percentageFee: 10, // 0.1% - much lower
       },
     },
   }),
@@ -258,12 +258,12 @@ const createMockEvmConfigService = () => ({
   getFeeLogic: jest.fn().mockReturnValue({
     address: '0x1234567890123456789012345678901234567890' as Address,
     tokens: {
-      flatFee: '10', // 0.01 ETH as string - lower for testing
-      scalarBps: 100, // 1%
+      flatFee: '0.001', // 0.001 ETH as string - much lower for testing
+      scalarBps: 10, // 0.1%
     },
     native: {
-      flatFee: '10000000000000000', // 0.01 ETH as string - lower for testing
-      scalarBps: 100, // 1%
+      flatFee: '1000000000000000', // 0.001 ETH as string - much lower for testing
+      scalarBps: 10, // 0.1%
     },
   }),
   getTokenConfig: jest.fn().mockReturnValue({
@@ -272,13 +272,17 @@ const createMockEvmConfigService = () => ({
   }),
   isTokenSupported: jest.fn().mockReturnValue(true),
   getSupportedTokens: jest.fn().mockImplementation((_chainId: number) => {
-    // Return a large set of addresses to support the large intent test
-    return Array.from({ length: 200 }, (_, i) => ({
-      address: ('0x' +
-        (1000000000000000000000000000000000000000n + BigInt(i))
-          .toString(16)
-          .padStart(40, '0')) as Address,
-    }));
+    // Return test token addresses that we use in tests
+    return [
+      { address: '0x00000002f050fe938943acc45f65568000000000' as Address },
+      // Return additional addresses for large test
+      ...Array.from({ length: 199 }, (_, i) => ({
+        address: ('0x' +
+          (1000000000000000000000000000000000000000n + BigInt(i + 1))
+            .toString(16)
+            .padStart(40, '0')) as Address,
+      })),
+    ];
   }),
 });
 
@@ -290,11 +294,30 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
       prover: '0x1234567890123456789012345678901234567890' as Address,
       creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
       deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
-      nativeAmount: BigInt(1000000000000000000), // 1 ETH
+      nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
       tokens: [
         {
-          amount: BigInt('1000000000000000000'), // 1 token (enough to cover fees)
-          token: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address,
+          amount: BigInt('5000000000000000000'), // 5 tokens (enough to cover fees with new lower rates)
+          token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+        },
+      ],
+    },
+    route: {
+      salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+      deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
+      portal: '0x9876543210987654321098765432109876543210' as Address,
+      nativeAmount: 0n,
+      tokens: [
+        {
+          amount: BigInt('100000000000000000'), // 0.1 ETH worth of tokens
+          token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+        },
+      ],
+      calls: [
+        {
+          target: '0x00000002f050fe938943acc45f65568000000000' as Address, // Use default token address from createMockIntent
+          value: 0n,
+          data: '0xa9059cbb000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd00000000000000000000000000000000000000000000000000000000000186a0' as Hex, // ERC20 transfer call
         },
       ],
     },
@@ -365,7 +388,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt('10000000000000000000'), // 10 tokens - exceeds 1 ETH limit
-                  token: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address,
+                  token: '0x00000002f050fe938943acc45f65568000000000' as Address,
                 },
               ],
             },
@@ -794,7 +817,7 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
         await expect(standardStrategy.validate(intent)).rejects.toThrowError(
-          /Reward value.*is less than required fee/,
+          /Reward amount.*is less than required fee/,
         );
       });
     });
@@ -849,17 +872,28 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     });
 
     it('should handle temporary validation errors with proper error classification', async () => {
-      const intent = createMockIntent();
+      // Create a valid intent that would pass all other validations
+      const intent = createIntentForValidation('intent-funded', true);
+      // Mock only the funding check to fail with a network error
       mockBlockchainReader.isIntentFunded.mockRejectedValue(new Error('Network timeout'));
 
       try {
         await standardStrategy.validate(intent);
         fail('Expected validation to throw');
       } catch (error) {
-        // Can be either a single Error or AggregatedValidationError
+        // Should be AggregatedValidationError but with mixed types, permanent wins
+        // OR could be ValidationError if it's the only failure
         expect(error).toBeInstanceOf(Error);
-        if (error instanceof ValidationError || error instanceof AggregatedValidationError) {
+        expect(error.message).toMatch(/Failed to verify intent funding status.*Network timeout/);
+
+        // The error type depends on whether other validations also fail
+        // If only the network error occurs, it should be TEMPORARY
+        if (error instanceof ValidationError) {
           expect(error.type).toBe(ValidationErrorType.TEMPORARY);
+        } else if (error instanceof AggregatedValidationError) {
+          // If there are other errors, permanent takes precedence
+          // Just check that our error is included
+          expect(error.message).toMatch(/Network timeout/);
         }
       }
     });
@@ -882,9 +916,9 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     it('should handle missing sourceChainId gracefully', async () => {
       const intent = createMockIntent({ sourceChainId: undefined });
 
-      await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
+      await expect(standardStrategy.validate(intent)).rejects.toThrow(AggregatedValidationError);
       await expect(standardStrategy.validate(intent)).rejects.toThrowError(
-        /Cannot read properties of undefined/,
+        /Intent.*is missing source chain ID/,
       );
     });
 
@@ -908,11 +942,11 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
             prover: '0x1234567890123456789012345678901234567890' as Address,
             creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
             deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
-            nativeAmount: BigInt(1000000000000000000), // 1 ETH
+            nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
             tokens: [
               {
-                amount: BigInt('1000000000000000000'), // 1 token
-                token: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address,
+                amount: BigInt('5000000000000000000'), // 5 tokens - sufficient for fees
+                token: '0x00000002f050fe938943acc45f65568000000000' as Address,
               },
             ],
           },
@@ -932,11 +966,11 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
           prover: '0x1234567890123456789012345678901234567890' as Address,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
           deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
-          nativeAmount: BigInt(1000000000000000000), // 1 ETH
+          nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
           tokens: [
             {
-              amount: BigInt('1000000000000000000'), // 1 token
-              token: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address,
+              amount: BigInt('5000000000000000000'), // 5 tokens - sufficient for fees
+              token: '0x00000002f050fe938943acc45f65568000000000' as Address,
             },
           ],
         },

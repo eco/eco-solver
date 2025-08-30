@@ -3,7 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { EvmConfigService, SolanaConfigService } from '@/modules/config/services';
+import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BlockchainReaderService } from '../blockchain-reader.service';
 import { EvmReaderService } from '../evm/services/evm.reader.service';
@@ -13,11 +14,14 @@ describe('BlockchainReaderService', () => {
   let service: BlockchainReaderService;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let solanaConfigService: jest.Mocked<SolanaConfigService>;
+  let tvmConfigService: jest.Mocked<TvmConfigService>;
+  let systemLogger: jest.Mocked<SystemLoggerService>;
   let evmReader: jest.Mocked<EvmReaderService>;
   let svmReader: jest.Mocked<SvmReaderService>;
 
   const mockIntent: Intent = {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+    destination: 10n,
     reward: {
       prover: '0x1234567890123456789012345678901234567890' as Address,
       creator: '0x0987654321098765432109876543210987654321' as Address,
@@ -26,14 +30,15 @@ describe('BlockchainReaderService', () => {
       tokens: [],
     },
     route: {
-      source: 1n,
-      destination: 10n,
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-      inbox: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      deadline: 1234567890n,
+      portal: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      nativeAmount: 1000000000000000000n,
       calls: [],
       tokens: [],
     },
     status: IntentStatus.PENDING,
+    sourceChainId: 1n,
   };
 
   beforeEach(async () => {
@@ -44,6 +49,15 @@ describe('BlockchainReaderService', () => {
 
     solanaConfigService = {
       isConfigured: jest.fn().mockReturnValue(true),
+    } as any;
+
+    tvmConfigService = {
+      isConfigured: jest.fn().mockReturnValue(false),
+      supportedChainIds: [],
+    } as any;
+
+    systemLogger = {
+      setContext: jest.fn(),
     } as any;
 
     evmReader = {
@@ -67,6 +81,8 @@ describe('BlockchainReaderService', () => {
         BlockchainReaderService,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: SolanaConfigService, useValue: solanaConfigService },
+        { provide: TvmConfigService, useValue: tvmConfigService },
+        { provide: SystemLoggerService, useValue: systemLogger },
         { provide: EvmReaderService, useValue: evmReader },
         { provide: SvmReaderService, useValue: svmReader },
       ],
@@ -96,6 +112,8 @@ describe('BlockchainReaderService', () => {
           BlockchainReaderService,
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
+          { provide: TvmConfigService, useValue: tvmConfigService },
+          { provide: SystemLoggerService, useValue: systemLogger },
           { provide: EvmReaderService, useValue: evmReader },
           { provide: SvmReaderService, useValue: svmReader },
         ],
@@ -111,6 +129,8 @@ describe('BlockchainReaderService', () => {
           BlockchainReaderService,
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
+          { provide: TvmConfigService, useValue: tvmConfigService },
+          { provide: SystemLoggerService, useValue: systemLogger },
         ],
       }).compile();
 
@@ -292,20 +312,34 @@ describe('BlockchainReaderService', () => {
   });
 
   describe('fetchProverFee', () => {
+    const prover = '0x1234567890123456789012345678901234567890' as Address;
     const messageData = '0x1234' as Hex;
     const claimant = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
 
     it('should fetch prover fee for EVM chain', async () => {
-      const fee = await service.fetchProverFee(1, mockIntent, messageData, claimant);
+      const fee = await service.fetchProverFee(1, mockIntent, prover, messageData, claimant);
       expect(fee).toBe(100000000000000000n);
-      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, 1, claimant);
+      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(
+        mockIntent,
+        prover,
+        messageData,
+        1,
+        claimant,
+      );
     });
 
     it('should fetch prover fee for Solana chain', async () => {
-      const fee = await service.fetchProverFee('solana-mainnet', mockIntent, messageData, claimant);
+      const fee = await service.fetchProverFee(
+        'solana-mainnet',
+        mockIntent,
+        prover,
+        messageData,
+        claimant,
+      );
       expect(fee).toBe(50000000n);
       expect(svmReader.fetchProverFee).toHaveBeenCalledWith(
         mockIntent,
+        prover,
         messageData,
         'solana-mainnet',
         claimant,
@@ -313,15 +347,21 @@ describe('BlockchainReaderService', () => {
     });
 
     it('should fetch prover fee without claimant', async () => {
-      const fee = await service.fetchProverFee(1, mockIntent, messageData);
+      const fee = await service.fetchProverFee(1, mockIntent, prover, messageData);
       expect(fee).toBe(100000000000000000n);
-      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(mockIntent, messageData, 1, undefined);
+      expect(evmReader.fetchProverFee).toHaveBeenCalledWith(
+        mockIntent,
+        prover,
+        messageData,
+        1,
+        undefined,
+      );
     });
 
     it('should throw error for unsupported chain', async () => {
-      await expect(service.fetchProverFee(999, mockIntent, messageData, claimant)).rejects.toThrow(
-        'No reader available for chain 999',
-      );
+      await expect(
+        service.fetchProverFee(999, mockIntent, prover, messageData, claimant),
+      ).rejects.toThrow('No reader available for chain 999');
     });
   });
 });

@@ -75,8 +75,8 @@ describe('HyperProver', () => {
     });
   });
 
-  describe('getMessageData', () => {
-    it('should encode message data correctly for intent', async () => {
+  describe('generateProof', () => {
+    it('should encode proof data correctly for intent', async () => {
       const proverAddress = '0x3333333333333333333333333333333333333333' as Address;
       const intent = createMockIntent({
         reward: {
@@ -88,15 +88,20 @@ describe('HyperProver', () => {
         },
       });
 
-      const messageData = await prover.getMessageData(intent);
+      const proofData = await prover.generateProof(intent);
 
       // Verify the structure matches the actual implementation
       const expectedData = encodeAbiParameters(
-        [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-        [pad(proverAddress), '0x', '0x0000000000000000000000000000000000000000'],
+        [
+          {
+            type: 'tuple',
+            components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+          },
+        ],
+        [[pad(proverAddress), '0x', '0x0000000000000000000000000000000000000000']],
       );
 
-      expect(messageData).toBe(expectedData);
+      expect(proofData).toBe(expectedData);
     });
 
     it('should handle different prover addresses', async () => {
@@ -111,14 +116,19 @@ describe('HyperProver', () => {
         },
       });
 
-      const messageData = await prover.getMessageData(intent);
+      const proofData = await prover.generateProof(intent);
 
       const expectedData = encodeAbiParameters(
-        [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-        [pad(proverAddress), '0x', '0x0000000000000000000000000000000000000000'],
+        [
+          {
+            type: 'tuple',
+            components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+          },
+        ],
+        [[pad(proverAddress), '0x', '0x0000000000000000000000000000000000000000']],
       );
 
-      expect(messageData).toBe(expectedData);
+      expect(proofData).toBe(expectedData);
     });
   });
 
@@ -129,11 +139,12 @@ describe('HyperProver', () => {
 
     it('should get fee from destination chain using fetchProverFee', async () => {
       const intent = createMockIntent({
+        destination: 10n,
         route: {
-          source: 1n,
-          destination: 10n,
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-          inbox: '0x9876543210987654321098765432109876543210' as Address,
+          deadline: 1234567890n,
+          portal: '0x9876543210987654321098765432109876543210' as Address,
+          nativeAmount: 100n,
           calls: [],
           tokens: [],
         },
@@ -144,7 +155,8 @@ describe('HyperProver', () => {
       expect(mockBlockchainReaderService.fetchProverFee).toHaveBeenCalledWith(
         10n, // destination chain
         intent,
-        expect.any(String), // message data
+        testAddress2, // contract address for chain 10
+        expect.any(String), // proof data
         mockClaimant,
       );
       expect(fee).toBe(mockFee);

@@ -427,12 +427,12 @@ describe('KernelWallet', () => {
         // Mock module not installed
         mockPublicClient.readContract.mockResolvedValue(false);
 
-        // Mock encodeAbiParameters for init data  
+        // Mock encodeAbiParameters for init data
         (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xEncodedAbiParameters');
 
         // Mock encodePacked - first call for signer address, second call for constructInitDataWithHook
         (encodePacked as jest.Mock)
-          .mockReturnValueOnce('0xSignerData') // First call for signer address 
+          .mockReturnValueOnce('0xSignerData') // First call for signer address
           .mockReturnValueOnce('0xInitData'); // Second call for constructInitDataWithHook
 
         // Mock encodeFunctionData for installModule
@@ -548,7 +548,7 @@ describe('KernelWallet', () => {
         // Mock module check failure (assume not installed)
         mockPublicClient.readContract.mockRejectedValue(new Error('Contract read failed'));
 
-        // Mock encodeAbiParameters for init data  
+        // Mock encodeAbiParameters for init data
         (encodeAbiParameters as jest.Mock).mockReturnValueOnce('0xEncodedAbiParameters');
 
         // Mock encodePacked for constructInitDataWithHook

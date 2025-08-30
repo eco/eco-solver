@@ -11,27 +11,13 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 
 // Concrete implementation for testing
 class TestProver extends BaseProver {
-  type = ProverType.HYPER;
-  private testContractAddresses: Map<number, Address>;
+  readonly type = ProverType.HYPER;
 
-  constructor(
-    contractAddresses: Map<number, Address>,
-    evmConfigService: EvmConfigService,
-    moduleRef: ModuleRef,
-  ) {
+  constructor(evmConfigService: EvmConfigService, moduleRef: ModuleRef) {
     super(evmConfigService, moduleRef);
-    this.testContractAddresses = contractAddresses;
   }
 
-  getContractAddress(chainId: number): Address | undefined {
-    return this.testContractAddresses.get(chainId);
-  }
-
-  isSupported(chainId: number): boolean {
-    return this.testContractAddresses.has(chainId);
-  }
-
-  async getMessageData(_intent: Intent): Promise<Hex> {
+  async generateProof(_intent: Intent): Promise<Hex> {
     return '0xtest' as Hex;
   }
 
@@ -40,7 +26,7 @@ class TestProver extends BaseProver {
   }
 
   getDeadlineBuffer(): bigint {
-    throw new Error('Method not implemented.');
+    return 3600n; // 1 hour buffer like HyperProver
   }
 }
 
@@ -60,14 +46,22 @@ describe('BaseProver', () => {
       get: jest.fn().mockReturnValue(mockBlockchainReaderService),
     } as unknown as jest.Mocked<ModuleRef>;
 
-    mockEvmConfigService = {} as jest.Mocked<EvmConfigService>;
+    mockEvmConfigService = {
+      getChain: jest.fn(),
+    } as unknown as jest.Mocked<EvmConfigService>;
 
-    const contractAddresses = new Map<number, Address>([
-      [1, testAddress1],
-      [10, testAddress2],
-    ]);
+    // Setup mock return values for getChain
+    mockEvmConfigService.getChain.mockImplementation((chainId: number) => {
+      if (chainId === 1) {
+        return { provers: { [ProverType.HYPER]: testAddress1 } } as any;
+      }
+      if (chainId === 10) {
+        return { provers: { [ProverType.HYPER]: testAddress2 } } as any;
+      }
+      return undefined;
+    });
 
-    prover = new TestProver(contractAddresses, mockEvmConfigService, mockModuleRef);
+    prover = new TestProver(mockEvmConfigService, mockModuleRef);
   });
 
   describe('onModuleInit', () => {
@@ -119,9 +113,9 @@ describe('BaseProver', () => {
       expect(prover.type).toBe(ProverType.HYPER);
     });
 
-    it('should implement getMessageData', async () => {
+    it('should implement generateProof', async () => {
       const intent = createMockIntent();
-      const result = await prover.getMessageData(intent);
+      const result = await prover.generateProof(intent);
       expect(result).toBe('0xtest');
     });
 
@@ -129,6 +123,11 @@ describe('BaseProver', () => {
       const intent = createMockIntent();
       const result = await prover.getFee(intent);
       expect(result).toBe(1000n);
+    });
+
+    it('should implement getDeadlineBuffer', () => {
+      const result = prover.getDeadlineBuffer();
+      expect(result).toBe(3600n);
     });
   });
 });

@@ -42,6 +42,7 @@ export function envVarToPath(envVar: string): string[] {
   // Define patterns with their lengths and combined forms
   const patterns: Array<{ parts: string[]; combined: string }> = [
     // Three-part patterns
+    { parts: ['intent', 'source', 'address'], combined: 'intentSourceAddress' },
     { parts: ['secret', 'access', 'key'], combined: 'secretAccessKey' },
     { parts: ['retry', 'delay', 'ms'], combined: 'retryDelayMs' },
     // Four-part patterns

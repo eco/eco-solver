@@ -45,7 +45,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
       attributes: {
         'strategy.name': this.name,
         'intent.hash': intent.intentHash,
-        'intent.source_chain': intent.sourceChainId.toString(),
+        'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
         'intent.destination_chain': intent.destination.toString(),
       },
     });
@@ -176,7 +176,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
       attributes: {
         'strategy.name': this.name,
         'intent.hash': intent.intentHash,
-        'intent.source_chain': intent.sourceChainId.toString(),
+        'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
         'intent.destination_chain': intent.destination.toString(),
       },
     });

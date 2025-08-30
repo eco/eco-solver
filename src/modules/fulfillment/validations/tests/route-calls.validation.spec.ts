@@ -76,7 +76,7 @@ describe('RouteCallsValidation', () => {
             calls: [],
           },
         });
-        
+
         const result = await validation.validate(intentWithNoCalls, mockContext);
 
         expect(result).toBe(true);

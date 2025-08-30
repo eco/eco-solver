@@ -78,7 +78,7 @@ describe('EvmListenersManagerService', () => {
     } as any;
     otelService = {} as any;
     blockchainConfigService = {} as any;
-    
+
     mockWinstonLogger = {
       info: jest.fn(),
       error: jest.fn(),
@@ -119,7 +119,7 @@ describe('EvmListenersManagerService', () => {
 
       // Verify that listeners were created with correct config and services
       const calls = (ChainListener as jest.MockedClass<typeof ChainListener>).mock.calls;
-      
+
       // Check first listener call
       expect(calls[0][0]).toEqual({
         chainType: 'EVM',
@@ -306,7 +306,7 @@ describe('EvmListenersManagerService', () => {
       // Verify that listener was created with correct config and services
       const calls = (ChainListener as jest.MockedClass<typeof ChainListener>).mock.calls;
       const lastCall = calls[calls.length - 1];
-      
+
       expect(lastCall[0]).toEqual({
         chainType: 'EVM',
         chainId: 42,

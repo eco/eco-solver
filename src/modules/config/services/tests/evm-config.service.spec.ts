@@ -16,7 +16,7 @@ describe('EvmConfigService', () => {
       tokens: [],
       fee: {
         tokens: {
-          flatFee: '1000000000000000',
+          flatFee: 1000000000000000,
           scalarBps: 100,
         },
       },
@@ -36,7 +36,7 @@ describe('EvmConfigService', () => {
       tokens: [],
       fee: {
         tokens: {
-          flatFee: '500000000000000',
+          flatFee: 500000000000000,
           scalarBps: 50,
         },
       },

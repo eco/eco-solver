@@ -191,7 +191,9 @@ describe('QueueSerializer', () => {
 
     it('should handle Intent-like structures with BigInt values', () => {
       const intentLikeData = {
-        intentHash: 'test-intent-123',
+        intentHash: '0x123456789abcdef' as const,
+        destination: BigInt(10), // Optimism mainnet
+        sourceChainId: BigInt(1), // Ethereum mainnet
         reward: {
           prover: '0x1234567890123456789012345678901234567890' as const,
           creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const,
@@ -205,10 +207,10 @@ describe('QueueSerializer', () => {
           ],
         },
         route: {
-          source: BigInt(1), // Ethereum mainnet
-          destination: BigInt(10), // Optimism
           salt: '0xabcdef' as const,
-          inbox: '0x2222222222222222222222222222222222222222' as const,
+          deadline: BigInt(1634567890),
+          portal: '0x2222222222222222222222222222222222222222' as const,
+          nativeAmount: BigInt(500000000000000000), // 0.5 ETH
           calls: [
             {
               data: '0x123456' as const,
@@ -223,7 +225,7 @@ describe('QueueSerializer', () => {
             },
           ],
         },
-        status: 'pending',
+        status: 'PENDING',
       };
 
       const serialized = QueueSerializer.serializeIntent(intentLikeData as any);
@@ -233,16 +235,27 @@ describe('QueueSerializer', () => {
       expect(deserialized.reward.deadline).toBe(intentLikeData.reward.deadline);
       expect(deserialized.reward.nativeAmount).toBe(intentLikeData.reward.nativeAmount);
       expect(deserialized.reward.tokens[0].amount).toBe(intentLikeData.reward.tokens[0].amount);
-      expect(deserialized.route.source).toBe(intentLikeData.route.source);
       expect(deserialized.destination).toBe(intentLikeData.destination);
+      expect(deserialized.sourceChainId).toBe(intentLikeData.sourceChainId);
+      expect(deserialized.route.deadline).toBe(intentLikeData.route.deadline);
+      expect(deserialized.route.nativeAmount).toBe(intentLikeData.route.nativeAmount);
       expect(deserialized.route.calls[0].value).toBe(intentLikeData.route.calls[0].value);
       expect(deserialized.route.tokens[0].amount).toBe(intentLikeData.route.tokens[0].amount);
 
       // Verify types
       expect(typeof deserialized.reward.deadline).toBe('bigint');
       expect(typeof deserialized.reward.nativeAmount).toBe('bigint');
-      expect(typeof deserialized.route.source).toBe('bigint');
       expect(typeof deserialized.destination).toBe('bigint');
+      expect(typeof deserialized.sourceChainId).toBe('bigint');
+      expect(typeof deserialized.route.deadline).toBe('bigint');
+      expect(typeof deserialized.route.nativeAmount).toBe('bigint');
+
+      // Verify non-BigInt values remain unchanged
+      expect(deserialized.intentHash).toBe(intentLikeData.intentHash);
+      expect(deserialized.reward.prover).toBe(intentLikeData.reward.prover);
+      expect(deserialized.reward.creator).toBe(intentLikeData.reward.creator);
+      expect(deserialized.route.portal).toBe(intentLikeData.route.portal);
+      expect(deserialized.status).toBe(intentLikeData.status);
     });
   });
 });

@@ -5,6 +5,7 @@ import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
@@ -21,9 +22,12 @@ describe('BlockchainProcessor', () => {
   let processor: BlockchainProcessor;
   let blockchainService: jest.Mocked<BlockchainExecutorService>;
   let queueConfig: jest.Mocked<QueueConfigService>;
+  let logger: jest.Mocked<any>;
 
   const mockIntent: Intent = {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+    destination: 10n,
+    sourceChainId: 1n,
     reward: {
       prover: '0x1234567890123456789012345678901234567890' as Address,
       creator: '0x0987654321098765432109876543210987654321' as Address,
@@ -32,10 +36,10 @@ describe('BlockchainProcessor', () => {
       tokens: [],
     },
     route: {
-      source: 1n,
-      destination: 10n,
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-      inbox: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      deadline: 1234567890n,
+      portal: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      nativeAmount: 1000000000000000000n,
       calls: [],
       tokens: [],
     },
@@ -58,11 +62,20 @@ describe('BlockchainProcessor', () => {
       executionConcurrency: 5,
     } as any;
 
+    logger = {
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      setContext: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainProcessor,
         { provide: BlockchainExecutorService, useValue: blockchainService },
         { provide: QueueConfigService, useValue: queueConfig },
+        { provide: SystemLoggerService, useValue: logger },
       ],
     }).compile();
 

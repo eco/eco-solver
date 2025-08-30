@@ -4,13 +4,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, encodeFunctionData, erc20Abi, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { TvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
-import { TvmListenersManagerService } from '../../listeners/tvm-listeners-manager.service';
 import { BasicWalletFactory } from '../../wallets/basic-wallet';
 import { TvmExecutorService } from '../tvm.executor.service';
 import { TvmReaderService } from '../tvm.reader.service';
@@ -116,6 +115,13 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       transactionCheckInterval: 2000,
       listenerPollInterval: 3000,
     }),
+    getPortalAddress: jest.fn().mockImplementation((chainId) => {
+      // Handle numeric Tron chain ID
+      if (chainId === 728126428) {
+        return 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG';
+      }
+      throw new Error(`Network not found: ${chainId}`);
+    }),
   };
 
   // Mock ProverService - handle both numeric and string chain IDs
@@ -126,6 +132,10 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
         getContractAddress: jest.fn().mockReturnValue('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG'),
         getFee: jest.fn().mockResolvedValue(BigInt(1000000)),
         getMessageData: jest.fn().mockResolvedValue('0x1234567890abcdef'),
+        generateProof: jest.fn().mockResolvedValue({
+          messageData: '0x1234567890abcdef',
+          proof: '0xabcdef1234567890',
+        }),
       };
     }),
   };
@@ -156,6 +166,12 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     }),
   };
 
+  // Mock BlockchainConfigService
+  const mockBlockchainConfigService = {
+    getPortalAddress: jest.fn().mockReturnValue('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG'),
+    isChainSupported: jest.fn().mockReturnValue(true),
+  };
+
   beforeAll(async () => {
     module = await Test.createTestingModule({
       imports: [EventEmitterModule.forRoot()],
@@ -165,12 +181,15 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
         TvmReaderService,
         TvmExecutorService,
         TvmWalletManagerService,
-        TvmListenersManagerService,
         BasicWalletFactory,
         // Mock external dependencies
         {
           provide: TvmConfigService,
           useValue: mockTvmConfig,
+        },
+        {
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
         },
         {
           provide: ProverService,
@@ -243,6 +262,9 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
           fulfill: jest.fn().mockReturnValue({
             send: jest.fn().mockResolvedValue('mockFulfillTxId456'),
           }),
+          fulfillAndProve: jest.fn().mockReturnValue({
+            send: jest.fn().mockResolvedValue('mockFulfillAndProveTxId789'),
+          }),
         }),
       },
     };
@@ -269,6 +291,8 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     // Create a test intent with Tron mainnet data
     const testIntent: Intent = {
       intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+      destination: BigInt(0x2b6653dc), // Tron chain ID (hex: 0x2b6653dc = decimal: 728126428)
+      sourceChainId: BigInt(8453), // Base chain ID
       reward: {
         prover: proverAddress as Address,
         creator: creatorAddress as Address,
@@ -277,10 +301,10 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
         tokens: [],
       },
       route: {
-        source: BigInt(8453), // Base chain ID
-        destination: BigInt(0x2b6653dc), // Tron chain ID (hex: 0x2b6653dc = decimal: 728126428)
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-        inbox: inboxAddress as Address,
+        deadline: BigInt(Date.now() + 86400000), // 24 hours from now
+        portal: inboxAddress as Address,
+        nativeAmount: BigInt(0),
         calls: [
           {
             target: usdtAddress as Address,
@@ -304,7 +328,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
     // Execute the fulfill method
     console.log('Executing fulfill with intent:', {
-      source: testIntent.route.source.toString(),
+      source: testIntent.sourceChainId?.toString(),
       destination: testIntent.destination.toString(),
       prover: testIntent.reward.prover,
     });

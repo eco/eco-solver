@@ -100,6 +100,7 @@ describe('FulfillmentStrategy - getQuote', () => {
 
   const mockIntent: Intent = {
     intentHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    destination: BigInt('10'),
     reward: {
       prover: '0x1234567890123456789012345678901234567890',
       creator: '0x1234567890123456789012345678901234567890',
@@ -108,13 +109,14 @@ describe('FulfillmentStrategy - getQuote', () => {
       tokens: [],
     },
     route: {
-      source: BigInt('1'),
-      destination: BigInt('10'),
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      inbox: '0x1234567890123456789012345678901234567890',
+      deadline: BigInt('1735689600'),
+      portal: '0x1234567890123456789012345678901234567890',
+      nativeAmount: BigInt('0'),
       calls: [],
       tokens: [],
     },
+    sourceChainId: BigInt('1'),
   };
 
   beforeEach(async () => {
