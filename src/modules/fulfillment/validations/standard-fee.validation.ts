@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { normalize } from '@/common/tokens/normalize';
 import { sum } from '@/common/utils/math';
 import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
@@ -36,6 +38,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
         throw new Error(`Route native amount must be zero`);
       }
 
+      // Standard fee validation requires both route tokens and reward tokens
       if (!intent.route.tokens.length) {
         throw new Error('No route tokens found');
       }
@@ -57,7 +60,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       // Check if the reward covers the fee
       if (feeDetails.currentReward < feeDetails.totalRequiredFee) {
         throw new Error(
-          `Reward value ${feeDetails.currentReward} is less than required fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, scalar: ${feeDetails.percentageFee})`,
+          `Reward amount ${feeDetails.currentReward} is less than required fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, scalar: ${feeDetails.percentageFee})`,
         );
       }
 
@@ -81,7 +84,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     // Get fee logic for the destination chain
     const fee = this.evmConfigService.getFeeLogic(Number(intent.destination));
-    const baseFee = BigInt(fee.tokens.flatFee ?? 0);
+    const baseFee = normalize(parseUnits(fee.tokens.flatFee.toString(), 18), 18);
 
     // Calculate total value being transferred
     const totalReward = sum(
@@ -93,7 +96,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       'amount',
     );
 
-    // Calculate required fee: baseFee + (totalValue * scalarBps / 10000)
+    // Calculate the required fee: totalValue + baseFee + (totalValue * scalarBps / 10000)
     const base = 10000;
     const scalarBpsInt = BigInt(Math.floor(fee.tokens.scalarBps * base));
     const percentageFee = (totalValue * scalarBpsInt) / BigInt(base * 10000);
