@@ -152,6 +152,8 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
         properties: {
           groupID,
           rebalanceJobID,
+          destinationChainId: job.data.destinationChainId,
+          cctpMessageHash: job.data.messageHash,
           error: (error as any)?.message ?? error,
           data: job.data,
         },

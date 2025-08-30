@@ -286,15 +286,49 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const walletClient = await this.walletClientService.getClient(chainId)
     const publicClient = await this.walletClientService.getPublicClient(chainId)
 
-    const txHash = await walletClient.writeContract({
-      abi: CCTPMessageTransmitterABI,
-      address: cctpChainConfig.messageTransmitter,
-      functionName: 'receiveMessage',
-      args: [messageBytes, attestation],
-    })
+    const messageHash = this.getMessageHash(messageBytes)
 
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
-    return txHash
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'CCTP: receiveMessage: submitting',
+        id: messageHash,
+        properties: {
+          chainId,
+          messageTransmitter: cctpChainConfig.messageTransmitter,
+          sender: (walletClient as any).account?.address,
+          messageHash,
+          messageBodyLength: messageBytes.length,
+          attestationLength: attestation.length,
+        },
+      }),
+    )
+
+    try {
+      const txHash = await walletClient.writeContract({
+        abi: CCTPMessageTransmitterABI,
+        address: cctpChainConfig.messageTransmitter,
+        functionName: 'receiveMessage',
+        args: [messageBytes, attestation],
+      })
+
+      await publicClient.waitForTransactionReceipt({ hash: txHash })
+      return txHash
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withId({
+          message: 'CCTP: receiveMessage: failed to submit',
+          id: messageHash,
+          properties: {
+            chainId,
+            messageTransmitter: cctpChainConfig.messageTransmitter,
+            sender: (walletClient as any).account?.address,
+            messageHash,
+            error: (error as any)?.message ?? error,
+          },
+        }),
+      )
+      throw error
+    }
   }
 
   private isSupportedToken(chainId: number, token: Hex) {
