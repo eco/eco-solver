@@ -118,8 +118,9 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async analyzeTokens(walletAddress: string) {
-    // 1) Build reservation map of amounts already committed to pending rebalances
+    // 1) Build reservation maps of amounts already committed to pending rebalances
     const reservedByToken = await this.getReservedByTokenMap(walletAddress)
+    const incomingByToken = await this.getIncomingByTokenMap(walletAddress)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -144,8 +145,9 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         const key = `${item.chainId}:${String(item.config.address).toLowerCase()}`
         const reserved = reservedByToken.get(key) ?? 0n
-        if (reserved > 0n) {
-          item.balance.balance = item.balance.balance - reserved
+        const incoming = incomingByToken.get(key) ?? 0n
+        if (reserved > 0n || incoming > 0n) {
+          item.balance.balance = item.balance.balance - reserved + incoming
         }
       } catch {}
       return item
@@ -198,6 +200,29 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       this.logger.debug(
         EcoLogMessage.fromDefault({
           message: 'Reservation-aware analysis: no reservations applied',
+          properties: { walletAddress, error: (e as any)?.message ?? e },
+        }),
+      )
+      return new Map<string, bigint>()
+    }
+  }
+
+  private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied incoming amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (e) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Reservation-aware analysis: no incoming applied',
           properties: { walletAddress, error: (e as any)?.message ?? e },
         }),
       )

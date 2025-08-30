@@ -88,4 +88,38 @@ export class RebalanceRepository {
 
     return map
   }
+
+  /**
+   * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
+   * pending rebalances for the provided wallet.
+   * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountOut
+   */
+  async getPendingIncomingByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
+    const map = new Map<string, bigint>()
+
+    const docs = await this.model
+      .find(
+        {
+          status: RebalanceStatus.PENDING.toString(),
+          wallet: walletAddress,
+        },
+        { amountOut: 1, tokenOut: 1, wallet: 1, status: 1 },
+      )
+      .lean()
+
+    for (const doc of docs) {
+      const { chainId, tokenAddress } = doc.tokenOut || {}
+      if (chainId === undefined || !tokenAddress) {
+        continue
+      }
+      const amountOut = BigInt(doc.amountOut ?? 0n)
+      if (amountOut <= 0n) continue
+
+      const key = `${chainId}:${String(tokenAddress).toLowerCase()}`
+      const previous = map.get(key) ?? 0n
+      map.set(key, previous + amountOut)
+    }
+
+    return map
+  }
 }

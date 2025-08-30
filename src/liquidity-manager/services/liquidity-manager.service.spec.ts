@@ -47,7 +47,10 @@ describe('LiquidityManagerService', () => {
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         {
           provide: RebalanceRepository,
-          useValue: { getPendingReservedByTokenForWallet: jest.fn() },
+          useValue: {
+            getPendingReservedByTokenForWallet: jest.fn(),
+            getPendingIncomingByTokenForWallet: jest.fn(),
+          },
         },
       ],
       imports: [
@@ -167,6 +170,8 @@ describe('LiquidityManagerService', () => {
       const reserved = new Map<string, bigint>([[key, 120_000_000n]])
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(reserved)
 
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
+
       const result = await liquidityManagerService.analyzeTokens(wallet)
 
       // usdcOP adjusted current = 200 - 120 = 80 → exactly at min → IN_RANGE
@@ -205,6 +210,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 10_000_000n]]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -227,6 +233,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 5_000_000n]]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -249,6 +256,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 60_000_000n]]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -272,6 +280,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 1_200_000_000_000_000_000n]]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -299,6 +308,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 120_000_000n]]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const r1 = await liquidityManagerService.analyzeTokens(wallet)
       const c1 = r1.items[0].analysis.balance.current
@@ -325,6 +335,7 @@ describe('LiquidityManagerService', () => {
           [`8453:${'0xElse'.toLowerCase()}`, 1_000_000n],
         ]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -359,6 +370,7 @@ describe('LiquidityManagerService', () => {
           [key8453, 50_000_000n],
         ]),
       )
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item10 = result.items.find((t: any) => t.chainId === 10)!
@@ -372,11 +384,34 @@ describe('LiquidityManagerService', () => {
       liquidityManagerService['config'] = mockConfig
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([] as any)
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(new Map())
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       expect(result.items).toHaveLength(0)
       expect(result.surplus.items).toHaveLength(0)
       expect(result.deficit.items).toHaveLength(0)
+    })
+
+    it('adds incoming (pending amountOut) before classification', async () => {
+      const wallet = zeroAddress
+      liquidityManagerService['config'] = mockConfig
+
+      const token = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xOut', targetBalance: 50 },
+        balance: { address: '0xOut', decimals: 6, balance: 37_284_271n },
+      }
+      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
+
+      const key = `42161:${'0xOut'.toLowerCase()}`
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(new Map())
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(
+        new Map([[key, 12_712_263n]]),
+      )
+
+      const result = await liquidityManagerService.analyzeTokens(wallet)
+      const item = result.items[0]
+      expect(item.analysis.balance.current).toEqual(49_996_534n)
     })
   })
 
