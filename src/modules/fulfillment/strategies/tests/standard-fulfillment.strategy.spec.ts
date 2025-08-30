@@ -26,6 +26,17 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
       end: jest.fn(),
     }),
     getActiveSpan: jest.fn(),
+    withSpan: jest.fn().mockImplementation((name, callback) => {
+      const mockSpan = {
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      };
+      return callback(mockSpan);
+    }),
   })),
 }));
 
@@ -90,6 +101,17 @@ describe('StandardFulfillmentStrategy', () => {
         end: jest.fn(),
       }),
       getActiveSpan: jest.fn(),
+      withSpan: jest.fn().mockImplementation((name, callback) => {
+        const mockSpan = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return callback(mockSpan);
+      }),
     };
 
     // Create mock validations
@@ -299,14 +321,15 @@ describe('StandardFulfillmentStrategy', () => {
       });
     });
 
-    it('should throw aggregated error on validation failure', async () => {
+    it('should throw error on single validation failure', async () => {
       const mockIntent = createMockIntent();
 
       // Make the third validation (routeTokenValidation) fail
       routeTokenValidation.validate.mockResolvedValue(false);
 
+      // Single validation failure is thrown directly, not wrapped
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Validation failed: RouteTokenValidation',
+        'Validation failed: RouteTokenValidation',
       );
 
       // Verify all validations were called (parallel execution)
@@ -328,9 +351,8 @@ describe('StandardFulfillmentStrategy', () => {
 
       intentFundedValidation.validate.mockRejectedValue(validationError);
 
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failures: Custom validation error',
-      );
+      // Single error is thrown directly, not wrapped in AggregatedValidationError
+      await expect(strategy.validate(mockIntent)).rejects.toThrow('Custom validation error');
     });
 
     it('should handle multiple validation failures correctly', async () => {
