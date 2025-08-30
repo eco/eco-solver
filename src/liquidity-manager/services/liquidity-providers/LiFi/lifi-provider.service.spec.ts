@@ -14,6 +14,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
@@ -34,6 +35,7 @@ describe('LiFiProviderService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         LiFiProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         {

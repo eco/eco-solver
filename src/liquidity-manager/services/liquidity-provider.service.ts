@@ -132,7 +132,7 @@ export class LiquidityProviderService {
     const validQuoteBatches = quoteBatchResults.filter((batch) => batch !== undefined)
 
     // Use the quote from the strategy returning the biggest amount out
-    const bestQuote = validQuoteBatches.reduce((bestBatch, quoteBatch) => {
+    const bestQuotes = validQuoteBatches.reduce((bestBatch, quoteBatch) => {
       if (!bestBatch) return quoteBatch
       if (!quoteBatch) return bestBatch
 
@@ -142,7 +142,7 @@ export class LiquidityProviderService {
       return (bestQuote?.amountOut ?? 0n) >= (quote?.amountOut ?? 0n) ? bestBatch : quoteBatch
     }, validQuoteBatches[0])
 
-    if (!bestQuote) {
+    if (!bestQuotes) {
       throw new Error('Unable to get quote for route')
     }
 
@@ -153,7 +153,7 @@ export class LiquidityProviderService {
           walletAddress,
           tokenIn: this.formatToken(tokenIn),
           tokenOut: this.formatToken(tokenOut),
-          bestQuote: this.formatQuoteBatch(bestQuote),
+          bestQuote: this.formatQuoteBatch(bestQuotes),
           quoteBatches: quoteBatchResults.map((quoteBatch, index) => {
             const strategy = strategies[index]
             if (!quoteBatch) {
@@ -172,12 +172,12 @@ export class LiquidityProviderService {
     this.logger.log(
       EcoLogMessage.withId({
         message: 'Best quote',
-        properties: { bestQuote: this.formatQuoteBatch(bestQuote) },
+        properties: { bestQuote: this.formatQuoteBatch(bestQuotes) },
         id: quoteId,
       }),
     )
 
-    return bestQuote
+    return bestQuotes
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote) {

@@ -30,3 +30,7 @@ export class RebalanceTokenModel {
 }
 
 export const RebalanceTokenSchema = SchemaFactory.createForClass(RebalanceTokenModel)
+
+// Define indexes
+RebalanceTokenSchema.index({ chainId: 1 }, { unique: false })
+RebalanceTokenSchema.index({ tokenAddress: 1 }, { unique: false })

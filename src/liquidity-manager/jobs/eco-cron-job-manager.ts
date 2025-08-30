@@ -87,7 +87,9 @@ export class EcoCronJobManager {
   private createJobTemplate(walletAddress: string): JobTemplate {
     return {
       name: this.jobName,
-      data: { wallet: walletAddress },
+      data: {
+        wallet: walletAddress,
+      },
       opts: {
         removeOnComplete: true,
         removeOnFail: true,

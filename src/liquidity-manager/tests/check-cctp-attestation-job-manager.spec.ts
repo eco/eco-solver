@@ -5,6 +5,7 @@ import {
 } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
 
 describe('CheckCCTPAttestationJobManager', () => {
   let checkCCTPAttestationJobManager: CheckCCTPAttestationJobManager
@@ -12,6 +13,8 @@ describe('CheckCCTPAttestationJobManager', () => {
 
   const checkCCTPAttestationJob: Partial<CheckCCTPAttestationJob> = {
     data: {
+      groupID: EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID(),
+      rebalanceJobID: EcoDbEntity.REBALANCE_JOB.getEntityID(),
       destinationChainId: 10,
       messageHash: '0x0000000000000000000000000000000000000000000000000000000000000123',
       messageBody: '0x123',

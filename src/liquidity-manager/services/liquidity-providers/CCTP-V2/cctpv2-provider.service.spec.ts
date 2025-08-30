@@ -8,6 +8,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { Queue } from 'bullmq'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
@@ -72,6 +73,7 @@ describe('CCTPV2ProviderService', () => {
           provide: WalletClientDefaultSignerService,
           useValue: createMock<WalletClientDefaultSignerService>(),
         },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<Queue>() },
       ],
     }).compile()

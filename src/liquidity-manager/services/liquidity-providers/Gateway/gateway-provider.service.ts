@@ -1,23 +1,26 @@
-import { Inject, Injectable, Logger } from '@nestjs/common'
-import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { GatewayHttpClient } from './utils/gateway-client'
-import { GatewayQuoteValidationError } from './gateway.errors'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Cache } from '@nestjs/cache-manager'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GatewayHttpClient } from './utils/gateway-client'
+import { gatewayMinterAbi } from './constants/abis'
+import { GatewayQuoteValidationError } from './gateway.errors'
+import { GatewayTopUpJobData } from '@/liquidity-manager/jobs/gateway-topup.job'
+import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { serialize } from '@/common/utils/serialize'
-import { gatewayMinterAbi } from './constants/abis'
+import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -115,6 +118,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     private readonly configService: EcoConfigService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -210,6 +214,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       }),
     )
     await this.liquidityManagerQueue.startGatewayTopUp({
+      groupID: `DummyGroupID`,
+      rebalanceJobID: `DummyRebalanceJobID`,
       chainId: chain.chainId,
       usdc: chain.usdc,
       gatewayWallet: walletAddr,
@@ -425,174 +431,195 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         properties: { quote },
       }),
     )
-    const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
+    try {
+      const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
 
-    // Resolve addresses
-    const eoa = await this.walletClientService.getAccount()
-    const eoaAddress = eoa.address as Hex
-    const kernelClient = await this.kernelAccountClientService.getClient(quote.tokenOut.chainId)
-    const kernelAddress = kernelClient.kernelAccount.address as Hex
+      // Resolve addresses
+      const eoa = await this.walletClientService.getAccount()
+      const eoaAddress = eoa.address as Hex
+      const kernelClient = await this.kernelAccountClientService.getClient(quote.tokenOut.chainId)
+      const kernelAddress = kernelClient.kernelAccount.address as Hex
 
-    // Resolve Gateway config for tokens
-    const cfg = this.configService.getGatewayConfig()
-    const inChainCfg = cfg.chains.find((c) => c.chainId === quote.tokenIn.chainId)
-    const outChainCfg = cfg.chains.find((c) => c.chainId === quote.tokenOut.chainId)
-    if (!inChainCfg || !outChainCfg) {
-      throw new Error('Gateway: Missing chain config for encode payload')
-    }
-
-    // 0) Re-validate sufficient unified balance (protect against race conditions)
-    await this.ensureSufficientUnifiedBalance(amountBase6)
-
-    // 1) Build one or more EIP-712 burn-intent typed data items based on sources
-    const destinationMinter = await this.getMinterAddress(destinationDomain)
-    const sources =
-      contextSources && contextSources.length
-        ? contextSources
-        : [{ domain: quote.context.sourceDomain, amountBase6 }]
-
-    const signerClient = await this.walletClientService.getClient(quote.tokenIn.chainId)
-    const transferItems: Array<{ burnIntent: any; signature: Hex }> = []
-
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: preparing transfer items',
-        id,
-        properties: {
-          sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
-          totalAmountBase6: amountBase6.toString(),
-          items: sources.length,
-        },
-      }),
-    )
-
-    // Build burn intents for each source domain
-    for (const src of sources) {
-      const sourceWallet = await this.getWalletAddress(src.domain)
-      const srcChainCfg = cfg.chains.find((c) => c.domain === src.domain)
-      if (!srcChainCfg) {
-        throw new Error(`Gateway: Missing chain config for source domain ${src.domain}`)
+      // Resolve Gateway config for tokens
+      const cfg = this.configService.getGatewayConfig()
+      const inChainCfg = cfg.chains.find((c) => c.chainId === quote.tokenIn.chainId)
+      const outChainCfg = cfg.chains.find((c) => c.chainId === quote.tokenOut.chainId)
+      if (!inChainCfg || !outChainCfg) {
+        throw new Error('Gateway: Missing chain config for encode payload')
       }
-      const maxFeeForIntent = this.computeMaxFeeBase6(src.domain, src.amountBase6)
-      const typedData = this.buildBurnIntentTypedData({
-        sourceDomain: src.domain,
-        destinationDomain,
-        sourceContract: sourceWallet,
-        destinationContract: destinationMinter,
-        sourceToken: srcChainCfg.usdc,
-        destinationToken: outChainCfg.usdc,
-        sourceDepositor: eoaAddress,
-        destinationRecipient: kernelAddress,
-        sourceSigner: eoaAddress,
-        destinationCaller: '0x0000000000000000000000000000000000000000' as Hex,
-        value: src.amountBase6,
-        salt: keccak256(
-          toHex(
-            `${Date.now()}-${id ?? ''}-${eoaAddress}-${src.domain}-${src.amountBase6.toString()}`,
-          ),
-        ) as Hex,
-        hookData: '0x',
-        maxBlockHeight: BigInt(10_000_000_000),
-        maxFee: maxFeeForIntent,
-      })
-      const signature: Hex = await (signerClient as any).signTypedData(typedData)
-      transferItems.push({ burnIntent: (typedData as any).message, signature })
+
+      // 0) Re-validate sufficient unified balance (protect against race conditions)
+      await this.ensureSufficientUnifiedBalance(amountBase6)
+
+      // 1) Build one or more EIP-712 burn-intent typed data items based on sources
+      const destinationMinter = await this.getMinterAddress(destinationDomain)
+      const sources =
+        contextSources && contextSources.length
+          ? contextSources
+          : [{ domain: quote.context.sourceDomain, amountBase6 }]
+
+      const signerClient = await this.walletClientService.getClient(quote.tokenIn.chainId)
+      const transferItems: Array<{ burnIntent: any; signature: Hex }> = []
 
       this.logger.debug(
         EcoLogMessage.withId({
-          message: 'Gateway: signed burn intent',
+          message: 'Gateway: preparing transfer items',
           id,
           properties: {
-            sourceDomain: src.domain,
-            value: src.amountBase6.toString(),
-            maxFee: maxFeeForIntent.toString(),
+            sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
+            totalAmountBase6: amountBase6.toString(),
+            items: sources.length,
           },
         }),
       )
-    }
 
-    // 2) Request attestation from Gateway API using an array of burn intents
-    const attestationResp = await this.client.createTransferAttestation(transferItems as any)
-    if ('message' in attestationResp) {
-      throw new Error(`Gateway attestation error: ${attestationResp.message}`)
-    }
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: attestation received',
-        id,
-        properties: {
-          items: transferItems.length,
-          hasTransferId: !!(attestationResp as any).transferId,
-        },
-      }),
-    )
+      // Build burn intents for each source domain
+      for (const src of sources) {
+        const sourceWallet = await this.getWalletAddress(src.domain)
+        const srcChainCfg = cfg.chains.find((c) => c.domain === src.domain)
+        if (!srcChainCfg) {
+          throw new Error(`Gateway: Missing chain config for source domain ${src.domain}`)
+        }
+        const maxFeeForIntent = this.computeMaxFeeBase6(src.domain, src.amountBase6)
+        const typedData = this.buildBurnIntentTypedData({
+          sourceDomain: src.domain,
+          destinationDomain,
+          sourceContract: sourceWallet,
+          destinationContract: destinationMinter,
+          sourceToken: srcChainCfg.usdc,
+          destinationToken: outChainCfg.usdc,
+          sourceDepositor: eoaAddress,
+          destinationRecipient: kernelAddress,
+          sourceSigner: eoaAddress,
+          destinationCaller: '0x0000000000000000000000000000000000000000' as Hex,
+          value: src.amountBase6,
+          salt: keccak256(
+            toHex(
+              `${Date.now()}-${id ?? ''}-${eoaAddress}-${src.domain}-${src.amountBase6.toString()}`,
+            ),
+          ) as Hex,
+          hookData: '0x',
+          maxBlockHeight: BigInt(10_000_000_000),
+          maxFee: maxFeeForIntent,
+        })
+        const signature: Hex = await (signerClient as any).signTypedData(typedData)
+        transferItems.push({ burnIntent: (typedData as any).message, signature })
 
-    // 3) Mint on destination
-    const minterAddress = await this.getMinterAddress(destinationDomain)
-    const destWalletClient = await this.walletClientService.getClient(quote.tokenOut.chainId)
-    const destPublicClient = await this.walletClientService.getPublicClient(quote.tokenOut.chainId)
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'Gateway: signed burn intent',
+            id,
+            properties: {
+              sourceDomain: src.domain,
+              value: src.amountBase6.toString(),
+              maxFee: maxFeeForIntent.toString(),
+            },
+          }),
+        )
+      }
 
-    const txHash = await destWalletClient.writeContract({
-      abi: gatewayMinterAbi,
-      address: minterAddress,
-      functionName: 'gatewayMint',
-      args: [attestationResp.attestation, attestationResp.signature],
-    })
-    await destPublicClient.waitForTransactionReceipt({ hash: txHash })
+      // 2) Request attestation from Gateway API using an array of burn intents
+      const attestationResp = await this.client.createTransferAttestation(transferItems as any)
+      if ('message' in attestationResp) {
+        throw new Error(`Gateway attestation error: ${attestationResp.message}`)
+      }
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Gateway: attestation received',
+          id,
+          properties: {
+            items: transferItems.length,
+            hasTransferId: !!(attestationResp as any).transferId,
+          },
+        }),
+      )
 
-    this.logger.log(
-      EcoLogMessage.withId({
-        message: 'Gateway: Minted on destination',
-        id,
-        properties: {
-          txHash,
-          chainId: quote.tokenOut.chainId,
+      // 3) Mint on destination
+      const minterAddress = await this.getMinterAddress(destinationDomain)
+      const destWalletClient = await this.walletClientService.getClient(quote.tokenOut.chainId)
+      const destPublicClient = await this.walletClientService.getPublicClient(
+        quote.tokenOut.chainId,
+      )
+
+      const txHash = await destWalletClient.writeContract({
+        abi: gatewayMinterAbi,
+        address: minterAddress,
+        functionName: 'gatewayMint',
+        args: [attestationResp.attestation, attestationResp.signature],
+      })
+      await destPublicClient.waitForTransactionReceipt({ hash: txHash })
+
+      this.logger.log(
+        EcoLogMessage.withId({
+          message: 'Gateway: Minted on destination',
+          id,
+          properties: {
+            txHash,
+            chainId: quote.tokenOut.chainId,
+            depositor: eoaAddress,
+            recipient: kernelAddress,
+          },
+        }),
+      )
+
+      // Enqueue top-up of unified balance from Kernel via depositFor to EOA (on tokenIn chain)
+      const inChainTopUp = this.configService
+        .getGatewayConfig()
+        .chains.find((c) => c.chainId === quote.tokenIn.chainId)
+      const gatewayInfo = await this.getSupportedDomains(false)
+      const walletAddr =
+        (inChainTopUp?.['wallet'] as Hex | undefined) ||
+        (gatewayInfo.find((d) => d.domain === inChainTopUp?.domain)?.wallet as Hex | undefined)
+
+      if (inChainTopUp?.usdc && walletAddr) {
+        const gatewayTopUpJobData: GatewayTopUpJobData = {
+          groupID: quote.groupID!,
+          rebalanceJobID: quote.rebalanceJobID!,
+          chainId: quote.tokenIn.chainId,
+          usdc: inChainTopUp.usdc,
+          gatewayWallet: walletAddr,
+          amount: serialize(quote.amountIn),
           depositor: eoaAddress,
-          recipient: kernelAddress,
-        },
-      }),
-    )
-
-    // Enqueue top-up of unified balance from Kernel via depositFor to EOA (on tokenIn chain)
-    const inChainTopUp = this.configService
-      .getGatewayConfig()
-      .chains.find((c) => c.chainId === quote.tokenIn.chainId)
-    const gatewayInfo = await this.getSupportedDomains(false)
-    const walletAddr =
-      (inChainTopUp?.['wallet'] as Hex | undefined) ||
-      (gatewayInfo.find((d) => d.domain === inChainTopUp?.domain)?.wallet as Hex | undefined)
-
-    if (inChainTopUp?.usdc && walletAddr) {
-      await this.liquidityManagerQueue.startGatewayTopUp({
-        chainId: quote.tokenIn.chainId,
-        usdc: inChainTopUp.usdc,
-        gatewayWallet: walletAddr,
-        amount: serialize(quote.amountIn),
-        depositor: eoaAddress,
-        id,
-      })
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: top-up job enqueued',
           id,
-          properties: {
-            chainId: quote.tokenIn.chainId,
-            amountBase6: quote.amountIn.toString(),
-            gatewayWallet: walletAddr,
-          },
-        }),
-      )
-    } else {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'Gateway: Skipping top-up enqueue (missing usdc or GatewayWallet address)',
-          id,
-          properties: { chainId: quote.tokenIn.chainId },
-        }),
-      )
+        }
+
+        await this.liquidityManagerQueue.startGatewayTopUp(gatewayTopUpJobData)
+
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'Gateway: top-up job enqueued',
+            id,
+            properties: {
+              chainId: quote.tokenIn.chainId,
+              amountBase6: quote.amountIn.toString(),
+              gatewayWallet: walletAddr,
+            },
+          }),
+        )
+      } else {
+        this.logger.warn(
+          EcoLogMessage.withId({
+            message: 'Gateway: Skipping top-up enqueue (missing usdc or GatewayWallet address)',
+            id,
+            properties: { chainId: quote.tokenIn.chainId },
+          }),
+        )
+
+        await this.rebalanceRepository.updateStatus(
+          quote.rebalanceJobID!,
+          RebalanceStatus.COMPLETED,
+        )
+      }
+
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
     }
-
-    return txHash
   }
 
   @Cacheable({

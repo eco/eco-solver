@@ -92,7 +92,7 @@ export abstract class BaseProcessor<
    * @param params - Additional parameters for the method.
    * @returns The result of the method execution.
    */
-  private execute(job: Job, method: 'process' | 'onFailed' | 'onComplete', ...params: unknown[]) {
+  protected execute(job: Job, method: 'process' | 'onFailed' | 'onComplete', ...params: unknown[]) {
     for (const manager of this.jobManagers) {
       // Process the job if it matches the job type
       if (manager.is(job)) {

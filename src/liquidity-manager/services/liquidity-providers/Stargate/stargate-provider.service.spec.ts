@@ -7,6 +7,8 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { StargateQuote, StargateStep } from './types/stargate-quote.interface'
 import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { createMock } from '@golevelup/ts-jest'
 
 // Mock global fetch
 global.fetch = jest.fn()
@@ -130,6 +132,7 @@ describe('StargateProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StargateProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: EcoConfigService,
           useValue: {

@@ -1,24 +1,24 @@
+import { BaseProcessor } from '@/common/bullmq/base.processor'
+import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
+import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
+import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
+import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
+import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
+import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
+import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
+import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
+import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
+import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
+import { GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { BaseProcessor } from '@/common/bullmq/base.processor'
-import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
-import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
-import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
-import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
-import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
-import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
-import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
-import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
-import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
-import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
-import { GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
+import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
+import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 
 /**
  * Processor for handling liquidity manager jobs.

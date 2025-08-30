@@ -15,6 +15,7 @@ import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('CCTPLiFi Provider Integration Tests', () => {
   let service: CCTPLiFiProviderService
@@ -106,6 +107,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             fetchAttestation: jest.fn(),
           },
         },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: BalanceService,
           useValue: {},

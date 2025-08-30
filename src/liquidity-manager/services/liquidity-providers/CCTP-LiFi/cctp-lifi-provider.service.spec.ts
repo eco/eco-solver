@@ -12,6 +12,7 @@ import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
 import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('CCTPLiFiProviderService', () => {
   let service: CCTPLiFiProviderService
@@ -131,6 +132,7 @@ describe('CCTPLiFiProviderService', () => {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
         },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: getQueueToken(LiquidityManagerQueue.queueName),
           useValue: mockQueue,

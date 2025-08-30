@@ -34,6 +34,7 @@ import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-pr
 import { EcoAnalyticsService } from '@/analytics'
 import { serialize } from '@/common/utils/serialize'
 import { GatewayProviderService } from '../Gateway/gateway-provider.service'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -86,6 +87,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let queue: DeepMocked<Queue>
   let flowProducer: DeepMocked<FlowProducer>
   let rebalanceModel: DeepMocked<Model<RebalanceModel>>
+  let rebalanceRepo: { create: jest.Mock; getPendingReservedByTokenForWallet: jest.Mock }
 
   const walletAddress = '0x1234567890123456789012345678901234567890'
 
@@ -151,6 +153,13 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         LiquidityManagerService,
         LiquidityProviderService,
         CCTPLiFiProviderService,
+        {
+          provide: RebalanceRepository,
+          useValue: (rebalanceRepo = {
+            getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+            create: jest.fn().mockResolvedValue({}),
+          }),
+        },
         {
           provide: LiFiProviderService,
           useValue: createMock<LiFiProviderService>(),
@@ -496,8 +505,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       await liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
 
-      // Verify storage
-      expect(rebalanceModel.create).toHaveBeenCalledWith(
+      // Verify storage via repository
+      expect(rebalanceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           wallet: walletAddress,
           strategy: 'CCTPLiFi',
@@ -520,6 +529,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       jest.spyOn(cctpLiFiProvider, 'execute').mockResolvedValue(undefined)
 
       await liquidityManagerService.executeRebalancing({
+        groupID: `DummyGroupID`,
+        rebalanceJobID: `DummyRebalanceJobID`,
         walletAddress,
         network: '1',
         rebalance: { quotes: serialize(quotes), token: {} as any },
@@ -1088,7 +1099,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         await liquidityManagerService.storeRebalancing(walletAddress, rebalance)
       }
 
-      expect(rebalanceModel.create).toHaveBeenCalledTimes(2)
+      expect(rebalanceRepo.create).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -1264,6 +1275,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       // Execute should throw the transaction failure error
       await expect(
         liquidityManagerService.executeRebalancing({
+          groupID: `DummyGroupID`,
+          rebalanceJobID: `DummyRebalanceJobID`,
           walletAddress,
           network: '1',
           rebalance: { quotes: serialize(quotes) } as any,

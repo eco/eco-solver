@@ -1,10 +1,7 @@
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
-import { v4 as uuid } from 'uuid'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -22,8 +19,9 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -38,6 +36,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
+import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -53,14 +52,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     private readonly queue: LiquidityManagerQueueType,
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
-    @InjectModel(RebalanceModel.name)
-    private readonly rebalanceModel: Model<RebalanceModel>,
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderService,
     public readonly kernelAccountClientService: KernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
@@ -120,14 +118,58 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async analyzeTokens(walletAddress: string) {
+    // 1) Build reservation maps of amounts already committed to pending rebalances
+    const reservedByToken = await this.getReservedByTokenMap(walletAddress)
+    const incomingByToken = await this.getIncomingByTokenMap(walletAddress)
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: 'Reservation-aware analysis: reservedByToken snapshot',
+        properties: {
+          walletAddress,
+          tokensAffected: reservedByToken.size,
+          reservedByToken: Array.from(reservedByToken.entries()).map(([key, value]) => [
+            key,
+            value.toString(),
+          ]),
+        },
+      }),
+    )
+
+    // 2) Fetch on-chain balances and subtract reserved amounts per token before analysis
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
       walletAddress,
       this.tokensPerWallet[walletAddress],
     )
-    const analysis: TokenDataAnalyzed[] = tokens.map((item) => ({
-      ...item,
-      analysis: this.analyzeToken(item),
-    }))
+    const adjusted: TokenData[] = tokens.map((item) => {
+      try {
+        const key = `${item.chainId}:${String(item.config.address).toLowerCase()}`
+        const reserved = reservedByToken.get(key) ?? 0n
+        const incoming = incomingByToken.get(key) ?? 0n
+        if (reserved > 0n || incoming > 0n) {
+          item.balance.balance = item.balance.balance - reserved + incoming
+        }
+      } catch {}
+      return item
+    })
+
+    const analysis: TokenDataAnalyzed[] = []
+    for (const item of adjusted) {
+      try {
+        analysis.push({ ...item, analysis: this.analyzeToken(item) })
+      } catch (e) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: token skipped due to invalid config/input',
+            properties: {
+              walletAddress,
+              token: item?.config,
+              error: (e as any)?.message ?? e,
+            },
+          }),
+        )
+      }
+    }
 
     const groups = groupBy(analysis, (item) => item.analysis.state)
     return {
@@ -135,6 +177,56 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       surplus: analyzeTokenGroup(groups[TokenState.SURPLUS] ?? []),
       inrange: analyzeTokenGroup(groups[TokenState.IN_RANGE] ?? []),
       deficit: analyzeTokenGroup(groups[TokenState.DEFICIT] ?? []),
+    }
+  }
+
+  /**
+   * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
+   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
+   */
+  private async getReservedByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingReservedByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied reserved amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (e) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Reservation-aware analysis: no reservations applied',
+          properties: { walletAddress, error: (e as any)?.message ?? e },
+        }),
+      )
+      return new Map<string, bigint>()
+    }
+  }
+
+  private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied incoming amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (e) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Reservation-aware analysis: no incoming applied',
+          properties: { walletAddress, error: (e as any)?.message ?? e },
+        }),
+      )
+      return new Map<string, bigint>()
     }
   }
 
@@ -162,17 +254,22 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const swapQuotes = await this.getSwapQuotes(walletAddress, deficitToken, surplusTokens)
 
     // Continue with swap quotes if possible
-    if (swapQuotes.length) return swapQuotes
+    if (swapQuotes.length > 0) {
+      return swapQuotes
+    }
 
     return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokens)
   }
 
   startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
-    if (!rebalances.length) return
+    if (rebalances.length === 0) {
+      return
+    }
 
     const jobs = rebalances.map((rebalance) =>
       RebalanceJobManager.createJob(walletAddress, rebalance, this.liquidityManagerQueue.name),
     )
+
     return this.liquidityManagerFlowProducer.add({
       name: 'rebalance-batch',
       queueName: this.liquidityManagerQueue.name,
@@ -188,10 +285,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
-    const groupId = uuid()
+    const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
+
     for (const quote of request.quotes) {
-      await this.rebalanceModel.create({
-        groupId,
+      quote.groupID = groupID
+      quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
+
+      await this.rebalanceRepository.create({
+        rebalanceJobID: quote.rebalanceJobID,
+        groupId: quote.groupID,
         wallet: walletAddress,
         amountIn: quote.amountIn,
         amountOut: quote.amountOut,
@@ -200,7 +302,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         context: quote.context,
         tokenIn: RebalanceTokenModel.fromTokenData(quote.tokenIn),
         tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
+        status: RebalanceStatus.PENDING.toString(),
       })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Rebalance stored',
+          properties: { quote, walletAddress },
+        }),
+      )
     }
   }
 
@@ -341,16 +451,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
         // Use the fallback method that routes through core tokens
-        const quotes = await this.liquidityProviderManager.fallback(
+        const fallbackQuotes = await this.liquidityProviderManager.fallback(
           surplusToken,
           deficitToken,
           swapAmount,
         )
 
-        quotes.push(...quotes)
-        quotes.forEach((quote) => {
+        quotes.push(...fallbackQuotes)
+        for (const quote of fallbackQuotes) {
           currentBalance += quote.amountOut
-        })
+        }
       } catch (fallbackError) {
         this.ecoAnalytics.trackError(
           ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,

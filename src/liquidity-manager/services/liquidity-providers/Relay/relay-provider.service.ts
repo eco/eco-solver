@@ -1,15 +1,17 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { adaptKernelWallet } from './wallet-adapter'
 import { Chain, Client, extractChain, parseUnits, Transport } from 'viem'
+import { ChainsSupported } from '@/common/chains/supported'
+import { convertViemChainToRelayChain, createClient, getClient } from '@reservoir0x/relay-sdk'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { convertViemChainToRelayChain, createClient, getClient } from '@reservoir0x/relay-sdk'
-import { ChainsSupported } from '@/common/chains/supported'
-import { adaptKernelWallet } from './wallet-adapter'
-import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { SmartAccount } from 'viem/account-abstraction'
 
 @Injectable()
@@ -19,6 +21,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
   async onModuleInit() {
@@ -127,7 +130,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       )
 
       // Execute the quote
-      return await getClient()?.actions.execute({
+      const res = await getClient()?.actions.execute({
         quote: quote.context,
         wallet: adaptedWallet,
         onProgress: (data) => {
@@ -139,6 +142,9 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
           )
         },
       })
+
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
+      return res
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withError({
@@ -151,6 +157,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
           },
         }),
       )
+
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.FAILED)
       throw error
     }
   }
