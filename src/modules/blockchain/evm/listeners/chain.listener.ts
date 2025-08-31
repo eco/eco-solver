@@ -92,7 +92,10 @@ export class ChainListener extends BaseChainListener {
               'evm.prover': log.args.prover,
             });
 
-            this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+            // Emit the event within the span context to propagate trace context
+            api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+              this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+            });
 
             span.addEvent('intent.emitted');
             span.setStatus({ code: api.SpanStatusCode.OK });

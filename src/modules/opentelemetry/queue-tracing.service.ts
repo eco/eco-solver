@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 
+import { TraceContext } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
+
 import { OpenTelemetryService } from './opentelemetry.service';
 
 @Injectable()
@@ -99,6 +101,17 @@ export class QueueTracingService {
         }
         if (jobData.intent?.intentHash) {
           span.setAttribute('intent.hash', jobData.intent.intentHash);
+        }
+
+        // Capture current span context to pass to the job
+        const spanContext = span.spanContext();
+        if (spanContext && api.trace.isSpanContextValid(spanContext)) {
+          // Add trace context to job data for propagation
+          (data as any).traceContext = {
+            traceId: spanContext.traceId,
+            spanId: spanContext.spanId,
+            traceFlags: spanContext.traceFlags,
+          };
         }
 
         try {

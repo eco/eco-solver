@@ -4,7 +4,6 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
-import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
@@ -19,7 +18,6 @@ export class IntentSubmissionService {
   constructor(
     private readonly logger: SystemLoggerService,
     @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
-    private readonly intentsService: IntentsService,
     private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(IntentSubmissionService.name);
@@ -60,55 +58,6 @@ export class IntentSubmissionService {
       this.logger.error(`Failed to submit intent: ${intent.intentHash}`, error, {
         intentHash: intent.intentHash,
       });
-      throw error;
-    } finally {
-      span.end();
-    }
-  }
-
-  /**
-   * Check if an intent is a duplicate
-   */
-  private async checkDuplicate(intent: Intent): Promise<boolean> {
-    const span = this.otelService.startSpan('intent.submission.checkDuplicate', {
-      attributes: {
-        'intent.hash': intent.intentHash,
-      },
-    });
-
-    try {
-      const existingIntent = await this.intentsService.findById(intent.intentHash);
-      const isDuplicate = existingIntent !== null;
-
-      span.setAttribute('submission.is_duplicate', isDuplicate);
-      span.setStatus({ code: api.SpanStatusCode.OK });
-
-      return isDuplicate;
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
-    }
-  }
-
-  /**
-   * Save intent to database
-   */
-  private async saveIntent(intent: Intent): Promise<void> {
-    const span = this.otelService.startSpan('intent.submission.save', {
-      attributes: {
-        'intent.hash': intent.intentHash,
-      },
-    });
-
-    try {
-      await this.intentsService.create(intent);
-      span.setStatus({ code: api.SpanStatusCode.OK });
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {
       span.end();

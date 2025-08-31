@@ -1,12 +1,18 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
 import { MongoDBInstrumentation } from '@opentelemetry/instrumentation-mongodb';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
+import {
+  ConsoleMetricExporter,
+  MeterProvider,
+  PeriodicExportingMetricReader,
+} from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
@@ -22,6 +28,8 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
   private sdk?: NodeSDK;
   private tracer: api.Tracer;
+  private meter: api.Meter;
+  private meterProvider?: MeterProvider;
 
   constructor(
     private readonly config: OpenTelemetryConfigService,
@@ -30,6 +38,8 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     this.logger.setContext(OpenTelemetryService.name);
     // Always get tracer - it will be no-op if no provider is registered
     this.tracer = api.trace.getTracer('blockchain-intent-solver');
+    // Always get meter - it will be no-op if no provider is registered
+    this.meter = api.metrics.getMeter('blockchain-intent-solver');
   }
 
   async onModuleInit() {
@@ -55,6 +65,14 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
         this.logger.error('Error shutting down OpenTelemetry', error);
       }
     }
+    if (this.meterProvider) {
+      try {
+        await this.meterProvider.shutdown();
+        this.logger.log('OpenTelemetry metrics shut down successfully');
+      } catch (error) {
+        this.logger.error('Error shutting down OpenTelemetry metrics', error);
+      }
+    }
   }
 
   /**
@@ -62,6 +80,13 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
    */
   getTracer(): api.Tracer {
     return this.tracer;
+  }
+
+  /**
+   * Get the OpenTelemetry meter instance
+   */
+  getMeter(): api.Meter {
+    return this.meter;
   }
 
   /**
@@ -130,6 +155,9 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
       }),
     );
 
+    // Initialize metrics
+    await this.initializeMetrics(resource);
+
     const exporters = this.createExporters();
     const spanProcessors = exporters.map((exporter) => new BatchSpanProcessor(exporter));
 
@@ -143,6 +171,39 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     });
 
     await this.sdk.start();
+  }
+
+  private async initializeMetrics(resource: any) {
+    const metricExporters = [];
+
+    // Add console exporter in development
+    if (process.env.NODE_ENV === 'development') {
+      metricExporters.push(
+        new PeriodicExportingMetricReader({
+          exporter: new ConsoleMetricExporter(),
+          exportIntervalMillis: 60000, // Export every minute
+        }),
+      );
+    }
+
+    // OTLP Metric Exporter
+    metricExporters.push(
+      new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter({
+          url: `${this.config.otlp.endpoint}/v1/metrics`,
+          headers: this.config.otlp.headers,
+        }),
+        exportIntervalMillis: 60000, // Export every minute
+      }),
+    );
+
+    this.meterProvider = new MeterProvider({
+      resource,
+      readers: metricExporters,
+    });
+
+    // Set the global meter provider
+    api.metrics.setGlobalMeterProvider(this.meterProvider);
   }
 
   private createExporters(): SpanExporter[] {

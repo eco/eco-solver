@@ -186,38 +186,7 @@ export class IntentProcessingService {
   }
 
   /**
-   * Queue intent for execution
-   */
-  private async queueForExecution(intent: Intent, strategyName: string): Promise<void> {
-    const span = this.otelService.startSpan('intent.processing.queueExecution', {
-      attributes: {
-        'intent.hash': intent.intentHash,
-        'execution.strategy': strategyName,
-      },
-    });
-
-    try {
-      // Create execution job data with required fields
-      const executionJobData = {
-        strategy: strategyName as any, // Will be cast to FulfillmentStrategyName
-        intent,
-        chainId: intent.destination,
-      };
-      await this.queueService.addIntentToExecutionQueue(executionJobData);
-      await this.updateIntentStatus(intent, IntentStatus.EXECUTING);
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
-    }
-  }
-
-  /**
-   * Validate an intent using a strategy
+   * Validate intent using a strategy
    */
   private async validateIntent(intent: Intent, strategy: IFulfillmentStrategy): Promise<boolean> {
     const span = this.otelService.startSpan('intent.processing.validate', {

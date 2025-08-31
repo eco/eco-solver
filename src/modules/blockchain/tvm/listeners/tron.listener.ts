@@ -17,6 +17,13 @@ export class TronListener extends BaseChainListener {
   private intervalId: NodeJS.Timeout | null = null;
   private lastBlockNumber: number = 0;
   private isRunning: boolean = false;
+  
+  // Metrics instruments
+  private pollCounter: api.Counter;
+  private blocksProcessedHistogram: api.Histogram;
+  private eventsFoundCounter: api.Counter;
+  private lastBlockGauge: api.UpDownCounter;
+  private pollDurationHistogram: api.Histogram;
 
   constructor(
     private readonly config: TvmNetworkConfig,
@@ -29,6 +36,31 @@ export class TronListener extends BaseChainListener {
   ) {
     super();
     // Context is already set by the manager when creating the logger instance
+    
+    // Initialize metrics
+    const meter = this.otelService.getMeter();
+    
+    this.pollCounter = meter.createCounter('tvm.poll.count', {
+      description: 'Total number of TVM blockchain polls',
+    });
+    
+    this.blocksProcessedHistogram = meter.createHistogram('tvm.poll.blocks_processed', {
+      description: 'Number of blocks processed per poll',
+      unit: 'blocks',
+    });
+    
+    this.eventsFoundCounter = meter.createCounter('tvm.poll.events_found', {
+      description: 'Total number of events found in TVM polls',
+    });
+    
+    this.lastBlockGauge = meter.createUpDownCounter('tvm.poll.last_block', {
+      description: 'Last processed block number',
+    });
+    
+    this.pollDurationHistogram = meter.createHistogram('tvm.poll.duration', {
+      description: 'Duration of TVM poll operations',
+      unit: 'ms',
+    });
   }
 
   /**
@@ -84,6 +116,11 @@ export class TronListener extends BaseChainListener {
   private async pollForEvents(): Promise<void> {
     if (!this.isRunning) return;
 
+    const startTime = Date.now();
+    const attributes = {
+      'tvm.chain_id': this.config.chainId.toString(),
+    };
+
     try {
       const client = this.createTronWebClient();
 
@@ -91,23 +128,20 @@ export class TronListener extends BaseChainListener {
       const currentBlock = await client.trx.getCurrentBlock();
       const currentBlockNumber = currentBlock.block_header.raw_data.number;
 
-      // Log polling activity at debug level
-      this.logger.debug('Polling for events', {
-        chainId: this.config.chainId,
-        lastBlockNumber: this.lastBlockNumber,
-        currentBlockNumber,
-        portalAddress: this.blockchainConfigService.getPortalAddress(this.config.chainId),
-      });
+      // Record metrics instead of logging
+      this.pollCounter.add(1, attributes);
+      this.lastBlockGauge.add(currentBlockNumber - this.lastBlockNumber, attributes);
 
       // If no new blocks, skip
       if (currentBlockNumber <= this.lastBlockNumber) {
-        this.logger.debug('No new blocks to process', {
-          chainId: this.config.chainId,
-          currentBlockNumber,
-          lastBlockNumber: this.lastBlockNumber,
-        });
+        // Record zero blocks processed
+        this.blocksProcessedHistogram.record(0, attributes);
         return;
       }
+      
+      // Record blocks processed
+      const blocksProcessed = currentBlockNumber - this.lastBlockNumber;
+      this.blocksProcessedHistogram.record(blocksProcessed, attributes);
 
       const portalAddress = this.blockchainConfigService.getPortalAddress(this.config.chainId);
       // Convert address to hex for event filtering
@@ -125,7 +159,11 @@ export class TronListener extends BaseChainListener {
 
       const eventCount = events && Array.isArray(events) ? events.length : 0;
       if (eventCount > 0) {
-        this.logger.debug('Found events in poll', {
+        // Record events found in metrics
+        this.eventsFoundCounter.add(eventCount, attributes);
+        
+        // Keep this log as it's important for debugging
+        this.logger.log('Found events in poll', {
           chainId: this.config.chainId,
           eventCount,
           blockRange: `${this.lastBlockNumber}-${currentBlockNumber}`,
@@ -146,6 +184,10 @@ export class TronListener extends BaseChainListener {
     } catch (error) {
       this.logger.error(`Error polling for events: ${error.message}`, error);
       throw error;
+    } finally {
+      // Record poll duration
+      const duration = Date.now() - startTime;
+      this.pollDurationHistogram.record(duration, attributes);
     }
   }
 
@@ -206,8 +248,10 @@ export class TronListener extends BaseChainListener {
         'tvm.prover': intent.reward.prover,
       });
 
-      // Emit the intent event
-      this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+      // Emit the intent event within the span context to propagate trace context
+      api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+        this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+      });
 
       span.addEvent('intent.emitted');
       span.setStatus({ code: api.SpanStatusCode.OK });
