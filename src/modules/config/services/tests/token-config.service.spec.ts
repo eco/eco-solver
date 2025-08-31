@@ -4,7 +4,7 @@ import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { SolanaConfigService } from '@/modules/config/services/solana-config.service';
 import { TvmConfigService } from '@/modules/config/services/tvm-config.service';
 
-import { TokenConfigService } from './token-config.service';
+import { TokenConfigService } from '../token-config.service';
 
 describe('TokenConfigService', () => {
   let service: TokenConfigService;

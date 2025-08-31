@@ -17,7 +17,7 @@ export class TvmConfigService {
     this.initializeNetworks();
   }
 
-  private _networks: Map<string | number, TvmNetworkConfig>;
+  private _networks: Map<number, TvmNetworkConfig>;
 
   get networks(): TvmNetworkConfig[] {
     return Array.from(this._networks.values());
@@ -35,25 +35,27 @@ export class TvmConfigService {
     return this.wallets.basic;
   }
 
-  getChain(chainId: number | string): TvmNetworkConfig {
-    const network = this._networks.get(chainId);
+  getChain(chainId: number | string | bigint): TvmNetworkConfig {
+    const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
+    const network = this._networks.get(numChainId);
     if (!network) {
       throw new Error(`Network configuration not found for chainId: ${chainId}`);
     }
     return network;
   }
 
-  getRpc(chainId: number | string) {
+  getRpc(chainId: number | string | bigint) {
     const network = this.getChain(chainId);
     return network.rpc;
   }
 
   getSupportedTokens(chainId: number | bigint | string): TvmTokenConfig[] {
-    const network = this.getChain(typeof chainId === 'bigint' ? chainId.toString() : chainId);
+    const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
+    const network = this.getChain(numChainId);
     return network.tokens;
   }
 
-  isTokenSupported(chainId: number | string, tokenAddress: string): boolean {
+  isTokenSupported(chainId: number | string | bigint, tokenAddress: string): boolean {
     const tokens = this.getSupportedTokens(chainId);
     // Normalize the input address to Base58 format for comparison
     const normalizedAddress = TvmUtilsService.normalizeAddressToBase58(tokenAddress);
@@ -75,7 +77,7 @@ export class TvmConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: number | string): AssetsFeeSchemaType {
+  getFeeLogic(chainId: number | string | bigint): AssetsFeeSchemaType {
     const network = this.getChain(chainId);
     return network.fee;
   }
@@ -93,15 +95,12 @@ export class TvmConfigService {
     return !!(tvmConfig && this._networks.size > 0);
   }
 
-  getPortalAddress(chainId: number | string): string {
+  getPortalAddress(chainId: number | string | bigint): string {
     const network = this.getChain(chainId);
     return network.contracts.portal;
   }
 
-  getProverAddress(
-    chainId: number | string,
-    proverType: 'hyper' | 'metalayer',
-  ): string | undefined {
+  getProverAddress(chainId: number | string | bigint, proverType: 'hyper' | 'metalayer'): string | undefined {
     const network = this.getChain(chainId);
     return network.provers?.[proverType];
   }

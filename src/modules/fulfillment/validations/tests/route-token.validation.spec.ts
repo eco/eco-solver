@@ -2,8 +2,8 @@ import { Test } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { TokenConfigService } from '@/modules/token/services/token-config.service';
 
 import { RouteTokenValidation } from '../route-token.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';

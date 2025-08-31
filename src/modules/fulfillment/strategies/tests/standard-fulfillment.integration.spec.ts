@@ -9,6 +9,7 @@ import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-execu
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregated-validation.error';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -32,8 +33,6 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 import { ProverService } from '@/modules/prover/prover.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { TokenConfigService } from '@/modules/token/services/token-config.service';
-import { TokenModule } from '@/modules/token/token.module';
 
 // Mock TokenConfigService
 const createMockTokenConfigService = () => ({
@@ -522,8 +521,6 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         ConfigModule.forRoot({
           isGlobal: true,
         }),
-
-        TokenModule,
       ],
       providers: [
         // Core strategy

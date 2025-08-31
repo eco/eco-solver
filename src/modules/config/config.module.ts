@@ -17,6 +17,7 @@ import {
   TvmConfigService,
 } from '@/modules/config/services';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 
 const configProviders = [
   DatabaseConfigService,
@@ -32,6 +33,7 @@ const configProviders = [
   DataDogConfigService,
   OpenTelemetryConfigService,
   BlockchainConfigService,
+  TokenConfigService,
 ];
 
 @Global()
@@ -39,11 +41,7 @@ const configProviders = [
   imports: [
     NestConfigModule.forRoot({
       isGlobal: false,
-      load: [
-        // Load the configuration factory that handles all env vars and AWS secrets
-        configurationFactory,
-      ],
-      // validate: createZodValidationAdapter(ConfigSchema),
+      load: [configurationFactory],
     }),
   ],
   providers: [ConfigService, ...configProviders],

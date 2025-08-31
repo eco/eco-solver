@@ -4,7 +4,8 @@ import { Address, Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmReaderService } from './evm/services/evm.reader.service';
@@ -16,9 +17,7 @@ export class BlockchainReaderService {
   private readers: Map<string | number, BaseChainReader> = new Map();
 
   constructor(
-    private evmConfigService: EvmConfigService,
-    private solanaConfigService: SolanaConfigService,
-    private tvmConfigService: TvmConfigService,
+    private blockchainConfigService: BlockchainConfigService,
     private readonly logger: SystemLoggerService,
     @Optional() private evmReader?: EvmReaderService,
     @Optional() private svmReader?: SvmReaderService,
@@ -147,27 +146,32 @@ export class BlockchainReaderService {
   }
 
   private initializeReaders() {
-    // Register EVM reader only if available and configured
-    if (this.evmReader && this.evmConfigService.isConfigured()) {
-      const evmChainIds = this.evmConfigService.supportedChainIds;
-      for (const chainId of evmChainIds) {
-        // Use the same reader instance for all chains
-        this.readers.set(chainId, this.evmReader);
-      }
-    }
+    // Get all configured chains from the unified config service
+    const configuredChains = this.blockchainConfigService.getAllConfiguredChains();
 
-    // Register SVM reader only if available and configured
-    if (this.svmReader && this.solanaConfigService.isConfigured()) {
-      this.readers.set('solana-mainnet', this.svmReader);
-      this.readers.set('solana-devnet', this.svmReader);
-    }
+    for (const chainId of configuredChains) {
+      try {
+        const chainType = this.blockchainConfigService.getChainType(chainId);
 
-    // Register TVM reader only if available and configured
-    if (this.tvmReader && this.tvmConfigService.isConfigured()) {
-      const tvmChainIds = this.tvmConfigService.supportedChainIds;
-      for (const chainId of tvmChainIds) {
-        // Use the same reader instance for all chains
-        this.readers.set(chainId, this.tvmReader);
+        switch (chainType) {
+          case ChainType.EVM:
+            if (this.evmReader) {
+              this.readers.set(chainId, this.evmReader);
+            }
+            break;
+          case ChainType.TVM:
+            if (this.tvmReader) {
+              this.readers.set(chainId, this.tvmReader);
+            }
+            break;
+          case ChainType.SVM:
+            if (this.svmReader) {
+              this.readers.set(chainId, this.svmReader);
+            }
+            break;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to initialize reader for chain ${chainId}: ${error.message}`);
       }
     }
   }

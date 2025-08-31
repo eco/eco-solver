@@ -6,7 +6,9 @@ import { z } from 'zod';
 
 import { normalize } from '@/common/tokens/normalize';
 import { FulfillmentSchema } from '@/config/config.schema';
-import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
+
+import { BlockchainConfigService } from './blockchain-config.service';
 
 type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
 
@@ -14,7 +16,8 @@ type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
 export class FulfillmentConfigService {
   constructor(
     private readonly configService: ConfigService,
-    private readonly evmConfigService: EvmConfigService,
+    private readonly blockchainConfigService: BlockchainConfigService,
+    private readonly tokenConfigService: TokenConfigService,
   ) {}
 
   get defaultStrategy(): FulfillmentConfig['defaultStrategy'] {
@@ -37,28 +40,28 @@ export class FulfillmentConfigService {
     );
   }
 
-  getNetworkFee(chainId: bigint | number) {
-    return this.evmConfigService.getFeeLogic(Number(chainId));
+  getNetworkFee(chainId: bigint | number | string) {
+    return this.blockchainConfigService.getFeeLogic(chainId);
   }
 
-  getToken(chainId: bigint | number, address: Address) {
-    return this.evmConfigService.getTokenConfig(chainId, address);
+  getToken(chainId: bigint | number | string, address: Address | string) {
+    return this.tokenConfigService.getTokenConfig(chainId, address as string);
   }
 
   normalize<
     Tokens extends Readonly<Token> | Readonly<Token[]>,
-    Token extends Readonly<{ amount: bigint; token: Address }>,
-    Normalized extends { token: Address; decimals: number; amount: bigint },
+    Token extends Readonly<{ amount: bigint; token: Address | string }>,
+    Normalized extends { token: Address | string; decimals: number; amount: bigint },
     Result extends Tokens extends Readonly<Token[]> ? Normalized[] : Normalized,
-  >(chainId: bigint, tokens: Tokens): Result {
+  >(chainId: bigint | number | string, tokens: Tokens): Result {
     if (tokens instanceof Array) {
       return tokens.map((token) => {
-        const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), token.token);
+        const { decimals } = this.tokenConfigService.getTokenConfig(chainId, token.token as string);
         return { token: token.token, decimals, amount: normalize(token.amount, decimals) };
       }) as Result;
     }
 
-    const { decimals } = this.evmConfigService.getTokenConfig(Number(chainId), tokens.token);
+    const { decimals } = this.tokenConfigService.getTokenConfig(chainId, tokens.token as string);
     return { token: tokens.token, decimals, amount: normalize(tokens.amount, decimals) } as Result;
   }
 }

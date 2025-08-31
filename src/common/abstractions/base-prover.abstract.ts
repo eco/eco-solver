@@ -5,7 +5,7 @@ import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
-import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService } from '@/modules/config/services';
 
 @Injectable()
 export abstract class BaseProver implements OnModuleInit {
@@ -13,7 +13,7 @@ export abstract class BaseProver implements OnModuleInit {
   protected blockchainReaderService: BlockchainReaderService;
 
   constructor(
-    protected readonly evmConfigService: EvmConfigService,
+    protected readonly blockchainConfigService: BlockchainConfigService,
     protected readonly moduleRef: ModuleRef,
   ) {}
 
@@ -29,8 +29,7 @@ export abstract class BaseProver implements OnModuleInit {
   abstract getDeadlineBuffer(): bigint;
 
   getContractAddress(chainId: number): Address | undefined {
-    const chainConfig = this.evmConfigService.getChain(chainId);
-    return chainConfig?.provers[this.type];
+    return this.blockchainConfigService.getProverAddress(chainId, this.type as 'hyper' | 'metalayer') as Address | undefined;
   }
 
   isSupported(chainId: number): boolean {

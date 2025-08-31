@@ -4,7 +4,7 @@ import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 
@@ -16,7 +16,7 @@ export class QuotesService {
   constructor(
     private readonly fulfillmentConfigService: FulfillmentConfigService,
     private readonly fulfillmentService: FulfillmentService,
-    private readonly evmConfigService: EvmConfigService,
+    private readonly blockchainConfigService: BlockchainConfigService,
   ) {}
 
   async getQuote(
@@ -68,15 +68,15 @@ export class QuotesService {
     const destinationChainId = Number(intent.destination);
 
     // Get contract addresses
-    const portalAddress = this.evmConfigService.getPortalAddress(destinationChainId);
+    const portalAddress = this.blockchainConfigService.getPortalAddress(destinationChainId) as Address;
 
     // Get prover address - first try to get from the chain config, fallback to generic prover if needed
     let proverAddress: Address | undefined;
     try {
       // Try to get prover address for the destination chain
       proverAddress =
-        this.evmConfigService.getProverAddress(destinationChainId, 'hyper') ||
-        this.evmConfigService.getProverAddress(destinationChainId, 'metalayer');
+        (this.blockchainConfigService.getProverAddress(destinationChainId, 'hyper') as Address) ||
+        (this.blockchainConfigService.getProverAddress(destinationChainId, 'metalayer') as Address);
     } catch (error) {
       // If no prover found, use the prover address from reward
       proverAddress = intent.reward.prover;

@@ -34,7 +34,7 @@ export class TokenConfigService {
           return this.evmConfig.isTokenSupported(Number(chainId), tokenAddress);
         case ChainType.TVM:
           return this.tvmConfig.isTokenSupported(
-            typeof chainId === 'bigint' ? chainId.toString() : chainId,
+            chainId,
             tokenAddress,
           );
         case ChainType.SVM:

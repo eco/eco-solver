@@ -6,17 +6,17 @@ import { Address, encodeAbiParameters, Hex, pad } from 'viem';
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService } from '@/modules/config/services';
 
 @Injectable()
 export class MetalayerProver extends BaseProver {
   readonly type = ProverType.METALAYER;
 
   constructor(
-    protected readonly evmConfigService: EvmConfigService,
+    protected readonly blockchainConfigService: BlockchainConfigService,
     protected readonly moduleRef: ModuleRef,
   ) {
-    super(evmConfigService, moduleRef);
+    super(blockchainConfigService, moduleRef);
   }
 
   async generateProof(intent: Intent): Promise<Hex> {

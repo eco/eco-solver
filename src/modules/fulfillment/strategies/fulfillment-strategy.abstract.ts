@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
@@ -142,9 +143,17 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
 
   /**
    * IFulfillmentStrategy implementation - Get wallet ID for an intent
+   * Returns blockchain-specific default wallet types
    */
-  getWalletIdForIntent(_intent: Intent): Promise<WalletType> {
-    return Promise.resolve('kernel');
+  getWalletIdForIntent(intent: Intent): Promise<WalletType> {
+    // Determine wallet type based on destination blockchain
+    const chainType = ChainTypeDetector.detect(intent.destination);
+    
+    // TVM and SVM only support basic wallets
+    // EVM can use kernel wallets for advanced features
+    const walletType: WalletType = chainType === ChainType.EVM ? 'kernel' : 'basic';
+    
+    return Promise.resolve(walletType);
   }
 
   /**

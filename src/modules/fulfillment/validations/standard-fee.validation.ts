@@ -6,7 +6,7 @@ import { parseUnits } from 'viem';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { sum } from '@/common/utils/math';
-import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -15,7 +15,7 @@ import { FeeCalculationValidation, FeeDetails } from './fee-calculation.interfac
 @Injectable()
 export class StandardFeeValidation implements FeeCalculationValidation {
   constructor(
-    private evmConfigService: EvmConfigService,
+    private blockchainConfigService: BlockchainConfigService,
     private fulfillmentConfigService: FulfillmentConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {}
@@ -83,7 +83,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     // Get fee logic for the destination chain
-    const fee = this.evmConfigService.getFeeLogic(Number(intent.destination));
+    const fee = this.blockchainConfigService.getFeeLogic(intent.destination);
     const baseFee = normalize(parseUnits(fee.tokens.flatFee.toString(), 18), 18);
 
     // Calculate total value being transferred

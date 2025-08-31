@@ -4,7 +4,7 @@ import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abs
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
-import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -18,9 +18,7 @@ export class BlockchainExecutorService {
   private executors: Map<string | number, BaseChainExecutor> = new Map();
 
   constructor(
-    private evmConfigService: EvmConfigService,
-    private solanaConfigService: SolanaConfigService,
-    private tvmConfigService: TvmConfigService,
+    private blockchainConfigService: BlockchainConfigService,
     private intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
@@ -33,25 +31,32 @@ export class BlockchainExecutorService {
   }
 
   private initializeExecutors() {
-    // Register EVM executor only if available and configured
-    if (this.evmExecutor && this.evmConfigService.isConfigured()) {
-      const evmChainIds = this.evmConfigService.supportedChainIds;
-      for (const chainId of evmChainIds) {
-        this.executors.set(chainId, this.evmExecutor);
-      }
-    }
-
-    // Register SVM executor only if available and configured
-    if (this.svmExecutor && this.solanaConfigService.isConfigured()) {
-      this.executors.set('solana-mainnet', this.svmExecutor);
-      this.executors.set('solana-devnet', this.svmExecutor);
-    }
-
-    // Register TVM executor only if available and configured
-    if (this.tvmExecutor && this.tvmConfigService.isConfigured()) {
-      const tvmChainIds = this.tvmConfigService.supportedChainIds;
-      for (const chainId of tvmChainIds) {
-        this.executors.set(chainId, this.tvmExecutor);
+    // Get all configured chains from the unified config service
+    const configuredChains = this.blockchainConfigService.getAllConfiguredChains();
+    
+    for (const chainId of configuredChains) {
+      try {
+        const chainType = this.blockchainConfigService.getChainType(chainId);
+        
+        switch (chainType) {
+          case ChainType.EVM:
+            if (this.evmExecutor) {
+              this.executors.set(chainId, this.evmExecutor);
+            }
+            break;
+          case ChainType.TVM:
+            if (this.tvmExecutor) {
+              this.executors.set(chainId, this.tvmExecutor);
+            }
+            break;
+          case ChainType.SVM:
+            if (this.svmExecutor) {
+              this.executors.set(chainId, this.svmExecutor);
+            }
+            break;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to initialize executor for chain ${chainId}: ${error.message}`);
       }
     }
   }
