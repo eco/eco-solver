@@ -79,6 +79,7 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
       destinationChainId,
       messageBody,
       attestation,
+      job.data.id,
     )
   }
 
@@ -142,26 +143,24 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param error - The error that occurred.
    */
   async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
+    let errorMessage = 'CCTP: ExecuteCCTPMintJob: Failed'
+    if (this.isFinalAttempt(job, error)) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    } else {
+      errorMessage += ': Retrying...'
+    }
 
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTP: ExecuteCCTPMintJob: Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+        error: error as any,
         properties: {
-          groupID,
-          rebalanceJobID,
-          destinationChainId: job.data.destinationChainId,
-          cctpMessageHash: job.data.messageHash,
-          error: (error as any)?.message ?? error,
           data: job.data,
         },
       }),
     )
-
-    if (this.isFinalAttempt(job, error)) {
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
   }
 }

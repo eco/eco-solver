@@ -277,32 +277,24 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
+    let errorMessage = 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Failed'
+    if (this.isFinalAttempt(job, error)) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    } else {
+      errorMessage += ': Retrying...'
+    }
 
     processor.logger.error(
-      EcoLogMessage.withId({
-        message:
-          'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE - Manual intervention required for stranded USDC',
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+        error: error as any,
         properties: {
-          groupID,
-          rebalanceJobID,
-          jobId: job.data.id,
-          error: (error as any)?.message ?? error,
-          walletAddress: job.data.walletAddress,
-          chainId: job.data.destinationChainId,
-          originalTokenTarget: job.data.originalTokenOut.address,
-          usdcAmount: job.data.destinationSwapQuote.fromAmount,
-          attemptsMade: job.attemptsMade,
-          maxAttempts: job.opts?.attempts || 1,
-          timestamp: new Date().toISOString(),
+          data: job.data,
         },
       }),
     )
-
-    if (this.isFinalAttempt(job, error)) {
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
   }
 }

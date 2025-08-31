@@ -104,25 +104,24 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
+    let errorMessage = 'Everclear: CheckEverclearIntentJob: Failed'
+    if (this.isFinalAttempt(job, error)) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    } else {
+      errorMessage += ': Retrying...'
+    }
 
     processor.logger.error(
       EcoLogMessage.withErrorAndId({
-        message: 'Everclear: Intent check failed',
+        message: errorMessage,
         id: job.data.id,
         error: error as any,
         properties: {
-          groupID,
-          rebalanceJobID,
-          ...job.returnvalue,
-          txHash: job.data.txHash,
+          data: job.data,
         },
       }),
     )
-
-    if (this.isFinalAttempt(job, error)) {
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
   }
 }

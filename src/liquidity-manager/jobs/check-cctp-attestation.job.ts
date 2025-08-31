@@ -150,25 +150,24 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
+    let errorMessage = 'CCTP: CheckCCTPAttestationJob: Failed'
+    if (this.isFinalAttempt(job, error)) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    } else {
+      errorMessage += ': Retrying...'
+    }
 
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTP: CheckCCTPAttestationJob: Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+        error: error as any,
         properties: {
-          groupID,
-          rebalanceJobID,
-          error: (error as any)?.message ?? error,
           data: job.data,
-          isCCTPLiFi: !!job.data.cctpLiFiContext,
         },
       }),
     )
-
-    if (this.isFinalAttempt(job, error)) {
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
   }
 }

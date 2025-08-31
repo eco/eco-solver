@@ -281,41 +281,24 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return messageSentEvent.args.message
   }
 
-  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex) {
+  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex, id?: string) {
     const cctpChainConfig = this.getChainConfig(chainId)
     const walletClient = await this.walletClientService.getClient(chainId)
     const publicClient = await this.walletClientService.getPublicClient(chainId)
 
     const messageHash = this.getMessageHash(messageBytes)
 
-    // Print sender address and balance
-    const senderAddress = (walletClient as any).account?.address
-    if (senderAddress) {
-      const currentBalance = await publicClient.getBalance({ address: senderAddress })
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTP: receiveMessage: preflight balance',
-          id: messageHash,
-          properties: {
-            chainId,
-            sender: senderAddress,
-            balanceWei: currentBalance.toString(),
-          },
-        }),
-      )
-    }
-
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'CCTP: receiveMessage: submitting',
-        id: messageHash,
+        id,
         properties: {
           chainId,
           messageTransmitter: cctpChainConfig.messageTransmitter,
           sender: (walletClient as any).account?.address,
           messageHash,
-          messageBodyLength: messageBytes.length,
-          attestationLength: attestation.length,
+          attestation,
+          messageBytes,
         },
       }),
     )
@@ -332,15 +315,17 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       return txHash
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withId({
+        EcoLogMessage.withErrorAndId({
           message: 'CCTP: receiveMessage: failed to submit',
-          id: messageHash,
+          id,
+          error: error as any,
           properties: {
             chainId,
             messageTransmitter: cctpChainConfig.messageTransmitter,
             sender: (walletClient as any).account?.address,
             messageHash,
-            error: (error as any)?.message ?? error,
+            attestation,
+            messageBytes,
           },
         }),
       )
