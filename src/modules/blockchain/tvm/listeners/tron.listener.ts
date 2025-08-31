@@ -84,14 +84,6 @@ export class TronListener extends BaseChainListener {
   private async pollForEvents(): Promise<void> {
     if (!this.isRunning) return;
 
-    const span = this.otelService.startSpan('tvm.listener.pollForEvents', {
-      attributes: {
-        'tvm.chain_id': this.config.chainId.toString(),
-        'portal.address': this.blockchainConfigService.getPortalAddress(this.config.chainId),
-        'tvm.last_block_number': this.lastBlockNumber,
-      },
-    });
-
     try {
       const client = this.createTronWebClient();
 
@@ -99,12 +91,21 @@ export class TronListener extends BaseChainListener {
       const currentBlock = await client.trx.getCurrentBlock();
       const currentBlockNumber = currentBlock.block_header.raw_data.number;
 
-      span.setAttribute('tvm.current_block_number', currentBlockNumber);
+      // Log polling activity at debug level
+      this.logger.debug('Polling for events', {
+        chainId: this.config.chainId,
+        lastBlockNumber: this.lastBlockNumber,
+        currentBlockNumber,
+        portalAddress: this.blockchainConfigService.getPortalAddress(this.config.chainId),
+      });
 
       // If no new blocks, skip
       if (currentBlockNumber <= this.lastBlockNumber) {
-        span.addEvent('tvm.no_new_blocks');
-        span.setStatus({ code: api.SpanStatusCode.OK });
+        this.logger.debug('No new blocks to process', {
+          chainId: this.config.chainId,
+          currentBlockNumber,
+          lastBlockNumber: this.lastBlockNumber,
+        });
         return;
       }
 
@@ -122,7 +123,14 @@ export class TronListener extends BaseChainListener {
         limit: 200,
       });
 
-      span.setAttribute('tvm.event_count', events && Array.isArray(events) ? events.length : 0);
+      const eventCount = events && Array.isArray(events) ? events.length : 0;
+      if (eventCount > 0) {
+        this.logger.debug('Found events in poll', {
+          chainId: this.config.chainId,
+          eventCount,
+          blockRange: `${this.lastBlockNumber}-${currentBlockNumber}`,
+        });
+      }
 
       // Process IntentPublished events
       if (events && Array.isArray(events)) {
@@ -135,15 +143,9 @@ export class TronListener extends BaseChainListener {
 
       // Update last processed block
       this.lastBlockNumber = currentBlockNumber;
-      span.setAttribute('tvm.updated_last_block', this.lastBlockNumber);
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      this.logger.error(`Error polling for events: ${error.message}`, error);
       throw error;
-    } finally {
-      span.end();
     }
   }
 
