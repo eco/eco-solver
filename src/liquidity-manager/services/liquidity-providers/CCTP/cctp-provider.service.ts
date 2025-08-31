@@ -288,6 +288,23 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
 
     const messageHash = this.getMessageHash(messageBytes)
 
+    // Print sender address and balance
+    const senderAddress = (walletClient as any).account?.address
+    if (senderAddress) {
+      const currentBalance = await publicClient.getBalance({ address: senderAddress })
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'CCTP: receiveMessage: preflight balance',
+          id: messageHash,
+          properties: {
+            chainId,
+            sender: senderAddress,
+            balanceWei: currentBalance.toString(),
+          },
+        }),
+      )
+    }
+
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'CCTP: receiveMessage: submitting',
