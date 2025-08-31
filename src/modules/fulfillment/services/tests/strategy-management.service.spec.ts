@@ -1,15 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StrategyManagementService } from '../strategy-management.service';
+
+import { Intent } from '@/common/interfaces/intent.interface';
 import { SystemLoggerService } from '@/common/services/system-logger.service';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { StandardFulfillmentStrategy } from '../../strategies/standard-fulfillment.strategy';
+
 import { CrowdLiquidityFulfillmentStrategy } from '../../strategies/crowd-liquidity-fulfillment.strategy';
 import { NativeIntentsFulfillmentStrategy } from '../../strategies/native-intents-fulfillment.strategy';
 import { NegativeIntentsFulfillmentStrategy } from '../../strategies/negative-intents-fulfillment.strategy';
 import { RhinestoneFulfillmentStrategy } from '../../strategies/rhinestone-fulfillment.strategy';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { StandardFulfillmentStrategy } from '../../strategies/standard-fulfillment.strategy';
 import { createMockIntent } from '../../validations/test-helpers';
+import { StrategyManagementService } from '../strategy-management.service';
 
 describe('StrategyManagementService', () => {
   let service: StrategyManagementService;
@@ -61,9 +63,18 @@ describe('StrategyManagementService', () => {
         { provide: FulfillmentConfigService, useValue: mockConfigService },
         { provide: OpenTelemetryService, useValue: mockOtelService },
         { provide: StandardFulfillmentStrategy, useValue: createMockStrategy('standard') },
-        { provide: CrowdLiquidityFulfillmentStrategy, useValue: createMockStrategy('crowd-liquidity') },
-        { provide: NativeIntentsFulfillmentStrategy, useValue: createMockStrategy('native-intents') },
-        { provide: NegativeIntentsFulfillmentStrategy, useValue: createMockStrategy('negative-intents') },
+        {
+          provide: CrowdLiquidityFulfillmentStrategy,
+          useValue: createMockStrategy('crowd-liquidity'),
+        },
+        {
+          provide: NativeIntentsFulfillmentStrategy,
+          useValue: createMockStrategy('native-intents'),
+        },
+        {
+          provide: NegativeIntentsFulfillmentStrategy,
+          useValue: createMockStrategy('negative-intents'),
+        },
         { provide: RhinestoneFulfillmentStrategy, useValue: createMockStrategy('rhinestone') },
       ],
     }).compile();
@@ -80,10 +91,14 @@ describe('StrategyManagementService', () => {
   describe('onModuleInit', () => {
     it('should initialize strategies based on configuration', async () => {
       await service.onModuleInit();
-      
+
       expect(mockLogger.log).toHaveBeenCalledWith("Strategy 'standard' registered and enabled");
-      expect(mockLogger.log).toHaveBeenCalledWith("Strategy 'crowd-liquidity' registered but disabled");
-      expect(mockLogger.log).toHaveBeenCalledWith("Strategy 'native-intents' registered and enabled");
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        "Strategy 'crowd-liquidity' registered but disabled",
+      );
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        "Strategy 'native-intents' registered and enabled",
+      );
     });
   });
 
@@ -117,7 +132,7 @@ describe('StrategyManagementService', () => {
     it('should return strategies that can handle the intent', () => {
       const intent = createMockIntent();
       const strategies = service.getStrategiesForIntent(intent);
-      
+
       expect(strategies.length).toBeGreaterThan(0);
       expect(strategies[0].name).toBe('standard');
     });
@@ -125,8 +140,8 @@ describe('StrategyManagementService', () => {
     it('should filter out disabled strategies', () => {
       const intent = createMockIntent();
       const strategies = service.getStrategiesForIntent(intent);
-      
-      const strategyNames = strategies.map(s => s.name);
+
+      const strategyNames = strategies.map((s) => s.name);
       expect(strategyNames).toContain('standard');
       expect(strategyNames).toContain('native-intents');
       expect(strategyNames).not.toContain('crowd-liquidity');
@@ -135,7 +150,7 @@ describe('StrategyManagementService', () => {
     it('should sort strategies by priority', () => {
       const intent = createMockIntent();
       const strategies = service.getStrategiesForIntent(intent);
-      
+
       // Standard has highest priority (100), native-intents has 90
       expect(strategies[0].name).toBe('standard');
       if (strategies.length > 1) {
@@ -185,7 +200,7 @@ describe('StrategyManagementService', () => {
       };
 
       service.register(customStrategy as any, metadata);
-      
+
       const strategy = service.getStrategy('custom');
       expect(strategy).toBeDefined();
       expect(strategy?.name).toBe('custom');
@@ -193,9 +208,9 @@ describe('StrategyManagementService', () => {
 
     it('should unregister a strategy', async () => {
       await service.onModuleInit();
-      
+
       service.unregister('standard');
-      
+
       const strategy = service.getStrategy('standard');
       expect(strategy).toBeUndefined();
       expect(mockLogger.log).toHaveBeenCalledWith("Strategy 'standard' unregistered");

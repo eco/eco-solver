@@ -15,6 +15,8 @@ import {
   parseAbiParameters,
 } from 'viem';
 
+import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
+
 import {
   EVMRewardAbiItem,
   EVMRouteAbiItem,
@@ -276,6 +278,14 @@ export class PortalHashUtils {
     // Case-insensitive comparison for EVM addresses
     if (chainType === ChainType.EVM) {
       return portalAddress.toLowerCase() === expectedAddress.toLowerCase();
+    }
+
+    // TVM addresses can be in either Hex or Base58 format
+    if (chainType === ChainType.TVM) {
+      // Normalize both addresses to Base58 format for comparison
+      const normalizedPortal = TvmUtilsService.normalizeAddressToBase58(portalAddress);
+      const normalizedExpected = TvmUtilsService.normalizeAddressToBase58(expectedAddress);
+      return normalizedPortal === normalizedExpected;
     }
 
     // Exact match for other chains

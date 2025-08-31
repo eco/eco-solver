@@ -50,9 +50,8 @@ export class PortalEncoder {
   ): Type extends 'route' ? Route : Reward {
     switch (chainType) {
       case ChainType.EVM:
-        return this.decodeEvm(data, dataType);
       case ChainType.TVM:
-        return this.decodeTvm(data, dataType);
+        return this.decodeEvm(data, dataType);
       case ChainType.SVM:
         return this.decodeSvm(data, dataType);
       default:
@@ -188,46 +187,6 @@ export class PortalEncoder {
   }
 
   /**
-   * TVM decoding from JSON with Base58 addresses
-   */
-  private static decodeTvm<Type extends 'route' | 'reward'>(
-    data: Buffer | string,
-    dataType: Type,
-  ): Type extends 'route' ? Route : Reward {
-    const jsonStr = typeof data === 'string' ? data : data.toString('utf8');
-    const parsed = JSON.parse(jsonStr);
-
-    if (dataType === 'route') {
-      return {
-        salt: this.base58ToHex(parsed.salt),
-        deadline: BigInt(parsed.deadline),
-        portal: this.base58ToAddress(parsed.portal),
-        nativeAmount: BigInt(parsed.nativeAmount),
-        tokens: parsed.tokens.map((t: any) => ({
-          token: this.base58ToAddress(t.token),
-          amount: BigInt(t.amount),
-        })),
-        calls: parsed.calls.map((c: any) => ({
-          target: this.base58ToAddress(c.target),
-          data: this.base58ToHex(c.data),
-          value: BigInt(c.value),
-        })),
-      } as Type extends 'route' ? Route : Reward;
-    } else {
-      return {
-        deadline: BigInt(parsed.deadline),
-        creator: this.base58ToAddress(parsed.creator),
-        prover: this.base58ToAddress(parsed.prover),
-        nativeAmount: BigInt(parsed.nativeAmount),
-        tokens: parsed.tokens.map((t: any) => ({
-          token: this.base58ToAddress(t.token),
-          amount: BigInt(t.amount),
-        })),
-      } as Type extends 'route' ? Route : Reward;
-    }
-  }
-
-  /**
    * SVM decoding from JSON
    */
   private static decodeSvm<Type extends 'route' | 'reward'>(
@@ -274,28 +233,10 @@ export class PortalEncoder {
     return `base58_${hex}`;
   }
 
-  private static base58ToHex(base58: string): Hex {
-    // Placeholder implementation
-    // In production, use proper base58 decoding library
-    if (base58.startsWith('base58_')) {
-      return base58.slice(7) as Hex;
-    }
-    return `0x${base58}` as Hex;
-  }
-
   private static addressToBase58(address: Address): string {
     // Placeholder implementation
     // In production, convert EVM address to Tron Base58 format
     return `T${address.slice(2, 34)}`;
-  }
-
-  private static base58ToAddress(base58: string): Address {
-    // Placeholder implementation
-    // In production, convert Tron Base58 to EVM address format
-    if (base58.startsWith('T')) {
-      return `0x${base58.slice(1)}` as Address;
-    }
-    return base58 as Address;
   }
 
   /**

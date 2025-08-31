@@ -2,6 +2,7 @@ import { Injectable, Optional } from '@nestjs/common';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
@@ -101,6 +102,14 @@ export class BlockchainExecutorService {
     });
 
     try {
+      // Validate wallet type for the destination chain
+      const chainType = ChainTypeDetector.detect(intent.destination);
+      if (chainType === ChainType.TVM && walletId === 'kernel') {
+        throw new Error(
+          'Kernel wallet is not supported for TVM chains. Please use basic wallet type.',
+        );
+      }
+
       const executor = this.getExecutorForChain(intent.destination);
       span.addEvent('intent.executor.selected', {
         executor: executor.constructor.name,

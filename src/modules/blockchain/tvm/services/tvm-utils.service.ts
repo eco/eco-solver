@@ -74,4 +74,36 @@ export class TvmUtilsService {
   fromEvmHex(hexAddress: Address): string {
     return TronWeb.address.fromHex('41' + hexAddress.substring(2));
   }
+
+  /**
+   * Normalizes a Tron address to Base58 format for consistent comparison
+   * Handles both Hex (0x...) and Base58 (T...) formats
+   * This is the centralized method for address normalization across the codebase
+   * Static method allows usage without dependency injection (e.g., in config services)
+   *
+   * @param address - Tron address in any format
+   * @returns Base58 formatted address or original if conversion fails
+   */
+  static normalizeAddressToBase58(address: string): string {
+    try {
+      // If it's already a valid Base58 Tron address, return as-is
+      if (address.startsWith('T') && TronWeb.isAddress(address)) {
+        return address;
+      }
+      // If it's a hex address (with or without 0x prefix), convert to Base58
+      if (address.startsWith('0x')) {
+        // Remove 0x prefix and add Tron prefix (41)
+        return TronWeb.address.fromHex('41' + address.substring(2));
+      }
+      // If no 0x prefix but looks like hex, try to convert
+      if (/^[a-fA-F0-9]{40}$/.test(address)) {
+        return TronWeb.address.fromHex('41' + address);
+      }
+      // Return as-is if format is unknown
+      return address;
+    } catch (error) {
+      // If conversion fails, return original address
+      return address;
+    }
+  }
 }

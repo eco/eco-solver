@@ -1,5 +1,6 @@
-import { Intent } from '@/common/interfaces/intent.interface';
 import { Address } from 'viem';
+
+import { Intent } from '@/common/interfaces/intent.interface';
 
 /**
  * Base validation context with minimal required data
@@ -37,8 +38,7 @@ export interface IExecutorValidationContext extends IValidationContext {
 /**
  * Full validation context for validations that need all capabilities
  */
-export interface IFullValidationContext extends 
-  IStrategyValidationContext,
-  IBlockchainValidationContext,
-  IExecutorValidationContext {
-}
+export interface IFullValidationContext
+  extends IStrategyValidationContext,
+    IBlockchainValidationContext,
+    IExecutorValidationContext {}

@@ -1,4 +1,5 @@
 import { Address } from 'viem';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 
 /**
@@ -19,7 +20,7 @@ export interface ChainMetadata {
 export interface IChainReader {
   readonly chainId: bigint;
   readonly chainType: 'evm' | 'svm';
-  
+
   getBalance(address: Address | string): Promise<bigint>;
   getTokenBalance(tokenAddress: Address | string, walletAddress: Address | string): Promise<bigint>;
   isAddressValid(address: string): boolean;

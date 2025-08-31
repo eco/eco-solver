@@ -73,8 +73,9 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
         });
 
         try {
-          const result = await api.context.with(api.trace.setSpan(api.context.active(), validationSpan), () =>
-            validation.validate(intent, context),
+          const result = await api.context.with(
+            api.trace.setSpan(api.context.active(), validationSpan),
+            () => validation.validate(intent, context),
           );
 
           if (!result) {

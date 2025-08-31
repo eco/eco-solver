@@ -17,7 +17,7 @@ export class TronListener extends BaseChainListener {
   private intervalId: NodeJS.Timeout | null = null;
   private lastBlockNumber: number = 0;
   private isRunning: boolean = false;
-  
+
   // Metrics instruments
   private pollCounter: api.Counter;
   private blocksProcessedHistogram: api.Histogram;
@@ -36,27 +36,27 @@ export class TronListener extends BaseChainListener {
   ) {
     super();
     // Context is already set by the manager when creating the logger instance
-    
+
     // Initialize metrics
     const meter = this.otelService.getMeter();
-    
+
     this.pollCounter = meter.createCounter('tvm.poll.count', {
       description: 'Total number of TVM blockchain polls',
     });
-    
+
     this.blocksProcessedHistogram = meter.createHistogram('tvm.poll.blocks_processed', {
       description: 'Number of blocks processed per poll',
       unit: 'blocks',
     });
-    
+
     this.eventsFoundCounter = meter.createCounter('tvm.poll.events_found', {
       description: 'Total number of events found in TVM polls',
     });
-    
+
     this.lastBlockGauge = meter.createUpDownCounter('tvm.poll.last_block', {
       description: 'Last processed block number',
     });
-    
+
     this.pollDurationHistogram = meter.createHistogram('tvm.poll.duration', {
       description: 'Duration of TVM poll operations',
       unit: 'ms',
@@ -138,7 +138,7 @@ export class TronListener extends BaseChainListener {
         this.blocksProcessedHistogram.record(0, attributes);
         return;
       }
-      
+
       // Record blocks processed
       const blocksProcessed = currentBlockNumber - this.lastBlockNumber;
       this.blocksProcessedHistogram.record(blocksProcessed, attributes);
@@ -161,7 +161,7 @@ export class TronListener extends BaseChainListener {
       if (eventCount > 0) {
         // Record events found in metrics
         this.eventsFoundCounter.add(eventCount, attributes);
-        
+
         // Keep this log as it's important for debugging
         this.logger.log('Found events in poll', {
           chainId: this.config.chainId,

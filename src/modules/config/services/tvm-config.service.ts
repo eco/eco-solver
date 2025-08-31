@@ -8,6 +8,7 @@ import {
   TvmWalletsConfig,
 } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
+import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 
 @Injectable()
 export class TvmConfigService {
@@ -54,12 +55,20 @@ export class TvmConfigService {
 
   isTokenSupported(chainId: number | string, tokenAddress: string): boolean {
     const tokens = this.getSupportedTokens(chainId);
-    return tokens.some((token) => token.address === tokenAddress);
+    // Normalize the input address to Base58 format for comparison
+    const normalizedAddress = TvmUtilsService.normalizeAddressToBase58(tokenAddress);
+    return tokens.some(
+      (token) => TvmUtilsService.normalizeAddressToBase58(token.address) === normalizedAddress,
+    );
   }
 
   getTokenConfig(chainId: bigint | number | string, tokenAddress: string): TvmTokenConfig {
     const tokens = this.getSupportedTokens(chainId);
-    const tokenConfig = tokens.find((token) => token.address === tokenAddress);
+    // Normalize the input address to Base58 format for comparison
+    const normalizedAddress = TvmUtilsService.normalizeAddressToBase58(tokenAddress);
+    const tokenConfig = tokens.find(
+      (token) => TvmUtilsService.normalizeAddressToBase58(token.address) === normalizedAddress,
+    );
     if (!tokenConfig) {
       throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
     }
