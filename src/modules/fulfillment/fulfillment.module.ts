@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
@@ -39,6 +39,7 @@ import { IntentProcessingService } from './services/intent-processing.service';
 import { IntentSubmissionService } from './services/intent-submission.service';
 import { StrategyManagementService } from './services/strategy-management.service';
 
+@Global()
 @Module({
   imports: [
     ConfigModule,

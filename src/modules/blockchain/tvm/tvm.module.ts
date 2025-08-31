@@ -1,6 +1,5 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 
-import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { ProverModule } from '@/modules/prover/prover.module';
 
 import { TvmListenersManagerService } from './listeners/tvm-listeners-manager.service';
@@ -13,7 +12,7 @@ import {
 } from './services';
 
 @Module({
-  imports: [BasicWalletModule, ProverModule, forwardRef(() => FulfillmentModule)],
+  imports: [BasicWalletModule, ProverModule],
   providers: [
     TvmUtilsService,
     TvmReaderService,
