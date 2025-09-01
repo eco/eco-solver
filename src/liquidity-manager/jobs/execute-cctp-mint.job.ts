@@ -143,13 +143,16 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param error - The error that occurred.
    */
   async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
-    let errorMessage = 'CCTP: ExecuteCCTPMintJob: Failed'
-    if (this.isFinalAttempt(job, error)) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTP: ExecuteCCTPMintJob: FINAL FAILURE'
+      : 'CCTP: ExecuteCCTPMintJob: Failed: Retrying...'
+
+    if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
       const { rebalanceJobID } = jobData
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    } else {
-      errorMessage += ': Retrying...'
     }
 
     processor.logger.error(

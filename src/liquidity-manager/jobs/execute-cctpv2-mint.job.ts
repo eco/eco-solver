@@ -95,13 +95,16 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
   }
 
   async onFailed(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor, error: unknown) {
-    let errorMessage = 'CCTPV2: ExecuteCCTPV2MintJob: Failed'
-    if (this.isFinalAttempt(job, error)) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPV2: ExecuteCCTPV2MintJob: FINAL FAILURE'
+      : 'CCTPV2: ExecuteCCTPV2MintJob: Failed: Retrying...'
+
+    if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
       const { rebalanceJobID } = jobData
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    } else {
-      errorMessage += ': Retrying...'
     }
 
     processor.logger.error(

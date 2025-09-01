@@ -153,13 +153,16 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
   }
 
   async onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
-    let errorMessage = 'GatewayTopUpJob: Failed'
-    if (this.isFinalAttempt(job, error)) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'Gateway: GatewayTopUpJob: FINAL FAILURE'
+      : 'Gateway: GatewayTopUpJob: Failed: Retrying...'
+
+    if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
       const { rebalanceJobID } = jobData
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    } else {
-      errorMessage += ': Retrying...'
     }
 
     processor.logger.error(
