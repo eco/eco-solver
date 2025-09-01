@@ -1,10 +1,10 @@
 # Blockchain Intent Solver
 
-A high-performance, multi-chain blockchain intent solving system built with NestJS. This system listens for intents on multiple blockchains (EVM and Solana), validates them, and executes fulfillment transactions across chains.
+A high-performance, multi-chain blockchain intent solving system built with NestJS. This system listens for intents on multiple blockchains (EVM, Solana, and Tron), validates them, and executes fulfillment transactions across chains.
 
 ## 🚀 Features
 
-- **Multi-Chain Support**: Multiple EVM networks (Ethereum, Polygon, etc.) and Solana
+- **Multi-Chain Support**: Multiple EVM networks (Ethereum, Polygon, etc.), Solana, and Tron (TVM)
 - **Modular Architecture**: Clean separation of concerns with NestJS modules
 - **Queue-Based Processing**: Reliable intent processing with BullMQ and Redis
 - **Multiple Fulfillment Strategies**: Standard, CrowdLiquidity, NativeIntents, NegativeIntents, and Rhinestone
@@ -142,8 +142,10 @@ src/
     │   ├── evm/          # EVM-specific implementation
     │   │   ├── listeners/# EVM blockchain event listeners (self-initializing)
     │   │   └── wallets/  # EVM wallet implementations
-    │   └── svm/          # Solana-specific implementation
-    │       └── listeners/# Solana blockchain event listeners (self-initializing)
+    │   ├── svm/          # Solana-specific implementation
+    │   │   └── listeners/# Solana blockchain event listeners (self-initializing)
+    │   └── tvm/          # Tron-specific implementation
+    │       └── listeners/# Tron blockchain event listeners (self-initializing)
     ├── fulfillment/      # Intent validation and fulfillment logic
     │   ├── strategies/   # Multiple fulfillment strategies
     │   └── validations/  # Pluggable validation framework
@@ -153,46 +155,50 @@ src/
 ### Processing Flow
 
 1. **Listen**: Blockchain listeners (self-initializing) monitor chain events for new intents
-2. **Submit**: Listeners call FulfillmentService.submitIntent() for centralized processing
-3. **Store**: FulfillmentService persists intents to MongoDB
-4. **Queue**: FulfillmentService determines strategy and adds to fulfillment queue
-5. **Validate**: Selected strategy validates intents using its immutable validation set
-6. **Execute**: Strategy-specific execution logic performs transactions on target chains
-7. **Update**: Intent status is updated throughout the process
+2. **Emit**: Listeners emit 'intent.discovered' events with intent and strategy
+3. **Handle**: FulfillmentService handles events via @OnEvent decorator
+4. **Store**: FulfillmentService persists intents to MongoDB
+5. **Queue**: FulfillmentService adds intent to fulfillment queue with strategy
+6. **Validate**: Selected strategy validates intents using its immutable validation set
+7. **Execute**: Strategy-specific execution logic performs transactions on target chains
+8. **Update**: Intent status is updated throughout the process
 
 ### Intent Structure
 
-The system uses a structured Intent format with Viem types:
+The system uses a structured Intent format with UniversalAddress for cross-chain compatibility:
 
 ```typescript
 interface Intent {
   intentHash: Hex;
+  destination: bigint;       // Target chain ID
+  route: {
+    salt: Hex;
+    deadline: bigint;        // Route deadline
+    portal: UniversalAddress; // Portal contract address
+    nativeAmount: bigint;    // Native token amount
+    tokens: {
+      amount: bigint;
+      token: UniversalAddress;
+    }[];
+    calls: {
+      data: Hex;
+      target: UniversalAddress;
+      value: bigint;
+    }[];
+  };
   reward: {
-    prover: Address;
-    creator: Address;
     deadline: bigint;
+    creator: UniversalAddress;
+    prover: UniversalAddress;
     nativeAmount: bigint;
     tokens: {
       amount: bigint;
-      token: Address;
+      token: UniversalAddress;
     }[];
   };
-  route: {
-    source: bigint;        // Source chain ID
-    destination: bigint;   // Destination chain ID
-    salt: Hex;
-    inbox: Address;
-    calls: {
-      data: Hex;
-      target: Address;
-      value: bigint;
-    }[];
-    tokens: {
-      amount: bigint;
-      token: Address;
-    }[];
-  };
-  status: IntentStatus;
+  status?: IntentStatus;
+  sourceChainId?: bigint;    // Source chain context
+  vaultAddress?: string;     // Derived vault address
 }
 ```
 
@@ -214,7 +220,7 @@ interface Intent {
 - BigInt to string serialization for JSON compatibility
 
 ### Blockchain Module (`/modules/blockchain/`)
-**Purpose**: Handles all blockchain interactions across multiple chains (EVM and Solana)
+**Purpose**: Handles all blockchain interactions across multiple chains (EVM, Solana, and Tron)
 
 **Key Services**:
 - **BlockchainExecutorService**: Main service for executing blockchain transactions across different chains
@@ -234,6 +240,12 @@ interface Intent {
   - Event listener for monitoring Solana programs
   - SPL token support
 
+- **TVM Module**: Tron blockchain support including:
+  - Tron-specific executor and reader implementations
+  - Event listener for monitoring Tron smart contracts
+  - TRC20 token support
+  - Energy and bandwidth management
+
 ### Config Module (`/modules/config/`)
 **Purpose**: Centralized, type-safe configuration management with AWS Secrets Manager integration
 
@@ -248,10 +260,13 @@ interface Intent {
 - `AppConfigService`: General application settings
 - `EvmConfigService`: EVM networks and wallet configurations
 - `SolanaConfigService`: Solana network settings
+- `TvmConfigService`: Tron network settings
 - `FulfillmentConfigService`: Strategy configurations
 - `QueueConfigService`: Queue and worker settings
 - `DatabaseConfigService`: MongoDB connection
 - `RedisConfigService`: Redis connection
+- `ProverConfigService`: Prover configurations
+- `TokenConfigService`: Token configurations across chains
 
 ### Fulfillment Module (`/modules/fulfillment/`)
 **Purpose**: Core business logic for intent validation and fulfillment
@@ -363,37 +378,40 @@ The quotes API allows external systems to validate intents and get fee requireme
 ```json
 {
   "intent": {
-    "reward": {
-      "prover": "0x1234567890123456789012345678901234567890",
-      "creator": "0x1234567890123456789012345678901234567890",
+    "intentHash": "0x...",
+    "destination": "10",
+    "route": {
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
       "deadline": "1735689600",
+      "portal": "0x0000000000000000000000001234567890123456789012345678901234567890",
       "nativeAmount": "1000000000000000000",
       "tokens": [
         {
           "amount": "5000000000000000000",
-          "token": "0x1234567890123456789012345678901234567890"
+          "token": "0x0000000000000000000000001234567890123456789012345678901234567890"
         }
-      ]
-    },
-    "route": {
-      "source": "1",
-      "destination": "10",
-      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
-      "inbox": "0x1234567890123456789012345678901234567890",
+      ],
       "calls": [
         {
-          "target": "0x1234567890123456789012345678901234567890",
+          "target": "0x0000000000000000000000001234567890123456789012345678901234567890",
           "value": "0",
           "data": "0x"
         }
-      ],
+      ]
+    },
+    "reward": {
+      "deadline": "1735689600",
+      "creator": "0x0000000000000000000000001234567890123456789012345678901234567890",
+      "prover": "0x0000000000000000000000001234567890123456789012345678901234567890",
+      "nativeAmount": "1000000000000000000",
       "tokens": [
         {
           "amount": "5000000000000000000",
-          "token": "0x1234567890123456789012345678901234567890"
+          "token": "0x0000000000000000000000001234567890123456789012345678901234567890"
         }
       ]
-    }
+    },
+    "sourceChainId": "1"
   },
   "strategy": "standard"  // optional, defaults to configured default strategy
 }
@@ -453,51 +471,28 @@ The quotes API allows external systems to validate intents and get fee requireme
 
 ## ⚙️ Configuration
 
-The application uses a schema-driven configuration system. See [Configuration Guide](src/modules/config/README.md) for detailed documentation.
+The application uses a schema-driven configuration system with Zod validation and automatic environment variable mapping.
 
-### Quick Configuration Example
+### Configuration Documentation
+- **[Configuration Module Guide](docs/modules/config.md)** - Complete configuration system documentation
+- **[Environment Variables](.env.example)** - Example configuration with all available options
+
+The `.env.example` file contains comprehensive documentation for all configuration options. Copy it to `.env` and update with your values:
 
 ```bash
-# Application
-NODE_ENV=development
-PORT=3000
-
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/intent-solver
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# EVM Configuration
-EVM_PRIVATE_KEY=0x...
-# Network configuration (arrays)
-EVM_NETWORKS_0_CHAIN_ID=1
-EVM_NETWORKS_0_RPC_URLS_0=https://eth-mainnet.g.alchemy.com/v2/your-key
-EVM_NETWORKS_0_INTENT_SOURCE_ADDRESS=0x...
-EVM_NETWORKS_0_INBOX_ADDRESS=0x...
-EVM_NETWORKS_0_FEE_LOGIC_BASE_FLAT_FEE=1000000000000000
-EVM_NETWORKS_0_FEE_LOGIC_SCALAR_BPS=100
-
-# Solana Configuration
-SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
-SOLANA_SECRET_KEY=[...]
-SOLANA_PROGRAM_ID=...
-
-# Fulfillment Configuration
-FULFILLMENT_DEFAULT_STRATEGY=standard
-FULFILLMENT_STRATEGIES_STANDARD_ENABLED=true
-FULFILLMENT_STRATEGIES_CROWD_LIQUIDITY_ENABLED=true
-
-# AWS Secrets Manager (optional)
-# Secrets are automatically fetched when AWS_SECRET_NAME is provided
-AWS_REGION=us-east-1
-AWS_SECRET_NAME=blockchain-intent-solver-secrets
+cp .env.example .env
+# Edit .env with your configuration
 ```
+
+### Key Features
+- **Type-safe configuration** with Zod schemas
+- **Automatic environment variable mapping** from nested config structure
+- **AWS Secrets Manager integration** for secure credential storage
+- **Per-module configuration services** for clean separation
 
 ## 💼 Wallet System
 
-The EVM module supports multiple wallet types through a modular architecture:
+The EVM module supports multiple wallet types through a modular architecture. See **[Blockchain Module Documentation](docs/modules/blockchain.md#wallet-system)** for complete wallet system details.
 
 ### Supported Wallet Types
 
@@ -511,70 +506,23 @@ The EVM module supports multiple wallet types through a modular architecture:
    - Advanced features like session keys and modules
    - Batch operations via smart contract
 
-### Wallet Configuration
-
-```bash
-# Basic wallet (uses global private key by default)
-EVM_WALLETS_BASIC_PRIVATE_KEY=0x...  # Optional: override global key
-
-# Kernel wallet with EOA signer
-EVM_WALLETS_KERNEL_SIGNER_TYPE=eoa
-EVM_WALLETS_KERNEL_SIGNER_PRIVATE_KEY=0x...
-
-# Kernel wallet with AWS KMS signer
-EVM_WALLETS_KERNEL_SIGNER_TYPE=kms
-EVM_WALLETS_KERNEL_SIGNER_REGION=us-east-1
-EVM_WALLETS_KERNEL_SIGNER_KEY_ID=...
-```
-
-### Module Architecture
-
-Each wallet type is encapsulated in its own NestJS module:
-- `BasicWalletModule` - Provides BasicWalletFactory
-- `KernelWalletModule` - Provides KernelWalletFactory
-
-Wallet factories only require a `chainId` to create instances, retrieving all configuration internally.
-
 ## 🛡️ Validation Framework
 
-The system includes a comprehensive validation framework that ensures intents are properly validated before execution:
+The system includes a comprehensive validation framework that ensures intents are properly validated before execution. See **[Fulfillment Module Documentation](docs/modules/fulfillment.md#validation-framework)** for complete details.
 
 ### Available Validations
 
 1. **IntentFundedValidation** - Verifies the intent is funded on the IntentSource contract
-3. **RouteTokenValidation** - Validates token addresses in the route
-4. **RouteCallsValidation** - Validates call targets and data
-5. **RouteAmountLimitValidation** - Enforces route-specific amount limits
-6. **ExpirationValidation** - Ensures deadline hasn't passed
-7. **ChainSupportValidation** - Verifies source and destination chains are supported
-8. **ProverSupportValidation** - Validates the route with configured provers
-9. **ExecutorBalanceValidation** - Ensures executor has sufficient funds
-10. **Fee Validations** - Strategy-specific fee requirements (Standard, CrowdLiquidity, Native)
+2. **RouteTokenValidation** - Validates token addresses in the route
+3. **RouteCallsValidation** - Validates call targets and data
+4. **RouteAmountLimitValidation** - Enforces route-specific amount limits
+5. **ExpirationValidation** - Ensures deadline hasn't passed
+6. **ChainSupportValidation** - Verifies source and destination chains are supported
+7. **ProverSupportValidation** - Validates the route with configured provers
+8. **ExecutorBalanceValidation** - Ensures executor has sufficient funds
+9. **Fee Validations** - Strategy-specific fee requirements
 
-### Validation Execution
-
-Each fulfillment strategy defines its own immutable set of validations that are executed sequentially before processing an intent. All strategies include the `IntentFundedValidation` to ensure on-chain funding verification.
-
-### Configurable Validation Parameters
-
-The validation framework supports configurable parameters for different validation types:
-
-```bash
-# Route amount limits
-FULFILLMENT_VALIDATIONS_ROUTE_LIMITS_DEFAULT=10000000000000000000  # 10 ETH in wei
-FULFILLMENT_VALIDATIONS_ROUTE_LIMITS_ROUTES_0_CHAIN_ID=1
-FULFILLMENT_VALIDATIONS_ROUTE_LIMITS_ROUTES_0_LIMIT=5000000000000000000  # 5 ETH for chain 1
-
-# Native intent fee parameters
-FULFILLMENT_VALIDATIONS_NATIVE_FEE_BASE_FEE=2000000  # Base fee in gwei
-FULFILLMENT_VALIDATIONS_NATIVE_FEE_PERCENTAGE_FEE=75  # 0.75% in basis points
-
-# Crowd liquidity fee parameters
-FULFILLMENT_VALIDATIONS_CROWD_LIQUIDITY_FEE_BASE_FEE=500000  # Base fee in gwei
-FULFILLMENT_VALIDATIONS_CROWD_LIQUIDITY_FEE_PERCENTAGE_FEE=50  # 0.5% in basis points
-```
-
-These parameters allow fine-tuning of validation thresholds and fees without code changes.
+Each fulfillment strategy defines its own immutable set of validations. Configuration parameters can be set via environment variables (see `.env.example`).
 
 ## 🔧 Development
 
@@ -610,56 +558,20 @@ constructor(private readonly logger: SystemLoggerService) {
 }
 ```
 
-### Observability Usage
+### Observability
 
-#### DataDog Metrics (Optional)
+The system includes comprehensive observability features:
 
-DataDog integration is optional and disabled by default. To enable DataDog metrics:
+#### Metrics
+- **DataDog Integration** (optional): StatsD protocol metrics for monitoring
+- Tracks HTTP requests, queue depth, intent processing, RPC calls, and database queries
+- Configure via environment variables (see `.env.example`)
 
-```bash
-# Enable DataDog metrics
-DATADOG_ENABLED=true
-
-# DataDog Agent configuration (defaults shown)
-DATADOG_HOST=localhost
-DATADOG_PORT=8125
-DATADOG_PREFIX=blockchain_intent_solver.
-
-# Optional global tags
-DATADOG_GLOBAL_TAGS_ENV=production
-DATADOG_GLOBAL_TAGS_SERVICE=blockchain-intent-solver
-```
-
-When enabled, metrics are automatically sent via StatsD protocol and include:
-- **HTTP Metrics**: `http.requests.total`, `http.request.duration`, `http.errors.*`
-- **Queue Metrics**: `queue.jobs.total`, `queue.job.duration`, `queue.depth`
-- **Intent Metrics**: `intents.processed.total`, `intent.processing.duration`, `intent.value.usd`
-- **Blockchain RPC Metrics**: `blockchain.rpc.calls.total`, `blockchain.rpc.duration`
-- **Database Metrics**: `database.query.duration`
-
-All metrics include relevant tags for filtering (e.g., `method`, `route`, `chain`, `status`)
-
-#### OpenTelemetry Distributed Tracing (Optional)
-
-Enable distributed tracing to monitor request flows across services:
-
-```bash
-# Enable OpenTelemetry
-OPENTELEMETRY_ENABLED=true
-
-# OTLP Exporter (default)
-OPENTELEMETRY_OTLP_ENDPOINT=http://localhost:4318
-
-# Sampling configuration
-OPENTELEMETRY_SAMPLING_RATIO=1.0  # 100% sampling for development
-```
-
-**Features**:
-- **Automatic Instrumentation**: HTTP, MongoDB, Redis, and NestJS are automatically instrumented
-- **Queue Tracing**: BullMQ jobs are traced with parent-child span relationships
-- **Context Propagation**: Trace context flows through the entire request lifecycle
-- **Custom Spans**: Intent processing includes custom spans for detailed visibility
-- **Multiple Exporters**: Support for OTLP (compatible with many backends)
+#### Distributed Tracing
+- **OpenTelemetry Integration** (optional): Complete distributed tracing
+- Automatic instrumentation for HTTP, MongoDB, Redis, and NestJS
+- Queue job tracing with parent-child span relationships
+- Configure via environment variables (see `.env.example`)
 
 #### Structured Logs
 ```bash
@@ -750,7 +662,7 @@ The validation tests use a centralized `createMockIntent` helper function from `
 2. Create a typed configuration service
 3. Environment variables are automatically mapped from the schema
 
-See [Configuration Guide](src/modules/config/README.md) for details.
+See [Configuration Module Documentation](docs/modules/config.md) for details.
 
 ## 🚀 Deployment
 
@@ -784,9 +696,22 @@ The application is designed to run in containerized environments:
 
 ## 📚 Documentation
 
-- [Configuration Guide](src/modules/config/README.md) - Detailed configuration documentation
-- [CLAUDE.md](../CLAUDE.md) - Project guidelines and conventions
-- [API Documentation](docs/api.md) - Coming soon
+### Core Documentation
+- **[Architecture Overview](docs/architecture.md)** - System design and architecture patterns
+- **[Universal Address System](docs/universal-address.md)** - Cross-chain address handling
+- **[API Documentation](docs/API.md)** - REST API endpoints and usage
+
+### Module Documentation
+- **[Blockchain Module](docs/modules/blockchain.md)** - Multi-chain blockchain integration
+- **[Fulfillment Module](docs/modules/fulfillment.md)** - Intent validation and strategy system
+- **[Queue Module](docs/modules/queue.md)** - Asynchronous job processing
+- **[Config Module](docs/modules/config.md)** - Configuration management system
+- **[Prover Module](docs/modules/prover.md)** - Route validation and proofs
+- **[Intents Module](docs/modules/intents.md)** - Intent persistence and lifecycle
+
+### Additional Resources
+- **[Environment Variables](.env.example)** - Complete configuration reference
+- **[Project Guidelines](../CLAUDE.md)** - Development conventions and standards
 
 ## 🤝 Contributing
 
@@ -821,7 +746,7 @@ MIT
 3. **Configuration Validation Error**
    - Review error message for missing/invalid configuration
    - Check environment variables match schema requirements
-   - See [Configuration Guide](src/modules/config/README.md)
+   - See [Configuration Module Documentation](docs/modules/config.md)
 
 4. **Queue Processing Issues**
    - Check Redis connection
@@ -851,6 +776,7 @@ graph TB
     subgraph "External Systems"
         EVM[EVM Blockchains]
         SOL[Solana Blockchain]
+        TRON[Tron Blockchain]
         AWS[AWS Secrets Manager]
         REDIS[(Redis)]
         MONGO[(MongoDB)]
@@ -872,6 +798,11 @@ graph TB
             SVML[SVM Listener]
             SVME[SVM Executor]
             SVMR[SVM Reader]
+        end
+        subgraph "TVM Module"
+            TVML[TVM Listener]
+            TVME[TVM Executor]
+            TVMR[TVM Reader]
         end
         BES[BlockchainExecutorService]
         BRS[BlockchainReaderService]
@@ -912,20 +843,23 @@ graph TB
     %% External connections
     EVM -.->|Events| EVML
     SOL -.->|Events| SVML
+    TRON -.->|Events| TVML
     QS --> REDIS
     IS --> MONGO
 
     %% Config dependencies
     EVML --> CS
     SVML --> CS
+    TVML --> CS
     FS --> CS
     PS --> CS
     QS --> CS
     IS --> CS
 
-    %% Listener flow
-    EVML -->|submitIntent| FS
-    SVML -->|submitIntent| FS
+    %% Listener flow (event-driven)
+    EVML -.->|emit event| FS
+    SVML -.->|emit event| FS
+    TVML -.->|emit event| FS
 
     %% Fulfillment flow
     FS -->|persist| IS
@@ -960,11 +894,14 @@ graph TB
     %% Blockchain service interactions
     BES --> EVME
     BES --> SVME
+    BES --> TVME
     BRS --> EVMR
     BRS --> SVMR
+    BRS --> TVMR
     EVME --> EVMW
     EVME -->|execute| EVM
     SVME -->|execute| SOL
+    TVME -->|execute| TRON
 
     %% Prover interactions
     PS --> HP
@@ -982,9 +919,9 @@ graph TB
     classDef storage fill:#ccf,stroke:#333,stroke-width:2px
     classDef prover fill:#fcc,stroke:#333,stroke-width:2px
 
-    class EVM,SOL,AWS,REDIS,MONGO external
+    class EVM,SOL,TRON,AWS,REDIS,MONGO external
     class CS config
-    class EVML,EVME,EVMR,EVMW,SVML,SVME,SVMR,BES,BRS,BP blockchain
+    class EVML,EVME,EVMR,EVMW,SVML,SVME,SVMR,TVML,TVME,TVMR,BES,BRS,BP blockchain
     class FS,FP,STD,CL,NI,NEG,RH,VAL fulfillment
     class QS,FQ,EQ queue
     class IS storage
@@ -993,11 +930,12 @@ graph TB
 
 ### Key Interaction Patterns:
 
-1. **Event Detection**: Blockchain listeners (EVM/SVM) monitor on-chain events and submit intents to the FulfillmentService
-2. **Centralized Processing**: All intents flow through FulfillmentService for consistent handling
-3. **Strategy Selection**: FulfillmentService determines the appropriate strategy based on configuration
-4. **Validation Flow**: Each strategy uses its own set of validations, which may interact with BlockchainReaderService and ProverService
-5. **Queue Management**: QueueService manages both fulfillment and execution queues with Redis backing
-6. **Execution**: BlockchainProcessor delegates to BlockchainExecutorService, which uses chain-specific executors
-7. **Configuration**: All modules depend on Config Module for typed configuration access
-8. **Persistence**: IntentsService manages all database operations for intent storage and status updates
+1. **Event Detection**: Blockchain listeners (EVM/SVM/TVM) monitor on-chain events and emit 'intent.discovered' events
+2. **Event Handling**: FulfillmentService listens for events using @OnEvent decorator
+3. **Centralized Processing**: All intents flow through FulfillmentService for consistent handling
+4. **Strategy Selection**: FulfillmentService determines the appropriate strategy based on event data or configuration
+5. **Validation Flow**: Each strategy uses its own set of validations, which may interact with BlockchainReaderService and ProverService
+6. **Queue Management**: QueueService manages both fulfillment and execution queues with Redis backing
+7. **Execution**: BlockchainProcessor delegates to BlockchainExecutorService, which uses chain-specific executors
+8. **Configuration**: All modules depend on Config Module for typed configuration access
+9. **Persistence**: IntentsService manages all database operations for intent storage and status updates
