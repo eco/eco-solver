@@ -10,6 +10,7 @@ import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
+import { parseTvmIntentFulfilled } from '@/modules/blockchain/tvm/utils/events.utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -73,7 +74,7 @@ export class TronListener extends BaseChainListener {
     }
 
     this.logger.log(
-      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}`,
+      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}. Listening for IntentPublished and IntentFulfilled events.`,
     );
 
     this.isRunning = true;
@@ -169,11 +170,13 @@ export class TronListener extends BaseChainListener {
         });
       }
 
-      // Process IntentPublished events
+      // Process events
       if (events && Array.isArray(events)) {
         for (const event of events) {
           if (event.event_name === 'IntentPublished') {
             await this.processIntentEvent(event);
+          } else if (event.event_name === 'IntentFulfilled') {
+            await this.processIntentFulfilledEvent(event);
           }
         }
       }
@@ -252,6 +255,45 @@ export class TronListener extends BaseChainListener {
       this.logger.log(`Intent discovered: ${intent.intentHash}`);
     } catch (error) {
       this.logger.error(`Error processing intent event: ${error.message}`, error);
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+    } finally {
+      span.end();
+    }
+  }
+
+  private async processIntentFulfilledEvent(event: any): Promise<void> {
+    const span = this.otelService.startSpan('tvm.listener.processIntentFulfilledEvent', {
+      attributes: {
+        'tvm.chain_id': this.config.chainId.toString(),
+        'tvm.event_name': event.event_name,
+        'tvm.transaction_id': event.transaction_id,
+        'tvm.block_number': event.block_number,
+      },
+    });
+
+    try {
+      // Parse the IntentFulfilled event
+      const fulfilledEvent = parseTvmIntentFulfilled(BigInt(this.config.chainId), event);
+
+      span.setAttributes({
+        'tvm.intent_hash': fulfilledEvent.intentHash,
+        'tvm.claimant': fulfilledEvent.claimant,
+      });
+
+      // Emit the event within the span context to propagate trace context
+      api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+        this.eventEmitter.emit('intent.fulfilled', fulfilledEvent);
+      });
+
+      span.addEvent('intent.fulfilled.emitted');
+      span.setStatus({ code: api.SpanStatusCode.OK });
+
+      this.logger.log(
+        `IntentFulfilled event processed: ${fulfilledEvent.intentHash} on chain ${this.config.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(`Error processing IntentFulfilled event: ${error.message}`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
     } finally {

@@ -9,6 +9,7 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
+import { IntentFulfilledEvent } from '@/modules/blockchain/evm/utils/events';
 import {
   BlockchainConfigService,
   FulfillmentConfigService,
@@ -54,7 +55,9 @@ export class SolanaListener extends BaseChainListener {
       'confirmed',
     );
 
-    this.logger.log(`Solana listener started for Portal program ${this.programId.toString()}`);
+    this.logger.log(
+      `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished and IntentFulfilled events.`,
+    );
   }
 
   async stop(): Promise<void> {
@@ -101,6 +104,12 @@ export class SolanaListener extends BaseChainListener {
         const intent = this.parseIntentFromEvent(logs);
         const defaultStrategy = this.fulfillmentConfigService.defaultStrategy;
         this.eventEmitter.emit('intent.discovered', { intent, strategy: defaultStrategy });
+      } else if (this.isIntentFulfilledLog(logs)) {
+        const fulfilledEvent = this.parseIntentFulfilledFromLogs(logs);
+        this.eventEmitter.emit('intent.fulfilled', fulfilledEvent);
+        this.logger.log(
+          `IntentFulfilled event processed: ${fulfilledEvent.intentHash} on Solana`,
+        );
       }
     } catch (error) {
       this.logger.error('Error handling Solana program logs:', error);
@@ -111,6 +120,36 @@ export class SolanaListener extends BaseChainListener {
     return logs.logs.some(
       (log: string) => log.includes('IntentPublished') || log.includes('intent_published'),
     );
+  }
+
+  private isIntentFulfilledLog(logs: any): boolean {
+    return logs.logs.some(
+      (log: string) => log.includes('IntentFulfilled') || log.includes('intent_fulfilled'),
+    );
+  }
+
+  private parseIntentFulfilledFromLogs(logs: any): IntentFulfilledEvent {
+    // Parse logs to extract IntentFulfilled event data
+    const eventData: any = {};
+    
+    logs.logs.forEach((log: string) => {
+      if (log.includes('intentHash:')) {
+        eventData.intentHash = log.split('intentHash:')[1].trim();
+      }
+      if (log.includes('claimant:')) {
+        eventData.claimant = log.split('claimant:')[1].trim();
+      }
+    });
+
+    const chainId = this.solanaConfigService.chainId || 'solana-mainnet';
+    
+    return {
+      intentHash: eventData.intentHash || '',
+      claimant: eventData.claimant || '',
+      chainId: typeof chainId === 'string' ? BigInt(0) : BigInt(chainId), // Handle Solana chain ID
+      transactionHash: logs.signature,
+      blockNumber: undefined, // Solana doesn't use block numbers in the same way
+    };
   }
 
   private parseIntentFromLogs(logs: string[]): any {
