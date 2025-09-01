@@ -10,6 +10,7 @@ import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { ChainListener } from '../chain.listener';
+import * as eventsModule from '../utils/events';
 
 // Mock AddressNormalizer at module level
 jest.mock('@/common/utils/address-normalizer', () => ({
@@ -165,7 +166,11 @@ describe('ChainListener', () => {
     } as any;
 
     blockchainConfigService = {
-      getPortalAddress: jest.fn().mockReturnValue('0x00000000000000000000000PORTALADDRESS0000000000000000000000000000000001'),
+      getPortalAddress: jest
+        .fn()
+        .mockReturnValue(
+          '0x00000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
+        ),
     } as any;
 
     listener = new ChainListener(
@@ -393,9 +398,10 @@ describe('ChainListener', () => {
 
   describe('configuration', () => {
     it('should use correct portal address from blockchain config service', async () => {
-      const customPortalUniversalAddress = '0x00000000000000000000000CUSTOMPORTAL0000000000000000000000000000000001' as any;
+      const customPortalUniversalAddress =
+        '0x00000000000000000000000CUSTOMPORTAL0000000000000000000000000000000001' as any;
       blockchainConfigService.getPortalAddress.mockReturnValue(customPortalUniversalAddress);
-      
+
       // Mock the denormalizeToEvm to return the expected custom address for this test
       const mockAddressNormalizer = require('@/common/utils/address-normalizer');
       mockAddressNormalizer.AddressNormalizer.denormalizeToEvm.mockReturnValue('0xCustomPortal');
@@ -427,6 +433,124 @@ describe('ChainListener', () => {
       await customListener.start();
 
       expect(transportService.getPublicClient).toHaveBeenCalledWith(10);
+    });
+  });
+
+  describe('IntentFulfilled event handling', () => {
+    let mockPublicClient: any;
+    let intentFulfilledCallback: Function;
+
+    beforeEach(async () => {
+      mockPublicClient = {
+        watchContractEvent: jest.fn((config) => {
+          if (config.eventName === 'IntentFulfilled') {
+            intentFulfilledCallback = config.onLogs;
+          }
+          return jest.fn(); // Return unsubscribe function
+        }),
+      };
+      transportService.getPublicClient.mockReturnValue(mockPublicClient);
+
+      await listener.start();
+    });
+
+    it('should watch for IntentFulfilled events', () => {
+      expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          abi: PortalAbi,
+          eventName: 'IntentFulfilled',
+          address: '0xPortalAddress',
+          strict: true,
+          onLogs: expect.any(Function),
+        }),
+      );
+    });
+
+    it('should emit intent.fulfilled event when IntentFulfilled is received', () => {
+      const mockLog = {
+        args: {
+          intentHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          claimant: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        },
+        transactionHash: '0xfedcba9876543210',
+        blockNumber: 12345678n,
+      };
+
+      // Trigger the IntentFulfilled callback
+      intentFulfilledCallback([mockLog]);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'intent.fulfilled',
+        expect.objectContaining({
+          intentHash: mockLog.args.intentHash,
+          claimant: mockLog.args.claimant,
+          chainId: BigInt(mockConfig.chainId),
+          transactionHash: mockLog.transactionHash,
+          blockNumber: mockLog.blockNumber,
+        }),
+      );
+    });
+
+    it('should handle errors in IntentFulfilled processing', () => {
+      const mockLog = {
+        args: {
+          intentHash: '0x1234',
+          claimant: '0xabcd',
+        },
+        transactionHash: '0xfedcba',
+        blockNumber: 12345678n,
+      };
+
+      // Mock parseIntentFulfilled to throw an error
+      jest.spyOn(eventsModule, 'parseIntentFulfilled').mockImplementation(() => {
+        throw new Error('Parse error');
+      });
+
+      // Should not throw, just log error
+      expect(() => intentFulfilledCallback([mockLog])).not.toThrow();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error processing IntentFulfilled event'),
+        expect.any(Error),
+      );
+    });
+
+    it('should handle multiple IntentFulfilled events', () => {
+      const mockLogs = [
+        {
+          args: {
+            intentHash: '0x1111111111111111111111111111111111111111111111111111111111111111',
+            claimant: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          },
+          transactionHash: '0xaaa',
+          blockNumber: 100n,
+        },
+        {
+          args: {
+            intentHash: '0x2222222222222222222222222222222222222222222222222222222222222222',
+            claimant: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          },
+          transactionHash: '0xbbb',
+          blockNumber: 101n,
+        },
+      ];
+
+      intentFulfilledCallback(mockLogs);
+
+      expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
+      expect(eventEmitter.emit).toHaveBeenNthCalledWith(
+        1,
+        'intent.fulfilled',
+        expect.objectContaining({
+          intentHash: mockLogs[0].args.intentHash,
+        }),
+      );
+      expect(eventEmitter.emit).toHaveBeenNthCalledWith(
+        2,
+        'intent.fulfilled',
+        expect.objectContaining({
+          intentHash: mockLogs[1].args.intentHash,
+        }),
+      );
     });
   });
 });

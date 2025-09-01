@@ -8,14 +8,14 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
-import { parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
+import { parseIntentFulfilled, parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 export class ChainListener extends BaseChainListener {
-  private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
+  private unsubscribeIntentPublished: ReturnType<PublicClient['watchContractEvent']>;
+  private unsubscribeIntentFulfilled: ReturnType<PublicClient['watchContractEvent']>;
 
   constructor(
     private readonly config: EvmChainConfig,
@@ -40,17 +40,18 @@ export class ChainListener extends BaseChainListener {
     }
     const portalAddress = AddressNormalizer.denormalizeToEvm(portalUniversalAddress);
 
-    this.logger.log(`Listening for IntentPublished events, portal address: ${portalAddress}`);
+    this.logger.log(
+      `Listening for IntentPublished and IntentFulfilled events, portal address: ${portalAddress}`,
+    );
 
-    this.unsubscribe = publicClient.watchContractEvent({
+    // Watch for IntentPublished events
+    this.unsubscribeIntentPublished = publicClient.watchContractEvent({
       abi: PortalAbi,
       eventName: 'IntentPublished',
       address: portalAddress,
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
-          this.logger.log('Intent: ' + QueueSerializer.serialize(log));
-
           const span = this.otelService.startSpan('evm.listener.processIntentEvent', {
             attributes: {
               'evm.chain_id': this.config.chainId,
@@ -89,12 +90,60 @@ export class ChainListener extends BaseChainListener {
         });
       },
     });
+
+    // Watch for IntentFulfilled events
+    this.unsubscribeIntentFulfilled = publicClient.watchContractEvent({
+      abi: PortalAbi,
+      eventName: 'IntentFulfilled',
+      address: portalAddress,
+      strict: true,
+      onLogs: (logs) => {
+        logs.forEach((log) => {
+          const span = this.otelService.startSpan('evm.listener.processIntentFulfilledEvent', {
+            attributes: {
+              'evm.chain_id': this.config.chainId,
+              'evm.event_name': 'IntentFulfilled',
+              'portal.address': portalAddress,
+              'evm.block_number': log.blockNumber?.toString(),
+              'evm.transaction_hash': log.transactionHash,
+            },
+          });
+
+          try {
+            const event = parseIntentFulfilled(BigInt(evmConfig.chainId), log);
+
+            span.setAttributes({
+              'evm.intent_hash': event.intentHash,
+              'evm.claimant': event.claimant,
+            });
+
+            // Emit the event within the span context to propagate trace context
+            api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+              this.eventEmitter.emit('intent.fulfilled', event);
+            });
+
+            span.addEvent('intent.fulfilled.emitted');
+            span.setStatus({ code: api.SpanStatusCode.OK });
+          } catch (error) {
+            this.logger.error(`Error processing IntentFulfilled event: ${error.message}`, error);
+            span.recordException(error as Error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+          } finally {
+            span.end();
+          }
+        });
+      },
+    });
   }
 
   async stop(): Promise<void> {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
+    if (this.unsubscribeIntentPublished) {
+      this.unsubscribeIntentPublished();
+      this.unsubscribeIntentPublished = null;
+    }
+    if (this.unsubscribeIntentFulfilled) {
+      this.unsubscribeIntentFulfilled();
+      this.unsubscribeIntentFulfilled = null;
     }
     this.logger.warn(`EVM listener stopped for chain ${this.config.chainId}`);
   }

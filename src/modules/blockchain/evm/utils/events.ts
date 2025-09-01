@@ -12,6 +12,12 @@ type IntentPublishLog = WatchContractEventOnLogsParameter<
   true
 >[number];
 
+type IntentFulfilledLog = WatchContractEventOnLogsParameter<
+  typeof PortalAbi,
+  'IntentFulfilled',
+  true
+>[number];
+
 export function parseIntentPublish(sourceChainId: bigint, rawLog: any): Intent {
   const log = decodeEventLog({
     abi: PortalAbi,
@@ -41,5 +47,31 @@ export function parseIntentPublish(sourceChainId: bigint, rawLog: any): Intent {
         token: AddressNormalizer.normalize(token.token, ChainType.EVM),
       })),
     },
+  };
+}
+
+export interface IntentFulfilledEvent {
+  intentHash: string;
+  claimant: string;
+  chainId: bigint;
+  transactionHash: string;
+  blockNumber?: bigint;
+}
+
+export function parseIntentFulfilled(chainId: bigint, rawLog: any): IntentFulfilledEvent {
+  const log = decodeEventLog({
+    abi: PortalAbi,
+    eventName: 'IntentFulfilled',
+    topics: rawLog.topics,
+    data: rawLog.data,
+    strict: true,
+  }) as IntentFulfilledLog;
+
+  return {
+    intentHash: log.args.intentHash,
+    claimant: log.args.claimant,
+    chainId,
+    transactionHash: rawLog.transactionHash,
+    blockNumber: rawLog.blockNumber,
   };
 }

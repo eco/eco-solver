@@ -4,6 +4,7 @@ import { ConfigModule } from '@/modules/config/config.module';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
 import { FulfillmentProcessor } from '@/modules/fulfillment/fulfillment.processor';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
 // Strategies
 import {
   CrowdLiquidityFulfillmentStrategy,
@@ -57,6 +58,8 @@ import { StrategyManagementService } from './services/strategy-management.servic
     // Main service (acts as facade)
     FulfillmentService,
     FulfillmentProcessor,
+    // Event handlers
+    IntentFulfilledHandler,
     // Strategies
     StandardFulfillmentStrategy,
     CrowdLiquidityFulfillmentStrategy,
