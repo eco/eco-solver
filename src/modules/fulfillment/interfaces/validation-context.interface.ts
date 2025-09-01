@@ -1,4 +1,4 @@
-import { Address } from 'viem';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 
 /**
  * Context provided to validations for accessing necessary blockchain information
@@ -10,7 +10,7 @@ export interface ValidationContext {
    * @param chainId The chain ID to get the wallet address for
    * @returns The wallet address
    */
-  getWalletAddress(chainId: bigint): Promise<Address>;
+  getWalletAddress(chainId: bigint): Promise<UniversalAddress>;
 
   /**
    * Get the balance of the execution wallet on a specific chain
@@ -18,7 +18,7 @@ export interface ValidationContext {
    * @param tokenAddress Optional token address (if not provided, returns native balance)
    * @returns The balance in the smallest unit
    */
-  getWalletBalance(chainId: bigint, tokenAddress?: Address): Promise<bigint>;
+  getWalletBalance(chainId: bigint, tokenAddress?: UniversalAddress): Promise<bigint>;
 
   /**
    * Get the wallet type/ID that will be used for this execution

@@ -4,11 +4,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
-import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
+import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
-
-import { TvmUtilsService } from '../services/tvm-utils.service';
 
 import { TronListener } from './tron.listener';
 
@@ -18,11 +16,9 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
   constructor(
     private readonly tvmConfigService: TvmConfigService,
-    private readonly utilsService: TvmUtilsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    private readonly blockchainConfigService: BlockchainConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
   ) {
     this.logger.setContext(TvmListenersManagerService.name);
@@ -54,11 +50,10 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const listener = new TronListener(
         network,
         this.tvmConfigService.getTransactionSettings(),
-        this.utilsService,
         this.eventEmitter,
         listenerLogger,
         this.otelService,
-        this.blockchainConfigService,
+        this.tvmConfigService,
       );
 
       this.listeners.push(listener);

@@ -1,9 +1,11 @@
+import { UniversalAddress } from '@/common/types/universal-address.type';
+
 /**
  * Token configuration interface that works across all blockchain types
  */
 export interface TokenConfig {
-  /** Token contract address (format depends on chain type) */
-  address: string;
+  /** Token contract address */
+  address: UniversalAddress;
   /** Number of decimals for the token */
   decimals: number;
   /** Optional transfer limits */
@@ -18,14 +20,4 @@ export interface TokenLimit {
   min?: number;
   /** Maximum transfer amount (in token units) */
   max?: number;
-}
-
-/**
- * Chain-specific token configuration
- */
-export interface ChainTokenConfig {
-  /** Chain identifier (can be number, string, or bigint) */
-  chainId: number | string | bigint;
-  /** List of supported tokens on this chain */
-  tokens: TokenConfig[];
 }

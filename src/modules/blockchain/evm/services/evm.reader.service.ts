@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, encodePacked, erc20Abi, Hex, isAddress, pad } from 'viem';
+import { Address, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { EVMIntentType } from '@/modules/blockchain/evm/types/portal';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { toEVMIntent } from '@/common/utils/intent-converter';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -26,7 +28,8 @@ export class EvmReaderService extends BaseChainReader {
     this.logger.setContext(EvmReaderService.name);
   }
 
-  async getBalance(address: string, chainId: number): Promise<bigint> {
+  async getBalance(address: UniversalAddress, chainId: number): Promise<bigint> {
+    const evmAddress = AddressNormalizer.denormalizeToEvm(address);
     const span = this.otelService.startSpan('evm.reader.getBalance', {
       attributes: {
         'evm.chain_id': chainId,
@@ -37,7 +40,7 @@ export class EvmReaderService extends BaseChainReader {
 
     try {
       const client = this.transportService.getPublicClient(chainId);
-      const balance = await client.getBalance({ address: address as Address });
+      const balance = await client.getBalance({ address: evmAddress });
 
       span.setAttribute('evm.balance', balance.toString());
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -52,10 +55,12 @@ export class EvmReaderService extends BaseChainReader {
   }
 
   async getTokenBalance(
-    tokenAddress: string,
-    walletAddress: string,
+    tokenAddress: UniversalAddress,
+    walletAddress: UniversalAddress,
     chainId: number,
   ): Promise<bigint> {
+    const evmTokenAddress = AddressNormalizer.denormalizeToEvm(tokenAddress);
+    const evmWalletAddress = AddressNormalizer.denormalizeToEvm(walletAddress);
     const span = this.otelService.startSpan('evm.reader.getTokenBalance', {
       attributes: {
         'evm.chain_id': chainId,
@@ -68,10 +73,10 @@ export class EvmReaderService extends BaseChainReader {
     try {
       const client = this.transportService.getPublicClient(chainId);
       const balance = await client.readContract({
-        address: tokenAddress as Address,
+        address: evmTokenAddress,
         abi: erc20Abi,
         functionName: 'balanceOf',
-        args: [walletAddress as Address],
+        args: [evmWalletAddress],
       });
 
       span.setAttribute('evm.token_balance', balance.toString());
@@ -84,10 +89,6 @@ export class EvmReaderService extends BaseChainReader {
     } finally {
       span.end();
     }
-  }
-
-  isAddressValid(address: string): boolean {
-    return isAddress(address);
   }
 
   async isIntentFunded(intent: Intent, chainId: number): Promise<boolean> {
@@ -113,11 +114,19 @@ export class EvmReaderService extends BaseChainReader {
       const client = this.transportService.getPublicClient(chainId);
 
       // Use Portal contract's isIntentFunded function
-      // Construct the intent struct for the contract call
-      const portalIntent: EVMIntentType = {
-        destination: intent.destination,
-        route: intent.route,
-        reward: intent.reward,
+      // Convert to EVM intent format for contract call
+      const evmIntent = toEVMIntent(intent);
+      const portalIntent = {
+        destination: evmIntent.destination,
+        route: {
+          salt: evmIntent.route.salt,
+          deadline: evmIntent.route.deadline,
+          portal: evmIntent.route.portal,
+          nativeAmount: evmIntent.route.nativeAmount,
+          tokens: evmIntent.route.tokens,
+          calls: evmIntent.route.calls,
+        },
+        reward: evmIntent.reward,
       };
 
       const isFunded = await client.readContract({
@@ -167,11 +176,12 @@ export class EvmReaderService extends BaseChainReader {
 
   async fetchProverFee(
     intent: Intent,
-    prover: Address,
+    prover: UniversalAddress,
     messageData: Hex,
     chainId: number,
-    claimant?: Address,
+    claimant: UniversalAddress,
   ): Promise<bigint> {
+    const evmProver = AddressNormalizer.denormalizeToEvm(prover);
     const span = this.otelService.startSpan('evm.reader.fetchProverFee', {
       attributes: {
         'evm.chain_id': chainId,
@@ -192,12 +202,12 @@ export class EvmReaderService extends BaseChainReader {
 
       const encodeProof = encodePacked(
         ['uint64', 'bytes32', 'bytes32'],
-        [intent.sourceChainId, intent.intentHash, pad(claimant)],
+        [intent.sourceChainId, intent.intentHash, claimant as Hex],
       );
 
       // Call fetchFee on the prover contract
       const fee = await client.readContract({
-        address: prover,
+        address: evmProver,
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: [

@@ -124,27 +124,3 @@ export function ApiZodResponse(status: number, schema: z.ZodTypeAny, description
     description,
   });
 }
-
-/**
- * Helper to create multiple response decorators from Zod schemas
- * @param responses - Array of response configurations
- */
-export function ApiZodResponses(
-  responses: Array<{
-    status: number;
-    schema: z.ZodTypeAny;
-    description: string;
-  }>,
-) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    responses.forEach(({ status, schema, description }) => {
-      const openApiSchema = zodToOpenApiSchema(schema);
-
-      ApiResponse({
-        status,
-        schema: openApiSchema,
-        description,
-      })(target, propertyKey, descriptor);
-    });
-  };
-}

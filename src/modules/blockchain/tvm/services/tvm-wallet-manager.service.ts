@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { BaseTvmWallet } from '@/common/abstractions/base-tvm-wallet.abstract';
+import { ITvmWallet } from '@/common/interfaces/tvm-wallet.interface';
 import { SystemLoggerService } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
@@ -23,7 +23,7 @@ export class TvmWalletManagerService {
    * @returns A wallet instance
    * @throws Error if wallet type is not supported
    */
-  createWallet(chainId: number | string, walletType: TvmWalletType = 'basic'): BaseTvmWallet {
+  createWallet(chainId: number | string, walletType: TvmWalletType = 'basic'): ITvmWallet {
     this.logger.log(`Creating TVM wallet of type ${walletType} for chain ${chainId}`);
 
     switch (walletType) {

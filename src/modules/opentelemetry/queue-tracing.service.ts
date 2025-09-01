@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 
-import { TraceContext } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
-
 import { OpenTelemetryService } from './opentelemetry.service';
 
 @Injectable()

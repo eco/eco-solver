@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 
@@ -8,8 +8,6 @@ import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { StrategyManagementService } from './strategy-management.service';
 
@@ -23,7 +21,6 @@ export class IntentProcessingService {
     private readonly logger: SystemLoggerService,
     private readonly strategyManagement: StrategyManagementService,
     private readonly intentsService: IntentsService,
-    @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
     private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(IntentProcessingService.name);
@@ -148,44 +145,6 @@ export class IntentProcessingService {
   }
 
   /**
-   * Get processing metrics
-   */
-  async getProcessingMetrics(): Promise<{
-    totalProcessed: number;
-    successfulValidations: number;
-    failedValidations: number;
-    averageProcessingTime: number;
-  }> {
-    const span = this.otelService.startSpan('intent.processing.getMetrics');
-
-    try {
-      // This would integrate with a metrics service in a complete implementation
-      const metrics = {
-        totalProcessed: 0,
-        successfulValidations: 0,
-        failedValidations: 0,
-        averageProcessingTime: 0,
-      };
-
-      span.setAttributes({
-        'metrics.total_processed': metrics.totalProcessed,
-        'metrics.successful_validations': metrics.successfulValidations,
-        'metrics.failed_validations': metrics.failedValidations,
-        'metrics.avg_processing_time': metrics.averageProcessingTime,
-      });
-      span.setStatus({ code: api.SpanStatusCode.OK });
-
-      return metrics;
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
-    }
-  }
-
-  /**
    * Validate intent using a strategy
    */
   private async validateIntent(intent: Intent, strategy: IFulfillmentStrategy): Promise<boolean> {
@@ -230,33 +189,6 @@ export class IntentProcessingService {
    */
   private async getStrategy(strategyName: string): Promise<IFulfillmentStrategy | undefined> {
     return this.strategyManagement.getStrategy(strategyName);
-  }
-
-  /**
-   * Handle validation failure
-   */
-  private async handleValidationFailure(intent: Intent): Promise<void> {
-    const span = this.otelService.startSpan('intent.processing.handleFailure', {
-      attributes: {
-        'intent.hash': intent.intentHash,
-      },
-    });
-
-    try {
-      await this.updateIntentStatus(intent, IntentStatus.FAILED);
-
-      this.logger.warn(`Intent validation failed: ${intent.intentHash}`, {
-        intentHash: intent.intentHash,
-      });
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
-    }
   }
 
   /**

@@ -1,6 +1,12 @@
+import { Address } from 'viem';
 import { z } from 'zod';
 
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
+
+export const EvmAddressSchema = z
+  .string()
+  .regex(/^0x[a-fA-F0-9]{40}$/)
+  .transform((v) => v as Address);
 
 /**
  * EVM network RPC configuration schema
@@ -53,7 +59,7 @@ export const EvmWsSchema = z.object({
  * EVM token configuration schema
  */
 const EvmTokenSchema = z.object({
-  address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  address: EvmAddressSchema,
   decimals: z.number().int().min(0).max(18),
   limit: z
     .union([
@@ -120,12 +126,9 @@ const EvmNetworkSchema = z.object({
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   tokens: z.array(EvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
-  provers: z.record(
-    z.enum(['hyper', 'metalayer'] as const),
-    z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-  ),
+  provers: z.record(z.enum(['hyper', 'metalayer'] as const), EvmAddressSchema),
   contracts: z.object({
-    portal: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+    portal: EvmAddressSchema,
     ecdsaExecutor: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/)

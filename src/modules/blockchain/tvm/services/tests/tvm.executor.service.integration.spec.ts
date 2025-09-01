@@ -19,7 +19,6 @@ import { TvmWalletManagerService } from '../tvm-wallet-manager.service';
 describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
   let module: TestingModule;
   let executorService: TvmExecutorService;
-  let utilsService: TvmUtilsService;
 
   // Mock configuration
   const mockTvmConfig = {
@@ -211,7 +210,6 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     }).compile();
 
     executorService = module.get<TvmExecutorService>(TvmExecutorService);
-    utilsService = module.get<TvmUtilsService>(TvmUtilsService);
 
     // Mock utils service methods with proper address mappings
     const mockAddressMap = new Map([

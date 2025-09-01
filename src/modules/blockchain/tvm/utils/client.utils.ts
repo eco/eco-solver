@@ -24,28 +24,4 @@ export class TvmClientUtils {
 
     return new TronWeb(config);
   }
-
-  /**
-   * Creates a TronWeb client instance with minimal configuration
-   * @param fullNode - Full node URL
-   * @param solidityNode - Solidity node URL (optional, defaults to fullNode)
-   * @param eventServer - Event server URL (optional, defaults to fullNode)
-   * @param privateKey - Private key for signing (optional)
-   * @returns Configured TronWeb instance
-   */
-  static createClientWithUrls(
-    fullNode: string,
-    solidityNode?: string,
-    eventServer?: string,
-    privateKey?: string,
-  ): TronWeb {
-    const config = {
-      fullNode,
-      solidityNode: solidityNode || fullNode,
-      eventServer: eventServer || fullNode,
-      ...(privateKey && { privateKey }),
-    };
-
-    return new TronWeb(config);
-  }
 }

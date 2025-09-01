@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
-import { ApiKeyGuard } from '@/common/guards/api-key.guard';
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 
 import { QuotesController } from '../quotes.controller';
@@ -34,18 +33,12 @@ describe('QuotesController', () => {
           useValue: mockAppConfigService,
         },
         {
-          provide: ApiKeyGuard,
-          useValue: { canActivate: () => true }, // Mock ApiKeyGuard
-        },
-        {
           provide: ThrottlerGuard,
           useValue: { canActivate: () => true }, // Mock ThrottlerGuard
         },
       ],
     })
       .overrideGuard(ThrottlerGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(ApiKeyGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

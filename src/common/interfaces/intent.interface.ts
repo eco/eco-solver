@@ -1,4 +1,6 @@
-import { Address, Hex } from 'viem';
+import { Hex } from 'viem';
+
+import { UniversalAddress } from '@/common/types/universal-address.type';
 
 export interface Intent {
   intentHash: Hex; // Changed from intentHash for consistency
@@ -6,31 +8,31 @@ export interface Intent {
   route: Readonly<{
     salt: Hex;
     deadline: bigint; // Added deadline to route (Portal structure)
-    portal: Address; // Changed from inbox
+    portal: UniversalAddress; // Changed from inbox
     nativeAmount: bigint; // Changed from nativeAmount
     tokens: Readonly<
       {
         amount: bigint;
-        token: Address;
+        token: UniversalAddress;
       }[]
     >;
     calls: Readonly<
       {
         data: Hex;
-        target: Address;
+        target: UniversalAddress;
         value: bigint;
       }[]
     >;
   }>;
   reward: Readonly<{
     deadline: bigint;
-    creator: Address;
-    prover: Address;
+    creator: UniversalAddress;
+    prover: UniversalAddress;
     nativeAmount: bigint;
     tokens: Readonly<
       {
         amount: bigint;
-        token: Address;
+        token: UniversalAddress;
       }[]
     >;
   }>;
@@ -49,40 +51,10 @@ export enum IntentStatus {
 }
 
 /**
- * Token amount structure for Portal compatibility
- */
-export interface TokenAmount {
-  token: Address;
-  amount: bigint;
-}
-
-/**
  * Call structure for Portal compatibility
  */
 export interface Call {
-  target: Address;
+  target: UniversalAddress;
   data: Hex;
   value: bigint;
-}
-
-/**
- * Portal Route structure (matches Portal ABI)
- */
-export interface PortalRoute {
-  salt: Hex;
-  deadline: bigint;
-  portal: Address;
-  tokens: TokenAmount[];
-  calls: Call[];
-}
-
-/**
- * Portal Reward structure (matches Portal ABI)
- */
-export interface PortalReward {
-  deadline: bigint;
-  creator: Address;
-  prover: Address;
-  nativeAmount: bigint;
-  tokens: TokenAmount[];
 }

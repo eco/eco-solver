@@ -33,11 +33,11 @@ export class BlockchainExecutorService {
   private initializeExecutors() {
     // Get all configured chains from the unified config service
     const configuredChains = this.blockchainConfigService.getAllConfiguredChains();
-    
+
     for (const chainId of configuredChains) {
       try {
         const chainType = this.blockchainConfigService.getChainType(chainId);
-        
+
         switch (chainType) {
           case ChainType.EVM:
             if (this.evmExecutor) {

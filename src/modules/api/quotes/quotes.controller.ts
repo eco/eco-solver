@@ -11,7 +11,6 @@ import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { ApiZodBody, ApiZodResponse } from '@/common/decorators/zod-schema.decorator';
-import { ApiKeyGuard } from '@/common/guards/api-key.guard';
 
 import { ValidateRequest } from './decorators/validate-request.decorator';
 import { BigIntSerializerInterceptor } from './interceptors/bigint-serializer.interceptor';
@@ -27,7 +26,7 @@ import { QuotesService } from './quotes.service';
 @ApiTags('quotes')
 @ApiSecurity('api-key')
 @Controller('api/v1/quotes')
-@UseGuards(ThrottlerGuard, ApiKeyGuard)
+@UseGuards(ThrottlerGuard)
 @UseInterceptors(BigIntSerializerInterceptor)
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}

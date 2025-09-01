@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
-import { Address, encodeAbiParameters, Hex, pad } from 'viem';
+import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -20,21 +22,27 @@ export class MetalayerProver extends BaseProver {
   }
 
   async generateProof(intent: Intent): Promise<Hex> {
-    return encodeAbiParameters([{ type: 'bytes32' }], [pad(intent.reward.prover)]);
+    return encodeAbiParameters([{ type: 'bytes32' }], [
+      pad(AddressNormalizer.denormalizeToEvm(intent.reward.prover)),
+    ] as const);
   }
 
-  async getFee(intent: Intent, claimant?: Address): Promise<bigint> {
+  async getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint> {
+    const chainId = intent.sourceChainId;
+
     // Fetch fee from the source chain where the intent originates
     return this.blockchainReaderService.fetchProverFee(
-      intent.sourceChainId!,
+      chainId,
       intent,
+      this.getContractAddress(Number(chainId)),
       await this.generateProof(intent),
       claimant,
     );
   }
 
   getDeadlineBuffer(): bigint {
-    // MetalayerProver requires 10 minutes (600 seconds) for processing
-    return 600n;
+    // TODO: Move to validation
+    // MetalayerProver requires 100 minutes (6000 seconds) for processing
+    return 6000n;
   }
 }

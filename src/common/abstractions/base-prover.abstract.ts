@@ -1,9 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
-import { Address, Hex } from 'viem';
+import { Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 
@@ -25,11 +26,16 @@ export abstract class BaseProver implements OnModuleInit {
   }
 
   abstract generateProof(intent: Intent): Promise<Hex>;
-  abstract getFee(intent: Intent, claimant?: Address): Promise<bigint>;
+
+  abstract getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint>;
+
   abstract getDeadlineBuffer(): bigint;
 
-  getContractAddress(chainId: number): Address | undefined {
-    return this.blockchainConfigService.getProverAddress(chainId, this.type as 'hyper' | 'metalayer') as Address | undefined;
+  getContractAddress(chainId: string | number | bigint): UniversalAddress | undefined {
+    return this.blockchainConfigService.getProverAddress(
+      chainId,
+      this.type as 'hyper' | 'metalayer',
+    );
   }
 
   isSupported(chainId: number): boolean {

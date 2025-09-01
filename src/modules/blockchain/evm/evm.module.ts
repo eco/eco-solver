@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { EVMController } from '@/modules/blockchain/evm/evm.controller';
 import { BasicWalletModule } from '@/modules/blockchain/evm/wallets/basic-wallet';
 import { KernelWalletModule } from '@/modules/blockchain/evm/wallets/kernel-wallet';
 import { ConfigModule } from '@/modules/config/config.module';
@@ -13,6 +14,7 @@ import { EvmWalletManager } from './services/evm-wallet-manager.service';
 import { EvmCoreModule } from './evm-core.module';
 
 @Module({
+  controllers: [EVMController],
   imports: [
     ConfigModule,
     LoggingModule,

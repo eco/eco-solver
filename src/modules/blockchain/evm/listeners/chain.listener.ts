@@ -1,18 +1,18 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
-import { Address, PublicClient } from 'viem';
+import { PublicClient } from 'viem';
 
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
-import { Intent } from '@/common/interfaces/intent.interface';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { PortalEncoder } from '@/common/utils/portal-encoder';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
+import { parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 export class ChainListener extends BaseChainListener {
   private unsubscribe: ReturnType<PublicClient['watchContractEvent']>;
@@ -34,20 +34,23 @@ export class ChainListener extends BaseChainListener {
 
     const publicClient = this.transportService.getPublicClient(evmConfig.chainId);
 
-    const portalAddress = this.blockchainConfigService.getPortalAddress(evmConfig.chainId);
-    if (!portalAddress) {
+    const portalUniversalAddress = this.blockchainConfigService.getPortalAddress(evmConfig.chainId);
+    if (!portalUniversalAddress) {
       throw new Error(`No Portal address configured for chain ${evmConfig.chainId}`);
     }
+    const portalAddress = AddressNormalizer.denormalizeToEvm(portalUniversalAddress);
 
     this.logger.log(`Listening for IntentPublished events, portal address: ${portalAddress}`);
 
     this.unsubscribe = publicClient.watchContractEvent({
       abi: PortalAbi,
       eventName: 'IntentPublished',
-      address: portalAddress as Address,
+      address: portalAddress,
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
+          this.logger.log('Intent: ' + QueueSerializer.serialize(log));
+
           const span = this.otelService.startSpan('evm.listener.processIntentEvent', {
             attributes: {
               'evm.chain_id': this.config.chainId,
@@ -59,30 +62,7 @@ export class ChainListener extends BaseChainListener {
           });
 
           try {
-            // Decode route based on destination chain type
-            const destChainType = ChainTypeDetector.detect(log.args.destination);
-            const route = PortalEncoder.decodeFromChain(log.args.route, destChainType, 'route');
-
-            const intent: Intent = {
-              intentHash: log.args.intentHash,
-              destination: log.args.destination,
-              route: {
-                salt: route.salt,
-                deadline: route.deadline,
-                portal: route.portal,
-                nativeAmount: route.nativeAmount,
-                tokens: route.tokens,
-                calls: route.calls,
-              },
-              reward: {
-                deadline: log.args.rewardDeadline,
-                creator: log.args.creator,
-                prover: log.args.prover,
-                nativeAmount: log.args.rewardNativeAmount,
-                tokens: log.args.rewardTokens,
-              },
-              sourceChainId: BigInt(evmConfig.chainId),
-            };
+            const intent = parseIntentPublish(BigInt(evmConfig.chainId), log);
 
             span.setAttributes({
               'evm.intent_id': intent.intentHash,

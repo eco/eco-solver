@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { Address } from 'viem';
+import { Address, isAddressEqual } from 'viem';
 
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 
@@ -48,15 +50,16 @@ export class EvmConfigService {
     return network.tokens;
   }
 
-  isTokenSupported(chainId: number, tokenAddress: string): boolean {
+  isTokenSupported(chainId: number, tokenAddress: UniversalAddress): boolean {
     const tokens = this.getSupportedTokens(chainId);
-    return tokens.some((token) => token.address.toLowerCase() === tokenAddress.toLowerCase());
+    const normalizedAddress = AddressNormalizer.denormalizeToEvm(tokenAddress);
+    return tokens.some((token) => isAddressEqual(token.address, normalizedAddress));
   }
 
-  getTokenConfig(chainId: bigint | number, tokenAddress: string): EvmTokenConfig {
+  getTokenConfig(chainId: bigint | number, tokenAddress: UniversalAddress): EvmTokenConfig {
     const tokens = this.getSupportedTokens(chainId);
     const tokenConfig = tokens.find(
-      (token) => token.address.toLowerCase() === tokenAddress.toLowerCase(),
+      (token) => AddressNormalizer.normalizeEvm(token.address) === tokenAddress,
     );
     if (!tokenConfig) {
       throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);

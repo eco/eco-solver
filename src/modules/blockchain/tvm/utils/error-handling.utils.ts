@@ -2,8 +2,6 @@ import * as api from '@opentelemetry/api';
 
 import { SystemLoggerService } from '@/modules/logging';
 
-import { TvmError, TvmTransactionError } from '../errors';
-
 /**
  * Standard error context for TVM operations
  */
@@ -12,6 +10,7 @@ export interface TvmErrorContext {
   chainId?: string | number;
   address?: string;
   transactionId?: string;
+
   [key: string]: any;
 }
 
@@ -75,39 +74,5 @@ export class TvmErrorHandler {
     } catch (error) {
       this.handleError(error, context, span, logger);
     }
-  }
-
-  /**
-   * Determines if an error is a TVM-specific error
-   * @param error - The error to check
-   * @returns True if the error is a TVM error
-   */
-  static isTvmError(error: unknown): error is TvmError {
-    return error instanceof TvmError;
-  }
-
-  /**
-   * Determines if an error is a transaction error
-   * @param error - The error to check
-   * @returns True if the error is a transaction error
-   */
-  static isTransactionError(error: unknown): error is TvmTransactionError {
-    return error instanceof TvmTransactionError;
-  }
-
-  /**
-   * Creates a standardized error message with context
-   * @param message - The base error message
-   * @param context - Context information
-   * @returns Formatted error message
-   */
-  static formatErrorMessage(message: string, context: TvmErrorContext): string {
-    const contextParts: string[] = [`operation=${context.operation}`];
-
-    if (context.chainId) contextParts.push(`chainId=${context.chainId}`);
-    if (context.address) contextParts.push(`address=${context.address}`);
-    if (context.transactionId) contextParts.push(`txId=${context.transactionId}`);
-
-    return `${message} [${contextParts.join(', ')}]`;
   }
 }

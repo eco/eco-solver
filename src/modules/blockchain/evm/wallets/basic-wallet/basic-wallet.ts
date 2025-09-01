@@ -3,7 +3,7 @@ import { Address, Hash, PublicClient, WalletClient } from 'viem';
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 
-import { MULTICALL3_ABI } from '../../constants/multicall3.constants';
+import { multicall3Abi } from '../../../../../common/abis/multicall3.constants';
 
 export class BasicWallet extends BaseEvmWallet {
   constructor(
@@ -67,7 +67,7 @@ export class BasicWallet extends BaseEvmWallet {
 
       const { request } = await this.publicClient.simulateContract({
         address: multicall3Address,
-        abi: MULTICALL3_ABI,
+        abi: multicall3Abi,
         functionName: 'aggregate3Value',
         args: [multicallCalls],
         value: totalValue,

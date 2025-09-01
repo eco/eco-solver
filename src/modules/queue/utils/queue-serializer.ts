@@ -1,5 +1,3 @@
-import { Intent } from '@/common/interfaces/intent.interface';
-
 export class QueueSerializer {
   private static readonly BIGINT_PREFIX = '$$bigint:';
 
@@ -19,13 +17,5 @@ export class QueueSerializer {
       }
       return value;
     });
-  }
-
-  static serializeIntent(intent: Intent): string {
-    return this.serialize(intent);
-  }
-
-  static deserializeIntent(json: string): Intent {
-    return this.deserialize<Intent>(json);
   }
 }

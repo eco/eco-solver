@@ -1,11 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { Address, isAddressEqual } from 'viem';
-
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
@@ -41,8 +38,7 @@ export class ProverService implements OnModuleInit {
       };
     }
 
-    const chainType = ChainTypeDetector.detect(destinationChainId);
-    if (!PortalHashUtils.validatePortalAddress(portalAddress, expectedPortal, chainType)) {
+    if (portalAddress !== expectedPortal) {
       return {
         isValid: false,
         reason: `Portal address mismatch: expected ${expectedPortal}, got ${portalAddress}`,
@@ -63,22 +59,15 @@ export class ProverService implements OnModuleInit {
     return { isValid: true };
   }
 
-  getProver(chainId: number, address: Address) {
+  getProver(chainId: number | string, address: UniversalAddress) {
     for (const prover of this.provers.values()) {
       const proverAddr = prover.getContractAddress(chainId);
 
-      if (proverAddr && isAddressEqual(proverAddr, address)) {
+      if (proverAddr && proverAddr === address) {
         return prover;
       }
     }
     return null;
-  }
-
-  private initializeProvers(): void {
-    this.provers.set(ProverType.HYPER, this.hyperProver);
-    this.provers.set(ProverType.METALAYER, this.metalayerProver);
-
-    this.logger.log(`Initialized ${this.provers.size} provers`);
   }
 
   getMaxDeadlineBuffer(sourceChainId: number, destinationChainId: number): bigint {
@@ -99,26 +88,6 @@ export class ProverService implements OnModuleInit {
 
     // If no prover supports this route, return a default buffer (5 minutes)
     return maxBuffer > 0n ? maxBuffer : 300n;
-  }
-
-  private findProverForRoute(
-    sourceChainId: number,
-    destinationChainId: number,
-  ): HyperProver | MetalayerProver | null {
-    // Check each prover to see if it supports both chains and has matching contracts
-    for (const [type, prover] of this.provers) {
-      const sourceContract = prover.isSupported(sourceChainId);
-      const destinationContract = prover.isSupported(destinationChainId);
-
-      if (sourceContract && destinationContract) {
-        this.logger.debug(
-          `Found prover ${type} for route ${sourceChainId} -> ${destinationChainId}`,
-        );
-        return prover;
-      }
-    }
-
-    return null;
   }
 
   /**
@@ -153,5 +122,32 @@ export class ProverService implements OnModuleInit {
     }
 
     return { isValid: true };
+  }
+
+  private initializeProvers(): void {
+    this.provers.set(ProverType.HYPER, this.hyperProver);
+    this.provers.set(ProverType.METALAYER, this.metalayerProver);
+
+    this.logger.log(`Initialized ${this.provers.size} provers`);
+  }
+
+  private findProverForRoute(
+    sourceChainId: number,
+    destinationChainId: number,
+  ): HyperProver | MetalayerProver | null {
+    // Check each prover to see if it supports both chains and has matching contracts
+    for (const [type, prover] of this.provers) {
+      const sourceContract = prover.isSupported(sourceChainId);
+      const destinationContract = prover.isSupported(destinationChainId);
+
+      if (sourceContract && destinationContract) {
+        this.logger.debug(
+          `Found prover ${type} for route ${sourceChainId} -> ${destinationChainId}`,
+        );
+        return prover;
+      }
+    }
+
+    return null;
   }
 }

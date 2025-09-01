@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, decodeFunctionData, erc20Abi, isAddressEqual } from 'viem';
+import { decodeFunctionData, erc20Abi } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -54,36 +53,12 @@ export class RouteCallsValidation implements Validation {
       for (let i = 0; i < intent.route.calls.length; i++) {
         const call = intent.route.calls[i];
 
-        // Normalize addresses for comparison based on chain type
-        let isTokenCall = false;
-        if (chainType === ChainType.TVM) {
-          // For TVM, if no token restrictions, allow all
-          if (tokens.length === 0) {
-            isTokenCall = true;
-          } else {
-            // Normalize addresses to Base58 for comparison
-            const normalizedTarget = TvmUtilsService.normalizeAddressToBase58(call.target);
-            isTokenCall = tokens.some((token) => {
-              const normalizedToken = TvmUtilsService.normalizeAddressToBase58(token.address);
-              return normalizedToken === normalizedTarget;
-            });
+        // Normalize addresses
+        const isTokenCall =
+          tokens.length === 0 || tokens.some((token) => token.address === call.target);
 
-            // Add debugging attributes for TVM address normalization
-            span.setAttributes({
-              [`route.call.${i}.target.original`]: call.target,
-              [`route.call.${i}.target.normalized`]: normalizedTarget,
-            });
-          }
-        } else if (chainType === ChainType.EVM) {
-          // For EVM, use case-insensitive comparison
-          isTokenCall = tokens.some((token) =>
-            isAddressEqual(token.address as Address, call.target),
-          );
-        } else if (chainType === ChainType.SVM) {
-          // For Solana, if no token restrictions, allow all
-          isTokenCall =
-            tokens.length === 0 || tokens.some((token) => token.address === call.target);
-        }
+        // Add debugging attributes for TVM address normalization
+        span.setAttribute(`route.call.${i}.target`, call.target);
 
         span.setAttributes({
           [`route.call.${i}.target`]: call.target,
@@ -92,12 +67,8 @@ export class RouteCallsValidation implements Validation {
         });
 
         if (!isTokenCall) {
-          const errorDetails =
-            chainType === ChainType.TVM && tokens.length > 0
-              ? ` (normalized: ${TvmUtilsService.normalizeAddressToBase58(call.target)})`
-              : '';
           throw new Error(
-            `Invalid route call: target ${call.target}${errorDetails} is not a supported token address on chain ${intent.destination}`,
+            `Invalid route call: target ${call.target} is not a supported token address on chain ${intent.destination}`,
           );
         }
 

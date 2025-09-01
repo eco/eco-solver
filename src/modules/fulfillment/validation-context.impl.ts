@@ -1,6 +1,5 @@
-import { Address } from 'viem';
-
 import { Intent } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
@@ -23,19 +22,19 @@ export class ValidationContextImpl implements ValidationContext {
     return this.strategy.getWalletIdForIntent(this.intent);
   }
 
-  async getWalletAddress(chainId: bigint): Promise<Address> {
+  async getWalletAddress(chainId: bigint): Promise<UniversalAddress> {
     const walletId = await this.getWalletId();
-    const executor = await this.blockchainExecutor.getExecutorForChain(chainId);
+    const executor = this.blockchainExecutor.getExecutorForChain(chainId);
     return executor.getWalletAddress(walletId as WalletType, chainId);
   }
 
-  async getWalletBalance(chainId: bigint, tokenAddress?: Address): Promise<bigint> {
+  async getWalletBalance(chainId: bigint, tokenAddress?: UniversalAddress): Promise<bigint> {
     const walletAddress = await this.getWalletAddress(chainId);
-    const reader = await this.blockchainReader.getReaderForChain(chainId);
+    const reader = this.blockchainReader.getReaderForChain(chainId);
 
     if (tokenAddress) {
       return reader.getTokenBalance(tokenAddress, walletAddress, Number(chainId));
     }
-    return reader.getBalance(walletAddress);
+    return reader.getBalance(walletAddress, Number(chainId));
   }
 }

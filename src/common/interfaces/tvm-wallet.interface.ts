@@ -36,14 +36,6 @@ export interface ITvmWallet {
   getAddress(): Promise<string>;
 
   /**
-   * Sends TRX to another address
-   * @param to - Recipient address
-   * @param amount - Amount in SUN (1 TRX = 1,000,000 SUN)
-   * @returns Transaction ID
-   */
-  sendTrx(to: string, amount: bigint): Promise<string>;
-
-  /**
    * Triggers a smart contract function
    * @param contractAddress - The contract address
    * @param abi - The contract ABI
@@ -60,36 +52,6 @@ export interface ITvmWallet {
     abi: abi,
     functionName: functionName,
     parameter: ContractFunctionParameter[],
-    options?: TvmTransactionOptions,
-  ): Promise<string>;
-
-  /**
-   * Approves TRC20 tokens for spending
-   * @param tokenAddress - The token contract address
-   * @param spenderAddress - The spender address
-   * @param amount - Amount to approve
-   * @param options - Transaction options
-   * @returns Transaction ID
-   */
-  approveTrc20(
-    tokenAddress: string,
-    spenderAddress: string,
-    amount: bigint,
-    options?: TvmTransactionOptions,
-  ): Promise<string>;
-
-  /**
-   * Transfers TRC20 tokens
-   * @param tokenAddress - The token contract address
-   * @param toAddress - The recipient address
-   * @param amount - Amount to transfer
-   * @param options - Transaction options
-   * @returns Transaction ID
-   */
-  transferTrc20(
-    tokenAddress: string,
-    toAddress: string,
-    amount: bigint,
     options?: TvmTransactionOptions,
   ): Promise<string>;
 }

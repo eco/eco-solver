@@ -3,6 +3,8 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
@@ -68,7 +70,9 @@ export class QuotesService {
     const destinationChainId = Number(intent.destination);
 
     // Get contract addresses
-    const portalAddress = this.blockchainConfigService.getPortalAddress(destinationChainId) as Address;
+    const portalAddress = this.blockchainConfigService.getPortalAddress(
+      destinationChainId,
+    ) as Address;
 
     // Get prover address - first try to get from the chain config, fallback to generic prover if needed
     let proverAddress: Address | undefined;
@@ -78,16 +82,16 @@ export class QuotesService {
         (this.blockchainConfigService.getProverAddress(destinationChainId, 'hyper') as Address) ||
         (this.blockchainConfigService.getProverAddress(destinationChainId, 'metalayer') as Address);
     } catch (error) {
-      // If no prover found, use the prover address from reward
-      proverAddress = intent.reward.prover;
+      // If no prover found, denormalize the prover address from reward
+      const destChainType = ChainTypeDetector.detect(destinationChainId);
+      proverAddress = AddressNormalizer.denormalize(intent.reward.prover, destChainType) as Address;
     }
 
+    // TODO: Complete implementation
+
     // Extract token information from intent
-    const sourceToken =
-      intent.route.tokens.length > 0
-        ? intent.route.tokens[0].token
-        : ('0x0000000000000000000000000000000000000000' as Address);
-    const destinationToken = sourceToken; // Assuming same token for now
+    const sourceToken = intent.route.tokens[0].token as any;
+    const destinationToken = sourceToken; // Assuming the same token for now
     const sourceAmount = intent.route.tokens.length > 0 ? intent.route.tokens[0].amount : BigInt(0);
     // Assuming 1:1 for now
     // Build the response
@@ -123,39 +127,44 @@ export class QuotesService {
         estimatedFulfillTimeSec: 30, // Default estimate, can be made configurable
       },
       contracts: {
-        prover: proverAddress as Hex,
-        portal: portalAddress as Hex,
+        prover: proverAddress,
+        portal: portalAddress,
       },
     };
   }
 
   private convertToIntent(input: QuoteRequest['intent']): Intent {
+    // Determine source chain type for normalization
+    const sourceChainType = ChainTypeDetector.detect(input.route.source);
+    const destinationChainType = ChainTypeDetector.detect(input.route.destination);
+
     // Generate intent hash using the new Viem-based function
     const { intentHash } = PortalHashUtils.getIntentHash({
+      intentHash: '0x' as Hex, // Placeholder, will be replaced by computed hash
       destination: input.route.destination,
       route: {
         salt: input.route.salt as Hex,
         deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
-        portal: input.route.portal as Address,
+        portal: AddressNormalizer.normalize(input.route.portal, destinationChainType),
         nativeAmount: input.route.nativeAmount || BigInt(0),
         tokens: input.route.tokens.map((t) => ({
           amount: t.amount,
-          token: t.token as Address,
+          token: AddressNormalizer.normalize(t.token, destinationChainType),
         })),
         calls: input.route.calls.map((c) => ({
           data: c.data as Hex,
-          target: c.target as Address,
+          target: AddressNormalizer.normalize(c.target, destinationChainType),
           value: c.value,
         })),
       },
       reward: {
         deadline: input.reward.deadline,
-        creator: input.reward.creator as Address,
-        prover: input.reward.prover as Address,
+        creator: AddressNormalizer.normalize(input.reward.creator, sourceChainType),
+        prover: AddressNormalizer.normalize(input.reward.prover, sourceChainType),
         nativeAmount: input.reward.nativeAmount || BigInt(0),
         tokens: input.reward.tokens.map((t) => ({
           amount: t.amount,
-          token: t.token as Address,
+          token: AddressNormalizer.normalize(t.token, sourceChainType),
         })),
       },
     });
@@ -164,28 +173,28 @@ export class QuotesService {
       intentHash: intentHash,
       destination: input.route.destination,
       reward: {
-        prover: input.reward.prover as Address,
-        creator: input.reward.creator as Address,
+        prover: AddressNormalizer.normalize(input.reward.prover, sourceChainType),
+        creator: AddressNormalizer.normalize(input.reward.creator, sourceChainType),
         deadline: input.reward.deadline,
         nativeAmount: input.reward.nativeAmount || BigInt(0),
         tokens: input.reward.tokens.map((t) => ({
           amount: t.amount,
-          token: t.token as Address,
+          token: AddressNormalizer.normalize(t.token, sourceChainType),
         })),
       },
       route: {
         salt: input.route.salt as Hex,
         deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
-        portal: input.route.portal as Address,
+        portal: AddressNormalizer.normalize(input.route.portal, sourceChainType),
         nativeAmount: input.route.nativeAmount || BigInt(0),
         calls: input.route.calls.map((c) => ({
           data: c.data as Hex,
-          target: c.target as Address,
+          target: AddressNormalizer.normalize(c.target, sourceChainType),
           value: c.value,
         })),
         tokens: input.route.tokens.map((t) => ({
           amount: t.amount,
-          token: t.token as Address,
+          token: AddressNormalizer.normalize(t.token, sourceChainType),
         })),
       },
       sourceChainId: input.route.source,

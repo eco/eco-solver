@@ -1,3 +1,5 @@
+import { Intent } from '@/common/interfaces/intent.interface';
+
 import { QueueSerializer } from '../queue-serializer';
 
 describe('QueueSerializer', () => {
@@ -228,8 +230,8 @@ describe('QueueSerializer', () => {
         status: 'PENDING',
       };
 
-      const serialized = QueueSerializer.serializeIntent(intentLikeData as any);
-      const deserialized = QueueSerializer.deserializeIntent(serialized);
+      const serialized = QueueSerializer.serialize(intentLikeData);
+      const deserialized = QueueSerializer.deserialize(serialized) as Intent;
 
       // Verify all BigInt values are correctly deserialized
       expect(deserialized.reward.deadline).toBe(intentLikeData.reward.deadline);

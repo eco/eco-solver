@@ -1,10 +1,11 @@
 import { Injectable, Optional } from '@nestjs/common';
 
-import { Address, Hex } from 'viem';
+import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { ChainType } from '@/common/utils/chain-type-detector';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -63,13 +64,12 @@ export class BlockchainReaderService {
    * @param address The address to check
    * @returns The balance in native token
    */
-  async getBalance(chainId: string | number | bigint, address: string): Promise<bigint> {
+  async getBalance(chainId: string | number, address: UniversalAddress): Promise<bigint> {
     const reader = this.getReaderForChain(chainId);
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }
-    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    return reader.getBalance(address, normalizedChainId);
+    return reader.getBalance(address, chainId);
   }
 
   /**
@@ -81,8 +81,8 @@ export class BlockchainReaderService {
    */
   async getTokenBalance(
     chainId: string | number | bigint,
-    tokenAddress: string,
-    walletAddress: string,
+    tokenAddress: UniversalAddress,
+    walletAddress: UniversalAddress,
   ): Promise<bigint> {
     const reader = this.getReaderForChain(chainId);
     if (!reader) {
@@ -90,20 +90,6 @@ export class BlockchainReaderService {
     }
     const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
     return reader.getTokenBalance(tokenAddress, walletAddress, normalizedChainId);
-  }
-
-  /**
-   * Check if an address is valid for a specific chain
-   * @param chainId The chain ID
-   * @param address The address to validate
-   * @returns true if the address is valid for the chain
-   */
-  isAddressValid(chainId: string | number | bigint, address: string): boolean {
-    const reader = this.getReaderForChain(chainId);
-    if (!reader) {
-      return false;
-    }
-    return reader.isAddressValid(address);
   }
 
   /**
@@ -133,9 +119,9 @@ export class BlockchainReaderService {
   async fetchProverFee(
     chainId: string | number | bigint,
     intent: Intent,
-    prover: Address,
+    prover: UniversalAddress,
     messageData: Hex,
-    claimant?: Address,
+    claimant?: UniversalAddress,
   ): Promise<bigint> {
     const reader = this.getReaderForChain(chainId);
     if (!reader) {

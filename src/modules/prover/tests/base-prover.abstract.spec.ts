@@ -1,11 +1,13 @@
 import { ModuleRef } from '@nestjs/core';
 
-import { Address, Hex } from 'viem';
+import { Hex } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { EvmAddress } from '@/modules/blockchain/evm/types/address'; // Concrete implementation for testing
+import { BlockchainConfigService } from '@/modules/config/services'; // Concrete implementation for testing
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 
@@ -13,15 +15,15 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 class TestProver extends BaseProver {
   readonly type = ProverType.HYPER;
 
-  constructor(evmConfigService: EvmConfigService, moduleRef: ModuleRef) {
-    super(evmConfigService, moduleRef);
+  constructor(blockchainConfigService: BlockchainConfigService, moduleRef: ModuleRef) {
+    super(blockchainConfigService, moduleRef);
   }
 
   async generateProof(_intent: Intent): Promise<Hex> {
     return '0xtest' as Hex;
   }
 
-  async getFee(_intent: Intent, _claimant?: Address): Promise<bigint> {
+  async getFee(_intent: Intent, _claimant?: EvmAddress): Promise<bigint> {
     return 1000n;
   }
 
@@ -32,12 +34,12 @@ class TestProver extends BaseProver {
 
 describe('BaseProver', () => {
   let prover: TestProver;
-  let mockEvmConfigService: jest.Mocked<EvmConfigService>;
+  let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = '0x1234567890123456789012345678901234567890' as Address;
-  const testAddress2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
+  const testAddress1 = '0x1234567890123456789012345678901234567890' as EvmAddress;
+  const testAddress2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as EvmAddress;
 
   beforeEach(async () => {
     mockBlockchainReaderService = {} as jest.Mocked<BlockchainReaderService>;
@@ -46,12 +48,12 @@ describe('BaseProver', () => {
       get: jest.fn().mockReturnValue(mockBlockchainReaderService),
     } as unknown as jest.Mocked<ModuleRef>;
 
-    mockEvmConfigService = {
+    mockBlockchainConfigService = {
       getChain: jest.fn(),
     } as unknown as jest.Mocked<EvmConfigService>;
 
     // Setup mock return values for getChain
-    mockEvmConfigService.getChain.mockImplementation((chainId: number) => {
+    mockBlockchainConfigService.getChain.mockImplementation((chainId: number) => {
       if (chainId === 1) {
         return { provers: { [ProverType.HYPER]: testAddress1 } } as any;
       }
@@ -61,7 +63,7 @@ describe('BaseProver', () => {
       return undefined;
     });
 
-    prover = new TestProver(mockEvmConfigService, mockModuleRef);
+    prover = new TestProver(mockBlockchainConfigService, mockModuleRef);
   });
 
   describe('onModuleInit', () => {

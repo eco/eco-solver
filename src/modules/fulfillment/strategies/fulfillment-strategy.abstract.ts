@@ -148,11 +148,11 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
   getWalletIdForIntent(intent: Intent): Promise<WalletType> {
     // Determine wallet type based on destination blockchain
     const chainType = ChainTypeDetector.detect(intent.destination);
-    
+
     // TVM and SVM only support basic wallets
     // EVM can use kernel wallets for advanced features
     const walletType: WalletType = chainType === ChainType.EVM ? 'kernel' : 'basic';
-    
+
     return Promise.resolve(walletType);
   }
 

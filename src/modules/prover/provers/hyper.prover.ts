@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
-import { Address, encodeAbiParameters, Hex, pad, zeroAddress } from 'viem';
+import { encodeAbiParameters, Hex, pad, zeroAddress } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -27,11 +29,11 @@ export class HyperProver extends BaseProver {
           components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
         },
       ],
-      [[pad(intent.reward.prover), '0x', zeroAddress]],
+      [[pad(AddressNormalizer.denormalizeToEvm(intent.reward.prover)), '0x', zeroAddress]],
     );
   }
 
-  async getFee(intent: Intent, claimant?: Address): Promise<bigint> {
+  async getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint> {
     const localProver = this.getContractAddress(Number(intent.destination));
 
     // Fetch fee from the source chain where the intent originates
@@ -45,6 +47,7 @@ export class HyperProver extends BaseProver {
   }
 
   getDeadlineBuffer(): bigint {
+    // TODO: Move to validation
     // HyperProver requires 1 hour (3600 seconds) for processing
     return 3600n;
   }

@@ -62,7 +62,7 @@ export class TraceInterceptor implements NestInterceptor {
             // Add response attributes
             span.setAttributes({
               [SEMATTRS_HTTP_STATUS_CODE]: response.statusCode,
-              'http.response.size': JSON.stringify(data).length,
+              'http.response.size': JSON.stringify(data)?.length,
             });
 
             // Set span status based on HTTP status code

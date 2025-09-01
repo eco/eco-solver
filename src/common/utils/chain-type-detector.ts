@@ -74,26 +74,6 @@ export class ChainTypeDetector {
   }
 
   /**
-   * Checks if a chain ID follows EVM conventions
-   * EVM chain IDs are typically positive integers within reasonable ranges
-   *
-   * @param chainId - Numeric chain ID
-   * @returns true if likely an EVM chain
-   */
-  private static isLikelyEvmChainId(chainId: number): boolean {
-    // EVM chain IDs are typically:
-    // - Positive integers
-    // - Less than 2^32 (4,294,967,296)
-    // - Not in the TVM reserved range
-    return (
-      Number.isInteger(chainId) &&
-      chainId > 0 &&
-      chainId < 4_294_967_296 &&
-      !CHAIN_TYPE_MAPPINGS.TVM_CHAIN_IDS.includes(chainId)
-    );
-  }
-
-  /**
    * Gets the native address format for a chain type
    *
    * @param chainType - The chain type
@@ -135,21 +115,22 @@ export class ChainTypeDetector {
   }
 
   /**
-   * Gets supported chains for a given chain type
+   * Checks if a chain ID follows EVM conventions
+   * EVM chain IDs are typically positive integers within reasonable ranges
    *
-   * @param chainType - The chain type to query
-   * @returns Array of supported chain IDs or network identifiers
+   * @param chainId - Numeric chain ID
+   * @returns true if likely an EVM chain
    */
-  static getSupportedChains(chainType: ChainType): (number | string)[] {
-    switch (chainType) {
-      case ChainType.EVM:
-        return [...CHAIN_TYPE_MAPPINGS.EVM_CHAIN_IDS];
-      case ChainType.TVM:
-        return [...CHAIN_TYPE_MAPPINGS.TVM_CHAIN_IDS];
-      case ChainType.SVM:
-        return [...CHAIN_TYPE_MAPPINGS.SVM_NETWORKS];
-      default:
-        return [];
-    }
+  private static isLikelyEvmChainId(chainId: number): boolean {
+    // EVM chain IDs are typically:
+    // - Positive integers
+    // - Less than 2^32 (4,294,967,296)
+    // - Not in the TVM reserved range
+    return (
+      Number.isInteger(chainId) &&
+      chainId > 0 &&
+      chainId < 4_294_967_296 &&
+      !CHAIN_TYPE_MAPPINGS.TVM_CHAIN_IDS.includes(chainId)
+    );
   }
 }

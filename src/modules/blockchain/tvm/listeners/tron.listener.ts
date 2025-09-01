@@ -4,12 +4,13 @@ import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
-import { BlockchainConfigService } from '@/modules/config/services';
+import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -28,11 +29,10 @@ export class TronListener extends BaseChainListener {
   constructor(
     private readonly config: TvmNetworkConfig,
     private readonly transactionSettings: TvmTransactionSettings,
-    private readonly utilsService: TvmUtilsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    private readonly blockchainConfigService: BlockchainConfigService,
+    private readonly tvmConfigService: TvmConfigService,
   ) {
     super();
     // Context is already set by the manager when creating the logger instance
@@ -67,7 +67,7 @@ export class TronListener extends BaseChainListener {
    * Starts the blockchain listener for monitoring new intents
    */
   async start(): Promise<void> {
-    const portalAddress = this.blockchainConfigService.getPortalAddress(this.config.chainId);
+    const portalAddress = this.tvmConfigService.getPortalAddress(this.config.chainId);
     if (!portalAddress) {
       throw new Error(`No Portal address configured for chain ${this.config.chainId}`);
     }
@@ -143,19 +143,18 @@ export class TronListener extends BaseChainListener {
       const blocksProcessed = currentBlockNumber - this.lastBlockNumber;
       this.blocksProcessedHistogram.record(blocksProcessed, attributes);
 
-      const portalAddress = this.blockchainConfigService.getPortalAddress(this.config.chainId);
-      // Convert address to hex for event filtering
-      const hexPortalAddress = portalAddress.startsWith('T')
-        ? this.utilsService.toHex(portalAddress)
-        : portalAddress;
+      const portalAddress = this.tvmConfigService.getPortalAddress(this.config.chainId);
 
       // Get events from the last processed block to current
-      const events = await client.event.getEventsByContractAddress(hexPortalAddress, {
-        onlyConfirmed: true,
-        minBlockTimestamp: this.lastBlockNumber,
-        orderBy: 'block_timestamp,asc',
-        limit: 200,
-      });
+      const events = await client.event.getEventsByContractAddress(
+        TvmUtilsService.toHex(portalAddress),
+        {
+          onlyConfirmed: true,
+          minBlockTimestamp: this.lastBlockNumber,
+          orderBy: 'block_timestamp,asc',
+          limit: 200,
+        },
+      );
 
       const eventCount = events && Array.isArray(events) ? events.length : 0;
       if (eventCount > 0) {
@@ -201,38 +200,32 @@ export class TronListener extends BaseChainListener {
       },
     });
 
-    // Helper to serialize objects with BigInt
-    const serializeWithBigInt = (obj: any) =>
-      JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value));
-
-    this.logger.log(serializeWithBigInt(event));
-
     try {
       // Parse event result
       const result = event.result;
 
-      // Decode route based on destination chain type
+      // Decode route based on destination chain type - already returns Intent format
       const destChainType = ChainTypeDetector.detect(BigInt(result.destination));
       const route = PortalEncoder.decodeFromChain(
         Buffer.from(result.route, 'hex'),
         destChainType,
         'route',
-      ) as any;
+      );
 
-      // Construct intent from Portal event data
+      // Construct intent from Portal event data with normalized addresses
       const intent = {
         intentHash: result.hash,
         destination: BigInt(result.destination),
-        route: {
-          salt: route.salt,
-          deadline: route.deadline,
-          portal: route.portal,
-          tokens: route.tokens || [],
-          calls: route.calls || [],
-        },
+        route, // Already in Intent format with UniversalAddress from PortalEncoder
         reward: {
-          creator: this.utilsService.fromHex(result.creator),
-          prover: this.utilsService.fromHex(result.prover),
+          creator: AddressNormalizer.normalize(
+            TvmUtilsService.fromHex(result.creator),
+            ChainType.TVM,
+          ),
+          prover: AddressNormalizer.normalize(
+            TvmUtilsService.fromHex(result.prover),
+            ChainType.TVM,
+          ),
           deadline: BigInt(result.rewardDeadline),
           nativeAmount: BigInt(result.nativeAmount),
           tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens) : [],
@@ -266,26 +259,14 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private parseTokenArray(tokens: any[]): Array<{ token: string; amount: bigint }> {
+  private parseTokenArray(tokens: any[]): Array<{ token: any; amount: bigint }> {
     if (!tokens || !Array.isArray(tokens)) {
       return [];
     }
 
     return tokens.map((token) => ({
-      token: this.utilsService.fromHex(token.token),
+      token: AddressNormalizer.normalize(TvmUtilsService.fromHex(token.token), ChainType.TVM),
       amount: BigInt(token.amount),
-    }));
-  }
-
-  private parseCallArray(calls: any[]): Array<{ target: string; value: bigint; data: string }> {
-    if (!calls || !Array.isArray(calls)) {
-      return [];
-    }
-
-    return calls.map((call) => ({
-      target: this.utilsService.fromHex(call.target),
-      value: BigInt(call.value),
-      data: call.data,
     }));
   }
 }

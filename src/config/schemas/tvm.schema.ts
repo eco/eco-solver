@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
+import { TronAddress } from '@/modules/blockchain/tvm/types';
+
+const TronAddressSchema = z
+  .string()
+  .regex(/^T[a-zA-Z0-9]{33}$/)
+  .transform((value) => value as TronAddress);
 
 /**
  * TVM network RPC configuration schema
@@ -22,7 +28,7 @@ export const TvmRpcSchema = z.object({
  * TVM token configuration schema
  */
 const TvmTokenSchema = z.object({
-  address: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Tron address format
+  address: TronAddressSchema, // Tron address format
   decimals: z.number().int().min(0).max(18),
   limit: z
     .union([
@@ -61,12 +67,9 @@ const TvmNetworkSchema = z.object({
   rpc: TvmRpcSchema,
   tokens: z.array(TvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
-  provers: z.record(
-    z.enum(['hyper', 'metalayer'] as const),
-    z.string().regex(/^T[a-zA-Z0-9]{33}$/),
-  ),
+  provers: z.record(z.enum(['hyper', 'metalayer'] as const), TronAddressSchema),
   contracts: z.object({
-    portal: z.string().regex(/^T[a-zA-Z0-9]{33}$/), // Portal contract address
+    portal: TronAddressSchema, // Portal contract address
     // Add TVM-specific contracts here if needed
   }),
 });

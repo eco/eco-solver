@@ -10,10 +10,3 @@ export interface EvmChainConfig extends ChainConfig {
   chainId: number;
   portalAddress: Address;
 }
-
-export interface SolanaChainConfig extends ChainConfig {
-  chainType: 'SVM';
-  chainId: string;
-  secretKey: number[];
-  programId: string;
-}

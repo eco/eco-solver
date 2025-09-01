@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import {
   TvmNetworkConfig,
   TvmTokenConfig,
@@ -8,7 +10,7 @@ import {
   TvmWalletsConfig,
 } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
-import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
+import { TronAddress } from '@/modules/blockchain/tvm/types';
 
 @Injectable()
 export class TvmConfigService {
@@ -55,22 +57,20 @@ export class TvmConfigService {
     return network.tokens;
   }
 
-  isTokenSupported(chainId: number | string | bigint, tokenAddress: string): boolean {
+  isTokenSupported(chainId: number | string | bigint, tokenAddress: UniversalAddress): boolean {
     const tokens = this.getSupportedTokens(chainId);
     // Normalize the input address to Base58 format for comparison
-    const normalizedAddress = TvmUtilsService.normalizeAddressToBase58(tokenAddress);
-    return tokens.some(
-      (token) => TvmUtilsService.normalizeAddressToBase58(token.address) === normalizedAddress,
-    );
+    const normalizedAddress = AddressNormalizer.denormalizeToTvm(tokenAddress);
+    return tokens.some((token) => token.address === normalizedAddress);
   }
 
-  getTokenConfig(chainId: bigint | number | string, tokenAddress: string): TvmTokenConfig {
+  getTokenConfig(
+    chainId: bigint | number | string,
+    tokenAddress: UniversalAddress,
+  ): TvmTokenConfig {
     const tokens = this.getSupportedTokens(chainId);
-    // Normalize the input address to Base58 format for comparison
-    const normalizedAddress = TvmUtilsService.normalizeAddressToBase58(tokenAddress);
-    const tokenConfig = tokens.find(
-      (token) => TvmUtilsService.normalizeAddressToBase58(token.address) === normalizedAddress,
-    );
+    const denormalizedAddress = AddressNormalizer.denormalizeToTvm(tokenAddress);
+    const tokenConfig = tokens.find((token) => token.address === denormalizedAddress);
     if (!tokenConfig) {
       throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
     }
@@ -82,27 +82,23 @@ export class TvmConfigService {
     return network.fee;
   }
 
-  private initializeNetworks(): void {
-    const networks = this.configService.get<TvmNetworkConfig[]>('tvm.networks', []);
-    for (const network of networks) {
-      this._networks.set(network.chainId, network);
-    }
-  }
-
   isConfigured(): boolean {
     // Check if TVM configuration exists with at least one network
     const tvmConfig = this.configService.get('tvm');
     return !!(tvmConfig && this._networks.size > 0);
   }
 
-  getPortalAddress(chainId: number | string | bigint): string {
+  getPortalAddress(chainId: number | string | bigint): TronAddress {
     const network = this.getChain(chainId);
-    return network.contracts.portal;
+    return network.contracts.portal as TronAddress;
   }
 
-  getProverAddress(chainId: number | string | bigint, proverType: 'hyper' | 'metalayer'): string | undefined {
+  getProverAddress(
+    chainId: number | string | bigint,
+    proverType: 'hyper' | 'metalayer',
+  ): TronAddress | undefined {
     const network = this.getChain(chainId);
-    return network.provers?.[proverType];
+    return network.provers?.[proverType] as TronAddress;
   }
 
   /**
@@ -111,10 +107,17 @@ export class TvmConfigService {
    */
   getTransactionSettings(): TvmTransactionSettings {
     return this.configService.get<TvmTransactionSettings>('tvm.transactionSettings', {
-      defaultFeeLimit: 150000000,
+      defaultFeeLimit: 150_000_000,
       maxTransactionAttempts: 30,
       transactionCheckInterval: 2000,
       listenerPollInterval: 3000,
     });
+  }
+
+  private initializeNetworks(): void {
+    const networks = this.configService.get<TvmNetworkConfig[]>('tvm.networks', []);
+    for (const network of networks) {
+      this._networks.set(network.chainId, network);
+    }
   }
 }

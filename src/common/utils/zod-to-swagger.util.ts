@@ -1,6 +1,8 @@
 import { extendApi } from '@anatine/zod-openapi';
 import { z } from 'zod';
 
+import { EvmAddressSchema } from '@/config/schemas';
+
 /**
  * Helper to create a Zod schema with BigInt string transformation and proper OpenAPI metadata
  */
@@ -19,7 +21,7 @@ export function zodBigIntString(description?: string) {
  * Helper to create an Ethereum address schema with validation
  */
 export function zodAddress(description?: string) {
-  return extendApi(z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'), {
+  return extendApi(EvmAddressSchema, {
     type: 'string',
     pattern: '^0x[a-fA-F0-9]{40}$',
     description: description || 'Ethereum address',

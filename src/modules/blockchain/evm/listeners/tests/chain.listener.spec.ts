@@ -11,18 +11,36 @@ import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { ChainListener } from '../chain.listener';
 
+// Mock AddressNormalizer at module level
+jest.mock('@/common/utils/address-normalizer', () => ({
+  AddressNormalizer: {
+    normalize: jest.fn((address) => {
+      // Return a mock UniversalAddress format (66 chars)
+      const cleanAddress = address.replace('0x', '').toUpperCase();
+      // Ensure the address part is exactly 40 chars and pad the result to 66 chars total
+      const paddedAddress = cleanAddress.padEnd(40, '0').substring(0, 40);
+      return `0x00000000000000000000000${paddedAddress}0001`;
+    }),
+  },
+}));
+
 // Mock PortalEncoder at module level
 jest.mock('@/common/utils/portal-encoder', () => ({
   PortalEncoder: {
     decodeFromChain: jest.fn().mockReturnValue({
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
       deadline: 1234567890n,
-      portal: '0xPortalAddress',
+      portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
       nativeAmount: 0n,
-      tokens: [{ token: '0xRouteToken1', amount: 300n }],
+      tokens: [
+        {
+          token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
+          amount: 300n,
+        },
+      ],
       calls: [
         {
-          target: '0xTarget1',
+          target: '0x000000000000000000000000TARGET10000000000000000000000000000000000000001',
           data: '0xData1',
           value: 0n,
         },
@@ -145,12 +163,17 @@ describe('ChainListener', () => {
           route: {
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
             deadline: 1234567890n,
-            portal: '0xPortalAddress',
+            portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
             nativeAmount: 0n,
-            tokens: [{ token: '0xRouteToken1', amount: 300n }],
+            tokens: [
+              {
+                token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
+                amount: 300n,
+              },
+            ],
             calls: [
               {
-                target: '0xTarget1',
+                target: '0x000000000000000000000000TARGET10000000000000000000000000000000000000001',
                 data: '0xData1',
                 value: 0n,
               },
@@ -158,12 +181,18 @@ describe('ChainListener', () => {
           },
           reward: {
             deadline: 1234567890n,
-            creator: '0xCreatorAddress',
-            prover: '0xProverAddress',
+            creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
+            prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
             nativeAmount: 1000000000000000000n,
             tokens: [
-              { token: '0xToken1', amount: 100n },
-              { token: '0xToken2', amount: 200n },
+              {
+                token: '0x00000000000000000000000TOKEN100000000000000000000000000000000000001',
+                amount: 100n,
+              },
+              {
+                token: '0x00000000000000000000000TOKEN200000000000000000000000000000000000001',
+                amount: 200n,
+              },
             ],
           },
           sourceChainId: 1n,
@@ -220,14 +249,20 @@ describe('ChainListener', () => {
 
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
-      // Mock PortalEncoder to return empty calls
+      // Mock PortalEncoder to return Intent format with UniversalAddress
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const mockPortalEncoder = require('@/common/utils/portal-encoder');
       mockPortalEncoder.PortalEncoder.decodeFromChain.mockReturnValueOnce({
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
         deadline: 1234567890n,
-        portal: '0xPortalAddress',
+        portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
         nativeAmount: 0n,
-        tokens: [{ token: '0xRouteToken1', amount: 300n }],
+        tokens: [
+          {
+            token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
+            amount: 300n,
+          },
+        ],
         calls: [],
       });
 
@@ -294,7 +329,7 @@ describe('ChainListener', () => {
 
   describe('configuration', () => {
     it('should use correct portal address from blockchain config service', async () => {
-      const customPortalAddress = '0xCustomPortal';
+      const customPortalAddress = '0xCustomPortal' as any;
       blockchainConfigService.getPortalAddress.mockReturnValue(customPortalAddress);
 
       await listener.start();

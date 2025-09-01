@@ -3,10 +3,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
-import { Route } from '@/common/abis/portal.abi';
+// Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import {
   BlockchainConfigService,
@@ -67,31 +68,27 @@ export class SolanaListener extends BaseChainListener {
     // Parse Solana Portal program logs to extract intent data
     const intentData = this.parseIntentFromLogs(event.logs);
 
-    // Decode route based on destination chain type
+    // Decode route based on destination chain type - already returns Intent format
     const destChainType = ChainTypeDetector.detect(BigInt(intentData.destination));
     const route = PortalEncoder.decodeFromChain(
       Buffer.from(intentData.route, 'hex'),
       destChainType,
       'route',
-    ) as Route;
+    );
 
     return {
       intentHash: intentData.intentHash,
       destination: BigInt(intentData.destination),
-      route: {
-        salt: route.salt,
-        deadline: route.deadline,
-        portal: route.portal,
-        nativeAmount: BigInt(route.nativeAmount || 0),
-        tokens: route.tokens || [],
-        calls: route.calls || [],
-      },
+      route, // Already in Intent format with UniversalAddress from PortalEncoder
       reward: {
         deadline: BigInt(intentData.rewardDeadline),
-        creator: intentData.creator as `0x${string}`,
-        prover: intentData.prover as `0x${string}`,
+        creator: AddressNormalizer.normalize(intentData.creator, ChainType.SVM),
+        prover: AddressNormalizer.normalize(intentData.prover, ChainType.SVM),
         nativeAmount: BigInt(intentData.rewardNativeAmount || 0),
-        tokens: intentData.rewardTokens || [],
+        tokens: (intentData.rewardTokens || []).map((token) => ({
+          amount: token.amount,
+          token: AddressNormalizer.normalize(token.token, ChainType.SVM),
+        })),
       },
       sourceChainId: BigInt('999999999'), // Solana chain ID placeholder
       status: IntentStatus.PENDING,

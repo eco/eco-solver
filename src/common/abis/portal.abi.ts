@@ -1,4 +1,4 @@
-import { Address, getAbiItem, Hex } from 'viem';
+import { getAbiItem, Hex } from 'viem';
 
 /**
  * Portal Contract ABI Definition
@@ -2426,41 +2426,9 @@ export const VAULT_IMPLEMENTATION_BYTECODE_HASH: Hex =
   '0x0000000000000000000000000000000000000000000000000000000000000000'; // PLACEHOLDER
 
 /**
- * Type definitions for Portal data structures
+ * Portal ABI Item exports for type extraction
+ * The actual type definitions are in intent.interface.ts and blockchain-intents.ts
  */
-export interface TokenAmount {
-  token: Address;
-  amount: bigint;
-}
-
-export interface Call {
-  target: Address;
-  data: Hex;
-  value: bigint;
-}
-
-export interface Route {
-  salt: Hex;
-  deadline: bigint;
-  nativeAmount: bigint;
-  portal: Address;
-  tokens: TokenAmount[];
-  calls: Call[];
-}
-
-export interface Reward {
-  deadline: bigint;
-  creator: Address;
-  prover: Address;
-  nativeAmount: bigint;
-  tokens: TokenAmount[];
-}
-
-export interface PortalIntent {
-  destination: bigint;
-  route: Route;
-  reward: Reward;
-}
 
 export const [, EVMRouteAbiItem, EVMRewardAbiItem] = getAbiItem({
   abi: PortalAbi,

@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 
@@ -23,16 +25,19 @@ export class BlockchainConfigService {
    * Gets the Portal address for any chain ID
    * Automatically detects chain type and retrieves from appropriate config
    */
-  getPortalAddress(chainId: bigint | number | string): string {
+  getPortalAddress(chainId: bigint | number | string): UniversalAddress {
     const chainType = ChainTypeDetector.detect(chainId);
 
     switch (chainType) {
       case ChainType.EVM:
-        return this.evmConfig.getPortalAddress(Number(chainId));
+        return AddressNormalizer.normalize(
+          this.evmConfig.getPortalAddress(Number(chainId)),
+          ChainType.EVM,
+        );
       case ChainType.TVM:
-        return this.tvmConfig.getPortalAddress(chainId);
+        return AddressNormalizer.normalize(this.tvmConfig.getPortalAddress(chainId), ChainType.TVM);
       case ChainType.SVM:
-        return this.solanaConfig.portalProgramId;
+        return AddressNormalizer.normalize(this.solanaConfig.portalProgramId as any, ChainType.SVM);
       default:
         throw new Error(`Unsupported chain type for chain ID: ${chainId}`);
     }
@@ -161,14 +166,18 @@ export class BlockchainConfigService {
   getProverAddress(
     chainId: bigint | number | string,
     proverType: 'hyper' | 'metalayer',
-  ): string | undefined {
+  ): UniversalAddress | undefined {
     const chainType = ChainTypeDetector.detect(chainId);
 
     switch (chainType) {
-      case ChainType.EVM:
-        return this.evmConfig.getProverAddress(Number(chainId), proverType);
-      case ChainType.TVM:
-        return this.tvmConfig.getProverAddress(chainId, proverType);
+      case ChainType.EVM: {
+        const addr = this.evmConfig.getProverAddress(Number(chainId), proverType);
+        return addr ? AddressNormalizer.normalizeEvm(addr) : undefined;
+      }
+      case ChainType.TVM: {
+        const addr = this.tvmConfig.getProverAddress(chainId, proverType);
+        return addr ? AddressNormalizer.normalizeTvm(addr) : undefined;
+      }
       case ChainType.SVM:
         // Solana doesn't have prover contracts in current configuration
         return undefined;

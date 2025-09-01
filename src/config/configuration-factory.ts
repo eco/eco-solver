@@ -30,12 +30,12 @@ export const configurationFactory = async () => {
   mergedConfig = merge({}, yamlConfiguration, envConfiguration);
 
   // Check if AWS secrets should be loaded
-  const useAwsSecrets = Boolean((mergedConfig as any).aws?.secretName);
+  const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);
 
   if (useAwsSecrets) {
     const awsSecretsService = new AwsSecretsService();
 
-    const awsConfig = AwsSchema.parse((mergedConfig as any).aws);
+    const awsConfig = AwsSchema.parse(mergedConfig.aws);
 
     // Fetch secrets from AWS using the merged config
     const secrets = await awsSecretsService.getSecrets(awsConfig);
@@ -47,7 +47,7 @@ export const configurationFactory = async () => {
     mergedConfig = merge({}, mergedConfig, nestedSecrets);
   }
 
-  if (!(mergedConfig as any).skipEcoPackageConfig) {
+  if (!mergedConfig.skipEcoPackageConfig) {
     const npmPackageConfig = getEcoNpmPackageConfig(mergedConfig);
 
     mergedConfig = merge({}, mergedConfig, npmPackageConfig);

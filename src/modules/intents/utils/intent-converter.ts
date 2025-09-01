@@ -1,6 +1,7 @@
 import { Hex } from 'viem';
 
 import { Intent as IntentInterface } from '@/common/interfaces/intent.interface';
+import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { Intent as IntentSchema } from '@/modules/intents/schemas/intent.schema';
 
 export class IntentConverter {
@@ -42,28 +43,28 @@ export class IntentConverter {
     return {
       intentHash: schema.intentHash as Hex,
       reward: {
-        prover: schema.reward.prover as `0x${string}`,
-        creator: schema.reward.creator as `0x${string}`,
+        prover: toUniversalAddress(schema.reward.prover),
+        creator: toUniversalAddress(schema.reward.creator),
         deadline: BigInt(schema.reward.deadline),
         nativeAmount: BigInt(schema.reward.nativeAmount),
         tokens: schema.reward.tokens.map((token) => ({
           amount: BigInt(token.amount),
-          token: token.token as `0x${string}`,
+          token: toUniversalAddress(token.token),
         })),
       },
       route: {
         salt: schema.route.salt as `0x${string}`,
         deadline: schema.route.deadline,
-        portal: schema.route.inbox as `0x${string}`,
+        portal: toUniversalAddress(schema.route.inbox),
         nativeAmount: schema.route.nativeAmount,
         calls: schema.route.calls.map((call) => ({
           data: call.data as `0x${string}`,
-          target: call.target as `0x${string}`,
+          target: toUniversalAddress(call.target),
           value: BigInt(call.value),
         })),
         tokens: schema.route.tokens.map((token) => ({
           amount: BigInt(token.amount),
-          token: token.token as `0x${string}`,
+          token: toUniversalAddress(token.token),
         })),
       },
       destination: BigInt(schema.route.destination),

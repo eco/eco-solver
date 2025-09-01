@@ -1,23 +1,23 @@
 import { TronWeb } from 'tronweb';
-import { Abi, ContractFunctionName, erc20Abi, getAbiItem, toFunctionSignature } from 'viem';
+import { Abi, ContractFunctionName, getAbiItem, toFunctionSignature } from 'viem';
 
-import { BaseTvmWallet } from '@/common/abstractions/base-tvm-wallet.abstract';
 import {
   ContractFunctionParameter,
+  ITvmWallet,
   TvmTransactionOptions,
 } from '@/common/interfaces/tvm-wallet.interface';
 import { TvmTransactionSettings } from '@/config/schemas';
+import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
-export class BasicWallet extends BaseTvmWallet {
+export class BasicWallet implements ITvmWallet {
   constructor(
     public readonly tronWeb: TronWeb,
     private readonly transactionSettings: TvmTransactionSettings,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {
-    super();
     this.logger.setContext('TvmBasicWallet');
   }
 
@@ -25,63 +25,12 @@ export class BasicWallet extends BaseTvmWallet {
    * Gets the wallet address in base58 format
    * @returns The wallet address
    */
-  async getAddress(): Promise<string> {
+  async getAddress(): Promise<TronAddress> {
     const address = this.tronWeb.defaultAddress.base58;
     if (!address) {
       throw new Error('No default address set in TronWeb instance');
     }
-    return address;
-  }
-
-  /**
-   * Sends TRX (native token) to an address
-   * @param to - The recipient address
-   * @param amount - The amount in SUN to send
-   * @returns The transaction ID
-   */
-  async sendTrx(to: string, amount: bigint): Promise<string> {
-    const span = this.otelService.startSpan('tvm.wallet.sendTrx', {
-      attributes: {
-        'tvm.to_address': to,
-        'tvm.amount': amount.toString(),
-        'tvm.operation': 'sendTrx',
-      },
-    });
-
-    try {
-      const fromAddress = await this.getAddress();
-      span.setAttribute('tvm.from_address', fromAddress);
-
-      // Build transaction
-      const transaction = await this.tronWeb.transactionBuilder.sendTrx(
-        to,
-        Number(amount), // TronWeb expects number for TRX amount
-        fromAddress,
-      );
-
-      // Sign transaction
-      const signedTransaction = await this.tronWeb.trx.sign(transaction);
-
-      // Broadcast transaction
-      const result = await this.tronWeb.trx.sendRawTransaction(signedTransaction);
-
-      if (!result.result) {
-        throw new Error(`Transaction failed: ${result.message || 'Unknown error'}`);
-      }
-
-      const txId = result.txid;
-      span.setAttribute('tvm.transaction_id', txId);
-      span.setStatus({ code: 0 }); // OK
-
-      this.logger.log(`TRX transfer sent: ${txId}`);
-      return txId;
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: error.message }); // ERROR
-      throw error;
-    } finally {
-      span.end();
-    }
+    return address as TronAddress;
   }
 
   /**
@@ -168,39 +117,5 @@ export class BasicWallet extends BaseTvmWallet {
     } finally {
       span.end();
     }
-  }
-
-  /**
-   * Helper method to approve TRC20 tokens
-   */
-  async approveTrc20(
-    tokenAddress: string,
-    spenderAddress: string,
-    amount: bigint,
-    options?: TvmTransactionOptions,
-  ): Promise<string> {
-    const parameter = [
-      { type: 'address', value: TronWeb.address.toHex(spenderAddress) },
-      { type: 'uint256', value: amount.toString() },
-    ];
-
-    return this.triggerSmartContract(tokenAddress, erc20Abi, 'approve', parameter, options);
-  }
-
-  /**
-   * Helper method to transfer TRC20 tokens
-   */
-  async transferTrc20(
-    tokenAddress: string,
-    toAddress: string,
-    amount: bigint,
-    options?: TvmTransactionOptions,
-  ): Promise<string> {
-    const parameter = [
-      { type: 'address', value: TronWeb.address.toHex(toAddress) },
-      { type: 'uint256', value: amount.toString() },
-    ];
-
-    return this.triggerSmartContract(tokenAddress, erc20Abi, 'transfer', parameter, options);
   }
 }

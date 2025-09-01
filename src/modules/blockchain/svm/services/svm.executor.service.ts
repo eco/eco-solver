@@ -9,14 +9,16 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { Address, Hex } from 'viem';
+import { Hex } from 'viem';
 
-import { Reward, Route } from '@/common/abis/portal.abi';
+// Types for route and reward are now from the SVMIntent conversion
 import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -55,7 +57,6 @@ export class SvmExecutorService extends BaseChainExecutor {
       }
       const sourceChainId = intent.sourceChainId;
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
-      const destChainType = ChainTypeDetector.detect(intent.destination);
 
       // Get prover and generate proof data
       const prover = this.proverService.getProver(Number(sourceChainId), intent.reward.prover);
@@ -66,22 +67,10 @@ export class SvmExecutorService extends BaseChainExecutor {
       const proverAddr = prover.getContractAddress(Number(intent.destination));
       const proofData = await prover.generateProof(intent);
 
-      // Calculate Portal hashes
-      const intentHash = PortalHashUtils.computeIntentHash(
-        intent.destination,
-        intent.route as Route,
-        intent.reward as Reward,
-        sourceChainType,
-        destChainType,
-      );
-
-      const rewardHash = PortalHashUtils.computeRewardHash(
-        intent.reward as Reward,
-        sourceChainType,
-      );
+      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, sourceChainType);
 
       // Derive PDAs (Program Derived Addresses)
-      const intentHashBuffer = Buffer.from(intentHash.slice(2), 'hex');
+      const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
 
       const [vaultPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('vault'), intentHashBuffer],
@@ -98,8 +87,8 @@ export class SvmExecutorService extends BaseChainExecutor {
         this.portalProgramId,
       );
 
-      // Encode route for Solana using SVM encoding
-      const routeEncoded = PortalEncoder.encodeForChain(intent.route as Route, ChainType.SVM);
+      // Encode route for Solana using SVM encoding - pass Intent route directly
+      const routeEncoded = PortalEncoder.encodeForChain(intent.route, ChainType.SVM);
 
       // Build Portal fulfillAndProve instruction
       const instruction = new TransactionInstruction({
@@ -154,8 +143,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     return BigInt(balance);
   }
 
-  getWalletAddress(): Promise<Address> {
-    return Promise.resolve(this.keypair.publicKey.toString() as Address);
+  async getWalletAddress(): Promise<UniversalAddress> {
+    return AddressNormalizer.normalizeSvm(this.keypair.publicKey.toString());
   }
 
   async isTransactionConfirmed(txHash: string, _chainId: number): Promise<boolean> {

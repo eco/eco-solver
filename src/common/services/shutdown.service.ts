@@ -1,5 +1,4 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -7,10 +6,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 export class ShutdownService implements OnModuleDestroy {
   private shutdownTimeout = 30000; // 30 seconds default
 
-  constructor(
-    private moduleRef: ModuleRef,
-    private readonly logger: SystemLoggerService,
-  ) {
+  constructor(private readonly logger: SystemLoggerService) {
     this.logger.setContext(ShutdownService.name);
   }
 

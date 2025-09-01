@@ -3,13 +3,16 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi, pad } from 'viem';
 
-import { PortalAbi, Reward } from '@/common/abis/portal.abi';
+import { PortalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { toEVMIntent } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -56,7 +59,8 @@ export class EvmExecutorService extends BaseChainExecutor {
       const wallet = this.walletManager.getWallet(walletId, destinationChainId);
 
       // TODO: Claimant must be set depending on the source chain
-      const claimant = pad(await wallet.getAddress());
+      const claimant = await wallet.getAddress();
+      const normalizedClaimant = AddressNormalizer.normalizeEvm(claimant);
       span.setAttribute('evm.claimant_address', claimant);
 
       // Get Portal address for a destination chain from config
@@ -65,13 +69,22 @@ export class EvmExecutorService extends BaseChainExecutor {
         throw new Error(`No Portal address configured for chain ${destinationChainId}`);
       }
 
+      // Denormalize prover address for use with ProverService
       const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
       if (!prover) {
         throw new Error('Prover not found.');
       }
 
-      const proverAddr = prover.getContractAddress(destinationChainId);
-      const proverFee = await prover.getFee(intent, claimant);
+      // TODO: Domain ID must be provided by the prover service
+      const sourceDomainId = BigInt(sourceChainId);
+
+      const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, sourceChainType);
+
+      const proverAddr = AddressNormalizer.denormalizeToEvm(
+        prover.getContractAddress(destinationChainId),
+      );
+      const proverFee = await prover.getFee(intent, normalizedClaimant);
       const proofData = await prover.generateProof(intent);
 
       span.setAttributes({
@@ -81,15 +94,8 @@ export class EvmExecutorService extends BaseChainExecutor {
         'evm.proof_data_length': proofData.length,
       });
 
-      // Calculate Portal hashes
-      const sourceChainType = ChainTypeDetector.detect(sourceChainId);
-      const rewardHash = PortalHashUtils.computeRewardHash(
-        intent.reward as Reward,
-        sourceChainType,
-      );
-
       const approvalTxs = intent.route.tokens.map(({ token, amount }) => ({
-        to: token,
+        to: AddressNormalizer.denormalizeToEvm(token),
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
@@ -99,6 +105,8 @@ export class EvmExecutorService extends BaseChainExecutor {
 
       span.setAttribute('evm.approval_count', approvalTxs.length);
 
+      const evmIntent = toEVMIntent(intent);
+
       const fulfillTx = {
         to: portalAddress,
         value: proverFee,
@@ -107,11 +115,11 @@ export class EvmExecutorService extends BaseChainExecutor {
           functionName: 'fulfillAndProve',
           args: [
             intent.intentHash,
-            intent.route,
+            evmIntent.route,
             rewardHash,
-            claimant,
-            proverAddr as Address,
-            BigInt(sourceChainId),
+            pad(claimant),
+            proverAddr,
+            sourceDomainId,
             proofData,
           ],
         }),
@@ -177,8 +185,13 @@ export class EvmExecutorService extends BaseChainExecutor {
     return publicClient.getBalance({ address: address as Address });
   }
 
-  async getWalletAddress(walletType: WalletType, chainId: bigint | number): Promise<Address> {
-    return this.walletManager.getWalletAddress(walletType, Number(chainId));
+  async getWalletAddress(
+    walletType: WalletType,
+    chainId: bigint | number,
+  ): Promise<UniversalAddress> {
+    return AddressNormalizer.normalizeEvm(
+      await this.walletManager.getWalletAddress(walletType, Number(chainId)),
+    );
   }
 
   async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
