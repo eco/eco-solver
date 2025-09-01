@@ -34,7 +34,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const config: EvmChainConfig = {
         chainType: 'EVM',
         chainId: network.chainId,
-        portalAddress: this.evmConfigService.getPortalAddress(network.chainId),
+        portalAddress: this.evmConfigService.getEvmPortalAddress(network.chainId),
       };
 
       // Create a new logger instance for each listener to avoid context pollution

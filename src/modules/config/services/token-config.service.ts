@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { EvmTokenConfig, TvmTokenConfig } from '@/config/schemas';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { SolanaConfigService } from '@/modules/config/services/solana-config.service';
 import { TvmConfigService } from '@/modules/config/services/tvm-config.service';
 import { TokenConfig } from '@/modules/token/interfaces/token.interface';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
+
+import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
 
 /**
  * Chain-agnostic token configuration service
@@ -23,6 +23,23 @@ export class TokenConfigService {
   ) {}
 
   /**
+   * Gets the config service for a specific chain type
+   * @private
+   */
+  private getConfigService(chainType: ChainType): IBlockchainConfigService {
+    switch (chainType) {
+      case ChainType.EVM:
+        return this.evmConfig;
+      case ChainType.TVM:
+        return this.tvmConfig;
+      case ChainType.SVM:
+        return this.solanaConfig;
+      default:
+        throw new Error(`Unsupported chain type: ${chainType}`);
+    }
+  }
+
+  /**
    * Checks if a token is supported on a specific chain
    * @param chainId - Chain identifier (number, string, or bigint)
    * @param tokenAddress - Token contract address
@@ -31,19 +48,8 @@ export class TokenConfigService {
   isTokenSupported(chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean {
     try {
       const chainType = ChainTypeDetector.detect(chainId);
-
-      switch (chainType) {
-        case ChainType.EVM:
-          return this.evmConfig.isTokenSupported(Number(chainId), tokenAddress);
-        case ChainType.TVM:
-          return this.tvmConfig.isTokenSupported(chainId, tokenAddress);
-        case ChainType.SVM:
-          // For Solana, we don't have token restrictions in the current config
-          // This can be extended when Solana token configuration is added
-          return true;
-        default:
-          return false;
-      }
+      const configService = this.getConfigService(chainType);
+      return configService.isTokenSupported(chainId, tokenAddress);
     } catch (error) {
       // If chain type cannot be detected or config service throws, token is not supported
       return false;
@@ -60,26 +66,28 @@ export class TokenConfigService {
   getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     try {
       const chainType = ChainTypeDetector.detect(chainId);
+      const configService = this.getConfigService(chainType);
+      const tokenConfig = configService.getTokenConfig(chainId, tokenAddress);
 
-      switch (chainType) {
-        case ChainType.EVM: {
-          const evmToken = this.evmConfig.getTokenConfig(Number(chainId), tokenAddress);
-          return this.mapEvmTokenConfig(evmToken);
-        }
-        case ChainType.TVM: {
-          const tvmToken = this.tvmConfig.getTokenConfig(chainId, tokenAddress);
-          return this.mapTvmTokenConfig(tvmToken);
-        }
-        case ChainType.SVM:
-          // For Solana, return a default configuration
-          // This can be extended when Solana token configuration is added
-          return {
-            address: tokenAddress,
-            decimals: 9, // Default for SPL tokens
+      // Map to TokenConfig interface
+      const config: TokenConfig = {
+        address: tokenConfig.address,
+        decimals: tokenConfig.decimals,
+      };
+
+      if (tokenConfig.limit) {
+        if (typeof tokenConfig.limit === 'number') {
+          // Backward compatibility: single number acts as max
+          config.limit = { max: tokenConfig.limit };
+        } else if (typeof tokenConfig.limit === 'object') {
+          config.limit = {
+            min: tokenConfig.limit.min,
+            max: tokenConfig.limit.max,
           };
-        default:
-          throw new Error(`Unsupported chain type for chain ID: ${chainId}`);
+        }
       }
+
+      return config;
     } catch (error: any) {
       // Re-throw with a more specific error message if it's not a chain config error
       if (error.message?.includes('Cannot determine chain type')) {
@@ -98,74 +106,33 @@ export class TokenConfigService {
   getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
     try {
       const chainType = ChainTypeDetector.detect(chainId);
+      const configService = this.getConfigService(chainType);
+      const tokens = configService.getSupportedTokens(chainId);
 
-      switch (chainType) {
-        case ChainType.EVM: {
-          const evmTokens = this.evmConfig.getSupportedTokens(Number(chainId));
-          return evmTokens.map(this.mapEvmTokenConfig);
+      // Map to TokenConfig interface
+      return tokens.map((token) => {
+        const config: TokenConfig = {
+          address: token.address,
+          decimals: token.decimals,
+        };
+
+        if (token.limit) {
+          if (typeof token.limit === 'number') {
+            // Backward compatibility: single number acts as max
+            config.limit = { max: token.limit };
+          } else if (typeof token.limit === 'object') {
+            config.limit = {
+              min: token.limit.min,
+              max: token.limit.max,
+            };
+          }
         }
-        case ChainType.TVM: {
-          const tvmTokens = this.tvmConfig.getSupportedTokens(chainId);
-          return tvmTokens.map(this.mapTvmTokenConfig);
-        }
-        case ChainType.SVM:
-          // For Solana, return empty array as we don't have token restrictions
-          // This can be extended when Solana token configuration is added
-          return [];
-        default:
-          return [];
-      }
+
+        return config;
+      });
     } catch (error) {
       // If chain is not supported, return empty array
       return [];
     }
-  }
-
-  /**
-   * Maps EVM token configuration to generic TokenConfig
-   */
-  private mapEvmTokenConfig(evmToken: EvmTokenConfig): TokenConfig {
-    const config: TokenConfig = {
-      address: AddressNormalizer.normalizeEvm(evmToken.address),
-      decimals: evmToken.decimals,
-    };
-
-    if (evmToken.limit) {
-      if (typeof evmToken.limit === 'number') {
-        // Backward compatibility: a single number acts as max
-        config.limit = { max: evmToken.limit };
-      } else if (typeof evmToken.limit === 'object') {
-        config.limit = {
-          min: evmToken.limit.min,
-          max: evmToken.limit.max,
-        };
-      }
-    }
-
-    return config;
-  }
-
-  /**
-   * Maps TVM token configuration to generic TokenConfig
-   */
-  private mapTvmTokenConfig(tvmToken: TvmTokenConfig): TokenConfig {
-    const config: TokenConfig = {
-      address: AddressNormalizer.normalizeTvm(tvmToken.address),
-      decimals: tvmToken.decimals,
-    };
-
-    if (tvmToken.limit) {
-      if (typeof tvmToken.limit === 'number') {
-        // Backward compatibility: single number acts as max
-        config.limit = { max: tvmToken.limit };
-      } else if (typeof tvmToken.limit === 'object') {
-        config.limit = {
-          min: tvmToken.limit.min,
-          max: tvmToken.limit.max,
-        };
-      }
-    }
-
-    return config;
   }
 }

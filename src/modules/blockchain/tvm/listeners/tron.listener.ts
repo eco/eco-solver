@@ -143,7 +143,7 @@ export class TronListener extends BaseChainListener {
       const blocksProcessed = currentBlockNumber - this.lastBlockNumber;
       this.blocksProcessedHistogram.record(blocksProcessed, attributes);
 
-      const portalAddress = this.tvmConfigService.getPortalAddress(this.config.chainId);
+      const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
 
       // Get events from the last processed block to current
       const events = await client.event.getEventsByContractAddress(

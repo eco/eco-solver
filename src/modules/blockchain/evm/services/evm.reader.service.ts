@@ -104,7 +104,7 @@ export class EvmReaderService extends BaseChainReader {
 
     try {
       // Get Portal address from config
-      const portalAddress = this.evmConfigService.getPortalAddress(chainId);
+      const portalAddress = this.evmConfigService.getEvmPortalAddress(chainId);
 
       span.setAttributes({
         'portal.address': portalAddress,

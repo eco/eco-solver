@@ -7,9 +7,12 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
+import { ChainIdentifier } from '@/modules/token/types/token.types';
+
+import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
 
 @Injectable()
-export class EvmConfigService {
+export class EvmConfigService implements IBlockchainConfigService {
   constructor(private configService: ConfigService) {
     this._networks = new Map();
     this.initializeNetworks();
@@ -23,6 +26,10 @@ export class EvmConfigService {
 
   get supportedChainIds(): number[] {
     return Array.from(this._networks.keys());
+  }
+
+  getSupportedChainIds(): (number | string)[] {
+    return this.supportedChainIds;
   }
 
   get wallets(): EvmWalletsConfig {
@@ -45,19 +52,56 @@ export class EvmConfigService {
     return network;
   }
 
-  getSupportedTokens(chainId: number | bigint): EvmTokenConfig[] {
+  getSupportedTokens(chainId: ChainIdentifier): Array<{
+    address: UniversalAddress;
+    decimals: number;
+    limit?: number | { min?: number; max?: number };
+  }> {
+    const network = this.getChain(Number(chainId));
+    return network.tokens.map((token) => ({
+      address: AddressNormalizer.normalizeEvm(token.address),
+      decimals: token.decimals,
+      limit: token.limit,
+    }));
+  }
+
+  // Legacy method for backward compatibility
+  getEvmSupportedTokens(chainId: number | bigint): EvmTokenConfig[] {
     const network = this.getChain(Number(chainId));
     return network.tokens;
   }
 
-  isTokenSupported(chainId: number, tokenAddress: UniversalAddress): boolean {
-    const tokens = this.getSupportedTokens(chainId);
+  isTokenSupported(chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean {
+    const tokens = this.getEvmSupportedTokens(Number(chainId));
     const normalizedAddress = AddressNormalizer.denormalizeToEvm(tokenAddress);
     return tokens.some((token) => isAddressEqual(token.address, normalizedAddress));
   }
 
-  getTokenConfig(chainId: bigint | number, tokenAddress: UniversalAddress): EvmTokenConfig {
-    const tokens = this.getSupportedTokens(chainId);
+  getTokenConfig(
+    chainId: ChainIdentifier,
+    tokenAddress: UniversalAddress,
+  ): {
+    address: UniversalAddress;
+    decimals: number;
+    limit?: number | { min?: number; max?: number };
+  } {
+    const tokens = this.getEvmSupportedTokens(Number(chainId));
+    const tokenConfig = tokens.find(
+      (token) => AddressNormalizer.normalizeEvm(token.address) === tokenAddress,
+    );
+    if (!tokenConfig) {
+      throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
+    }
+    return {
+      address: AddressNormalizer.normalizeEvm(tokenConfig.address),
+      decimals: tokenConfig.decimals,
+      limit: tokenConfig.limit,
+    };
+  }
+
+  // Legacy method for backward compatibility
+  getEvmTokenConfig(chainId: bigint | number, tokenAddress: UniversalAddress): EvmTokenConfig {
+    const tokens = this.getEvmSupportedTokens(chainId);
     const tokenConfig = tokens.find(
       (token) => AddressNormalizer.normalizeEvm(token.address) === tokenAddress,
     );
@@ -67,8 +111,8 @@ export class EvmConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: number): AssetsFeeSchemaType {
-    const network = this.getChain(chainId);
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType {
+    const network = this.getChain(Number(chainId));
     return network.fee;
   }
 
@@ -78,12 +122,28 @@ export class EvmConfigService {
     return !!(evmConfig && this._networks.size > 0);
   }
 
-  getPortalAddress(chainId: number): Address {
+  getPortalAddress(chainId: ChainIdentifier): UniversalAddress {
+    const network = this.getChain(Number(chainId));
+    return AddressNormalizer.normalizeEvm(network.contracts.portal as Address);
+  }
+
+  // Legacy method for backward compatibility
+  getEvmPortalAddress(chainId: number): Address {
     const network = this.getChain(chainId);
     return network.contracts.portal as Address;
   }
 
-  getProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {
+  getProverAddress(
+    chainId: ChainIdentifier,
+    proverType: 'hyper' | 'metalayer',
+  ): UniversalAddress | undefined {
+    const network = this.getChain(Number(chainId));
+    const address = network.provers?.[proverType] as Address | undefined;
+    return address ? AddressNormalizer.normalizeEvm(address) : undefined;
+  }
+
+  // Legacy method for backward compatibility
+  getEvmProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {
     const network = this.getChain(chainId);
     return network.provers?.[proverType] as Address | undefined;
   }

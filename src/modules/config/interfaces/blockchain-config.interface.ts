@@ -1,0 +1,72 @@
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
+import { ChainIdentifier } from '@/modules/token/types/token.types';
+
+/**
+ * Common interface for all blockchain configuration services
+ * Provides a unified API for accessing chain-specific configurations
+ */
+export interface IBlockchainConfigService {
+  /**
+   * Checks if the blockchain is properly configured
+   */
+  isConfigured(): boolean;
+
+  /**
+   * Gets the list of supported chain IDs
+   */
+  getSupportedChainIds(): (number | string)[];
+
+  /**
+   * Gets the Portal contract address for the chain
+   * @param chainId Chain identifier
+   */
+  getPortalAddress(chainId: ChainIdentifier): UniversalAddress;
+
+  /**
+   * Gets the list of supported tokens for the chain
+   * @param chainId Chain identifier
+   */
+  getSupportedTokens(chainId: ChainIdentifier): Array<{
+    address: UniversalAddress;
+    decimals: number;
+    limit?: number | { min?: number; max?: number };
+  }>;
+
+  /**
+   * Checks if a token is supported on the chain
+   * @param chainId Chain identifier
+   * @param tokenAddress Token address
+   */
+  isTokenSupported(chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean;
+
+  /**
+   * Gets the configuration for a specific token
+   * @param chainId Chain identifier
+   * @param tokenAddress Token address
+   */
+  getTokenConfig(
+    chainId: ChainIdentifier,
+    tokenAddress: UniversalAddress,
+  ): {
+    address: UniversalAddress;
+    decimals: number;
+    limit?: number | { min?: number; max?: number };
+  };
+
+  /**
+   * Gets the fee configuration for the chain
+   * @param chainId Chain identifier
+   */
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType;
+
+  /**
+   * Gets the prover contract address for the chain
+   * @param chainId Chain identifier
+   * @param proverType Prover type ('hyper' or 'metalayer')
+   */
+  getProverAddress(
+    chainId: ChainIdentifier,
+    proverType: 'hyper' | 'metalayer',
+  ): UniversalAddress | undefined;
+}

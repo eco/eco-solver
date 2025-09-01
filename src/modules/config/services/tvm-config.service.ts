@@ -11,9 +11,12 @@ import {
 } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
+import { ChainIdentifier } from '@/modules/token/types/token.types';
+
+import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
 
 @Injectable()
-export class TvmConfigService {
+export class TvmConfigService implements IBlockchainConfigService {
   constructor(private configService: ConfigService) {
     this._networks = new Map();
     this.initializeNetworks();
@@ -27,6 +30,10 @@ export class TvmConfigService {
 
   get supportedChainIds(): (string | number)[] {
     return Array.from(this._networks.keys());
+  }
+
+  getSupportedChainIds(): (number | string)[] {
+    return this.supportedChainIds;
   }
 
   get wallets(): TvmWalletsConfig {
@@ -51,24 +58,61 @@ export class TvmConfigService {
     return network.rpc;
   }
 
-  getSupportedTokens(chainId: number | bigint | string): TvmTokenConfig[] {
+  getSupportedTokens(chainId: ChainIdentifier): Array<{
+    address: UniversalAddress;
+    decimals: number;
+    limit?: number | { min?: number; max?: number };
+  }> {
+    const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
+    const network = this.getChain(numChainId);
+    return network.tokens.map((token) => ({
+      address: AddressNormalizer.normalizeTvm(token.address),
+      decimals: token.decimals,
+      limit: token.limit,
+    }));
+  }
+
+  // Legacy method for backward compatibility
+  getTvmSupportedTokens(chainId: number | bigint | string): TvmTokenConfig[] {
     const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
     const network = this.getChain(numChainId);
     return network.tokens;
   }
 
-  isTokenSupported(chainId: number | string | bigint, tokenAddress: UniversalAddress): boolean {
-    const tokens = this.getSupportedTokens(chainId);
+  isTokenSupported(chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean {
+    const tokens = this.getTvmSupportedTokens(chainId);
     // Normalize the input address to Base58 format for comparison
     const normalizedAddress = AddressNormalizer.denormalizeToTvm(tokenAddress);
     return tokens.some((token) => token.address === normalizedAddress);
   }
 
   getTokenConfig(
+    chainId: ChainIdentifier,
+    tokenAddress: UniversalAddress,
+  ): {
+    address: UniversalAddress;
+    decimals: number;
+    limit?: number | { min?: number; max?: number };
+  } {
+    const tokens = this.getTvmSupportedTokens(chainId);
+    const denormalizedAddress = AddressNormalizer.denormalizeToTvm(tokenAddress);
+    const tokenConfig = tokens.find((token) => token.address === denormalizedAddress);
+    if (!tokenConfig) {
+      throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
+    }
+    return {
+      address: AddressNormalizer.normalizeTvm(tokenConfig.address),
+      decimals: tokenConfig.decimals,
+      limit: tokenConfig.limit,
+    };
+  }
+
+  // Legacy method for backward compatibility
+  getTvmTokenConfig(
     chainId: bigint | number | string,
     tokenAddress: UniversalAddress,
   ): TvmTokenConfig {
-    const tokens = this.getSupportedTokens(chainId);
+    const tokens = this.getTvmSupportedTokens(chainId);
     const denormalizedAddress = AddressNormalizer.denormalizeToTvm(tokenAddress);
     const tokenConfig = tokens.find((token) => token.address === denormalizedAddress);
     if (!tokenConfig) {
@@ -77,7 +121,7 @@ export class TvmConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: number | string | bigint): AssetsFeeSchemaType {
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType {
     const network = this.getChain(chainId);
     return network.fee;
   }
@@ -88,12 +132,28 @@ export class TvmConfigService {
     return !!(tvmConfig && this._networks.size > 0);
   }
 
-  getPortalAddress(chainId: number | string | bigint): TronAddress {
+  getPortalAddress(chainId: ChainIdentifier): UniversalAddress {
+    const network = this.getChain(chainId);
+    return AddressNormalizer.normalizeTvm(network.contracts.portal as TronAddress);
+  }
+
+  // Legacy method for backward compatibility
+  getTvmPortalAddress(chainId: number | string | bigint): TronAddress {
     const network = this.getChain(chainId);
     return network.contracts.portal as TronAddress;
   }
 
   getProverAddress(
+    chainId: ChainIdentifier,
+    proverType: 'hyper' | 'metalayer',
+  ): UniversalAddress | undefined {
+    const network = this.getChain(chainId);
+    const address = network.provers?.[proverType] as TronAddress | undefined;
+    return address ? AddressNormalizer.normalizeTvm(address) : undefined;
+  }
+
+  // Legacy method for backward compatibility
+  getTvmProverAddress(
     chainId: number | string | bigint,
     proverType: 'hyper' | 'metalayer',
   ): TronAddress | undefined {
